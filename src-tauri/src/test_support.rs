@@ -65,7 +65,6 @@ fn write_sandbox_config(
         wb,
         Some(clones),
         Some(cache),
-        "http://127.0.0.1:17700",
         ports.0,
         ports.1,
     )
@@ -359,7 +358,6 @@ fn write_fake_prod_config(home: &Path) {
         &prod_wb,
         Some(&prod_clones),
         Some(&prod_cache),
-        "http://127.0.0.1:7700",
         settings::DEFAULT_PROD_HTTP_PORT,
         settings::DEFAULT_PROD_MCP_PORT,
     )

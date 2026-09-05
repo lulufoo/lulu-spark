@@ -6,7 +6,7 @@ mod notes;
 mod notes_catalog;
 mod status;
 
-pub use crate::config::meili_env::{
+pub use crate::config::roots::{
     github_user_url_string, knowledge_root_string, workbench_root_path,
 };
 pub use annotations::*;

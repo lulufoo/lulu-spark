@@ -30,7 +30,6 @@ fn apply_config_payload(payload: &Value) -> Result<Value, String> {
     Ok(settings::to_config_json(
         &settings,
         secrets::has_github_token(),
-        secrets::has_meili_key(),
         secrets::has_host_key(),
     ))
 }

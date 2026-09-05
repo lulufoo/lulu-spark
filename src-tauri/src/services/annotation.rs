@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 
 use serde_json::{json, Map, Value};
 
-use crate::config::meili_env::notes_root_path;
+use crate::config::roots::notes_root_path;
 use crate::repositories::annotation_paths::annotation_json_path;
 use crate::repositories::atomic_json;
 

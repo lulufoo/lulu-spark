@@ -17,7 +17,7 @@ fn defaults_select_host_but_do_not_fabricate_llm_credentials() {
     assert_eq!(settings.assistant_engine, "host");
     assert!(settings.llm.is_empty());
 
-    let json = to_config_json(&settings, false, false, false);
+    let json = to_config_json(&settings, false, false);
     assert_eq!(json["assistant_engine"], "host");
     assert_eq!(json["has_host_key"], false);
     assert!(json.get("has_cursor_key").is_none());
@@ -123,7 +123,7 @@ fn to_config_json_hides_legacy_engine_llm_fields() {
         model: "composer-1".into(),
     });
 
-    let json = to_config_json(&settings, false, false, true);
+    let json = to_config_json(&settings, false, true);
     assert_eq!(json["assistant_engine"], "cursor");
     assert_eq!(json["llm"]["model"], "");
     assert_eq!(json["llm"]["platform"], "");
@@ -265,6 +265,6 @@ fn keychain_memory_switch_is_consulted_by_all_stores() {
 #[test]
 fn to_config_json_includes_gateway_port() {
     let settings = AppSettings::default();
-    let json = to_config_json(&settings, false, false, false);
+    let json = to_config_json(&settings, false, false);
     assert_eq!(json["gateway_port"], settings.effective_gateway_port());
 }

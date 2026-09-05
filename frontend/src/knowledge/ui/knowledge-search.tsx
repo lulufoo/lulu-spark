@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { flushSync } from 'react-dom';
-import { searchKnowledge, reindexKnowledge, getReindexStatus } from '../../host/api.ts';
+import { searchKnowledge } from '../../host/api.ts';
 import { createModuleStore } from '../../shared/module-store.ts';
 
 type KbHit = {
@@ -57,11 +57,8 @@ export function KnowledgeSearchPanel({
   const [collapsed, setCollapsed] = useState(() =>
     Boolean(document.getElementById('knowledge-panel')?.classList.contains('ks-collapsed')),
   );
-  const [syncing, setSyncing] = useState(false);
-  const [syncError, setSyncError] = useState('');
   const [results, setResults] = useState<ResultsView>({ kind: 'status', text: '' });
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const searchRef = useRef<(q: string) => Promise<void>>(async () => {});
   const trigger = triggerStore.getSnapshot();
 
@@ -73,7 +70,6 @@ export function KnowledgeSearchPanel({
     return () => {
       liveTrigger = null;
       if (debounceRef.current) clearTimeout(debounceRef.current);
-      if (pollRef.current) clearInterval(pollRef.current);
     };
   }, []);
 
@@ -99,14 +95,10 @@ export function KnowledgeSearchPanel({
     flushSync(() => setResults({ kind: 'status', text: 'Searching…' }));
     try {
       const data = (await searchKnowledge(q, 10)) as { error?: string; hits?: KbHit[] };
-      if (data.error === 'unavailable') {
-        flushSync(() => {
-          document.getElementById('knowledge-panel')?.classList.add('ks-unavailable');
-          setResults({ kind: 'status', text: '' });
-        });
+      if (data.error && data.error !== 'not_indexed') {
+        flushSync(() => setResults({ kind: 'status', text: 'Search error' }));
         return;
       }
-      document.getElementById('knowledge-panel')?.classList.remove('ks-unavailable');
       if (data.error === 'not_indexed') {
         flushSync(() =>
           setResults({
@@ -115,7 +107,7 @@ export function KnowledgeSearchPanel({
               <>
                 Knowledge index not built
                 <br />
-                <span style={{ fontSize: 10, color: '#aaa' }}>Click ↺ to sync knowledge</span>
+                <span style={{ fontSize: 10, color: '#aaa' }}>Use ↺ Index in the header</span>
               </>
             ),
           }),
@@ -151,43 +143,6 @@ export function KnowledgeSearchPanel({
     debounceRef.current = setTimeout(() => void runSearch(raw.trim()), 300);
   }
 
-  async function startSync() {
-    setSyncing(true);
-    setSyncError('');
-    try {
-      const res = (await reindexKnowledge()) as { error?: string };
-      if (res.error) {
-        stopSync(true, res.error);
-        return;
-      }
-    } catch {
-      stopSync(true, 'Request failed');
-      return;
-    }
-    pollRef.current = setInterval(() => void pollSync(), 2000);
-  }
-
-  async function pollSync() {
-    try {
-      const res = (await getReindexStatus()) as { status?: string; log?: string };
-      if (res.status === 'done') {
-        stopSync(false);
-        if (query.trim()) void runSearch(query.trim());
-      } else if (res.status === 'error') {
-        stopSync(true, res.log || 'Sync failed');
-      }
-    } catch {
-      /* keep polling */
-    }
-  }
-
-  function stopSync(isError: boolean, msg?: string) {
-    if (pollRef.current) clearInterval(pollRef.current);
-    pollRef.current = null;
-    setSyncing(false);
-    setSyncError(isError ? `⚠ Sync failed: ${msg}` : '');
-  }
-
   return (
     <>
       <button
@@ -204,12 +159,7 @@ export function KnowledgeSearchPanel({
         {collapsed ? '‹' : '›'}
       </button>
       <div className="ks-inner">
-        <div className="ks-panel-title">
-          Related knowledge
-          <button type="button" className="ks-refresh-btn" title="Sync knowledge" disabled={syncing} onClick={() => void startSync()}>
-            ↺
-          </button>
-        </div>
+        <div className="ks-panel-title">Related knowledge</div>
         <div className="ks-search-bar">
           <input
             className="ks-input"
@@ -220,12 +170,6 @@ export function KnowledgeSearchPanel({
             onChange={(e) => onQueryChange(e.target.value)}
             onInput={(e) => onQueryChange((e.target as HTMLInputElement).value)}
           />
-        </div>
-        <div
-          className={`ks-sync-bar${syncError ? ' ks-error' : ''}`}
-          style={{ display: syncing || syncError ? 'block' : 'none' }}
-        >
-          {syncError || '⟳ Syncing knowledge…'}
         </div>
         <div className="ks-results">
           {results.kind === 'hits'

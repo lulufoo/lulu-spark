@@ -3,7 +3,7 @@ use std::path::Path;
 
 use serde_json::{json, Map, Value};
 
-use crate::config::meili_env::workbench_root_path;
+use crate::config::roots::workbench_root_path;
 
 pub fn get_draft(_repo_root: &Path, path: &str) -> Value {
     let decoded = urlencoding::decode(path).unwrap_or_else(|_| path.into());

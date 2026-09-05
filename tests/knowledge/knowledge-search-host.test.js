@@ -3,14 +3,10 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 const apiMocks = vi.hoisted(() => ({
   searchKnowledge: vi.fn(),
-  reindexKnowledge: vi.fn(),
-  getReindexStatus: vi.fn(),
 }));
 
 vi.mock('../../frontend/src/host/api.ts', () => ({
   searchKnowledge: (...args) => apiMocks.searchKnowledge(...args),
-  reindexKnowledge: (...args) => apiMocks.reindexKnowledge(...args),
-  getReindexStatus: (...args) => apiMocks.getReindexStatus(...args),
 }));
 
 async function loadModule() {
@@ -29,8 +25,6 @@ describe('knowledge search host', () => {
     vi.clearAllMocks();
     seedPanel();
     apiMocks.searchKnowledge.mockResolvedValue({ hits: [] });
-    apiMocks.reindexKnowledge.mockResolvedValue({});
-    apiMocks.getReindexStatus.mockResolvedValue({ status: 'running' });
   });
 
   afterEach(() => {
@@ -49,7 +43,7 @@ describe('knowledge search host', () => {
     mountKnowledgeSearch(panel);
     expect(panel.querySelector('.ks-input')).toBeTruthy();
     expect(panel.querySelector('.ks-toggle')).toBeTruthy();
-    expect(panel.querySelector('.ks-refresh-btn')).toBeTruthy();
+    expect(panel.querySelector('.ks-refresh-btn')).toBeNull();
     expect(panel.textContent).toContain('Related knowledge');
   });
 
@@ -105,24 +99,26 @@ describe('knowledge search host', () => {
     expect(hit.textContent).toContain('repo');
   });
 
-  it('unavailable response marks the panel', async () => {
-    apiMocks.searchKnowledge.mockResolvedValue({ error: 'unavailable' });
+  it('unexpected backend error shows Search error and keeps the panel visible', async () => {
+    apiMocks.searchKnowledge.mockResolvedValue({ error: 'boom' });
     const { mountKnowledgeSearch, triggerKnowledgeSearch } = await loadModule();
     const panel = seedPanel();
     mountKnowledgeSearch(panel);
     triggerKnowledgeSearch({ title: 'X', common_path: 'x.md' });
     await Promise.resolve();
-    expect(panel.classList.contains('ks-unavailable')).toBe(true);
+    expect(panel.querySelector('.ks-status-msg').textContent).toContain('Search error');
+    expect(panel.classList.contains('ks-unavailable')).toBe(false);
   });
 
-  it('refresh button starts reindexKnowledge', async () => {
-    const { mountKnowledgeSearch } = await loadModule();
+  it('not_indexed points to the header index control', async () => {
+    apiMocks.searchKnowledge.mockResolvedValue({ error: 'not_indexed' });
+    const { mountKnowledgeSearch, triggerKnowledgeSearch } = await loadModule();
     const panel = seedPanel();
     mountKnowledgeSearch(panel);
-    panel.querySelector('.ks-refresh-btn').click();
+    triggerKnowledgeSearch({ title: 'X', common_path: 'x.md' });
     await Promise.resolve();
-    expect(apiMocks.reindexKnowledge).toHaveBeenCalledTimes(1);
-    expect(panel.querySelector('.ks-sync-bar').textContent).toContain('Syncing knowledge');
+    expect(panel.querySelector('.ks-status-msg').textContent).toContain('Knowledge index not built');
+    expect(panel.querySelector('.ks-status-msg').textContent).toContain('header');
   });
 
   it('toggle collapses the panel', async () => {

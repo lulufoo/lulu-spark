@@ -9,6 +9,7 @@ use serde_json::{json, Map, Value};
 use crate::config::paths;
 use crate::repositories::annotation_paths::annotation_json_path;
 use crate::services::annotation::read_annotation_object;
+use crate::services::keyword_index;
 use crate::services::tags_registry::{adjust_refs, read_registry, save_registry};
 const LAYERS: &[&str] = &["raw", "digest"];
 
@@ -107,7 +108,20 @@ pub fn delete_entry(payload: &Value) -> Value {
     if let Err(v) = save_index(&index_path, &entries) {
         return v;
     }
+    sync_index_for(&[common_path]);
     json!({ "ok": true, "deleted": deleted })
+}
+
+/// Files are gone or moved by now, so a missing file drops its rows.
+fn sync_index_for(common_paths: &[&str]) {
+    let Ok(repo_root) = paths::repo_root() else {
+        return;
+    };
+    let items: Vec<(&str, &str)> = LAYERS
+        .iter()
+        .flat_map(|layer| common_paths.iter().map(move |cp| (*layer, *cp)))
+        .collect();
+    keyword_index::sync_note_files_best_effort(&repo_root, &items);
 }
 
 pub fn move_entry_project(payload: &Value) -> Value {
@@ -139,7 +153,12 @@ pub fn move_entry_project(payload: &Value) -> Value {
         return json!({ "error": "Entry not found", "_status": 404 });
     };
     let mut entry = entry_val.as_object().cloned().unwrap_or_default();
-    let old_cp = entry.get("common_path").and_then(|v| v.as_str()).unwrap_or("");
+    let old_cp = entry
+        .get("common_path")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    let old_cp = old_cp.as_str();
     if old_cp.is_empty() || old_cp.contains("..") {
         return json!({ "error": "Invalid common_path", "_status": 400 });
     }
@@ -244,6 +263,7 @@ pub fn move_entry_project(payload: &Value) -> Value {
     if let Err(v) = save_index(&index_path, &entries) {
         return v;
     }
+    sync_index_for(&[old_cp, new_cp.as_str()]);
     json!({ "ok": true, "new_common_path": new_cp })
 }
 

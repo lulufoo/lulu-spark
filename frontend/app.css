@@ -145,6 +145,9 @@
     border-radius: 50%;
     animation: gs-spin 0.7s linear infinite;
   }
+  /* Header-only index rebuild control (notes + knowledge). */
+  .header-index-btn { white-space: nowrap; }
+  .header-index-btn.error { border-color: #cf222e; color: #ff8182; }
   .gs-search-dropdown {
     position: absolute;
     top: calc(100% + 6px);
@@ -4061,7 +4064,6 @@
     overflow: hidden;
   }
   #knowledge-panel.ks-collapsed { width: 20px; }
-  #knowledge-panel.ks-unavailable { display: none; }
   .ks-toggle {
     width: 20px;
     flex-shrink: 0;
@@ -4097,19 +4099,6 @@
     align-items: center;
     justify-content: space-between;
   }
-  .ks-refresh-btn {
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-size: 13px;
-    color: #57606a;
-    padding: 0 2px;
-    line-height: 1;
-    border-radius: 3px;
-    opacity: 0.7;
-  }
-  .ks-refresh-btn:hover { opacity: 1; background: #e8eaed; }
-  .ks-refresh-btn:disabled { opacity: 0.3; cursor: not-allowed; }
   .ks-search-bar {
     padding: 8px 10px;
     border-bottom: 1px solid #eaecef;
@@ -4127,19 +4116,6 @@
     color: #24292f;
   }
   .ks-search-bar input:focus { border-color: #0969da; }
-  .ks-sync-bar {
-    padding: 6px 12px;
-    font-size: 11px;
-    background: #dbeafe;
-    border-bottom: 1px solid #96c6f8;
-    color: #0969da;
-    flex-shrink: 0;
-  }
-  .ks-sync-bar.ks-error {
-    background: #ffe0e0;
-    border-bottom-color: #f4a0a0;
-    color: #c0392b;
-  }
   .ks-results { flex: 1; overflow-y: auto; }
   .ks-status-msg {
     padding: 24px 12px;

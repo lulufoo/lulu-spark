@@ -16,12 +16,13 @@ describe('dual search markup (index.html)', () => {
     expect(indexHtml).toMatch(/id="gs-kb-wrap"/);
   });
 
-  it('each wrap has input, dropdown, and rebuild button', () => {
+  it('each wrap has input and dropdown; no per-field rebuild button', () => {
     for (const prefix of ['wb', 'kb']) {
       expect(indexHtml).toMatch(new RegExp(`id="gs-${prefix}-input"`));
       expect(indexHtml).toMatch(new RegExp(`id="gs-${prefix}-dropdown"`));
-      expect(indexHtml).toMatch(new RegExp(`id="gs-${prefix}-rebuild-btn"`));
+      expect(indexHtml).not.toMatch(new RegExp(`id="gs-${prefix}-rebuild-btn"`));
     }
+    expect(indexHtml).toMatch(/<IndexRebuildButton \/>/);
   });
 
   it('removes gs-mode-pill and adds shared search classes', () => {

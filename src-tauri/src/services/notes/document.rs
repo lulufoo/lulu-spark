@@ -2,8 +2,9 @@ use std::path::{Path, PathBuf};
 
 use serde_json::{json, Map, Value};
 
-use crate::config::meili_env::notes_root_path;
+use crate::config::roots::notes_root_path;
 use crate::services::id::random_entry_id;
+use crate::services::keyword_index;
 use crate::services::translation_gate;
 
 use super::create_meta::{assemble_raw, body_from_source, parse_create_meta};
@@ -202,6 +203,12 @@ fn write_note(
         dual_store_rollback(&written, &index_path, &index_snapshot);
         return v;
     }
+
+    let mut synced: Vec<(&str, &str)> = vec![("raw", meta.common_path.as_str())];
+    if digest_rel.is_some() {
+        synced.push(("digest", meta.common_path.as_str()));
+    }
+    keyword_index::sync_note_files_best_effort(repo_root, &synced);
 
     let extra_rel_paths: Vec<String> = translations.iter().map(|t| t.rel.clone()).collect();
     let mut response = json!({

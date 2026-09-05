@@ -5,10 +5,13 @@ use std::path::Path;
 use chrono::{Datelike, FixedOffset, Utc};
 use serde_json::{json, Value};
 
-use crate::config::meili_env::{github_user_url_string, notes_root_path, workbench_root_path};
+use crate::config::paths;
+use crate::config::roots::{
+    github_user_url_string, knowledge_root_string, notes_root_path, workbench_root_path,
+};
 use crate::config::settings::workbench_github_blob_base;
 use crate::integrations::github::{self, decode_contents_payload};
-use crate::integrations::search::{build_knowledge_document, MeiliBackend};
+use crate::services::keyword_index::{collect_knowledge_text, upsert_document};
 use crate::repositories::annotation_paths::annotation_json_path;
 use crate::repositories::atomic_json;
 use crate::services::annotation::read_annotation_object;
@@ -288,17 +291,18 @@ fn fill_repo_and_artifacts(repo_root: &Path, p: &mut SettleParams) -> Result<(),
     Ok(())
 }
 
-fn meili_upsert_best_effort(repo_root: &Path, p: &SettleParams) -> Option<String> {
-    let meili = MeiliBackend::new(repo_root);
-    let doc = build_knowledge_document(
-        &p.target_repo,
-        &p.dst_path,
-        &p.full_content,
-        &p.topic_desc,
-    );
-    match meili.upsert_knowledge_documents(&[doc]) {
-        Ok(()) => None,
-        Err(e) => Some(format!("Meilisearch upsert 失败：{e}")),
+fn keyword_upsert_best_effort(repo_root: &Path, p: &SettleParams) -> Option<String> {
+    let cache = match paths::cache_dir() {
+        Ok(p) => p,
+        Err(e) => return Some(format!("keyword index upsert 失败：{e:?}")),
+    };
+    let abs = std::path::PathBuf::from(knowledge_root_string(repo_root))
+        .join(&p.repo_name)
+        .join(&p.dst_path);
+    let chunks = collect_knowledge_text(&p.target_repo, &p.dst_path, &abs, &p.full_content);
+    match upsert_document(&cache, &chunks) {
+        Ok(_) => None,
+        Err(e) => Some(format!("keyword index upsert 失败：{e}")),
     }
 }
 
@@ -399,7 +403,7 @@ pub fn settle_entry(repo_root: &Path, payload: &Value) -> Value {
     }
 
     let mut warns: Vec<String> = Vec::new();
-    if let Some(w) = meili_upsert_best_effort(repo_root, &p) {
+    if let Some(w) = keyword_upsert_best_effort(repo_root, &p) {
         warns.push(w);
     }
 

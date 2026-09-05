@@ -4,22 +4,17 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 const apiMocks = vi.hoisted(() => ({
   searchWorkbench: vi.fn(),
   searchKnowledge: vi.fn(),
-  reindexWorkbench: vi.fn(),
-  getReindexWorkbenchStatus: vi.fn(),
 }));
 
 vi.mock('../../frontend/src/host/api.ts', () => ({
   searchWorkbench: (...args) => apiMocks.searchWorkbench(...args),
   searchKnowledge: (...args) => apiMocks.searchKnowledge(...args),
-  reindexWorkbench: (...args) => apiMocks.reindexWorkbench(...args),
-  getReindexWorkbenchStatus: (...args) => apiMocks.getReindexWorkbenchStatus(...args),
 }));
 
 function seedWorkbenchSearchDom() {
   document.body.innerHTML = `
     <div id="gs-wb-wrap" class="gs-search-wrap">
       <input id="gs-wb-input" class="gs-search-input" type="text" autocomplete="off" />
-      <button id="gs-wb-rebuild-btn" class="gs-rebuild-btn" style="display:none" title="Rebuild Workbench index">↺</button>
       <div id="gs-wb-dropdown" class="gs-search-dropdown" style="display:none"></div>
     </div>
     <button id="outside-click-target">outside</button>
@@ -53,8 +48,6 @@ describe('notes search module', () => {
     installLocalStorageMock();
     seedWorkbenchSearchDom();
     apiMocks.searchWorkbench.mockResolvedValue({ hits: [] });
-    apiMocks.reindexWorkbench.mockResolvedValue({});
-    apiMocks.getReindexWorkbenchStatus.mockResolvedValue({ status: 'running' });
   });
 
   afterEach(() => {
@@ -127,24 +120,11 @@ describe('notes search module', () => {
     });
   });
 
-  it('rebuild button calls reindexWorkbench and polls status', async () => {
-    apiMocks.getReindexWorkbenchStatus
-      .mockResolvedValueOnce({ status: 'running' })
-      .mockResolvedValueOnce({ status: 'done', log: 'ok' });
-
+  it('renders no per-field rebuild button (header owns index rebuild)', async () => {
     const { initWorkbenchSearch } = await loadModule();
     initWorkbenchSearch();
-
-    document.getElementById('gs-wb-rebuild-btn').click();
-    await Promise.resolve();
-
-    expect(apiMocks.reindexWorkbench).toHaveBeenCalledTimes(1);
-
-    await vi.advanceTimersByTimeAsync(2000);
-    expect(apiMocks.getReindexWorkbenchStatus).toHaveBeenCalled();
-
-    await vi.advanceTimersByTimeAsync(2000);
-    expect(apiMocks.getReindexWorkbenchStatus.mock.calls.length).toBeGreaterThanOrEqual(2);
+    expect(document.getElementById('gs-wb-rebuild-btn')).toBeNull();
+    expect(document.querySelector('#gs-wb-wrap .gs-rebuild-btn')).toBeNull();
   });
 
   it('stores history under gs-history-wb without # prefix', async () => {
@@ -173,7 +153,7 @@ describe('notes search module', () => {
     expect(stored.some((q) => q.startsWith('#'))).toBe(false);
   });
 
-  it('shows global-search-equivalent status for unavailable', async () => {
+  it('shows search error for unexpected backend failure', async () => {
     apiMocks.searchWorkbench.mockResolvedValue({ error: 'unavailable' });
 
     const { initWorkbenchSearch } = await loadModule();
@@ -185,7 +165,7 @@ describe('notes search module', () => {
 
     const dropdown = document.getElementById('gs-wb-dropdown');
     expect(dropdown.style.display).toBe('block');
-    expect(dropdown.textContent).toContain('Meilisearch is not running');
+    expect(dropdown.textContent).toContain('Search error');
   });
 
   it('shows global-search-equivalent status for not_indexed', async () => {
@@ -200,6 +180,7 @@ describe('notes search module', () => {
 
     const dropdown = document.getElementById('gs-wb-dropdown');
     expect(dropdown.textContent).toContain('Index not built yet');
+    expect(dropdown.textContent).toContain('header');
   });
 
   it('shows no-results and search-error statuses', async () => {

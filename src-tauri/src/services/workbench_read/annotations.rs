@@ -3,7 +3,7 @@ use std::path::Path;
 
 use serde_json::{json, Map, Value};
 
-use crate::config::meili_env::notes_root_path;
+use crate::config::roots::notes_root_path;
 use crate::services::annotation::read_annotation_object;
 use crate::services::tags_registry::read_registry;
 

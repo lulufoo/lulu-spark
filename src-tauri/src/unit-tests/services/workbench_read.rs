@@ -28,7 +28,7 @@ fn get_config_has_frontend_contract_keys() {
     assert!(v.get("knowledge_root").is_some());
     assert!(v.get("github_user_url").is_some());
     assert!(v.get("workbench_github_repo_url").is_some());
-    assert!(v.get("meili_url").is_some());
+    assert!(v.get("assistant_engine").is_some());
     assert!(v.get("cache_dir").is_some());
     assert!(v.get("has_github_token").is_some());
     assert!(v.get("has_host_key").is_some());

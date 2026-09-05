@@ -1,8 +1,5 @@
 .DS_Store
 
-# Meilisearch 数据库
-.meilisearch/
-
 .github/instructions/
 .github.worktrees/
 

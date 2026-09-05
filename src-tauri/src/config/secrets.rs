@@ -14,7 +14,6 @@ fn keyring_service() -> &'static str {
 }
 
 pub const KEY_GITHUB_TOKEN: &str = "github_token";
-pub const KEY_MEILI_MASTER: &str = "meili_master_key";
 /// Host/GLM credential slot.
 pub const KEY_LLM_API_KEY: &str = "llm_api_key";
 
@@ -190,14 +189,6 @@ pub fn has_github_token() -> bool {
         .unwrap_or(false)
 }
 
-pub fn has_meili_key() -> bool {
-    get_secret(KEY_MEILI_MASTER)
-        .ok()
-        .flatten()
-        .map(|s| !s.is_empty())
-        .unwrap_or(false)
-}
-
 /// Host credential present (`KEY_LLM_API_KEY`).
 pub fn has_host_key() -> bool {
     get_secret(KEY_LLM_API_KEY)
@@ -214,13 +205,6 @@ pub fn apply_token_payload(payload: &serde_json::Value) -> Result<(), SecretErro
             delete_secret(KEY_GITHUB_TOKEN)?;
         } else {
             set_secret(KEY_GITHUB_TOKEN, v)?;
-        }
-    }
-    if let Some(v) = payload.get("meili_master_key").and_then(|x| x.as_str()) {
-        if v.is_empty() {
-            delete_secret(KEY_MEILI_MASTER)?;
-        } else {
-            set_secret(KEY_MEILI_MASTER, v)?;
         }
     }
     // Host key: empty does not clear (UI omits blank credentials).

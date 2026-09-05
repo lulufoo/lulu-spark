@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { flushSync } from 'react-dom';
-import { searchKnowledge, reindexKnowledge, getReindexStatus } from '../../host/api.ts';
+import { searchKnowledge } from '../../host/api.ts';
 
 const HIST_KEY = 'gs-history-kb';
 const HIST_MAX = 10;
@@ -86,13 +86,9 @@ function GsStatus({ children, color }: { children: ReactNode; color?: string }) 
 
 export function KnowledgeSearchFields() {
   const [query, setQuery] = useState('');
-  const [focused, setFocused] = useState(false);
   const [view, setView] = useState<DropdownView>({ kind: 'hidden' });
-  const [rebuilding, setRebuilding] = useState(false);
-  const [rebuildTitle, setRebuildTitle] = useState('Rebuild knowledge index');
   const inputRef = useRef<HTMLInputElement | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   function close() {
     setView({ kind: 'hidden' });
@@ -120,24 +116,8 @@ export function KnowledgeSearchFields() {
   }, []);
 
   useEffect(() => {
-    const input = inputRef.current;
-    if (!input) return undefined;
-    const onFocus = () => flushSync(() => setFocused(true));
-    const onBlur = () => {
-      setTimeout(() => flushSync(() => setFocused(false)), 200);
-    };
-    input.addEventListener('focus', onFocus);
-    input.addEventListener('blur', onBlur);
-    return () => {
-      input.removeEventListener('focus', onFocus);
-      input.removeEventListener('blur', onBlur);
-    };
-  }, []);
-
-  useEffect(() => {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
-      if (pollRef.current) clearInterval(pollRef.current);
     };
   }, []);
 
@@ -145,25 +125,12 @@ export function KnowledgeSearchFields() {
     flushSync(() => setView({ kind: 'status', text: 'Searching…' }));
     try {
       const data = (await searchKnowledge(q, 8)) as { error?: string; hits?: KbHit[] };
-      if (data.error === 'unavailable') {
-        flushSync(() =>
-          setView({
-            kind: 'status',
-            text: (
-              <>
-                Meilisearch is not running; search unavailable
-                <br />
-                <span style={{ fontSize: 10, opacity: 0.7 }}>
-                  Start external Meilisearch first (default localhost:7700)
-                </span>
-              </>
-            ),
-          }),
-        );
+      if (data.error && data.error !== 'not_indexed') {
+        flushSync(() => setView({ kind: 'status', text: 'Search error' }));
         return;
       }
       if (data.error === 'not_indexed') {
-        flushSync(() => setView({ kind: 'status', text: 'Index not built yet. Click ↺ to rebuild.' }));
+        flushSync(() => setView({ kind: 'status', text: 'Index not built yet. Use ↺ Index in the header.' }));
         return;
       }
       const hits = data.hits || [];
@@ -200,48 +167,7 @@ export function KnowledgeSearchFields() {
     close();
   }
 
-  async function startRebuild() {
-    setRebuilding(true);
-    try {
-      const res = (await reindexKnowledge()) as { error?: string };
-      if (res.error) {
-        stopRebuild(true, res.error);
-        return;
-      }
-    } catch {
-      stopRebuild(true, 'Request failed');
-      return;
-    }
-    pollRef.current = setInterval(() => void pollRebuild(), 2000);
-  }
-
-  async function pollRebuild() {
-    try {
-      const res = (await getReindexStatus()) as { status?: string; log?: string };
-      if (res.status === 'done') stopRebuild(false, res.log);
-      else if (res.status === 'error') stopRebuild(true, res.log || 'Rebuild failed');
-    } catch {
-      /* keep polling */
-    }
-  }
-
-  function stopRebuild(isError: boolean, msg?: string) {
-    if (pollRef.current) clearInterval(pollRef.current);
-    pollRef.current = null;
-    setRebuilding(false);
-    setRebuildTitle(isError ? `Rebuild failed: ${msg}` : 'Rebuild knowledge index');
-    const color = isError ? '#cf222e' : '#1a7f37';
-    flushSync(() =>
-      setView({
-        kind: 'status',
-        color,
-        text: `${isError ? '❌ Rebuild failed: ' : '✅ Rebuild finished: '}${msg || (isError ? 'Unknown error' : '')}`,
-      }),
-    );
-  }
-
   const open = view.kind !== 'hidden';
-  const showRebuild = focused || rebuilding;
 
   return (
     <>
@@ -257,13 +183,11 @@ export function KnowledgeSearchFields() {
         onChange={(e) => onQueryChange(e.target.value)}
         onInput={(e) => onQueryChange((e.target as HTMLInputElement).value)}
         onFocus={() => {
-          setFocused(true);
           if (!normalizeQuery(query)) {
             const list = getHistory();
             if (list.length) setView({ kind: 'history', queries: list });
           }
         }}
-        onBlur={() => setTimeout(() => flushSync(() => setFocused(false)), 200)}
         onKeyDown={(e) => {
           if (e.key === 'Escape') {
             close();
@@ -271,17 +195,6 @@ export function KnowledgeSearchFields() {
           }
         }}
       />
-      <button
-        id="gs-kb-rebuild-btn"
-        type="button"
-        className={`gs-rebuild-btn${rebuilding ? ' syncing' : ''}`}
-        style={{ display: showRebuild ? 'inline-flex' : 'none' }}
-        title={rebuildTitle}
-        disabled={rebuilding}
-        onClick={() => void startRebuild()}
-      >
-        ↺
-      </button>
       <div id="gs-kb-dropdown" className="gs-search-dropdown" style={{ display: open ? 'block' : 'none' }}>
         {view.kind === 'status' ? <GsStatus color={view.color}>{view.text}</GsStatus> : null}
         {view.kind === 'hits'

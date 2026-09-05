@@ -931,8 +931,8 @@ fn representative_tools_call_per_registered_slot_hits_services() {
     );
 }
 
-/// Regression: MCP dispatch must isolate a synchronous Meili client from the
-/// async MCP worker; otherwise reqwest panics while dropping its inner runtime.
+/// Regression: MCP dispatch must isolate a synchronous search from the
+/// async MCP worker; otherwise a blocking client panics the worker.
 #[test]
 fn proxy_dispatches_search_document_on_blocking_worker() {
     let _sandbox = TestSandbox::new();
@@ -950,10 +950,15 @@ fn proxy_dispatches_search_document_on_blocking_worker() {
             serde_json::json!({ "q": "regression" }),
         ))
         .expect("blocking worker must return a mapped tool result");
-    assert!(
-        result.is_err(),
-        "unreachable sandbox Meili must be a tool error, not an MCP worker panic"
-    );
+    // Sandbox has no keyword-index.sqlite → Services answer 503 not_indexed,
+    // which must surface as a mapped tool error, not an MCP worker panic.
+    match result {
+        Ok(_) => {}
+        Err(err) => assert!(
+            mcp_text_err(&err).contains("not_indexed"),
+            "unexpected mapped error: {err:?}"
+        ),
+    }
 }
 
 /// Exception: Services `_status` maps to the same MCP error wire as the old HTTP mapper.

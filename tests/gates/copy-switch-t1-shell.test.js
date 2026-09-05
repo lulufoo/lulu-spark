@@ -11,6 +11,10 @@ const indexHtml = [
   readFileSync(join(repoRoot, 'frontend/src/notes/ui/search.tsx'), 'utf8'),
   readFileSync(join(repoRoot, 'frontend/src/knowledge/ui/search.tsx'), 'utf8'),
 ].join('\n');
+const indexRebuildTsx = readFileSync(
+  join(repoRoot, 'frontend/src/app-shell/ui/index-rebuild.tsx'),
+  'utf8',
+);
 
 function extractTagOuter(html, id) {
   const re = new RegExp(`<[^>]+id="${id}"[^>]*>[\\s\\S]*?</[^>]+>`, 'i');
@@ -42,13 +46,14 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
     expect(extractTagOuter(indexHtml, 'btn-local-refresh')).toContain('⟳ Refresh local');
   });
 
-  it('search placeholders and rebuild titles use table B', () => {
+  it('search placeholders use table B; index rebuild lives only in the header', () => {
     expect(indexHtml).toMatch(/id="gs-wb-input"[^>]*placeholder="Search notes…"/);
     expect(indexHtml).toMatch(/id="gs-kb-input"[^>]*placeholder="Search knowledge…"/);
-    expect(indexHtml).toMatch(/id="gs-wb-rebuild-btn"/);
-    expect(indexHtml).toMatch(/useState\('Rebuild Workbench index'\)/);
-    expect(indexHtml).toMatch(/id="gs-kb-rebuild-btn"/);
-    expect(indexHtml).toMatch(/useState\('Rebuild knowledge index'\)/);
+    expect(indexHtml).not.toMatch(/id="gs-wb-rebuild-btn"/);
+    expect(indexHtml).not.toMatch(/id="gs-kb-rebuild-btn"/);
+    expect(indexHtml).toMatch(/<IndexRebuildButton \/>/);
+    expect(indexRebuildTsx).toMatch(/id="btn-index-rebuild"/);
+    expect(indexRebuildTsx).toContain('Rebuild search index');
   });
 
   it('repo list title uses table B2 knowledge list label', () => {

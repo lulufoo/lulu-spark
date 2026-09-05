@@ -122,7 +122,6 @@ pub fn save(settings: &AppSettings) -> Result<(), SettingsError> {
 pub fn to_config_json(
     settings: &AppSettings,
     has_github_token: bool,
-    has_meili_key: bool,
     has_host_key: bool,
 ) -> serde_json::Value {
     let current = if normalize_engine_value(&settings.assistant_engine).is_some() {
@@ -137,7 +136,6 @@ pub fn to_config_json(
         "knowledge_root": settings.knowledge_root.to_string_lossy(),
         "github_user_url": settings.github_user_url,
         "workbench_github_repo_url": settings.workbench_github_repo_url,
-        "meili_url": settings.meili_url,
         "cache_dir": settings.cache_dir.to_string_lossy(),
         "assistant_engine": settings.assistant_engine,
         "http_port": settings.effective_http_port(),
@@ -145,7 +143,6 @@ pub fn to_config_json(
         "gateway_port": settings.effective_gateway_port(),
         "test_sandbox": is_test_sandbox(),
         "has_github_token": has_github_token,
-        "has_meili_key": has_meili_key,
         "has_host_key": has_host_key,
         "llm": {
             "platform": current.platform,
@@ -189,9 +186,6 @@ pub fn apply_config_payload(
         .and_then(|x| x.as_str())
     {
         settings.workbench_github_repo_url = v.trim().to_string();
-    }
-    if let Some(v) = payload.get("meili_url").and_then(|x| x.as_str()) {
-        settings.meili_url = v.to_string();
     }
     if let Some(llm) = payload.get("llm").and_then(|x| x.as_object()) {
         // Preset fields are readonly — ignore client platform/base_url.

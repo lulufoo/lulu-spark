@@ -1,5 +1,4 @@
 use super::*;
-use crate::integrations::search::build_knowledge_document;
 
 #[test]
 fn workbench_doc_id_matches_python_rules() {
@@ -23,10 +22,11 @@ fn workbench_title_from_heading_or_slug() {
 }
 
 #[test]
-fn knowledge_doc_id_matches_build_knowledge_document() {
-    let doc = build_knowledge_document("o/repo", "docs/a.md", "# T\n", "desc");
-    let expected = sanitize_doc_id("repo__docs__a.md");
-    assert_eq!(doc["id"], expected);
+fn knowledge_doc_id_matches_legacy_id_rules() {
+    assert_eq!(
+        knowledge_doc_id("o/repo", "docs/a.md"),
+        sanitize_doc_id("repo__docs__a.md")
+    );
 }
 
 #[test]

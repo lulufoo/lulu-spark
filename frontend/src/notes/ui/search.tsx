@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { flushSync } from 'react-dom';
-import { searchWorkbench, reindexWorkbench, getReindexWorkbenchStatus } from '../../host/api.ts';
+import { searchWorkbench } from '../../host/api.ts';
 
 const HIST_KEY = 'gs-history-wb';
 const HIST_MAX = 10;
@@ -92,14 +92,10 @@ function GsStatus({ children, color }: { children: ReactNode; color?: string }) 
 
 export function WorkbenchSearchFields() {
   const [query, setQuery] = useState('');
-  const [focused, setFocused] = useState(false);
   const [view, setView] = useState<DropdownView>({ kind: 'hidden' });
-  const [rebuilding, setRebuilding] = useState(false);
-  const [rebuildTitle, setRebuildTitle] = useState('Rebuild Workbench index');
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   function close() {
     setView({ kind: 'hidden' });
@@ -129,7 +125,6 @@ export function WorkbenchSearchFields() {
   useEffect(() => {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
-      if (pollRef.current) clearInterval(pollRef.current);
     };
   }, []);
 
@@ -137,25 +132,12 @@ export function WorkbenchSearchFields() {
     flushSync(() => setView({ kind: 'status', text: 'Searching…' }));
     try {
       const data = await searchWorkbench(q, 8);
-      if (data.error === 'unavailable') {
-        flushSync(() =>
-          setView({
-            kind: 'status',
-            text: (
-              <>
-                Meilisearch is not running; search unavailable
-                <br />
-                <span style={{ fontSize: 10, opacity: 0.7 }}>
-                  Start external Meilisearch first (default localhost:7700)
-                </span>
-              </>
-            ),
-          }),
-        );
+      if (data.error && data.error !== 'not_indexed') {
+        flushSync(() => setView({ kind: 'status', text: 'Search error' }));
         return;
       }
       if (data.error === 'not_indexed') {
-        flushSync(() => setView({ kind: 'status', text: 'Index not built yet. Click ↺ to rebuild.' }));
+        flushSync(() => setView({ kind: 'status', text: 'Index not built yet. Use ↺ Index in the header.' }));
         return;
       }
       const hits = (data.hits || []) as WbHit[];
@@ -179,7 +161,6 @@ export function WorkbenchSearchFields() {
   }
 
   function onFocus() {
-    setFocused(true);
     if (!normalizeQuery(query)) {
       const list = getHistory();
       if (list.length) setView({ kind: 'history', queries: list });
@@ -197,48 +178,7 @@ export function WorkbenchSearchFields() {
     close();
   }
 
-  async function startRebuild() {
-    setRebuilding(true);
-    try {
-      const res = await reindexWorkbench();
-      if (res.error) {
-        stopRebuild(true, res.error);
-        return;
-      }
-    } catch {
-      stopRebuild(true, 'Request failed');
-      return;
-    }
-    pollRef.current = setInterval(() => void pollRebuild(), 2000);
-  }
-
-  async function pollRebuild() {
-    try {
-      const res = await getReindexWorkbenchStatus();
-      if (res.status === 'done') stopRebuild(false, res.log);
-      else if (res.status === 'error') stopRebuild(true, res.log || 'Rebuild failed');
-    } catch {
-      /* keep polling */
-    }
-  }
-
-  function stopRebuild(isError: boolean, msg: unknown) {
-    if (pollRef.current) clearInterval(pollRef.current);
-    pollRef.current = null;
-    setRebuilding(false);
-    setRebuildTitle(isError ? `Rebuild failed: ${msg}` : 'Rebuild Workbench index');
-    const color = isError ? '#cf222e' : '#1a7f37';
-    flushSync(() =>
-      setView({
-        kind: 'status',
-        color,
-        text: `${isError ? '❌ Rebuild failed: ' : '✅ Rebuild finished: '}${String(msg || (isError ? 'Unknown error' : ''))}`,
-      }),
-    );
-  }
-
   const open = view.kind !== 'hidden';
-  const showRebuild = focused || rebuilding;
 
   return (
     <>
@@ -254,7 +194,6 @@ export function WorkbenchSearchFields() {
         onChange={(e) => onQueryChange(e.target.value)}
         onInput={(e) => onQueryChange((e.target as HTMLInputElement).value)}
         onFocus={onFocus}
-        onBlur={() => setTimeout(() => setFocused(false), 200)}
         onKeyDown={(e) => {
           if (e.key === 'Escape') {
             close();
@@ -262,17 +201,6 @@ export function WorkbenchSearchFields() {
           }
         }}
       />
-      <button
-        id="gs-wb-rebuild-btn"
-        type="button"
-        className={`gs-rebuild-btn${rebuilding ? ' syncing' : ''}`}
-        style={{ display: showRebuild ? 'inline-flex' : 'none' }}
-        title={rebuildTitle}
-        disabled={rebuilding}
-        onClick={() => void startRebuild()}
-      >
-        ↺
-      </button>
       <div
         id="gs-wb-dropdown"
         className="gs-search-dropdown"

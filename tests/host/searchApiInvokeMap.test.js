@@ -5,12 +5,11 @@ import {
 } from '../../frontend/src/host/searchApiInvokeMap.ts';
 
 const REINDEX_KEYS = [
-  'reindexKnowledge',
-  'reindexWorkbench',
+  'reindexAll',
+  'getReindexAllStatus',
   'reindexKbRepo',
   'syncKnowledge',
   'getReindexStatus',
-  'getReindexWorkbenchStatus',
 ];
 
 describe('searchApiInvokeMap', () => {
@@ -21,6 +20,12 @@ describe('searchApiInvokeMap', () => {
     expect(Object.keys(REINDEX_INVOKE_MAP)).toHaveLength(REINDEX_KEYS.length);
   });
 
+  it('drops the per-field rebuild commands removed with the header control', () => {
+    expect(REINDEX_INVOKE_MAP.reindexKnowledge).toBeUndefined();
+    expect(REINDEX_INVOKE_MAP.reindexWorkbench).toBeUndefined();
+    expect(REINDEX_INVOKE_MAP.getReindexWorkbenchStatus).toBeUndefined();
+  });
+
   it('resolveReindexInvoke maps kb repo body', () => {
     expect(resolveReindexInvoke('reindexKbRepo', { repo: 'lulufoo/foo' })).toEqual({
       cmd: 'reindex_kb_repo',
@@ -28,13 +33,14 @@ describe('searchApiInvokeMap', () => {
     });
   });
 
-  it('resolveReindexInvoke maps status commands without args', () => {
-    expect(resolveReindexInvoke('getReindexStatus')).toEqual({
-      cmd: 'get_reindex_status',
+  it('resolveReindexInvoke maps header rebuild and status commands without args', () => {
+    expect(resolveReindexInvoke('reindexAll')).toEqual({ cmd: 'reindex_all', args: {} });
+    expect(resolveReindexInvoke('getReindexAllStatus')).toEqual({
+      cmd: 'get_reindex_all_status',
       args: {},
     });
-    expect(resolveReindexInvoke('getReindexWorkbenchStatus')).toEqual({
-      cmd: 'get_reindex_workbench_status',
+    expect(resolveReindexInvoke('getReindexStatus')).toEqual({
+      cmd: 'get_reindex_status',
       args: {},
     });
   });

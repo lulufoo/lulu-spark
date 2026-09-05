@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use base64::Engine;
 use serde_json::{json, Map, Value};
 
-use crate::config::meili_env::{knowledge_root_string, notes_root_path};
+use crate::config::roots::{knowledge_root_string, notes_root_path};
 
 const NOTES_LAYERS: &[&str] = &["raw", "digest"];
 
@@ -37,7 +37,7 @@ pub fn get_notes_index(_repo_root: &Path) -> Value {
     }
 }
 
-pub(crate) fn load_notes_index_entries(repo_root: &Path) -> Result<Map<String, Value>, Value> {
+pub fn load_notes_index_entries(repo_root: &Path) -> Result<Map<String, Value>, Value> {
     let value = get_notes_index(repo_root);
     if value.get("_status").is_some() {
         return Err(value);

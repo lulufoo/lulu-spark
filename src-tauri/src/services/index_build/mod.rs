@@ -1,4 +1,4 @@
-//! Meilisearch index builders (Rust; legacy Python builders removed in P4).
+//! Keyword index builders (notes / knowledge → FTS5).
 
 pub mod common;
 pub mod knowledge;

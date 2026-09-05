@@ -144,12 +144,11 @@ pub fn run() {
             commands::ai_assistant::execute_binding,
             commands::ai_assistant::cancel_ai_assistant_turn,
             commands::ai_assistant::agent_chat_turn,
-            commands::search::reindex_knowledge,
-            commands::search::reindex_workbench,
+            commands::search::reindex_all,
+            commands::search::get_reindex_all_status,
             commands::search::reindex_kb_repo,
             commands::search::sync_knowledge,
             commands::search::get_reindex_status,
-            commands::search::get_reindex_workbench_status,
             commands::write::set_done,
             commands::write::set_importance,
             commands::write::update_links,
@@ -184,10 +183,6 @@ pub fn run() {
                     let _ = notify_handle.emit("message-center:changed", ());
                 },
             )));
-
-            // Auto-start Meilisearch if not already running
-            let meili_child = host::try_autostart_meilisearch();
-            app.manage(host::MeiliProcess::new(meili_child));
 
             let main_host = crate::main_host::MainHostState::new();
             let mut embedded_mcp_handle = None;
@@ -249,6 +244,21 @@ pub fn run() {
             host::create_main_window(app)?;
             app.manage(services::reindex::ReindexState::new());
 
+            // Keyword index: rebuild on every launch (index only, no git pull).
+            // Header control polls `get_reindex_all_status` for the spinner.
+            {
+                use tauri::Manager;
+                let reindex = app.state::<services::reindex::ReindexState>();
+                let wb_slot = std::sync::Arc::clone(&reindex.workbench_job);
+                let kb_slot = std::sync::Arc::clone(&reindex.knowledge_job);
+                std::thread::spawn(move || {
+                    let Ok(repo_root) = crate::config::paths::repo_root() else {
+                        return;
+                    };
+                    let _ = services::reindex::run_all_reindex_blocking(&repo_root, &wb_slot, &kb_slot);
+                });
+            }
+
             // No Agent Loop startup warmup: first chat pays cold start (MCP/LLM).
 
             let app_handle = app.handle().clone();
@@ -256,7 +266,7 @@ pub fn run() {
                 let Ok(repo_root) = crate::config::paths::repo_root() else {
                     return;
                 };
-                let wb = crate::config::meili_env::workbench_root_path(&repo_root);
+                let wb = crate::config::roots::workbench_root_path(&repo_root);
                 let _ = crate::services::notes::ensure_notes_layout(&wb);
                 let _ = crate::services::knowledge_layout::ensure_knowledge_registry_layout(&wb);
                 if !wb.join("notes").join("index.json").is_file() {
@@ -274,9 +284,6 @@ pub fn run() {
         .expect("error while building tauri application")
         .run(|app_handle, event| {
             if let tauri::RunEvent::Exit = event {
-                if let Some(meili) = app_handle.try_state::<host::MeiliProcess>() {
-                    meili.kill();
-                }
                 if let Some(embedded) = app_handle.try_state::<EmbeddedMcpRuntime>() {
                     embedded.stop();
                 }

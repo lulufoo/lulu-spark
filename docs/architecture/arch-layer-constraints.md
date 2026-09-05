@@ -37,7 +37,7 @@ flowchart TB
   end
 
   subgraph L5["L5 External services"]
-    INT[GitHub / Meili]
+    INT[GitHub]
   end
 
   subgraph L6["L6 Data"]
@@ -49,7 +49,6 @@ flowchart TB
   end
 
   INTMCP[Workbench internal MCP]
-  MEILI[Meilisearch process]
 
   IDE --> SKILL
   SKILL -->|127.0.0.1:9876 /mcp/cursor_ide| MCP
@@ -66,7 +65,6 @@ flowchart TB
   SVC --> L5
   SVC --> L6
   SVC --> L7
-  IDX -.->|Meili HTTP| MEILI
 ```
 
 
@@ -90,7 +88,7 @@ flowchart TB
 | **L2**             | Desktop HTML / JS / CSS goes through L3 only.                                                                                                                             |
 | **L3**             | Bridge does mapping and ACL only; no business rules, no IO.                                                                                                               |
 | **L4**             | Agent and Services; downstream L5, L6, L7.                                                                                                                                |
-| **L5**             | External services only: GitHub, Meili. They do not store authority.                                                                                                       |
+| **L5**             | External services only: GitHub. They do not store authority.                                                                                                       |
 | **L6**             | Data owns paths and atomic writes.                                                                                                                                        |
 | **L7**             | Rebuild only; must not replace L6.                                                                                                                                        |
 

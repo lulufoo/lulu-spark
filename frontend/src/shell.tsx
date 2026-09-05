@@ -1,4 +1,5 @@
 import { BindDialog, openBindDialog } from './app-shell/ui/bind-dialog.tsx';
+import { IndexRebuildButton } from './app-shell/ui/index-rebuild.tsx';
 import { CommitChangesDialog } from './app-shell/ui/commit-dialog.tsx';
 import { ConvertDialog, openConvertDialog } from './app-shell/ui/convert-dialog.tsx';
 import { MoveDocDialog, openMoveDocDialog } from './app-shell/ui/move-dialog.tsx';
@@ -109,6 +110,7 @@ export function Shell() {
             </button>
           </div>
         </div>
+        <IndexRebuildButton />
       </header>
 
       {/* <!-- Convert tool dialog (Base64 + QR) --> */}

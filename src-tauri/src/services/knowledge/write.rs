@@ -5,7 +5,7 @@ use std::path::Path;
 
 use serde_json::{json, Map, Value};
 
-use crate::config::meili_env::knowledge_root_string;
+use crate::config::roots::knowledge_root_string;
 use crate::repositories::knowledge::{kb_annotation_path, kb_safe_path};
 
 use crate::services::id::random_hex12;

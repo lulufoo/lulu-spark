@@ -77,7 +77,7 @@ fn create_note_writes_raw_and_index() {
     assert_eq!(v.get("ok"), Some(&json!(true)), "create_note failed: {v}");
     let id = v["id"].as_str().expect("id");
     assert_eq!(id.len(), 32);
-    let notes = crate::config::meili_env::notes_root_path(&repo_root);
+    let notes = crate::config::roots::notes_root_path(&repo_root);
     let common_path = v["common_path"].as_str().expect("common_path");
     assert!(common_path.starts_with("inbox/notes/"), "{common_path}");
     assert!(common_path.ends_with("-source.md"), "{common_path}");
@@ -123,7 +123,7 @@ fn create_note_always_writes_digest_and_updates_layers() {
     );
     assert_eq!(v.get("ok"), Some(&json!(true)), "create_note failed: {v}");
     let id = v["id"].as_str().unwrap();
-    let notes = crate::config::meili_env::notes_root_path(&repo_root);
+    let notes = crate::config::roots::notes_root_path(&repo_root);
     let common_path = v["common_path"].as_str().unwrap();
     let digest = notes.join("digest").join(common_path);
     assert!(digest.is_file());
@@ -175,7 +175,7 @@ fn create_note_auto_skips_short_summary() {
     );
     assert_eq!(v.get("ok"), Some(&json!(true)), "{v}");
     assert!(v.get("digest_path").is_none());
-    let notes = crate::config::meili_env::notes_root_path(&repo_root);
+    let notes = crate::config::roots::notes_root_path(&repo_root);
     let common_path = v["common_path"].as_str().unwrap();
     assert!(!notes.join("digest").join(common_path).is_file());
 }
@@ -238,7 +238,7 @@ fn create_note_theme_line_with_zh_translation() {
         })),
     );
     assert_eq!(v.get("ok"), Some(&json!(true)), "failed: {v}");
-    let notes = crate::config::meili_env::notes_root_path(&repo_root);
+    let notes = crate::config::roots::notes_root_path(&repo_root);
     let common_path = v["common_path"].as_str().unwrap();
     assert!(common_path.starts_with("learning-ai-agent/waymo-interview/202606191700-"));
     let zh_path = format!("{}-zh.md", common_path.trim_end_matches(".md"));
@@ -339,7 +339,7 @@ fn create_note_multi_lang_translations() {
     );
     assert_eq!(v.get("ok"), Some(&json!(true)), "failed: {v}");
     let id = v["id"].as_str().unwrap();
-    let notes = crate::config::meili_env::notes_root_path(&repo_root);
+    let notes = crate::config::roots::notes_root_path(&repo_root);
     let index: serde_json::Value =
         serde_json::from_str(&fs::read_to_string(notes.join("index.json")).unwrap()).unwrap();
     let stem = v["common_path"].as_str().unwrap().trim_end_matches(".md");
@@ -428,7 +428,7 @@ fn create_note_ignores_task_ids_and_does_not_link_todo() {
     assert_eq!(v.get("ok"), Some(&json!(true)), "archive failed: {v}");
     let archive_id = v["id"].as_str().expect("id");
 
-    let notes = crate::config::meili_env::notes_root_path(&repo_root);
+    let notes = crate::config::roots::notes_root_path(&repo_root);
     let index: serde_json::Value =
         serde_json::from_str(&fs::read_to_string(notes.join("index.json")).unwrap()).unwrap();
     assert!(index["entries"][archive_id].get("task_ref").is_none());
@@ -487,7 +487,7 @@ fn create_jot_writes_raw_index_with_source_type_jot() {
     assert!(common_path.ends_with(".md"), "{common_path}");
     assert!(filename_has_ts_rand(common_path), "{common_path}");
 
-    let notes = crate::config::meili_env::notes_root_path(&repo_root);
+    let notes = crate::config::roots::notes_root_path(&repo_root);
     let raw = notes.join("raw").join(common_path);
     assert!(raw.is_file(), "raw must exist at {raw:?}");
     let raw_text = fs::read_to_string(&raw).expect("read raw");
@@ -521,7 +521,7 @@ fn create_jot_second_write_gets_new_filename() {
 #[test]
 fn create_jot_rejects_empty_body_without_writing() {
     let (_sandbox, repo_root) = setup_notes();
-    let notes = crate::config::meili_env::notes_root_path(&repo_root);
+    let notes = crate::config::roots::notes_root_path(&repo_root);
     let index_before: serde_json::Value =
         serde_json::from_str(&fs::read_to_string(notes.join("index.json")).unwrap()).unwrap();
 
@@ -691,7 +691,7 @@ Hello world. This body is English only.
 #[test]
 fn create_note_rejects_full_english_without_zh() {
     let (sandbox, repo_root) = setup_notes();
-    let notes = crate::config::meili_env::notes_root_path(&repo_root);
+    let notes = crate::config::roots::notes_root_path(&repo_root);
     let v = create_note(
         &repo_root,
         &path_payload(&sandbox, FULL_EN_DOC, json!({ "digest": "never" })),

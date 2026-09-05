@@ -100,8 +100,6 @@ pub struct AppSettings {
     pub knowledge_root: PathBuf,
     #[serde(default = "default_cache_dir")]
     pub cache_dir: PathBuf,
-    #[serde(default = "default_meili_url")]
-    pub meili_url: String,
     #[serde(default = "default_github_user_url")]
     pub github_user_url: String,
     /// Optional Workbench GitHub repository URL (`https://github.com/owner/repo`). Empty = none.
@@ -182,10 +180,6 @@ pub fn default_cache_dir() -> PathBuf {
     home_dir().join(".cache").join("lulu-workbench")
 }
 
-pub(super) fn default_meili_url() -> String {
-    "http://localhost:7700".to_string()
-}
-
 pub(super) fn default_github_user_url() -> String {
     DEFAULT_GITHUB_USER_URL.to_string()
 }
@@ -200,7 +194,6 @@ impl Default for AppSettings {
             workbench_root: default_workbench_root(),
             knowledge_root: default_knowledge_root(),
             cache_dir: default_cache_dir(),
-            meili_url: default_meili_url(),
             github_user_url: default_github_user_url(),
             workbench_github_repo_url: String::new(),
             assistant_engine: default_assistant_engine(),

@@ -1,12 +1,9 @@
-//! Shared index-build helpers (aligned with `build_*_index.py`).
+//! Shared index-build helpers: doc ids, skip rules, title fallback.
 
-use serde_json::{json, Value};
-
-pub const BATCH_SIZE: usize = 100;
 pub const SKIP_FILES: &[&str] = &["_index.md", "README.md", "readme.md"];
 pub const WORKBENCH_LAYERS: &[&str] = &["raw", "digest"];
 
-/// `re.sub(r'[^a-zA-Z0-9\-_]', '_', raw_id)[:511]` (workbench L118–120, knowledge L166–167).
+/// `re.sub(r'[^a-zA-Z0-9\-_]', '_', raw_id)[:511]` (legacy Python builder rule).
 pub fn sanitize_doc_id(raw_id: &str) -> String {
     raw_id
         .chars()
@@ -25,19 +22,24 @@ pub fn workbench_doc_id(layer: &str, common_path: &str) -> String {
     sanitize_doc_id(&format!("{layer}__{common_path}"))
 }
 
+pub fn knowledge_doc_id(repo: &str, path: &str) -> String {
+    let repo_name = repo.split('/').next_back().unwrap_or(repo);
+    sanitize_doc_id(&format!("{repo_name}__{}", path.replace('/', "__")))
+}
+
 pub fn should_skip_md(name: &str) -> bool {
     if SKIP_FILES.contains(&name) {
         return true;
     }
     // Translation variants: …-{lang}.md where lang is ISO 639-1 (two lowercase letters).
-    // Indexed via entry.translations, not as standalone Meilisearch docs.
+    // Indexed via entry.translations, not as standalone keyword-index docs.
     name.strip_suffix(".md").is_some_and(|stem| {
         stem.rsplit_once('-')
             .is_some_and(|(_, lang)| lang.len() == 2 && lang.chars().all(|c| c.is_ascii_lowercase()))
     })
 }
 
-/// Workbench title: first `# ` line, else filename stem without date prefix (L108–115).
+/// Workbench title: first `# ` line, else filename stem without date prefix.
 pub fn extract_workbench_title(content: &str, filename: &str) -> String {
     for line in content.lines() {
         let t = line.trim();
@@ -64,55 +66,6 @@ fn strip_date_prefix(stem: &str) -> &str {
     } else {
         stem
     }
-}
-
-pub fn extract_date_from_filename(filename: &str) -> String {
-    if filename.len() >= 8 && filename.as_bytes()[..8].iter().all(|b| b.is_ascii_digit()) {
-        filename[..8].to_string()
-    } else {
-        String::new()
-    }
-}
-
-pub fn workbench_topic_from_path(common_path: &str) -> String {
-    let parts: Vec<&str> = common_path.split('/').collect();
-    if parts.len() > 1 {
-        parts[0].to_string()
-    } else {
-        String::new()
-    }
-}
-
-pub fn build_workbench_document(
-    layer: &str,
-    common_path: &str,
-    body: &str,
-    filename: &str,
-) -> Value {
-    json!({
-        "id": workbench_doc_id(layer, common_path),
-        "layer": layer,
-        "common_path": common_path,
-        "title": extract_workbench_title(body, filename),
-        "date": extract_date_from_filename(filename),
-        "topic": workbench_topic_from_path(common_path),
-        "body": body,
-    })
-}
-
-pub fn upsert_batches<F>(batches: &[Vec<Value>], mut send: F) -> Result<usize, String>
-where
-    F: FnMut(&[Value]) -> Result<(), String>,
-{
-    let mut total = 0;
-    for batch in batches {
-        if batch.is_empty() {
-            continue;
-        }
-        send(batch)?;
-        total += batch.len();
-    }
-    Ok(total)
 }
 
 #[cfg(test)]

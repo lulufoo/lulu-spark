@@ -6,71 +6,37 @@ use tauri::{AppHandle, State};
 
 use crate::config::paths;
 use crate::services::reindex::{
-    finish_job_error, finish_job_success, run_kb_sync_and_index_blocking,
-    run_knowledge_pull_and_reindex, run_knowledge_reindex_blocking,
-    run_workbench_reindex_blocking, set_job_log, start_job, ReindexState,
+    all_status_json, finish_job_error, finish_job_success, run_all_reindex_blocking,
+    run_kb_sync_and_index_blocking, run_knowledge_pull_and_reindex, set_job_log, start_job,
+    ReindexState,
 };
 
 fn repo_root() -> Result<PathBuf, String> {
     paths::repo_root().map_err(|e| format!("{e:?}"))
 }
 
+/// Header "Rebuild index": notes then knowledge, index only (no `git pull`).
 #[tauri::command]
-pub fn reindex_workbench(
-    app: AppHandle,
-    state: State<'_, ReindexState>,
-) -> Result<Value, String> {
+pub fn reindex_all(state: State<'_, ReindexState>) -> Result<Value, String> {
     let root = repo_root()?;
-    start_job(&state.workbench_job, "启动中…")?;
-    let slot = state.workbench_job.clone();
-    let repo_root = root.clone();
-    tauri::async_runtime::spawn(async move {
-        let result = tauri::async_runtime::spawn_blocking(move || {
-            run_workbench_reindex_blocking(&repo_root)
-        })
-        .await;
-        match result {
-            Ok(Ok(log)) => finish_job_success(&slot, log),
-            Ok(Err(e)) => finish_job_error(&slot, e),
-            Err(e) => finish_job_error(&slot, e.to_string()),
+    {
+        let wb = state.workbench_job.lock().map_err(|e| e.to_string())?;
+        let kb = state.knowledge_job.lock().map_err(|e| e.to_string())?;
+        if wb.status == "running" || kb.status == "running" {
+            return Err("already running".to_string());
         }
+    }
+    let wb = Arc::clone(&state.workbench_job);
+    let kb = Arc::clone(&state.knowledge_job);
+    tauri::async_runtime::spawn_blocking(move || {
+        let _ = run_all_reindex_blocking(&root, &wb, &kb);
     });
-    let _ = app;
     Ok(json!({ "status": "running" }))
 }
 
 #[tauri::command]
-pub fn get_reindex_workbench_status(state: State<'_, ReindexState>) -> Result<Value, String> {
-    let job = state
-        .workbench_job
-        .lock()
-        .map_err(|e| e.to_string())?;
-    Ok(job.to_json())
-}
-
-#[tauri::command]
-pub fn reindex_knowledge(
-    app: AppHandle,
-    state: State<'_, ReindexState>,
-) -> Result<Value, String> {
-    let root = repo_root()?;
-    start_job(&state.knowledge_job, "启动中…")?;
-    let slot = state.knowledge_job.clone();
-    let slot_blocking = Arc::clone(&slot);
-    let repo_root = root.clone();
-    tauri::async_runtime::spawn(async move {
-        let result = tauri::async_runtime::spawn_blocking(move || {
-            run_knowledge_reindex_blocking(&repo_root, Some(&slot_blocking))
-        })
-        .await;
-        match result {
-            Ok(Ok(log)) => finish_job_success(&slot, log),
-            Ok(Err(e)) => finish_job_error(&slot, e),
-            Err(e) => finish_job_error(&slot, e.to_string()),
-        }
-    });
-    let _ = app;
-    Ok(json!({ "status": "running" }))
+pub fn get_reindex_all_status(state: State<'_, ReindexState>) -> Result<Value, String> {
+    all_status_json(&state.workbench_job, &state.knowledge_job)
 }
 
 #[tauri::command]

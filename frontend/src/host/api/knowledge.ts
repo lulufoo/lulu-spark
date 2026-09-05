@@ -150,9 +150,15 @@ export async function searchKnowledge(q: string, limit = 10) {
   return res.json();
 }
 
-export async function reindexKnowledge() {
+/** Header "Rebuild index": notes + knowledge, index only (no git pull). */
+export async function reindexAll() {
   const { invokeSearch } = await import('../apiClient.ts');
-  return invokeSearch('reindexKnowledge');
+  return invokeSearch('reindexAll');
+}
+
+export async function getReindexAllStatus() {
+  const { invokeSearch } = await import('../apiClient.ts');
+  return invokeSearch('getReindexAllStatus');
 }
 
 export async function getReindexStatus() {
@@ -165,16 +171,6 @@ export async function searchWorkbench(q: string, limit = 10) {
     `/api/search-workbench?q=${encodeURIComponent(q)}&limit=${limit}`
   );
   return res.json();
-}
-
-export async function reindexWorkbench() {
-  const { invokeSearch } = await import('../apiClient.ts');
-  return invokeSearch('reindexWorkbench');
-}
-
-export async function getReindexWorkbenchStatus() {
-  const { invokeSearch } = await import('../apiClient.ts');
-  return invokeSearch('getReindexWorkbenchStatus');
 }
 
 export async function fetchSedimentKbCategories() {

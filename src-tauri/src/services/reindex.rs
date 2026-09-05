@@ -7,8 +7,7 @@ use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
-use crate::config::meili_env::knowledge_root_string;
-use crate::config::paths;
+use crate::config::roots::knowledge_root_string;
 use crate::integrations::git;
 use crate::services::index_build::{rebuild_knowledge_index, rebuild_workbench_index};
 use crate::services::workbench_read;
@@ -54,10 +53,6 @@ impl ReindexState {
 
 fn now_iso() -> String {
     Utc::now().to_rfc3339()
-}
-
-pub fn run_workbench_reindex_blocking(repo_root: &Path) -> Result<String, String> {
-    rebuild_workbench_index(repo_root)
 }
 
 pub fn sync_repo_blocking(repo: &str, kb_root: &Path) -> (String, String, Option<String>) {
@@ -155,51 +150,72 @@ pub fn sync_repo_blocking(repo: &str, kb_root: &Path) -> (String, String, Option
     }
 }
 
-pub fn run_knowledge_reindex_blocking(
+/// Index-only rebuild of notes then knowledge (no `git pull`). Drives both job
+/// slots so the header control and any per-slot poller see the same state.
+/// Used by app startup and the header "Rebuild index" control.
+pub fn run_all_reindex_blocking(
     repo_root: &Path,
-    slot: Option<&Arc<Mutex<JobState>>>,
-) -> Result<String, String> {
-    if let Some(s) = slot {
-        set_job_log(s, "同步仓库（并行）…");
+    workbench_slot: &Arc<Mutex<JobState>>,
+    knowledge_slot: &Arc<Mutex<JobState>>,
+) -> Result<(), String> {
+    start_job(workbench_slot, "Indexing notes…")?;
+    if let Err(e) = start_job(knowledge_slot, "Waiting for notes…") {
+        finish_job_error(workbench_slot, e.clone());
+        return Err(e);
     }
-    let topics = workbench_read::get_topics(repo_root);
-    let repos: Vec<String> = topics
-        .get("topics")
-        .and_then(|t| t.as_array())
-        .map(|arr| {
-            arr.iter()
-                .filter_map(|item| item.get("repo").and_then(|r| r.as_str()).map(String::from))
-                .collect()
-        })
-        .unwrap_or_default();
-
-    let kb_root = PathBuf::from(knowledge_root_string(repo_root));
-    let mut failed_repos = Vec::new();
-    let handles: Vec<_> = repos
-        .iter()
-        .map(|repo| {
-            let repo = repo.clone();
-            let kb = kb_root.clone();
-            thread::spawn(move || sync_repo_blocking(&repo, &kb))
-        })
-        .collect();
-    for handle in handles {
-        if let Ok((name, status, err)) = handle.join() {
-            if status.contains("failed") {
-                failed_repos.push(format!("{name}: {}", err.unwrap_or_default()));
-            }
+    match rebuild_workbench_index(repo_root) {
+        Ok(log) => finish_job_success(workbench_slot, log),
+        Err(e) => {
+            finish_job_error(workbench_slot, e.clone());
+            finish_job_error(knowledge_slot, "Skipped: notes index failed".to_string());
+            return Err(e);
         }
     }
+    set_job_log(knowledge_slot, "Indexing knowledge…");
+    match rebuild_knowledge_index(repo_root, None) {
+        Ok(log) => {
+            finish_job_success(knowledge_slot, log);
+            Ok(())
+        }
+        Err(e) => {
+            finish_job_error(knowledge_slot, e.clone());
+            Err(e)
+        }
+    }
+}
 
-    if let Some(s) = slot {
-        set_job_log(s, "重建索引…");
-    }
-    let mut log = rebuild_knowledge_index(repo_root, false, None)?;
-    if !failed_repos.is_empty() {
-        log.push_str("\n⚠ 同步失败：");
-        log.push_str(&failed_repos.join("；"));
-    }
-    Ok(log)
+/// Combined view of both slots for the single header control.
+pub fn all_status_json(
+    workbench_slot: &Arc<Mutex<JobState>>,
+    knowledge_slot: &Arc<Mutex<JobState>>,
+) -> Result<Value, String> {
+    let wb = workbench_slot.lock().map_err(|e| e.to_string())?.clone();
+    let kb = knowledge_slot.lock().map_err(|e| e.to_string())?.clone();
+    let status = if wb.status == "running" || kb.status == "running" {
+        "running"
+    } else if wb.status == "error" || kb.status == "error" {
+        "error"
+    } else if wb.status == "done" && kb.status == "done" {
+        "done"
+    } else {
+        "idle"
+    };
+    let log = match status {
+        "running" => {
+            if wb.status == "running" {
+                wb.log.clone()
+            } else {
+                kb.log.clone()
+            }
+        }
+        _ => format!("Notes: {}\nKnowledge: {}", wb.log, kb.log),
+    };
+    Ok(json!({
+        "status": status,
+        "log": log,
+        "workbench": wb.to_json(),
+        "knowledge": kb.to_json(),
+    }))
 }
 
 pub fn run_kb_sync_and_index_blocking(repo_root: &Path, repo: &str) -> Result<String, String> {
@@ -214,8 +230,7 @@ pub fn run_kb_sync_and_index_blocking(repo_root: &Path, repo: &str) -> Result<St
         let msg = err.unwrap_or_else(|| "unknown error".to_string());
         return Err(format!("git sync failed for {repo_name}: {msg}"));
     }
-    clear_repo_commit_cache(repo_root, repo_name)?;
-    rebuild_knowledge_index(repo_root, false, Some(repo))
+    rebuild_knowledge_index(repo_root, Some(repo))
 }
 
 pub fn run_knowledge_pull_and_reindex(
@@ -261,45 +276,12 @@ pub fn run_knowledge_pull_and_reindex(
     if let Some(s) = slot {
         set_job_log(s, "重建索引…");
     }
-    let mut log = rebuild_knowledge_index(repo_root, false, None)?;
+    let mut log = rebuild_knowledge_index(repo_root, None)?;
     if !failed_repos.is_empty() {
         log.push_str("\n⚠ 拉取失败：");
         log.push_str(&failed_repos.join("；"));
     }
     Ok(log)
-}
-
-pub fn clear_repo_commit_cache(repo_root: &Path, repo_name: &str) -> Result<(), String> {
-    let _ = repo_root;
-    let cache_file = paths::cache_dir()
-        .map_err(|e| format!("{e:?}"))?
-        .join("repo-commits.json");
-    if !cache_file.is_file() {
-        return Ok(());
-    }
-    let text = fs::read_to_string(&cache_file).map_err(|e| e.to_string())?;
-    let mut cache: serde_json::Map<String, Value> =
-        serde_json::from_str(&text).unwrap_or_else(|_| serde_json::Map::new());
-    if cache.remove(repo_name).is_some() {
-        let out = serde_json::to_string_pretty(&cache).map_err(|e| e.to_string())?;
-        fs::write(cache_file, out).map_err(|e| e.to_string())?;
-    }
-    Ok(())
-}
-
-pub fn run_kb_reindex_blocking(repo_root: &Path, repo: &str) -> Result<String, String> {
-    let repo = repo.trim();
-    if repo.is_empty() || !repo.contains('/') {
-        return Err("invalid repo format".to_string());
-    }
-    let repo_name = repo.split('/').next_back().unwrap_or(repo);
-    let kb_root = PathBuf::from(knowledge_root_string(repo_root));
-    let local_dir = kb_root.join(repo_name);
-    if !local_dir.is_dir() {
-        return Err(format!("repo not cloned locally: {repo_name}"));
-    }
-    clear_repo_commit_cache(repo_root, repo_name)?;
-    rebuild_knowledge_index(repo_root, false, Some(repo))
 }
 
 pub fn start_job(

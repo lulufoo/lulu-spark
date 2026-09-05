@@ -7,15 +7,11 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 const apiMocks = vi.hoisted(() => ({
   searchWorkbench: vi.fn(),
   searchKnowledge: vi.fn(),
-  reindexKnowledge: vi.fn(),
-  getReindexStatus: vi.fn(),
 }));
 
 vi.mock('../../frontend/src/host/api.ts', () => ({
   searchWorkbench: (...args) => apiMocks.searchWorkbench(...args),
   searchKnowledge: (...args) => apiMocks.searchKnowledge(...args),
-  reindexKnowledge: (...args) => apiMocks.reindexKnowledge(...args),
-  getReindexStatus: (...args) => apiMocks.getReindexStatus(...args),
 }));
 
 vi.mock('../../frontend/src/notes/ui/search.tsx', () => ({
@@ -53,7 +49,6 @@ function seedKnowledgeRouteDom() {
     </div>
     <div id="gs-kb-wrap" class="gs-search-wrap" hidden>
       <input id="gs-kb-input" class="gs-search-input" type="text" autocomplete="off" />
-      <button id="gs-kb-rebuild-btn" class="gs-rebuild-btn" style="display:none"></button>
       <div id="gs-kb-dropdown" class="gs-search-dropdown" style="display:none"></div>
     </div>
   `;

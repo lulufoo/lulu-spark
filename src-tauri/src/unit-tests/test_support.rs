@@ -249,7 +249,6 @@ fn sandbox_config_writes_leave_machine_config_content_unchanged() {
                 sandbox.config_dir(),
                 Some(sandbox.config_dir()),
                 Some(&sandbox.config_dir().join("cache")),
-                "http://127.0.0.1:17700",
                 http_port,
                 mcp_port,
             )
@@ -339,7 +338,6 @@ fn test_config_writer_uses_explicit_target_path() {
         sandbox.config_dir(),
         Some(sandbox.config_dir()),
         Some(&sandbox.config_dir().join("cache")),
-        "http://127.0.0.1:17700",
         http_port,
         mcp_port,
     )
@@ -347,7 +345,7 @@ fn test_config_writer_uses_explicit_target_path() {
     assert!(expected.is_file());
 
     let text = fs::read_to_string(expected).expect("read explicit config");
-    assert!(text.contains("meili_url = \"http://127.0.0.1:17700\""));
+    assert!(text.contains("cache_dir"));
     assert!(text.contains(&format!("http_port = {http_port}")));
     assert!(text.contains(&format!("mcp_port = {mcp_port}")));
 }

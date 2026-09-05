@@ -2,8 +2,11 @@ use serde_json::{json, Value};
 use tauri::AppHandle;
 
 use crate::config::paths;
-use crate::config::meili_env::notes_root_path;
-use crate::integrations::{gh_read, meilisearch};
+use crate::config::roots::notes_root_path;
+use crate::integrations::gh_read;
+use crate::services::keyword_index::{
+    cache_dir_or_err, search_desktop_knowledge, search_desktop_workbench,
+};
 use crate::services::sediment_kb;
 use crate::services::tags_registry;
 use crate::services::workbench_read;
@@ -18,12 +21,13 @@ pub async fn search_knowledge(
     q: String,
     limit: Option<u32>,
 ) -> Result<Value, String> {
-    let root = repo_root()?;
+    let _ = repo_root()?;
     tauri::async_runtime::spawn_blocking(move || {
-        meilisearch::search_json(&root, "knowledge", &q, limit)
+        let cache = cache_dir_or_err()?;
+        Ok(search_desktop_knowledge(&cache, &q, limit))
     })
     .await
-    .map_err(|e| e.to_string())
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
@@ -32,12 +36,13 @@ pub async fn search_workbench(
     q: String,
     limit: Option<u32>,
 ) -> Result<Value, String> {
-    let root = repo_root()?;
+    let _ = repo_root()?;
     tauri::async_runtime::spawn_blocking(move || {
-        meilisearch::search_json(&root, "workbench", &q, limit)
+        let cache = cache_dir_or_err()?;
+        Ok(search_desktop_workbench(&cache, &q, limit))
     })
     .await
-    .map_err(|e| e.to_string())
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
@@ -208,7 +213,7 @@ pub fn get_notes_asset(
 pub fn get_kb_diff_status(_app: AppHandle) -> Result<Value, String> {
     let repo_root = repo_root()?;
     let knowledge_root = std::path::PathBuf::from(
-        crate::config::meili_env::knowledge_root_string(&repo_root),
+        crate::config::roots::knowledge_root_string(&repo_root),
     );
 
     let repos: Vec<Value> = workbench_read::get_topics(&repo_root)
@@ -251,7 +256,7 @@ pub fn sediment_kb_categories_json() -> Result<Value, String> {
 
 fn sediment_kb_local_exists(repo_root: &std::path::Path, full_name: &str) -> bool {
     let knowledge_root = std::path::PathBuf::from(
-        crate::config::meili_env::knowledge_root_string(repo_root),
+        crate::config::roots::knowledge_root_string(repo_root),
     );
     let name = full_name.split('/').next_back().unwrap_or(full_name);
     knowledge_root.join(name).is_dir()

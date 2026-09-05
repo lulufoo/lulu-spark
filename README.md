@@ -15,12 +15,10 @@
    knowledge_root = "/你的本地路径/Code"   # 沉淀知识库各 topic 仓库 clone 根目录
    cache_dir = "/Users/你的用户名/.cache/lulu-workbench"   # 可选；默认即此路径，一般无需改
    github_user_url = ""   # 可选；个人 GitHub 主页，如 https://github.com/lulufoo（结合 workbench_root 目录名生成 blob 链接）
-   meili_url = "http://localhost:7700"
    ```
-   GitHub Token、Meili Master Key 在设置页写入 Keychain。
-3. **外置 Meilisearch** — 见 [docs/meilisearch-dev.md](docs/meilisearch-dev.md)（App 不启动 Meili）
-4. **启动 App** — 在 workbench 根目录执行 `cargo tauri dev`（或安装 release 后从启动台打开）。**无需** Python 或 `server.py`。
-5. **Cursor 读 digest（可选）** — 先启动 App，再在外部 Cursor IDE 的 `mcp.json` 配置 MCP `url`：`http://127.0.0.1:<mcp_port>/mcp/cursor_ide`（默认端口 `9876`）。详见 [docs/knowledge-mcp.md](docs/knowledge-mcp.md)（Host 内嵌 MCP；不经 Binding）。
+   GitHub Token 在设置页写入 Keychain。
+3. **启动 App** — 在 workbench 根目录执行 `cargo tauri dev`（或安装 release 后从启动台打开）。**无需** Python 或 `server.py`。笔记 / 知识检索走进程内 SQLite FTS5；每次启动自动重建索引（右上角 ↺ Index 转圈即在构建，空闲时可点它手动重建）。
+4. **Cursor 读 digest（可选）** — 先启动 App，再在外部 Cursor IDE 的 `mcp.json` 配置 MCP `url`：`http://127.0.0.1:<mcp_port>/mcp/cursor_ide`（默认端口 `9876`）。详见 [docs/knowledge-mcp.md](docs/knowledge-mcp.md)（Host 内嵌 MCP；不经 Binding）。
 
 **⇕ 同步**（↑ 提交变更 / ↓ 更新项目）针对语料仓库；程序仓库变更在 `lulu-workbench` 目录内 `git` 提交。
 
@@ -43,7 +41,7 @@ Knowledge 登记、Read Later 与笔记的 SSOT（单一数据源）已迁入语
 - `read_later/read_later.json`
 - `todo_tasks/todo_tasks.json`
 
-`cache_dir` 仍保留 drafts、repo-commits、Meili 等可重建数据。
+`cache_dir` 仍保留 drafts、keyword-index 等可重建数据。
 
 配置目录由环境变量选择（**不**写入 `config.toml`）：
 

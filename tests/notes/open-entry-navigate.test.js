@@ -21,14 +21,10 @@ function read(rel) {
 
 const apiMocks = vi.hoisted(() => ({
   searchWorkbench: vi.fn(),
-  reindexWorkbench: vi.fn(),
-  getReindexWorkbenchStatus: vi.fn(),
 }));
 
 vi.mock('../../frontend/src/host/api.ts', () => ({
   searchWorkbench: (...args) => apiMocks.searchWorkbench(...args),
-  reindexWorkbench: (...args) => apiMocks.reindexWorkbench(...args),
-  getReindexWorkbenchStatus: (...args) => apiMocks.getReindexWorkbenchStatus(...args),
   setImportance: vi.fn(),
   setDone: vi.fn(),
   fetchFileContent: vi.fn(),
@@ -101,7 +97,6 @@ describe('T6 behavioral: workbench-search layer + cards emit', () => {
     document.body.innerHTML = `
       <div id="gs-wb-wrap" class="gs-search-wrap">
         <input id="gs-wb-input" class="gs-search-input" type="text" autocomplete="off" />
-        <button id="gs-wb-rebuild-btn" class="gs-rebuild-btn" style="display:none"></button>
         <div id="gs-wb-dropdown" class="gs-search-dropdown" style="display:none"></div>
       </div>
       <div id="doc-list"></div>

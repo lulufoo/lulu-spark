@@ -296,7 +296,7 @@ document.addEventListener('cta:open-entry', (event) => {
   const allEntries = Object.values(state.index.data || {});
   let entry = allEntries.find((e) => e.common_path === detail.common_path);
   // Fallback: detail.common_path may be a zh translation file (e.g. from a
-  // stale Meilisearch index). Resolve it to the main entry via translations.zh.
+  // stale index). Resolve it to the main entry via translations.zh.
   if (!entry) entry = allEntries.find((e) => e.translations?.zh === detail.common_path);
   if (!entry) return;
   const date = entry.created_at

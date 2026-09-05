@@ -3,8 +3,9 @@ use std::path::Path;
 
 use serde_json::{json, Map, Value};
 
-use crate::config::meili_env::notes_root_path;
-use crate::integrations::search::MeiliBackend;
+use crate::config::paths;
+use crate::config::roots::notes_root_path;
+use crate::services::keyword_index::{index_exists, search_in_cache, SearchFilter};
 
 use super::notes::{get_notes_file, load_notes_index_entries};
 
@@ -405,7 +406,7 @@ pub(crate) fn project_raw_search_hits(
     items
 }
 
-/// Search notes in the workbench Meili index. Raw layer only; no digest bodies.
+/// Search notes in the keyword index. Raw layer only; no digest bodies.
 pub fn search_notes(
     repo_root: &Path,
     q: &str,
@@ -416,29 +417,44 @@ pub fn search_notes(
     if q.is_empty() {
         return json!({ "error": "Missing q", "_status": 400 });
     }
-    let filter = match notes_raw_search_filter(catalog) {
-        Ok(f) => f,
-        Err(e) => return e,
-    };
+    if let Err(e) = notes_raw_search_filter(catalog) {
+        return e;
+    }
     let entries = match load_notes_index_entries(repo_root) {
         Ok(e) => e,
         Err(v) => return v,
     };
     let limit = parse_notes_search_limit(limit);
-    let result = MeiliBackend::new(repo_root).search_filtered(
-        "workbench",
-        q,
-        Some(limit),
-        Some(&filter),
-    );
-    if let Some(err) = result.get("error").and_then(|v| v.as_str()) {
-        let status = if err == "q parameter required" { 400 } else { 503 };
-        return json!({ "error": err, "_status": status });
+    let cache = match paths::cache_dir() {
+        Ok(p) => p,
+        Err(e) => return json!({ "error": format!("{e:?}"), "_status": 500 }),
+    };
+    if !index_exists(&cache) {
+        return json!({ "error": "not_indexed", "_status": 503 });
     }
-    let hits = result
-        .get("hits")
-        .and_then(|v| v.as_array())
-        .cloned()
-        .unwrap_or_default();
-    json!({ "items": project_raw_search_hits(&hits, &index_by_common_path(&entries)) })
+    let prefix = catalog
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(|s| format!("{s}/"));
+    let fts_filter = SearchFilter {
+        category: Some("notes".into()),
+        layer: Some("raw".into()),
+        common_path_prefix: prefix,
+    };
+    let hits = match search_in_cache(&cache, q, &fts_filter, limit) {
+        Ok(h) => h,
+        Err(e) => return json!({ "error": e, "_status": 500 }),
+    };
+    let projected: Vec<Value> = hits
+        .into_iter()
+        .map(|h| {
+            json!({
+                "layer": "raw",
+                "common_path": h.common_path,
+                "title": h.title,
+                "_formatted": { "body": h.snippet },
+            })
+        })
+        .collect();
+    json!({ "items": project_raw_search_hits(&projected, &index_by_common_path(&entries)) })
 }

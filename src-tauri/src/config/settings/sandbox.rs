@@ -42,7 +42,7 @@ fn path_equals_or_under(path: &Path, root: &Path) -> bool {
     path.starts_with(root)
 }
 
-/// Fail-closed sandbox guard: roots / meili / ports must not collide with prod.
+/// Fail-closed sandbox guard: roots / ports must not collide with prod.
 pub fn validate_sandbox_against_prod(
     sandbox: &AppSettings,
     prod: &AppSettings,
@@ -78,16 +78,6 @@ pub fn validate_sandbox_against_prod(
                 prod_root.display()
             )));
         }
-    }
-    if sandbox.meili_url.trim().is_empty() {
-        return Err(SettingsError::ConfigGuard(
-            "sandbox required field empty: meili_url".into(),
-        ));
-    }
-    if sandbox.meili_url == prod.meili_url {
-        return Err(SettingsError::ConfigGuard(
-            "sandbox meili_url collides with prod".into(),
-        ));
     }
     let sh = sandbox.effective_http_port();
     let sm = sandbox.effective_mcp_port();
@@ -299,7 +289,6 @@ pub fn write_test_config_with_cache(
     workbench_root: &Path,
     knowledge_root: Option<&Path>,
     cache_dir: Option<&Path>,
-    meili_url: &str,
     http_port: u16,
     mcp_port: u16,
 ) -> Result<(), SettingsError> {
@@ -318,7 +307,7 @@ pub fn write_test_config_with_cache(
     reject_test_write_to_machine_config(config_path)?;
     fs::create_dir_all(&cache)?;
     let text = format!(
-        "workbench_root = \"{}\"\nknowledge_root = \"{}\"\ncache_dir = \"{}\"\nmeili_url = \"{meili_url}\"\nhttp_port = {http_port}\nmcp_port = {mcp_port}\n",
+        "workbench_root = \"{}\"\nknowledge_root = \"{}\"\ncache_dir = \"{}\"\nhttp_port = {http_port}\nmcp_port = {mcp_port}\n",
         workbench_root.display(),
         knowledge,
         cache.display()

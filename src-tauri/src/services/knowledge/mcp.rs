@@ -4,20 +4,13 @@ use std::path::Path;
 
 use serde_json::{json, Value};
 
-use crate::config::meili_env::knowledge_root_string;
-use crate::integrations::meilisearch;
+use crate::config::paths;
+use crate::config::roots::knowledge_root_string;
 use crate::repositories::knowledge::kb_safe_path;
+use crate::services::keyword_index::{index_exists, search_in_cache, SearchFilter};
 use crate::services::sediment_kb;
 
 use super::doc_map;
-
-fn snippet_from_hit(hit: &Value) -> String {
-    hit.pointer("/_formatted/body")
-        .and_then(|v| v.as_str())
-        .or_else(|| hit.get("body").and_then(|v| v.as_str()))
-        .unwrap_or("")
-        .to_string()
-}
 
 pub fn list_knowledge_categories_value() -> Value {
     match sediment_kb::load_categories() {
@@ -50,44 +43,41 @@ pub fn search_knowledge_mcp(repo_root: &Path, q: &str, limit: Option<u32>) -> Va
     if q.is_empty() {
         return json!({ "error": "Missing q", "_status": 400 });
     }
-    let result = meilisearch::search_json(repo_root, "knowledge", q, limit);
-    if let Some(err) = result.get("error").and_then(|v| v.as_str()) {
-        let status = if err == "q parameter required" { 400 } else { 503 };
-        return json!({ "error": err, "_status": status });
+    let cache = match paths::cache_dir() {
+        Ok(p) => p,
+        Err(e) => return json!({ "error": format!("{e:?}"), "_status": 500 }),
+    };
+    if !index_exists(&cache) {
+        return json!({ "error": "not_indexed", "_status": 503 });
     }
-    let hits = result
-        .get("hits")
-        .and_then(|v| v.as_array())
-        .cloned()
-        .unwrap_or_default();
+    let filter = SearchFilter {
+        category: Some("knowledge".into()),
+        ..SearchFilter::default()
+    };
+    let hits = match search_in_cache(&cache, q, &filter, limit.unwrap_or(10).min(50)) {
+        Ok(h) => h,
+        Err(e) => return json!({ "error": e, "_status": 500 }),
+    };
     let kb_root = std::path::PathBuf::from(knowledge_root_string(repo_root));
     let mut items = Vec::new();
     for hit in hits {
-        let Some(repo) = hit.get("repo").and_then(|v| v.as_str()) else {
-            continue;
+        let abs = std::path::PathBuf::from(&hit.path);
+        let abs = if abs.is_file() {
+            abs
+        } else {
+            match kb_safe_path(&kb_root, &hit.repo, &hit.common_path) {
+                Ok(p) if p.is_file() => p,
+                _ => continue,
+            }
         };
-        let Some(rel) = hit.get("path").and_then(|v| v.as_str()) else {
-            continue;
-        };
-        let Ok(abs) = kb_safe_path(&kb_root, repo, rel) else {
-            continue;
-        };
-        if !abs.is_file() {
-            continue;
-        }
         let id = match doc_map::remember_path(&abs) {
             Ok(id) => id,
             Err(e) => return json!({ "error": e, "_status": 500 }),
         };
-        let title = hit
-            .get("title")
-            .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .to_string();
         items.push(json!({
             "id": id,
-            "title": title,
-            "snippet": snippet_from_hit(&hit),
+            "title": hit.title,
+            "snippet": hit.snippet,
         }));
     }
     json!({ "items": items })

@@ -4,22 +4,17 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 const apiMocks = vi.hoisted(() => ({
   searchKnowledge: vi.fn(),
   searchWorkbench: vi.fn(),
-  reindexKnowledge: vi.fn(),
-  getReindexStatus: vi.fn(),
 }));
 
 vi.mock('../../frontend/src/host/api.ts', () => ({
   searchKnowledge: (...args) => apiMocks.searchKnowledge(...args),
   searchWorkbench: (...args) => apiMocks.searchWorkbench(...args),
-  reindexKnowledge: (...args) => apiMocks.reindexKnowledge(...args),
-  getReindexStatus: (...args) => apiMocks.getReindexStatus(...args),
 }));
 
 function seedKnowledgeSearchDom() {
   document.body.innerHTML = `
     <div id="gs-kb-wrap" class="gs-search-wrap">
       <input id="gs-kb-input" class="gs-search-input" type="text" autocomplete="off" />
-      <button id="gs-kb-rebuild-btn" class="gs-rebuild-btn" style="display:none" title="重建知识库索引">↺</button>
       <div id="gs-kb-dropdown" class="gs-search-dropdown" style="display:none"></div>
     </div>
     <button id="outside-click-target">outside</button>
@@ -53,8 +48,6 @@ describe('knowledge-search module', () => {
     installLocalStorageMock();
     seedKnowledgeSearchDom();
     apiMocks.searchKnowledge.mockResolvedValue({ hits: [] });
-    apiMocks.reindexKnowledge.mockResolvedValue({});
-    apiMocks.getReindexStatus.mockResolvedValue({ status: 'running' });
   });
 
   afterEach(() => {
@@ -116,24 +109,11 @@ describe('knowledge-search module', () => {
     });
   });
 
-  it('rebuild button calls reindexKnowledge and polls getReindexStatus', async () => {
-    apiMocks.getReindexStatus
-      .mockResolvedValueOnce({ status: 'running' })
-      .mockResolvedValueOnce({ status: 'done', log: 'ok' });
-
+  it('renders no per-field rebuild button (header owns index rebuild)', async () => {
     const { initKnowledgeSearch } = await loadModule();
     initKnowledgeSearch();
-
-    document.getElementById('gs-kb-rebuild-btn').click();
-    await Promise.resolve();
-
-    expect(apiMocks.reindexKnowledge).toHaveBeenCalledTimes(1);
-
-    await vi.advanceTimersByTimeAsync(2000);
-    expect(apiMocks.getReindexStatus).toHaveBeenCalled();
-
-    await vi.advanceTimersByTimeAsync(2000);
-    expect(apiMocks.getReindexStatus.mock.calls.length).toBeGreaterThanOrEqual(2);
+    expect(document.getElementById('gs-kb-rebuild-btn')).toBeNull();
+    expect(document.querySelector('#gs-kb-wrap .gs-rebuild-btn')).toBeNull();
   });
 
   it('stores history under gs-history-kb', async () => {
@@ -161,43 +141,7 @@ describe('knowledge-search module', () => {
     expect(stored).toContain('stored-query');
   });
 
-  it('shows rebuild button only when input is focused (focus-gated)', async () => {
-    const { initKnowledgeSearch } = await loadModule();
-    initKnowledgeSearch();
-
-    const input = document.getElementById('gs-kb-input');
-    const rebuildBtn = document.getElementById('gs-kb-rebuild-btn');
-
-    expect(rebuildBtn.style.display).toBe('none');
-
-    input.dispatchEvent(new Event('focus', { bubbles: true }));
-    expect(rebuildBtn.style.display).toBe('inline-flex');
-
-    input.dispatchEvent(new Event('blur', { bubbles: true }));
-    await vi.advanceTimersByTimeAsync(200);
-    expect(rebuildBtn.style.display).toBe('none');
-  });
-
-  it('keeps rebuild button visible during rebuild polling', async () => {
-    apiMocks.getReindexStatus.mockResolvedValue({ status: 'running' });
-
-    const { initKnowledgeSearch } = await loadModule();
-    initKnowledgeSearch();
-
-    const input = document.getElementById('gs-kb-input');
-    const rebuildBtn = document.getElementById('gs-kb-rebuild-btn');
-
-    input.dispatchEvent(new Event('focus', { bubbles: true }));
-    rebuildBtn.click();
-    await Promise.resolve();
-
-    input.dispatchEvent(new Event('blur', { bubbles: true }));
-    await vi.advanceTimersByTimeAsync(200);
-
-    expect(rebuildBtn.style.display).not.toBe('none');
-  });
-
-  it('shows global-search-equivalent status for unavailable', async () => {
+  it('shows search error for unexpected backend failure', async () => {
     apiMocks.searchKnowledge.mockResolvedValue({ error: 'unavailable' });
 
     const { initKnowledgeSearch } = await loadModule();
@@ -209,7 +153,7 @@ describe('knowledge-search module', () => {
 
     const dropdown = document.getElementById('gs-kb-dropdown');
     expect(dropdown.style.display).toBe('block');
-    expect(dropdown.textContent).toContain('Meilisearch is not running');
+    expect(dropdown.textContent).toContain('Search error');
   });
 
   it('shows global-search-equivalent status for not_indexed', async () => {
@@ -224,6 +168,7 @@ describe('knowledge-search module', () => {
 
     const dropdown = document.getElementById('gs-kb-dropdown');
     expect(dropdown.textContent).toContain('Index not built yet');
+    expect(dropdown.textContent).toContain('header');
   });
 
   it('shows no-results and search-error statuses', async () => {

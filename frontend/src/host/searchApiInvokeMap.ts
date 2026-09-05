@@ -10,15 +10,14 @@ type ReindexEntry = {
 };
 
 export const REINDEX_INVOKE_MAP: Record<string, ReindexEntry> = {
-  reindexKnowledge: { cmd: 'reindex_knowledge' },
-  reindexWorkbench: { cmd: 'reindex_workbench' },
+  reindexAll: { cmd: 'reindex_all' },
+  getReindexAllStatus: { cmd: 'get_reindex_all_status' },
   reindexKbRepo: {
     cmd: 'reindex_kb_repo',
     args: (payload) => ({ repo: payload?.repo ?? '' }),
   },
   syncKnowledge: { cmd: 'sync_knowledge' },
   getReindexStatus: { cmd: 'get_reindex_status' },
-  getReindexWorkbenchStatus: { cmd: 'get_reindex_workbench_status' },
 };
 
 export function resolveReindexInvoke(

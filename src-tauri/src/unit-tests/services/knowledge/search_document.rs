@@ -43,7 +43,7 @@ fn merge_normalizes_notes_then_knowledge() {
 
 #[test]
 fn merge_keeps_knowledge_when_notes_fail() {
-    let notes = json!({ "error": "Meili down", "_status": 503 });
+    let notes = json!({ "error": "notes down", "_status": 503 });
     let knowledge = json!({
         "items": [{ "id": "kb1", "title": "KB", "snippet": "ok" }]
     });
