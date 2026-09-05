@@ -83,6 +83,10 @@ export function composerLocked(state: HomeState) {
   return !state.hostBound || state.inFlightIds.includes(state.currentSessionId);
 }
 
+export function composerInputLocked(state: HomeState) {
+  return !state.hostBound;
+}
+
 export function progressHint(state: HomeState) {
   return state.currentSessionId ? String(state.progressByChat[state.currentSessionId] || '') : '';
 }

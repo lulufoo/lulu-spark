@@ -500,6 +500,50 @@ describe('home hub chat sessions', () => {
     releaseTurn();
   });
 
+  it('keeps the input enabled and send disabled while a turn is in flight', async () => {
+    let releaseTurn;
+    const turnGate = new Promise((resolve) => {
+      releaseTurn = resolve;
+    });
+    invokeSpy.mockImplementation(async (cmd) => {
+      if (cmd === 'query_binding') return { state: 'bound' };
+      if (cmd === 'list_chat_sessions') {
+        return { sessions, current_session_id: currentId };
+      }
+      if (cmd === 'get_ai_assistant_binding') {
+        return { session_id: currentId, turns: [] };
+      }
+      if (cmd === 'agent_chat_turn') {
+        await turnGate;
+        return { reply_text: 'Hi back', terminal: 'ok' };
+      }
+      return {};
+    });
+    await mountReady();
+    const input = container.querySelector('[data-role="input"]');
+    const send = container.querySelector('[data-role="send"]');
+    const form = container.querySelector('[data-role="form"]');
+    input.value = 'Hello there';
+    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    await vi.waitFor(() => {
+      expect(container.querySelector('.home-chat-bubble--user')?.textContent).toBe(
+        'Hello there',
+      );
+      expect(input.disabled).toBe(false);
+      expect(send.disabled).toBe(true);
+    });
+    input.value = 'Draft while waiting';
+    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    expect(invokeSpy.mock.calls.filter(([cmd]) => cmd === 'agent_chat_turn')).toHaveLength(1);
+    expect(input.value).toBe('Draft while waiting');
+    releaseTurn();
+    await vi.waitFor(() => {
+      expect(send.disabled).toBe(false);
+      expect(container.textContent).toMatch(/Hi back/);
+    });
+    expect(input.value).toBe('Draft while waiting');
+  });
+
   it('disables the composer when Binding is unbound', async () => {
     bound = false;
     cleanup = mountHomeHub(container, { navigate: vi.fn() });

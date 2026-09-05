@@ -20,6 +20,7 @@ import { openStagedFile, unstageStaged } from './commands/staged.ts';
 import { StagedList } from './ui/staged-list.tsx';
 import { createImeEnterGuard } from './ime-enter.ts';
 import {
+  composerInputLocked,
   composerLocked,
   messagePaintKey,
   progressHint,
@@ -110,6 +111,7 @@ export function HomePage({
 }: HomePageChrome = {}) {
   const state = useHomeState();
   const locked = composerLocked(state);
+  const inputLocked = composerInputLocked(state);
   const hint = progressHint(state);
   const showProgress = Boolean(hint) || (state.hostBound && locked);
   const messagesRef = useRef<HTMLDivElement | null>(null);
@@ -335,7 +337,7 @@ export function HomePage({
               data-role="input"
               rows={1}
               placeholder="Message…"
-              disabled={locked}
+              disabled={inputLocked}
               onKeyDown={onComposerKey}
               onCompositionStart={() => imeEnterRef.current.onCompositionStart()}
               onCompositionEnd={() => imeEnterRef.current.onCompositionEnd()}
