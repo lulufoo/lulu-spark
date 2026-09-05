@@ -65,6 +65,21 @@ describe('renderMermaidBlocks', () => {
     expect(container.querySelector('pre')).toBeNull();
   });
 
+  it('does not mistake an error-icon CSS rule for an error SVG', async () => {
+    global.mermaid.render = vi.fn(async () => ({
+      svg: '<svg><style>.error-icon { fill: #552222; }</style><g class="node"></g></svg>',
+    }));
+
+    const container = document.createElement('div');
+    container.innerHTML = '<pre><code class="language-mermaid">graph TD; A-->B;</code></pre>';
+
+    await renderMermaidBlocks(container);
+
+    const diagram = container.querySelector('.mermaid-diagram');
+    expect(diagram.querySelector('svg')).not.toBeNull();
+    expect(diagram.querySelector('.mermaid-error')).toBeNull();
+  });
+
   it('treats mermaid error svg as a fallback instead of painting it', async () => {
     global.mermaid.render = vi.fn(async () => ({
       svg: '<svg><text>Syntax error in text</text><path class="error-icon"></path></svg>',

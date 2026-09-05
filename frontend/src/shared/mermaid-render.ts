@@ -24,7 +24,13 @@ function removeMermaidTemp(renderId: string) {
 }
 
 function isMermaidErrorSvg(svg: string) {
-  return svg.includes('Syntax error in text') || svg.includes('error-icon');
+  const documentRoot = new DOMParser().parseFromString(svg, 'image/svg+xml');
+  return Boolean(
+    documentRoot.querySelector('.error-icon') ||
+      [...documentRoot.querySelectorAll('.error-text')].some((element) =>
+        element.textContent?.includes('Syntax error in text'),
+      ),
+  );
 }
 
 function showMermaidFallback(wrapper: HTMLElement, source: string, message: string) {
