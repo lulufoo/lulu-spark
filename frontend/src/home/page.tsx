@@ -4,6 +4,9 @@ import { createRoot, type Root } from 'react-dom/client';
 import { flushSync } from 'react-dom';
 import { hydrateHomeChatMarkdown, renderHomeChatMarkdown } from './ui/chat-render.ts';
 import { SessionList } from './ui/session-list.tsx';
+import { SessionMenu } from './ui/session-menu.tsx';
+import { StagedList } from './ui/staged-list.tsx';
+import { copyCurrentSessionId } from './commands/copy-session-id.ts';
 import {
   createSession,
   deleteSession,
@@ -17,7 +20,6 @@ import {
 } from './commands/hub.ts';
 import { consumeComposerFocus } from './commands/composer-focus.ts';
 import { openStagedFile, unstageStaged } from './commands/staged.ts';
-import { StagedList } from './ui/staged-list.tsx';
 import { createImeEnterGuard } from './ime-enter.ts';
 import {
   composerInputLocked,
@@ -311,6 +313,7 @@ export function HomePage({
         />
       </aside>
       <section className="home-chat-main">
+        <SessionMenu sessionId={state.currentSessionId} onCopy={copyCurrentSessionId} />
         <div ref={messagesRef} className="home-chat-messages" data-role="messages" aria-live="polite">
           <MessageThread
             hostBound={state.hostBound}

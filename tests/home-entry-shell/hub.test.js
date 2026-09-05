@@ -191,6 +191,36 @@ describe('home hub chat sessions', () => {
     });
   }
 
+  it('copies the current session id from the chat overflow menu', async () => {
+    const writeText = vi.fn(async () => {});
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    });
+    await mountReady();
+    const menuBtn = container.querySelector('[data-role="chat-session-menu"]');
+    expect(menuBtn).not.toBeNull();
+    menuBtn.click();
+    await vi.waitFor(() => {
+      expect(container.querySelector('[data-role="copy-session-id"]')).not.toBeNull();
+    });
+    const copyBtn = container.querySelector('[data-role="copy-session-id"]');
+    expect(copyBtn.textContent).toBe('Copy Session ID');
+    copyBtn.click();
+    await vi.waitFor(() => {
+      expect(writeText).toHaveBeenCalledWith('s2');
+    });
+  });
+
+  it('hides the chat overflow menu when unbound', async () => {
+    bound = false;
+    cleanup = mountHomeHub(container, { navigate: vi.fn() });
+    await vi.waitFor(() => {
+      expect(container.textContent).toMatch(/Chat requires a workspace Binding/);
+    });
+    expect(container.querySelector('[data-role="chat-session-menu"]')).toBeNull();
+  });
+
   it('lists sessions and marks the current one active', async () => {
     await mountReady();
     const items = [...container.querySelectorAll('.home-chat-session')];
@@ -599,6 +629,8 @@ describe('home hub composer and hub pairing', () => {
   it('reserves a right rail so the composer dock does not sit under the global +', () => {
     const appCss = readFileSync(join(fixtureRoot, 'frontend/app.css'), 'utf8');
     expect(appCss).toMatch(/--home-chat-rail:\s*44px/);
+    expect(appCss).toMatch(/\.home-chat-session-menu\s*\{[^}]*position:\s*absolute/);
+    expect(appCss).toMatch(/\.home-chat-session-menu\s*\{[^}]*right:\s*8px/);
     expect(appCss).toMatch(/--home-chat-col:\s*calc\(50% \+ 360px\)/);
     expect(appCss).toMatch(/\.home-chat-composer-dock/);
     expect(appCss).toMatch(/\.home-chat-composer-dock\s*\{[^}]*min-height:\s*40px/);
