@@ -374,6 +374,32 @@ fn run_loop_offers_host_file_tools_and_keeps_scratch_writes_inside_cache() {
         }),
         "model tools must include Host file tools and MCP tools"
     );
+    let write_desc = hits[0]["tools"]
+        .as_array()
+        .and_then(|tools| {
+            tools.iter().find_map(|tool| {
+                if tool.pointer("/function/name") == Some(&json!("write")) {
+                    tool.pointer("/function/description")
+                        .and_then(|v| v.as_str())
+                        .map(str::to_string)
+                } else {
+                    None
+                }
+            })
+        })
+        .expect("write description");
+    assert!(
+        write_desc.contains("agent-scratch") && write_desc.contains(&session.session_id),
+        "sent write description must include this session scratch path"
+    );
+    assert!(
+        !write_desc.contains("{session_scratch}"),
+        "sent write description must not keep the placeholder"
+    );
+    assert!(
+        !write_desc.contains(readable.to_string_lossy().as_ref()),
+        "sent write description must not list staged or other file paths"
+    );
     let tool_turns: Vec<_> = session
         .turns
         .iter()

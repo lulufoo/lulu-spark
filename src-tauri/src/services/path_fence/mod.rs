@@ -13,12 +13,20 @@ pub struct PathFence {
 }
 
 impl PathFence {
-    pub fn with_session_scratch(&self, session_id: &str) -> Result<Self, String> {
+    /// Session scratch directory: `{scratch_parent}/{session_id}`. `None` when
+    /// this fence has no scratch parent.
+    pub fn session_scratch_root(&self, session_id: &str) -> Result<Option<PathBuf>, String> {
         let Some(parent) = &self.scratch_parent else {
-            return Ok(self.clone());
+            return Ok(None);
         };
         let segment = sanitize_session_segment(session_id)?;
-        let scratch = stored_path(parent.join(segment));
+        Ok(Some(stored_path(parent.join(segment))))
+    }
+
+    pub fn with_session_scratch(&self, session_id: &str) -> Result<Self, String> {
+        let Some(scratch) = self.session_scratch_root(session_id)? else {
+            return Ok(self.clone());
+        };
         let mut next = self.clone();
         if !next.read_allow.iter().any(|p| p == &scratch) {
             next.read_allow.push(scratch.clone());

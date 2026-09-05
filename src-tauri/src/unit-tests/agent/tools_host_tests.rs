@@ -3,8 +3,27 @@ use std::path::PathBuf;
 
 use serde_json::json;
 
+use crate::agent::tools::catalog::SESSION_SCRATCH_PLACEHOLDER;
 use crate::agent::tools::host;
+use crate::agent::tools::ToolCatalog;
 use crate::services::path_fence::PathFence;
+
+fn tool_description(catalog: &ToolCatalog, name: &str) -> String {
+    catalog
+        .definitions
+        .iter()
+        .find_map(|def| {
+            let found = def.pointer("/function/name")?.as_str()?;
+            if found == name {
+                def.pointer("/function/description")?
+                    .as_str()
+                    .map(str::to_string)
+            } else {
+                None
+            }
+        })
+        .unwrap_or_else(|| panic!("missing {name}"))
+}
 
 fn unique_dir(label: &str) -> PathBuf {
     let dir = std::env::temp_dir().join(format!(
@@ -54,6 +73,57 @@ fn catalog_exposes_the_four_host_file_tools() {
     assert!(!host::is_builtin("StrReplace"));
     assert!(!catalog.is_mutating("read"));
     assert!(!catalog.is_mutating("grep"));
+}
+
+#[test]
+fn write_and_str_replace_keep_scratch_placeholder_and_staged_rule() {
+    let catalog = host::catalog();
+    for name in ["write", "str_replace"] {
+        let desc = tool_description(&catalog, name);
+        assert!(
+            desc.contains(SESSION_SCRATCH_PLACEHOLDER),
+            "{name} must keep the scratch placeholder"
+        );
+        assert!(
+            desc.contains("exact currently staged file"),
+            "{name} must name the staged-file rule"
+        );
+        assert!(
+            desc.contains("list_staged"),
+            "{name} must point at list_staged"
+        );
+        assert!(
+            !desc.contains("/agent-scratch/"),
+            "{name} static text must not bake a scratch path"
+        );
+    }
+    assert!(!tool_description(&catalog, "read").contains(SESSION_SCRATCH_PLACEHOLDER));
+    assert!(!tool_description(&catalog, "grep").contains(SESSION_SCRATCH_PLACEHOLDER));
+}
+
+#[test]
+fn fill_session_scratch_replaces_placeholder_and_does_not_list_staged() {
+    let mut catalog = host::catalog();
+    let scratch = unique_dir("filled-scratch");
+    catalog.fill_session_scratch(&scratch);
+    let scratch_text = scratch.to_string_lossy();
+    for name in ["write", "str_replace"] {
+        let desc = tool_description(&catalog, name);
+        assert!(
+            desc.contains(scratch_text.as_ref()),
+            "{name} must include the session scratch path"
+        );
+        assert!(
+            !desc.contains(SESSION_SCRATCH_PLACEHOLDER),
+            "{name} must not leave the placeholder"
+        );
+        assert!(
+            !desc.contains("note.md"),
+            "{name} must not list staged file names"
+        );
+    }
+    assert!(!tool_description(&catalog, "read").contains(scratch_text.as_ref()));
+    assert!(!tool_description(&catalog, "grep").contains(scratch_text.as_ref()));
 }
 
 #[test]
@@ -157,6 +227,7 @@ fn write_and_edit_are_scratch_only() {
         &fence,
     );
     assert!(denied.is_error);
+    assert_eq!(denied.content, "path is outside the write fence");
     assert!(!outside.exists());
 
     let pad = scratch.join("pad.md");
@@ -256,6 +327,7 @@ fn write_and_edit_succeed_on_exact_staged_file() {
         &fence,
     );
     assert!(denied.is_error);
+    assert_eq!(denied.content, "path is outside the write fence");
     assert!(!other.exists());
 
     let wrote = host::call(

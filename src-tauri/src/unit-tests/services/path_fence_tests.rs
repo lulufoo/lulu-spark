@@ -165,3 +165,24 @@ fn session_writes_are_isolated_and_skip_invalid_staged() {
         .expect("skip dir");
     assert!(!skipped.allows_write(&file_a));
 }
+
+#[test]
+fn session_scratch_root_matches_write_allow() {
+    let root = unique_dir("wb-root");
+    let parent = unique_dir("scratch-parent");
+    let fence = fence_with(root, parent.clone());
+    assert_eq!(
+        fence.session_scratch_root("sess_abc").expect("id"),
+        Some(parent.join("sess_abc"))
+    );
+    let live = fence.with_session_scratch("sess_abc").expect("scratch");
+    assert_eq!(
+        live.session_scratch_root("sess_abc").expect("id"),
+        Some(live.write_allow[0].clone())
+    );
+    let no_parent = PathFence {
+        scratch_parent: None,
+        ..PathFence::default()
+    };
+    assert_eq!(no_parent.session_scratch_root("sess_abc").expect("id"), None);
+}

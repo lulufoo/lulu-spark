@@ -86,6 +86,17 @@ pub fn discover_and_merge(
     })
 }
 
+/// Replace `{session_scratch}` in this turn's tool descriptions.
+pub fn fill_turn_scratch(turn: &mut TurnTools, fence: &PathFence, session_id: &str) {
+    let Some(catalog) = turn.catalog.as_mut() else {
+        return;
+    };
+    let Ok(Some(scratch)) = fence.session_scratch_root(session_id) else {
+        return;
+    };
+    catalog.fill_session_scratch(&scratch);
+}
+
 /// Local (non-MCP) Host file or Stage tool that should not cross the MCP boundary.
 pub fn uses_host(turn: &TurnTools, name: &str) -> bool {
     is_local_builtin(name)

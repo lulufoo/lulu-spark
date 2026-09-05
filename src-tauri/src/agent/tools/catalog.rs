@@ -1,9 +1,13 @@
 //! Model-facing tool catalog and shared result types.
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::path::Path;
 
 use rmcp::model::Tool;
 use serde_json::{json, Value};
+
+/// Replaced with the session scratch directory before each turn's LLM call.
+pub const SESSION_SCRATCH_PLACEHOLDER: &str = "{session_scratch}";
 
 /// Model-facing function definitions (MCP and/or Host).
 #[derive(Debug, Clone, PartialEq)]
@@ -43,6 +47,27 @@ impl ToolCatalog {
             names,
             read_only_names,
             input_schemas,
+        }
+    }
+
+    /// Replace `{session_scratch}` in tool descriptions. Does not list staged paths.
+    pub fn fill_session_scratch(&mut self, scratch: &Path) {
+        let path = scratch.to_string_lossy();
+        for def in &mut self.definitions {
+            let Some(description) = def
+                .pointer("/function/description")
+                .and_then(Value::as_str)
+                .map(str::to_string)
+            else {
+                continue;
+            };
+            if !description.contains(SESSION_SCRATCH_PLACEHOLDER) {
+                continue;
+            }
+            let filled = description.replace(SESSION_SCRATCH_PLACEHOLDER, path.as_ref());
+            if let Some(slot) = def.pointer_mut("/function/description") {
+                *slot = Value::String(filled);
+            }
         }
     }
 

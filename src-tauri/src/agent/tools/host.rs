@@ -40,11 +40,11 @@ pub fn catalog() -> ToolCatalog {
         ),
         local_tool(
             "write",
-            "Create or overwrite a text file. path must be absolute and under the write-allowed scratch root.",
+            "Create or overwrite a text file. path must be absolute. Writable locations: the session scratch directory {session_scratch}, or an exact currently staged file. Do not invent a sibling filename; use list_staged for staged paths.",
             json!({
                 "type": "object",
                 "properties": {
-                    "path": { "type": "string", "description": "Absolute file path." },
+                    "path": { "type": "string", "description": "Absolute file path under the session scratch directory or an exact currently staged file." },
                     "content": { "type": "string", "description": "Full file contents." }
                 },
                 "required": ["path", "content"],
@@ -54,11 +54,11 @@ pub fn catalog() -> ToolCatalog {
         ),
         local_tool(
             "str_replace",
-            "Replace exact text in an existing writable file (session scratch or an exact staged file). old_string must match exactly once unless replace_all is true.",
+            "Replace exact text in an existing writable file. Writable locations: the session scratch directory {session_scratch}, or an exact currently staged file. Do not invent a sibling filename; use list_staged for staged paths. old_string must match exactly once unless replace_all is true.",
             json!({
                 "type": "object",
                 "properties": {
-                    "path": { "type": "string", "description": "Absolute file path." },
+                    "path": { "type": "string", "description": "Absolute file path under the session scratch directory or an exact currently staged file." },
                     "old_string": { "type": "string", "description": "The text to replace." },
                     "new_string": { "type": "string", "description": "The text to replace it with." },
                     "replace_all": {
