@@ -21,7 +21,12 @@ fn replace_set_while_busy_clears_live_session() {
         );
         // Legacy open_ai_assistant busy gate is retired; ensure may mint a new session.
         let second = r#loop::ensure_chat_session_core().unwrap();
-        assert!(second["session_id"].as_str().unwrap().starts_with("sess_"));
+        assert!(
+            second["session_id"]
+                .as_str()
+                .unwrap()
+                .starts_with("workbench_chat_")
+        );
         assert_ne!(second["session_id"].as_str().unwrap(), sid);
         assert!(second.get("bound_master_task_id").is_none());
     });

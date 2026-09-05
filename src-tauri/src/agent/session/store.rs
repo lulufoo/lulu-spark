@@ -5,7 +5,7 @@ use chrono::{Local, TimeZone};
 use serde_json::{json, Value};
 
 use crate::config::paths;
-use crate::services::id::random_hex12;
+use crate::services::id::random_entry_id;
 
 use super::types::{Session, Turn};
 
@@ -59,7 +59,7 @@ pub fn session_file_path(session_id: &str) -> Result<PathBuf, String> {
 
 pub fn create_session() -> Result<Session, String> {
     let session = Session {
-        session_id: format!("sess_{}", random_hex12()),
+        session_id: format!("workbench_chat_{}", random_entry_id()),
         turns: Vec::new(),
         staged: Vec::new(),
     };

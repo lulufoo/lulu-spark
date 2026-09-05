@@ -153,6 +153,38 @@ fn session_save_load_roundtrip_under_cache_agent_sessions() {
 }
 
 #[test]
+fn create_session_id_is_workbench_chat_plus_32_hex() {
+    with_agent_sandbox(|_| {
+        let sess = session::create_session().expect("create");
+        let id = sess.session_id;
+        let suffix = id
+            .strip_prefix("workbench_chat_")
+            .expect("new session id must start with workbench_chat_");
+        assert_eq!(suffix.len(), 32);
+        assert!(
+            suffix
+                .chars()
+                .all(|c| c.is_ascii_hexdigit() && !c.is_uppercase()),
+            "suffix must be 32 lowercase hex, got {suffix:?}"
+        );
+    });
+}
+
+#[test]
+fn load_session_still_reads_legacy_sess_id() {
+    with_agent_sandbox(|_| {
+        let legacy = Session {
+            session_id: "sess_84dafc26cec6".into(),
+            turns: Vec::new(),
+            staged: Vec::new(),
+        };
+        session::save_session(&legacy).expect("save legacy");
+        let loaded = session::load_session("sess_84dafc26cec6").expect("load legacy");
+        assert_eq!(loaded.session_id, "sess_84dafc26cec6");
+    });
+}
+
+#[test]
 fn agent_error_log_writes_under_cache_agent_without_secrets() {
     with_agent_sandbox(|sandbox| {
         session::log_agent_error(
