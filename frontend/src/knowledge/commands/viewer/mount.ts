@@ -10,6 +10,7 @@ import { revokeKbBlobUrls } from './images.ts';
 import { paintKbMdBody } from './paint.ts';
 import { openKnowledgeInChat } from '../open-in-chat.ts';
 import { paintKbError, paintKbLoading, paintKbPlain, paintReaderShell } from '../../ui/viewer/shell.tsx';
+import { paintKbCommittedAt } from '../../state/committed-at.ts';
 import {
   errMessage,
   type KbReaderHost,
@@ -64,6 +65,7 @@ export async function mountKbReader(
 
   const ui = {
     fileSize: container.querySelector('.kb-file-size') as HTMLElement,
+    committedAt: container.querySelector('.kb-file-committed') as HTMLElement,
     btnCopyHttp: container.querySelector('.kb-btn-copy-http') as HTMLButtonElement,
     btnCopyPath: container.querySelector('.kb-btn-copy-path') as HTMLButtonElement,
     btnOpenInChat: container.querySelector('.kb-btn-open-in-chat') as HTMLButtonElement,
@@ -86,6 +88,7 @@ export async function mountKbReader(
   ui.btnCopyPath.dataset.path = localPath;
   ui.btnCopyPath.dataset.tip = localPath;
   ui.fileSize.textContent = '';
+  paintKbCommittedAt(ui.committedAt, null);
 
   function showPendingBadge(_msg: string) {
     ui.btnPending.style.display = '';
@@ -240,12 +243,13 @@ export async function mountKbReader(
       if (mdResult.status === 'rejected') {
         throw new Error(errMessage(mdResult.reason, 'fetch failed'));
       }
-      const result = mdResult.value as { error?: string; content?: string };
+      const result = mdResult.value as { error?: string; content?: string; committed_at?: number | null };
       if (result.error) throw new Error(result.error);
 
       const text = typeof result.content === 'string' ? result.content : '';
       state.viewer.rawText = text;
       ui.fileSize.textContent = formatFileSize(text);
+      paintKbCommittedAt(ui.committedAt, result.committed_at);
 
       if (typeof marked !== 'undefined') {
         await paintKbMdBody(text, ui.body);

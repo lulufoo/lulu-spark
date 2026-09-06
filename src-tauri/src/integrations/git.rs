@@ -255,6 +255,23 @@ pub fn pull_rebase_in_repo(repo: &Path) -> Result<(), GitError> {
     }
 }
 
+/// Unix seconds of the latest commit that touched `rel_path`. Missing history is `None`.
+pub fn file_last_commit_unix(repo: &Path, rel_path: &str) -> Option<i64> {
+    let rel_path = rel_path.trim();
+    if rel_path.is_empty() || rel_path.contains("..") {
+        return None;
+    }
+    let out = exec(repo, &["log", "-1", "--format=%ct", "--", rel_path]).ok()?;
+    if !out.success {
+        return None;
+    }
+    let trimmed = out.stdout.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    trimmed.parse().ok()
+}
+
 pub fn git_error_json(err: &GitError, step: Option<&str>) -> Value {
     let mut v = json!({
         "error": err.message,

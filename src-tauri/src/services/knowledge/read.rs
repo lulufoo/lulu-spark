@@ -27,7 +27,10 @@ pub fn kb_read_json(repo_root: &Path, repo: &str, path: &str) -> Value {
                 return json!({ "error": e, "_status": 404 });
             }
             let content = fs::read_to_string(&target).unwrap_or_default();
-            json!({ "content": content })
+            let repo_name = repo.trim().split('/').next_back().unwrap_or("");
+            let committed_at =
+                crate::integrations::git::file_last_commit_unix(&kb_root.join(repo_name), path.trim());
+            json!({ "content": content, "committed_at": committed_at })
         }
     }
 }

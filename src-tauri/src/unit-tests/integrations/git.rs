@@ -47,3 +47,13 @@ fn commit_nothing_to_commit_on_clean_tree() {
     let (nothing, _) = commit(dir.path(), "empty").expect("commit");
     assert!(nothing);
 }
+
+#[test]
+fn file_last_commit_unix_reads_path_history() {
+    let dir = tempfile::tempdir().expect("tmp");
+    init_repo(dir.path());
+    let ts = file_last_commit_unix(dir.path(), "a.txt").expect("commit time");
+    assert!(ts > 0);
+    assert_eq!(file_last_commit_unix(dir.path(), "missing.txt"), None);
+    assert_eq!(file_last_commit_unix(dir.path(), "../a.txt"), None);
+}

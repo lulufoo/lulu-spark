@@ -6982,6 +6982,16 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
 .kb-reader-header.viewer-header {
   justify-content: flex-end;
 }
+.kb-reader-header-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: auto;
+  font-size: 12px;
+  line-height: 1.25;
+  color: #8c959f;
+  flex-shrink: 0;
+}
 .knowledge-doc-sidebar-header {
   display: flex;
   align-items: center;

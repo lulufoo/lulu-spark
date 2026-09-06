@@ -8,12 +8,15 @@ import { KbCommentFloatNav, KbCommentsBar } from '../comments.tsx';
 const FALLBACK_SHELL_HTML = `
     <div class="kb-reader">
       <div class="kb-reader-header viewer-header">
-        <span class="kb-file-size" style="font-size:10px;color:#8c959f;flex-shrink:0;"></span>
+        <span class="kb-reader-header-meta">
+          <span class="kb-file-committed" title="Last git commit" hidden></span>
+          <span class="kb-file-size"></span>
+        </span>
         <button type="button" class="md-header-btn kb-btn-copy-http" data-tip="">&#127760;</button>
         <button type="button" class="md-header-btn kb-btn-copy-path" data-tip="">&#128194;</button>
-        <button type="button" class="md-header-btn kb-btn-open-in-chat" title="Open in chat" aria-label="Open in chat">&#128172;</button>
-        <button type="button" class="md-header-btn kb-btn-edit">✏️ Edit</button>
-        <button type="button" class="md-header-btn kb-btn-add-comment">💬 Comment</button>
+        <button type="button" class="md-header-btn kb-btn-open-in-chat" title="Open in chat" aria-label="Open in chat">🗨️</button>
+        <button type="button" class="md-header-btn kb-btn-edit" title="Edit" aria-label="Edit">✏️</button>
+        <button type="button" class="md-header-btn kb-btn-add-comment" title="Comment" aria-label="Comment">💬</button>
         <button type="button" class="md-header-btn primary kb-btn-save" style="display:none">💾 Save</button>
         <button type="button" class="md-header-btn kb-btn-cancel-edit" style="display:none">Cancel</button>
         <button type="button" id="kb-btn-pending" class="md-header-btn kb-btn-pending" style="display:none">● Pending commit</button>
@@ -36,7 +39,10 @@ export function ReaderShell() {
   return (
     <div className="kb-reader">
       <div className="kb-reader-header viewer-header">
-        <span className="kb-file-size" style={{ fontSize: 10, color: '#8c959f', flexShrink: 0 }} />
+        <span className="kb-reader-header-meta">
+          <span className="kb-file-committed" title="Last git commit" hidden />
+          <span className="kb-file-size" />
+        </span>
         <button type="button" className="md-header-btn kb-btn-copy-http" data-tip="">
           &#127760;
         </button>
@@ -49,13 +55,23 @@ export function ReaderShell() {
           title="Open in chat"
           aria-label="Open in chat"
         >
-          &#128172;
+          🗨️
         </button>
-        <button type="button" className="md-header-btn kb-btn-edit">
-          ✏️ Edit
+        <button
+          type="button"
+          className="md-header-btn kb-btn-edit"
+          title="Edit"
+          aria-label="Edit"
+        >
+          ✏️
         </button>
-        <button type="button" className="md-header-btn kb-btn-add-comment">
-          💬 Comment
+        <button
+          type="button"
+          className="md-header-btn kb-btn-add-comment"
+          title="Comment"
+          aria-label="Comment"
+        >
+          💬
         </button>
         <button type="button" className="md-header-btn primary kb-btn-save" style={{ display: 'none' }}>
           💾 Save

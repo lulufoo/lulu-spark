@@ -31,6 +31,28 @@ fn kb_read_returns_content() {
         |cfg_dir, _| {
             let v = kb_read_json(cfg_dir, "lulufoo/myrepo", "docs/a.md");
             assert_eq!(v["content"], "hello");
+            assert!(v["committed_at"].is_null());
+        },
+    );
+}
+
+#[test]
+fn kb_read_includes_file_last_commit_unix() {
+    with_kb_repo(
+        |_, kb| {
+            let repo_dir = kb.join("myrepo");
+            fs::create_dir_all(repo_dir.join("docs")).expect("mkdir");
+            fs::write(repo_dir.join("docs/a.md"), "hello").expect("w");
+            crate::integrations::git::exec(&repo_dir, &["init"]).expect("init");
+            crate::integrations::git::exec(&repo_dir, &["config", "user.email", "t@t.com"]).expect("email");
+            crate::integrations::git::exec(&repo_dir, &["config", "user.name", "t"]).expect("name");
+            crate::integrations::git::exec(&repo_dir, &["add", "docs/a.md"]).expect("add");
+            crate::integrations::git::exec(&repo_dir, &["commit", "-m", "init"]).expect("commit");
+        },
+        |cfg_dir, _| {
+            let v = kb_read_json(cfg_dir, "lulufoo/myrepo", "docs/a.md");
+            assert_eq!(v["content"], "hello");
+            assert!(v["committed_at"].as_i64().expect("unix") > 0);
         },
     );
 }

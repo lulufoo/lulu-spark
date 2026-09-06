@@ -95,12 +95,24 @@ describe('mountKbReader', () => {
     expect(container.querySelector('.kb-reader-header')).toBeTruthy();
     expect(container.querySelector('.kb-reader-title')).toBeNull();
     expect(container.querySelector('.kb-reader-body')).toBeTruthy();
-    expect(container.querySelector('.kb-btn-edit')).toBeTruthy();
     expect(container.querySelector('.kb-btn-reindex')).toBeNull();
     const openInChat = container.querySelector('.kb-btn-open-in-chat');
     expect(openInChat).toBeTruthy();
     expect(openInChat.getAttribute('aria-label')).toBe('Open in chat');
     expect(openInChat.getAttribute('title')).toBe('Open in chat');
+    expect(openInChat.textContent).toContain('🗨️');
+    expect(openInChat.textContent).not.toContain('💬');
+    const editBtn = container.querySelector('.kb-btn-edit');
+    expect(editBtn).toBeTruthy();
+    expect(editBtn.getAttribute('aria-label')).toBe('Edit');
+    expect(editBtn.getAttribute('title')).toBe('Edit');
+    expect(editBtn.textContent).toContain('✏️');
+    expect(editBtn.textContent).not.toMatch(/Edit/i);
+    const commentBtn = container.querySelector('.kb-btn-add-comment');
+    expect(commentBtn?.getAttribute('aria-label')).toBe('Comment');
+    expect(commentBtn?.getAttribute('title')).toBe('Comment');
+    expect(commentBtn?.textContent).toContain('💬');
+    expect(commentBtn?.textContent).not.toMatch(/Comment/i);
     unmount();
   });
 
@@ -115,6 +127,28 @@ describe('mountKbReader', () => {
     expect(state.viewer.kbRepo).toBe('owner/repo');
     expect(state.viewer.kbPath).toBe('readme.md');
     expect(container.querySelector('.kb-reader-body').innerHTML).toContain('Hello');
+    unmount();
+  });
+
+  it('shows last git commit time next to file size', async () => {
+    fetchKbFileContent.mockResolvedValue({
+      content: '# Hello\n\nworld',
+      committed_at: 1_704_067_200,
+    });
+    const { unmount } = await mountKbReader(container, {
+      repo: 'owner/repo',
+      path: 'readme.md',
+    });
+    await flushPromises();
+
+    const meta = container.querySelector('.kb-reader-header-meta');
+    const size = container.querySelector('.kb-file-size');
+    const committed = container.querySelector('.kb-file-committed');
+    expect(meta?.contains(committed)).toBe(true);
+    expect(committed?.nextElementSibling).toBe(size);
+    expect(size?.textContent).toMatch(/B|KB|MB/);
+    expect(committed?.hidden).toBe(false);
+    expect(committed?.textContent).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/);
     unmount();
   });
 
