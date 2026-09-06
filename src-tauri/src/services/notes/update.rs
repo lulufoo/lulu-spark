@@ -24,6 +24,7 @@ const DEFERRED_FIELDS: &[&str] = &[
     "created_at",
     "source_type",
     "translations",
+    "asset_paths",
 ];
 
 /// Public note API (HTTP / MCP): body from allow-listed `source_path` only.

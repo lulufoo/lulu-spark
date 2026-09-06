@@ -107,6 +107,102 @@ fn turn_block_count(raw: &str) -> usize {
     headings.max(seps)
 }
 
+pub(super) fn digest_body_rejects_relative_images(digest_body: &str) -> Option<Value> {
+    if has_relative_image(digest_body) {
+        Some(json!({
+            "error": "digest_body must not contain relative images",
+            "_status": 400
+        }))
+    } else {
+        None
+    }
+}
+
+fn has_relative_image(md: &str) -> bool {
+    markdown_images_have_relative(md) || html_img_has_relative(md)
+}
+
+fn href_is_relative(raw: &str) -> bool {
+    let raw = raw.trim();
+    let raw = raw
+        .strip_prefix('<')
+        .and_then(|s| s.strip_suffix('>'))
+        .unwrap_or(raw);
+    let href = raw
+        .split_whitespace()
+        .next()
+        .unwrap_or("")
+        .trim_matches(|c| c == '"' || c == '\'');
+    if href.is_empty() || href.starts_with('#') {
+        return false;
+    }
+    let lower = href.to_ascii_lowercase();
+    if lower.starts_with("https://")
+        || lower.starts_with("http://")
+        || lower.starts_with("data:")
+        || lower.starts_with("blob:")
+        || href.starts_with('/')
+    {
+        return false;
+    }
+    true
+}
+
+fn markdown_images_have_relative(md: &str) -> bool {
+    let mut rest = md;
+    while let Some(idx) = rest.find("![") {
+        let after = &rest[idx + 2..];
+        let Some(close) = after.find("](") else {
+            rest = &after[1.min(after.len())..];
+            continue;
+        };
+        let href_part = &after[close + 2..];
+        let Some(end) = href_part.find(')') else {
+            break;
+        };
+        if href_is_relative(&href_part[..end]) {
+            return true;
+        }
+        rest = &href_part[end + 1..];
+    }
+    false
+}
+
+fn html_img_has_relative(md: &str) -> bool {
+    let lower = md.to_ascii_lowercase();
+    let mut search = 0usize;
+    while let Some(idx) = lower[search..].find("<img") {
+        let abs = search + idx;
+        let Some(tag_end) = md[abs..].find('>') else {
+            break;
+        };
+        let tag = &md[abs..abs + tag_end];
+        if let Some(href) = html_src_value(tag) {
+            if href_is_relative(&href) {
+                return true;
+            }
+        }
+        search = abs + 4;
+    }
+    false
+}
+
+fn html_src_value(tag: &str) -> Option<String> {
+    let lower = tag.to_ascii_lowercase();
+    let idx = lower.find("src=")?;
+    let after = tag[idx + 4..].trim_start();
+    let first = after.chars().next()?;
+    if first == '"' || first == '\'' {
+        let rest = &after[first.len_utf8()..];
+        let end = rest.find(first)?;
+        return Some(rest[..end].to_string());
+    }
+    let end = after
+        .find(|c: char| c.is_whitespace() || c == '>')
+        .unwrap_or(after.len());
+    Some(after[..end].to_string())
+}
+
 fn theme_heading_count(raw: &str) -> usize {
     raw.lines()
         .filter(|line| {

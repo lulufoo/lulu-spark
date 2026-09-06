@@ -1,6 +1,7 @@
 //! Note writes for MCP (`create_note`, `create_note_content`, `update_note`).
 //! Digest is a field (`digest` + optional `digest_body`), not a second tool.
 
+mod assets;
 mod categories;
 mod create_meta;
 mod digest;
@@ -25,3 +26,7 @@ pub use layout::ensure_notes_layout;
 #[cfg(test)]
 #[path = "../../unit-tests/services/notes.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "../../unit-tests/services/notes_assets.rs"]
+mod assets_tests;

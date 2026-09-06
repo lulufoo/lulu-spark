@@ -257,7 +257,7 @@ export async function settleComment(
 
 /** Create a note via HTTP/MCP `create_note` parity.
  * Jot create: `{ body, source_type: 'jot' }` (Host synthesize; digest=never).
- * Path create: `{ source_path, title, digest }` — no `document` body. */
+ * Path create: `{ source_path, title, digest, asset_paths? }` — no `document` body. */
 export async function createNote(payload?: unknown) {
   return writePost('/api/create-note', payload || {});
 }

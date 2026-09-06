@@ -243,6 +243,15 @@ fn mobile_create_note_uses_content_invoke() {
     let route = build("notes", "create_note", "mobile").expect("mobile create_note");
     assert!(invoke_eq(route.invoke, create_note_from_content));
     assert!(!invoke_eq(route.invoke, create_note_from_source));
+    assert!(route.input_schema["properties"].get("asset_paths").is_none());
+}
+
+#[test]
+fn desktop_create_note_schema_includes_asset_paths() {
+    let route = build("notes", "create_note", "workbench").expect("workbench create_note");
+    assert!(invoke_eq(route.invoke, create_note_from_source));
+    assert!(route.input_schema["properties"].get("asset_paths").is_some());
+    assert!(route.input_schema["properties"].get("source_path").is_some());
 }
 
 #[test]

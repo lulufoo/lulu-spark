@@ -7,9 +7,11 @@ use crate::services::id::random_entry_id;
 use crate::services::keyword_index;
 use crate::services::translation_gate;
 
+use super::assets::{copy_assets, reject_unsupported_asset_paths, resolve_create_assets};
 use super::create_meta::{assemble_raw, body_from_source, parse_create_meta};
 use super::digest::{
-    digest_body_from_payload, digest_should_write, parse_digest_mode, write_digest_file,
+    digest_body_from_payload, digest_body_rejects_relative_images, digest_should_write,
+    parse_digest_mode, write_digest_file,
 };
 use super::store::{
     dual_store_rollback, load_entries_map, notes_layer_path, parse_translations,
@@ -55,6 +57,9 @@ pub fn create_note_content(repo_root: &Path, payload: &Value) -> Value {
             "_status": 400
         });
     }
+    if let Some(err) = reject_unsupported_asset_paths(payload) {
+        return err;
+    }
     let Some(content) = payload.get("content").and_then(|v| v.as_str()) else {
         return json!({ "error": "Missing content", "_status": 400 });
     };
@@ -96,6 +101,13 @@ fn write_note(
     let digest_body = digest_body_from_payload(payload);
     if want_digest && digest_body.is_none() {
         return json!({ "error": "Missing digest_body", "_status": 400 });
+    }
+    if want_digest {
+        if let Some(digest_md) = digest_body.as_deref() {
+            if let Some(err) = digest_body_rejects_relative_images(digest_md) {
+                return err;
+            }
+        }
     }
 
     if let Some(err) = reject_legacy_translation_fields(payload) {
@@ -141,6 +153,11 @@ fn write_note(
         extra_paths.push(path);
     }
 
+    let assets = match resolve_create_assets(payload, &raw_path, &meta.common_path) {
+        Ok(v) => v,
+        Err(v) => return v,
+    };
+
     let mut written: Vec<PathBuf> = Vec::new();
     if let Err(e) = write_markdown_atomic(&raw_path, &raw_doc) {
         return json!({ "error": e, "_status": 500 });
@@ -168,6 +185,11 @@ fn write_note(
                 return v;
             }
         }
+    }
+
+    if let Err(v) = copy_assets(&assets, &mut written) {
+        rollback_written(&written);
+        return v;
     }
 
     let id = random_entry_id();
@@ -223,6 +245,10 @@ fn write_note(
     }
     if let Some(rel) = digest_rel {
         response["digest_path"] = json!(rel);
+    }
+    if !assets.is_empty() {
+        let rels: Vec<&str> = assets.iter().map(|a| a.rel.as_str()).collect();
+        response["asset_paths"] = json!(rels);
     }
     response
 }

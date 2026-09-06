@@ -58,6 +58,11 @@ pub fn create_note_properties(include_source_path: bool) -> Value {
             "type": "string",
             "description": "Absolute path to an allow-listed Markdown file."
         });
+        props["asset_paths"] = json!({
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Absolute paths to companion images referenced by relative ![]() or <img src> in the source Markdown. Required on this call when the body has such images; omit when it has none. Host copies each next to the raw note, keeping the source basename (png/jpg/jpeg; max 8 files, 4 MiB each). Existing dest → 409. Never send image bytes. Host does not scan the Markdown."
+        });
     } else {
         props["content"] = json!({
             "type": "string",
