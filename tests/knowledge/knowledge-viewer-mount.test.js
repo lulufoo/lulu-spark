@@ -159,6 +159,21 @@ describe('mountKbReader', () => {
     expect(container.innerHTML).toBe('');
   });
 
+  it('hides viewer-body in edit mode so the textarea fills the row', async () => {
+    const { unmount } = await mountKbReader(container, {
+      repo: 'owner/repo',
+      path: 'a.md',
+    });
+    await flushPromises();
+    container.querySelector('.kb-btn-edit').click();
+    expect(container.querySelector('.viewer-body').style.display).toBe('none');
+    expect(container.querySelector('.kb-reader-edit-area').style.display).not.toBe('none');
+    container.querySelector('.kb-btn-cancel-edit').click();
+    expect(container.querySelector('.viewer-body').style.display).toBe('');
+    expect(container.querySelector('.kb-reader-edit-area').style.display).toBe('none');
+    unmount();
+  });
+
   it('exits edit mode before loading a new file', async () => {
     const { unmount } = await mountKbReader(container, {
       repo: 'owner/repo',

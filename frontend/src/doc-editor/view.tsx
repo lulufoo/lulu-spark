@@ -26,12 +26,14 @@ export function setDocEditMode({
   editing?: boolean;
 }) {
   if (!bodyEl || !editAreaEl) return;
+  const pane = bodyEl.closest?.('.viewer-body') || bodyEl;
   if (editing) {
     editAreaEl.value = text == null ? '' : String(text);
-    bodyEl.style.display = 'none';
+    pane.style.display = 'none';
     editAreaEl.style.display = '';
     return;
   }
   editAreaEl.style.display = 'none';
-  bodyEl.style.display = '';
+  pane.style.display = '';
+  if (pane !== bodyEl) bodyEl.style.display = '';
 }
