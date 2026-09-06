@@ -53,6 +53,7 @@ const INVOKE_MAP_COMMANDS: &[&str] = &[
     "kb_read",
     "kb_list",
     "kb_annotation",
+    "get_kb_hide_patterns",
     "kb_status",
     "get_repo_dirs",
     "check_file",

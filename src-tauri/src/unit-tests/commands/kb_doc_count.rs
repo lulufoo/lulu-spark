@@ -13,6 +13,10 @@ fn kb_doc_count_registered_in_lib_rs() {
         lib.contains("commands::read::kb_doc_count"),
         "lib.rs invoke handler must register commands::read::kb_doc_count"
     );
+    assert!(
+        lib.contains("commands::read::get_kb_hide_patterns"),
+        "lib.rs invoke handler must register commands::read::get_kb_hide_patterns"
+    );
 }
 
 #[test]
@@ -20,7 +24,6 @@ fn kb_doc_count_command_is_exported() {
     let _ = kb_doc_count as fn(
         tauri::AppHandle,
         String,
-        Option<String>,
         Option<String>,
     ) -> Result<serde_json::Value, String>;
 }

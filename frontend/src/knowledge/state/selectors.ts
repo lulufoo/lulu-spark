@@ -1,5 +1,5 @@
 import { repoShortName } from '../../shared/utils.ts';
-import { getKbHidePattern, shouldHideEntry } from './hide-pattern.ts';
+import { getKbHidePatternStrings, shouldHideEntry } from './hide-pattern.ts';
 import type { RepoPickerOption, TreeNode } from './types.ts';
 
 export function formatRepoMenuLabel(shortName: string, count: number | null | undefined) {
@@ -27,12 +27,12 @@ export function buildTreeNodes(
   entries: Array<{ name?: string; relative_path?: string; is_dir?: boolean }>,
   _parentPath: string,
 ): TreeNode[] {
-  const hidePattern = getKbHidePattern();
+  const hidePatterns = getKbHidePatternStrings();
   const seen = new Set<string>();
   const nodes: TreeNode[] = [];
   for (const entry of entries || []) {
     const name = entry.name || (entry.relative_path || '').split('/').pop() || '';
-    if (shouldHideEntry(name, hidePattern)) continue;
+    if (shouldHideEntry(name, hidePatterns)) continue;
     const relative_path = entry.relative_path || entry.name || '';
     if (!relative_path || seen.has(relative_path)) continue;
     seen.add(relative_path);

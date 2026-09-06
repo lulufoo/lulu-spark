@@ -1,4 +1,3 @@
-import { getKbHidePattern } from '../../knowledge/state/hide-pattern.ts';
 import { asRecord, type InvokeResponse, type PathArg } from '../api-types.ts';
 import { getReadDriver, normalizeReadError, readGet, writePost } from './transport.ts';
 
@@ -26,13 +25,24 @@ export async function fetchKbList(repo: string, path = '', mode = 'flat') {
 
 const KB_DOC_COUNT_TIMEOUT_MS = 10_000;
 
-export async function fetchKbDocCount(repo: string, hidePattern?: string): Promise<number> {
-  const resolvedHide =
-    hidePattern !== undefined ? hidePattern : getKbHidePattern();
+export async function fetchKbHidePatterns() {
+  return readGet('/api/kb/hide-patterns');
+}
+
+export async function addKbHidePattern(pattern: string) {
+  return writePost('/api/kb/hide-patterns/add', { pattern });
+}
+
+export async function updateKbHidePattern(id: string, pattern: string) {
+  return writePost('/api/kb/hide-patterns/update', { id, pattern });
+}
+
+export async function removeKbHidePattern(id: string) {
+  return writePost('/api/kb/hide-patterns/remove', { id });
+}
+
+export async function fetchKbDocCount(repo: string): Promise<number> {
   const params = new URLSearchParams({ repo });
-  if (resolvedHide) {
-    params.set('hide_pattern', resolvedHide);
-  }
   const path = `/api/kb/doc-count?${params.toString()}`;
 
   const controller = new AbortController();

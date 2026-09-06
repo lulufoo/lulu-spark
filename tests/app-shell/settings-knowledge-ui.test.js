@@ -39,7 +39,7 @@ describe('Settings Knowledge UI', () => {
     expect(indexHtml).not.toContain('id="knowledge-root-dialog"');
     expect(indexHtml).toContain('id="settings-panel-knowledge"');
     expect(indexHtml).toContain('id="knowledge-root-path"');
-    expect(indexHtml).toContain('id="settings-kb-hide-pattern"');
+    expect(indexHtml).toContain('id="settings-kb-hide-list"');
     expect(indexHtml).not.toContain('id="settings-kb-root"');
     expect(indexHtml).not.toContain('id="kb-setting-nav"');
     expect(indexHtml).toContain('id="settings-tab-workbench-directory"');
@@ -99,7 +99,7 @@ describe('Settings Knowledge UI', () => {
     expect(settingsDialogJs).toMatch(
       /btn-knowledge-root-save[\s\S]*?api\.setConfig\(\{ knowledge_root: knowledgeRoot \}\)/
     );
-    expect(settingsDialogJs).toMatch(/btn-settings-save-knowledge[\s\S]*?saveKbHidePattern\(pattern\)/);
+    expect(settingsDialogJs).toMatch(/loadKbHidePatterns\(/);
     expect(mainJs).toMatch(/function renderSedimentKbListByCategory\(/);
     expect(mainJs).toMatch(/function onInlineCategoryChange\(/);
     expect(mainJs).toMatch(/function onDeleteSedimentKbRepo\(/);

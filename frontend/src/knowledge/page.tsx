@@ -9,6 +9,7 @@ import { attachKnowledgeSidebarResize, detachKnowledgeSidebarResize } from './ui
 import { closeFloatingListSelect, createFloatingListSelect } from '../shared/floating-list-select.ts';
 import type { RepoPickerOption, RepoRecord, TreeNode } from './state/types.ts';
 import { publishKnowledgeTree } from './state/tree.ts';
+import { setKbHidePatternsCache, type KbHidePatternRow } from './state/hide-pattern.ts';
 import { buildRepoPickerOptions, buildTreeNodes } from './state/selectors.ts';
 import { KnowledgeDocLayout } from './ui/sidebar.tsx';
 
@@ -273,6 +274,13 @@ function startKnowledgeDocSession(
 
   void (async () => {
     try {
+      try {
+        const hideData = (await api.fetchKbHidePatterns()) as { patterns?: KbHidePatternRow[] };
+        if (disposed) return;
+        setKbHidePatternsCache(Array.isArray(hideData?.patterns) ? hideData.patterns : []);
+      } catch {
+        if (disposed) return;
+      }
       const reposData = (await api.fetchSedimentKbRepos()) as { repos?: RepoRecord[] };
       if (disposed) return;
       const repos = reposData.repos || [];

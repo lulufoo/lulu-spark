@@ -1,6 +1,5 @@
 import * as api from '../../../host/api.ts';
 import type { SettingsConfig } from '../../state/types.ts';
-import { getKbHidePattern } from '../../../knowledge/state/hide-pattern.ts';
 import { setGithubUserUrl } from '../../../host/constants.ts';
 import { state } from '../../../host/state.ts';
 import { loadAssistantEnginePanel } from './engine.ts';
@@ -10,13 +9,6 @@ import {
 } from './github-user.ts';
 import { renderWorkbenchConnection, syncWorkbenchConnectionAccess } from './workbench-github.ts';
 import { savedSnapshot, setResult, store } from '../../state/settings/store.ts';
-
-export function syncKbHidePatternInput() {
-  const kbHideInput = document.getElementById('settings-kb-hide-pattern') as HTMLInputElement | null;
-  if (kbHideInput) {
-    kbHideInput.value = getKbHidePattern();
-  }
-}
 
 export async function loadSettingsSnapshot() {
   try {
@@ -62,7 +54,6 @@ export async function loadSettingsSnapshot() {
     }
 
     await syncGithubUserUrlLockFromWorkbenchRoot();
-    syncKbHidePatternInput();
     syncWorkbenchConnectionAccess();
   } catch {
     const tokenHint = document.getElementById('settings-token-hint');
@@ -71,7 +62,6 @@ export async function loadSettingsSnapshot() {
     if (llmHint) llmHint.textContent = 'Could not load settings; you can type and save.';
     loadAssistantEnginePanel({});
     clearGithubUserUrlInferredLock();
-    syncKbHidePatternInput();
     savedSnapshot.githubUserUrl = '';
     savedSnapshot.workbenchGithubRepoUrl = '';
     savedSnapshot.hasGithubToken = false;

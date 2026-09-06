@@ -41,6 +41,12 @@ const SEDIMENT_KB_WRITE_COMMANDS: &[&str] = &[
     "sediment_kb_remove_category",
 ];
 
+const KB_HIDE_WRITE_COMMANDS: &[&str] = &[
+    "add_kb_hide_pattern",
+    "update_kb_hide_pattern",
+    "remove_kb_hide_pattern",
+];
+
 const TODO_TASK_WRITE_COMMANDS: &[&str] = &[
     "create_todo_task",
     "delete_todo_task",
@@ -116,6 +122,22 @@ const AI_ASSISTANT_WRITE_COMMANDS: &[&str] = &[
 ];
 
 const MESSAGE_CENTER_WRITE_COMMANDS: &[&str] = &["mark_message_channel_read"];
+
+#[test]
+fn kb_hide_write_commands_are_acl_allowed() {
+    let root = manifest_dir();
+    let toml = fs::read_to_string(root.join("permissions/write-api.toml")).expect("toml");
+    let allow = parse_write_api_toml_allow(&toml);
+    let missing: Vec<_> = KB_HIDE_WRITE_COMMANDS
+        .iter()
+        .filter(|cmd| !allow.contains(**cmd))
+        .copied()
+        .collect();
+    assert!(
+        missing.is_empty(),
+        "commands missing from write-api.toml ACL: {missing:?}"
+    );
+}
 
 #[test]
 fn abs_file_write_command_is_acl_allowed() {

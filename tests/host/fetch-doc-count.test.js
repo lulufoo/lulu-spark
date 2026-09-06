@@ -1,14 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_DEV_BASE } from '../../frontend/src/host/apiClient.ts';
+import { fetchKbDocCount } from '../../frontend/src/host/api.ts';
 
 const API_READ_PREFIX = `${DEFAULT_DEV_BASE}/api`;
-
-vi.mock('../../frontend/src/knowledge/state/hide-pattern.ts', () => ({
-  getKbHidePattern: vi.fn(() => ''),
-}));
-
-import { getKbHidePattern } from '../../frontend/src/knowledge/state/hide-pattern.ts';
-import { fetchKbDocCount } from '../../frontend/src/host/api.ts';
 
 function mockFetch(body, ok = true, status = 200) {
   globalThis.fetch = vi.fn().mockResolvedValue({
@@ -39,12 +33,10 @@ function mockSlowFetch(delayMs = 15_000) {
 
 beforeEach(() => {
   vi.restoreAllMocks();
-  getKbHidePattern.mockReturnValue('');
 });
 
 describe('fetchKbDocCount', () => {
-  it('calls GET /api/kb/doc-count with repo and default hide_pattern from getKbHidePattern', async () => {
-    getKbHidePattern.mockReturnValue('\\.draft$');
+  it('calls GET /api/kb/doc-count with repo only', async () => {
     mockFetch({ count: 42 });
 
     const count = await fetchKbDocCount('owner/repo');
@@ -55,7 +47,7 @@ describe('fetchKbDocCount', () => {
     );
     const url = new URL(fetch.mock.calls[0][0]);
     expect(url.searchParams.get('repo')).toBe('owner/repo');
-    expect(url.searchParams.get('hide_pattern')).toBe('\\.draft$');
+    expect(url.searchParams.has('hide_pattern')).toBe(false);
     expect(count).toBe(42);
   });
 
@@ -67,30 +59,6 @@ describe('fetchKbDocCount', () => {
   it('returns 0 when count is 0', async () => {
     mockFetch({ count: 0 });
     await expect(fetchKbDocCount('o/r')).resolves.toBe(0);
-  });
-
-  it('omits hide_pattern when explicitly passed empty string', async () => {
-    getKbHidePattern.mockReturnValue('\\.draft$');
-    mockFetch({ count: 1 });
-
-    await fetchKbDocCount('owner/repo', '');
-
-    expect(fetch.mock.calls[0][0]).toMatch(
-      new RegExp(`^${API_READ_PREFIX}/kb/doc-count`),
-    );
-    const url = new URL(fetch.mock.calls[0][0]);
-    expect(url.searchParams.get('repo')).toBe('owner/repo');
-    expect(url.searchParams.has('hide_pattern')).toBe(false);
-  });
-
-  it('uses explicit hidePattern over getKbHidePattern', async () => {
-    getKbHidePattern.mockReturnValue('\\.draft$');
-    mockFetch({ count: 3 });
-
-    await fetchKbDocCount('owner/repo', '^tmp');
-
-    const url = new URL(fetch.mock.calls[0][0]);
-    expect(url.searchParams.get('hide_pattern')).toBe('^tmp');
   });
 
   it('throws Error on HTTP 4xx/5xx', async () => {

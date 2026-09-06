@@ -129,15 +129,18 @@ pub fn kb_list(
 pub fn kb_doc_count(
     _app: AppHandle,
     repo: String,
-    hide_pattern: Option<String>,
     category_id: Option<String>,
 ) -> Result<Value, String> {
     Ok(crate::services::knowledge::kb_doc_count_json(
         &repo_root()?,
         &repo,
-        hide_pattern.as_deref(),
         category_id.as_deref(),
     ))
+}
+
+#[tauri::command]
+pub fn get_kb_hide_patterns(_app: AppHandle) -> Result<Value, String> {
+    crate::services::knowledge::kb_hide_patterns_json()
 }
 
 #[tauri::command]

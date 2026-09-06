@@ -5944,6 +5944,47 @@
   font-weight: 600;
 }
 #settings-panel-knowledge .settings-tabs { flex-wrap: wrap; }
+.kb-hide-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.kb-hide-row-text,
+.kb-hide-row-input {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  font: inherit;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 13px;
+  padding: 7px 10px;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  background: #fff;
+  color: #1f2328;
+}
+.kb-hide-row-text {
+  cursor: pointer;
+}
+.kb-hide-row-text:hover:not(:disabled) { border-color: #0969da; }
+.kb-hide-row-del {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: #59636e;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  border-radius: 6px;
+}
+.kb-hide-row-del:hover:not(:disabled) { background: #ffebe9; color: #cf222e; }
+#settings-kb-hide-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
 .settings-knowledge-list-head {
   display: flex;
   justify-content: flex-end;

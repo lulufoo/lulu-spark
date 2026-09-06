@@ -1,3 +1,4 @@
+import { KbHidePatternsHost } from './kb-hide-patterns.tsx';
 import { McpChannelToolsHost } from './mcp-channel-tools.tsx';
 import { McpTicketsHost } from './mcp-tickets.tsx';
 import { NotesSettingsPanel } from './notes-panel.tsx';
@@ -135,28 +136,7 @@ export function SettingsDialogChrome() {
                 </button>
               </div>
             </div>
-            <div id="settings-tab-knowledge-hidden" className="settings-tab-panel" data-tab="hidden">
-              <div className="settings-field">
-                <label htmlFor="settings-kb-hide-pattern">Hidden filename regex (kb_hide_pattern)</label>
-                <input
-                  id="settings-kb-hide-pattern"
-                  type="text"
-                  spellCheck={false}
-                  autoComplete="off"
-                  placeholder=""
-                />
-                <span className="settings-field-hint">
-                  Files matching entry.name are hidden in the tree; leave empty for no filter. Example:{' '}
-                  <code>{'\\.xxx$'}</code>
-                </span>
-              </div>
-              <div id="settings-result-knowledge" className="settings-result" />
-              <div className="settings-panel-actions">
-                <button type="button" id="btn-settings-save-knowledge" className="btn-settings-save">
-                  Save
-                </button>
-              </div>
-            </div>
+            <KbHidePatternsHost />
           </div>
           <div id="settings-panel-llm" className="settings-panel">
             <div className="settings-tabs" role="tablist">

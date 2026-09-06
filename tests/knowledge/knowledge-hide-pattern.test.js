@@ -1,38 +1,15 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import {
-  KB_HIDE_PATTERN_KEY,
-  getKbHidePattern,
+  getKbHidePatternStrings,
+  setKbHidePatternsCache,
   validateKbHidePattern,
-  saveKbHidePattern,
   shouldHideEntry,
 } from '../../frontend/src/knowledge/state/hide-pattern.ts';
 
-function installLocalStorageMock() {
-  const store = {};
-  globalThis.localStorage = {
-    getItem(key) {
-      return Object.prototype.hasOwnProperty.call(store, key) ? store[key] : null;
-    },
-    setItem(key, value) {
-      store[key] = String(value);
-    },
-    removeItem(key) {
-      delete store[key];
-    },
-    clear() {
-      for (const key of Object.keys(store)) delete store[key];
-    },
-  };
-}
-
 describe('knowledge-hide-pattern', () => {
   beforeEach(() => {
-    installLocalStorageMock();
-  });
-
-  it('exports KB_HIDE_PATTERN_KEY as kb_hide_pattern', () => {
-    expect(KB_HIDE_PATTERN_KEY).toBe('kb_hide_pattern');
+    setKbHidePatternsCache([]);
   });
 
   describe('validateKbHidePattern', () => {
@@ -52,72 +29,31 @@ describe('knowledge-hide-pattern', () => {
   });
 
   describe('shouldHideEntry', () => {
-    it('returns true when name matches pattern', () => {
-      expect(shouldHideEntry('foo.xxx', '\\.xxx$')).toBe(true);
+    it('returns true when name matches any pattern', () => {
+      expect(shouldHideEntry('foo.xxx', ['\\.xxx$', '^\\.git$'])).toBe(true);
     });
 
     it('returns false when name does not match pattern', () => {
-      expect(shouldHideEntry('foo.md', '\\.xxx$')).toBe(false);
+      expect(shouldHideEntry('foo.md', ['\\.xxx$'])).toBe(false);
     });
 
-    it('returns false for empty pattern', () => {
-      expect(shouldHideEntry('foo.xxx', '')).toBe(false);
+    it('returns false for empty pattern list', () => {
+      expect(shouldHideEntry('foo.xxx', [])).toBe(false);
     });
 
     it('returns false when RegExp parse fails (I7 degrade)', () => {
-      expect(shouldHideEntry('foo.xxx', '[')).toBe(false);
+      expect(shouldHideEntry('foo.xxx', ['['])).toBe(false);
     });
   });
 
-  describe('getKbHidePattern', () => {
-    it('returns empty string when unset', () => {
-      expect(getKbHidePattern()).toBe('');
+  describe('getKbHidePatternStrings', () => {
+    it('returns empty list when unset', () => {
+      expect(getKbHidePatternStrings()).toEqual([]);
     });
 
-    it('reads stored pattern from localStorage', () => {
-      localStorage.setItem(KB_HIDE_PATTERN_KEY, '\\.xxx$');
-      expect(getKbHidePattern()).toBe('\\.xxx$');
-    });
-  });
-
-  describe('saveKbHidePattern', () => {
-    it('writes valid pattern to localStorage and dispatches event', () => {
-      const handler = vi.fn();
-      window.addEventListener('kb:hide-pattern-changed', handler);
-
-      const result = saveKbHidePattern('\\.xxx$');
-      expect(result).toEqual({ ok: true });
-      expect(localStorage.getItem(KB_HIDE_PATTERN_KEY)).toBe('\\.xxx$');
-      expect(handler).toHaveBeenCalledTimes(1);
-
-      window.removeEventListener('kb:hide-pattern-changed', handler);
-    });
-
-    it('rejects invalid pattern without writing localStorage', () => {
-      localStorage.setItem(KB_HIDE_PATTERN_KEY, '\\.old$');
-      const handler = vi.fn();
-      window.addEventListener('kb:hide-pattern-changed', handler);
-
-      const result = saveKbHidePattern('[');
-      expect(result.ok).toBe(false);
-      expect(result.error).toBeTruthy();
-      expect(localStorage.getItem(KB_HIDE_PATTERN_KEY)).toBe('\\.old$');
-      expect(handler).not.toHaveBeenCalled();
-
-      window.removeEventListener('kb:hide-pattern-changed', handler);
-    });
-
-    it('clears pattern when saving empty string', () => {
-      localStorage.setItem(KB_HIDE_PATTERN_KEY, '\\.xxx$');
-      const handler = vi.fn();
-      window.addEventListener('kb:hide-pattern-changed', handler);
-
-      const result = saveKbHidePattern('');
-      expect(result).toEqual({ ok: true });
-      expect(localStorage.getItem(KB_HIDE_PATTERN_KEY)).toBe('');
-      expect(handler).toHaveBeenCalledTimes(1);
-
-      window.removeEventListener('kb:hide-pattern-changed', handler);
+    it('reads cached rows', () => {
+      setKbHidePatternsCache([{ id: 'a', pattern: '\\.xxx$' }]);
+      expect(getKbHidePatternStrings()).toEqual(['\\.xxx$']);
     });
   });
 });

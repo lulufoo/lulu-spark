@@ -172,37 +172,28 @@ pub fn kb_status_json(repo_root: &Path, repo: &str) -> Value {
     Value::Object(categories)
 }
 
-fn parse_hide_regex(hide_pattern: Option<&str>) -> Option<Regex> {
-    let pattern = hide_pattern?.trim();
-    if pattern.is_empty() {
-        return None;
-    }
-    Regex::new(pattern).ok()
-}
-
-fn count_md_in_repo_dir(kb_root: &Path, repo_name: &str, hide_regex: Option<&Regex>) -> usize {
+fn count_md_in_repo_dir(kb_root: &Path, repo_name: &str, hide: &[Regex]) -> usize {
     let local_dir = kb_root.join(repo_name);
     if !local_dir.is_dir() {
         return 0;
     }
-    count_md_recursive(&local_dir, hide_regex)
+    count_md_recursive(&local_dir, hide)
 }
 
-fn count_md_recursive(dir: &Path, hide_regex: Option<&Regex>) -> usize {
+fn count_md_recursive(dir: &Path, hide: &[Regex]) -> usize {
     let Ok(entries) = fs::read_dir(dir) else {
         return 0;
     };
     let mut count = 0;
     for entry in entries.flatten() {
         let path = entry.path();
+        let name = entry.file_name().to_string_lossy().into_owned();
+        if super::name_is_hidden(&name, hide) {
+            continue;
+        }
         if path.is_dir() {
-            count += count_md_recursive(&path, hide_regex);
+            count += count_md_recursive(&path, hide);
         } else if path.extension().and_then(|s| s.to_str()) == Some("md") {
-            let file_name = entry.file_name();
-            let name = file_name.to_string_lossy();
-            if hide_regex.is_some_and(|re| re.is_match(&name)) {
-                continue;
-            }
             count += 1;
         }
     }
@@ -212,10 +203,9 @@ fn count_md_recursive(dir: &Path, hide_regex: Option<&Regex>) -> usize {
 pub fn kb_doc_count_json(
     repo_root: &Path,
     repo: &str,
-    hide_pattern: Option<&str>,
     category_id: Option<&str>,
 ) -> Value {
-    let hide_regex = parse_hide_regex(hide_pattern);
+    let hide = super::compiled_hide_regexes();
     let kb_root_str = knowledge_root_string(repo_root);
     let kb_root = Path::new(&kb_root_str);
 
@@ -230,7 +220,7 @@ pub fn kb_doc_count_json(
             .filter(|r| r.category_id == cat_id)
             .map(|r| {
                 let repo_name = r.full_name.split('/').next_back().unwrap_or("");
-                count_md_in_repo_dir(kb_root, repo_name, hide_regex.as_ref())
+                count_md_in_repo_dir(kb_root, repo_name, &hide)
             })
             .sum();
         return json!({ "count": count });
@@ -249,7 +239,7 @@ pub fn kb_doc_count_json(
         });
     }
     json!({
-        "count": count_md_in_repo_dir(kb_root, repo_name, hide_regex.as_ref()),
+        "count": count_md_in_repo_dir(kb_root, repo_name, &hide),
     })
 }
 

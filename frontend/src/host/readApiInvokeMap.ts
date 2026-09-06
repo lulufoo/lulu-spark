@@ -100,10 +100,6 @@ export const READ_API_INVOKE_MAP: Record<string, ReadInvokeEntry> = {
     cmd: 'kb_doc_count',
     args: (url) => {
       const args: InvokeArgs = { repo: url.searchParams.get('repo') ?? '' };
-      const hidePattern = url.searchParams.get('hide_pattern');
-      if (hidePattern != null && hidePattern !== '') {
-        args.hide_pattern = hidePattern;
-      }
       const categoryId = url.searchParams.get('category_id');
       if (categoryId != null && categoryId !== '') {
         args.category_id = categoryId;
@@ -111,6 +107,7 @@ export const READ_API_INVOKE_MAP: Record<string, ReadInvokeEntry> = {
       return args;
     },
   },
+  '/api/kb/hide-patterns': { cmd: 'get_kb_hide_patterns' },
   '/api/kb/annotation': {
     cmd: 'kb_annotation',
     args: (url) => ({

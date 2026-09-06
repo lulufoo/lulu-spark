@@ -1,8 +1,10 @@
-export const KB_HIDE_PATTERN_KEY = 'kb_hide_pattern';
+export type KbHidePatternRow = { id: string; pattern: string };
 
 type CompileOk = { ok: true; regex: RegExp };
 type CompileErr = { ok: false; error: string };
 type CompileResult = CompileOk | CompileErr;
+
+let cached: KbHidePatternRow[] = [];
 
 function compilePattern(pattern: string): CompileResult {
   try {
@@ -12,16 +14,20 @@ function compilePattern(pattern: string): CompileResult {
   }
 }
 
-export function getKbHidePattern(): string {
-  try {
-    return localStorage.getItem(KB_HIDE_PATTERN_KEY) || '';
-  } catch {
-    return '';
-  }
+export function getKbHidePatterns(): KbHidePatternRow[] {
+  return cached.slice();
+}
+
+export function getKbHidePatternStrings(): string[] {
+  return cached.map((row) => row.pattern);
+}
+
+export function setKbHidePatternsCache(rows: KbHidePatternRow[]) {
+  cached = rows.map((row) => ({ id: row.id, pattern: row.pattern }));
 }
 
 export function validateKbHidePattern(pattern: string | null | undefined): { ok: true } | CompileErr {
-  const value = pattern ?? '';
+  const value = (pattern ?? '').trim();
   if (value === '') {
     return { ok: true };
   }
@@ -29,24 +35,16 @@ export function validateKbHidePattern(pattern: string | null | undefined): { ok:
   return compiled.ok ? { ok: true } : compiled;
 }
 
-export function saveKbHidePattern(pattern: string | null | undefined): { ok: true } | CompileErr {
-  const validation = validateKbHidePattern(pattern);
-  if (!validation.ok) {
-    return validation;
+export function shouldHideEntry(name: string, patterns?: string[]): boolean {
+  const list = patterns ?? getKbHidePatternStrings();
+  for (const pattern of list) {
+    if (!pattern) continue;
+    const compiled = compilePattern(pattern);
+    if (compiled.ok && compiled.regex.test(name)) return true;
   }
-  try {
-    localStorage.setItem(KB_HIDE_PATTERN_KEY, pattern ?? '');
-  } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : 'Failed to save pattern' };
-  }
-  window.dispatchEvent(new CustomEvent('kb:hide-pattern-changed'));
-  return { ok: true };
+  return false;
 }
 
-export function shouldHideEntry(name: string, pattern: string): boolean {
-  if (!pattern) {
-    return false;
-  }
-  const compiled = compilePattern(pattern);
-  return compiled.ok ? compiled.regex.test(name) : false;
+export function emitHidePatternChanged() {
+  window.dispatchEvent(new CustomEvent('kb:hide-pattern-changed'));
 }

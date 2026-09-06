@@ -8,6 +8,7 @@ vi.mock('../../frontend/src/host/api.ts', () => ({
   fetchKbList: vi.fn(),
   fetchKbDocCount: vi.fn(),
   fetchSedimentKbRepos: vi.fn(),
+  fetchKbHidePatterns: vi.fn(),
 }));
 
 vi.mock('../../frontend/src/knowledge/viewer.ts', () => ({
@@ -17,7 +18,7 @@ vi.mock('../../frontend/src/knowledge/viewer.ts', () => ({
 
 import * as api from '../../frontend/src/host/api.ts';
 import { mountKbReader } from '../../frontend/src/knowledge/viewer.ts';
-import { getKbHidePattern } from '../../frontend/src/knowledge/state/hide-pattern.ts';
+import { getKbHidePatternStrings, setKbHidePatternsCache } from '../../frontend/src/knowledge/state/hide-pattern.ts';
 import {
   buildTreeNodes,
   buildRepoPickerOptions,
@@ -70,6 +71,7 @@ function installLocalStorageMock() {
 describe('buildTreeNodes', () => {
   beforeEach(() => {
     installLocalStorageMock();
+    setKbHidePatternsCache([]);
   });
 
   it('maps flat entries to tree nodes with defaults', () => {
@@ -99,7 +101,7 @@ describe('buildTreeNodes', () => {
   });
 
   it('hides entries whose name matches kb hide pattern (I5: name only)', () => {
-    localStorage.setItem('kb_hide_pattern', '\\.xxx$');
+    setKbHidePatternsCache([{ id: '1', pattern: '\\.xxx$' }]);
     const entries = [
       { name: 'noise.xxx', relative_path: 'noise.xxx', is_dir: false },
       { name: 'readme.md', relative_path: 'readme.md', is_dir: false },
@@ -110,7 +112,7 @@ describe('buildTreeNodes', () => {
   });
 
   it('keeps parent directory when all children would be hidden (I4)', () => {
-    localStorage.setItem('kb_hide_pattern', '\\.xxx$');
+    setKbHidePatternsCache([{ id: '1', pattern: '\\.xxx$' }]);
     const entries = [
       { name: 'empty-dir', relative_path: 'empty-dir', is_dir: true },
       { name: 'only.xxx', relative_path: 'only.xxx', is_dir: false },
@@ -126,7 +128,7 @@ describe('buildTreeNodes', () => {
       { name: 'readme.md', relative_path: 'readme.md', is_dir: false },
     ];
     expect(buildTreeNodes(entries, '')).toHaveLength(2);
-    expect(getKbHidePattern()).toBe('');
+    expect(getKbHidePatternStrings()).toEqual([]);
   });
 });
 
@@ -207,7 +209,9 @@ describe('mountKnowledgeDocList', () => {
     document.body.appendChild(container);
     navigate = vi.fn();
     vi.clearAllMocks();
+    setKbHidePatternsCache([]);
     mountKbReader.mockResolvedValue({ unmount: vi.fn() });
+    api.fetchKbHidePatterns.mockResolvedValue({ patterns: [] });
     api.fetchSedimentKbRepos.mockResolvedValue({
       repos: [
         { full_name: 'owner/repo' },
@@ -226,6 +230,7 @@ describe('mountKnowledgeDocList', () => {
   });
 
   async function flushPromises() {
+    await Promise.resolve();
     await Promise.resolve();
     await Promise.resolve();
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -252,6 +257,23 @@ describe('mountKnowledgeDocList', () => {
     expect(container.querySelector('.knowledge-doc-reader-pane')).not.toBeNull();
     expect(container.querySelector('.knowledge-doc-main')).toBeNull();
     expect(container.querySelector('.knowledge-doc-main-list')).toBeNull();
+  });
+
+  it('marks directories and files with distinct tree chrome', async () => {
+    api.fetchKbList.mockResolvedValue(sampleRootEntries);
+
+    mountKnowledgeDocList(container, { repo: 'owner/repo', navigate });
+    await flushPromises();
+
+    const dirNode = container.querySelector('.knowledge-doc-tree-node[data-relative-path="docs"]');
+    const fileNode = container.querySelector('.knowledge-doc-tree-node[data-relative-path="readme.md"]');
+    expect(dirNode?.classList.contains('is-dir')).toBe(true);
+    expect(dirNode?.getAttribute('data-kind')).toBe('dir');
+    expect(dirNode?.querySelector('.knowledge-doc-tree-twist svg')).not.toBeNull();
+    expect(fileNode?.classList.contains('is-file')).toBe(true);
+    expect(fileNode?.getAttribute('data-kind')).toBe('file');
+    expect(fileNode?.querySelector('.knowledge-doc-tree-twist svg')).toBeNull();
+    expect(fileNode?.querySelector('.knowledge-doc-tree-ext')?.textContent).toBe('.md');
   });
 
   it('applies depth * 16px padding to tree nodes', async () => {
@@ -654,7 +676,9 @@ describe('mountKnowledgeDocList', () => {
   });
 
   it('reloads tree when kb:hide-pattern-changed fires', async () => {
-    localStorage.setItem('kb_hide_pattern', '\\.xxx$');
+    api.fetchKbHidePatterns.mockResolvedValue({
+      patterns: [{ id: '1', pattern: '\\.xxx$' }],
+    });
     api.fetchKbList.mockResolvedValue([
       { name: 'noise.xxx', relative_path: 'noise.xxx', is_dir: false },
       { name: 'readme.md', relative_path: 'readme.md', is_dir: false },
@@ -671,7 +695,7 @@ describe('mountKnowledgeDocList', () => {
       { name: 'noise.xxx', relative_path: 'noise.xxx', is_dir: false },
       { name: 'readme.md', relative_path: 'readme.md', is_dir: false },
     ]);
-    localStorage.removeItem('kb_hide_pattern');
+    setKbHidePatternsCache([]);
     window.dispatchEvent(new CustomEvent('kb:hide-pattern-changed'));
     await flushPromises();
 

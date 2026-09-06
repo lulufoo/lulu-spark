@@ -44,6 +44,9 @@ const P2_PATHS = [
   ['/api/notes-category-create', 'create_notes_category', ['payload']],
   ['/api/notes-category-update', 'update_notes_category', ['payload']],
   ['/api/notes-category-delete', 'delete_notes_category', ['payload']],
+  ['/api/kb/hide-patterns/add', 'add_kb_hide_pattern', ['payload']],
+  ['/api/kb/hide-patterns/update', 'update_kb_hide_pattern', ['payload']],
+  ['/api/kb/hide-patterns/remove', 'remove_kb_hide_pattern', ['payload']],
 ];
 
 describe('writeApiContract', () => {

@@ -1,7 +1,7 @@
 import * as api from '../../../host/api.ts';
 import { setGithubUserUrl } from '../../../host/constants.ts';
-import { saveKbHidePattern } from '../../../knowledge/state/hide-pattern.ts';
 import { state } from '../../../host/state.ts';
+import { loadKbHidePatterns } from './kb-hide-patterns.ts';
 import { applyEngineCategorySelection, saveAssistantEnginePanel } from './engine.ts';
 import {
   applyWorkbenchRootInference,
@@ -107,6 +107,7 @@ export async function openSettingsDialog(opts: SettingsOpenOpts = {}) {
   switchSettingsTab('mcp', panelId === 'mcp' ? (opts.tab || 'tickets') : 'tickets');
   switchPanel(panelId);
   await loadSettingsSnapshot();
+  await loadKbHidePatterns();
   await loadNotesCategories();
   await loadMcpChannelTools();
   requestAnimationFrame(() => paintMcpToolGroups());
@@ -176,26 +177,6 @@ function wireSettingsDialog() {
   document.getElementById('knowledge-root-path')?.addEventListener('keydown', (e) => {
     if ((e as KeyboardEvent).key === 'Enter') document.getElementById('btn-knowledge-root-save')?.click();
   });
-  document.getElementById('btn-settings-save-knowledge')?.addEventListener('click', () => {
-    const saveBtn = document.getElementById('btn-settings-save-knowledge') as HTMLButtonElement | null;
-    const pattern = (document.getElementById('settings-kb-hide-pattern') as HTMLInputElement | null)?.value ?? '';
-    if (saveBtn) saveBtn.disabled = true;
-    setResult('settings-result-knowledge', '');
-    try {
-      const result = saveKbHidePattern(pattern);
-      if (!result.ok) {
-        setResult('settings-result-knowledge', `Invalid regex: ${result.error}`, true);
-        return;
-      }
-      setResult('settings-result-knowledge', 'Hide rules saved.');
-    } finally {
-      if (saveBtn) saveBtn.disabled = false;
-    }
-  });
-  document.getElementById('settings-kb-hide-pattern')?.addEventListener('keydown', (e) => {
-    if ((e as KeyboardEvent).key === 'Enter') document.getElementById('btn-settings-save-knowledge')?.click();
-  });
-
   input('settings-workbench-root')?.addEventListener('input', () => {
     const root = input('settings-workbench-root').value.trim();
     if (!root) {

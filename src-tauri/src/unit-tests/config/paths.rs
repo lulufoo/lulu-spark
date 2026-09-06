@@ -22,6 +22,15 @@ fn knowledge_doc_map_path_under_cache_dir() {
 }
 
 #[test]
+fn kb_hide_patterns_path_under_cache_dir() {
+    let sandbox = TestSandbox::new();
+    let cache = cache_dir().expect("cache");
+    let got = kb_hide_patterns_path().expect("hide");
+    assert_eq!(got, cache.join("kb-hide-patterns.json"));
+    sandbox.assert_not_prod_path(&got).expect("sandbox hide");
+}
+
+#[test]
 fn notes_draft_path_resolves_under_cache_drafts_notes() {
     let _sandbox = TestSandbox::new();
     let cache = cache_dir().expect("cache");

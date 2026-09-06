@@ -117,6 +117,11 @@ pub fn knowledge_doc_map_path() -> Result<PathBuf, PathsError> {
     Ok(cache_dir()?.join("knowledge-doc-map.json"))
 }
 
+/// Knowledge hide-pattern records: `{cache_dir}/kb-hide-patterns.json`.
+pub fn kb_hide_patterns_path() -> Result<PathBuf, PathsError> {
+    Ok(cache_dir()?.join("kb-hide-patterns.json"))
+}
+
 /// Local highlight cache root: `{cache_dir}/doc-highlights`.
 pub fn doc_highlights_dir() -> Result<PathBuf, PathsError> {
     Ok(cache_dir()?.join("doc-highlights"))

@@ -180,6 +180,18 @@ export const WRITE_API_INVOKE_MAP: Record<string, WriteInvokeEntry> = {
     cmd: 'sediment_kb_remove_category',
     args: (body) => ({ payload: body ?? {} }),
   },
+  '/api/kb/hide-patterns/add': {
+    cmd: 'add_kb_hide_pattern',
+    args: (body) => ({ payload: body ?? {} }),
+  },
+  '/api/kb/hide-patterns/update': {
+    cmd: 'update_kb_hide_pattern',
+    args: (body) => ({ payload: body ?? {} }),
+  },
+  '/api/kb/hide-patterns/remove': {
+    cmd: 'remove_kb_hide_pattern',
+    args: (body) => ({ payload: body ?? {} }),
+  },
   '/api/create-note': {
     cmd: 'create_note',
     args: (body) => ({ payload: body ?? {} }),

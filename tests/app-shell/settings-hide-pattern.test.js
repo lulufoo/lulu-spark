@@ -18,7 +18,8 @@ describe('Settings Knowledge Hidden files', () => {
     expect(indexHtml).toMatch(/data-panel="knowledge">Knowledge</);
     expect(indexHtml).toMatch(/id="settings-panel-knowledge"/);
     expect(indexHtml).toMatch(/data-tab="hidden"[^>]*>Hidden files</);
-    expect(indexHtml).toMatch(/id="settings-kb-hide-pattern"/);
+    expect(indexHtml).toMatch(/id="settings-kb-hide-list"/);
+    expect(indexHtml).toMatch(/id="settings-kb-hide-add"/);
     expect(indexHtml).not.toMatch(/id="knowledge-root-dialog"/);
   });
 
@@ -26,8 +27,7 @@ describe('Settings Knowledge Hidden files', () => {
     expect(indexHtml).toMatch(/\\\.xxx\$|\\\\\.xxx\$/);
   });
 
-  it('Settings open loads saved pattern into the input', () => {
-    expect(settingsDialogJs).toMatch(/function syncKbHidePatternInput\(/);
-    expect(settingsDialogJs).toMatch(/getKbHidePattern\(\)/);
+  it('Settings open loads hide pattern rows', () => {
+    expect(settingsDialogJs).toMatch(/loadKbHidePatterns\(/);
   });
 });

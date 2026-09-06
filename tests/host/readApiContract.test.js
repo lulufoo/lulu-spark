@@ -51,10 +51,10 @@ describe('readApi contract map', () => {
 
   it('resolveInvokeFromPath maps kb doc-count query args', () => {
     expect(
-      resolveInvokeFromPath('/api/kb/doc-count?repo=o/r&hide_pattern=^draft'),
+      resolveInvokeFromPath('/api/kb/doc-count?repo=o/r'),
     ).toEqual({
       cmd: 'kb_doc_count',
-      args: { repo: 'o/r', hide_pattern: '^draft', category_id: undefined },
+      args: { repo: 'o/r' },
     });
   });
 
@@ -62,16 +62,23 @@ describe('readApi contract map', () => {
     const result = resolveInvokeFromPath('/api/kb/doc-count?repo=o/r');
     expect(result).toEqual({
       cmd: 'kb_doc_count',
-      args: { repo: 'o/r', hide_pattern: undefined, category_id: undefined },
+      args: { repo: 'o/r' },
     });
   });
 
   it('resolveInvokeFromPath decodes URL-encoded repo for kb doc-count', () => {
     expect(
-      resolveInvokeFromPath('/api/kb/doc-count?repo=o%2Fr&hide_pattern=^draft'),
+      resolveInvokeFromPath('/api/kb/doc-count?repo=o%2Fr'),
     ).toEqual({
       cmd: 'kb_doc_count',
-      args: { repo: 'o/r', hide_pattern: '^draft', category_id: undefined },
+      args: { repo: 'o/r' },
+    });
+  });
+
+  it('maps hide-patterns read', () => {
+    expect(resolveInvokeFromPath('/api/kb/hide-patterns')).toEqual({
+      cmd: 'get_kb_hide_patterns',
+      args: {},
     });
   });
 

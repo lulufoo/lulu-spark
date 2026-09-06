@@ -11,11 +11,11 @@ use crate::config::roots::{knowledge_root_string, notes_root_path};
 use crate::services::index_build::common::{
     extract_workbench_title, knowledge_doc_id, should_skip_md, workbench_doc_id, WORKBENCH_LAYERS,
 };
+use crate::services::knowledge::{compiled_hide_regexes, name_is_hidden};
 use crate::services::workbench_read::{get_topics, load_notes_index_entries};
 
 use super::chunk::{chunk_markdown, first_heading_title};
-
-const SKIP_DIRS: &[&str] = &[".git", ".cache"];
+use regex::Regex;
 
 #[derive(Debug, Clone)]
 pub struct SourceChunk {
@@ -84,18 +84,18 @@ pub fn path_key(abs: &Path) -> String {
     abs.to_string_lossy().replace('\\', "/")
 }
 
-fn walk_md(dir: &Path, base: &Path, out: &mut Vec<(PathBuf, String)>) {
+fn walk_md(dir: &Path, base: &Path, hide: &[Regex], out: &mut Vec<(PathBuf, String)>) {
     let Ok(entries) = fs::read_dir(dir) else {
         return;
     };
     for entry in entries.flatten() {
         let path = entry.path();
+        let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+        if name_is_hidden(name, hide) {
+            continue;
+        }
         if path.is_dir() {
-            let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-            if SKIP_DIRS.contains(&name) {
-                continue;
-            }
-            walk_md(&path, base, out);
+            walk_md(&path, base, hide, out);
         } else if path.is_file() {
             let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
                 continue;
@@ -212,6 +212,7 @@ fn note_identity(
 pub fn collect_notes(repo_root: &Path) -> Vec<SourceChunk> {
     let notes = notes_root_path(repo_root);
     let meta = notes_meta(repo_root);
+    let hide = compiled_hide_regexes();
     let mut chunks = Vec::new();
     for layer in WORKBENCH_LAYERS {
         let layer_dir = notes.join(layer);
@@ -219,7 +220,7 @@ pub fn collect_notes(repo_root: &Path) -> Vec<SourceChunk> {
             continue;
         }
         let mut files = Vec::new();
-        walk_md(&layer_dir, &layer_dir, &mut files);
+        walk_md(&layer_dir, &layer_dir, &hide, &mut files);
         files.sort_by(|a, b| a.1.cmp(&b.1));
         for (abs, common_path) in files {
             let (doc_id, created_at) = note_identity(&meta, layer, &common_path);
@@ -278,6 +279,7 @@ pub fn collect_knowledge(repo_root: &Path, force_repo: Option<&str>) -> Vec<Sour
                 .collect()
         })
         .unwrap_or_default();
+    let hide = compiled_hide_regexes();
     let mut chunks = Vec::new();
     for (repo_full, _desc) in repos {
         if let Some(force) = force_repo {
@@ -291,7 +293,7 @@ pub fn collect_knowledge(repo_root: &Path, force_repo: Option<&str>) -> Vec<Sour
             continue;
         }
         let mut files = Vec::new();
-        walk_md(&local_dir, &local_dir, &mut files);
+        walk_md(&local_dir, &local_dir, &hide, &mut files);
         files.sort_by(|a, b| a.1.cmp(&b.1));
         for (abs, rel) in files {
             let doc_id = knowledge_doc_id(&repo_full, &rel);
