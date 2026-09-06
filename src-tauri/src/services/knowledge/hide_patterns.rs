@@ -1,4 +1,4 @@
-//! Knowledge hide-pattern records: `{cache_dir}/kb-hide-patterns.json`.
+//! Knowledge hide-pattern records: `{cache_dir}/knowledge-hide-patterns.json`.
 //!
 //! File missing → seed four whole-name regexes. Corrupt file → empty list, no overwrite.
 
@@ -42,7 +42,7 @@ fn default_version() -> u32 {
 }
 
 fn file_path() -> Result<PathBuf, String> {
-    paths::kb_hide_patterns_path().map_err(|e| format!("{e:?}"))
+    paths::knowledge_hide_patterns_path().map_err(|e| format!("{e:?}"))
 }
 
 fn seed_file() -> HideFile {

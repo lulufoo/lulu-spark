@@ -23,7 +23,7 @@
 | 项 | 选择 |
 |---|---|
 | 数据 | 多条独立记录，不再用分号拼一条字符串 |
-| 落点 | `{cache_dir}/kb-hide-patterns.json`（默认 `~/.cache/lulu-workbench`） |
+| 落点 | `{cache_dir}/knowledge-hide-patterns.json`（默认 `~/.cache/lulu-workbench`） |
 | 写入 | 增、改、删立刻落盘并刷新树 |
 | 收集 | 读同一份文件；去掉 `SKIP_DIRS` |
 | 种子 | `^\\.git$`、`^\\.cache$`、`^\\.worktrees$`、`^\\.repository-type\\.json$`（整名） |
@@ -93,11 +93,11 @@ flowchart LR
 
 ## Plan
 
-1. ✅ Verified（`src-tauri/src/config/paths.rs` `kb_hide_patterns_path`；`hide_patterns.rs`）：路径 + 服务（种子、增删改、按名隐藏）。
+1. ✅ Verified（`src-tauri/src/config/paths.rs` `knowledge_hide_patterns_path`；`hide_patterns.rs`）：路径 + 服务（种子、增删改、按名隐藏）。
 2. ✅ Verified（`src-tauri/src/services/keyword_index/collect.rs`）：无 `SKIP_DIRS`；`walk` 用 `compiled_hide_regexes` + `name_is_hidden`。
 3. ✅ Verified（`kb_doc_count_json`）：自己读文件；目录命中不进入。
 4. ✅ Verified（`commands/read.rs` / `commands/kb_hide_patterns.rs`；`read-api.toml` / `write-api.toml`；`readApiInvokeMap.ts` / `writeApiInvokeMap.ts`）：读 `GET /api/kb/hide-patterns`，写三条 POST。
 5. ✅ Verified（`frontend/src/app-shell/ui/settings/kb-hide-patterns.tsx`；`frontend/src/knowledge/state/hide-pattern.ts`）：Hidden files 列表；树与计数走内存缓存，不再读 `localStorage`。
 6. ✅ Verified（本会话命令输出）：`cargo test --lib hide_patterns` 7、`kb_doc_count` 12、`read_api_acl` 10、`write_api_acl` 17；vitest 8 个文件 109（hide-pattern、doc-list、fetch-doc-count、read/write API、settings-hide-pattern、settings-knowledge-ui）。
 
-本机 `{cache_dir}/kb-hide-patterns.json` 已写入种子四条（含 `^\\.repository-type\\.json$`）。实机点选 Settings 列表与树立刻刷新：⚠️ Inferred（未在桌面 App 点选）。
+本机 `{cache_dir}/knowledge-hide-patterns.json` 已写入种子四条，并另有 `^\\.cursor$`、`^\\.knowledge_annotations$`。实机点选 Settings 列表与树立刻刷新：⚠️ Inferred（未在桌面 App 点选）。

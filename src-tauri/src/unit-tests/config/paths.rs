@@ -22,11 +22,11 @@ fn knowledge_doc_map_path_under_cache_dir() {
 }
 
 #[test]
-fn kb_hide_patterns_path_under_cache_dir() {
+fn knowledge_hide_patterns_path_under_cache_dir() {
     let sandbox = TestSandbox::new();
     let cache = cache_dir().expect("cache");
-    let got = kb_hide_patterns_path().expect("hide");
-    assert_eq!(got, cache.join("kb-hide-patterns.json"));
+    let got = knowledge_hide_patterns_path().expect("hide");
+    assert_eq!(got, cache.join("knowledge-hide-patterns.json"));
     sandbox.assert_not_prod_path(&got).expect("sandbox hide");
 }
 

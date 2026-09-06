@@ -10,7 +10,7 @@ fn load_or_seed_writes_seed_when_missing() {
     assert_eq!(patterns, SEED_PATTERNS);
     let ids: Vec<_> = rows.iter().map(|r| r.id.as_str()).collect();
     assert_eq!(ids, ["seed00", "seed01", "seed02", "seed03"]);
-    let path = sandbox.cache_dir().join("kb-hide-patterns.json");
+    let path = sandbox.cache_dir().join("knowledge-hide-patterns.json");
     assert!(path.is_file(), "seed must write cache file");
 }
 
@@ -84,7 +84,7 @@ fn collect_notes_skips_seed_hidden_dir() {
 #[test]
 fn corrupt_file_reads_empty_without_overwrite() {
     let sandbox = TestSandbox::new();
-    let path = sandbox.cache_dir().join("kb-hide-patterns.json");
+    let path = sandbox.cache_dir().join("knowledge-hide-patterns.json");
     fs::create_dir_all(path.parent().unwrap()).expect("mkdir");
     fs::write(&path, "{not-json").expect("write");
     let rows = load_or_seed();
