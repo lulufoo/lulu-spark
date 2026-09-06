@@ -88,6 +88,14 @@ export const READ_API_INVOKE_MAP: Record<string, ReadInvokeEntry> = {
       path: url.searchParams.get('path') ?? '',
     }),
   },
+  '/api/kb/asset': {
+    cmd: 'get_kb_asset',
+    args: (url) => ({
+      repo: url.searchParams.get('repo') ?? '',
+      base: url.searchParams.get('base') ?? '',
+      href: url.searchParams.get('href') ?? '',
+    }),
+  },
   '/api/kb/list': {
     cmd: 'kb_list',
     args: (url) => ({

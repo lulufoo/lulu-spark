@@ -113,6 +113,17 @@ describe('readApi contract map', () => {
     });
   });
 
+  it('resolveInvokeFromPath maps kb-asset query args', () => {
+    expect(
+      resolveInvokeFromPath(
+        '/api/kb/asset?repo=o/r&base=docs/a.md&href=note.png',
+      ),
+    ).toEqual({
+      cmd: 'get_kb_asset',
+      args: { repo: 'o/r', base: 'docs/a.md', href: 'note.png' },
+    });
+  });
+
   it('resolveInvokeFromPath maps notes-asset query args', () => {
     expect(
       resolveInvokeFromPath(

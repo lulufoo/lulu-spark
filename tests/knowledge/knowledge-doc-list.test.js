@@ -11,6 +11,7 @@ vi.mock('../../frontend/src/host/api.ts', () => ({
   fetchKbHidePatterns: vi.fn(),
   fetchKbViewerState: vi.fn(),
   saveKbViewerState: vi.fn(),
+  renameKbEntry: vi.fn(),
 }));
 
 vi.mock('../../frontend/src/knowledge/viewer.ts', () => ({
@@ -226,6 +227,7 @@ describe('mountKnowledgeDocList', () => {
     api.fetchKbHidePatterns.mockResolvedValue({ patterns: [] });
     api.fetchKbViewerState.mockResolvedValue({ repo: '', path: '' });
     api.saveKbViewerState.mockResolvedValue({ repo: '', path: '' });
+    api.renameKbEntry.mockResolvedValue({ ok: true, path: 'hello.md' });
     api.fetchSedimentKbRepos.mockResolvedValue({
       repos: [
         { full_name: 'owner/repo' },
@@ -821,6 +823,124 @@ describe('mountKnowledgeDocList', () => {
 
     addSpy.mockRestore();
     removeSpy.mockRestore();
+  });
+
+  function pressKey(el, key) {
+    el.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+  }
+
+  it('Enter after opening a file still starts rename when focus is in the reader', async () => {
+    api.fetchKbList.mockResolvedValue(sampleRootEntries);
+
+    mountKnowledgeDocList(container, { repo: 'owner/repo', navigate });
+    await flushPromises();
+
+    container
+      .querySelector('.knowledge-doc-tree-node[data-relative-path="readme.md"] .knowledge-doc-tree-label')
+      .click();
+    await flushPromises();
+
+    pressKey(container.querySelector('.knowledge-doc-reader-pane'), 'Enter');
+    await flushPromises();
+
+    expect(container.querySelector('.knowledge-doc-tree-rename')).not.toBeNull();
+  });
+
+  it('Enter on a tree label shows an inline rename input', async () => {
+    api.fetchKbList.mockResolvedValue(sampleRootEntries);
+
+    mountKnowledgeDocList(container, { repo: 'owner/repo', navigate });
+    await flushPromises();
+
+    const label = container.querySelector(
+      '.knowledge-doc-tree-node[data-relative-path="readme.md"] .knowledge-doc-tree-label',
+    );
+    pressKey(label, 'Enter');
+    await flushPromises();
+
+    const input = container.querySelector('.knowledge-doc-tree-rename');
+    expect(input).not.toBeNull();
+    expect(input.value).toBe('readme.md');
+    expect(mountKbReader).not.toHaveBeenCalled();
+  });
+
+  it('Escape cancels rename without calling the host', async () => {
+    api.fetchKbList.mockResolvedValue(sampleRootEntries);
+
+    mountKnowledgeDocList(container, { repo: 'owner/repo', navigate });
+    await flushPromises();
+
+    pressKey(
+      container.querySelector(
+        '.knowledge-doc-tree-node[data-relative-path="readme.md"] .knowledge-doc-tree-label',
+      ),
+      'Enter',
+    );
+    await flushPromises();
+
+    const input = container.querySelector('.knowledge-doc-tree-rename');
+    pressKey(input, 'Escape');
+    await flushPromises();
+
+    expect(api.renameKbEntry).not.toHaveBeenCalled();
+    expect(container.querySelector('.knowledge-doc-tree-rename')).toBeNull();
+  });
+
+  it('Enter in the rename input calls the host and rewrites the tree path', async () => {
+    api.fetchKbList.mockResolvedValue(sampleRootEntries);
+    api.renameKbEntry.mockResolvedValue({ ok: true, path: 'hello.md' });
+
+    mountKnowledgeDocList(container, { repo: 'owner/repo', navigate });
+    await flushPromises();
+
+    container
+      .querySelector('.knowledge-doc-tree-node[data-relative-path="readme.md"] .knowledge-doc-tree-label')
+      .click();
+    await flushPromises();
+    pressKey(
+      container.querySelector(
+        '.knowledge-doc-tree-node[data-relative-path="readme.md"] .knowledge-doc-tree-label',
+      ),
+      'Enter',
+    );
+    await flushPromises();
+
+    const input = container.querySelector('.knowledge-doc-tree-rename');
+    input.value = 'hello.md';
+    pressKey(input, 'Enter');
+    await flushPromises();
+
+    expect(api.renameKbEntry).toHaveBeenCalledWith('owner/repo', 'readme.md', 'hello.md');
+    expect(container.querySelector('.knowledge-doc-tree-node[data-relative-path="hello.md"]')).not.toBeNull();
+    expect(container.querySelector('.knowledge-doc-tree-node[data-relative-path="readme.md"]')).toBeNull();
+    expect(mountKbReader).toHaveBeenLastCalledWith(
+      container.querySelector('.knowledge-doc-reader-pane'),
+      expect.objectContaining({ repo: 'owner/repo', path: 'hello.md' }),
+    );
+    expect(api.saveKbViewerState).toHaveBeenCalledWith('owner/repo', 'hello.md');
+  });
+
+  it('same name is a no-op and does not call the host', async () => {
+    api.fetchKbList.mockResolvedValue(sampleRootEntries);
+
+    mountKnowledgeDocList(container, { repo: 'owner/repo', navigate });
+    await flushPromises();
+
+    pressKey(
+      container.querySelector(
+        '.knowledge-doc-tree-node[data-relative-path="readme.md"] .knowledge-doc-tree-label',
+      ),
+      'Enter',
+    );
+    await flushPromises();
+
+    const input = container.querySelector('.knowledge-doc-tree-rename');
+    input.value = 'readme.md';
+    pressKey(input, 'Enter');
+    await flushPromises();
+
+    expect(api.renameKbEntry).not.toHaveBeenCalled();
+    expect(container.querySelector('.knowledge-doc-tree-node[data-relative-path="readme.md"]')).not.toBeNull();
   });
 });
 

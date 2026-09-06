@@ -2,8 +2,10 @@
 //!
 //! Command names and Sidecar `/api/kb/*` paths stay on L1.
 
+mod asset;
 mod read;
 mod write;
+mod rename;
 mod repo_git;
 mod doc_map;
 mod hide_patterns;
@@ -11,8 +13,10 @@ mod viewer_state;
 mod mcp;
 mod search_document;
 
+pub use asset::*;
 pub use read::*;
 pub use write::*;
+pub use rename::*;
 pub use repo_git::*;
 pub use mcp::*;
 pub use search_document::*;

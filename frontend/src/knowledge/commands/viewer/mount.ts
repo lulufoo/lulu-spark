@@ -5,7 +5,9 @@ import * as api from '../../../host/api.ts';
 import { initKbComments, cleanupKbComments } from '../../ui/comments.tsx';
 import { setDocEditMode } from '../../../doc-editor/view.tsx';
 import { openKbCommitDialog } from './commit.ts';
-import { cleanupKbHighlightUI, initKbHighlightUI, renderKbMdBody } from '../../ui/viewer/highlight.ts';
+import { cleanupKbHighlightUI, initKbHighlightUI } from '../../ui/viewer/highlight.ts';
+import { revokeKbBlobUrls } from './images.ts';
+import { paintKbMdBody } from './paint.ts';
 import { openKnowledgeInChat } from '../open-in-chat.ts';
 import { paintKbError, paintKbLoading, paintKbPlain, paintReaderShell } from '../../ui/viewer/shell.tsx';
 import {
@@ -124,7 +126,7 @@ export async function mountKbReader(
       state.viewer.rawText = newContent;
       exitEditMode();
       if (typeof marked !== 'undefined') {
-        await renderKbMdBody(newContent, ui.body);
+        await paintKbMdBody(newContent, ui.body);
       } else {
         paintKbPlain(ui.body, newContent);
       }
@@ -152,6 +154,7 @@ export async function mountKbReader(
     exitEditMode();
     cleanupKbComments();
     cleanupKbHighlightUI();
+    revokeKbBlobUrls();
     for (const [el, type, handler] of listeners) {
       el.removeEventListener(type, handler);
     }
@@ -245,7 +248,7 @@ export async function mountKbReader(
       ui.fileSize.textContent = formatFileSize(text);
 
       if (typeof marked !== 'undefined') {
-        await renderKbMdBody(text, ui.body);
+        await paintKbMdBody(text, ui.body);
       } else {
         paintKbPlain(ui.body, text);
       }

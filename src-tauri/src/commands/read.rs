@@ -110,6 +110,21 @@ pub fn kb_read(_app: AppHandle, repo: String, path: String) -> Result<Value, Str
 }
 
 #[tauri::command]
+pub fn get_kb_asset(
+    _app: AppHandle,
+    repo: String,
+    base: String,
+    href: String,
+) -> Result<Value, String> {
+    Ok(crate::services::knowledge::kb_asset_json(
+        &repo_root()?,
+        &repo,
+        &base,
+        &href,
+    ))
+}
+
+#[tauri::command]
 pub fn kb_list(
     _app: AppHandle,
     repo: String,

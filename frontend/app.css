@@ -7177,6 +7177,19 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
 .knowledge-doc-tree-label.selected .knowledge-doc-tree-icon {
   color: #0969da;
 }
+.knowledge-doc-tree-rename {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: 1px 4px;
+  border: 1px solid #0969da;
+  border-radius: 4px;
+  background: #fff;
+  color: #24292f;
+  font: inherit;
+  font-weight: 300;
+  line-height: 1.3;
+}
 .knowledge-doc-main {
   flex: 1;
   overflow-y: auto;

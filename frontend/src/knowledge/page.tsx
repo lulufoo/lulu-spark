@@ -17,6 +17,8 @@ import {
   knowledgeLandingHash,
   saveKbViewerState,
 } from './commands/viewer-state.ts';
+import { commitKbTreeRename } from './commands/tree-rename.ts';
+import { resolveRenamePathFromKeydown } from './state/tree-rename.ts';
 import { KnowledgeDocLayout } from './ui/sidebar.tsx';
 
 export type { TreeNode } from './state/types.ts';
@@ -53,6 +55,8 @@ function startKnowledgeDocSession(
   let shelled = false;
   let rootNodes: TreeNode[] = [];
   let selectedPath = initialPath || '';
+  let openedPath = '';
+  let renamingPath = '';
   let unmountReader: (() => void) | null = null;
   const dirCache = new Map<string, Array<{ name: string; relative_path: string; is_dir: boolean }>>();
   let sedimentRepos: RepoRecord[] = [];
@@ -78,13 +82,15 @@ function startKnowledgeDocSession(
   }
 
   function renderSidebar() {
-    publishKnowledgeTree(rootNodes, selectedPath);
+    publishKnowledgeTree(rootNodes, selectedPath, '', renamingPath);
   }
 
   async function reloadFromDisk() {
     dirCache.clear();
     rootNodes = [];
     selectedPath = '';
+    openedPath = '';
+    renamingPath = '';
     const entries = await api.fetchKbList(repo, '', 'flat');
     if (disposed) return;
     dirCache.set('', entries);
@@ -106,6 +112,7 @@ function startKnowledgeDocSession(
       return;
     }
     unmountReader = unmount;
+    openedPath = path;
   }
 
   function buildKbBlobUrl(repoFullName: string, relativePath: string) {
@@ -201,7 +208,7 @@ function startKnowledgeDocSession(
         dirCache.set(node.relative_path, entries);
       } catch (err) {
         node.expanded = false;
-        publishKnowledgeTree(rootNodes, selectedPath, errorMessage(err, 'Failed to load'));
+        publishKnowledgeTree(rootNodes, selectedPath, errorMessage(err, 'Failed to load'), renamingPath);
         throw err;
       }
     }
@@ -238,6 +245,7 @@ function startKnowledgeDocSession(
     }
     if (!next) {
       selectedPath = '';
+      openedPath = '';
       if (unmountReader) {
         unmountReader();
         unmountReader = null;
@@ -245,7 +253,7 @@ function startKnowledgeDocSession(
       renderSidebar();
       return;
     }
-    if (next === selectedPath && unmountReader) {
+    if (next === openedPath && unmountReader) {
       renderSidebar();
       return;
     }
@@ -255,8 +263,92 @@ function startKnowledgeDocSession(
     await mountReaderAt(next);
   }
 
+  function clearRename() {
+    if (!renamingPath) return;
+    renamingPath = '';
+    renderSidebar();
+  }
+
+  async function commitRename(name: string) {
+    const from = renamingPath;
+    if (!from) return;
+    try {
+      const result = await commitKbTreeRename(
+        {
+          repo,
+          nodes: rootNodes,
+          dirCache,
+          selectedPath,
+          openedPath,
+        },
+        from,
+        name,
+      );
+      if (disposed) return;
+      if (result.kind === 'invalid') {
+        alert(`Rename failed: ${result.message}`);
+        clearRename();
+        return;
+      }
+      if (result.kind === 'noop') {
+        clearRename();
+        return;
+      }
+      rootNodes = result.nodes;
+      selectedPath = result.selectedPath;
+      openedPath = result.openedPath;
+      renamingPath = '';
+      renderSidebar();
+      if (result.openedChanged && openedPath) {
+        await mountReaderAt(openedPath);
+        syncKnowledgeHash(openedPath);
+        if (isKnowledgeMdPath(openedPath)) {
+          await saveKbViewerState(repo, openedPath);
+        }
+      }
+    } catch (err) {
+      alert(`Rename failed: ${errorMessage(err, 'unknown error')}`);
+      clearRename();
+    }
+  }
+
+  const onPageKeyDown = (event: Event) => {
+    const ke = event as KeyboardEvent;
+    const path = resolveRenamePathFromKeydown({
+      key: ke.key,
+      repeat: ke.repeat,
+      isComposing: ke.isComposing,
+      metaKey: ke.metaKey,
+      ctrlKey: ke.ctrlKey,
+      altKey: ke.altKey,
+      target: ke.target,
+      host: container,
+      renamingPath,
+      selectedPath,
+    });
+    if (!path) return;
+    ke.preventDefault();
+    ke.stopPropagation();
+    selectedPath = path;
+    renamingPath = path;
+    renderSidebar();
+  };
+
+  const onRenameCommit = (event: Event) => {
+    const name = String((event as CustomEvent<{ name?: string }>).detail?.name ?? '');
+    void commitRename(name);
+  };
+
+  const onRenameCancel = () => {
+    clearRename();
+  };
+
+  container.addEventListener('keydown', onPageKeyDown, true);
+  window.addEventListener('keydown', onPageKeyDown, true);
+
   const onSidebarClick = (event: Event) => {
     const target = event.target as Element | null;
+    if (target?.closest?.('.knowledge-doc-tree-rename')) return;
     const labelBtn = target?.closest?.('.knowledge-doc-tree-label');
     if (!labelBtn) return;
     const nodeEl = labelBtn.closest('.knowledge-doc-tree-node') as HTMLElement | null;
@@ -269,6 +361,7 @@ function startKnowledgeDocSession(
       void onExpandNode(node);
       return;
     }
+    selectedPath = relativePath;
     void (async () => {
       await navigateToPath(relativePath);
       syncKnowledgeHash(relativePath);
@@ -317,6 +410,8 @@ function startKnowledgeDocSession(
       setHeaderSyncKnowledgeContext(repo, reloadFromDisk);
       sidebarEl = container.querySelector('.knowledge-doc-sidebar');
       sidebarEl?.addEventListener('click', onSidebarClick);
+      sidebarEl?.addEventListener('kb:tree-rename-commit', onRenameCommit);
+      sidebarEl?.addEventListener('kb:tree-rename-cancel', onRenameCancel);
       shelled = true;
       renderSidebar();
       await applyKbViewerRestore({
@@ -341,6 +436,10 @@ function startKnowledgeDocSession(
     disposed = true;
     repoPickerSync = null;
     sidebarEl?.removeEventListener('click', onSidebarClick);
+    sidebarEl?.removeEventListener('kb:tree-rename-commit', onRenameCommit);
+    sidebarEl?.removeEventListener('kb:tree-rename-cancel', onRenameCancel);
+    container.removeEventListener('keydown', onPageKeyDown, true);
+    window.removeEventListener('keydown', onPageKeyDown, true);
     sidebarEl = null;
     closeFloatingListSelect();
     detachKnowledgeSidebarResize();

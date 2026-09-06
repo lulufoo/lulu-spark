@@ -291,6 +291,16 @@ pub fn kb_save(
 }
 
 #[tauri::command]
+pub fn kb_rename(
+    _app: AppHandle,
+    repo: String,
+    path: String,
+    name: String,
+) -> Result<Value, String> {
+    Ok(knowledge::kb_rename(&repo_root()?, repo, path, name))
+}
+
+#[tauri::command]
 pub fn kb_update_comments(
     _app: AppHandle,
     repo: String,

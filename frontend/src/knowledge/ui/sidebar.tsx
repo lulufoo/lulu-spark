@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from 'react';
+import { useLayoutEffect, useRef, useSyncExternalStore } from 'react';
 import type { TreeNode } from '../state/types.ts';
 import { knowledgeTreeStore } from '../state/tree.ts';
 import { ReaderShell } from './viewer/shell.tsx';
@@ -56,19 +56,78 @@ function TreeNodeName({ name, isDir }: { name: string; isDir: boolean }) {
   );
 }
 
+function KnowledgeRenameInput({ name, isDir }: { name: string; isDir: boolean }) {
+  const ref = useRef<HTMLInputElement>(null);
+  const done = useRef(false);
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.focus();
+    const dot = name.lastIndexOf('.');
+    if (!isDir && dot > 0) {
+      el.setSelectionRange(0, dot);
+      return;
+    }
+    el.select();
+  }, [isDir, name]);
+
+  function finish(kind: 'commit' | 'cancel') {
+    if (done.current) return;
+    done.current = true;
+    const el = ref.current;
+    el?.dispatchEvent(
+      new CustomEvent(kind === 'commit' ? 'kb:tree-rename-commit' : 'kb:tree-rename-cancel', {
+        bubbles: true,
+        detail: { name: el?.value ?? name },
+      }),
+    );
+  }
+
+  return (
+    <input
+      ref={ref}
+      className="knowledge-doc-tree-rename"
+      aria-label="Rename"
+      defaultValue={name}
+      onClick={(event) => event.stopPropagation()}
+      onMouseDown={(event) => event.stopPropagation()}
+      onKeyDown={(event) => {
+        event.stopPropagation();
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          finish('commit');
+        } else if (event.key === 'Escape') {
+          event.preventDefault();
+          finish('cancel');
+        }
+      }}
+      onBlur={() => finish('commit')}
+    />
+  );
+}
+
 export function TreeNodes({
   nodes,
   depth,
   selectedPath,
+  renamingPath,
 }: {
   nodes: TreeNode[];
   depth: number;
   selectedPath: string;
+  renamingPath: string;
 }) {
   return (
     <>
       {nodes.map((node) => (
-        <TreeNodeBlock key={node.relative_path} node={node} depth={depth} selectedPath={selectedPath} />
+        <TreeNodeBlock
+          key={node.relative_path}
+          node={node}
+          depth={depth}
+          selectedPath={selectedPath}
+          renamingPath={renamingPath}
+        />
       ))}
     </>
   );
@@ -78,12 +137,15 @@ function TreeNodeBlock({
   node,
   depth,
   selectedPath,
+  renamingPath,
 }: {
   node: TreeNode;
   depth: number;
   selectedPath: string;
+  renamingPath: string;
 }) {
   const selected = selectedPath === node.relative_path;
+  const renaming = renamingPath === node.relative_path;
   const nodeClass = [
     'knowledge-doc-tree-node',
     node.is_dir ? 'is-dir' : 'is-file',
@@ -91,6 +153,17 @@ function TreeNodeBlock({
   ]
     .filter(Boolean)
     .join(' ');
+  const labelClass = selected ? 'knowledge-doc-tree-label selected' : 'knowledge-doc-tree-label';
+  const chrome = (
+    <>
+      <span className="knowledge-doc-tree-twist" aria-hidden="true">
+        {node.is_dir ? <TreeChevron expanded={node.expanded} /> : null}
+      </span>
+      <span className="knowledge-doc-tree-icon" aria-hidden="true">
+        {node.is_dir ? <FolderGlyph /> : <FileGlyph />}
+      </span>
+    </>
+  );
   return (
     <>
       <div
@@ -100,27 +173,34 @@ function TreeNodeBlock({
         data-kind={node.is_dir ? 'dir' : 'file'}
         style={{ paddingLeft: depth * 16 }}
       >
-        <button
-          type="button"
-          className={selected ? 'knowledge-doc-tree-label selected' : 'knowledge-doc-tree-label'}
-          title={node.name}
-          aria-expanded={node.is_dir ? node.expanded : undefined}
-        >
-          <span className="knowledge-doc-tree-twist" aria-hidden="true">
-            {node.is_dir ? <TreeChevron expanded={node.expanded} /> : null}
-          </span>
-          <span className="knowledge-doc-tree-icon" aria-hidden="true">
-            {node.is_dir ? <FolderGlyph /> : <FileGlyph />}
-          </span>
-          <TreeNodeName name={node.name} isDir={node.is_dir} />
-        </button>
+        {renaming ? (
+          <div className={labelClass}>
+            {chrome}
+            <KnowledgeRenameInput name={node.name} isDir={node.is_dir} />
+          </div>
+        ) : (
+          <button
+            type="button"
+            className={labelClass}
+            title={node.name}
+            aria-expanded={node.is_dir ? node.expanded : undefined}
+          >
+            {chrome}
+            <TreeNodeName name={node.name} isDir={node.is_dir} />
+          </button>
+        )}
       </div>
       {node.expanded && node.children.length > 0 ? (
         <div
           className="knowledge-doc-tree-children"
           style={{ ['--knowledge-tree-guide' as string]: `${depth * 16 + 12}px` }}
         >
-          <TreeNodes nodes={node.children} depth={depth + 1} selectedPath={selectedPath} />
+          <TreeNodes
+            nodes={node.children}
+            depth={depth + 1}
+            selectedPath={selectedPath}
+            renamingPath={renamingPath}
+          />
         </div>
       ) : null}
     </>
@@ -135,7 +215,14 @@ export function KnowledgeSidebarTree() {
   if (!snap.nodes.length) {
     return <div className="knowledge-doc-empty">Repository is empty</div>;
   }
-  return <TreeNodes nodes={snap.nodes} depth={0} selectedPath={snap.selectedPath} />;
+  return (
+    <TreeNodes
+      nodes={snap.nodes}
+      depth={0}
+      selectedPath={snap.selectedPath}
+      renamingPath={snap.renamingPath}
+    />
+  );
 }
 
 export function KnowledgeDocLayout() {

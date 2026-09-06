@@ -100,6 +100,14 @@ export const WRITE_API_INVOKE_MAP: Record<string, WriteInvokeEntry> = {
       content: body.content,
     }),
   },
+  '/api/kb/rename': {
+    cmd: 'kb_rename',
+    args: (body) => ({
+      repo: body.repo,
+      path: body.path,
+      name: body.name,
+    }),
+  },
   '/api/kb/update-comments': {
     cmd: 'kb_update_comments',
     args: (body) => ({

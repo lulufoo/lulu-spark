@@ -25,6 +25,10 @@ fn kb_doc_count_registered_in_lib_rs() {
         lib.contains("commands::kb_viewer_state::set_kb_viewer_state"),
         "lib.rs invoke handler must register commands::kb_viewer_state::set_kb_viewer_state"
     );
+    assert!(
+        lib.contains("commands::write::kb_rename"),
+        "lib.rs invoke handler must register commands::write::kb_rename"
+    );
 }
 
 #[test]

@@ -49,6 +49,8 @@ const KB_HIDE_WRITE_COMMANDS: &[&str] = &[
 
 const KB_VIEWER_STATE_WRITE_COMMANDS: &[&str] = &["set_kb_viewer_state"];
 
+const KB_RENAME_WRITE_COMMANDS: &[&str] = &["kb_rename"];
+
 const TODO_TASK_WRITE_COMMANDS: &[&str] = &[
     "create_todo_task",
     "delete_todo_task",
@@ -124,6 +126,22 @@ const AI_ASSISTANT_WRITE_COMMANDS: &[&str] = &[
 ];
 
 const MESSAGE_CENTER_WRITE_COMMANDS: &[&str] = &["mark_message_channel_read"];
+
+#[test]
+fn kb_rename_write_command_is_acl_allowed() {
+    let root = manifest_dir();
+    let toml = fs::read_to_string(root.join("permissions/write-api.toml")).expect("toml");
+    let allow = parse_write_api_toml_allow(&toml);
+    let missing: Vec<_> = KB_RENAME_WRITE_COMMANDS
+        .iter()
+        .filter(|cmd| !allow.contains(**cmd))
+        .copied()
+        .collect();
+    assert!(
+        missing.is_empty(),
+        "commands missing from write-api.toml ACL: {missing:?}"
+    );
+}
 
 #[test]
 fn kb_viewer_state_write_command_is_acl_allowed() {

@@ -1,6 +1,28 @@
 import { asRecord, type InvokeResponse, type PathArg } from '../api-types.ts';
 import { getReadDriver, normalizeReadError, readGet, writePost } from './transport.ts';
 
+/** Load knowledge raster asset via invoke; returns blob: URL (caller may revoke). */
+export async function fetchKbAssetAsBlobUrl(repo: PathArg, base: PathArg, href: string) {
+  const params = new URLSearchParams({
+    repo: String(repo ?? ''),
+    base: String(base ?? ''),
+    href,
+    _: String(Date.now()),
+  });
+  const data = await readGet(`/api/kb/asset?${params.toString()}`);
+  const rec = asRecord(data);
+  const mime = rec?.mime_type || 'application/octet-stream';
+  const b64 = rec?.data_b64;
+  if (!b64 || typeof b64 !== 'string') {
+    throw new Error('Missing asset payload');
+  }
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  const blob = new Blob([bytes], { type: String(mime) });
+  return URL.createObjectURL(blob);
+}
+
 export async function fetchKbFileContent(repo: PathArg, path: PathArg) {
   const res = await getReadDriver().fetchGet(
     `/api/kb/read?repo=${encodeURIComponent(String(repo ?? ''))}&path=${encodeURIComponent(String(path ?? ''))}`
@@ -124,6 +146,10 @@ export async function updateKbLinks(repo: PathArg, path: PathArg, links: unknown
 
 export async function saveKbFile(repo: PathArg, path: PathArg, content: string) {
   return writePost('/api/kb/save', { repo, path, content });
+}
+
+export async function renameKbEntry(repo: PathArg, path: PathArg, name: string) {
+  return writePost('/api/kb/rename', { repo, path, name });
 }
 
 export async function commitKbFile(repo: PathArg, message: string) {

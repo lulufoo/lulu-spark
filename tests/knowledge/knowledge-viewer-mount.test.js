@@ -5,16 +5,19 @@ const {
   fetchKbFileContent,
   fetchKbAnnotation,
   fetchKbStatus,
+  fetchKbAssetAsBlobUrl,
 } = vi.hoisted(() => ({
   fetchKbFileContent: vi.fn(),
   fetchKbAnnotation: vi.fn(),
   fetchKbStatus: vi.fn(),
+  fetchKbAssetAsBlobUrl: vi.fn(),
 }));
 
 vi.mock('../../frontend/src/host/api.ts', () => ({
   fetchKbFileContent,
   fetchKbAnnotation,
   fetchKbStatus,
+  fetchKbAssetAsBlobUrl,
   saveKbFile: vi.fn(),
   commitKbFile: vi.fn(),
   revertKbFile: vi.fn(),

@@ -4,7 +4,9 @@ import * as api from '../../../host/api.ts';
 import { initKbComments } from '../../ui/comments.tsx';
 import { setDocEditMode } from '../../../doc-editor/view.tsx';
 import { kbHidePendingBadge, kbShowPendingBadge, onKbDirty } from '../../ui/viewer/chrome.tsx';
-import { initKbHighlightUI, renderKbMdBody } from '../../ui/viewer/highlight.ts';
+import { initKbHighlightUI } from '../../ui/viewer/highlight.ts';
+import { revokeKbBlobUrls } from './images.ts';
+import { paintKbMdBody } from './paint.ts';
 import { paintKbDocError, paintKbDocLoading, paintKbDocPlain } from '../../ui/viewer/doc.tsx';
 
 type KbViewer = {
@@ -91,7 +93,7 @@ export async function openKbDoc(kbHit: { repo: string; path: string; url?: strin
     }
 
     if (typeof marked !== 'undefined') {
-      await renderKbMdBody(text);
+      await paintKbMdBody(text);
     } else {
       paintKbDocPlain(body, text);
     }
@@ -137,7 +139,7 @@ export async function saveKbDoc() {
     const body = document.getElementById('kb-md-body');
     if (body) {
       if (typeof marked !== 'undefined') {
-        await renderKbMdBody(newContent);
+        await paintKbMdBody(newContent);
       } else {
         paintKbDocPlain(body, newContent);
       }
@@ -159,6 +161,7 @@ export function closeKbModal() {
   const modal = document.getElementById('kb-md-modal');
   if (modal) modal.style.display = 'none';
   document.removeEventListener('kb:dirty', onKbDirty);
+  revokeKbBlobUrls();
   const v = viewer();
   v.isKb = false;
   v.kbRepo = null;
