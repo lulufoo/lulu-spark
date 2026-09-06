@@ -59,8 +59,9 @@ Do not reload full raw only to draft the digest. Do not write past the constrain
 · Overview: one paragraph, about 80–300 characters
 · No DDM / archive jargon
 · theme-line: one digest on the primary raw, not on `-zh.md`
+· No relative images (`![…](./…)` / `<img src="local">`). Host rejects. Do not copy raw figures into digest.
 ```
 
 ## Submit (AD-3)
 
-Put AD-1–AD-2 in the same `create_note` call as `digest_body`. Check `digest_path` on success; absent means `auto` skipped.
+Put AD-1–AD-2 in the same `create_note` call as `digest_body`. Check `digest_path` on success; absent means `auto` skipped. Relative images in `digest_body` → Host 400; rewrite without them.

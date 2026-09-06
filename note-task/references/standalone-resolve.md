@@ -54,6 +54,17 @@ Before staging, remove **external images** only. Keep prose, headings, and non-i
 
 Keep relative images and non-image links. Collapse 3+ blank lines to 2. Confirm no `![…](http` / `<img` with `http` src remains.
 
+## Sibling image files (desktop staging)
+
+When the live MCP description requires companion-image paths, collect them as follows. Field name, limits, and allowed extensions: live schema only.
+
+After sanitize, if the staged body has relative `![…](href)` or `<img src>`:
+
+1. Resolve each href against the staged Markdown directory. Reject `..`, `http(s):`, `data:`, `blob:`, and absolute `/` hrefs.
+2. If the file exists, keep its absolute path and the source basename; do not rename.
+3. Missing file, or a type/size the live schema rejects → stop. Do not drop the image token and create anyway.
+4. Mobile `content` create has no companion-image field. Do not send image bytes.
+
 ## Create
 
-Stage on an allow-listed path (desktop) or send `content` (mobile). Load [full-english-translate.md](full-english-translate.md). Call `create_note` per the live schema.
+Stage the Markdown on an allow-listed path (desktop) or send `content` (mobile). Sibling image files stay on disk next to the staged Markdown — do not embed them. Load [full-english-translate.md](full-english-translate.md). Call `create_note` per the live schema, passing collected sibling paths in the field the schema names.

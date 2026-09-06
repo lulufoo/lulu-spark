@@ -44,7 +44,7 @@ Map the user request, then call **only** the tools that match. Do not run a fixe
 | Read one digest | `get_note_digest_by_id` | — |
 | Read one raw body | `get_note_content_by_id` | — |
 
-**Create is one tool.** `digest` is a required `create_note` field. When a digest will be written, pass `digest_body` on the same call. Host AD-0 decides whether `auto` writes.
+**Create is one tool.** `digest` is a required `create_note` field. When a digest will be written, pass `digest_body` on the same call. Host AD-0 decides whether `auto` writes. Companion-image when-to-pass is the live MCP description; collecting sibling files is [standalone-resolve.md](references/standalone-resolve.md).
 
 ## Note Norms
 
@@ -54,7 +54,8 @@ Do not invent norms not listed here.
 | Field / concern | Reference | When |
 |-----------------|-----------|------|
 | `title` | [title.md](references/title.md) | Before choosing or proposing a create title |
-| Standalone path / paste | [standalone-resolve.md](references/standalone-resolve.md) | Path or paste with no producer (includes GitHub `created_at` and summary image strip) |
+| Standalone path / paste | [standalone-resolve.md](references/standalone-resolve.md) | Path or paste with no producer (includes GitHub `created_at`, summary image strip, and sibling-file collection) |
+| Sibling image files | [standalone-resolve.md](references/standalone-resolve.md) | How to collect files next to a staged Markdown |
 | Full-English detect | [full-english-translate.md](references/full-english-translate.md) | Before every `create_note` |
 | `digest_body` shape | [digest-workflow.md](references/digest-workflow.md) | Before composing `digest_body` (`auto` / `always`) |
 
@@ -64,7 +65,7 @@ Do not invent norms not listed here.
 ## Hard Constraints
 
 1. **Listed tools only** — Agent must use `note-task` and the note tools listed in this SKILL only.
-2. **Verify after write** — After create, confirm `id` / `common_path` / `raw_path`; `digest_path` when a digest was written; `extra_paths` when a zh companion was written.
+2. **Verify after write** — After create, confirm `id` / `common_path` / `raw_path`; `digest_path` when a digest was written; `extra_paths` when a zh companion was written; `asset_paths` when companion images were sent.
 3. **HTTP errors** — 4xx/5xx surface as MCP tool errors (`isError: true`); do not treat error payloads as success.
 4. **Producers load this map** — theme-fetch, theme-line, theme-transcribe, dialogue-summary, and dialogue-archive (`sink=workbench`) route Create here. They do not call Host HTTP. `dialogue-archive` `sink=local-md` is out of scope.
 
@@ -72,7 +73,7 @@ Do not invent norms not listed here.
 
 | MCP tool | Purpose |
 |----------|---------|
-| `create_note` | Create a note (desktop: `source_path` + `title` + `digest`; mobile: `content` + `title` + `digest`) |
+| `create_note` | Create a note (desktop: `source_path`; mobile: `content`) |
 | `get_all_notes_catalog` | Every project catalog with newest `note_id` + `created_at` (no bodies) |
 | `get_latest_digest_per_catalog` | Newest digest Markdown for every catalog in one call |
 | `get_notes_by_catalog` | Every note id in one catalog (`catalog` = project name) |
@@ -89,7 +90,8 @@ Observable completion for a write request:
 - Tool call succeeded; and
 - Response has `id`, `common_path`, `raw_path`; and
 - When a digest was written: `digest_path` is present; when skipped: it is absent; and
-- When a zh companion was written: `extra_paths` includes the `-zh.md` path.
+- When a zh companion was written: `extra_paths` includes the `-zh.md` path; and
+- When companion images were sent: `asset_paths` lists the copied `raw/…` files.
 
 ## References
 

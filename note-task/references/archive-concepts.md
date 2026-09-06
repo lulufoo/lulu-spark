@@ -12,6 +12,7 @@ COMMON_PATH = <project>/<theme>/<created_at>-<6 alnum>[-<source-basename>].md
 |-------|--------------------------------------|
 | raw | `notes/raw/<COMMON_PATH>` |
 | raw (zh) | `notes/raw/<stem>-zh.md` |
+| companion image | Sibling of the raw Markdown (`notes/raw/<project>/<theme>/<basename>`). Copied by Host from `asset_paths`. Not in `common_path`. |
 | digest | `notes/digest/<COMMON_PATH>` |
 | staging / debug | workspace `.cache/…` only |
 
