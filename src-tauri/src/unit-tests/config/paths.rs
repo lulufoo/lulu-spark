@@ -31,6 +31,15 @@ fn knowledge_hide_patterns_path_under_cache_dir() {
 }
 
 #[test]
+fn knowledge_viewer_state_path_under_cache_dir() {
+    let sandbox = TestSandbox::new();
+    let cache = cache_dir().expect("cache");
+    let got = knowledge_viewer_state_path().expect("viewer");
+    assert_eq!(got, cache.join("knowledge-viewer-state.json"));
+    sandbox.assert_not_prod_path(&got).expect("sandbox viewer");
+}
+
+#[test]
 fn notes_draft_path_resolves_under_cache_drafts_notes() {
     let _sandbox = TestSandbox::new();
     let cache = cache_dir().expect("cache");

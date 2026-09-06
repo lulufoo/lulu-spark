@@ -33,6 +33,7 @@ commands.allow = [
   "add_kb_hide_pattern",
   "update_kb_hide_pattern",
   "remove_kb_hide_pattern",
+  "set_kb_viewer_state",
   "create_read_later",
   "mark_read_later",
   "delete_read_later",

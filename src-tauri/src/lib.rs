@@ -80,6 +80,7 @@ pub fn run() {
             commands::read::kb_list,
             commands::read::kb_doc_count,
             commands::read::get_kb_hide_patterns,
+            commands::kb_viewer_state::get_kb_viewer_state,
             commands::read::kb_annotation,
             commands::read::kb_status,
             commands::read::get_repo_dirs,
@@ -175,6 +176,7 @@ pub fn run() {
             commands::kb_hide_patterns::add_kb_hide_pattern,
             commands::kb_hide_patterns::update_kb_hide_pattern,
             commands::kb_hide_patterns::remove_kb_hide_pattern,
+            commands::kb_viewer_state::set_kb_viewer_state,
             commands::write::create_note,
             commands::write::mark_message_channel_read,
         ])

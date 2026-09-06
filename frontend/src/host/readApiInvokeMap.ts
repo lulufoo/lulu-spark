@@ -108,6 +108,7 @@ export const READ_API_INVOKE_MAP: Record<string, ReadInvokeEntry> = {
     },
   },
   '/api/kb/hide-patterns': { cmd: 'get_kb_hide_patterns' },
+  '/api/kb/viewer-state': { cmd: 'get_kb_viewer_state' },
   '/api/kb/annotation': {
     cmd: 'kb_annotation',
     args: (url) => ({

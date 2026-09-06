@@ -122,6 +122,11 @@ pub fn knowledge_hide_patterns_path() -> Result<PathBuf, PathsError> {
     Ok(cache_dir()?.join("knowledge-hide-patterns.json"))
 }
 
+/// Knowledge viewer current repo + md: `{cache_dir}/knowledge-viewer-state.json`.
+pub fn knowledge_viewer_state_path() -> Result<PathBuf, PathsError> {
+    Ok(cache_dir()?.join("knowledge-viewer-state.json"))
+}
+
 /// Local highlight cache root: `{cache_dir}/doc-highlights`.
 pub fn doc_highlights_dir() -> Result<PathBuf, PathsError> {
     Ok(cache_dir()?.join("doc-highlights"))

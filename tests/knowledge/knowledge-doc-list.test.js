@@ -9,6 +9,8 @@ vi.mock('../../frontend/src/host/api.ts', () => ({
   fetchKbDocCount: vi.fn(),
   fetchSedimentKbRepos: vi.fn(),
   fetchKbHidePatterns: vi.fn(),
+  fetchKbViewerState: vi.fn(),
+  saveKbViewerState: vi.fn(),
 }));
 
 vi.mock('../../frontend/src/knowledge/viewer.ts', () => ({
@@ -222,6 +224,8 @@ describe('mountKnowledgeDocList', () => {
     setKbHidePatternsCache([]);
     mountKbReader.mockResolvedValue({ unmount: vi.fn() });
     api.fetchKbHidePatterns.mockResolvedValue({ patterns: [] });
+    api.fetchKbViewerState.mockResolvedValue({ repo: '', path: '' });
+    api.saveKbViewerState.mockResolvedValue({ repo: '', path: '' });
     api.fetchSedimentKbRepos.mockResolvedValue({
       repos: [
         { full_name: 'owner/repo' },
@@ -636,6 +640,8 @@ describe('mountKnowledgeDocList', () => {
     expect(trigger.textContent).toMatch(/repo · 5/);
 
     menu.querySelector('[data-value="owner/other"]').click();
+    await flushPromises();
+    expect(api.saveKbViewerState).toHaveBeenCalledWith('owner/other', '');
     expect(navigate).toHaveBeenCalledWith('#/knowledge/' + encodeURIComponent('owner/other'));
     expect(document.querySelector('.list-select-menu')).toBeNull();
   });
@@ -645,6 +651,90 @@ describe('mountKnowledgeDocList', () => {
     await flushPromises();
 
     expect(navigate).toHaveBeenCalledWith('#/knowledge/' + encodeURIComponent('owner/repo'));
+  });
+
+  it('lands on remembered repo and md when route has no repo', async () => {
+    api.fetchKbViewerState.mockResolvedValue({ repo: 'owner/other', path: 'readme.md' });
+    mountKnowledgeDocList(container, { repo: '', navigate });
+    await flushPromises();
+    expect(navigate).toHaveBeenCalledWith(
+      '#/knowledge/' + encodeURIComponent('owner/other') + '?path=' + encodeURIComponent('readme.md'),
+    );
+  });
+
+  it('falls back to first repo when remembered repo is gone', async () => {
+    api.fetchKbViewerState.mockResolvedValue({ repo: 'gone/repo', path: 'a.md' });
+    mountKnowledgeDocList(container, { repo: '', navigate });
+    await flushPromises();
+    expect(navigate).toHaveBeenCalledWith('#/knowledge/' + encodeURIComponent('owner/repo'));
+  });
+
+  it('restores remembered md when opening a repo without path', async () => {
+    api.fetchKbViewerState.mockResolvedValue({ repo: 'owner/repo', path: 'docs/guide.md' });
+    api.fetchKbList.mockImplementation(async (_repo, path) => {
+      if (path === '') return sampleRootEntries;
+      if (path === 'docs') return sampleDocsEntries;
+      return [];
+    });
+    mountKnowledgeDocList(container, { repo: 'owner/repo', navigate });
+    await flushPromises();
+    expect(mountKbReader).toHaveBeenCalledWith(
+      container.querySelector('.knowledge-doc-reader-pane'),
+      expect.objectContaining({ repo: 'owner/repo', path: 'docs/guide.md' }),
+    );
+    expect(
+      container
+        .querySelector('.knowledge-doc-tree-node[data-relative-path="docs/guide.md"] .knowledge-doc-tree-label')
+        ?.classList.contains('selected'),
+    ).toBe(true);
+  });
+
+  it('does not restore md from a different remembered repo', async () => {
+    api.fetchKbViewerState.mockResolvedValue({ repo: 'owner/other', path: 'readme.md' });
+    api.fetchKbList.mockResolvedValue(sampleRootEntries);
+    mountKnowledgeDocList(container, { repo: 'owner/repo', navigate });
+    await flushPromises();
+    expect(mountKbReader).not.toHaveBeenCalled();
+    expect(api.saveKbViewerState).toHaveBeenCalledWith('owner/repo', '');
+  });
+
+  it('skips missing remembered md without opening the reader', async () => {
+    api.fetchKbViewerState.mockResolvedValue({ repo: 'owner/repo', path: 'docs/gone.md' });
+    api.fetchKbList.mockImplementation(async (_repo, path) => {
+      if (path === '') return sampleRootEntries;
+      if (path === 'docs') return sampleDocsEntries;
+      return [];
+    });
+    mountKnowledgeDocList(container, { repo: 'owner/repo', navigate });
+    await flushPromises();
+    expect(mountKbReader).not.toHaveBeenCalled();
+    expect(api.saveKbViewerState).toHaveBeenCalledWith('owner/repo', '');
+  });
+
+  it('writes current md after clicking a markdown file', async () => {
+    api.fetchKbList.mockResolvedValue(sampleRootEntries);
+    mountKnowledgeDocList(container, { repo: 'owner/repo', navigate });
+    await flushPromises();
+    const fileRow = container.querySelector(
+      '.knowledge-doc-tree-node[data-relative-path="readme.md"] .knowledge-doc-tree-label',
+    );
+    fileRow.click();
+    await flushPromises();
+    expect(api.saveKbViewerState).toHaveBeenCalledWith('owner/repo', 'readme.md');
+  });
+
+  it('does not write a directory path when expanding a folder', async () => {
+    api.fetchKbList.mockImplementation(async (_repo, path) => {
+      if (path === '') return sampleRootEntries;
+      if (path === 'docs') return sampleDocsEntries;
+      return [];
+    });
+    mountKnowledgeDocList(container, { repo: 'owner/repo', navigate });
+    await flushPromises();
+    api.saveKbViewerState.mockClear();
+    clickDirLabel(container, 'docs');
+    await flushPromises();
+    expect(api.saveKbViewerState).not.toHaveBeenCalled();
   });
 
   it('returns cleanup that clears container and unmounts reader', async () => {

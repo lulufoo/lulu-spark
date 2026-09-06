@@ -2,6 +2,7 @@ pub mod ai_assistant;
 pub mod bind;
 pub mod config_cmd;
 pub mod kb_hide_patterns;
+pub mod kb_viewer_state;
 pub mod mcp_oauth;
 pub mod mcp_channel_tools;
 pub mod notes_categories;

@@ -39,6 +39,7 @@ const P2_WRITE_PATHS = [
   '/api/kb/hide-patterns/add',
   '/api/kb/hide-patterns/update',
   '/api/kb/hide-patterns/remove',
+  '/api/kb/viewer-state',
 ];
 
 const ANNOTATION_WRITE_CMDS = new Set([
@@ -55,7 +56,7 @@ describe('writeApiInvokeMap', () => {
     for (const p of P2_WRITE_PATHS) {
       expect(WRITE_API_INVOKE_MAP[p]?.cmd, p).toBeTruthy();
     }
-    expect(Object.keys(WRITE_API_INVOKE_MAP)).toHaveLength(35);
+    expect(Object.keys(WRITE_API_INVOKE_MAP)).toHaveLength(36);
   });
 
   it('maps /api/file absolute-path write to write_abs_file', () => {

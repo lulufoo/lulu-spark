@@ -192,6 +192,13 @@ export const WRITE_API_INVOKE_MAP: Record<string, WriteInvokeEntry> = {
     cmd: 'remove_kb_hide_pattern',
     args: (body) => ({ payload: body ?? {} }),
   },
+  '/api/kb/viewer-state': {
+    cmd: 'set_kb_viewer_state',
+    args: (body) => ({
+      repo: body.repo ?? '',
+      path: body.path ?? '',
+    }),
+  },
   '/api/create-note': {
     cmd: 'create_note',
     args: (body) => ({ payload: body ?? {} }),

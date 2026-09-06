@@ -17,6 +17,14 @@ fn kb_doc_count_registered_in_lib_rs() {
         lib.contains("commands::read::get_kb_hide_patterns"),
         "lib.rs invoke handler must register commands::read::get_kb_hide_patterns"
     );
+    assert!(
+        lib.contains("commands::kb_viewer_state::get_kb_viewer_state"),
+        "lib.rs invoke handler must register commands::kb_viewer_state::get_kb_viewer_state"
+    );
+    assert!(
+        lib.contains("commands::kb_viewer_state::set_kb_viewer_state"),
+        "lib.rs invoke handler must register commands::kb_viewer_state::set_kb_viewer_state"
+    );
 }
 
 #[test]

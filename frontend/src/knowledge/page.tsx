@@ -11,6 +11,12 @@ import type { RepoPickerOption, RepoRecord, TreeNode } from './state/types.ts';
 import { publishKnowledgeTree } from './state/tree.ts';
 import { setKbHidePatternsCache, type KbHidePatternRow } from './state/hide-pattern.ts';
 import { buildRepoPickerOptions, buildTreeNodes } from './state/selectors.ts';
+import { isKnowledgeMdPath, knowledgeDocHash } from './state/viewer-state.ts';
+import {
+  applyKbViewerRestore,
+  knowledgeLandingHash,
+  saveKbViewerState,
+} from './commands/viewer-state.ts';
 import { KnowledgeDocLayout } from './ui/sidebar.tsx';
 
 export type { TreeNode } from './state/types.ts';
@@ -102,10 +108,6 @@ function startKnowledgeDocSession(
     unmountReader = unmount;
   }
 
-  function knowledgeDocHash(path: string) {
-    return `#/knowledge/${encodeURIComponent(repo)}?path=${encodeURIComponent(path)}`;
-  }
-
   function buildKbBlobUrl(repoFullName: string, relativePath: string) {
     if (!repoFullName || !relativePath) return '';
     const encodedPath = relativePath
@@ -116,7 +118,7 @@ function startKnowledgeDocSession(
   }
 
   function syncKnowledgeHash(relativePath: string) {
-    const hash = knowledgeDocHash(relativePath);
+    const hash = knowledgeDocHash(repo, relativePath);
     if (window.location.hash === hash) return;
     const href = `${window.location.pathname || ''}${window.location.search || ''}${hash}`;
     history.replaceState(null, '', href);
@@ -158,7 +160,9 @@ function startKnowledgeDocSession(
       options: buildRepoPickerOptions(repos),
       onSelect: (fullName: string) => {
         if (fullName && fullName !== repo) {
-          navigate(`#/knowledge/${encodeURIComponent(fullName)}`);
+          void saveKbViewerState(fullName, '').then(() => {
+            if (!disposed) navigate(knowledgeDocHash(fullName));
+          });
         }
       },
     });
@@ -268,6 +272,9 @@ function startKnowledgeDocSession(
     void (async () => {
       await navigateToPath(relativePath);
       syncKnowledgeHash(relativePath);
+      if (isKnowledgeMdPath(relativePath)) {
+        await saveKbViewerState(repo, relativePath);
+      }
     })();
   };
 
@@ -291,7 +298,13 @@ function startKnowledgeDocSession(
           paint(<div className="knowledge-doc-error">No knowledge libraries yet</div>);
           return;
         }
-        navigate(`#/knowledge/${encodeURIComponent(repos[0].full_name)}`);
+        const landingHash = await knowledgeLandingHash(repos.map((item) => item.full_name));
+        if (disposed) return;
+        if (!landingHash) {
+          paint(<div className="knowledge-doc-error">No knowledge libraries yet</div>);
+          return;
+        }
+        navigate(landingHash);
         return;
       }
 
@@ -306,9 +319,17 @@ function startKnowledgeDocSession(
       sidebarEl?.addEventListener('click', onSidebarClick);
       shelled = true;
       renderSidebar();
-      if (selectedPath) {
-        await navigateToPath(selectedPath);
-      }
+      await applyKbViewerRestore({
+        repo,
+        selectedPath,
+        ensureVisible: ensurePathVisible,
+        hasFile: (path) => {
+          const node = findNode(rootNodes, path);
+          return Boolean(node && !node.is_dir);
+        },
+        openPath: navigateToPath,
+        syncHash: syncKnowledgeHash,
+      });
     } catch (err) {
       if (disposed) return;
       paint(<div className="knowledge-doc-error">{errorMessage(err, 'Failed to load')}</div>);

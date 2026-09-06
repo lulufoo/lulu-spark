@@ -82,6 +82,13 @@ describe('readApi contract map', () => {
     });
   });
 
+  it('maps viewer-state read', () => {
+    expect(resolveInvokeFromPath('/api/kb/viewer-state')).toEqual({
+      cmd: 'get_kb_viewer_state',
+      args: {},
+    });
+  });
+
   it('resolveInvokeFromPath 映射 kb diff status', () => {
     expect(resolveInvokeFromPath('/api/kb/diff-status?_=123')).toEqual({
       cmd: 'get_kb_diff_status',

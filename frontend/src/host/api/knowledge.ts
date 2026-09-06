@@ -41,6 +41,14 @@ export async function removeKbHidePattern(id: string) {
   return writePost('/api/kb/hide-patterns/remove', { id });
 }
 
+export async function fetchKbViewerState() {
+  return readGet('/api/kb/viewer-state');
+}
+
+export async function saveKbViewerState(repo: string, path: string) {
+  return writePost('/api/kb/viewer-state', { repo, path });
+}
+
 export async function fetchKbDocCount(repo: string): Promise<number> {
   const params = new URLSearchParams({ repo });
   const path = `/api/kb/doc-count?${params.toString()}`;

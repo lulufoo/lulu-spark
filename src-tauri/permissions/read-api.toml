@@ -16,6 +16,7 @@ commands.allow = [
   "kb_list",
   "kb_doc_count",
   "get_kb_hide_patterns",
+  "get_kb_viewer_state",
   "kb_annotation",
   "kb_status",
   "get_repo_dirs",
