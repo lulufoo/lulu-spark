@@ -75,7 +75,7 @@ export function createFloatingListSelect({
 
     const rect = trigger.getBoundingClientRect();
     const menu = document.createElement('div');
-    menu.className = 'list-select-menu';
+    menu.className = ['list-select-menu', pickerClass ? `${pickerClass}-menu` : ''].filter(Boolean).join(' ');
     menu.setAttribute('role', 'listbox');
 
     for (const opt of currentOptions) {

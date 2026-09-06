@@ -50,6 +50,7 @@ describe('floating-list-select', () => {
     picker.querySelector('.list-select-trigger')?.click();
     const menu = document.querySelector('.list-select-menu');
     expect(menu).not.toBeNull();
+    expect(menu?.classList.contains('tag-select-menu')).toBe(true);
     menu?.querySelector('[data-value="k1"]')?.click();
     expect(selected).toBe('k1');
     expect(document.querySelector('.list-select-menu')).toBeNull();
