@@ -650,6 +650,9 @@ describe('home hub composer and hub pairing', () => {
     expect(appCss).toMatch(
       /\.home-chat-composer\s*\{[^}]*padding:\s*28px var\(--home-chat-rail\) 20px 12px/,
     );
+    expect(appCss).toMatch(
+      /\.home-chat-delete-confirm\s*\{[^}]*pointer-events:\s*auto/,
+    );
     expect(appCss).toMatch(/\.home-entry-shell__cluster\s*\{[^}]*bottom:\s*20px/);
     expect(appCss).toMatch(/\.home-chat-turn--user\s*\{[^}]*align-items:\s*flex-end/);
     expect(appCss).toMatch(

@@ -7570,7 +7570,8 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
 .home-chat-composer-dock,
 .home-chat-composer .home-chat-input,
 .home-chat-composer .home-chat-send,
-.home-chat-staged {
+.home-chat-staged,
+.home-chat-delete-confirm {
   pointer-events: auto;
 }
 .home-chat-staged {
