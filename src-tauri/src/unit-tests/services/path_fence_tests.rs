@@ -127,43 +127,37 @@ fn validate_stage_file_accepts_regular_file_and_rejects_dir_deny() {
 }
 
 #[test]
-fn session_writes_add_exact_file_and_keep_scratch() {
+fn session_scratch_does_not_grant_write_on_readable_files() {
     let root = unique_dir("wb-writes");
     let file = root.join("note.md");
     fs::write(&file, "hi").expect("write");
     let scratch_parent = unique_dir("agent-scratch");
     let fence = fence_with(root.clone(), scratch_parent.clone())
-        .with_session_writes("sess_abc", [file.to_string_lossy()])
-        .expect("writes");
+        .with_session_scratch("sess_abc")
+        .expect("scratch");
     let scratch = scratch_parent.join("sess_abc");
     assert!(fence.allows_write(&scratch.join("pad.md")));
-    assert!(fence.allows_write(&file));
+    assert!(!fence.allows_write(&file));
     assert!(!fence.allows_write(&root.join("other.md")));
 }
 
 #[test]
-fn session_writes_are_isolated_and_skip_invalid_staged() {
+fn session_scratch_write_roots_are_isolated() {
     let root = unique_dir("iso");
     let file_a = root.join("a.md");
     let file_b = root.join("b.md");
     fs::write(&file_a, "a").expect("a");
     fs::write(&file_b, "b").expect("b");
     let parent = unique_dir("scratch-iso");
-    let base = fence_with(root.clone(), parent);
-    let fence_a = base
-        .with_session_writes("sess_a", [file_a.to_string_lossy()])
-        .expect("a");
-    let fence_b = base
-        .with_session_writes("sess_b", [file_b.to_string_lossy()])
-        .expect("b");
-    assert!(fence_a.allows_write(&file_a));
-    assert!(!fence_a.allows_write(&file_b));
-    assert!(fence_b.allows_write(&file_b));
-    assert!(!fence_b.allows_write(&file_a));
-    let skipped = base
-        .with_session_writes("sess_a", [root.to_string_lossy()])
-        .expect("skip dir");
-    assert!(!skipped.allows_write(&file_a));
+    let base = fence_with(root.clone(), parent.clone());
+    let fence_a = base.with_session_scratch("sess_a").expect("a");
+    let fence_b = base.with_session_scratch("sess_b").expect("b");
+    assert!(fence_a.allows_write(&parent.join("sess_a").join("pad.md")));
+    assert!(!fence_a.allows_write(&parent.join("sess_b").join("pad.md")));
+    assert!(fence_b.allows_write(&parent.join("sess_b").join("pad.md")));
+    assert!(!fence_b.allows_write(&parent.join("sess_a").join("pad.md")));
+    assert!(!fence_a.allows_write(&file_a));
+    assert!(!fence_b.allows_write(&file_b));
 }
 
 #[test]

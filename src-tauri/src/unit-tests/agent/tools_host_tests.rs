@@ -55,9 +55,9 @@ fn live_fence() -> (PathFence, PathBuf, PathBuf) {
 }
 
 #[test]
-fn catalog_exposes_the_four_host_file_tools() {
+fn catalog_exposes_the_five_host_file_tools() {
     let catalog = host::catalog();
-    for name in ["grep", "read", "write", "str_replace"] {
+    for name in ["grep", "read", "write", "str_replace", "copy"] {
         assert!(catalog.contains(name), "missing {name}");
         assert!(host::is_builtin(name), "{name}");
     }
@@ -67,6 +67,7 @@ fn catalog_exposes_the_four_host_file_tools() {
     }
     assert!(catalog.is_mutating("write"));
     assert!(catalog.is_mutating("str_replace"));
+    assert!(catalog.is_mutating("copy"));
     assert!(!catalog.contains("edit"));
     assert!(!host::is_builtin("edit"));
     assert!(!catalog.contains("StrReplace"));
@@ -76,29 +77,50 @@ fn catalog_exposes_the_four_host_file_tools() {
 }
 
 #[test]
-fn write_and_str_replace_keep_scratch_placeholder_and_staged_rule() {
+fn write_str_replace_and_copy_keep_scratch_placeholder_without_staged_rule() {
     let catalog = host::catalog();
-    for name in ["write", "str_replace"] {
+    for name in ["write", "str_replace", "copy"] {
         let desc = tool_description(&catalog, name);
         assert!(
             desc.contains(SESSION_SCRATCH_PLACEHOLDER),
             "{name} must keep the scratch placeholder"
         );
         assert!(
-            desc.contains("exact currently staged file"),
-            "{name} must name the staged-file rule"
+            !desc.contains("staged"),
+            "{name} must not mention staged files"
         );
         assert!(
-            desc.contains("list_staged"),
-            "{name} must point at list_staged"
+            !desc.contains("list_staged"),
+            "{name} must not point at list_staged"
         );
         assert!(
             !desc.contains("/agent-scratch/"),
             "{name} static text must not bake a scratch path"
         );
     }
+    for name in ["write", "str_replace"] {
+        let desc = tool_description(&catalog, name);
+        assert!(
+            desc.contains("copy it here first"),
+            "{name} must tell the model to copy into scratch before editing"
+        );
+    }
+    let copy_desc = tool_description(&catalog, "copy");
+    assert!(
+        !copy_desc.contains("Use this before write or str_replace"),
+        "copy must not restate the edit workflow"
+    );
+    assert!(
+        copy_desc.contains("not the scratch root"),
+        "copy must keep the scratch-root dest rule"
+    );
     assert!(!tool_description(&catalog, "read").contains(SESSION_SCRATCH_PLACEHOLDER));
-    assert!(!tool_description(&catalog, "grep").contains(SESSION_SCRATCH_PLACEHOLDER));
+    let grep_desc = tool_description(&catalog, "grep");
+    assert!(!grep_desc.contains(SESSION_SCRATCH_PLACEHOLDER));
+    assert!(
+        grep_desc.contains("absolute file or directory"),
+        "grep must say path can be a file"
+    );
 }
 
 #[test]
@@ -107,7 +129,7 @@ fn fill_session_scratch_replaces_placeholder_and_does_not_list_staged() {
     let scratch = unique_dir("filled-scratch");
     catalog.fill_session_scratch(&scratch);
     let scratch_text = scratch.to_string_lossy();
-    for name in ["write", "str_replace"] {
+    for name in ["write", "str_replace", "copy"] {
         let desc = tool_description(&catalog, name);
         assert!(
             desc.contains(scratch_text.as_ref()),
@@ -305,56 +327,102 @@ fn write_and_edit_are_scratch_only() {
 }
 
 #[test]
-fn write_and_edit_succeed_on_exact_staged_file() {
-    let read_root = unique_dir("read-staged");
-    let scratch_parent = unique_dir("scratch-parent-staged");
+fn write_and_str_replace_deny_readable_files_outside_scratch() {
+    let (fence, read_root, scratch) = live_fence();
     let file = read_root.join("note.md");
     fs::write(&file, "hello").expect("seed");
-    let fence = PathFence {
-        read_allow: vec![read_root.clone()],
-        read_deny: vec![read_root.join(".git")],
-        write_allow: vec![],
-        write_deny: vec![],
-        scratch_parent: Some(scratch_parent.clone()),
-    }
-    .with_session_writes("sess_fs", [file.to_string_lossy()])
-    .expect("writes");
 
-    let other = read_root.join("other.md");
-    let denied = host::call(
-        "write",
-        &json!({ "path": other.to_string_lossy(), "content": "nope" }),
-        &fence,
-    );
-    assert!(denied.is_error);
-    assert_eq!(denied.content, "path is outside the write fence");
-    assert!(!other.exists());
-
-    let wrote = host::call(
+    let denied_write = host::call(
         "write",
         &json!({ "path": file.to_string_lossy(), "content": "hello world" }),
         &fence,
     );
-    assert!(!wrote.is_error, "{}", wrote.content);
-    assert_eq!(fs::read_to_string(&file).expect("read"), "hello world");
+    assert!(denied_write.is_error);
+    assert_eq!(denied_write.content, "path is outside the write fence");
+    assert_eq!(fs::read_to_string(&file).expect("read"), "hello");
 
-    let edited = host::call(
+    let denied_edit = host::call(
         "str_replace",
         &json!({
             "path": file.to_string_lossy(),
-            "old_string": "world",
+            "old_string": "hello",
             "new_string": "staged"
         }),
         &fence,
     );
-    assert!(!edited.is_error, "{}", edited.content);
-    assert_eq!(fs::read_to_string(&file).expect("read"), "hello staged");
+    assert!(denied_edit.is_error);
+    assert_eq!(denied_edit.content, "path is outside the write fence");
+    assert_eq!(fs::read_to_string(&file).expect("read"), "hello");
 
-    let pad = scratch_parent.join("sess_fs").join("pad.md");
-    let scratch = host::call(
+    let pad = scratch.join("pad.md");
+    let wrote = host::call(
         "write",
         &json!({ "path": pad.to_string_lossy(), "content": "scratch" }),
         &fence,
     );
-    assert!(!scratch.is_error, "{}", scratch.content);
+    assert!(!wrote.is_error, "{}", wrote.content);
+}
+
+#[test]
+fn copy_reads_source_and_writes_only_under_scratch() {
+    let (fence, read_root, scratch) = live_fence();
+    let source = read_root.join("note.md");
+    fs::write(&source, "hello copy").expect("seed");
+
+    let dest = scratch.join("note.md");
+    let copied = host::call(
+        "copy",
+        &json!({
+            "source_path": source.to_string_lossy(),
+            "dest_path": dest.to_string_lossy()
+        }),
+        &fence,
+    );
+    assert!(!copied.is_error, "{}", copied.content);
+    assert_eq!(fs::read_to_string(&dest).expect("dest"), "hello copy");
+    assert_eq!(fs::read_to_string(&source).expect("source"), "hello copy");
+
+    let overwrite = host::call(
+        "copy",
+        &json!({
+            "source_path": source.to_string_lossy(),
+            "dest_path": dest.to_string_lossy()
+        }),
+        &fence,
+    );
+    assert!(!overwrite.is_error, "{}", overwrite.content);
+
+    let denied_dest = host::call(
+        "copy",
+        &json!({
+            "source_path": source.to_string_lossy(),
+            "dest_path": read_root.join("out.md").to_string_lossy()
+        }),
+        &fence,
+    );
+    assert!(denied_dest.is_error);
+    assert_eq!(denied_dest.content, "path is outside the write fence");
+    assert!(!read_root.join("out.md").exists());
+
+    let root_dest = host::call(
+        "copy",
+        &json!({
+            "source_path": source.to_string_lossy(),
+            "dest_path": scratch.to_string_lossy()
+        }),
+        &fence,
+    );
+    assert!(root_dest.is_error);
+    assert_eq!(root_dest.content, "dest_path must be a file");
+
+    let denied_source = host::call(
+        "copy",
+        &json!({
+            "source_path": "/etc/hosts",
+            "dest_path": dest.to_string_lossy()
+        }),
+        &fence,
+    );
+    assert!(denied_source.is_error);
+    assert!(denied_source.content.contains("read fence"));
 }

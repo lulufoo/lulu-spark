@@ -35,24 +35,6 @@ impl PathFence {
         Ok(next)
     }
 
-    /// Scratch write root plus exact staged regular files that still pass read-fence checks.
-    pub fn with_session_writes(
-        &self,
-        session_id: &str,
-        staged_paths: impl IntoIterator<Item = impl AsRef<str>>,
-    ) -> Result<Self, String> {
-        let mut next = self.with_session_scratch(session_id)?;
-        for raw in staged_paths {
-            let Ok(canon) = validate_stage_file(raw.as_ref(), &next) else {
-                continue;
-            };
-            if !next.write_allow.iter().any(|p| p == &canon) {
-                next.write_allow.push(canon);
-            }
-        }
-        Ok(next)
-    }
-
     pub fn allows_read(&self, path: &Path) -> bool {
         in_any(path, &self.read_allow) && !in_any(path, &self.read_deny)
     }

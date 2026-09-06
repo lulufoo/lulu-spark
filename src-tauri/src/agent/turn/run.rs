@@ -463,13 +463,7 @@ pub(crate) fn run_loop_with_progress(
 
 fn turn_fence_for_session(session: &Session) -> Option<crate::services::path_fence::PathFence> {
     loaded_path_fence().map(|base| {
-        base.with_session_writes(
-            &session.session_id,
-            session.staged.iter().map(|entry| entry.path.as_str()),
-        )
-        .unwrap_or_else(|_| {
-            base.with_session_scratch(&session.session_id)
-                .unwrap_or(base)
-        })
+        base.with_session_scratch(&session.session_id)
+            .unwrap_or(base)
     })
 }

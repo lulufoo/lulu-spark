@@ -1,4 +1,4 @@
-//! Path-fenced Agent file tool implementations (grep / read / write / str_replace).
+//! Path-fenced Agent file tool implementations (grep / read / write / str_replace / copy).
 
 use std::fs as std_fs;
 use std::path::Path;
@@ -8,7 +8,7 @@ use serde_json::{json, Value};
 
 use crate::config::paths;
 use crate::services::keyword_index::{prefilter_or_none, should_scan_file, GrepPrefilter};
-use crate::services::path_fence::{require_absolute, PathFence};
+use crate::services::path_fence::{require_absolute, stored_path, validate_stage_file, PathFence};
 
 const READ_DEFAULT_LIMIT: usize = 50;
 const GREP_MAX_MATCHES: usize = 80;
@@ -225,4 +225,30 @@ pub fn str_replace(arguments: &Value, fence: &PathFence) -> Result<String, Strin
     } else {
         Ok(format!("Edited {}", path.display()))
     }
+}
+
+pub fn copy(arguments: &Value, fence: &PathFence) -> Result<String, String> {
+    let source = validate_stage_file(&arg_str(arguments, "source_path")?, fence)?;
+    let dest = require_absolute(&arg_str(arguments, "dest_path")?)?;
+    if !fence.allows_write(&dest) {
+        return Err("path is outside the write fence".into());
+    }
+    if dest_is_write_root(fence, &dest) || dest.is_dir() {
+        return Err("dest_path must be a file".into());
+    }
+    if stored_path(dest.clone()) == source {
+        return Err("source_path and dest_path must differ".into());
+    }
+    if let Some(parent) = dest.parent() {
+        std_fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    std_fs::copy(&source, &dest).map_err(|e| e.to_string())?;
+    Ok(format!("Copied {} to {}", source.display(), dest.display()))
+}
+
+fn dest_is_write_root(fence: &PathFence, dest: &Path) -> bool {
+    fence
+        .write_allow
+        .iter()
+        .any(|root| stored_path(dest.to_path_buf()) == *root)
 }

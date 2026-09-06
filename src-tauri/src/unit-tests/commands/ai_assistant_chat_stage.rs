@@ -70,7 +70,7 @@ fn stage_chat_document_rejects_directory_and_in_flight() {
 }
 
 #[test]
-fn stage_chat_document_grants_write_isolated_and_revokes() {
+fn stage_chat_document_does_not_grant_write() {
     with_bound_sandbox(|sandbox| {
         let sid_a = create_chat_session_json().expect("a")["session_id"]
             .as_str()
@@ -89,17 +89,11 @@ fn stage_chat_document_grants_write_isolated_and_revokes() {
         stage_chat_document_json(&sid_a, &file_a.to_string_lossy()).expect("stage a");
         stage_chat_document_json(&sid_b, &file_b.to_string_lossy()).expect("stage b");
         let base = loaded_path_fence().expect("fence");
-        let sess_a = session::load_session(&sid_a).expect("load a");
-        let sess_b = session::load_session(&sid_b).expect("load b");
-        let fence_a = base
-            .with_session_writes(&sid_a, sess_a.staged.iter().map(|e| e.path.as_str()))
-            .expect("writes a");
-        let fence_b = base
-            .with_session_writes(&sid_b, sess_b.staged.iter().map(|e| e.path.as_str()))
-            .expect("writes b");
-        assert!(fence_a.allows_write(&file_a));
+        let fence_a = base.with_session_scratch(&sid_a).expect("scratch a");
+        let fence_b = base.with_session_scratch(&sid_b).expect("scratch b");
+        assert!(!fence_a.allows_write(&file_a));
         assert!(!fence_a.allows_write(&file_b));
-        assert!(fence_b.allows_write(&file_b));
+        assert!(!fence_b.allows_write(&file_b));
         assert!(!fence_b.allows_write(&file_a));
         let wrote = host::call(
             "write",
@@ -109,47 +103,31 @@ fn stage_chat_document_grants_write_isolated_and_revokes() {
             }),
             &fence_a,
         );
-        assert!(!wrote.is_error, "{}", wrote.content);
-        assert_eq!(fs::read_to_string(&file_a).expect("read"), "new-a");
-        let edited = host::call(
-            "str_replace",
+        assert!(wrote.is_error);
+        assert_eq!(wrote.content, "path is outside the write fence");
+        assert_eq!(fs::read_to_string(&file_a).expect("read"), "old-a");
+        let copied = host::call(
+            "copy",
             &json!({
-                "path": file_a.to_string_lossy(),
-                "old_string": "new-a",
-                "new_string": "edited-a"
+                "source_path": file_a.to_string_lossy(),
+                "dest_path": file_a.to_string_lossy()
             }),
             &fence_a,
         );
-        assert!(!edited.is_error, "{}", edited.content);
-        let cross = host::call(
-            "write",
-            &json!({
-                "path": file_a.to_string_lossy(),
-                "content": "from-b"
-            }),
-            &fence_b,
-        );
-        assert!(cross.is_error);
+        assert!(copied.is_error);
+        assert_eq!(copied.content, "path is outside the write fence");
+        let scratch_a = fence_a.session_scratch_root(&sid_a).expect("root").expect("some");
+        assert!(fence_a.allows_write(&scratch_a.join("pad.md")));
+        assert!(!fence_a.allows_write(&fence_b.session_scratch_root(&sid_b).expect("b").expect("some").join("pad.md")));
         unstage_chat_staged_json(&sid_a, "F1").expect("unstage");
-        let after = base
-            .with_session_writes(
-                &sid_a,
-                session::load_session(&sid_a)
-                    .expect("reload a")
-                    .staged
-                    .iter()
-                    .map(|e| e.path.as_str()),
-            )
-            .expect("after unstage");
+        let after = base.with_session_scratch(&sid_a).expect("after unstage");
         assert!(!after.allows_write(&file_a));
         delete_chat_session_json(&sid_b).expect("delete b");
         let sid_c = create_chat_session_json().expect("c")["session_id"]
             .as_str()
             .unwrap()
             .to_string();
-        let fence_c = base
-            .with_session_writes(&sid_c, std::iter::empty::<&str>())
-            .expect("new chat");
+        let fence_c = base.with_session_scratch(&sid_c).expect("new chat");
         assert!(!fence_c.allows_write(&file_b));
     });
 }
