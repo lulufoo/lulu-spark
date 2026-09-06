@@ -256,22 +256,6 @@ function NotesOutletChrome({ routeParams }: { routeParams: Record<string, string
           >
             {fileSize}
           </span>
-          <a
-            id="md-github-link"
-            className="viewer-chrome-persisted"
-            href={githubUrl || undefined}
-            target="_blank"
-            rel="noreferrer"
-            style={{
-              fontSize: '12px',
-              color: '#0969da',
-              textDecoration: 'none',
-              flexShrink: 0,
-              display: githubUrl && !creating && !editing ? undefined : 'none',
-            }}
-          >
-            GitHub ↗
-          </a>
           <button
             className="md-header-btn viewer-chrome-persisted"
             id="btn-goto-kb"
@@ -283,14 +267,6 @@ function NotesOutletChrome({ routeParams }: { routeParams: Record<string, string
             }}
           >
             📚 Knowledge
-          </button>
-          <button
-            className="md-header-btn viewer-chrome-persisted"
-            id="btn-open-iterm"
-            style={{ display: 'none' }}
-            title="Open repo folder in iTerm"
-          >
-            ⌨️ Terminal
           </button>
           <button
             className="md-header-btn viewer-chrome-persisted"

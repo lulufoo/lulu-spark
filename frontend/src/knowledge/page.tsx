@@ -153,6 +153,7 @@ function startKnowledgeDocSession(
     const { picker, sync } = createFloatingListSelect({
       ariaLabel: 'Select knowledge library',
       pickerClass: 'knowledge-repo-picker',
+      menuMaxHeight: 480,
       value: repo,
       options: buildRepoPickerOptions(repos),
       onSelect: (fullName: string) => {

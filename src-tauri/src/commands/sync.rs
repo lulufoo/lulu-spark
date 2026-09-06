@@ -97,9 +97,3 @@ pub async fn settle_entry(_app: AppHandle, payload: Value) -> Result<Value, Stri
         .map_err(|e| e.to_string())
 }
 
-#[tauri::command]
-pub async fn open_kb_in_iterm(_app: AppHandle, payload: Value) -> Result<Value, String> {
-    tauri::async_runtime::spawn_blocking(move || knowledge::open_kb_in_iterm(&payload))
-        .await
-        .map_err(|e| e.to_string())
-}

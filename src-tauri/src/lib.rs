@@ -75,7 +75,6 @@ pub fn run() {
             commands::sync::gh_move_assets,
             commands::sync::gh_delete_assets,
             commands::sync::settle_entry,
-            commands::sync::open_kb_in_iterm,
             commands::read::get_status,
             commands::read::kb_read,
             commands::read::kb_list,

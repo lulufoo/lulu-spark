@@ -24,6 +24,7 @@ export function createFloatingListSelect({
   value,
   options,
   pickerClass = '',
+  menuMaxHeight,
   onSelect,
 }: FloatingListSelectConfig): { picker: ListSelectPicker; sync: (next: FloatingListSelectSync) => void } {
   const picker = document.createElement('div') as ListSelectPicker;
@@ -100,7 +101,7 @@ export function createFloatingListSelect({
 
     _openState = { menu, trigger, picker, docListener };
 
-    const clipped = positionFloatingListMenu(menu, rect);
+    const clipped = positionFloatingListMenu(menu, rect, window.innerHeight, menuMaxHeight);
     trigger.setAttribute('aria-expanded', 'true');
     picker.classList.add('is-open');
     document.addEventListener('mousedown', docListener);

@@ -25,6 +25,7 @@ export type FloatingListSelectConfig = {
   value: string;
   options: FloatingListSelectOption[];
   pickerClass?: string;
+  menuMaxHeight?: number;
   onSelect: (value: string) => void;
 };
 

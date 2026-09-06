@@ -8,10 +8,7 @@ import { KbCommentFloatNav, KbCommentsBar } from '../comments.tsx';
 const FALLBACK_SHELL_HTML = `
     <div class="kb-reader">
       <div class="kb-reader-header viewer-header">
-        <span class="kb-reader-title viewer-panel-title"></span>
         <span class="kb-file-size" style="font-size:10px;color:#8c959f;flex-shrink:0;"></span>
-        <a class="kb-github-link" href="#" target="_blank" style="font-size:12px;color:#0969da;text-decoration:none;flex-shrink:0;">GitHub ↗</a>
-        <button type="button" class="md-header-btn kb-btn-open-iterm" style="display:none" title="Open repo folder in iTerm">⌨️ Terminal</button>
         <button type="button" class="md-header-btn kb-btn-copy-http" data-tip="">&#127760;</button>
         <button type="button" class="md-header-btn kb-btn-copy-path" data-tip="">&#128194;</button>
         <button type="button" class="md-header-btn kb-btn-open-in-chat" title="Open in chat" aria-label="Open in chat">&#128172;</button>
@@ -20,7 +17,6 @@ const FALLBACK_SHELL_HTML = `
         <button type="button" class="md-header-btn primary kb-btn-save" style="display:none">💾 Save</button>
         <button type="button" class="md-header-btn kb-btn-cancel-edit" style="display:none">Cancel</button>
         <button type="button" id="kb-btn-pending" class="md-header-btn kb-btn-pending" style="display:none">● Pending commit</button>
-        <button type="button" id="kb-btn-reindex" class="md-header-btn kb-btn-reindex" style="display:none">↺ Rebuild index</button>
       </div>
       <div id="kb-md-links-bar" class="kb-reader-links-bar" style="display:none;padding:8px 20px;border-bottom:1px solid #d0d7de;"></div>
       <div class="kb-reader-content-row viewer-content-row">
@@ -40,24 +36,7 @@ export function ReaderShell() {
   return (
     <div className="kb-reader">
       <div className="kb-reader-header viewer-header">
-        <span className="kb-reader-title viewer-panel-title" />
         <span className="kb-file-size" style={{ fontSize: 10, color: '#8c959f', flexShrink: 0 }} />
-        <a
-          className="kb-github-link"
-          href="#"
-          target="_blank"
-          style={{ fontSize: 12, color: '#0969da', textDecoration: 'none', flexShrink: 0 }}
-        >
-          GitHub ↗
-        </a>
-        <button
-          type="button"
-          className="md-header-btn kb-btn-open-iterm"
-          style={{ display: 'none' }}
-          title="Open repo folder in iTerm"
-        >
-          ⌨️ Terminal
-        </button>
         <button type="button" className="md-header-btn kb-btn-copy-http" data-tip="">
           &#127760;
         </button>
@@ -86,9 +65,6 @@ export function ReaderShell() {
         </button>
         <button type="button" id="kb-btn-pending" className="md-header-btn kb-btn-pending" style={{ display: 'none' }}>
           ● Pending commit
-        </button>
-        <button type="button" id="kb-btn-reindex" className="md-header-btn kb-btn-reindex" style={{ display: 'none' }}>
-          ↺ Rebuild index
         </button>
       </div>
       <KbLinksBar />

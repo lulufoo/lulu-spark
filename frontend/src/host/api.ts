@@ -77,7 +77,6 @@ export {
   fetchSedimentKbRepos,
   getReindexAllStatus,
   getReindexStatus,
-  openItermAt,
   reindexAll,
   reindexKbRepo,
   removeKbHidePattern,

@@ -2,7 +2,7 @@ import { state } from '../../state/host.ts';
 import * as api from '../../../host/api.ts';
 import { renderKbComments } from '../../ui/comments.tsx';
 import { applyKbHighlights } from '../../ui/viewer/highlight.ts';
-import { kbHidePendingBadge, kbPendingMsg, showKbReindexBtn } from '../../ui/viewer/chrome.tsx';
+import { kbHidePendingBadge, kbPendingMsg } from '../../ui/viewer/chrome.tsx';
 import {
   KB_COMMIT_GROUPS,
   emptyKbCommitView,
@@ -128,8 +128,6 @@ export async function doKbCommit() {
     if (data.error) throw new Error(data.error + (data.stderr ? `\n${data.stderr}` : ''));
     patchKbCommit({ result: '✓ Committed and pushed', resultKind: 'ok' });
     kbHidePendingBadge();
-    const repo = viewer().kbRepo;
-    if (repo) showKbReindexBtn(repo);
     setTimeout(closeKbCommitDialog, 1500);
   } catch (e) {
     patchKbCommit({

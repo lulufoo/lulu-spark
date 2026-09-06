@@ -182,6 +182,16 @@ describe('positionFloatingListMenu', () => {
     expect(clipped).toBe(true);
     expect(menu.style.maxHeight).toBe('204px');
   });
+
+  it('clips to menuMaxHeight when the viewport would otherwise show every item', () => {
+    const menu = makeMenu(20);
+    Object.defineProperty(menu, 'scrollHeight', { value: 600, configurable: true });
+
+    const clipped = positionFloatingListMenu(menu, triggerRect, 800, 480);
+
+    expect(clipped).toBe(true);
+    expect(menu.style.maxHeight).toBe('480px');
+  });
 });
 
 describe('formatRepoMenuLabel', () => {

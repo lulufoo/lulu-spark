@@ -20,13 +20,12 @@ const P4_PATHS = [
   ['/api/draft', 'save_comment_draft', ['common_path', 'content']],
   ['/api/kb/commit', 'kb_git_commit', ['repo', 'message']],
   ['/api/kb/revert', 'kb_git_revert', ['repo', 'path', 'type']],
-  ['/api/open-iterm', 'open_kb_in_iterm', ['repo']],
   ['/api/workbench-revert', 'workbench_git_revert', ['path', 'type']],
 ];
 
 describe('syncApiInvokeMap', () => {
   it('covers all 10 P4 POST paths with command names', () => {
-    expect(Object.keys(SYNC_API_INVOKE_MAP)).toHaveLength(12);
+    expect(Object.keys(SYNC_API_INVOKE_MAP)).toHaveLength(11);
     for (const [path, cmd] of P4_PATHS) {
       expect(SYNC_API_INVOKE_MAP[path]?.cmd, path).toBe(cmd);
     }
@@ -154,13 +153,6 @@ describe('syncApiInvokeMap', () => {
     ).toEqual({
       cmd: 'kb_git_revert',
       args: { payload: { repo: 'o/r', path: 'a.md', type: 'file' } },
-    });
-  });
-
-  it('open-iterm maps body into payload for open_kb_in_iterm', () => {
-    expect(resolveSyncInvoke('/api/open-iterm', { repo: 'o/r' })).toEqual({
-      cmd: 'open_kb_in_iterm',
-      args: { payload: { repo: 'o/r' } },
     });
   });
 

@@ -5,24 +5,19 @@ const {
   fetchKbFileContent,
   fetchKbAnnotation,
   fetchKbStatus,
-  openItermAt,
 } = vi.hoisted(() => ({
   fetchKbFileContent: vi.fn(),
   fetchKbAnnotation: vi.fn(),
   fetchKbStatus: vi.fn(),
-  openItermAt: vi.fn(),
 }));
 
 vi.mock('../../frontend/src/host/api.ts', () => ({
   fetchKbFileContent,
   fetchKbAnnotation,
   fetchKbStatus,
-  openItermAt,
   saveKbFile: vi.fn(),
   commitKbFile: vi.fn(),
   revertKbFile: vi.fn(),
-  reindexKbRepo: vi.fn(),
-  getReindexStatus: vi.fn(),
 }));
 
 vi.mock('../../frontend/src/knowledge/ui/comments.tsx', () => ({
@@ -95,9 +90,10 @@ describe('mountKbReader', () => {
     });
 
     expect(container.querySelector('.kb-reader-header')).toBeTruthy();
+    expect(container.querySelector('.kb-reader-title')).toBeNull();
     expect(container.querySelector('.kb-reader-body')).toBeTruthy();
     expect(container.querySelector('.kb-btn-edit')).toBeTruthy();
-    expect(container.querySelector('.kb-btn-reindex')).toBeTruthy();
+    expect(container.querySelector('.kb-btn-reindex')).toBeNull();
     const openInChat = container.querySelector('.kb-btn-open-in-chat');
     expect(openInChat).toBeTruthy();
     expect(openInChat.getAttribute('aria-label')).toBe('Open in chat');

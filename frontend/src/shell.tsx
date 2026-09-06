@@ -40,7 +40,6 @@ export function Shell() {
         </h1>
         <WorkbenchSearch />
         <KnowledgeSearch />
-        <a href="https://github.com/lulufoo/lulu-workbench" target="_blank">GitHub ↗</a>
         <div id="sync-menu-wrap">
           <button id="btn-sync-menu">⇕ Sync</button>
           <div id="sync-menu-dropdown">

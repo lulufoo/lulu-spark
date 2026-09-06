@@ -1,7 +1,6 @@
 export { mountKbReader } from './commands/viewer/mount.ts';
 export { ReaderShell } from './ui/viewer/shell.tsx';
 export { openKbDoc, saveKbDoc, closeKbModal, _kbEnterEditMode, _kbExitEditMode } from './commands/viewer/doc.ts';
-export { showKbReindexBtn } from './ui/viewer/chrome.tsx';
 export { closeKbCommitDialog, doKbCommit, openKbCommitDialog, _kbRevertAll } from './ui/viewer/commit.tsx';
 
 import { closeKbModal } from './commands/viewer/doc.ts';

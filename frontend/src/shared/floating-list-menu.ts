@@ -6,9 +6,11 @@ export function positionFloatingListMenu(
   menu: HTMLElement,
   rect: DOMRect,
   viewportHeight = window.innerHeight,
+  maxHeightCap?: number,
 ): boolean {
   const gap = 4;
   const margin = 8;
+  const cap = maxHeightCap != null && maxHeightCap > 0 ? maxHeightCap : Number.POSITIVE_INFINITY;
 
   menu.style.left = `${rect.left}px`;
   menu.style.width = `${rect.width}px`;
@@ -19,14 +21,14 @@ export function positionFloatingListMenu(
 
   const spaceBelow = viewportHeight - rect.bottom - margin;
   const spaceAbove = rect.top - margin;
-  const clippedMaxBelow = Math.floor(spaceBelow * 0.8);
-  const clippedMaxAbove = Math.floor(spaceAbove * 0.8);
+  const clippedMaxBelow = Math.min(Math.floor(spaceBelow * 0.8), cap);
+  const clippedMaxAbove = Math.min(Math.floor(spaceAbove * 0.8), cap);
   let top: number;
   let maxHeight: number | null = null;
 
-  if (naturalHeight <= spaceBelow) {
+  if (naturalHeight <= spaceBelow && naturalHeight <= cap) {
     top = rect.bottom + gap;
-  } else if (naturalHeight <= spaceAbove) {
+  } else if (naturalHeight <= spaceAbove && naturalHeight <= cap) {
     top = rect.top - naturalHeight - gap;
   } else if (spaceBelow >= spaceAbove) {
     top = rect.bottom + gap;

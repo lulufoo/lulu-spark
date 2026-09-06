@@ -33,52 +33,6 @@ export function formatFileSize(text: string) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export function buildReaderTitle(repo: string, path: string) {
-  const pathParts = (path || '').split('/');
-  const fileName = pathParts.pop();
-  const repoName = (repo || '').split('/').pop();
-  return pathParts.length > 0 ? `${repoName}/.../${fileName}` : `${repoName}/${fileName}`;
-}
-
-export function wireReindexBtn(btn: HTMLButtonElement, repo: string) {
-  btn.textContent = '↺ Rebuild index';
-  btn.title = 'Rebuild search index for this library';
-  btn.disabled = false;
-  btn.style.display = '';
-  btn.onclick = async () => {
-    btn.disabled = true;
-    btn.textContent = 'Rebuilding…';
-    try {
-      const res = await api.reindexKbRepo(repo);
-      if (res.error) throw new Error(res.error);
-      const poll = setInterval(async () => {
-        try {
-          const status = await api.getReindexStatus();
-          if (status.status === 'done') {
-            clearInterval(poll);
-            btn.textContent = '✓ Rebuilt';
-            btn.disabled = false;
-            setTimeout(() => {
-              btn.style.display = 'none';
-            }, 2000);
-          } else if (status.status === 'error') {
-            clearInterval(poll);
-            btn.textContent = 'Rebuild failed';
-            btn.disabled = false;
-            btn.title = status.log || 'Unknown error';
-          }
-        } catch {
-          // keep polling
-        }
-      }, 2000);
-    } catch (e) {
-      btn.textContent = 'Rebuild failed';
-      btn.disabled = false;
-      btn.title = errMessage(e, 'Rebuild failed');
-    }
-  };
-}
-
 /**
  * @param {HTMLElement} container
  * @param {{ repo: string, path: string, url?: string }} opts
@@ -107,10 +61,7 @@ export async function mountKbReader(
   let root = paintReaderShell(container);
 
   const ui = {
-    title: container.querySelector('.kb-reader-title') as HTMLElement,
     fileSize: container.querySelector('.kb-file-size') as HTMLElement,
-    githubLink: container.querySelector('.kb-github-link') as HTMLAnchorElement,
-    itermBtn: container.querySelector('.kb-btn-open-iterm') as HTMLButtonElement,
     btnCopyHttp: container.querySelector('.kb-btn-copy-http') as HTMLButtonElement,
     btnCopyPath: container.querySelector('.kb-btn-copy-path') as HTMLButtonElement,
     btnOpenInChat: container.querySelector('.kb-btn-open-in-chat') as HTMLButtonElement,
@@ -119,15 +70,12 @@ export async function mountKbReader(
     btnCancelEdit: container.querySelector('.kb-btn-cancel-edit') as HTMLButtonElement,
     btnAddComment: container.querySelector('.kb-btn-add-comment') as HTMLButtonElement,
     btnPending: container.querySelector('.kb-btn-pending') as HTMLButtonElement,
-    btnReindex: container.querySelector('.kb-btn-reindex') as HTMLButtonElement,
     body: container.querySelector('.kb-reader-body') as HTMLElement,
     editArea: container.querySelector('.kb-reader-edit-area') as HTMLTextAreaElement,
   };
 
   const listeners: ReaderListener[] = [];
 
-  ui.title.textContent = buildReaderTitle(repo, path);
-  ui.githubLink.href = url || '#';
   ui.btnCopyHttp.dataset.url = url || '';
   ui.btnCopyHttp.dataset.tip = url || '';
   const localPath = state.ui.knowledgeRoot
@@ -136,8 +84,6 @@ export async function mountKbReader(
   ui.btnCopyPath.dataset.path = localPath;
   ui.btnCopyPath.dataset.tip = localPath;
   ui.fileSize.textContent = '';
-  ui.itermBtn.style.display = '';
-  wireReindexBtn(ui.btnReindex, repo);
 
   function showPendingBadge(_msg: string) {
     ui.btnPending.style.display = '';
@@ -185,7 +131,6 @@ export async function mountKbReader(
       ui.btnEdit.style.display = '';
       if (newContent !== originalContent) {
         showPendingBadge('update: edit via viewer');
-        wireReindexBtn(ui.btnReindex, state.viewer.kbRepo ?? repo);
       }
     } catch (err) {
       const e = err as { message?: string };
@@ -271,19 +216,6 @@ export async function mountKbReader(
         }, 1200);
       })
       .catch(() => {});
-  });
-  bindReaderListener(listeners, ui.itermBtn, 'click', () => {
-    void (async () => {
-      ui.itermBtn.disabled = true;
-      try {
-        const res = await api.openItermAt(repo);
-        if (res.error) alert(`Failed to open terminal: ${res.error}`);
-      } catch (e) {
-        alert(`Failed to open terminal: ${errMessage(e, 'Failed to open terminal')}`);
-      } finally {
-        ui.itermBtn.disabled = false;
-      }
-    })();
   });
 
   document.addEventListener('kb:dirty', onDirty);

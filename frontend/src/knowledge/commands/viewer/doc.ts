@@ -3,7 +3,7 @@ import { resetEditAreaScroll } from '../../../shared/utils.ts';
 import * as api from '../../../host/api.ts';
 import { initKbComments } from '../../ui/comments.tsx';
 import { setDocEditMode } from '../../../doc-editor/view.tsx';
-import { kbHidePendingBadge, kbShowPendingBadge, onKbDirty, showKbReindexBtn } from '../../ui/viewer/chrome.tsx';
+import { kbHidePendingBadge, kbShowPendingBadge, onKbDirty } from '../../ui/viewer/chrome.tsx';
 import { initKbHighlightUI, renderKbMdBody } from '../../ui/viewer/highlight.ts';
 import { paintKbDocError, paintKbDocLoading, paintKbDocPlain } from '../../ui/viewer/doc.tsx';
 
@@ -35,16 +35,7 @@ export async function openKbDoc(kbHit: { repo: string; path: string; url?: strin
   v.annotation = {};
   v.lang = null;
 
-  const pathParts = (path || '').split('/');
-  const fileName = pathParts.pop();
   const repoName = (repo || '').split('/').pop();
-  const titleEl = document.getElementById('kb-md-panel-title');
-  if (titleEl) {
-    titleEl.textContent =
-      pathParts.length > 0 ? `${repoName}/.../${fileName}` : `${repoName}/${fileName}`;
-  }
-  const githubLink = document.getElementById('kb-md-github-link') as HTMLAnchorElement | null;
-  if (githubLink) githubLink.href = url || '#';
   const copyHttp = document.getElementById('kb-btn-copy-http') as HTMLElement | null;
   if (copyHttp) {
     copyHttp.dataset.url = url || '';
@@ -60,22 +51,6 @@ export async function openKbDoc(kbHit: { repo: string; path: string; url?: strin
   }
   const fileSize = document.getElementById('kb-md-file-size');
   if (fileSize) fileSize.textContent = '';
-
-  const itermBtn = document.getElementById('kb-btn-open-iterm') as HTMLButtonElement | null;
-  if (itermBtn) {
-    itermBtn.style.display = '';
-    itermBtn.onclick = async () => {
-      itermBtn.disabled = true;
-      try {
-        const res = (await api.openItermAt(repo)) as { error?: string };
-        if (res.error) alert(`Failed to open terminal: ${res.error}`);
-      } catch (err) {
-        alert(`Failed to open terminal: ${err instanceof Error ? err.message : String(err)}`);
-      } finally {
-        itermBtn.disabled = false;
-      }
-    };
-  }
 
   const tagsBar = document.getElementById('md-tags-bar');
   if (tagsBar) tagsBar.style.display = 'none';
@@ -171,7 +146,6 @@ export async function saveKbDoc() {
     if (editBtn) editBtn.style.display = '';
     if (newContent !== originalContent) {
       kbShowPendingBadge('update: edit via viewer');
-      if (v.kbRepo) showKbReindexBtn(v.kbRepo);
     }
   } catch (err) {
     alert(`Save failed: ${err instanceof Error ? err.message : String(err)}`);

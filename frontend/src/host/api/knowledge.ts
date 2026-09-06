@@ -144,10 +144,6 @@ export async function reindexKbRepo(repo: string) {
   return invokeSearch('reindexKbRepo', { repo });
 }
 
-export async function openItermAt(repo: string) {
-  return writePost('/api/open-iterm', { repo });
-}
-
 export async function syncKnowledge() {
   const { invokeSearch } = await import('../apiClient.ts');
   return invokeSearch('syncKnowledge');

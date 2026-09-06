@@ -15,5 +15,4 @@ commands.allow = [
   "clear_note_draft",
   "kb_git_commit",
   "kb_git_revert",
-  "open_kb_in_iterm",
 ]

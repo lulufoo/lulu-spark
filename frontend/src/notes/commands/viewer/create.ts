@@ -12,7 +12,6 @@ const CREATE_CHROME_HIDDEN_IDS = [
   'btn-save',
   'btn-cancel-edit',
   'btn-panel-commit',
-  'md-github-link',
   'md-lang-bar',
   'md-file-size',
   'md-links-bar',
@@ -22,7 +21,6 @@ const CREATE_CHROME_HIDDEN_IDS = [
   'btn-copy-path',
   'btn-open-in-chat',
   'btn-goto-kb',
-  'btn-open-iterm',
   'comment-float-nav',
   'md-commit-bar',
 ];

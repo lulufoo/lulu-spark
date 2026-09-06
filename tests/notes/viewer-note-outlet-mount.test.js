@@ -144,11 +144,11 @@ function resetDom() {
     'note-outlet', 'md-modal', 'md-body', 'md-edit-area', 'md-panel-title', 'md-close', 'md-backdrop',
     'date-heading', 'doc-list',
     'md-commit-dialog', 'comment-dialog', 'btn-edit', 'btn-add-comment', 'btn-save',
-    'btn-cancel-edit', 'btn-panel-commit', 'md-github-link', 'md-lang-bar', 'md-file-size',
+    'btn-cancel-edit', 'btn-panel-commit', 'md-lang-bar', 'md-file-size',
     'md-links-bar', 'md-tags-bar', 'knowledge-panel', 'md-commit-bar', 'md-commit-msg',
     'md-commit-result', 'btn-commit-file', 'md-btn-commit-cancel', 'md-btn-commit-ok',
     'md-btn-revert-all', 'md-commit-dialog-msg', 'md-commit-dialog-result',
-    'md-commit-file-list', 'btn-copy-http', 'btn-copy-path', 'btn-open-in-chat', 'btn-goto-kb', 'btn-open-iterm',
+    'md-commit-file-list', 'btn-copy-http', 'btn-copy-path', 'btn-open-in-chat', 'btn-goto-kb',
     'comment-float-nav',
   ]) {
     const el = makeEl(id);
