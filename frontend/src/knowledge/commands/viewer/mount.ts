@@ -4,7 +4,6 @@ import { resetEditAreaScroll } from '../../../shared/utils.ts';
 import * as api from '../../../host/api.ts';
 import { initKbComments, cleanupKbComments } from '../../ui/comments.tsx';
 import { setDocEditMode } from '../../../doc-editor/view.tsx';
-import { openKbCommitDialog } from './commit.ts';
 import { cleanupKbHighlightUI, initKbHighlightUI } from '../../ui/viewer/highlight.ts';
 import { revokeKbBlobUrls } from './images.ts';
 import { paintKbMdBody } from './paint.ts';
@@ -73,7 +72,6 @@ export async function mountKbReader(
     btnSave: container.querySelector('.kb-btn-save') as HTMLButtonElement,
     btnCancelEdit: container.querySelector('.kb-btn-cancel-edit') as HTMLButtonElement,
     btnAddComment: container.querySelector('.kb-btn-add-comment') as HTMLButtonElement,
-    btnPending: container.querySelector('.kb-btn-pending') as HTMLButtonElement,
     body: container.querySelector('.kb-reader-body') as HTMLElement,
     editArea: container.querySelector('.kb-reader-edit-area') as HTMLTextAreaElement,
   };
@@ -89,14 +87,6 @@ export async function mountKbReader(
   ui.btnCopyPath.dataset.tip = localPath;
   ui.fileSize.textContent = '';
   paintKbCommittedAt(ui.committedAt, null);
-
-  function showPendingBadge(_msg: string) {
-    ui.btnPending.style.display = '';
-  }
-
-  function hidePendingBadge() {
-    ui.btnPending.style.display = 'none';
-  }
 
   function enterEditMode() {
     setDocEditMode({
@@ -123,7 +113,6 @@ export async function mountKbReader(
     ui.btnSave.disabled = true;
     ui.btnSave.textContent = 'Saving…';
     try {
-      const originalContent = state.viewer.rawText;
       const data = await api.saveKbFile(state.viewer.kbRepo, state.viewer.kbPath, newContent);
       if (data.error) throw new Error(data.error);
       state.viewer.rawText = newContent;
@@ -134,9 +123,6 @@ export async function mountKbReader(
         paintKbPlain(ui.body, newContent);
       }
       ui.btnEdit.style.display = '';
-      if (newContent !== originalContent) {
-        showPendingBadge('update: edit via viewer');
-      }
     } catch (err) {
       const e = err as { message?: string };
       alert(`Save failed: ${e.message}`);
@@ -144,11 +130,6 @@ export async function mountKbReader(
       ui.btnSave.disabled = false;
       ui.btnSave.textContent = '💾 Save';
     }
-  }
-
-  function onDirty(e: Event) {
-    const detail = (e as CustomEvent<{ msg?: string }>).detail;
-    showPendingBadge(detail?.msg || 'chore: update via viewer');
   }
 
   function unmount() {
@@ -161,7 +142,6 @@ export async function mountKbReader(
     for (const [el, type, handler] of listeners) {
       el.removeEventListener(type, handler);
     }
-    document.removeEventListener('kb:dirty', onDirty);
     if (root) {
       flushSync(() => {
         root?.unmount();
@@ -174,7 +154,6 @@ export async function mountKbReader(
     state.viewer.kbRepo = null;
     state.viewer.kbPath = null;
     state.viewer.annotation = {};
-    hidePendingBadge();
   }
 
   container._kbUnmount = unmount;
@@ -184,9 +163,6 @@ export async function mountKbReader(
     void saveDoc();
   });
   bindReaderListener(listeners, ui.btnCancelEdit, 'click', exitEditMode);
-  bindReaderListener(listeners, ui.btnPending, 'click', () => {
-    void openKbCommitDialog();
-  });
   bindReaderListener(listeners, ui.btnCopyHttp, 'click', (e) => {
     const btn = e.currentTarget as HTMLButtonElement;
     const copyUrl = btn.dataset.url || '';
@@ -224,8 +200,6 @@ export async function mountKbReader(
       .catch(() => {});
   });
 
-  document.addEventListener('kb:dirty', onDirty);
-
   paintKbLoading(ui.body);
 
   void (async () => {
@@ -261,16 +235,6 @@ export async function mountKbReader(
       const readerRoot = container.querySelector('.kb-reader') ?? container;
       initKbComments(readerRoot);
       initKbHighlightUI(readerRoot);
-
-      api
-        .fetchKbStatus(repo)
-        .then((data: { error?: unknown; total?: number; ahead?: number }) => {
-          if (token !== loadToken) return;
-          if (!data.error && ((data.total ?? 0) > 0 || (data.ahead ?? 0) > 0)) {
-            showPendingBadge('chore: update via viewer');
-          }
-        })
-        .catch(() => {});
     } catch (e) {
       if (token !== loadToken) return;
       paintKbError(ui.body, errMessage(e, 'fetch failed'));

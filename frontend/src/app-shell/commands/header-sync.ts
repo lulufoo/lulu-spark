@@ -1,5 +1,5 @@
 import * as api from '../../host/api.ts';
-import { openKbDiffDialog } from '../../knowledge/ui/diff-dialog.tsx';
+import { openKnowledgeDiffDialog } from '../../knowledge/ui/knowledge-diff-dialog.tsx';
 import { errMessage, type HeaderSyncDeps } from '../state/types.ts';
 
 let knowledgeRepo = '';
@@ -33,13 +33,13 @@ async function pullKnowledgeRepo(repo: string) {
  */
 export function initHeaderSync({ pullProject, loadIndex, openWorkbenchCommit }: HeaderSyncDeps) {
   const openWorkbench = openWorkbenchCommit ?? (() =>
-    import('./commit-dialog.ts').then(({ openCommitChangesDialog }) => {
-      void openCommitChangesDialog();
+    import('./workbench-commit-dialog.ts').then(({ openWorkbenchCommitDialog }) => {
+      void openWorkbenchCommitDialog();
     }));
 
   document.getElementById('btn-push-index')?.addEventListener('click', () => {
     if (knowledgeRepo) {
-      void openKbDiffDialog(knowledgeRepo);
+      void openKnowledgeDiffDialog(knowledgeRepo);
       return;
     }
     void openWorkbench();

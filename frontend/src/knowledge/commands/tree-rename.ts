@@ -45,6 +45,5 @@ export async function commitKbTreeRename(
     from,
     to,
   );
-  document.dispatchEvent(new CustomEvent('kb:dirty', { detail: { msg: 'rename via viewer' } }));
   return { kind: 'applied', ...applied };
 }

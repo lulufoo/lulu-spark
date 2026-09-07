@@ -2,7 +2,6 @@ import { notifyState, state } from '../../state/host.ts';
 import { resetEditAreaScroll } from '../../../shared/utils.ts';
 import * as api from '../../../host/api.ts';
 import { navigateToNote, navigateBackToList, parseHash } from '../../../router/index.ts';
-import { closeCommitDialog } from './commit.ts';
 import { exitEditMode } from './doc.ts';
 import { hideNoteOutlet, setNotePanelTitle, showNoteOutlet } from './outlet.ts';
 
@@ -11,7 +10,6 @@ const CREATE_CHROME_HIDDEN_IDS = [
   'btn-add-comment',
   'btn-save',
   'btn-cancel-edit',
-  'btn-panel-commit',
   'md-lang-bar',
   'md-file-size',
   'md-links-bar',
@@ -22,7 +20,6 @@ const CREATE_CHROME_HIDDEN_IDS = [
   'btn-open-in-chat',
   'btn-goto-kb',
   'comment-float-nav',
-  'md-commit-bar',
 ];
 
 let createChromePrevDisplay: Record<string, string> | null = null;
@@ -73,7 +70,6 @@ export function dismissViewerModal() {
   hideNoteOutlet();
   document.body.style.overflow = '';
   exitEditMode(false);
-  closeCommitDialog();
   navigateBackToList({ date: locationDate() });
 }
 
@@ -105,7 +101,6 @@ export async function openCreateNote({ temp_id }: { temp_id?: string } = {}) {
     state.viewer.createSession = { tempId: temp_id, status: 'creating' };
     state.viewer.bodyPaintKey += 1;
 
-    closeCommitDialog();
     applyCreateChrome();
 
     const editArea = document.getElementById('md-edit-area');

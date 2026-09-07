@@ -1,11 +1,7 @@
 // Node environment — uses global document stub (same pattern as sidebar.test.js)
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-// ── Global document stub ──────────────────────────────────────────────────
-// Must be set up BEFORE importing viewer.js (module-level addEventListener calls).
-// vi.hoisted runs before ESM imports in vitest node mode.
-
-const { elements, makeEl } = vi.hoisted(() => {
+const { makeEl } = vi.hoisted(() => {
   const elements = {};
   const makeEl = (id = '') => {
     if (id && elements[id]) return elements[id];
@@ -61,12 +57,10 @@ const { elements, makeEl } = vi.hoisted(() => {
     addEventListener() {},
   };
   globalThis.requestAnimationFrame = (fn) => fn();
-  globalThis.marked = undefined; // not defined → renderDocBody falls back to <pre>
+  globalThis.marked = undefined;
 
-  return { elements, makeEl };
+  return { makeEl };
 });
-
-// ── Mock all viewer.js dependencies ──────────────────────────────────────
 
 vi.mock('../../frontend/src/host/api.ts', () => ({
   fetchFileContent: vi.fn().mockResolvedValue('# Test'),
@@ -87,7 +81,6 @@ vi.mock('../../frontend/src/island.ts', () => ({
 }));
 vi.mock('../../frontend/src/notes/ui/links-bar.tsx', () => ({ renderLinksBar: vi.fn() }));
 vi.mock('../../frontend/src/notes/ui/tags-bar.tsx', () => ({ renderTagsBar: vi.fn() }));
-
 vi.mock('../../frontend/src/notes/ui/comments.tsx', () => ({ renderComments: vi.fn() }));
 vi.mock('../../frontend/src/notes/ui/delete-dialog.tsx', () => ({ openDeleteDialog: vi.fn() }));
 vi.mock('../../frontend/src/doc-editor/highlights.ts', () => ({
@@ -108,79 +101,31 @@ vi.mock('../../frontend/src/host/constants.ts', () => ({
   workbenchGithubBlobBase: vi.fn(() => null),
 }));
 
-import {
-  showPendingBadge,
-  hidePendingBadge,
-  enterEditMode,
-  exitEditMode,
-  closeModal,
-  openDoc,
-} from '../../frontend/src/notes/viewer.ts';
+import { enterEditMode, exitEditMode } from '../../frontend/src/notes/viewer.ts';
 import { state } from '../../frontend/src/host/state.ts';
-
-// ── Test helpers ──────────────────────────────────────────────────────────
-
-function badge() { return makeEl('btn-panel-commit'); }
-
-const makeEntry = (commonPath = 'ai/note.md') => ({
-  common_path: commonPath,
-  created_at: '202601011200',
-  layers: ['raw'],
-  translations: {},
-});
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 beforeEach(() => {
-  badge().style.display = 'none';
-  makeEl('md-commit-dialog').classList.remove('open');
   state.viewer.entry = null;
   state.viewer.layer = 'raw';
   state.viewer.rawText = '';
   state.viewer.isKb = false;
-  state.index.diffStatus = new Map();
-  state.ui.workbenchRoot = '';
-  state.index.topicRepos = {};
-  state.index.titleCache = new Map();
 });
 
-// ── showPendingBadge / hidePendingBadge ───────────────────────────────────
-
-describe('showPendingBadge', () => {
-  it('makes #btn-panel-commit visible', () => {
-    showPendingBadge();
-    expect(badge().style.display).toBe('');
-  });
-
-  it('does not throw when #btn-panel-commit is absent', () => {
-    const saved = elements['btn-panel-commit'];
-    delete elements['btn-panel-commit'];
-    expect(() => showPendingBadge()).not.toThrow();
-    if (saved) elements['btn-panel-commit'] = saved;
+describe('notes viewer pending commit', () => {
+  it('does not keep a reader Pending commit button', () => {
+    const page = readFileSync(
+      join(dirname(fileURLToPath(import.meta.url)), '../../frontend/src/notes/page.tsx'),
+      'utf8',
+    );
+    expect(page).not.toContain('btn-panel-commit');
+    expect(page).not.toContain('Pending commit');
   });
 });
-
-describe('hidePendingBadge', () => {
-  it('hides #btn-panel-commit', () => {
-    badge().style.display = '';
-    hidePendingBadge();
-    expect(badge().style.display).toBe('none');
-  });
-});
-
-// ── enterEditMode ─────────────────────────────────────────────────────────
 
 describe('enterEditMode', () => {
-  it('hides #btn-panel-commit', () => {
-    badge().style.display = '';
-    enterEditMode();
-    expect(badge().style.display).toBe('none');
-  });
-
-  it('closes md-commit-dialog if it was open', () => {
-    makeEl('md-commit-dialog').classList.add('open');
-    enterEditMode();
-    expect(makeEl('md-commit-dialog').classList.contains('open')).toBe(false);
-  });
-
   it('resets #md-edit-area scrollTop to 0', () => {
     const editArea = makeEl('md-edit-area');
     editArea.scrollTop = 500;
@@ -203,58 +148,9 @@ describe('enterEditMode', () => {
   });
 });
 
-// ── exitEditMode ──────────────────────────────────────────────────────────
-
 describe('exitEditMode', () => {
-  it('shows badge when diffStatus has entry', () => {
-    const entry = makeEntry('ai/note.md');
-    state.viewer.entry = entry;
-    state.viewer.layer = 'raw';
-    state.index.diffStatus.set('raw/ai/note.md', true);
-    exitEditMode(false);
-    expect(badge().style.display).toBe('');
-  });
-
-  it('hides badge when diffStatus has no entry', () => {
-    const entry = makeEntry('ai/note.md');
-    state.viewer.entry = entry;
-    state.viewer.layer = 'raw';
-    state.index.diffStatus = new Map();
-    exitEditMode(false);
-    expect(badge().style.display).toBe('none');
-  });
-
-  it('hides badge (no crash) when viewer entry is null', () => {
+  it('does not throw when viewer entry is null', () => {
     state.viewer.entry = null;
     expect(() => exitEditMode(false)).not.toThrow();
-    expect(badge().style.display).toBe('none');
-  });
-});
-
-// ── closeModal ────────────────────────────────────────────────────────────
-
-describe('closeModal', () => {
-  it('hides badge after close', () => {
-    badge().style.display = '';
-    closeModal();
-    expect(badge().style.display).toBe('none');
-  });
-});
-
-// ── openDoc ───────────────────────────────────────────────────────────────
-
-describe('openDoc', () => {
-  it('shows badge when hasDiff is true', async () => {
-    const entry = makeEntry('ai/note.md');
-    state.index.diffStatus.set('raw/ai/note.md', true);
-    await openDoc(entry, 'raw');
-    expect(badge().style.display).toBe('');
-  });
-
-  it('hides badge when hasDiff is false', async () => {
-    const entry = makeEntry('ai/note.md');
-    state.index.diffStatus = new Map();
-    await openDoc(entry, 'raw');
-    expect(badge().style.display).toBe('none');
   });
 });

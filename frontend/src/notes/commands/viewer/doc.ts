@@ -4,7 +4,6 @@ import { filenameFromPath, slugToTitle, resetEditAreaScroll } from '../../../sha
 import * as api from '../../../host/api.ts';
 import { setDocEditMode } from '../../../doc-editor/view.tsx';
 import { saveKbDoc } from '../../../knowledge/viewer.ts';
-import { closeCommitDialog, hidePendingBadge, showPendingBadge } from './commit.ts';
 import { initHighlightUI } from '../../ui/viewer/body.tsx';
 import { setNotePanelTitle, showNoteOutlet } from './outlet.ts';
 import type { HostViewerAnnotation } from '../../../host/snapshot-types.ts';
@@ -49,7 +48,6 @@ export async function openDoc(entry: NoteEntry, layer = 'raw') {
   state.viewer.outletMessage = '';
   state.viewer.bodyPaintKey += 1;
   exitEditMode(false);
-  closeCommitDialog();
   setNotePanelTitle(entry);
   showNoteOutlet('open');
   notifyState();
@@ -79,10 +77,6 @@ export async function openDoc(entry: NoteEntry, layer = 'raw') {
   state.viewer.fileSize = formatFileSize(text);
   state.viewer.loading = false;
   state.viewer.loadError = '';
-  const hasDiff = state.index.diffStatus.get(`${layer}/${entry.common_path}`);
-  state.viewer.pendingCommit = Boolean(hasDiff);
-  if (hasDiff) showPendingBadge();
-  else hidePendingBadge();
   state.viewer.bodyPaintKey += 1;
   notifyState();
 }
@@ -147,18 +141,10 @@ export function enterEditMode() {
     resetEditAreaScroll(editArea, { focus: true });
   }
   setEditChromeDisplay(true);
-  hidePendingBadge();
-  closeCommitDialog();
 }
 
 export function exitEditMode(rerender = true) {
   state.viewer.editing = false;
-  const _layer = state.viewer.layer || 'raw';
-  const _cp = state.viewer.entry?.common_path;
-  const _hasDiff = _cp ? state.index.diffStatus.get(`${_layer}/${_cp}`) : false;
-  state.viewer.pendingCommit = Boolean(_hasDiff);
-  if (_hasDiff) showPendingBadge();
-  else hidePendingBadge();
   const editArea = asTextArea(document.getElementById('md-edit-area'));
   const body = document.getElementById('md-body');
   if (body && editArea) {
@@ -197,8 +183,6 @@ export async function saveDoc() {
     if (entryId) cache.set(entryId, newTitle);
     exitEditMode(true);
     await loadDiffStatus();
-    state.viewer.pendingCommit = true;
-    showPendingBadge();
     notifyState();
   } catch (e) {
     alert(`Save failed: ${e instanceof Error ? e.message : String(e)}`);

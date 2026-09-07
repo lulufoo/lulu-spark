@@ -3,7 +3,6 @@ import { resetEditAreaScroll } from '../../../shared/utils.ts';
 import * as api from '../../../host/api.ts';
 import { initKbComments } from '../../ui/comments.tsx';
 import { setDocEditMode } from '../../../doc-editor/view.tsx';
-import { kbHidePendingBadge, kbShowPendingBadge, onKbDirty } from '../../ui/viewer/chrome.tsx';
 import { initKbHighlightUI } from '../../ui/viewer/highlight.ts';
 import { revokeKbBlobUrls } from './images.ts';
 import { paintKbMdBody } from './paint.ts';
@@ -103,17 +102,6 @@ export async function openKbDoc(kbHit: { repo: string; path: string; url?: strin
 
     initKbComments();
     initKbHighlightUI();
-
-    api
-      .fetchKbStatus(repo)
-      .then((data: { error?: string; total?: number; ahead?: number }) => {
-        if (!data.error && ((data.total ?? 0) > 0 || (data.ahead ?? 0) > 0)) {
-          kbShowPendingBadge('chore: update via viewer');
-        }
-      })
-      .catch(() => {});
-
-    document.addEventListener('kb:dirty', onKbDirty);
   } catch (err) {
     paintKbDocError(body, err instanceof Error ? err.message : String(err));
     const editBtn = document.getElementById('kb-btn-edit');
@@ -130,7 +118,6 @@ export async function saveKbDoc() {
   btnSave.textContent = 'Saving…';
   try {
     const v = viewer();
-    const originalContent = v.rawText;
     const data = (await api.saveKbFile(v.kbRepo, v.kbPath, newContent)) as { error?: string };
     if (data.error) throw new Error(data.error);
     v.rawText = newContent;
@@ -146,9 +133,6 @@ export async function saveKbDoc() {
     }
     const editBtn = document.getElementById('kb-btn-edit');
     if (editBtn) editBtn.style.display = '';
-    if (newContent !== originalContent) {
-      kbShowPendingBadge('update: edit via viewer');
-    }
   } catch (err) {
     alert(`Save failed: ${err instanceof Error ? err.message : String(err)}`);
   } finally {
@@ -160,7 +144,6 @@ export async function saveKbDoc() {
 export function closeKbModal() {
   const modal = document.getElementById('kb-md-modal');
   if (modal) modal.style.display = 'none';
-  document.removeEventListener('kb:dirty', onKbDirty);
   revokeKbBlobUrls();
   const v = viewer();
   v.isKb = false;
@@ -168,7 +151,6 @@ export function closeKbModal() {
   v.kbPath = null;
   v.annotation = {};
   document.body.style.overflow = '';
-  kbHidePendingBadge();
 }
 
 export function _kbEnterEditMode() {

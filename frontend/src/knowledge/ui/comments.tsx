@@ -190,7 +190,6 @@ export function KbCommentsBar() {
             try {
               await removeKbComment(comment);
               notifyState();
-              document.dispatchEvent(new CustomEvent('kb:dirty', { detail: { msg: 'chore: update annotations' } }));
             } catch (err) {
               alert(`Delete failed: ${err instanceof Error ? err.message : String(err)}`);
             }
@@ -294,7 +293,6 @@ async function moveKbComment(index: number, delta: number) {
   try {
     const data = (await reorderKbComments(kbRepo, kbPath, check.ids)) as ApiOk;
     if (data?.ok !== true) throw new Error(data?.error || 'failed');
-    document.dispatchEvent(new CustomEvent('kb:dirty', { detail: { msg: 'chore: reorder annotations' } }));
   } catch (err) {
     alert(`Reorder save failed: ${err instanceof Error ? err.message : String(err)}`);
   }
@@ -373,7 +371,6 @@ export async function saveKbComment() {
     }
     closeKbCommentDialog();
     renderKbComments(annotation);
-    document.dispatchEvent(new CustomEvent('kb:dirty', { detail: { msg: 'chore: update annotations' } }));
   } catch (err) {
     alert(`Save failed: ${err instanceof Error ? err.message : String(err)}`);
   }

@@ -1,34 +1,34 @@
 import { useSyncExternalStore } from 'react';
 import {
-  closeCommitChangesDialog,
-  commitChangesOpenStore,
-  doCommitChanges,
-  setCommitChangesMessage,
-} from '../commands/commit-dialog.ts';
-import { commitChangesViewStore } from '../state/commit-changes.ts';
+  closeWorkbenchCommitDialog,
+  doWorkbenchCommit,
+  setWorkbenchCommitMessage,
+  workbenchCommitOpenStore,
+} from '../commands/workbench-commit-dialog.ts';
+import { workbenchCommitViewStore } from '../state/workbench-commit.ts';
 
 export {
-  closeCommitChangesDialog,
-  doCommitChanges,
-  openCommitChangesDialog,
-  setCommitChangesMessage,
-} from '../commands/commit-dialog.ts';
+  closeWorkbenchCommitDialog,
+  doWorkbenchCommit,
+  openWorkbenchCommitDialog,
+  setWorkbenchCommitMessage,
+} from '../commands/workbench-commit-dialog.ts';
 
-export function CommitChangesDialog() {
-  const open = useSyncExternalStore(commitChangesOpenStore.subscribe, commitChangesOpenStore.getSnapshot);
-  const view = useSyncExternalStore(commitChangesViewStore.subscribe, commitChangesViewStore.getSnapshot);
+export function WorkbenchCommitDialog() {
+  const open = useSyncExternalStore(workbenchCommitOpenStore.subscribe, workbenchCommitOpenStore.getSnapshot);
+  const view = useSyncExternalStore(workbenchCommitViewStore.subscribe, workbenchCommitViewStore.getSnapshot);
 
   return (
     <div
-      id="commit-changes-dialog"
+      id="workbench-commit-dialog"
       className={open ? 'open' : undefined}
       onClick={(e) => {
-        if (e.target === e.currentTarget) closeCommitChangesDialog();
+        if (e.target === e.currentTarget) closeWorkbenchCommitDialog();
       }}
     >
-      <div id="commit-changes-dialog-box">
-        <h3>↑ Commit changes</h3>
-        <div id="commit-changes-file-list">
+      <div id="workbench-commit-dialog-box">
+        <h3>↑ Workbench commit</h3>
+        <div id="workbench-commit-file-list">
           {view.loading ? (
             <div style={{ fontSize: 12, color: '#8c959f' }}>Loading…</div>
           ) : view.error ? (
@@ -63,27 +63,27 @@ export function CommitChangesDialog() {
           )}
         </div>
         <input
-          id="commit-changes-msg"
+          id="workbench-commit-msg"
           type="text"
           placeholder="Commit message (empty: chore: update via viewer)"
           autoComplete="off"
           value={view.message}
-          onChange={(e) => setCommitChangesMessage(e.target.value)}
+          onChange={(e) => setWorkbenchCommitMessage(e.target.value)}
         />
-        <div id="commit-changes-dialog-actions">
-          <span id="commit-changes-result"></span>
+        <div id="workbench-commit-dialog-actions">
+          <span id="workbench-commit-result"></span>
           <button
-            id="btn-commit-changes-cancel"
+            id="btn-workbench-commit-cancel"
             type="button"
-            onClick={() => closeCommitChangesDialog()}
+            onClick={() => closeWorkbenchCommitDialog()}
           >
             Cancel
           </button>
           <button
-            id="btn-commit-changes-ok"
+            id="btn-workbench-commit-ok"
             type="button"
             disabled={!view.canCommit}
-            onClick={() => doCommitChanges()}
+            onClick={() => doWorkbenchCommit()}
           >
             {view.okLabel}
           </button>

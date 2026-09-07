@@ -3750,27 +3750,6 @@
   .diff-dot { font-size: 11px; margin-left: 6px; font-weight: 600; }
   .diff-dot.modified { color: #d4a72c; }
   .diff-dot.conflict { color: #cf222e; }
-  /* ── Panel commit button ── */
-  #btn-panel-commit { background: #fff8c5 !important; color: #7d4e00 !important; border-color: #d4a72c !important; }
-  /* ── Commit bar inside viewer panel ── */
-  .viewer-commit-bar {
-    display: none;
-    flex-shrink: 0;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 16px;
-    border-bottom: 1px solid #d4a72c;
-    background: #fffbdd;
-  }
-  .viewer-commit-bar input {
-    flex: 1;
-    padding: 4px 8px;
-    border: 1px solid #d0d7de;
-    border-radius: 4px;
-    font-size: 12px;
-    outline: none;
-  }
-
   /* ── Status messages ── */
   #status {
     padding: 20px 24px;
@@ -4542,8 +4521,8 @@
   }
   #btn-move-project-close:hover { background: #eaeef2; }
 
-  /* ── Commit-changes dialog ── */
-  #commit-changes-dialog {
+  /* ── Workbench commit dialog ── */
+  #workbench-commit-dialog {
     position: fixed;
     inset: 0;
     z-index: 2000;
@@ -4552,8 +4531,8 @@
     justify-content: center;
     background: rgba(0,0,0,.55);
   }
-  #commit-changes-dialog.open { display: flex; }
-  #commit-changes-dialog-box {
+  #workbench-commit-dialog.open { display: flex; }
+  #workbench-commit-dialog-box {
     background: #fff;
     border-radius: 10px;
     padding: 24px 24px 20px;
@@ -4565,7 +4544,7 @@
     flex-direction: column;
     gap: 14px;
   }
-  #commit-changes-dialog-box h3 { font-size: 15px; color: #24292f; margin: 0; font-weight: 600; }
+  #workbench-commit-dialog-box h3 { font-size: 15px; color: #24292f; margin: 0; font-weight: 600; }
   .commit-file-group { display: flex; flex-direction: column; gap: 3px; }
   .commit-file-group-title {
     font-size: 10px;
@@ -4604,41 +4583,7 @@
   }
   .commit-file-item:hover .kb-revert-btn { opacity: 1; }
   .kb-revert-btn:hover { border-color: #cf222e; color: #cf222e; }
-  /* ── Workbench Commit dialog ── */
-  #btn-panel-commit { background: #fff8c5; color: #7d4e00; border-color: #d4a72c; }
-  #btn-panel-commit:hover { background: #ffe89d; }
-  #md-commit-dialog {
-    display: none; position: fixed; inset: 0; z-index: 3000;
-    align-items: center; justify-content: center;
-    background: rgba(0,0,0,.45);
-  }
-  #md-commit-dialog.open { display: flex; }
-  #md-commit-dialog-box {
-    background: #fff; border-radius: 8px; padding: 20px;
-    width: 480px; max-width: 90vw; max-height: 70vh;
-    overflow-y: auto; display: flex; flex-direction: column; gap: 12px;
-    box-shadow: 0 8px 32px rgba(0,0,0,.18);
-  }
-  #md-commit-dialog-title {
-    display: flex; align-items: center; justify-content: space-between;
-  }
-  #md-commit-dialog-title h3 { font-size: 15px; color: #24292f; margin: 0; font-weight: 600; }
-  #md-commit-dialog-msg {
-    padding: 6px 10px; border: 1px solid #d0d7de; border-radius: 6px;
-    font-size: 13px; outline: none; width: 100%; box-sizing: border-box;
-  }
-  #md-commit-dialog-actions {
-    display: flex; align-items: center; gap: 8px; justify-content: flex-end;
-  }
-  #md-commit-dialog-result { flex: 1; font-size: 12px; }
-  #md-btn-revert-all {
-    font-size: 12px; padding: 3px 10px; border: 1px solid #d0d7de;
-    border-radius: 5px; background: #fff; cursor: pointer; color: #57606a;
-  }
-  #md-btn-revert-all.confirm { border-color: #cf222e; color: #cf222e; }
   /* ── KB Commit dialog ── */
-  #kb-btn-pending { background: #fff8c5; color: #7d4e00; border-color: #d4a72c; }
-  #kb-btn-pending:hover { background: #ffe89d; }
   #kb-commit-dialog {
     position: fixed;
     inset: 0;
@@ -4795,7 +4740,7 @@
     cursor: pointer;
   }
   #btn-kb-diff-cancel:hover { background: #f6f8fa; }
-  #commit-changes-msg {
+  #workbench-commit-msg {
     width: 100%;
     padding: 7px 10px;
     border: 1px solid #d0d7de;
@@ -4804,14 +4749,14 @@
     outline: none;
     box-sizing: border-box;
   }
-  #commit-changes-msg:focus { border-color: #0969da; }
-  #commit-changes-dialog-actions {
+  #workbench-commit-msg:focus { border-color: #0969da; }
+  #workbench-commit-dialog-actions {
     display: flex;
     align-items: center;
     gap: 10px;
   }
-  #commit-changes-result { flex: 1; font-size: 12px; }
-  #btn-commit-changes-ok {
+  #workbench-commit-result { flex: 1; font-size: 12px; }
+  #btn-workbench-commit-ok {
     background: #1c4a2e;
     color: #cdd9e5;
     border: none;
@@ -4822,9 +4767,9 @@
     font-weight: 600;
     flex-shrink: 0;
   }
-  #btn-commit-changes-ok:hover:not(:disabled) { background: #2a6040; }
-  #btn-commit-changes-ok:disabled { opacity: .5; cursor: default; }
-  #btn-commit-changes-cancel {
+  #btn-workbench-commit-ok:hover:not(:disabled) { background: #2a6040; }
+  #btn-workbench-commit-ok:disabled { opacity: .5; cursor: default; }
+  #btn-workbench-commit-cancel {
     background: none;
     border: 1px solid #d0d7de;
     border-radius: 6px;
@@ -4834,7 +4779,7 @@
     color: #57606a;
     flex-shrink: 0;
   }
-  #btn-commit-changes-cancel:hover { background: #eaeef2; }
+  #btn-workbench-commit-cancel:hover { background: #eaeef2; }
 
   /* ── Comment dialog ── */
   #comment-dialog {

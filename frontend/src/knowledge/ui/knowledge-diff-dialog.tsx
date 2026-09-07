@@ -2,6 +2,7 @@ import { useSyncExternalStore } from 'react';
 import { flushSync } from 'react-dom';
 import * as api from '../../host/api.ts';
 import { createModuleStore } from '../../shared/module-store.ts';
+import { showToast } from '../../toast.tsx';
 
 const openStore = createModuleStore(false);
 
@@ -44,13 +45,11 @@ type DiffElements = {
   title: HTMLElement | null;
   fileList: HTMLElement | null;
   msg: HTMLInputElement | null;
-  result: HTMLElement | null;
   okBtn: HTMLButtonElement | null;
   revertBtn: HTMLButtonElement | null;
 };
 
 let activeRepo = '';
-let closeTimer: ReturnType<typeof setTimeout> | null = null;
 
 function getElements(): DiffElements {
   return {
@@ -58,7 +57,6 @@ function getElements(): DiffElements {
     title: document.getElementById('kb-diff-dialog-title'),
     fileList: document.getElementById('kb-diff-file-list'),
     msg: document.getElementById('kb-diff-msg') as HTMLInputElement | null,
-    result: document.getElementById('kb-diff-result'),
     okBtn: document.getElementById('btn-kb-diff-ok') as HTMLButtonElement | null,
     revertBtn: document.getElementById('btn-kb-diff-revert-all') as HTMLButtonElement | null,
   };
@@ -68,15 +66,8 @@ function repoShortName(repo: string) {
   return repo.split('/').pop() || repo;
 }
 
-function clearCloseTimer() {
-  if (closeTimer) {
-    clearTimeout(closeTimer);
-    closeTimer = null;
-  }
-}
-
-function emitUpdated() {
-  window.dispatchEvent(new CustomEvent('kb-diff-updated', { detail: { repo: activeRepo } }));
+function emitUpdated(repo: string) {
+  window.dispatchEvent(new CustomEvent('kb-diff-updated', { detail: { repo } }));
 }
 
 function FileListGroups({ data }: { data: DiffStatus }) {
@@ -136,86 +127,61 @@ async function refreshDialog() {
   }
 }
 
-export async function openKbDiffDialog(repo: string) {
-  const { dialog, msg, result, okBtn } = getElements();
-  if (!dialog || !msg || !result || !okBtn) return;
+export async function openKnowledgeDiffDialog(repo: string) {
+  const { dialog, msg, okBtn } = getElements();
+  if (!dialog || !msg || !okBtn) return;
   activeRepo = repo;
-  clearCloseTimer();
   msg.value = '';
-  result.textContent = '';
-  result.style.color = '';
   okBtn.textContent = 'Commit';
   openStore.set(true);
   dialog.classList.add('open');
   await refreshDialog();
 }
 
-export function closeKbDiffDialog() {
-  const { dialog, result, okBtn } = getElements();
+export function closeKnowledgeDiffDialog() {
+  const { dialog, okBtn } = getElements();
   openStore.set(false);
   publishFileList({ kind: 'empty' });
-  clearCloseTimer();
   dialog?.classList.remove('open');
-  if (result) {
-    result.textContent = '';
-    result.style.color = '';
-  }
   if (okBtn) {
     okBtn.disabled = false;
     okBtn.textContent = 'Commit';
   }
 }
 
-async function handleKbDiffCommit() {
-  const { msg, result, okBtn, revertBtn } = getElements();
-  if (!msg || !result || !okBtn || !revertBtn) return;
-  okBtn.disabled = true;
-  revertBtn.disabled = true;
-  result.textContent = 'Committing…';
-  result.style.color = '#8c959f';
-
-  try {
-    const data = (await api.commitKbFile(activeRepo, msg.value.trim() || 'chore: update via viewer')) as {
-      error?: string;
-    };
-    if (data?.error) throw new Error(data.error);
-    result.textContent = '✓ Committed and pushed';
-    result.style.color = '#1a7f37';
-    emitUpdated();
-    closeTimer = setTimeout(() => closeKbDiffDialog(), 1500);
-  } catch (error) {
-    result.textContent = `Failed: ${error instanceof Error ? error.message : String(error)}`;
-    result.style.color = '#cf222e';
-    okBtn.disabled = false;
-    revertBtn.disabled = false;
-  }
+function handleKnowledgeDiffCommit() {
+  const { msg } = getElements();
+  const repo = activeRepo;
+  const message = msg?.value.trim() || 'chore: update via viewer';
+  closeKnowledgeDiffDialog();
+  void api
+    .commitKbFile(repo, message)
+    .then((data: { error?: string }) => {
+      if (data?.error) throw new Error(data.error);
+      showToast('✓ Committed and pushed', 'success');
+      emitUpdated(repo);
+    })
+    .catch((error: unknown) => {
+      showToast(`Commit failed: ${error instanceof Error ? error.message : String(error)}`, 'error');
+    });
 }
 
-async function handleKbDiffRevertAll() {
-  const { result, okBtn, revertBtn } = getElements();
-  if (!result || !okBtn || !revertBtn) return;
-  okBtn.disabled = true;
-  revertBtn.disabled = true;
-  result.textContent = 'Reverting…';
-  result.style.color = '#8c959f';
-
-  try {
-    const data = (await api.revertKbFile(activeRepo)) as { error?: string };
-    if (data?.error) throw new Error(data.error);
-    result.textContent = '✓ Local changes discarded';
-    result.style.color = '#1a7f37';
-    emitUpdated();
-    await refreshDialog();
-    closeTimer = setTimeout(() => closeKbDiffDialog(), 1500);
-  } catch (error) {
-    result.textContent = `Failed: ${error instanceof Error ? error.message : String(error)}`;
-    result.style.color = '#cf222e';
-    okBtn.disabled = false;
-    revertBtn.disabled = false;
-  }
+function handleKnowledgeDiffRevertAll() {
+  const repo = activeRepo;
+  closeKnowledgeDiffDialog();
+  void api
+    .revertKbFile(repo)
+    .then((data: { error?: string }) => {
+      if (data?.error) throw new Error(data.error);
+      showToast('✓ Local changes discarded', 'success');
+      emitUpdated(repo);
+    })
+    .catch((error: unknown) => {
+      showToast(`Revert failed: ${error instanceof Error ? error.message : String(error)}`, 'error');
+    });
 }
 
-function KbDiffFileList() {
+function KnowledgeDiffFileList() {
   const snap = useSyncExternalStore(fileListStore.subscribe, fileListStore.getSnapshot);
   if (snap.kind === 'loading') {
     return <div style={{ fontSize: 12, color: '#8c959f' }}>Loading…</div>;
@@ -232,7 +198,7 @@ function KbDiffFileList() {
   return null;
 }
 
-export function KbDiffDialog() {
+export function KnowledgeDiffDialog() {
   const open = useSyncExternalStore(openStore.subscribe, openStore.getSnapshot);
 
   return (
@@ -240,7 +206,7 @@ export function KbDiffDialog() {
       id="kb-diff-dialog"
       className={open ? 'open' : undefined}
       onClick={(e) => {
-        if (e.target === e.currentTarget) closeKbDiffDialog();
+        if (e.target === e.currentTarget) closeKnowledgeDiffDialog();
       }}
     >
       <div id="kb-diff-dialog-box">
@@ -250,14 +216,14 @@ export function KbDiffDialog() {
             id="btn-kb-diff-revert-all"
             type="button"
             onClick={() => {
-              void handleKbDiffRevertAll();
+              handleKnowledgeDiffRevertAll();
             }}
           >
             Discard changes
           </button>
         </div>
         <div id="kb-diff-file-list">
-          <KbDiffFileList />
+          <KnowledgeDiffFileList />
         </div>
         <input
           id="kb-diff-msg"
@@ -267,14 +233,14 @@ export function KbDiffDialog() {
         />
         <div id="kb-diff-dialog-actions">
           <span id="kb-diff-result"></span>
-          <button id="btn-kb-diff-cancel" type="button" onClick={() => closeKbDiffDialog()}>
+          <button id="btn-kb-diff-cancel" type="button" onClick={() => closeKnowledgeDiffDialog()}>
             Cancel
           </button>
           <button
             id="btn-kb-diff-ok"
             type="button"
             onClick={() => {
-              void handleKbDiffCommit();
+              handleKnowledgeDiffCommit();
             }}
           >
             Commit

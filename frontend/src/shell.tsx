@@ -1,6 +1,6 @@
 import { BindDialog, openBindDialog } from './app-shell/ui/bind-dialog.tsx';
 import { IndexRebuildButton } from './app-shell/ui/index-rebuild.tsx';
-import { CommitChangesDialog } from './app-shell/ui/commit-dialog.tsx';
+import { WorkbenchCommitDialog } from './app-shell/ui/workbench-commit-dialog.tsx';
 import { ConvertDialog, openConvertDialog } from './app-shell/ui/convert-dialog.tsx';
 import { MoveDocDialog, openMoveDocDialog } from './app-shell/ui/move-dialog.tsx';
 import { SettingsDialog, openSettingsDialog } from './app-shell/ui/settings/dialog.tsx';
@@ -9,13 +9,12 @@ import { SkillsDialog, _openSkillsDialog } from './app-shell/ui/skills-dialog.ts
 
 void SettingsDialogChrome;
 import { KbCommentDialog } from './knowledge/ui/comments.tsx';
-import { KbDiffDialog } from './knowledge/ui/diff-dialog.tsx';
+import { KnowledgeDiffDialog } from './knowledge/ui/knowledge-diff-dialog.tsx';
 import { KbCommitDialog } from './knowledge/ui/viewer/commit.tsx';
 import { NoteCommentDialog } from './notes/ui/comments.tsx';
 import { DeleteDialog } from './notes/ui/delete-dialog.tsx';
 import { MoveProjectDialog } from './notes/ui/move-project-dialog.tsx';
 import { SettleDialog } from './notes/ui/settle-dialog.tsx';
-import { MdCommitDialog } from './notes/ui/viewer/commit.tsx';
 import { ReadLaterDialog } from './read-later/ui/dialog.tsx';
 import { CommentDeleteDialog } from './shared/comment-delete.tsx';
 import { TodoTaskDialog } from './todo-task/ui/dialog.tsx';
@@ -118,9 +117,6 @@ export function Shell() {
       {/* <!-- Bind device dialog --> */}
       <BindDialog />
 
-      {/* <!-- Workbench Commit dialog --> */}
-      <MdCommitDialog />
-
       {/* <!-- KB Commit dialog --> */}
       <KbCommitDialog />
 
@@ -137,11 +133,11 @@ export function Shell() {
       {/* <!-- Comment dialog --> */}
       <NoteCommentDialog />
 
-      {/* <!-- Commit changes dialog --> */}
-      <CommitChangesDialog />
+      {/* <!-- Workbench commit dialog --> */}
+      <WorkbenchCommitDialog />
 
-      {/* <!-- KB Diff dialog --> */}
-      <KbDiffDialog />
+      {/* <!-- Knowledge Diff dialog --> */}
+      <KnowledgeDiffDialog />
 
       {/* <!-- Move project dialog --> */}
       <MoveProjectDialog />

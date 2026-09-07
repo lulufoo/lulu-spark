@@ -1,6 +1,6 @@
 import { Fragment, useSyncExternalStore } from 'react';
 import * as api from '../../../host/api.ts';
-import { openKbDiffDialog } from '../../../knowledge/ui/diff-dialog.tsx';
+import { openKnowledgeDiffDialog } from '../../../knowledge/ui/knowledge-diff-dialog.tsx';
 import {
   patchSedimentKb,
   sedimentKbStore,
@@ -78,7 +78,7 @@ function RepoListItem({
             className="repo-diff-badge"
             data-repo={repo.full_name}
             title="View local changes"
-            onClick={() => openKbDiffDialog(repo.full_name)}
+            onClick={() => openKnowledgeDiffDialog(repo.full_name)}
           >
             ✎
           </button>

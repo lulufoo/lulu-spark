@@ -140,7 +140,6 @@ const CREATE_CHROME_HIDDEN_IDS = [
   'btn-add-comment',
   'btn-save',
   'btn-cancel-edit',
-  'btn-panel-commit',
   'md-lang-bar',
   'md-file-size',
   'md-links-bar',
@@ -151,23 +150,20 @@ const CREATE_CHROME_HIDDEN_IDS = [
   'btn-open-in-chat',
   'btn-goto-kb',
   'comment-float-nav',
-  'md-commit-bar',
 ];
 
 function resetViewerDom() {
   for (const id of [
     'note-outlet', 'md-modal', 'md-body', 'md-edit-area', 'md-panel-title', 'md-close', 'md-backdrop',
-    'md-commit-dialog', 'comment-dialog', 'btn-edit', 'btn-add-comment', 'btn-save',
-    'btn-cancel-edit', 'btn-panel-commit', 'md-lang-bar', 'md-file-size',
-    'md-links-bar', 'md-tags-bar', 'knowledge-panel', 'md-commit-bar', 'md-commit-msg',
-    'md-commit-result', 'btn-commit-file', 'md-btn-commit-cancel', 'md-btn-commit-ok',
-    'md-btn-revert-all', 'md-commit-dialog-msg', 'md-commit-dialog-result',
-    'md-commit-file-list', 'btn-copy-http', 'btn-copy-path', 'btn-open-in-chat', 'btn-goto-kb',
+    'comment-dialog', 'btn-edit', 'btn-add-comment', 'btn-save',
+    'btn-cancel-edit', 'md-lang-bar', 'md-file-size',
+    'md-links-bar', 'md-tags-bar', 'knowledge-panel',
+    'btn-copy-http', 'btn-copy-path', 'btn-open-in-chat', 'btn-goto-kb',
     'comment-float-nav',
   ]) {
     const el = makeEl(id);
     el.style.display = id === 'md-edit-area' || id === 'btn-save' || id === 'btn-cancel-edit'
-      || id === 'btn-panel-commit' || id === 'md-commit-bar' || id === 'md-lang-bar'
+      || id === 'md-lang-bar'
       ? 'none'
       : '';
     el.value = '';

@@ -17,7 +17,6 @@ import { initSidebarResize } from './ui/sidebar-resize.ts';
 import { openNoteInChat } from './commands/open-in-chat.ts';
 import { closeModal, enterEditMode, exitEditMode, saveDoc, switchLang } from './viewer.ts';
 import { renderDocBody } from './ui/viewer/body.tsx';
-import { openCommitDialog } from './ui/viewer/commit.tsx';
 
 export { NotesSidebar };
 
@@ -198,8 +197,6 @@ function NotesOutletChrome({ routeParams }: { routeParams: Record<string, string
   const relPath = entry ? notesFileRelPath(layer, activePath) : '';
   const fullPath = host.ui.workbenchRoot ? `${host.ui.workbenchRoot}/${relPath}` : relPath;
   const fileSize = viewer.fileSize || (viewer.rawText ? formatBytes(viewer.rawText) : '');
-  const hasDiff = entry ? host.index.diffStatus.get(`${layer}/${entry.common_path}`) : false;
-  const showPending = Boolean(hasDiff || viewer.pendingCommit);
   const loadFailed = Boolean(viewer.loadError);
 
   const dateStr = String(entry?.created_at || host.ui.activeDate || routeParams.date || '').slice(0, 8);
@@ -356,20 +353,10 @@ function NotesOutletChrome({ routeParams }: { routeParams: Record<string, string
           >
             Cancel
           </button>
-          <button
-            className="md-header-btn viewer-chrome-persisted"
-            id="btn-panel-commit"
-            type="button"
-            style={{ display: showPending && !creating && !editing ? undefined : 'none' }}
-            onClick={() => void openCommitDialog()}
-          >
-            ● Pending commit
-          </button>
           <button id="md-close" type="button" className="md-header-btn viewer-close" onClick={() => void closeModal()}>
             ✕ Close
           </button>
         </div>
-        <div id="md-commit-bar" className="viewer-commit-bar viewer-chrome-persisted" />
         <NotesLinksBar />
         <NotesTagsBar />
         <div id="md-content-row" className="viewer-content-row">

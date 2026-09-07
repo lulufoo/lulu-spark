@@ -10,24 +10,39 @@ const apiMocks = vi.hoisted(() => ({
   revertKbFile: vi.fn(),
 }));
 
+const toastMocks = vi.hoisted(() => ({
+  showToast: vi.fn(),
+}));
+
 vi.mock('../../frontend/src/host/api.ts', () => ({
   fetchKbStatus: (...args) => apiMocks.fetchKbStatus(...args),
   commitKbFile: (...args) => apiMocks.commitKbFile(...args),
   revertKbFile: (...args) => apiMocks.revertKbFile(...args),
 }));
 
+vi.mock('../../frontend/src/toast.tsx', () => ({
+  showToast: (...args) => toastMocks.showToast(...args),
+}));
+
+function deferred() {
+  let resolve;
+  const promise = new Promise((r) => {
+    resolve = r;
+  });
+  return { promise, resolve };
+}
+
 async function loadModule() {
   vi.resetModules();
-  const mod = await import('../../frontend/src/knowledge/ui/diff-dialog.tsx');
+  const mod = await import('../../frontend/src/knowledge/ui/knowledge-diff-dialog.tsx');
   document.body.innerHTML = '<div id="kb-diff-host"></div>';
   const root = createRoot(document.getElementById('kb-diff-host'));
-  flushSync(() => root.render(createElement(mod.KbDiffDialog)));
+  flushSync(() => root.render(createElement(mod.KnowledgeDiffDialog)));
   return mod;
 }
 
 describe('knowledge diff dialog', () => {
   beforeEach(() => {
-    vi.useFakeTimers();
     vi.clearAllMocks();
     apiMocks.fetchKbStatus.mockResolvedValue({
       new: ['a.md'],
@@ -43,12 +58,12 @@ describe('knowledge diff dialog', () => {
   });
 
   afterEach(() => {
-    vi.useRealTimers();
+    document.body.innerHTML = '';
   });
 
-  it('openKbDiffDialog fetches status and lists New files', async () => {
-    const { openKbDiffDialog } = await loadModule();
-    await openKbDiffDialog('owner/knowledge');
+  it('openKnowledgeDiffDialog fetches status and lists New files', async () => {
+    const { openKnowledgeDiffDialog } = await loadModule();
+    await openKnowledgeDiffDialog('owner/knowledge');
     expect(apiMocks.fetchKbStatus).toHaveBeenCalledWith('owner/knowledge');
     expect(document.getElementById('kb-diff-dialog').classList.contains('open')).toBe(true);
     expect(document.getElementById('kb-diff-dialog-title').textContent).toContain('knowledge');
@@ -66,28 +81,43 @@ describe('knowledge diff dialog', () => {
       total: 0,
       ahead: 0,
     });
-    const { openKbDiffDialog } = await loadModule();
-    await openKbDiffDialog('owner/knowledge');
+    const { openKnowledgeDiffDialog } = await loadModule();
+    await openKnowledgeDiffDialog('owner/knowledge');
     expect(document.getElementById('kb-diff-file-list').textContent).toContain('No local changes');
     expect(document.getElementById('btn-kb-diff-ok').disabled).toBe(true);
   });
 
-  it('Commit calls commitKbFile then closes after success', async () => {
-    const { openKbDiffDialog } = await loadModule();
-    await openKbDiffDialog('owner/knowledge');
+  it('Commit closes immediately and does not wait for the API', async () => {
+    const pending = deferred();
+    apiMocks.commitKbFile.mockReturnValue(pending.promise);
+    const { openKnowledgeDiffDialog } = await loadModule();
+    await openKnowledgeDiffDialog('owner/knowledge');
     document.getElementById('kb-diff-msg').value = 'docs: update';
     document.getElementById('btn-kb-diff-ok').click();
-    await Promise.resolve();
-    expect(apiMocks.commitKbFile).toHaveBeenCalledWith('owner/knowledge', 'docs: update');
-    expect(document.getElementById('kb-diff-result').textContent).toContain('Committed and pushed');
-    await vi.advanceTimersByTimeAsync(1500);
     expect(document.getElementById('kb-diff-dialog').classList.contains('open')).toBe(false);
+    expect(apiMocks.commitKbFile).toHaveBeenCalledWith('owner/knowledge', 'docs: update');
+    expect(toastMocks.showToast).not.toHaveBeenCalled();
+    pending.resolve({});
+    await Promise.resolve();
+    expect(toastMocks.showToast).toHaveBeenCalledWith('✓ Committed and pushed', 'success');
   });
 
-  it('closeKbDiffDialog removes the open class', async () => {
-    const { openKbDiffDialog, closeKbDiffDialog } = await loadModule();
-    await openKbDiffDialog('owner/knowledge');
-    closeKbDiffDialog();
+  it('Discard closes immediately and toasts after revert', async () => {
+    const pending = deferred();
+    apiMocks.revertKbFile.mockReturnValue(pending.promise);
+    const { openKnowledgeDiffDialog } = await loadModule();
+    await openKnowledgeDiffDialog('owner/knowledge');
+    document.getElementById('btn-kb-diff-revert-all').click();
+    expect(document.getElementById('kb-diff-dialog').classList.contains('open')).toBe(false);
+    pending.resolve({});
+    await Promise.resolve();
+    expect(toastMocks.showToast).toHaveBeenCalledWith('✓ Local changes discarded', 'success');
+  });
+
+  it('closeKnowledgeDiffDialog removes the open class', async () => {
+    const { openKnowledgeDiffDialog, closeKnowledgeDiffDialog } = await loadModule();
+    await openKnowledgeDiffDialog('owner/knowledge');
+    closeKnowledgeDiffDialog();
     expect(document.getElementById('kb-diff-dialog').classList.contains('open')).toBe(false);
   });
 });

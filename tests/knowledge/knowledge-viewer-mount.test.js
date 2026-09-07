@@ -113,6 +113,9 @@ describe('mountKbReader', () => {
     expect(commentBtn?.getAttribute('title')).toBe('Comment');
     expect(commentBtn?.textContent).toContain('💬');
     expect(commentBtn?.textContent).not.toMatch(/Comment/i);
+    expect(commentBtn?.nextElementSibling).toBe(openInChat);
+    expect(container.querySelector('.kb-btn-pending')).toBeNull();
+    expect(container.textContent).not.toContain('Pending commit');
     unmount();
   });
 

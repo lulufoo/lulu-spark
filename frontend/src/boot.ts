@@ -6,7 +6,7 @@ import { buildGroups, selectDate, applyListFilters, selectTag } from './notes/co
 import { openCreateNote } from './notes/viewer.ts';
 import './notes/ui/comments.tsx';
 import './knowledge/viewer.ts';
-import './app-shell/ui/commit-dialog.tsx';
+import './app-shell/ui/workbench-commit-dialog.tsx';
 import './app-shell/ui/qr-dialog.tsx';
 import { navigate, navigateToNote } from './router/index.ts';
 import { setRouteHandlers } from './route-handlers.ts';

@@ -86,7 +86,6 @@ export const state: HostState = {
     loading: false,
     editing: false,
     saving: false,
-    pendingCommit: false,
     bodyPaintKey: 0,
     panelTitle: '',
   },

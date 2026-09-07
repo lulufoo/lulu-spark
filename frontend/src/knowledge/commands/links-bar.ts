@@ -45,7 +45,6 @@ export async function addKbLink(url: string, title?: string) {
   annotation.links = newLinks;
   state.index.titleFetchCache.set(url, resolved);
   notifyState();
-  document.dispatchEvent(new CustomEvent('kb:dirty', { detail: { msg: 'chore: update links' } }));
   return { ok: true };
 }
 
@@ -56,6 +55,5 @@ export async function removeKbLink(index: number) {
   if (!data.ok) return data;
   annotation.links = newLinks;
   notifyState();
-  document.dispatchEvent(new CustomEvent('kb:dirty', { detail: { msg: 'chore: update links' } }));
   return { ok: true };
 }

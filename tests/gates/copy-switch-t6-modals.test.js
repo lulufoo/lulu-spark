@@ -10,10 +10,10 @@ const mainJs = [
   readMainSource(),
   readFrontendJs('frontend/src/notes/page.tsx'),
 ].join('\n');
-const commitDialogJs = [
-  readFrontendJs('frontend/src/app-shell/ui/commit-dialog.tsx'),
-  readFrontendJs('frontend/src/app-shell/commands/commit-dialog.ts'),
-  readFrontendJs('frontend/src/app-shell/state/commit-changes.ts'),
+const workbenchCommitJs = [
+  readFrontendJs('frontend/src/app-shell/ui/workbench-commit-dialog.tsx'),
+  readFrontendJs('frontend/src/app-shell/commands/workbench-commit-dialog.ts'),
+  readFrontendJs('frontend/src/app-shell/state/workbench-commit.ts'),
 ].join('\n');
 const deleteDialogJs = readFileSync(
   join(repoRoot, 'frontend/src/notes/ui/delete-dialog.tsx'),
@@ -28,11 +28,11 @@ const settleDialogJs = [
   readFrontendJs('frontend/src/notes/commands/settle-dialog.ts'),
 ].join('\n');
 const modalSources = [
-  commitDialogJs,
+  workbenchCommitJs,
   deleteDialogJs,
   moveDialogJs,
   settleDialogJs,
-  readFrontendJs('frontend/src/knowledge/ui/diff-dialog.tsx'),
+  readFrontendJs('frontend/src/knowledge/ui/knowledge-diff-dialog.tsx'),
   readFrontendJs('frontend/src/app-shell/ui/convert-dialog.tsx'),
   readFrontendJs('frontend/src/app-shell/commands/convert-dialog.ts'),
   readFrontendJs('frontend/src/notes/ui/move-project-dialog.tsx'),
@@ -67,17 +67,18 @@ describe('P2 copy-switch — main.js & modals (tech-doc T6)', () => {
     expect(mainJs).not.toContain('加载中');
   });
 
-  it('commit-dialog.js aligns with knowledge-viewer commit copy', () => {
-    expect(commitDialogJs).toContain("↑ Commit changes");
-    expect(commitDialogJs).toContain('Checking…');
-    expect(commitDialogJs).toContain('Loading…');
-    expect(commitDialogJs).toContain('No changes to commit or push');
-    expect(commitDialogJs).toContain("label: 'New'");
-    expect(commitDialogJs).toContain('Ready to push');
-    expect(commitDialogJs).toContain('local commit(s) not yet pushed');
-    expect(commitDialogJs).toContain('✓ Committed and pushed');
-    expect(commitDialogJs).not.toContain('提交');
-    expect(commitDialogJs).not.toContain('加载中');
+  it('workbench-commit-dialog copy stays English', () => {
+    expect(workbenchCommitJs).toContain('↑ Workbench commit');
+    expect(workbenchCommitJs).toContain('↑ Commit changes');
+    expect(workbenchCommitJs).toContain('Checking…');
+    expect(workbenchCommitJs).toContain('Loading…');
+    expect(workbenchCommitJs).toContain('No changes to commit or push');
+    expect(workbenchCommitJs).toContain("label: 'New'");
+    expect(workbenchCommitJs).toContain('Ready to push');
+    expect(workbenchCommitJs).toContain('local commit(s) not yet pushed');
+    expect(workbenchCommitJs).toContain('✓ Committed and pushed');
+    expect(workbenchCommitJs).not.toContain('提交');
+    expect(workbenchCommitJs).not.toContain('加载中');
   });
 
   it('delete-dialog.js uses table B/B2 delete copy', () => {

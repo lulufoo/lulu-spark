@@ -82,7 +82,6 @@ describe('Note AC gate (tech-doc VF / T-13)', () => {
       'frontend/src/notes/commands/settle-dialog.ts',
       'frontend/src/notes/commands/move-project-dialog.ts',
       'frontend/src/notes/commands/viewer/doc.ts',
-      'frontend/src/notes/commands/viewer/commit.ts',
       'frontend/src/home/page.tsx',
     ]) {
       const src = read(rel);

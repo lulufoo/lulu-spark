@@ -2,7 +2,6 @@ import { state } from '../../state/host.ts';
 import * as api from '../../../host/api.ts';
 import { renderKbComments } from '../../ui/comments.tsx';
 import { applyKbHighlights } from '../../ui/viewer/highlight.ts';
-import { kbHidePendingBadge, kbPendingMsg } from '../../ui/viewer/chrome.tsx';
 import {
   KB_COMMIT_GROUPS,
   emptyKbCommitView,
@@ -104,7 +103,7 @@ export async function openKbCommitDialog() {
   clearRevertAllTimer();
   kbCommitViewStore.set({
     ...emptyKbCommitView(),
-    message: kbPendingMsg() || '',
+    message: '',
     loading: true,
   });
   kbCommitOpenStore.set(true);
@@ -127,7 +126,6 @@ export async function doKbCommit() {
     const data = (await api.commitKbFile(viewer().kbRepo, msg)) as { error?: string; stderr?: string };
     if (data.error) throw new Error(data.error + (data.stderr ? `\n${data.stderr}` : ''));
     patchKbCommit({ result: '✓ Committed and pushed', resultKind: 'ok' });
-    kbHidePendingBadge();
     setTimeout(closeKbCommitDialog, 1500);
   } catch (e) {
     patchKbCommit({
@@ -161,7 +159,6 @@ export async function kbRevertFile(path: string, type: string) {
     await syncAnnotationIfNeeded(path);
     const next = kbCommitViewStore.getSnapshot();
     if (!next.groups.length && !next.ahead) {
-      kbHidePendingBadge();
       setTimeout(closeKbCommitDialog, 800);
     }
   } catch (e) {
@@ -188,7 +185,6 @@ export async function kbRevertAll() {
   try {
     const data = (await api.revertKbFile(viewer().kbRepo)) as { error?: string };
     if (data.error) throw new Error(data.error);
-    kbHidePendingBadge();
     await refreshKbCommitFileList();
     const v = viewer();
     if (v.kbPath) {

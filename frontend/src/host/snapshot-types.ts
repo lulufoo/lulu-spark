@@ -97,7 +97,6 @@ export type HostViewer = {
   loading: boolean;
   editing: boolean;
   saving: boolean;
-  pendingCommit: boolean;
   bodyPaintKey: number;
   panelTitle: string;
 };

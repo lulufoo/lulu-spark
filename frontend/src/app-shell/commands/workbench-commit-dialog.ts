@@ -1,15 +1,15 @@
 import * as api from '../../host/api.ts';
 import { showToast } from '../../toast.tsx';
 import {
-  COMMIT_CHANGES_GROUPS,
-  commitChangesOpenStore,
-  commitChangesViewStore,
-  emptyCommitChangesView,
-  patchCommitChanges,
-} from '../state/commit-changes.ts';
+  WORKBENCH_COMMIT_GROUPS,
+  emptyWorkbenchCommitView,
+  patchWorkbenchCommit,
+  workbenchCommitOpenStore,
+  workbenchCommitViewStore,
+} from '../state/workbench-commit.ts';
 
-export { commitChangesOpenStore };
-export { commitChangesViewStore } from '../state/commit-changes.ts';
+export { workbenchCommitOpenStore };
+export { workbenchCommitViewStore } from '../state/workbench-commit.ts';
 
 const HEADER_LABEL_IDLE = '↑ Commit changes';
 const HEADER_LABEL_CHECKING = 'Checking…';
@@ -36,7 +36,7 @@ function clearCommitCloseTimer() {
 }
 
 function dualWriteOpen(open: boolean) {
-  const dialog = document.getElementById('commit-changes-dialog');
+  const dialog = document.getElementById('workbench-commit-dialog');
   if (!dialog) return;
   if (open) dialog.classList.add('open');
   else dialog.classList.remove('open');
@@ -49,14 +49,14 @@ function setHeaderBusy(busy: boolean) {
   headerBtn.textContent = busy ? HEADER_LABEL_CHECKING : HEADER_LABEL_IDLE;
 }
 
-export function setCommitChangesMessage(message: string) {
-  patchCommitChanges({ message });
+export function setWorkbenchCommitMessage(message: string) {
+  patchWorkbenchCommit({ message });
 }
 
-export async function openCommitChangesDialog() {
+export async function openWorkbenchCommitDialog() {
   setHeaderBusy(true);
-  commitChangesViewStore.set({ ...emptyCommitChangesView(), loading: true });
-  commitChangesOpenStore.set(true);
+  workbenchCommitViewStore.set({ ...emptyWorkbenchCommitView(), loading: true });
+  workbenchCommitOpenStore.set(true);
   dualWriteOpen(true);
 
   try {
@@ -65,7 +65,7 @@ export async function openCommitChangesDialog() {
     if (data.error) throw new Error(data.error);
 
     if (!data.total && !data.ahead) {
-      patchCommitChanges({
+      patchWorkbenchCommit({
         loading: false,
         empty: true,
         groups: [],
@@ -74,12 +74,12 @@ export async function openCommitChangesDialog() {
         okLabel: 'Commit',
       });
     } else {
-      const groups = COMMIT_CHANGES_GROUPS.flatMap(({ key, label }) => {
+      const groups = WORKBENCH_COMMIT_GROUPS.flatMap(({ key, label }) => {
         const files = data[key];
         if (!files?.length) return [];
         return [{ key, label, files }];
       });
-      patchCommitChanges({
+      patchWorkbenchCommit({
         loading: false,
         empty: false,
         error: '',
@@ -90,7 +90,7 @@ export async function openCommitChangesDialog() {
       });
     }
   } catch (err) {
-    patchCommitChanges({
+    patchWorkbenchCommit({
       loading: false,
       error: (err as Error).message,
       canCommit: true,
@@ -100,10 +100,10 @@ export async function openCommitChangesDialog() {
   }
 }
 
-export function closeCommitChangesDialog() {
-  commitChangesOpenStore.set(false);
+export function closeWorkbenchCommitDialog() {
+  workbenchCommitOpenStore.set(false);
   clearCommitCloseTimer();
-  commitChangesViewStore.set(emptyCommitChangesView());
+  workbenchCommitViewStore.set(emptyWorkbenchCommitView());
   dualWriteOpen(false);
   const headerBtn = document.getElementById('btn-push-index') as HTMLButtonElement | null;
   if (headerBtn) {
@@ -112,13 +112,13 @@ export function closeCommitChangesDialog() {
   }
 }
 
-export function doCommitChanges() {
-  const leftoverMsg = (document.getElementById('commit-changes-msg') as HTMLInputElement | null)?.value;
-  const msg = (leftoverMsg ?? commitChangesViewStore.getSnapshot().message).trim();
+export function doWorkbenchCommit() {
+  const leftoverMsg = (document.getElementById('workbench-commit-msg') as HTMLInputElement | null)?.value;
+  const msg = (leftoverMsg ?? workbenchCommitViewStore.getSnapshot().message).trim();
   clearCommitCloseTimer();
   commitCloseTimer = setTimeout(() => {
     commitCloseTimer = null;
-    closeCommitChangesDialog();
+    closeWorkbenchCommitDialog();
 
     void api
       .commitFiles(msg || 'chore: update via viewer')

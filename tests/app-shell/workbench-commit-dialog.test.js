@@ -48,19 +48,19 @@ import { showToast } from '../../frontend/src/toast.tsx';
 
 function seedDom() {
   makeEl('btn-push-index');
-  makeEl('commit-changes-dialog');
-  makeEl('commit-changes-file-list');
-  makeEl('commit-changes-result');
-  makeEl('commit-changes-msg');
-  makeEl('btn-commit-changes-ok');
-  makeEl('btn-commit-changes-cancel');
+  makeEl('workbench-commit-dialog');
+  makeEl('workbench-commit-file-list');
+  makeEl('workbench-commit-result');
+  makeEl('workbench-commit-msg');
+  makeEl('btn-workbench-commit-ok');
+  makeEl('btn-workbench-commit-cancel');
 }
 
-describe('homepage commit dialog — delayed close + background submit', () => {
+describe('workbench commit dialog — delayed close + background submit', () => {
   let resolveCommit;
   let rejectCommit;
-  let doCommitChanges;
-  let closeCommitChangesDialog;
+  let doWorkbenchCommit;
+  let closeWorkbenchCommitDialog;
 
   beforeEach(async () => {
     vi.useFakeTimers();
@@ -76,12 +76,12 @@ describe('homepage commit dialog — delayed close + background submit', () => {
         rejectCommit = reject;
       }),
     );
-    const mod = await import('../../frontend/src/app-shell/commands/commit-dialog.ts');
-    doCommitChanges = mod.doCommitChanges;
-    closeCommitChangesDialog = mod.closeCommitChangesDialog;
-    makeEl('commit-changes-dialog').classList.add('open');
+    const mod = await import('../../frontend/src/app-shell/commands/workbench-commit-dialog.ts');
+    doWorkbenchCommit = mod.doWorkbenchCommit;
+    closeWorkbenchCommitDialog = mod.closeWorkbenchCommitDialog;
+    makeEl('workbench-commit-dialog').classList.add('open');
     makeEl('btn-push-index').disabled = false;
-    makeEl('btn-push-index').textContent = '↑ 提交变更';
+    makeEl('btn-push-index').textContent = '↑ Commit changes';
   });
 
   afterEach(() => {
@@ -89,29 +89,29 @@ describe('homepage commit dialog — delayed close + background submit', () => {
   });
 
   it('AC1: keeps open class within 500ms of clicking submit', async () => {
-    doCommitChanges();
+    doWorkbenchCommit();
     await Promise.resolve();
 
-    const dialog = makeEl('commit-changes-dialog');
+    const dialog = makeEl('workbench-commit-dialog');
     expect(dialog.classList.contains('open')).toBe(true);
     expect(api.commitFiles).not.toHaveBeenCalled();
   });
 
   it('AC2: removes open class and calls commitFiles after 500ms', async () => {
-    doCommitChanges();
+    doWorkbenchCommit();
     await Promise.resolve();
 
     vi.advanceTimersByTime(500);
     await Promise.resolve();
 
-    const dialog = makeEl('commit-changes-dialog');
+    const dialog = makeEl('workbench-commit-dialog');
     expect(dialog.classList.contains('open')).toBe(false);
     expect(api.commitFiles).toHaveBeenCalledTimes(1);
     expect(resolveCommit).toBeTypeOf('function');
   });
 
   it('AC3: keeps btn-push-index enabled while commit is in flight', async () => {
-    doCommitChanges();
+    doWorkbenchCommit();
     vi.advanceTimersByTime(500);
     await Promise.resolve();
 
@@ -119,7 +119,7 @@ describe('homepage commit dialog — delayed close + background submit', () => {
   });
 
   it('AC4: shows success toast after api.commitFiles resolves', async () => {
-    doCommitChanges();
+    doWorkbenchCommit();
     vi.advanceTimersByTime(500);
     await Promise.resolve();
 
@@ -129,8 +129,8 @@ describe('homepage commit dialog — delayed close + background submit', () => {
     expect(showToast).toHaveBeenCalledWith('✓ Committed and pushed', 'success');
   });
 
-  it('AC4: shows error toast with 提交失败 prefix on reject', async () => {
-    doCommitChanges();
+  it('AC4: shows error toast with Commit failed prefix on reject', async () => {
+    doWorkbenchCommit();
     vi.advanceTimersByTime(500);
     await Promise.resolve();
 
@@ -142,22 +142,22 @@ describe('homepage commit dialog — delayed close + background submit', () => {
   });
 
   it('AC5: backdrop click during delay closes dialog without committing', async () => {
-    doCommitChanges();
+    doWorkbenchCommit();
     await Promise.resolve();
 
-    closeCommitChangesDialog();
+    closeWorkbenchCommitDialog();
 
-    expect(makeEl('commit-changes-dialog').classList.contains('open')).toBe(false);
+    expect(makeEl('workbench-commit-dialog').classList.contains('open')).toBe(false);
     vi.advanceTimersByTime(500);
     await Promise.resolve();
     expect(api.commitFiles).not.toHaveBeenCalled();
   });
 
   it('AC6: cancel during delay does not call commitFiles', async () => {
-    doCommitChanges();
+    doWorkbenchCommit();
     await Promise.resolve();
 
-    closeCommitChangesDialog();
+    closeWorkbenchCommitDialog();
 
     vi.advanceTimersByTime(500);
     await Promise.resolve();
@@ -165,8 +165,8 @@ describe('homepage commit dialog — delayed close + background submit', () => {
   });
 
   it('A2: double-click submit schedules only one commitFiles call', async () => {
-    doCommitChanges();
-    doCommitChanges();
+    doWorkbenchCommit();
+    doWorkbenchCommit();
     vi.advanceTimersByTime(500);
     await Promise.resolve();
 

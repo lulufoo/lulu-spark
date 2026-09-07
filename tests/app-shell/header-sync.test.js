@@ -6,17 +6,17 @@ vi.mock('../../frontend/src/host/api.ts', () => ({
   getReindexStatus: vi.fn(),
 }));
 
-vi.mock('../../frontend/src/knowledge/ui/diff-dialog.tsx', () => ({
-  openKbDiffDialog: vi.fn(),
+vi.mock('../../frontend/src/knowledge/ui/knowledge-diff-dialog.tsx', () => ({
+  openKnowledgeDiffDialog: vi.fn(),
 }));
 
-vi.mock('../../frontend/src/app-shell/commands/commit-dialog.ts', () => ({
-  openCommitChangesDialog: vi.fn(),
+vi.mock('../../frontend/src/app-shell/commands/workbench-commit-dialog.ts', () => ({
+  openWorkbenchCommitDialog: vi.fn(),
 }));
 
 import * as api from '../../frontend/src/host/api.ts';
-import { openKbDiffDialog } from '../../frontend/src/knowledge/ui/diff-dialog.tsx';
-import { openCommitChangesDialog } from '../../frontend/src/app-shell/commands/commit-dialog.ts';
+import { openKnowledgeDiffDialog } from '../../frontend/src/knowledge/ui/knowledge-diff-dialog.tsx';
+import { openWorkbenchCommitDialog } from '../../frontend/src/app-shell/commands/workbench-commit-dialog.ts';
 import {
   initHeaderSync,
   setHeaderSyncKnowledgeContext,
@@ -35,21 +35,21 @@ describe('header-sync', () => {
     initHeaderSync({
       pullProject: vi.fn(),
       loadIndex: vi.fn(),
-      openWorkbenchCommit: openCommitChangesDialog,
+      openWorkbenchCommit: openWorkbenchCommitDialog,
     });
   });
 
   it('routes commit to kb diff dialog when knowledge repo is active', () => {
     setHeaderSyncKnowledgeContext('owner/repo', vi.fn());
     document.getElementById('btn-push-index').click();
-    expect(openKbDiffDialog).toHaveBeenCalledWith('owner/repo');
-    expect(openCommitChangesDialog).not.toHaveBeenCalled();
+    expect(openKnowledgeDiffDialog).toHaveBeenCalledWith('owner/repo');
+    expect(openWorkbenchCommitDialog).not.toHaveBeenCalled();
   });
 
   it('routes commit to workbench dialog when no knowledge repo is active', () => {
     document.getElementById('btn-push-index').click();
-    expect(openCommitChangesDialog).toHaveBeenCalledTimes(1);
-    expect(openKbDiffDialog).not.toHaveBeenCalled();
+    expect(openWorkbenchCommitDialog).toHaveBeenCalledTimes(1);
+    expect(openKnowledgeDiffDialog).not.toHaveBeenCalled();
   });
 
   it('routes local refresh to knowledge callback when knowledge repo is active', async () => {
