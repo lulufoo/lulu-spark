@@ -6927,15 +6927,58 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
 .kb-reader-header.viewer-header {
   justify-content: flex-end;
 }
+.kb-reader-header-start {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-right: auto;
+  flex-shrink: 0;
+}
+.kb-reader-header .kb-btn-tree-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  min-width: 28px;
+  box-shadow: none;
+  appearance: none;
+  -webkit-appearance: none;
+}
+.kb-reader-header .kb-btn-tree-toggle svg {
+  display: block;
+}
+.kb-reader-header .kb-btn-tree-toggle.is-collapsed svg {
+  transform: scaleX(-1);
+}
+.kb-reader-header .md-header-btn.kb-btn-tree-toggle:hover,
+.kb-reader-header .md-header-btn.kb-btn-tree-toggle:active,
+.kb-reader-header .md-header-btn.kb-btn-tree-toggle:focus,
+.kb-reader-header .md-header-btn.kb-btn-tree-toggle:focus-visible {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  outline: none;
+  color: #1f2328;
+}
 .kb-reader-header-meta {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-right: auto;
   font-size: 12px;
   line-height: 1.25;
   color: #8c959f;
   flex-shrink: 0;
+}
+.knowledge-doc-layout.is-tree-collapsed .knowledge-doc-sidebar {
+  width: 0 !important;
+  flex: 0 0 0 !important;
+  min-width: 0 !important;
+  border-right: none;
+  overflow: hidden;
+  visibility: hidden;
+}
+.knowledge-doc-layout.is-tree-collapsed .knowledge-sidebar-resizer {
+  display: none;
 }
 .knowledge-doc-sidebar-header {
   display: flex;

@@ -6,6 +6,7 @@ import * as api from '../host/api.ts';
 import { mountKbReader } from './viewer.ts';
 import { setHeaderSyncKnowledgeContext, clearHeaderSyncKnowledgeContext } from '../app-shell/commands/header-sync.ts';
 import { attachKnowledgeSidebarResize, detachKnowledgeSidebarResize } from './ui/sidebar-resize.ts';
+import { attachKnowledgeTreeToggle, detachKnowledgeTreeToggle } from './commands/tree-collapse.ts';
 import { closeFloatingListSelect, createFloatingListSelect } from '../shared/floating-list-select.ts';
 import type { RepoPickerOption, RepoRecord, TreeNode } from './state/types.ts';
 import { publishKnowledgeTree } from './state/tree.ts';
@@ -193,6 +194,7 @@ function startKnowledgeDocSession(
 
   function renderShell(repos: RepoRecord[]) {
     paint(<KnowledgeDocLayout />);
+    attachKnowledgeTreeToggle(container.querySelector('.knowledge-doc-layout'));
     mountRepoPicker(repos);
   }
 
@@ -579,6 +581,7 @@ function startKnowledgeDocSession(
     treeEl = null;
     closeFloatingListSelect();
     detachKnowledgeSidebarResize();
+    detachKnowledgeTreeToggle();
     unmountReader?.();
     unmountReader = null;
     clearHeaderSyncKnowledgeContext();

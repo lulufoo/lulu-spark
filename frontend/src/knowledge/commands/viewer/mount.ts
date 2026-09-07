@@ -10,6 +10,7 @@ import { paintKbMdBody } from './paint.ts';
 import { openKnowledgeInChat } from '../open-in-chat.ts';
 import { paintKbError, paintKbLoading, paintKbPlain, paintReaderShell } from '../../ui/viewer/shell.tsx';
 import { paintKbCommittedAt } from '../../state/committed-at.ts';
+import { syncKnowledgeTreeToggle } from '../tree-collapse.ts';
 import {
   errMessage,
   type KbReaderHost,
@@ -63,6 +64,7 @@ export async function mountKbReader(
   let root = paintReaderShell(container);
 
   const ui = {
+    treeToggle: container.querySelector('.kb-btn-tree-toggle') as HTMLButtonElement,
     fileSize: container.querySelector('.kb-file-size') as HTMLElement,
     committedAt: container.querySelector('.kb-file-committed') as HTMLElement,
     btnCopyHttp: container.querySelector('.kb-btn-copy-http') as HTMLButtonElement,
@@ -87,6 +89,7 @@ export async function mountKbReader(
   ui.btnCopyPath.dataset.tip = localPath;
   ui.fileSize.textContent = '';
   paintKbCommittedAt(ui.committedAt, null);
+  syncKnowledgeTreeToggle(ui.treeToggle);
 
   function enterEditMode() {
     setDocEditMode({

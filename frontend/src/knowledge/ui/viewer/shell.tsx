@@ -5,12 +5,27 @@ import { renderToHtml } from '../../../island.ts';
 import { KbLinksBar } from '../links-bar.tsx';
 import { KbCommentFloatNav, KbCommentsBar } from '../comments.tsx';
 
+const TREE_TOGGLE_ICON_SVG =
+  '<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><rect x="1.75" y="2.25" width="12.5" height="11.5" rx="2" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M6.25 2.25v11.5" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>';
+
+function TreeToggleIcon() {
+  return (
+    <svg viewBox="0 0 16 16" width={16} height={16} aria-hidden="true" focusable="false">
+      <rect x="1.75" y="2.25" width="12.5" height="11.5" rx="2" fill="none" stroke="currentColor" strokeWidth="1.3" />
+      <path d="M6.25 2.25v11.5" fill="none" stroke="currentColor" strokeWidth="1.3" />
+    </svg>
+  );
+}
+
 const FALLBACK_SHELL_HTML = `
     <div class="kb-reader">
       <div class="kb-reader-header viewer-header">
-        <span class="kb-reader-header-meta">
-          <span class="kb-file-committed" title="Last git commit" hidden></span>
-          <span class="kb-file-size"></span>
+        <span class="kb-reader-header-start">
+          <button type="button" class="md-header-btn kb-btn-tree-toggle" title="Collapse directory" aria-label="Collapse directory" aria-expanded="true">${TREE_TOGGLE_ICON_SVG}</button>
+          <span class="kb-reader-header-meta">
+            <span class="kb-file-committed" title="Last git commit" hidden></span>
+            <span class="kb-file-size"></span>
+          </span>
         </span>
         <button type="button" class="md-header-btn kb-btn-copy-http" data-tip="">&#127760;</button>
         <button type="button" class="md-header-btn kb-btn-copy-path" data-tip="">&#128194;</button>
@@ -38,9 +53,20 @@ export function ReaderShell() {
   return (
     <div className="kb-reader">
       <div className="kb-reader-header viewer-header">
-        <span className="kb-reader-header-meta">
-          <span className="kb-file-committed" title="Last git commit" hidden />
-          <span className="kb-file-size" />
+        <span className="kb-reader-header-start">
+          <button
+            type="button"
+            className="md-header-btn kb-btn-tree-toggle"
+            title="Collapse directory"
+            aria-label="Collapse directory"
+            aria-expanded="true"
+          >
+            <TreeToggleIcon />
+          </button>
+          <span className="kb-reader-header-meta">
+            <span className="kb-file-committed" title="Last git commit" hidden />
+            <span className="kb-file-size" />
+          </span>
         </span>
         <button type="button" className="md-header-btn kb-btn-copy-http" data-tip="">
           &#127760;

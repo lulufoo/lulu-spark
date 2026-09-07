@@ -144,9 +144,14 @@ describe('mountKbReader', () => {
     });
     await flushPromises();
 
+    const start = container.querySelector('.kb-reader-header-start');
+    const toggle = container.querySelector('.kb-btn-tree-toggle');
     const meta = container.querySelector('.kb-reader-header-meta');
     const size = container.querySelector('.kb-file-size');
     const committed = container.querySelector('.kb-file-committed');
+    expect(start?.contains(toggle)).toBe(true);
+    expect(toggle?.querySelector('svg')).not.toBeNull();
+    expect(toggle?.nextElementSibling).toBe(meta);
     expect(meta?.contains(committed)).toBe(true);
     expect(committed?.nextElementSibling).toBe(size);
     expect(size?.textContent).toMatch(/B|KB|MB/);
