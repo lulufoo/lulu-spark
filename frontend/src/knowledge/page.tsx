@@ -17,7 +17,17 @@ import {
   knowledgeLandingHash,
   saveKbViewerState,
 } from './commands/viewer-state.ts';
+import { commitKbTreeCreate } from './commands/tree-create.ts';
+import { commitKbTreeDelete } from './commands/tree-delete.ts';
 import { commitKbTreeRename } from './commands/tree-rename.ts';
+import {
+  creatingPathFor,
+  insertDraftNode,
+  parentPathForAdd,
+  removeTreeNode,
+  type CreateKind,
+} from './state/tree-entry.ts';
+import { openKnowledgeTreeMenu } from './state/tree-menu.ts';
 import { resolveRenamePathFromKeydown } from './state/tree-rename.ts';
 import { KnowledgeDocLayout } from './ui/sidebar.tsx';
 
@@ -57,11 +67,14 @@ function startKnowledgeDocSession(
   let selectedPath = initialPath || '';
   let openedPath = '';
   let renamingPath = '';
+  let creatingParent = '';
+  let creatingKind: CreateKind | '' = '';
   let unmountReader: (() => void) | null = null;
   const dirCache = new Map<string, Array<{ name: string; relative_path: string; is_dir: boolean }>>();
   let sedimentRepos: RepoRecord[] = [];
   let repoPickerSync: ((next: { value: string; options: RepoPickerOption[] }) => void) | null = null;
   let sidebarEl: HTMLElement | null = null;
+  let treeEl: HTMLElement | null = null;
 
   function findNode(nodes: TreeNode[], relativePath: string): TreeNode | null {
     for (const node of nodes) {
@@ -263,10 +276,96 @@ function startKnowledgeDocSession(
     await mountReaderAt(next);
   }
 
+  function clearCreateDraft() {
+    if (!creatingKind) return;
+    const draftPath = creatingPathFor(creatingParent);
+    rootNodes = removeTreeNode(rootNodes, draftPath);
+    creatingKind = '';
+    creatingParent = '';
+    if (renamingPath === draftPath) renamingPath = '';
+  }
+
   function clearRename() {
+    if (creatingKind) {
+      clearCreateDraft();
+      renderSidebar();
+      return;
+    }
     if (!renamingPath) return;
     renamingPath = '';
     renderSidebar();
+  }
+
+  async function startCreate(kind: CreateKind, targetPath: string, isDir: boolean) {
+    const parent = parentPathForAdd(targetPath, isDir);
+    if (parent) {
+      const node = findNode(rootNodes, parent);
+      if (node && !node.expanded) await expandNode(node);
+    }
+    if (disposed) return;
+    if (creatingKind) clearCreateDraft();
+    rootNodes = insertDraftNode(rootNodes, parent, kind);
+    creatingParent = parent;
+    creatingKind = kind;
+    renamingPath = creatingPathFor(parent);
+    selectedPath = renamingPath;
+    renderSidebar();
+  }
+
+  async function commitCreate(name: string) {
+    const parent = creatingParent;
+    const kind = creatingKind;
+    if (!kind) return;
+    try {
+      const result = await commitKbTreeCreate(
+        { repo, nodes: rootNodes, dirCache },
+        parent,
+        kind,
+        name,
+      );
+      if (disposed) return;
+      if (result.kind === 'invalid') {
+        alert(`Create failed: ${result.message}`);
+        return;
+      }
+      rootNodes = result.nodes;
+      selectedPath = result.selectedPath;
+      creatingKind = '';
+      creatingParent = '';
+      renamingPath = '';
+      renderSidebar();
+      if (result.openedPath) {
+        await navigateToPath(result.openedPath);
+        syncKnowledgeHash(result.openedPath);
+        if (isKnowledgeMdPath(result.openedPath)) {
+          await saveKbViewerState(repo, result.openedPath);
+        }
+      }
+    } catch (err) {
+      alert(`Create failed: ${errorMessage(err, 'unknown error')}`);
+    }
+  }
+
+  async function commitDelete(path: string) {
+    if (!path) return;
+    try {
+      const result = await commitKbTreeDelete(
+        { repo, nodes: rootNodes, dirCache, selectedPath, openedPath },
+        path,
+      );
+      if (disposed) return;
+      rootNodes = result.nodes;
+      selectedPath = result.selectedPath;
+      openedPath = result.openedPath;
+      renderSidebar();
+      if (result.openedChanged) {
+        await navigateToPath(openedPath);
+        syncKnowledgeHash(openedPath);
+        await saveKbViewerState(repo, isKnowledgeMdPath(openedPath) ? openedPath : '');
+      }
+    } catch (err) {
+      alert(`Delete failed: ${errorMessage(err, 'unknown error')}`);
+    }
   }
 
   async function commitRename(name: string) {
@@ -336,6 +435,10 @@ function startKnowledgeDocSession(
 
   const onRenameCommit = (event: Event) => {
     const name = String((event as CustomEvent<{ name?: string }>).detail?.name ?? '');
+    if (creatingKind) {
+      void commitCreate(name);
+      return;
+    }
     void commitRename(name);
   };
 
@@ -350,10 +453,12 @@ function startKnowledgeDocSession(
     const target = event.target as Element | null;
     if (target?.closest?.('.knowledge-doc-tree-rename')) return;
     const labelBtn = target?.closest?.('.knowledge-doc-tree-label');
+    if (creatingKind) return;
     if (!labelBtn) return;
     const nodeEl = labelBtn.closest('.knowledge-doc-tree-node') as HTMLElement | null;
     const relativePath = nodeEl?.dataset.relativePath ?? '';
     const isDir = nodeEl?.dataset.isDir === '1';
+    if (relativePath === creatingPathFor(creatingParent)) return;
     if (isDir) {
       selectedPath = relativePath;
       const node = findNode(rootNodes, relativePath);
@@ -369,6 +474,29 @@ function startKnowledgeDocSession(
         await saveKbViewerState(repo, relativePath);
       }
     })();
+  };
+
+  const onTreeContextMenu = (event: MouseEvent) => {
+    const target = event.target as Element | null;
+    if (target?.closest?.('.knowledge-doc-tree-rename')) return;
+    event.preventDefault();
+    const nodeEl = target?.closest?.('.knowledge-doc-tree-node') as HTMLElement | null;
+    const path = nodeEl?.dataset.relativePath ?? '';
+    const isDir = nodeEl ? nodeEl.dataset.isDir === '1' : true;
+    if (path && path === creatingPathFor(creatingParent)) return;
+    openKnowledgeTreeMenu({ x: event.clientX, y: event.clientY, path, isDir });
+  };
+
+  const onTreeAdd = (event: Event) => {
+    const detail = (event as CustomEvent<{ kind?: CreateKind; path?: string; isDir?: boolean }>).detail;
+    const kind = detail?.kind;
+    if (kind !== 'file' && kind !== 'dir') return;
+    void startCreate(kind, detail.path ?? '', Boolean(detail.isDir));
+  };
+
+  const onTreeDelete = (event: Event) => {
+    const path = String((event as CustomEvent<{ path?: string }>).detail?.path ?? '');
+    void commitDelete(path);
   };
 
   paint(loadingNode());
@@ -409,9 +537,13 @@ function startKnowledgeDocSession(
       attachKnowledgeSidebarResize(container.querySelector('.knowledge-doc-sidebar') as HTMLElement);
       setHeaderSyncKnowledgeContext(repo, reloadFromDisk);
       sidebarEl = container.querySelector('.knowledge-doc-sidebar');
+      treeEl = container.querySelector('.knowledge-doc-sidebar-tree');
       sidebarEl?.addEventListener('click', onSidebarClick);
       sidebarEl?.addEventListener('kb:tree-rename-commit', onRenameCommit);
       sidebarEl?.addEventListener('kb:tree-rename-cancel', onRenameCancel);
+      sidebarEl?.addEventListener('kb:tree-add', onTreeAdd);
+      sidebarEl?.addEventListener('kb:tree-delete-confirm', onTreeDelete);
+      treeEl?.addEventListener('contextmenu', onTreeContextMenu);
       shelled = true;
       renderSidebar();
       await applyKbViewerRestore({
@@ -438,9 +570,13 @@ function startKnowledgeDocSession(
     sidebarEl?.removeEventListener('click', onSidebarClick);
     sidebarEl?.removeEventListener('kb:tree-rename-commit', onRenameCommit);
     sidebarEl?.removeEventListener('kb:tree-rename-cancel', onRenameCancel);
+    sidebarEl?.removeEventListener('kb:tree-add', onTreeAdd);
+    sidebarEl?.removeEventListener('kb:tree-delete-confirm', onTreeDelete);
+    treeEl?.removeEventListener('contextmenu', onTreeContextMenu);
     container.removeEventListener('keydown', onPageKeyDown, true);
     window.removeEventListener('keydown', onPageKeyDown, true);
     sidebarEl = null;
+    treeEl = null;
     closeFloatingListSelect();
     detachKnowledgeSidebarResize();
     unmountReader?.();

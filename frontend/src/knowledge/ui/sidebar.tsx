@@ -1,6 +1,8 @@
 import { useLayoutEffect, useRef, useSyncExternalStore } from 'react';
 import type { TreeNode } from '../state/types.ts';
 import { knowledgeTreeStore } from '../state/tree.ts';
+import { KnowledgeTreeDeleteDialog } from './tree-delete-dialog.tsx';
+import { KnowledgeTreeMenu } from './tree-menu.tsx';
 import { ReaderShell } from './viewer/shell.tsx';
 
 function TreeChevron({ expanded }: { expanded: boolean }) {
@@ -242,6 +244,8 @@ export function KnowledgeDocLayout() {
           aria-label="Resize knowledge tree"
           tabIndex={0}
         />
+        <KnowledgeTreeMenu />
+        <KnowledgeTreeDeleteDialog />
       </aside>
       <section className="knowledge-doc-reader-pane">
         <ReaderShell />

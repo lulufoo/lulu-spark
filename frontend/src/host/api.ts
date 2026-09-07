@@ -82,6 +82,8 @@ export {
   reindexAll,
   reindexKbRepo,
   removeKbHidePattern,
+  createKbEntry,
+  deleteKbEntry,
   renameKbEntry,
   removeSedimentKbCategory,
   removeSedimentKbRepo,

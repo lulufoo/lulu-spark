@@ -13,6 +13,8 @@ commands.allow = [
   "write_abs_file",
   "kb_save",
   "kb_rename",
+  "kb_create",
+  "kb_delete",
   "kb_update_comments",
   "kb_reorder_comments",
   "kb_update_highlights",

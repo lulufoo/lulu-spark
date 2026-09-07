@@ -33,6 +33,7 @@ const modalSources = [
   moveDialogJs,
   settleDialogJs,
   readFrontendJs('frontend/src/knowledge/ui/knowledge-diff-dialog.tsx'),
+  readFrontendJs('frontend/src/knowledge/ui/tree-delete-dialog.tsx'),
   readFrontendJs('frontend/src/app-shell/ui/convert-dialog.tsx'),
   readFrontendJs('frontend/src/app-shell/commands/convert-dialog.ts'),
   readFrontendJs('frontend/src/notes/ui/move-project-dialog.tsx'),
@@ -79,6 +80,13 @@ describe('P2 copy-switch — main.js & modals (tech-doc T6)', () => {
     expect(workbenchCommitJs).toContain('✓ Committed and pushed');
     expect(workbenchCommitJs).not.toContain('提交');
     expect(workbenchCommitJs).not.toContain('加载中');
+  });
+
+  it('knowledge tree delete requires CONFIRM in English', () => {
+    const src = readFrontendJs('frontend/src/knowledge/ui/tree-delete-dialog.tsx');
+    expect(src).toContain('Type <code>CONFIRM</code> to delete');
+    expect(src).toContain('Confirm delete');
+    expect(src).not.toContain('确认删除');
   });
 
   it('delete-dialog.js uses table B/B2 delete copy', () => {

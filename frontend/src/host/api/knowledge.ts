@@ -152,6 +152,19 @@ export async function renameKbEntry(repo: PathArg, path: PathArg, name: string) 
   return writePost('/api/kb/rename', { repo, path, name });
 }
 
+export async function createKbEntry(
+  repo: PathArg,
+  parent: PathArg,
+  name: string,
+  kind: 'file' | 'dir',
+) {
+  return writePost('/api/kb/create', { repo, parent, name, kind });
+}
+
+export async function deleteKbEntry(repo: PathArg, path: PathArg) {
+  return writePost('/api/kb/delete', { repo, path });
+}
+
 export async function commitKbFile(repo: PathArg, message: string) {
   return writePost('/api/kb/commit', { repo, message });
 }

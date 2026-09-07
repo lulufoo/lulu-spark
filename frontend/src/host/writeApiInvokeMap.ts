@@ -108,6 +108,22 @@ export const WRITE_API_INVOKE_MAP: Record<string, WriteInvokeEntry> = {
       name: body.name,
     }),
   },
+  '/api/kb/create': {
+    cmd: 'kb_create',
+    args: (body) => ({
+      repo: body.repo,
+      parent: body.parent,
+      name: body.name,
+      kind: body.kind,
+    }),
+  },
+  '/api/kb/delete': {
+    cmd: 'kb_delete',
+    args: (body) => ({
+      repo: body.repo,
+      path: body.path,
+    }),
+  },
   '/api/kb/update-comments': {
     cmd: 'kb_update_comments',
     args: (body) => ({

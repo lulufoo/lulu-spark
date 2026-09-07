@@ -162,6 +162,8 @@ pub fn run() {
             commands::write::write_abs_file,
             commands::write::kb_save,
             commands::write::kb_rename,
+            commands::kb_entry::kb_create,
+            commands::kb_entry::kb_delete,
             commands::write::kb_update_comments,
             commands::write::kb_reorder_comments,
             commands::write::kb_update_highlights,

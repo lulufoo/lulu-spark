@@ -16,6 +16,8 @@ const P2_PATHS = [
   ['/api/set-importance', 'set_importance', ['commonPath', 'importance']],
   ['/api/kb/save', 'kb_save', ['repo', 'path', 'content']],
   ['/api/kb/rename', 'kb_rename', ['repo', 'path', 'name']],
+  ['/api/kb/create', 'kb_create', ['repo', 'parent', 'name', 'kind']],
+  ['/api/kb/delete', 'kb_delete', ['repo', 'path']],
   ['/api/kb/update-comments', 'kb_update_comments', ['repo', 'path', 'comment', 'ts']],
   ['/api/kb/reorder-comments', 'kb_reorder_comments', ['repo', 'path', 'ids']],
   ['/api/kb/update-highlights', 'kb_update_highlights', ['repo', 'path', 'highlight', 'ts']],

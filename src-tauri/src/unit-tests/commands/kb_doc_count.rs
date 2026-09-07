@@ -29,6 +29,14 @@ fn kb_doc_count_registered_in_lib_rs() {
         lib.contains("commands::write::kb_rename"),
         "lib.rs invoke handler must register commands::write::kb_rename"
     );
+    assert!(
+        lib.contains("commands::kb_entry::kb_create"),
+        "lib.rs invoke handler must register commands::kb_entry::kb_create"
+    );
+    assert!(
+        lib.contains("commands::kb_entry::kb_delete"),
+        "lib.rs invoke handler must register commands::kb_entry::kb_delete"
+    );
 }
 
 #[test]

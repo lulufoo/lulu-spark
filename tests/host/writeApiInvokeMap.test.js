@@ -17,6 +17,8 @@ const P2_WRITE_PATHS = [
   '/api/read-later',
   '/api/kb/save',
   '/api/kb/rename',
+  '/api/kb/create',
+  '/api/kb/delete',
   '/api/kb/update-comments',
   '/api/kb/reorder-comments',
   '/api/kb/update-highlights',
@@ -57,7 +59,7 @@ describe('writeApiInvokeMap', () => {
     for (const p of P2_WRITE_PATHS) {
       expect(WRITE_API_INVOKE_MAP[p]?.cmd, p).toBeTruthy();
     }
-    expect(Object.keys(WRITE_API_INVOKE_MAP)).toHaveLength(37);
+    expect(Object.keys(WRITE_API_INVOKE_MAP)).toHaveLength(39);
   });
 
   it('maps /api/file absolute-path write to write_abs_file', () => {
