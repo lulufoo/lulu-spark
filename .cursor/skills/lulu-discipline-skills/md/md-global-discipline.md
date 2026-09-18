@@ -12,10 +12,8 @@ Applies when: creating or editing `.md` document files.
 
 ## Editing Basics
 
-- When interpreting source code, attach the official link at the top of the document.
-- File name must match the document title, using `a-b-c.md` format.
+- File name is English `a-b-c.md`.
 - Temporary files default to the workspace `.cache` directory.
-- Before editing an existing document, read through all affected sections first.
 
 ---
 

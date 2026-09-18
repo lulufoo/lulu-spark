@@ -9,6 +9,6 @@
   },
   "gitGuard": {
     "enabled": true,
-    "referenceDoc": "docs/git/git-workflow-standard.md"
+    "referenceDoc": ".cursor/skills/lulu-discipline-skills/git/git-workflow-standard.md"
   }
 }

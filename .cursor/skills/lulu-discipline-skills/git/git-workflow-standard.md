@@ -12,7 +12,7 @@ This document defines **what git operations AI may perform** — authorization, 
 |---|---|
 | This doc | Git action limits (authorization, gates, forbidden ops, conflict policy) |
 | Not in this doc | Workflow-specific procedures (worktree setup, per-task commits, delivery) → see the active workflow SKILL |
-| GitHub URL content | See `docs/git/git-gh-operations.md` |
+| GitHub URL content | See `.cursor/skills/lulu-discipline-skills/git/git-gh-operations.md` |
 | Trigger | Read this doc before any git command |
 
 ---
@@ -59,12 +59,9 @@ Pass commit messages via HEREDOC to avoid shell escaping issues:
 git commit -m "$(cat <<'EOF'
 <type>(<scope>): <subject>
 
-LLM: <model>
 EOF
 )"
 ```
-
-When the commit includes LLM-authored code, the `LLM:` trailer is required. Use the model name shown to the user in conversation (e.g. `Cursor Grok 4.6`), not a kebab-case slug. Omit the trailer on human-only commits.
 
 ---
 
@@ -122,7 +119,7 @@ Interactive `rebase` · `cherry-pick` · `tag` · `commit --amend` · `bisect` �
 |---|---|
 | Local git operations | `git` |
 | GitHub: PRs, issues, checks, API | `gh` |
-| Read files from GitHub URLs | Do not fetch via HTTP — read `docs/git/git-gh-operations.md` |
+| Read files from GitHub URLs | Do not fetch via HTTP — read `.cursor/skills/lulu-discipline-skills/git/git-gh-operations.md` |
 
 ---
 
@@ -131,7 +128,6 @@ Interactive `rebase` · `cherry-pick` · `tag` · `commit --amend` · `bisect` �
 | Item | Format |
 |---|---|
 | Commit message | `<type>(<scope>): <subject>` |
-| Commit LLM trailer | `LLM: <model>` — required when an LLM modified code; use the conversation-facing model name |
 | Allowed types | `feat` `fix` `test` `chore` `docs` `refactor` `style` `perf` |
 | Branch | Descriptive name; do not develop directly on protected branches (`main`) |
 
