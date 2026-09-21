@@ -1,12 +1,15 @@
 package com.lulu.workbench.android.chat.commands
 
 import com.lulu.workbench.android.agent.facade.AgentFacade
+import com.lulu.workbench.android.agent.facade.WorkbenchRuntime
 import com.lulu.workbench.android.agent.loop.TurnProgress
 import com.lulu.workbench.android.agent.session.HistoryTurn
 import com.lulu.workbench.android.agent.session.SessionId
 import com.lulu.workbench.android.agent.tools.stage.StagedItem
 import com.lulu.workbench.android.asr.AsrAudioFormat
 import com.lulu.workbench.android.asr.AsrClient
+import dagger.hilt.android.scopes.ViewModelScoped
+import javax.inject.Inject
 
 class ChatCommands(
     private val create: () -> SessionId,
@@ -34,6 +37,12 @@ class ChatCommands(
         recorder = recorder,
         stagedOf = { id -> agent.listStaged(id) },
     )
+
+    @Inject
+    constructor(
+        runtime: WorkbenchRuntime,
+        recorder: VoiceRecorder,
+    ) : this(runtime.agent, runtime.asr, recorder)
 
     fun createSession(): SessionId = create()
 

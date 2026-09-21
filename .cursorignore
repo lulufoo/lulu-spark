@@ -1,0 +1,12 @@
+# gitignore 仍排除整个 build/。这里只把 Hilt/KSP 生成源码重新纳入 Cursor 搜索。
+# 被排除的目录不会往下走，必须先一层层打开父目录。
+# https://cursor.com/docs/reference/ignore-file
+
+!lulu-workbench/app/build/
+lulu-workbench/app/build/*
+!lulu-workbench/app/build/generated/
+lulu-workbench/app/build/generated/*
+!lulu-workbench/app/build/generated/hilt/
+!lulu-workbench/app/build/generated/hilt/**
+!lulu-workbench/app/build/generated/ksp/
+!lulu-workbench/app/build/generated/ksp/**

@@ -10,11 +10,12 @@ import com.lulu.workbench.android.asr.pcmToWav
 import com.lulu.workbench.android.log.LogModule
 import com.lulu.workbench.android.log.WbLog
 import java.io.ByteArrayOutputStream
+import javax.inject.Inject
 import kotlin.math.max
 
 private const val ReadBytes = 4_096
 
-class AndroidVoiceRecorder : VoiceRecorder {
+class AndroidVoiceRecorder @Inject constructor() : VoiceRecorder {
     private val pcm = ByteArrayOutputStream()
     private var record: AudioRecord? = null
     private var reader: Thread? = null

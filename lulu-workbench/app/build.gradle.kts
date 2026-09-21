@@ -1,6 +1,8 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.hilt)
+    alias(libs.plugins.ksp)
 }
 
 android {
@@ -39,6 +41,17 @@ android {
     }
 }
 
+// Hilt 只把组件 class 挂进字节码，不登记 component_sources。
+// 自定义 source type 只给 Android Studio 索引，不进 javac。
+// https://developer.android.com/reference/tools/gradle-api/9.1/com/android/build/api/variant/Sources#getByName(kotlin.String)
+androidComponents {
+    onVariants { variant ->
+        variant.sources.getByName("hiltComponentSources").addStaticSourceDirectory(
+            "build/generated/hilt/component_sources/${variant.name}",
+        )
+    }
+}
+
 dependencies {
     implementation(project(":agent"))
     implementation(project(":llm"))
@@ -50,7 +63,11 @@ dependencies {
     implementation(libs.androidx.core.splashscreen)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.runtime.compose)
+    implementation(libs.androidx.lifecycle.viewmodel.ktx)
+    implementation(libs.androidx.activity.ktx)
     implementation(libs.androidx.activity.compose)
+    implementation(libs.hilt.android)
+    ksp(libs.hilt.compiler)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)

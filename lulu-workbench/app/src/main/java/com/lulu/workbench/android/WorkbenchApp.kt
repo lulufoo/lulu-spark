@@ -6,7 +6,9 @@ import com.lulu.workbench.android.agent.facade.WorkbenchRuntime
 import com.lulu.workbench.android.log.AndroidLogEnv
 import com.lulu.workbench.android.log.LogModule
 import com.lulu.workbench.android.log.WbLog
+import dagger.hilt.android.HiltAndroidApp
 
+@HiltAndroidApp
 class WorkbenchApp : Application() {
     lateinit var runtime: WorkbenchRuntime
         private set
