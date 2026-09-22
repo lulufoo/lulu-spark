@@ -29,6 +29,18 @@
         ]
       },
       {
+        "glob": "**/*.java",
+        "required": [
+          ".cursor/skills/lulu-discipline-skills/coding/java-coding-constraints.md"
+        ]
+      },
+      {
+        "glob": "**/*.kt",
+        "required": [
+          ".cursor/skills/lulu-discipline-skills/coding/kt-coding-constraints.md"
+        ]
+      },
+      {
         "glob": "**/*.md",
         "required": [
           "docs/md/md-operations.md"
