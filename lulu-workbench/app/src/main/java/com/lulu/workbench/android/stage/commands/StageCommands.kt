@@ -1,7 +1,9 @@
 package com.lulu.workbench.android.stage.commands
 
 import com.lulu.workbench.android.agent.facade.AgentFacade
+import com.lulu.workbench.android.agent.facade.WorkbenchRuntime
 import com.lulu.workbench.android.agent.tools.stage.StagedItem
+import javax.inject.Inject
 
 class StageCommands(
     private val listAll: () -> List<StagedItem>,
@@ -15,6 +17,9 @@ class StageCommands(
         save = { id, title, body -> agent.updateStaged(id, title, body) },
         remove = { agent.deleteStaged(it) },
     )
+
+    @Inject
+    constructor(runtime: WorkbenchRuntime) : this(runtime.agent)
 
     fun list(): List<StagedItem> = listAll()
 

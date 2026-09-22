@@ -31,7 +31,6 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         applyChatWindowIme(window)
         setContent {
-            val chatStore = chatViewModel.store
             LuLuWorkbenchTheme {
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
@@ -39,7 +38,7 @@ class MainActivity : ComponentActivity() {
                     contentWindowInsets = WindowInsets(0, 0, 0, 0),
                 ) { _ ->
                     ChatScreen(
-                        store = chatStore,
+                        viewModel = chatViewModel,
                         onOpenSettings = {
                             startActivity(Intent(this@MainActivity, SettingsActivity::class.java))
                         },
@@ -47,7 +46,7 @@ class MainActivity : ComponentActivity() {
                             startActivity(
                                 StageActivity.fileIntent(
                                     this@MainActivity,
-                                    chatStore.state.sessionId,
+                                    chatViewModel.state.value.sessionId,
                                     id,
                                 ),
                             )
@@ -56,7 +55,7 @@ class MainActivity : ComponentActivity() {
                             startActivity(
                                 StageActivity.listIntent(
                                     this@MainActivity,
-                                    chatStore.state.sessionId,
+                                    chatViewModel.state.value.sessionId,
                                 ),
                             )
                         },

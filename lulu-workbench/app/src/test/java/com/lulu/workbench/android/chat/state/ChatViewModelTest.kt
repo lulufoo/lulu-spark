@@ -5,46 +5,45 @@ import com.lulu.workbench.android.agent.session.HistoryTurn
 import com.lulu.workbench.android.agent.session.SessionId
 import com.lulu.workbench.android.agent.session.sessionTitle
 import com.lulu.workbench.android.agent.tools.stage.StagedItem
+import com.lulu.workbench.android.chat.ChatViewModel
 import com.lulu.workbench.android.chat.commands.ChatCommands
-import com.lulu.workbench.android.wmcp.McpKeepAlive
-import com.lulu.workbench.android.wmcp.McpLinkListener
 import com.lulu.workbench.android.wmcp.McpLinkState
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-class ChatStoreTest {
+class ChatViewModelTest {
     @Test
     fun sendShowsRequestingThenClearsOnFinish() {
         val seen = mutableListOf<String>()
-        lateinit var store: ChatStore
-        store = ChatStore(
+        lateinit var store: ChatViewModel
+        store = ChatViewModel(
             ChatCommands(
                 create = { SessionId("sess_test") },
                 sendTurn = { _, _, onProgress ->
                     onProgress(TurnProgress.CallingLlm)
-                    seen.add(store.state.progress)
+                    seen.add(store.state.value.progress)
                     onProgress(TurnProgress.CallingTool("read"))
-                    seen.add(store.state.progress)
+                    seen.add(store.state.value.progress)
                     onProgress(TurnProgress.Finished("ok"))
                 },
             ),
         )
         store.dispatch(ChatIntent.Send("  hello  "))
         assertEquals(listOf("Requesting…", "Calling read…"), seen)
-        assertEquals("ok", store.state.lastReply)
-        assertEquals("", store.state.progress)
-        assertFalse(store.state.inFlight)
-        assertEquals(listOf("user", "assistant"), store.state.turns.map { it.role })
-        assertEquals("hello", store.state.turns[0].content)
-        assertEquals("ok", store.state.turns[1].content)
+        assertEquals("ok", store.state.value.lastReply)
+        assertEquals("", store.state.value.progress)
+        assertFalse(store.state.value.inFlight)
+        assertEquals(listOf("user", "assistant"), store.state.value.turns.map { it.role })
+        assertEquals("hello", store.state.value.turns[0].content)
+        assertEquals("ok", store.state.value.turns[1].content)
     }
 
     @Test
     fun blankOrInFlightSendIsIgnored() {
         var sends = 0
-        val store = ChatStore(
+        val store = ChatViewModel(
             ChatCommands(
                 create = { SessionId("sess_test") },
                 sendTurn = { _, _, onProgress ->
@@ -56,14 +55,14 @@ class ChatStoreTest {
         store.dispatch(ChatIntent.Send("   "))
         assertEquals(0, sends)
         store.dispatch(ChatIntent.Send("hi"))
-        assertTrue(store.state.inFlight)
+        assertTrue(store.state.value.inFlight)
         store.dispatch(ChatIntent.Send("again"))
         assertEquals(1, sends)
     }
 
     @Test
     fun sendExceptionClearsInFlight() {
-        val store = ChatStore(
+        val store = ChatViewModel(
             ChatCommands(
                 create = { SessionId("sess_test") },
                 sendTurn = { _, _, _ ->
@@ -72,8 +71,8 @@ class ChatStoreTest {
             ),
         )
         store.dispatch(ChatIntent.Send("hi"))
-        assertFalse(store.state.inFlight)
-        assertEquals("mcp tools/list failed 406", store.state.lastReply)
+        assertFalse(store.state.value.inFlight)
+        assertEquals("mcp tools/list failed 406", store.state.value.lastReply)
     }
 
     @Test
@@ -88,7 +87,7 @@ class ChatStoreTest {
                 HistoryTurn("assistant", "new answer"),
             ),
         )
-        val store = ChatStore(
+        val store = ChatViewModel(
             ChatCommands(
                 create = { SessionId("sess_fresh") },
                 sendTurn = { _, _, _ -> },
@@ -96,17 +95,17 @@ class ChatStoreTest {
                 turnsOf = { id -> turns.getValue(id.value) },
             ),
         )
-        assertEquals("sess_new", store.state.sessionId)
-        assertEquals("new answer", store.state.lastReply)
-        assertEquals(listOf("user", "assistant"), store.state.turns.map { it.role })
-        assertEquals("new question", store.state.turns.first().content)
-        assertEquals(listOf("sess_new", "sess_old"), store.state.sessions.map { it.id })
-        assertEquals("new question", store.state.sessions.first().title)
+        assertEquals("sess_new", store.state.value.sessionId)
+        assertEquals("new answer", store.state.value.lastReply)
+        assertEquals(listOf("user", "assistant"), store.state.value.turns.map { it.role })
+        assertEquals("new question", store.state.value.turns.first().content)
+        assertEquals(listOf("sess_new", "sess_old"), store.state.value.sessions.map { it.id })
+        assertEquals("new question", store.state.value.sessions.first().title)
         store.dispatch(ChatIntent.SelectSession("sess_old"))
-        assertEquals("sess_old", store.state.sessionId)
-        assertEquals("old answer", store.state.lastReply)
-        assertEquals("old question", store.state.turns.first().content)
-        assertEquals("old answer", store.state.turns.last().content)
+        assertEquals("sess_old", store.state.value.sessionId)
+        assertEquals("old answer", store.state.value.lastReply)
+        assertEquals("old question", store.state.value.turns.first().content)
+        assertEquals("old answer", store.state.value.turns.last().content)
     }
 
     @Test
@@ -116,7 +115,7 @@ class ChatStoreTest {
             "sess_new" to listOf(HistoryTurn("user", "new question")),
         )
         var queued: (() -> Unit)? = null
-        val store = ChatStore(
+        val store = ChatViewModel(
             ChatCommands(
                 create = { SessionId("sess_fresh") },
                 sendTurn = { _, _, _ -> },
@@ -126,17 +125,17 @@ class ChatStoreTest {
             runOffMain = { queued = it },
             runOnMain = { it() },
         )
-        assertTrue(store.state.turns.isEmpty())
+        assertTrue(store.state.value.turns.isEmpty())
         store.dispatch(ChatIntent.SelectSession("sess_old"))
-        assertEquals("sess_old", store.state.sessionId)
-        assertTrue(store.state.turns.isEmpty())
+        assertEquals("sess_old", store.state.value.sessionId)
+        assertTrue(store.state.value.turns.isEmpty())
         queued!!.invoke()
-        assertEquals("old question", store.state.turns.first().content)
+        assertEquals("old question", store.state.value.turns.first().content)
     }
 
     @Test
     fun newSessionIsIgnoredWhileInFlight() {
-        val store = ChatStore(
+        val store = ChatViewModel(
             ChatCommands(
                 create = { SessionId("sess_fresh") },
                 sendTurn = { _, _, onProgress -> onProgress(TurnProgress.CallingLlm) },
@@ -145,8 +144,8 @@ class ChatStoreTest {
         store.dispatch(ChatIntent.Send("hi"))
         store.dispatch(ChatIntent.NewSession)
         store.dispatch(ChatIntent.SelectSession("other"))
-        assertEquals("sess_fresh", store.state.sessionId)
-        assertTrue(store.state.inFlight)
+        assertEquals("sess_fresh", store.state.value.sessionId)
+        assertTrue(store.state.value.inFlight)
     }
 
     @Test
@@ -161,7 +160,7 @@ class ChatStoreTest {
     @Test
     fun newSessionClearsReply() {
         val created = mutableListOf<String>()
-        val store = ChatStore(
+        val store = ChatViewModel(
             ChatCommands(
                 create = {
                     val id = SessionId("sess_${created.size}")
@@ -174,12 +173,12 @@ class ChatStoreTest {
             ),
         )
         store.dispatch(ChatIntent.Send("hi"))
-        assertEquals("done", store.state.lastReply)
+        assertEquals("done", store.state.value.lastReply)
         store.dispatch(ChatIntent.NewSession)
-        assertEquals("sess_1", store.state.sessionId)
-        assertEquals("", store.state.lastReply)
-        assertTrue(store.state.turns.isEmpty())
-        assertEquals("New chat", store.state.sessions.first { it.id == "sess_1" }.title)
+        assertEquals("sess_1", store.state.value.sessionId)
+        assertEquals("", store.state.value.lastReply)
+        assertTrue(store.state.value.turns.isEmpty())
+        assertEquals("New chat", store.state.value.sessions.first { it.id == "sess_1" }.title)
     }
 
     @Test
@@ -188,12 +187,12 @@ class ChatStoreTest {
             HistoryTurn("user", "first"),
             HistoryTurn("assistant", "reply-1"),
         )
-        lateinit var store: ChatStore
-        store = ChatStore(
+        lateinit var store: ChatViewModel
+        store = ChatViewModel(
             ChatCommands(
                 create = { SessionId("sess_test") },
                 sendTurn = { _, _, onProgress ->
-                    assertEquals(listOf("first", "reply-1", "second"), store.state.turns.map { it.content })
+                    assertEquals(listOf("first", "reply-1", "second"), store.state.value.turns.map { it.content })
                     onProgress(TurnProgress.CallingLlm)
                     onProgress(TurnProgress.Finished("reply-2"))
                 },
@@ -201,15 +200,15 @@ class ChatStoreTest {
                 turnsOf = { prior },
             ),
         )
-        assertEquals(prior, store.state.turns)
+        assertEquals(prior, store.state.value.turns)
         store.dispatch(ChatIntent.Send("second"))
-        assertEquals(listOf("first", "reply-1", "second", "reply-2"), store.state.turns.map { it.content })
+        assertEquals(listOf("first", "reply-1", "second", "reply-2"), store.state.value.turns.map { it.content })
     }
 
     @Test
     fun deleteCurrentSessionSwitchesToNewestRemaining() {
         val ids = mutableListOf("sess_a", "sess_b")
-        val store = ChatStore(
+        val store = ChatViewModel(
             ChatCommands(
                 create = { SessionId("unused") },
                 sendTurn = { _, _, _ -> },
@@ -220,17 +219,17 @@ class ChatStoreTest {
                 remove = { id -> ids.remove(id.value) },
             ),
         )
-        assertEquals("sess_b", store.state.sessionId)
+        assertEquals("sess_b", store.state.value.sessionId)
         store.dispatch(ChatIntent.DeleteSession("sess_b"))
-        assertEquals("sess_a", store.state.sessionId)
-        assertEquals(listOf("sess_a"), store.state.sessions.map { it.id })
-        assertEquals("sess_a", store.state.turns.first().content)
+        assertEquals("sess_a", store.state.value.sessionId)
+        assertEquals(listOf("sess_a"), store.state.value.sessions.map { it.id })
+        assertEquals("sess_a", store.state.value.turns.first().content)
     }
 
     @Test
     fun deleteLastSessionClearsChat() {
         val ids = mutableListOf("only")
-        val store = ChatStore(
+        val store = ChatViewModel(
             ChatCommands(
                 create = { SessionId("unused") },
                 sendTurn = { _, _, _ -> },
@@ -240,32 +239,32 @@ class ChatStoreTest {
             ),
         )
         store.dispatch(ChatIntent.DeleteSession("only"))
-        assertEquals(null, store.state.sessionId)
-        assertTrue(store.state.sessions.isEmpty())
-        assertTrue(store.state.turns.isEmpty())
+        assertEquals(null, store.state.value.sessionId)
+        assertTrue(store.state.value.sessions.isEmpty())
+        assertTrue(store.state.value.turns.isEmpty())
     }
 
     @Test
     fun mcpLinkCallbackUpdatesStateAndSurvivesNewSession() {
         val keep = RecordingKeepAlive(McpLinkState.Disconnected)
-        val store = ChatStore(
+        val store = ChatViewModel(
             ChatCommands(
                 create = { SessionId("sess_link") },
                 sendTurn = { _, _, _ -> },
             ),
             keepAlive = keep,
         )
-        assertEquals(McpLinkState.Disconnected, store.state.mcpLink)
+        assertEquals(McpLinkState.Disconnected, store.state.value.mcpLink)
         keep.emit(McpLinkState.Connected)
-        assertEquals(McpLinkState.Connected, store.state.mcpLink)
+        assertEquals(McpLinkState.Connected, store.state.value.mcpLink)
         store.dispatch(ChatIntent.NewSession)
-        assertEquals(McpLinkState.Connected, store.state.mcpLink)
+        assertEquals(McpLinkState.Connected, store.state.value.mcpLink)
     }
 
     @Test
     fun finishRefreshesStagedThisChat() {
         val staged = mutableListOf<StagedItem>()
-        val store = ChatStore(
+        val store = ChatViewModel(
             ChatCommands(
                 create = { SessionId("sess_test") },
                 sendTurn = { _, _, onProgress ->
@@ -276,30 +275,6 @@ class ChatStoreTest {
             ),
         )
         store.dispatch(ChatIntent.Send("park this"))
-        assertEquals(listOf(ChatStagedItem("stg_1", "F1", "Parked")), store.state.stagedThisChat)
-    }
-}
-
-private class RecordingKeepAlive(
-    private var current: McpLinkState,
-) : McpKeepAlive {
-    private val listeners = mutableListOf<McpLinkListener>()
-
-    override fun addListener(listener: McpLinkListener) {
-        listeners.add(listener)
-        listener.onMcpLink(current)
-    }
-
-    override fun removeListener(listener: McpLinkListener) {
-        listeners.remove(listener)
-    }
-
-    override fun start() = Unit
-
-    override fun state(): McpLinkState = current
-
-    fun emit(next: McpLinkState) {
-        current = next
-        listeners.forEach { it.onMcpLink(next) }
+        assertEquals(listOf(ChatStagedItem("stg_1", "F1", "Parked")), store.state.value.stagedThisChat)
     }
 }

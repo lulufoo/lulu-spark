@@ -36,37 +36,39 @@ import androidx.core.content.ContextCompat
 import android.Manifest
 import android.content.pm.PackageManager
 import com.lulu.workbench.android.HomeEdgeAction
+import com.lulu.workbench.android.chat.ChatViewModel
 import com.lulu.workbench.android.chat.state.ChatIntent
-import com.lulu.workbench.android.chat.state.ChatStore
 import com.lulu.workbench.android.homeEdgeAction
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlin.math.roundToInt
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 @Composable
 fun ChatScreen(
-    store: ChatStore,
+    viewModel: ChatViewModel,
     onOpenSettings: () -> Unit,
     onOpenStaged: (String) -> Unit,
     onOpenStagedAll: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
     var drawerOpen by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val micLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) { granted ->
-        if (!granted) store.dispatch(ChatIntent.MicDenied)
+        if (!granted) viewModel.dispatch(ChatIntent.MicDenied)
     }
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                store.dispatch(ChatIntent.RefreshAsr)
-                store.dispatch(ChatIntent.RefreshStaged)
+                viewModel.dispatch(ChatIntent.RefreshAsr)
+                viewModel.dispatch(ChatIntent.RefreshStaged)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -137,20 +139,20 @@ fun ChatScreen(
                 ),
         ) {
             ChatDrawer(
-                state = store.state,
+                state = state,
                 onNewSession = {
-                    store.dispatch(ChatIntent.NewSession)
+                    viewModel.dispatch(ChatIntent.NewSession)
                     settle(false)
                 },
                 onSelectSession = { id ->
-                    if (id != store.state.sessionId) {
+                    if (id != state.sessionId) {
                         transcriptReady = false
-                        store.dispatch(ChatIntent.SelectSession(id))
+                        viewModel.dispatch(ChatIntent.SelectSession(id))
                     }
                     settle(false)
                 },
                 onDeleteSession = { id ->
-                    store.dispatch(ChatIntent.DeleteSession(id))
+                    viewModel.dispatch(ChatIntent.DeleteSession(id))
                 },
                 onOpenSettings = onOpenSettings,
                 modifier = Modifier
@@ -166,25 +168,25 @@ fun ChatScreen(
                 color = MaterialTheme.colorScheme.background,
             ) {
                 ChatPane(
-                    state = store.state,
+                    state = state,
                     transcriptReady = transcriptReady,
                     onOpenDrawer = { settle(true) },
-                    onNewSession = { store.dispatch(ChatIntent.NewSession) },
+                    onNewSession = { viewModel.dispatch(ChatIntent.NewSession) },
                     onOpenStaged = onOpenStaged,
                     onOpenStagedAll = onOpenStagedAll,
-                    onSend = { text -> store.dispatch(ChatIntent.Send(text)) },
+                    onSend = { text -> viewModel.dispatch(ChatIntent.Send(text)) },
                     onVoicePress = {
                         val granted = ContextCompat.checkSelfPermission(
                             context,
                             Manifest.permission.RECORD_AUDIO,
                         ) == PackageManager.PERMISSION_GRANTED
-                        if (granted) store.dispatch(ChatIntent.VoicePress)
+                        if (granted) viewModel.dispatch(ChatIntent.VoicePress)
                         else micLauncher.launch(Manifest.permission.RECORD_AUDIO)
                     },
                     onVoiceRelease = { cancel ->
-                        store.dispatch(ChatIntent.VoiceRelease(cancel))
+                        viewModel.dispatch(ChatIntent.VoiceRelease(cancel))
                     },
-                    onVoiceHintShown = { store.dispatch(ChatIntent.ClearVoiceHint) },
+                    onVoiceHintShown = { viewModel.dispatch(ChatIntent.ClearVoiceHint) },
                 )
                 if (progress > 0.02f) {
                     Box(

@@ -1,5 +1,6 @@
 package com.lulu.workbench.android.settings.commands
 
+import com.lulu.workbench.android.agent.facade.WorkbenchRuntime
 import com.lulu.workbench.android.agent.tools.web.WebSearchConfig
 import com.lulu.workbench.android.agent.tools.web.WebSearchTools
 import com.lulu.workbench.android.asr.AsrClient
@@ -7,12 +8,16 @@ import com.lulu.workbench.android.asr.AsrConfig
 import com.lulu.workbench.android.llm.LlmActive
 import com.lulu.workbench.android.llm.LlmClient
 import com.lulu.workbench.android.llm.LlmPreset
+import javax.inject.Inject
 
 class SettingsCommands(
     private val llm: LlmClient,
     private val asr: AsrClient,
     private val web: WebSearchTools,
 ) {
+    @Inject
+    constructor(runtime: WorkbenchRuntime) : this(runtime.llm, runtime.asr, runtime.webSearch)
+
     fun catalog(): List<LlmPreset> = llm.catalog()
 
     fun loadActive(): LlmActive = llm.loadActive()

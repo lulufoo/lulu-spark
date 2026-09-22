@@ -3,6 +3,7 @@ package com.lulu.workbench.android.chat.state
 import com.lulu.workbench.android.agent.session.SessionId
 import com.lulu.workbench.android.asr.MinVoicePcmBytes
 import com.lulu.workbench.android.asr.pcmToWav
+import com.lulu.workbench.android.chat.ChatViewModel
 import com.lulu.workbench.android.chat.commands.ChatCommands
 import com.lulu.workbench.android.chat.commands.VoiceRecorder
 import org.junit.Assert.assertEquals
@@ -15,27 +16,27 @@ class ChatVoiceTest {
     fun pressWithoutKeysDoesNotRecordOrHint() {
         val recorder = ScriptedRecorder()
         val store = voiceStore(asrReady = false, recorder = recorder)
-        assertFalse(store.state.asrConfigured)
+        assertFalse(store.state.value.asrConfigured)
         store.dispatch(ChatIntent.VoicePress)
-        assertEquals(VoicePhase.Idle, store.state.voicePhase)
-        assertEquals("", store.state.voiceHint)
+        assertEquals(VoicePhase.Idle, store.state.value.voicePhase)
+        assertEquals("", store.state.value.voiceHint)
         assertEquals(0, recorder.starts)
     }
 
     @Test
     fun refreshAsrUpdatesConfiguredFlag() {
         var ready = false
-        val store = ChatStore(
+        val store = ChatViewModel(
             ChatCommands(
                 create = { SessionId("sess_voice") },
                 sendTurn = { _, _, _ -> },
                 asrReady = { ready },
             ),
         )
-        assertFalse(store.state.asrConfigured)
+        assertFalse(store.state.value.asrConfigured)
         ready = true
         store.dispatch(ChatIntent.RefreshAsr)
-        assertTrue(store.state.asrConfigured)
+        assertTrue(store.state.value.asrConfigured)
     }
 
     @Test
@@ -52,12 +53,12 @@ class ChatVoiceTest {
             },
         )
         store.dispatch(ChatIntent.VoicePress)
-        assertEquals(VoicePhase.Recording, store.state.voicePhase)
+        assertEquals(VoicePhase.Recording, store.state.value.voicePhase)
         store.dispatch(ChatIntent.VoiceRelease(cancel = false))
         assertEquals("hello voice", sent)
-        assertEquals(VoicePhase.Idle, store.state.voicePhase)
-        assertEquals("hello voice", store.state.turns.first().content)
-        assertFalse(store.state.inFlight)
+        assertEquals(VoicePhase.Idle, store.state.value.voicePhase)
+        assertEquals("hello voice", store.state.value.turns.first().content)
+        assertFalse(store.state.value.inFlight)
     }
 
     @Test
@@ -71,8 +72,8 @@ class ChatVoiceTest {
         store.dispatch(ChatIntent.VoicePress)
         store.dispatch(ChatIntent.VoiceRelease(cancel = true))
         assertEquals(0, sends)
-        assertEquals(VoicePhase.Idle, store.state.voicePhase)
-        assertEquals("", store.state.voiceHint)
+        assertEquals(VoicePhase.Idle, store.state.value.voicePhase)
+        assertEquals("", store.state.value.voiceHint)
     }
 
     @Test
@@ -86,7 +87,7 @@ class ChatVoiceTest {
         store.dispatch(ChatIntent.VoicePress)
         store.dispatch(ChatIntent.VoiceRelease(cancel = false))
         assertEquals(0, sends)
-        assertEquals("Too short", store.state.voiceHint)
+        assertEquals("Too short", store.state.value.voiceHint)
     }
 
     @Test
@@ -97,10 +98,10 @@ class ChatVoiceTest {
         )
         store.dispatch(ChatIntent.VoicePress)
         store.dispatch(ChatIntent.VoiceRelease(cancel = false))
-        assertEquals(VoicePhase.Idle, store.state.voicePhase)
-        assertEquals("Recognition failed", store.state.voiceHint)
-        assertFalse(store.state.inFlight)
-        assertTrue(store.state.turns.isEmpty())
+        assertEquals(VoicePhase.Idle, store.state.value.voicePhase)
+        assertEquals("Recognition failed", store.state.value.voiceHint)
+        assertFalse(store.state.value.inFlight)
+        assertTrue(store.state.value.turns.isEmpty())
     }
 
     @Test
@@ -115,16 +116,16 @@ class ChatVoiceTest {
         store.dispatch(ChatIntent.Send("typed"))
         store.dispatch(ChatIntent.VoicePress)
         assertEquals(0, recorder.starts)
-        assertEquals(VoicePhase.Idle, store.state.voicePhase)
+        assertEquals(VoicePhase.Idle, store.state.value.voicePhase)
     }
 
     @Test
     fun micDeniedSetsHint() {
         val store = voiceStore()
         store.dispatch(ChatIntent.MicDenied)
-        assertEquals("Microphone permission denied", store.state.voiceHint)
+        assertEquals("Microphone permission denied", store.state.value.voiceHint)
         store.dispatch(ChatIntent.ClearVoiceHint)
-        assertEquals("", store.state.voiceHint)
+        assertEquals("", store.state.value.voiceHint)
     }
 
     private fun voiceStore(
@@ -133,8 +134,8 @@ class ChatVoiceTest {
         transcribe: (ByteArray) -> String = { "" },
         sendTurn: (SessionId, String, (com.lulu.workbench.android.agent.loop.TurnProgress) -> Unit) -> Unit =
             { _, _, _ -> },
-    ): ChatStore =
-        ChatStore(
+    ): ChatViewModel =
+        ChatViewModel(
             ChatCommands(
                 create = { SessionId("sess_voice") },
                 sendTurn = sendTurn,

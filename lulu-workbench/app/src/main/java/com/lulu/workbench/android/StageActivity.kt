@@ -7,6 +7,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.exclude
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,32 +16,31 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.lulu.workbench.android.log.LogModule
 import com.lulu.workbench.android.log.WbLog
-import com.lulu.workbench.android.stage.commands.StageCommands
+import com.lulu.workbench.android.stage.StageViewModel
 import com.lulu.workbench.android.stage.state.StageIntent
-import com.lulu.workbench.android.stage.state.StageStore
 import com.lulu.workbench.android.stage.ui.StageFileScreen
 import com.lulu.workbench.android.stage.ui.StageListScreen
 import com.lulu.workbench.android.ui.theme.LuLuWorkbenchTheme
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class StageActivity : ComponentActivity() {
+    private val stageViewModel: StageViewModel by viewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         WbLog.module(LogModule.APP).i("stage activity create")
         enableEdgeToEdge()
-        val runtime = (application as WorkbenchApp).runtime
-        val sessionId = intent.getStringExtra(EXTRA_SESSION_ID)
-        val stagedId = intent.getStringExtra(EXTRA_STAGED_ID)
         setContent {
-            val store = remember {
-                StageStore(StageCommands(runtime.agent), sessionId, stagedId)
-            }
+            val state by stageViewModel.state.collectAsStateWithLifecycle()
             fun goBack() {
-                when (stageBackAction(store.state.opened != null, store.state.openedFromList)) {
-                    StageBackAction.CloseFile -> store.dispatch(StageIntent.CloseFile)
+                when (stageBackAction(state.opened != null, state.openedFromList)) {
+                    StageBackAction.CloseFile -> stageViewModel.dispatch(StageIntent.CloseFile)
                     StageBackAction.FinishStage -> finish()
                 }
             }
@@ -54,28 +54,28 @@ class StageActivity : ComponentActivity() {
                     val pane = Modifier
                         .fillMaxSize()
                         .windowInsetsPadding(WindowInsets.safeDrawing.exclude(WindowInsets.ime))
-                    val opened = store.state.opened
+                    val opened = state.opened
                     if (opened != null) {
                         StageFileScreen(
                             item = opened,
                             onBack = { goBack() },
                             onSave = { title, body ->
-                                store.dispatch(StageIntent.Save(title, body))
+                                stageViewModel.dispatch(StageIntent.Save(title, body))
                             },
                             onDelete = {
                                 val leave =
-                                    stageBackAction(true, store.state.openedFromList) ==
+                                    stageBackAction(true, state.openedFromList) ==
                                         StageBackAction.FinishStage
-                                store.dispatch(StageIntent.Delete)
+                                stageViewModel.dispatch(StageIntent.Delete)
                                 if (leave) finish()
                             },
                             modifier = pane,
                         )
                     } else {
                         StageListScreen(
-                            state = store.state,
+                            state = state,
                             onBack = { goBack() },
-                            onOpen = { id -> store.dispatch(StageIntent.Open(id)) },
+                            onOpen = { id -> stageViewModel.dispatch(StageIntent.Open(id)) },
                             modifier = pane,
                         )
                     }

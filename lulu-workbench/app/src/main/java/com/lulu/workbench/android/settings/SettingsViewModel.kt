@@ -1,15 +1,25 @@
-package com.lulu.workbench.android.settings.state
+package com.lulu.workbench.android.settings
 
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
+import androidx.lifecycle.ViewModel
 import com.lulu.workbench.android.settings.commands.SettingsCommands
+import com.lulu.workbench.android.settings.state.SettingsIntent
+import com.lulu.workbench.android.settings.state.SettingsState
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
-class SettingsStore(
+@HiltViewModel
+class SettingsViewModel @Inject constructor(
     private val commands: SettingsCommands,
-) {
-    var state: SettingsState by mutableStateOf(SettingsState())
-        private set
+) : ViewModel() {
+    private val _state = MutableStateFlow(SettingsState())
+    val state: StateFlow<SettingsState> = _state.asStateFlow()
+
+    init {
+        reload()
+    }
 
     fun dispatch(intent: SettingsIntent) {
         when (intent) {
@@ -46,7 +56,7 @@ class SettingsStore(
     }
 
     private fun reload() {
-        state = SettingsState(
+        _state.value = SettingsState(
             catalog = commands.catalog(),
             active = commands.loadActive(),
             asr = commands.loadAsr(),

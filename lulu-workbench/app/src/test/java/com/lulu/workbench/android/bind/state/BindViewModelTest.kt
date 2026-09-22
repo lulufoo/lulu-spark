@@ -1,5 +1,6 @@
 package com.lulu.workbench.android.bind.state
 
+import com.lulu.workbench.android.bind.BindViewModel
 import com.lulu.workbench.android.bind.commands.BindCommands
 import com.lulu.workbench.android.wmcp.BindFailedException
 import com.lulu.workbench.android.wmcp.BindOffer
@@ -15,48 +16,48 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-class BindStoreTest {
+class BindViewModelTest {
     @Test
     fun scannedQrCompletesBind() {
         val wmcp = FakeWmcp()
-        val store = BindStore(BindCommands(wmcp, "Pixel"))
+        val store = BindViewModel(BindCommands(wmcp, "Pixel"))
         store.dispatch(BindIntent.StartScan)
-        assertTrue(store.state.scanning)
+        assertTrue(store.state.value.scanning)
         store.dispatch(
             BindIntent.Scanned(
                 """{"ip":"10.0.0.2","port":7654,"temp_pub":"aa","tls_fingerprint":"ff","exp":9,"sig":"ss"}""",
             ),
         )
-        assertTrue(store.state.bound)
-        assertFalse(store.state.scanning)
-        assertEquals("dev_testphone1", store.state.deviceId)
+        assertTrue(store.state.value.bound)
+        assertFalse(store.state.value.scanning)
+        assertEquals("dev_testphone1", store.state.value.deviceId)
         assertEquals(1, wmcp.completes)
     }
 
     @Test
     fun queryExposesDeviceId() {
-        val store = BindStore(BindCommands(FakeWmcp(), "Pixel"))
+        val store = BindViewModel(BindCommands(FakeWmcp(), "Pixel"))
         store.dispatch(BindIntent.Query)
-        assertEquals("dev_testphone1", store.state.deviceId)
-        assertFalse(store.state.bound)
+        assertEquals("dev_testphone1", store.state.value.deviceId)
+        assertFalse(store.state.value.bound)
     }
 
     @Test
     fun scannedQrSurfacesFailure() {
-        val store = BindStore(BindCommands(FakeWmcp(fail = true), "Pixel"))
+        val store = BindViewModel(BindCommands(FakeWmcp(fail = true), "Pixel"))
         store.dispatch(BindIntent.Scanned("{}"))
-        assertFalse(store.state.bound)
-        assertTrue(store.state.error.isNotEmpty())
+        assertFalse(store.state.value.bound)
+        assertTrue(store.state.value.error.isNotEmpty())
     }
 
     @Test
     fun keepAliveReplaySetsLinkWithoutStart() {
         val keep = RecordingKeepAlive(McpLinkState.Connected)
-        val store = BindStore(BindCommands(FakeWmcp(), "Pixel"), keepAlive = keep)
-        assertEquals(McpLinkState.Connected, store.state.mcpLink)
+        val store = BindViewModel(BindCommands(FakeWmcp(), "Pixel"), keepAlive = keep)
+        assertEquals(McpLinkState.Connected, store.state.value.mcpLink)
         assertEquals(0, keep.starts)
         keep.emit(McpLinkState.Disconnected)
-        assertEquals(McpLinkState.Disconnected, store.state.mcpLink)
+        assertEquals(McpLinkState.Disconnected, store.state.value.mcpLink)
         assertEquals(0, keep.starts)
         store.release()
     }

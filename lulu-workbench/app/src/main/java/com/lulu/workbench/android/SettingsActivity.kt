@@ -2,71 +2,56 @@ package com.lulu.workbench.android
 
 import android.Manifest
 import android.content.pm.PackageManager
-import android.os.Build
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
-import com.lulu.workbench.android.bind.commands.BindCommands
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.lulu.workbench.android.bind.BindViewModel
 import com.lulu.workbench.android.bind.state.BindIntent
-import com.lulu.workbench.android.bind.state.BindStore
 import com.lulu.workbench.android.bind.ui.QrScanPane
 import com.lulu.workbench.android.log.LogModule
 import com.lulu.workbench.android.log.WbLog
-import com.lulu.workbench.android.settings.commands.SettingsCommands
+import com.lulu.workbench.android.settings.SettingsViewModel
 import com.lulu.workbench.android.settings.state.SettingsIntent
-import com.lulu.workbench.android.settings.state.SettingsStore
 import com.lulu.workbench.android.settings.ui.SettingsScreen
 import com.lulu.workbench.android.ui.theme.LuLuWorkbenchTheme
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class SettingsActivity : ComponentActivity() {
+    private val settingsViewModel: SettingsViewModel by viewModels()
+    private val bindViewModel: BindViewModel by viewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         WbLog.module(LogModule.APP).i("settings activity create")
         enableEdgeToEdge()
-        val runtime = (application as WorkbenchApp).runtime
         setContent {
-            val mainHandler = remember { Handler(Looper.getMainLooper()) }
-            val settingsStore = remember {
-                SettingsStore(SettingsCommands(runtime.llm, runtime.asr, runtime.webSearch)).also {
-                    it.dispatch(SettingsIntent.Load)
-                }
-            }
-            val bindStore = remember {
-                BindStore(
-                    BindCommands(runtime.wmcp, Build.MODEL),
-                    keepAlive = runtime.wmcp.keepAlive(),
-                    runOffMain = { block -> Thread { block() }.start() },
-                    runOnMain = { block -> mainHandler.post { block() } },
-                )
-            }
-            DisposableEffect(bindStore) {
-                onDispose { bindStore.release() }
-            }
+            val settingsState by settingsViewModel.state.collectAsStateWithLifecycle()
+            val bindState by bindViewModel.state.collectAsStateWithLifecycle()
             val cameraLauncher = rememberLauncherForActivityResult(
                 ActivityResultContracts.RequestPermission(),
             ) { granted ->
-                if (granted) bindStore.dispatch(BindIntent.StartScan)
-                else bindStore.dispatch(BindIntent.CameraDenied)
+                if (granted) bindViewModel.dispatch(BindIntent.StartScan)
+                else bindViewModel.dispatch(BindIntent.CameraDenied)
             }
             fun goBack() {
-                when (settingsBackAction(bindStore.state.scanning)) {
+                when (settingsBackAction(bindState.scanning)) {
                     SettingsBackAction.CancelScan ->
-                        bindStore.dispatch(BindIntent.CancelScan)
+                        bindViewModel.dispatch(BindIntent.CancelScan)
                     SettingsBackAction.FinishSettings -> finish()
                 }
             }
@@ -78,47 +63,47 @@ class SettingsActivity : ComponentActivity() {
                     contentWindowInsets = WindowInsets(0, 0, 0, 0),
                 ) { _ ->
                     val pane = Modifier.fillMaxSize()
-                    if (bindStore.state.scanning) {
+                    if (bindState.scanning) {
                         QrScanPane(
-                            onQr = { qr -> bindStore.dispatch(BindIntent.Scanned(qr)) },
-                            onCancel = { bindStore.dispatch(BindIntent.CancelScan) },
+                            onQr = { qr -> bindViewModel.dispatch(BindIntent.Scanned(qr)) },
+                            onCancel = { bindViewModel.dispatch(BindIntent.CancelScan) },
                             modifier = pane,
                         )
                     } else {
                         LaunchedEffect(Unit) {
-                            bindStore.dispatch(BindIntent.Query)
+                            bindViewModel.dispatch(BindIntent.Query)
                         }
                         SettingsScreen(
-                            state = settingsStore.state,
-                            bindState = bindStore.state,
+                            state = settingsState,
+                            bindState = bindState,
                             onBack = { goBack() },
                             onSelect = { id ->
-                                settingsStore.dispatch(SettingsIntent.Select(id))
+                                settingsViewModel.dispatch(SettingsIntent.Select(id))
                             },
                             onSave = { baseUrl, model, apiKey ->
-                                settingsStore.dispatch(
+                                settingsViewModel.dispatch(
                                     SettingsIntent.Save(baseUrl, model, apiKey),
                                 )
                             },
-                            onReset = { settingsStore.dispatch(SettingsIntent.Reset) },
+                            onReset = { settingsViewModel.dispatch(SettingsIntent.Reset) },
                             onSaveAsr = { appId, secretId, secretKey ->
-                                settingsStore.dispatch(
+                                settingsViewModel.dispatch(
                                     SettingsIntent.SaveAsr(appId, secretId, secretKey),
                                 )
                             },
-                            onClearAsr = { settingsStore.dispatch(SettingsIntent.ClearAsr) },
+                            onClearAsr = { settingsViewModel.dispatch(SettingsIntent.ClearAsr) },
                             onSaveWebSearch = { apiKey ->
-                                settingsStore.dispatch(SettingsIntent.SaveWebSearch(apiKey))
+                                settingsViewModel.dispatch(SettingsIntent.SaveWebSearch(apiKey))
                             },
                             onClearWebSearch = {
-                                settingsStore.dispatch(SettingsIntent.ClearWebSearch)
+                                settingsViewModel.dispatch(SettingsIntent.ClearWebSearch)
                             },
                             onStartScan = {
                                 val granted = ContextCompat.checkSelfPermission(
                                     this@SettingsActivity,
                                     Manifest.permission.CAMERA,
                                 ) == PackageManager.PERMISSION_GRANTED
-                                if (granted) bindStore.dispatch(BindIntent.StartScan)
+                                if (granted) bindViewModel.dispatch(BindIntent.StartScan)
                                 else cameraLauncher.launch(Manifest.permission.CAMERA)
                             },
                             modifier = pane,
