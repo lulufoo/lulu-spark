@@ -4,3 +4,5 @@ alwaysApply: true
 ---
 
 ## Global Rule Instructions
+
+1. UI-layer changes → read and follow `docs/architecture/ui-layer-constraints.md`. No exceptions.
