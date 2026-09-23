@@ -355,17 +355,13 @@ fn staged_entry(id: &str, path: &str, title: &str) -> session::StagedEntry {
     }
 }
 
-fn read_session_json(session_id: &str) -> serde_json::Value {
-    let path = session::session_file_path(session_id).expect("path");
-    serde_json::from_str(&std::fs::read_to_string(path).expect("read")).expect("json")
-}
-
-fn assert_path_only_staged(entry: &serde_json::Value) {
-    let obj = entry.as_object().expect("staged object");
-    assert!(obj.contains_key("id") && obj.contains_key("path") && obj.contains_key("title"));
+fn assert_path_only_staged(entry: &session::StagedEntry) {
+    let obj = serde_json::to_value(entry).expect("staged json");
+    let map = obj.as_object().expect("staged object");
+    assert!(map.contains_key("id") && map.contains_key("path") && map.contains_key("title"));
     for forbidden in ["content", "body", "text"] {
         assert!(
-            !obj.contains_key(forbidden),
+            !map.contains_key(forbidden),
             "staged must not persist {forbidden}"
         );
     }
@@ -375,13 +371,11 @@ fn assert_path_only_staged(entry: &serde_json::Value) {
 fn t1_new_session_json_has_empty_staged_and_no_body() {
     with_sandbox(|| {
         let sess = session::create_session().expect("create");
-        let raw = read_session_json(&sess.session_id);
-        let staged = raw
-            .get("staged")
-            .and_then(|v| v.as_array())
-            .expect("session JSON must have staged array");
-        assert!(staged.is_empty(), "new session staged must be empty");
-        assert_eq!(raw["turns"], json!([]));
+        let path = session::session_file_path(&sess.session_id).expect("path");
+        assert_eq!(path.extension().and_then(|e| e.to_str()), Some("sqlite"));
+        assert!(!path.with_extension("json").is_file());
+        assert!(sess.staged.is_empty(), "new session staged must be empty");
+        assert!(sess.turns.is_empty());
     });
 }
 
@@ -400,10 +394,9 @@ fn t1_save_staged_roundtrip_does_not_enter_turns() {
             "staged must not be written into turns"
         );
 
-        let raw = read_session_json(&sess.session_id);
-        assert_eq!(raw["staged"].as_array().expect("arr").len(), 1);
-        assert_path_only_staged(&raw["staged"][0]);
-        assert_eq!(raw["turns"], json!([]));
+        assert_eq!(loaded.staged.len(), 1);
+        assert_path_only_staged(&loaded.staged[0]);
+        assert!(loaded.turns.is_empty());
     });
 }
 

@@ -2,11 +2,14 @@ use std::fs;
 use std::path::PathBuf;
 
 use chrono::{Local, TimeZone};
-use serde_json::{json, Value};
+use serde_json::Value;
 
 use crate::config::paths;
 use crate::services::id::random_entry_id;
 
+use super::catalog;
+use super::schema::{checked_session_id, unix_secs};
+use super::session_db;
 use super::types::{Session, Turn};
 
 pub fn agent_dir() -> Result<PathBuf, String> {
@@ -30,6 +33,11 @@ pub fn sessions_dir() -> Result<PathBuf, String> {
     Ok(dir)
 }
 
+fn catalog_file_path() -> Result<PathBuf, String> {
+    let _ = sessions_dir()?;
+    Ok(catalog::catalog_path(agent_dir()?))
+}
+
 #[cfg(test)]
 fn reject_unisolated_sessions_dir(dir: &PathBuf) -> Result<(), String> {
     use crate::config::settings;
@@ -47,14 +55,8 @@ fn reject_unisolated_sessions_dir(dir: &PathBuf) -> Result<(), String> {
 }
 
 pub fn session_file_path(session_id: &str) -> Result<PathBuf, String> {
-    let id = session_id.trim();
-    if id.is_empty() {
-        return Err("Missing session_id".into());
-    }
-    if id.contains('/') || id.contains('\\') || id.contains("..") {
-        return Err("Invalid session_id".into());
-    }
-    Ok(sessions_dir()?.join(format!("{id}.json")))
+    let id = checked_session_id(session_id)?;
+    Ok(sessions_dir()?.join(format!("{id}.sqlite")))
 }
 
 pub fn create_session() -> Result<Session, String> {
@@ -69,20 +71,15 @@ pub fn create_session() -> Result<Session, String> {
 
 pub fn save_session(session: &Session) -> Result<(), String> {
     let path = session_file_path(&session.session_id)?;
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
-    }
-    let text = serde_json::to_string_pretty(session).map_err(|e| e.to_string())?;
-    let tmp = path.with_extension("json.tmp");
-    fs::write(&tmp, &text).map_err(|e| e.to_string())?;
-    fs::rename(&tmp, &path).map_err(|e| e.to_string())?;
+    let now = unix_secs();
+    let title = session_list_title(session, now);
+    session_db::save(&path, session, &title, now)?;
+    catalog::upsert(&catalog_file_path()?, &session.session_id, &title, now)?;
     Ok(())
 }
 
 pub fn load_session(session_id: &str) -> Result<Session, String> {
-    let path = session_file_path(session_id)?;
-    let text = fs::read_to_string(&path).map_err(|e| e.to_string())?;
-    serde_json::from_str(&text).map_err(|e| e.to_string())
+    session_db::load(&session_file_path(session_id)?)
 }
 
 pub fn delete_session(session_id: &str) -> Result<(), String> {
@@ -91,14 +88,14 @@ pub fn delete_session(session_id: &str) -> Result<(), String> {
         return Err("Session not found".into());
     }
     fs::remove_file(&path).map_err(|e| e.to_string())?;
-    let tmp = path.with_extension("json.tmp");
-    if tmp.is_file() {
-        let _ = fs::remove_file(&tmp);
+    for sidecar in session_db::sidecar_paths(&path) {
+        if sidecar.is_file() {
+            let _ = fs::remove_file(&sidecar);
+        }
     }
+    catalog::remove(&catalog_file_path()?, checked_session_id(session_id)?)?;
     Ok(())
 }
-
-const HOME_CHAT_LIST_LIMIT: usize = 20;
 
 fn format_session_when(updated_at: i64) -> String {
     if updated_at <= 0 {
@@ -130,51 +127,9 @@ fn session_list_title(session: &Session, updated_at: i64) -> String {
         .unwrap_or_else(|| format_session_when(updated_at))
 }
 
-fn file_updated_at(path: &PathBuf) -> i64 {
-    fs::metadata(path)
-        .and_then(|meta| meta.modified())
-        .ok()
-        .and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok())
-        .map(|d| d.as_secs() as i64)
-        .unwrap_or(0)
-}
-
 /// Disk session catalog for the Home history list. Newest first.
 pub fn list_session_summaries() -> Result<Vec<Value>, String> {
-    let dir = sessions_dir()?;
-    if !dir.exists() {
-        return Ok(Vec::new());
-    }
-    let mut items: Vec<(i64, Value)> = Vec::new();
-    let entries = fs::read_dir(&dir).map_err(|e| e.to_string())?;
-    for entry in entries {
-        let entry = entry.map_err(|e| e.to_string())?;
-        let path = entry.path();
-        if path.extension().and_then(|e| e.to_str()) != Some("json") {
-            continue;
-        }
-        let Some(stem) = path.file_stem().and_then(|s| s.to_str()) else {
-            continue;
-        };
-        if stem.ends_with(".json") || stem.contains('.') {
-            continue;
-        }
-        let Ok(session) = load_session(stem) else {
-            continue;
-        };
-        let updated_at = file_updated_at(&path);
-        items.push((
-            updated_at,
-            json!({
-                "session_id": session.session_id,
-                "title": session_list_title(&session, updated_at),
-                "updated_at": updated_at,
-            }),
-        ));
-    }
-    items.sort_by(|a, b| b.0.cmp(&a.0));
-    items.truncate(HOME_CHAT_LIST_LIMIT);
-    Ok(items.into_iter().map(|(_, v)| v).collect())
+    catalog::list_recent(&catalog_file_path()?)
 }
 
 /// Read-only turns for Home / binding hydrate. Empty when no live session / load fails.
@@ -186,27 +141,8 @@ pub fn load_turns_value(session_id: &str) -> Value {
     if id.is_empty() {
         return Value::Array(Vec::new());
     }
-    match load_session(id) {
-        Ok(session) => Value::Array(
-            session
-                .turns
-                .iter()
-                .filter(|turn| {
-                    (turn.role == "user" || turn.role == "assistant")
-                        && turn
-                            .content
-                            .as_deref()
-                            .map(|text| !text.is_empty())
-                            .unwrap_or(false)
-                })
-                .map(|turn| {
-                    json!({
-                        "role": turn.role,
-                        "content": turn.content,
-                    })
-                })
-                .collect(),
-        ),
+    match session_file_path(id).and_then(|path| session_db::load_ui_messages(&path)) {
+        Ok(items) => Value::Array(items),
         Err(_) => Value::Array(Vec::new()),
     }
 }

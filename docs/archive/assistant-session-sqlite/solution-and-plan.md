@@ -1,22 +1,22 @@
 # 助手会话存储升级：按会话拆分的 SQLite
 
-**状态：** 已收敛，未实施  
-**日期：** 2026-09-23  
-**范围：** Workbench macOS 会话落盘。不实现上下文压缩，格式预留压缩。  
+**状态：** 已实施
+**日期：** 2026-09-23
+**范围：** Workbench macOS 会话落盘与增量写入。不实现上下文压缩、旧 JSON 迁移、UI 或 IPC 改动；格式预留压缩。
 **图：** https://luluboard.app/#b:b_389a535a
 
 ---
 
 ## 1. 问题与目标
 
-当前一场会话一个 JSON 文件，整份 `turns` 每次重写。Home 列表扫描目录并解析文件。界面回放和发给模型读同一份 `turns`。后续要做上下文压缩时，界面原文和模型上下文会分叉，这份结构撑不住。
+改造前一场会话一个 JSON 文件，整份 `turns` 每次重写；Home 列表扫描目录并解析文件。界面回放和发给模型读同一份 `turns`。后续要做上下文压缩时，界面原文和模型上下文会分叉，这份结构撑不住。
 
-目标：
+本次落地结果：
 
 - 会话改用 SQLite，一场会话一个库文件。
 - 界面原文和模型历史分开存。
 - 运行时不再读旧 JSON。
-- 本机旧数据用单独脚本迁一次。
+- 每次保存先比较内存与库中仍活动的步骤，只追加新增尾部；取消或截断时只删除活动步骤的尾部。
 - 压缩功能本次不做；表先建好。
 
 ---
@@ -26,7 +26,7 @@
 | # | 结论 |
 |---|---|
 | 1 | 本次只升级存储并预留压缩表，不实现压缩任务。 |
-| 2 | 运行时不兼容 `{session_id}.json`，旧数据用本机脚本迁一次。 |
+| 2 | 运行时不兼容 `{session_id}.json`，旧数据迁移不在本次范围。 |
 | 3 | Home 列表读 `sessions-catalog.sqlite`，创建、更新、删除时同步。 |
 | 4 | 压缩后早期 `model_steps` 行保留，只从 `model_turns` 去掉引用。 |
 
@@ -38,31 +38,19 @@
 
 ---
 
-## 3. 现状
+## 3. 已落地的实现
 
-会话目录是 `{cache_dir}/agent/sessions/{session_id}.json`。✅ 已验证（`src-tauri/src/agent/session/store.rs`：`sessions_dir` / `session_file_path`）
+会话目录为 `{cache_dir}/agent/sessions/{session_id}.sqlite`，目录上一级的 `{cache_dir}/agent/sessions-catalog.sqlite` 保存 Home 列表。✅ 已验证（`src-tauri/src/agent/session/store.rs`、`catalog.rs`）
 
-默认 `cache_dir` 是 `~/.cache/lulu-workbench`。✅ 已验证（`src-tauri/src/config/settings/types.rs`：`default_cache_dir`）
+`session_id` 仍形如 `workbench_chat_{随机 id}`，并拒绝 `/`、`\`、`..`。测试仍必须走 `TestSandbox`，不能读写生产 cache。✅ 已验证（`store.rs`、`schema.rs`）
 
-`session_id` 形如 `workbench_chat_{随机 id}`，禁止 `/`、`\`、`..`。✅ 已验证（`store.rs`：`create_session` / `session_file_path`）
+`AIAssistantSession` 继续只保留当前会话现场；`append_turn` 沿用“加载、内存追加、保存”的调用面。✅ 已验证（`store.rs`、`live.rs`）
 
-文件内容：`session_id`、`turns[]`、`staged[]`。`Turn` 有 `role`、`content`、`tool_call_id`、`tool_calls`、`name`。`staged` 只记路径，不存文件体。✅ 已验证（`src-tauri/src/agent/session/types.rs`）
+`save_session` 会读取仍由 `model_turns` 引用的 `model_steps`，计算与内存 `turns` 的公共前缀：相同前缀不写；新增尾部只插入新增行；内存删掉尾部时只删除对应活动步骤、失去步骤的回合，以及对应的界面消息尾部。它不再清空会话表。✅ 已验证（`session_db.rs`、`turn_store.rs`）
 
-写入是整份 pretty JSON，先写 `.json.tmp` 再 rename。✅ 已验证（`store.rs`：`save_session`）
+Home 列表只读 catalog，按 `updated_at DESC, rowid DESC` 取 20 条；标题沿用第一条用户消息前 48 字。✅ 已验证（`catalog.rs`、`store.rs`）
 
-内存 `AIAssistantSession` 只持有当前 `session_id` 等现场，不另存一份对话。✅ 已验证（`types.rs`：`HOLDS_PARALLEL_TURN_STORAGE = false`；`live.rs`）
-
-Home 列表扫描 `sessions/*.json`，按文件修改时间取最近 20 条；标题取第一条用户消息前 48 字。✅ 已验证（`store.rs`：`list_session_summaries`）
-
-界面回放只返回 `role` 为 `user` / `assistant` 且 `content` 非空的 turn。工具结果留在文件里，不走这条 IPC。✅ 已验证（`store.rs`：`load_turns_value`）
-
-发给模型时读同一份 `turns`，组请求时截断到 2000 条消息、200 个用户回合；截断结果不写回。✅ 已验证（`src-tauri/src/agent/turn/history.rs`；`src-tauri/src/agent/turn/types.rs`）
-
-一次用户发送先追加 `user` 并 `persist`，再按循环追加带 `tool_calls` 的 `assistant` 和 `role=tool`。✅ 已验证（`src-tauri/src/agent/turn/run.rs`）
-
-测试必须走 TestSandbox，会话目录不能落到生产 cache。✅ 已验证（`store.rs`：`reject_unisolated_sessions_dir`）
-
-仓库已有 `rusqlite`，用于 `{cache_dir}/keyword-index.sqlite`，不是会话库。✅ 已验证（`src-tauri/Cargo.toml`；`src-tauri/src/services/keyword_index/store.rs`）
+界面回放只读 `messages`；模型历史从 `model_turns` 与 `model_steps` 的连接结果重建。工具结果不走界面 IPC。✅ 已验证（`session_db.rs`、`store.rs`）
 
 ---
 
@@ -181,15 +169,15 @@ Home 只读这张表，按 `updated_at` 降序取 20 条。
 | 列表 | 只读 catalog |
 | 选中 / 打开 | 打开对应会话库 |
 | 界面回放 | `SELECT` `messages`，按 `seq` 排序 |
-| 发给模型 | `summaries`（现为空）+ 仍在 `model_turns` 中的 `model_steps` |
-| 用户发送 | `messages` 追加 `user`；新建一个 `model_turns`；`model_steps` 追加 `kind=user` |
-| 助手可见回复 | `messages` 追加 `assistant`；`model_steps` 追加 `kind=assistant` |
-| 工具调用 / 结果 | 只写 `model_steps`（`tool_call` / `tool_result`） |
-| Stage | 只写 `staged` |
+| 发给模型 | 通过 `model_turns` 连接仍活动的 `model_steps` 重建历史；`summaries` 现为空且不参与读取 |
+| 新增 user / assistant / tool | 调用方追加内存 turn 后保存；公共前缀以后的步骤才插入。user 新建 `model_turns`，assistant / tool 追加到该回合 |
+| 助手可见回复 | 同时追加 `messages` 与 `model_steps` |
+| 工具调用 / 结果 | 只追加 `model_steps`（`tool_call` / `tool_result`） |
+| Stage | 对当前项 upsert，并删除内存中已不存在的项 |
 | 删除会话 | 删 `{session_id}.sqlite`（含 wal/shm）；catalog 删对应行 |
 | 组请求截断 | 仍在内存做，上限仍是 2000 / 200，不写回库 |
 
-`save_session` / `load_session` / `append_turn` / `list_session_summaries` / `load_turns_value` / `load_staged_value` 的调用方保持，内部改为 sqlite。运行时路径不再打开 `.json`。
+`save_session` / `load_session` / `append_turn` / `list_session_summaries` / `load_turns_value` / `load_staged_value` 的调用方保持不变，内部改为 SQLite 增量同步。运行时路径不再打开 `.json`。
 
 标题规则沿用：第一条用户消息前 48 字；没有用户消息时用时间文案。✅ 已验证（`store.rs`：`session_list_title`）写入 `meta.title` 和 catalog。
 
@@ -197,33 +185,20 @@ Home 只读这张表，按 `updated_at` 降序取 20 条。
 
 ## 7. 压缩预留（不实现）
 
-日后压缩只做：
+已预留的压缩数据形态：
 
 1. 从 `model_turns` 去掉早期回合。
 2. 向 `summaries` 插入一行，覆盖被去掉的 `seq` 区间。
 3. `messages` 不改。
 4. 被拿掉的 `model_steps` 行保留，只是不再被 `model_turns` 引用。
 
-发给模型变为：`summaries.body` + 仍在 `model_turns` 里的 steps。  
-压缩触发条件和保留多少尾部回合本次不定。
+当前没有压缩触发、写入或读取逻辑；`summaries` 仅建表。压缩触发条件、摘要格式和保留多少尾部回合不在本次范围。
 
 ---
 
-## 8. 本机迁移脚本
+## 8. 旧 JSON
 
-不在启动、打开会话、列表时迁 JSON。
-
-脚本单独执行，不进 Host 热路径。行为：
-
-1. 扫描 `{cache_dir}/agent/sessions/*.json`。
-2. 对每个文件：建 `{session_id}.sqlite`。
-3. 按现有 `turns` 顺序：遇到 `user` 开一个 `model_turns`；该 `user` 和随后的 `assistant` / `tool` 写入这个 turn 的 `model_steps`。
-4. `user` / `assistant` 且 `content` 非空的同时写入 `messages`。
-5. `staged` 原样写入。
-6. 更新 catalog。
-7. 成功后再处理下一个文件。失败停在该文件，不删源 JSON。
-
-源 JSON 是否删除由执行脚本的人决定，不写进运行时。
+运行时不读取或迁移 `{session_id}.json`。旧数据迁移脚本不在本次范围；如要补做，必须作为独立任务定义输入、失败恢复和源文件保留策略。
 
 ---
 
@@ -242,13 +217,11 @@ Cursor 的 `state.vscdb` 是 SQLite，但对话正文在 `cursorDiskKV(key, valu
 
 ---
 
-## 10. 实施顺序
+## 10. 实施结果
 
-1. 会话库 schema 与打开 / 关闭连接（测试沙箱）。
-2. 替换 `store.rs` 的创建、保存、加载、删除、列表、turns/staged 读取。
-3. 保持 `run.rs` 的追加语义，映射到 `messages` + `model_turns` + `model_steps`。
-4. catalog 与会话 `meta` 同步。
-5. 单测改到 sqlite 断言；禁止写生产 cache。
-6. 本机迁移脚本另做，不阻塞运行时合并。
-
-未授权前不改代码。
+1. 已落地会话库 schema、catalog 和测试沙箱隔离。
+2. 已替换 `store.rs` 的创建、保存、加载、删除、列表、turns/staged 读取。
+3. 已保持 `run.rs` 调用面的追加语义，并映射到 `messages`、`model_turns` 与 `model_steps`。
+4. 已同步 catalog 与会话 `meta`。
+5. 已补 SQLite 结构和增量保存回归测试：新增回合不会删除非活动步骤，截断只移除尾部。
+6. 旧 JSON 迁移和上下文压缩仍未实现。
