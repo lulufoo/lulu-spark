@@ -23,6 +23,10 @@ impl ToolCatalog {
         self.names.contains(name)
     }
 
+    pub fn tool_names(&self) -> BTreeSet<String> {
+        self.names.clone()
+    }
+
     pub fn is_mutating(&self, name: &str) -> bool {
         self.contains(name) && !self.read_only_names.contains(name)
     }

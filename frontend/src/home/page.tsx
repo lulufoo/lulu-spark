@@ -348,7 +348,7 @@ export function HomePage({
               onInput={syncComposerHeight}
             />
             <div className="home-chat-composer-corner">
-              <ContextPercent percent={state.contextPercent} />
+              <ContextPercent percent={state.contextPercent} usage={state.contextUsage} />
               <button
                 type="submit"
                 className="home-chat-send"

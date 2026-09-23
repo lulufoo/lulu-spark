@@ -27,38 +27,59 @@ fn open(path: &PathBuf) -> Result<Connection, String> {
         .map_err(|e| e.to_string())?;
     conn.execute_batch(SESSION_SCHEMA)
         .map_err(|e| e.to_string())?;
-    ensure_last_prompt_column(&conn)?;
+    ensure_last_prompt_columns(&conn)?;
     Ok(conn)
 }
 
-fn ensure_last_prompt_column(conn: &Connection) -> Result<(), String> {
+fn ensure_last_prompt_columns(conn: &Connection) -> Result<(), String> {
     let mut stmt = conn
         .prepare("PRAGMA table_info(meta)")
         .map_err(|e| e.to_string())?;
     let names = stmt
         .query_map([], |row| row.get::<_, String>(1))
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
         .map_err(|e| e.to_string())?;
-    for name in names {
-        if name.map_err(|e| e.to_string())? == "last_prompt_tokens" {
-            return Ok(());
-        }
+    if !names.iter().any(|name| name == "last_prompt_tokens") {
+        conn.execute(
+            "ALTER TABLE meta ADD COLUMN last_prompt_tokens INTEGER",
+            [],
+        )
+        .map_err(|e| e.to_string())?;
     }
+    if !names.iter().any(|name| name == "last_prompt_breakdown") {
+        conn.execute(
+            "ALTER TABLE meta ADD COLUMN last_prompt_breakdown TEXT",
+            [],
+        )
+        .map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+pub fn store_last_prompt(path: &PathBuf, tokens: i64, breakdown: &str) -> Result<(), String> {
+    let conn = open(path)?;
     conn.execute(
-        "ALTER TABLE meta ADD COLUMN last_prompt_tokens INTEGER",
-        [],
+        "UPDATE meta SET last_prompt_tokens = ?1, last_prompt_breakdown = ?2",
+        params![tokens, breakdown],
     )
     .map_err(|e| e.to_string())?;
     Ok(())
 }
 
-pub fn store_last_prompt_tokens(path: &PathBuf, tokens: i64) -> Result<(), String> {
+pub fn load_last_prompt_breakdown(path: &PathBuf) -> Result<Option<String>, String> {
+    if !path.is_file() {
+        return Ok(None);
+    }
     let conn = open(path)?;
-    conn.execute(
-        "UPDATE meta SET last_prompt_tokens = ?1",
-        params![tokens],
+    conn.query_row(
+        "SELECT last_prompt_breakdown FROM meta LIMIT 1",
+        [],
+        |row| row.get(0),
     )
-    .map_err(|e| e.to_string())?;
-    Ok(())
+    .optional()
+    .map_err(|e| e.to_string())?
+    .ok_or_else(|| "Session not found".to_string())
 }
 
 pub fn load_last_prompt_tokens(path: &PathBuf) -> Result<Option<i64>, String> {

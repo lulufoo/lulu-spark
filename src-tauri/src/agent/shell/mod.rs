@@ -51,8 +51,16 @@ pub fn get_ai_assistant_binding_core() -> Value {
         "turns": turns,
         "staged": staged,
     });
-    if let Some(percent) = crate::agent::context::current_context_percent() {
-        body["context_percent"] = json!(percent);
+    if let Some(usage) = crate::agent::context::current_context_usage() {
+        body["context_percent"] = json!(usage.percent);
+        body["context_usage"] = json!({
+            "total_tokens": usage.total_tokens,
+            "window_tokens": usage.window_tokens,
+            "categories": usage.categories.iter().map(|category| json!({
+                "id": category.id,
+                "tokens": category.tokens,
+            })).collect::<Vec<_>>(),
+        });
     }
     body
 }

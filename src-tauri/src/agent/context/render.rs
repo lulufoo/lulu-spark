@@ -4,37 +4,98 @@
 //! Defaults match an undefined `enable_thinking` and `reasoning_effort`:
 //! the reasoning-effort line is `Max`, and the generation prompt ends in `<think>`.
 
+use std::collections::BTreeSet;
+
 use serde_json::{Map, Value};
+
+/// One slice of the rendered prompt. Offsets are byte indexes into that text.
+pub struct PromptSpan {
+    pub id: &'static str,
+    pub start: usize,
+    pub end: usize,
+}
 
 const TOOLS_HEAD: &str = "<|system|>\n# Tools\n\nYou may call one or more functions to assist with the user query.\n\nYou are provided with function signatures within <tools></tools> XML tags:\n<tools>\n";
 const TOOLS_TAIL: &str = "</tools>\n\nFor each function call, output the function name and arguments within the following XML format:\n<tool_call>{function-name}<arg_key>{arg-key-1}</arg_key><arg_value>{arg-value-1}</arg_value><arg_key>{arg-key-2}</arg_key><arg_value>{arg-value-2}</arg_value>...</tool_call>";
 
 /// Render messages and tool definitions, including the generation prompt.
 pub fn render_request(messages: &[Value], tools: &[Value]) -> String {
-    let mut out = String::from("[gMASK]<sop><|system|>Reasoning Effort: Max");
-    render_tools(&mut out, tools);
-    for (index, message) in messages.iter().enumerate() {
-        render_message(&mut out, messages, index, message);
-    }
-    out.push_str("<|assistant|><think>");
-    out
+    render_marked(messages, tools, &BTreeSet::new()).0
 }
 
-fn render_tools(out: &mut String, tools: &[Value]) {
+/// Same text as `render_request`, with each slice labeled.
+/// `mcp_names` are tool names that came from the MCP catalog. Every other
+/// included tool definition is a host tool. Rules, skills, subagents, and
+/// summarized conversation are not separate slices of this prompt.
+pub fn render_marked(
+    messages: &[Value],
+    tools: &[Value],
+    mcp_names: &BTreeSet<String>,
+) -> (String, Vec<PromptSpan>) {
+    let mut out = String::new();
+    let mut spans = Vec::new();
+    mark(&mut out, &mut spans, "other", |out| {
+        out.push_str("[gMASK]<sop><|system|>Reasoning Effort: Max");
+    });
+    render_tools(&mut out, &mut spans, tools, mcp_names);
+    for (index, message) in messages.iter().enumerate() {
+        let id = match message.get("role").and_then(Value::as_str).unwrap_or("") {
+            "system" => "system_prompt",
+            _ => "conversation",
+        };
+        mark(&mut out, &mut spans, id, |out| {
+            render_message(out, messages, index, message);
+        });
+    }
+    mark(&mut out, &mut spans, "other", |out| {
+        out.push_str("<|assistant|><think>");
+    });
+    (out, spans)
+}
+
+fn mark(out: &mut String, spans: &mut Vec<PromptSpan>, id: &'static str, write: impl FnOnce(&mut String)) {
+    let start = out.len();
+    write(out);
+    let end = out.len();
+    if end > start {
+        spans.push(PromptSpan { id, start, end });
+    }
+}
+
+fn render_tools(
+    out: &mut String,
+    spans: &mut Vec<PromptSpan>,
+    tools: &[Value],
+    mcp_names: &BTreeSet<String>,
+) {
     if tools.is_empty() {
         return;
     }
-    out.push_str(TOOLS_HEAD);
+    mark(out, spans, "tools", |out| out.push_str(TOOLS_HEAD));
     for tool in tools {
         let Some(body) = included_function(tool) else {
             continue;
         };
-        out.push('\n');
-        out.push_str(&tool_to_json(body));
-        out.push_str("\n\n");
+        let id = tool_category(body, mcp_names);
+        mark(out, spans, id, |out| {
+            out.push('\n');
+            out.push_str(&tool_to_json(body));
+            out.push_str("\n\n");
+        });
     }
-    out.push('\n');
-    out.push_str(TOOLS_TAIL);
+    mark(out, spans, "tools", |out| {
+        out.push('\n');
+        out.push_str(TOOLS_TAIL);
+    });
+}
+
+fn tool_category(body: &Map<String, Value>, mcp_names: &BTreeSet<String>) -> &'static str {
+    let name = body.get("name").and_then(Value::as_str).unwrap_or("");
+    if mcp_names.contains(name) {
+        "mcp"
+    } else {
+        "tools"
+    }
 }
 
 fn included_function(tool: &Value) -> Option<&Map<String, Value>> {

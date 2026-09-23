@@ -1,7 +1,9 @@
-use serde_json::json;
+use std::collections::BTreeSet;
 
-use super::count::count_tokens;
-use super::render::render_request;
+use serde_json::{json, Value};
+
+use super::count::{count_spans, count_tokens};
+use super::render::{render_marked, render_request};
 use super::window::{round_percent, window_tokens};
 
 const HELPFUL: &str = "[gMASK]<sop><|system|>Reasoning Effort: Max<|system|>You are helpful.<|assistant|><think>";
@@ -112,7 +114,7 @@ fn sent_prompt_token_count_survives_a_later_save() {
     ]);
     let messages = messages.as_array().expect("messages");
     let expected = count_tokens(&render_request(messages, &[])).expect("count") as i64;
-    super::record_sent_prompt(&session.session_id, messages, &[]);
+    super::record_sent_prompt(&session.session_id, messages, &[], &BTreeSet::new());
     assert_eq!(
         crate::agent::session::load_last_prompt_tokens(&session.session_id).expect("load"),
         Some(expected)
@@ -121,5 +123,79 @@ fn sent_prompt_token_count_survives_a_later_save() {
     assert_eq!(
         crate::agent::session::load_last_prompt_tokens(&session.session_id).expect("reload"),
         Some(expected)
+    );
+}
+
+#[test]
+fn prompt_breakdown_splits_system_tools_mcp_and_conversation() {
+    let messages = json!([
+        { "role": "system", "content": "You are helpful." },
+        { "role": "user", "content": "Hi" }
+    ]);
+    let tools = json!([
+        {
+            "type": "function",
+            "function": { "name": "read_file", "description": "Read", "parameters": { "type": "object" } }
+        },
+        {
+            "type": "function",
+            "function": { "name": "list_notes", "description": "Notes", "parameters": { "type": "object" } }
+        }
+    ]);
+    let messages = messages.as_array().expect("messages");
+    let tools = tools.as_array().expect("tools");
+    let mcp_names = BTreeSet::from(["list_notes".to_string()]);
+    let (text, spans) = render_marked(messages, tools, &mcp_names);
+    let categories = count_spans(&text, &spans).expect("spans");
+    let total = count_tokens(&text).expect("total");
+    let summed: usize = categories.iter().map(|(_, tokens)| *tokens).sum();
+    assert_eq!(summed, total);
+    assert!(tokens_of(&categories, "system_prompt") > 0);
+    assert!(tokens_of(&categories, "tools") > 0);
+    assert!(tokens_of(&categories, "mcp") > 0);
+    assert!(tokens_of(&categories, "conversation") > 0);
+    assert!(categories.iter().all(|(id, _)| {
+        ["system_prompt", "tools", "mcp", "conversation", "other"].contains(id)
+    }));
+}
+
+fn tokens_of(categories: &[(&str, usize)], id: &str) -> usize {
+    categories
+        .iter()
+        .find(|(name, _)| *name == id)
+        .map(|(_, tokens)| *tokens)
+        .unwrap_or(0)
+}
+
+#[test]
+fn stored_breakdown_survives_a_later_save() {
+    let _sandbox = crate::test_support::TestSandbox::new();
+    let session = crate::agent::session::create_session().expect("create");
+    let messages = json!([
+        { "role": "system", "content": "You are helpful." },
+        { "role": "user", "content": "Hi" }
+    ]);
+    let tools = json!([{
+        "type": "function",
+        "function": { "name": "list_notes", "description": "Notes", "parameters": { "type": "object" } }
+    }]);
+    let mcp_names = BTreeSet::from(["list_notes".to_string()]);
+    super::record_sent_prompt(
+        &session.session_id,
+        messages.as_array().expect("messages"),
+        tools.as_array().expect("tools"),
+        &mcp_names,
+    );
+    let raw = crate::agent::session::load_last_prompt_breakdown(&session.session_id)
+        .expect("load")
+        .expect("breakdown");
+    let parsed: Value = serde_json::from_str(&raw).expect("json");
+    let rows = parsed.as_array().expect("rows");
+    assert!(rows.iter().any(|row| row["id"] == "mcp" && row["tokens"].as_u64().unwrap_or(0) > 0));
+    assert!(rows.iter().all(|row| row["id"] != "rules" && row["id"] != "skills"));
+    crate::agent::session::save_session(&session).expect("save");
+    assert_eq!(
+        crate::agent::session::load_last_prompt_breakdown(&session.session_id).expect("reload"),
+        Some(raw)
     );
 }

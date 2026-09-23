@@ -176,7 +176,12 @@ pub(crate) fn run_loop_with_progress(
             trace_id,
             "Requesting…",
         );
-        crate::agent::context::record_sent_prompt(&session.session_id, &messages, tool_defs);
+        crate::agent::context::record_sent_prompt(
+            &session.session_id,
+            &messages,
+            tool_defs,
+            &tools::mcp_names(&turn_tools),
+        );
         let session_id = session.session_id.clone();
         let mut on_delta = |hint: &str| {
             progress::emit_progress(sink, &session_id, trace_id, hint);

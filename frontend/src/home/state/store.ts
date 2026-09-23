@@ -27,6 +27,17 @@ export type ChannelUnread = {
   todos: boolean;
 };
 
+export type ContextUsageCategory = {
+  id: string;
+  tokens: number;
+};
+
+export type ContextUsage = {
+  totalTokens: number;
+  windowTokens: number;
+  categories: ContextUsageCategory[];
+};
+
 export type HomeState = {
   sessions: HubSession[];
   currentSessionId: string;
@@ -34,6 +45,7 @@ export type HomeState = {
   staged: HubStagedEntry[];
   hostBound: boolean;
   contextPercent: number | null;
+  contextUsage: ContextUsage | null;
   progressByChat: Record<string, string>;
   inFlightIds: string[];
   channelUnread: ChannelUnread;
@@ -51,6 +63,7 @@ function emptyState(): HomeState {
     staged: [],
     hostBound: false,
     contextPercent: null,
+    contextUsage: null,
     progressByChat: Object.create(null) as Record<string, string>,
     inFlightIds: [],
     channelUnread: emptyUnread(),
@@ -154,6 +167,31 @@ export function hydrateTurns(turns: unknown): HubMessage[] {
       role: (t as HubMessage).role,
       text: String((t as { content: unknown }).content),
     }));
+}
+
+export function contextUsageFrom(payload: object | null): ContextUsage | null {
+  if (!payload || !('context_usage' in payload)) return null;
+  const raw = (payload as { context_usage?: unknown }).context_usage;
+  if (!raw || typeof raw !== 'object') return null;
+  const body = raw as {
+    total_tokens?: unknown;
+    window_tokens?: unknown;
+    categories?: unknown;
+  };
+  if (typeof body.total_tokens !== 'number' || typeof body.window_tokens !== 'number') return null;
+  const categories = Array.isArray(body.categories)
+    ? body.categories.flatMap((item) => {
+        if (!item || typeof item !== 'object') return [];
+        const row = item as { id?: unknown; tokens?: unknown };
+        if (typeof row.id !== 'string' || typeof row.tokens !== 'number' || row.tokens <= 0) return [];
+        return [{ id: row.id, tokens: row.tokens }];
+      })
+    : [];
+  return {
+    totalTokens: body.total_tokens,
+    windowTokens: body.window_tokens,
+    categories,
+  };
 }
 
 export function contextPercentFrom(payload: object | null) {

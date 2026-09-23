@@ -6,7 +6,7 @@ mod render;
 mod usage;
 mod window;
 
-pub use usage::{current_context_percent, record_sent_prompt};
+pub use usage::{current_context_percent, current_context_usage, record_sent_prompt};
 
 #[cfg(test)]
 #[path = "../../unit-tests/agent/context_percent.rs"]

@@ -82,8 +82,12 @@ pub fn load_session(session_id: &str) -> Result<Session, String> {
     session_db::load(&session_file_path(session_id)?)
 }
 
-pub fn store_last_prompt_tokens(session_id: &str, tokens: i64) -> Result<(), String> {
-    session_db::store_last_prompt_tokens(&session_file_path(session_id)?, tokens)
+pub fn store_last_prompt(session_id: &str, tokens: i64, breakdown: &str) -> Result<(), String> {
+    session_db::store_last_prompt(&session_file_path(session_id)?, tokens, breakdown)
+}
+
+pub fn load_last_prompt_breakdown(session_id: &str) -> Result<Option<String>, String> {
+    session_db::load_last_prompt_breakdown(&session_file_path(session_id)?)
 }
 
 pub fn load_last_prompt_tokens(session_id: &str) -> Result<Option<i64>, String> {

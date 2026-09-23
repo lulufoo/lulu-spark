@@ -5,6 +5,7 @@ pub mod fs;
 pub mod host;
 pub mod stage;
 
+use std::collections::BTreeSet;
 use std::fmt;
 
 use serde_json::Value;
@@ -84,6 +85,13 @@ pub fn discover_and_merge(
         mcp,
         host: with_host,
     })
+}
+
+pub fn mcp_names(turn: &TurnTools) -> BTreeSet<String> {
+    turn.mcp
+        .as_ref()
+        .map(|(_, catalog)| catalog.tool_names())
+        .unwrap_or_default()
 }
 
 /// Replace `{session_scratch}` in this turn's tool descriptions.

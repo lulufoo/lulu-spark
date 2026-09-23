@@ -109,3 +109,19 @@ Home state 增加 `contextPercent`。`applySessionPayload` 在选择会话、新
 - Roo Code 的任务头百分比后来把预留输出也加进分子（https://github.com/RooCodeInc/Roo-Code/pull/11034）。
 
 本方案保持官方分词器，不加输出预留，也不把最终回复加进分子。界面仍在整次用户发送结束时更新一次。
+
+## 9. 点击后的用量面板
+
+2026-09-23。进度环可点。悬停提示是 `Show context usage`。点开后在环的上方弹出面板，标题是 `Context Usage`。样式对照本机 Cursor 3.21.16 的 `composer-context-usage-tray`：宽 320px，标题在左，右侧关闭；下面一行是 `N% Full` 和 `~已用 / 窗口 Tokens`；再下面是按分类着色的细条和分类列表。分类行悬停时高亮对应色块。没有新的 invoke，分类附在原来的 `get_ai_assistant_binding` 返回值 `context_usage` 上。
+
+这次请求里能分开计数的只有这些：
+
+| id | 面板名称 | 内容 |
+|---|---|---|
+| system_prompt | System prompt | 系统消息 |
+| tools | Tools | 本机工具定义，以及工具调用说明 |
+| mcp | MCP | MCP 工具定义 |
+| conversation | Conversation | 用户、助手、工具结果 |
+| other | Other | 模板前后缀，例如推理力度和生成提示 |
+
+Rules、Skills、Subagents、Summarized conversation 在这次请求里没有单独的一段，面板不列。某一类 token 为 0 时也不列。分类 token 之和等于这次保存的 prompt token 总数。还没有保存过分类的旧会话只显示百分比和总数，不补假分类。没有保存过 prompt 时，面板写 `No context usage yet.`

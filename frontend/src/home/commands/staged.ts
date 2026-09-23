@@ -3,6 +3,7 @@ import * as api from '../../host/api.ts';
 import { stagedIdentityKey } from '../state/identity.ts';
 import {
   contextPercentFrom,
+  contextUsageFrom,
   getHomeState,
   hydrateStaged,
   setHomeState,
@@ -32,6 +33,7 @@ export async function refreshStagedFromBinding(
       ...prev,
       staged: hydrateStaged(binding?.staged),
       contextPercent: contextPercentFrom(binding),
+      contextUsage: contextUsageFrom(binding),
     }));
   } catch {
     /* turn already applied; keep prior staged */

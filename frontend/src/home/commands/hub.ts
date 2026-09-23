@@ -8,6 +8,7 @@ import {
 import {
   getHomeState,
   contextPercentFrom,
+  contextUsageFrom,
   hydrateStaged,
   hydrateTurns,
   neighborSessionId,
@@ -65,6 +66,7 @@ function applySessionPayload(payload: Record<string, unknown> | null, gen?: numb
     messages: Object.hasOwn(payload, 'turns') ? hydrateTurns(payload.turns) : prev.messages,
     staged: Object.hasOwn(payload, 'staged') ? hydrateStaged(payload.staged) : prev.staged,
     contextPercent: contextPercentFrom(payload),
+    contextUsage: contextUsageFrom(payload),
   }));
 }
 
@@ -91,6 +93,7 @@ export async function selectSession(sessionId: string) {
     ...prev,
     currentSessionId: String(sessionId || ''),
     contextPercent: null,
+    contextUsage: null,
   }));
   const payload = (await api.invoke('select_chat_session', { sessionId })) as Record<
     string,
@@ -128,6 +131,7 @@ export async function deleteSession(sessionId: string) {
         messages: [],
         staged: [],
         contextPercent: null,
+        contextUsage: null,
       }));
     }
   } catch (err) {
@@ -175,6 +179,7 @@ export async function applyBindingState() {
       messages: [],
       staged: [],
       contextPercent: null,
+      contextUsage: null,
       progressByChat: Object.create(null) as Record<string, string>,
       inFlightIds: [],
     }));
