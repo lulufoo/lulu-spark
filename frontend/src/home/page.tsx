@@ -5,6 +5,7 @@ import { flushSync } from 'react-dom';
 import { hydrateHomeChatMarkdown, renderHomeChatMarkdown } from './ui/chat-render.ts';
 import { SessionList } from './ui/session-list.tsx';
 import { SessionMenu } from './ui/session-menu.tsx';
+import { ContextPercent } from './ui/context-percent.tsx';
 import { StagedList } from './ui/staged-list.tsx';
 import { copyCurrentSessionId } from './commands/copy-session-id.ts';
 import {
@@ -346,22 +347,22 @@ export function HomePage({
               onCompositionEnd={() => imeEnterRef.current.onCompositionEnd()}
               onInput={syncComposerHeight}
             />
-            <button
-              type="submit"
-              className="home-chat-send"
-              data-role="send"
-              aria-label="Send"
-              title="Send"
-              disabled={locked}
-            >
-              <span className="home-chat-send-label">Send</span>
-              <svg className="home-chat-send-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                <path
-                  fill="currentColor"
-                  d="M5.2 11.1 18.6 4.4a.8.8 0 0 1 1.1.9l-3.7 13.5a.8.8 0 0 1-1.4.3l-3.6-4.7-4.8-1.6a.8.8 0 0 1 0-1.5z"
-                />
-              </svg>
-            </button>
+            <div className="home-chat-composer-corner">
+              <ContextPercent percent={state.contextPercent} />
+              <button
+                type="submit"
+                className="home-chat-send"
+                data-role="send"
+                aria-label="Send"
+                title="Send"
+                disabled={locked}
+              >
+                <span className="home-chat-send-label">Send</span>
+                <svg className="home-chat-send-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none">
+                  <path d="M12 19V5M5 12l7-7 7 7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+            </div>
           </div>
         </form>
       </section>

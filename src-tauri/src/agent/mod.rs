@@ -1,6 +1,7 @@
 //! Host MVP Agent: Session / Tools / LLM / Binding / Shell / Turn.
 
 pub mod binding;
+pub mod context;
 pub mod diagnostics;
 pub mod engine_router;
 pub mod llm;

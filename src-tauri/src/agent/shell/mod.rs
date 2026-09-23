@@ -43,14 +43,18 @@ pub fn get_ai_assistant_binding_core() -> Value {
     };
     let turns = session::load_turns_value(&session_id);
     let staged = session::load_staged_value(&session_id);
-    json!({
+    let mut body = json!({
         "session_id": session_id,
         "window_label": WINDOW_LABEL,
         "busy": busy,
         "pending_present": pending_present,
         "turns": turns,
         "staged": staged,
-    })
+    });
+    if let Some(percent) = crate::agent::context::current_context_percent() {
+        body["context_percent"] = json!(percent);
+    }
+    body
 }
 
 /// Ensure a chat session exists for turn history only (no master / title).

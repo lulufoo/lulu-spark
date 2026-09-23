@@ -67,7 +67,7 @@ pub fn build_llm_messages_from_turns(turns: &[Turn], system_prompt: &str) -> Vec
     messages
 }
 
-pub(super) fn prompt_text_from_binding(prompt: &Value) -> String {
+pub(crate) fn prompt_text_from_binding(prompt: &Value) -> String {
     match prompt {
         Value::String(s) => s.clone(),
         other => other

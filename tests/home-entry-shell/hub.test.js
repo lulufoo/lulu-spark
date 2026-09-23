@@ -640,7 +640,7 @@ describe('home hub composer and hub pairing', () => {
     expect(appCss).toMatch(
       /\.home-chat-staged \+ \.home-chat-composer-dock\s*\{[^}]*border-top-left-radius:\s*0/,
     );
-    expect(appCss).toMatch(/\.home-chat-send\s*\{[^}]*width:\s*28px/);
+    expect(appCss).toMatch(/\.home-chat-send\s*\{[^}]*width:\s*20px/);
     expect(appCss).toMatch(/\.home-chat-bubble--user\s*\{[^}]*background:\s*#f0f2f4/);
     expect(appCss).toMatch(/\.home-chat-bubble--assistant\s*\{[^}]*white-space:\s*normal/);
     expect(appCss).toMatch(/\.home-chat-md\s+p\s*\{/);

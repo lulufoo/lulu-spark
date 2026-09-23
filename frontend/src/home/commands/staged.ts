@@ -1,7 +1,13 @@
 import { openFilePopup } from '../../file-popup/index.ts';
 import * as api from '../../host/api.ts';
 import { stagedIdentityKey } from '../state/identity.ts';
-import { getHomeState, hydrateStaged, setHomeState, type HubStagedEntry } from '../state/store.ts';
+import {
+  contextPercentFrom,
+  getHomeState,
+  hydrateStaged,
+  setHomeState,
+  type HubStagedEntry,
+} from '../state/store.ts';
 
 export function openStagedFile(item: HubStagedEntry) {
   const path = String(item?.path || '').trim();
@@ -22,7 +28,11 @@ export async function refreshStagedFromBinding(
   try {
     const binding = (await api.invoke('get_ai_assistant_binding')) as Record<string, unknown>;
     if (liveGen() !== gen || getHomeState().currentSessionId !== sid) return;
-    setHomeState((prev) => ({ ...prev, staged: hydrateStaged(binding?.staged) }));
+    setHomeState((prev) => ({
+      ...prev,
+      staged: hydrateStaged(binding?.staged),
+      contextPercent: contextPercentFrom(binding),
+    }));
   } catch {
     /* turn already applied; keep prior staged */
   }

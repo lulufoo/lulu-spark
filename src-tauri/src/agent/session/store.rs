@@ -82,6 +82,14 @@ pub fn load_session(session_id: &str) -> Result<Session, String> {
     session_db::load(&session_file_path(session_id)?)
 }
 
+pub fn store_last_prompt_tokens(session_id: &str, tokens: i64) -> Result<(), String> {
+    session_db::store_last_prompt_tokens(&session_file_path(session_id)?, tokens)
+}
+
+pub fn load_last_prompt_tokens(session_id: &str) -> Result<Option<i64>, String> {
+    session_db::load_last_prompt_tokens(&session_file_path(session_id)?)
+}
+
 pub fn delete_session(session_id: &str) -> Result<(), String> {
     let path = session_file_path(session_id)?;
     if !path.is_file() {

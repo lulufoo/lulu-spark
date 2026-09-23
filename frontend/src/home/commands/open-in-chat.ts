@@ -1,6 +1,6 @@
 import * as api from '../../host/api.ts';
 import { navigate } from '../../router/index.ts';
-import { hydrateStaged, sessionIdOf, setHomeState } from '../state/store.ts';
+import { contextPercentFrom, hydrateStaged, sessionIdOf, setHomeState } from '../state/store.ts';
 import { requestComposerFocus } from './composer-focus.ts';
 
 export async function openPathInChat(path: string) {
@@ -18,6 +18,7 @@ export async function openPathInChat(path: string) {
   setHomeState((prev) => ({
     ...prev,
     currentSessionId: sessionId,
+    contextPercent: contextPercentFrom(created),
     staged: Object.hasOwn(result || {}, 'staged') ? hydrateStaged(result.staged) : prev.staged,
   }));
   requestComposerFocus();

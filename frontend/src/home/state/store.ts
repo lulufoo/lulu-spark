@@ -33,6 +33,7 @@ export type HomeState = {
   messages: HubMessage[];
   staged: HubStagedEntry[];
   hostBound: boolean;
+  contextPercent: number | null;
   progressByChat: Record<string, string>;
   inFlightIds: string[];
   channelUnread: ChannelUnread;
@@ -49,6 +50,7 @@ function emptyState(): HomeState {
     messages: [],
     staged: [],
     hostBound: false,
+    contextPercent: null,
     progressByChat: Object.create(null) as Record<string, string>,
     inFlightIds: [],
     channelUnread: emptyUnread(),
@@ -152,6 +154,13 @@ export function hydrateTurns(turns: unknown): HubMessage[] {
       role: (t as HubMessage).role,
       text: String((t as { content: unknown }).content),
     }));
+}
+
+export function contextPercentFrom(payload: object | null) {
+  if (!payload || !('context_percent' in payload)) return null;
+  const raw = (payload as { context_percent?: unknown }).context_percent;
+  if (typeof raw !== 'number' || !Number.isFinite(raw)) return null;
+  return Math.round(raw);
 }
 
 export function sessionIdOf(payload: { session_id?: unknown; sessionId?: unknown } | null) {

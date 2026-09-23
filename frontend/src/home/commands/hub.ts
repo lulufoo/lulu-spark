@@ -7,6 +7,7 @@ import {
 } from './channel-unread.ts';
 import {
   getHomeState,
+  contextPercentFrom,
   hydrateStaged,
   hydrateTurns,
   neighborSessionId,
@@ -63,6 +64,7 @@ function applySessionPayload(payload: Record<string, unknown> | null, gen?: numb
         : prev.currentSessionId,
     messages: Object.hasOwn(payload, 'turns') ? hydrateTurns(payload.turns) : prev.messages,
     staged: Object.hasOwn(payload, 'staged') ? hydrateStaged(payload.staged) : prev.staged,
+    contextPercent: contextPercentFrom(payload),
   }));
 }
 
@@ -85,7 +87,11 @@ export async function refreshList(gen?: number) {
 
 export async function selectSession(sessionId: string) {
   const gen = ++fetchGen;
-  setHomeState((prev) => ({ ...prev, currentSessionId: String(sessionId || '') }));
+  setHomeState((prev) => ({
+    ...prev,
+    currentSessionId: String(sessionId || ''),
+    contextPercent: null,
+  }));
   const payload = (await api.invoke('select_chat_session', { sessionId })) as Record<
     string,
     unknown
@@ -115,7 +121,15 @@ export async function deleteSession(sessionId: string) {
     await refreshList(gen);
     if (gen !== fetchGen || !wasCurrent) return;
     if (nextId) await selectSession(nextId);
-    else setHomeState((prev) => ({ ...prev, currentSessionId: '', messages: [], staged: [] }));
+    else {
+      setHomeState((prev) => ({
+        ...prev,
+        currentSessionId: '',
+        messages: [],
+        staged: [],
+        contextPercent: null,
+      }));
+    }
   } catch (err) {
     showActionError(err instanceof Error ? err : { message: String(err) });
   }
@@ -160,6 +174,7 @@ export async function applyBindingState() {
       currentSessionId,
       messages: [],
       staged: [],
+      contextPercent: null,
       progressByChat: Object.create(null) as Record<string, string>,
       inFlightIds: [],
     }));
