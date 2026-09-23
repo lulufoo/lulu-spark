@@ -94,6 +94,23 @@ pub fn load_last_prompt_tokens(session_id: &str) -> Result<Option<i64>, String> 
     session_db::load_last_prompt_tokens(&session_file_path(session_id)?)
 }
 
+pub fn load_summary_bodies(session_id: &str) -> Result<Vec<String>, String> {
+    session_db::load_summary_bodies(&session_file_path(session_id)?)
+}
+
+pub fn active_turn_seq_range(session_id: &str) -> Result<Option<(i64, i64)>, String> {
+    session_db::active_turn_seq_range(&session_file_path(session_id)?)
+}
+
+pub fn replace_turns_with_summary(
+    session_id: &str,
+    from_seq: i64,
+    to_seq: i64,
+    body: &str,
+) -> Result<(), String> {
+    session_db::replace_turns_with_summary(&session_file_path(session_id)?, from_seq, to_seq, body)
+}
+
 pub fn delete_session(session_id: &str) -> Result<(), String> {
     let path = session_file_path(session_id)?;
     if !path.is_file() {

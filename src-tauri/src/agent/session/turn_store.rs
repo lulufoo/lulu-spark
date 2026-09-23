@@ -122,7 +122,7 @@ fn append_turns(tx: &Transaction<'_>, turns: &[Turn], now: i64) -> Result<(), St
 
     for turn in turns {
         if turn.role == "user" || turn_state.is_none() {
-            let next_turn_seq = turn_state.as_ref().map(|(_, seq)| seq + 1).unwrap_or(1);
+            let next_turn_seq = next_model_turn_seq(tx)?;
             let turn_id = format!("turn_{}", random_entry_id());
             tx.execute(
                 "INSERT INTO model_turns (turn_id, seq, created_at) VALUES (?1, ?2, ?3)",
@@ -166,6 +166,18 @@ fn append_turns(tx: &Transaction<'_>, turns: &[Turn], now: i64) -> Result<(), St
         }
     }
     Ok(())
+}
+
+fn next_model_turn_seq(tx: &Transaction<'_>) -> Result<i64, String> {
+    let turn_max: Option<i64> = tx
+        .query_row("SELECT MAX(seq) FROM model_turns", [], |row| row.get(0))
+        .map_err(|e| e.to_string())?;
+    let summary_max: Option<i64> = tx
+        .query_row("SELECT MAX(replaced_to_seq) FROM summaries", [], |row| {
+            row.get(0)
+        })
+        .map_err(|e| e.to_string())?;
+    Ok(turn_max.into_iter().chain(summary_max).max().unwrap_or(0) + 1)
 }
 
 fn is_ui_message(turn: &Turn) -> bool {

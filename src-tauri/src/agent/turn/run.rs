@@ -7,7 +7,7 @@ use serde_json::{json, Value};
 use crate::agent::diagnostics::{self, DiagnosticEvent, TraceId};
 use crate::agent::llm::{self, LlmConfig};
 use crate::agent::progress::{self, ProgressSink};
-use crate::agent::session::{Session, Turn};
+use crate::agent::session::{self, Session, Turn};
 use crate::agent::tools::{self, InvokeOutcome, PrepareError};
 
 use crate::agent::binding::{
@@ -16,7 +16,7 @@ use crate::agent::binding::{
 };
 use super::flights::{chat_turn_interrupted, runtime};
 use super::history::{
-    build_llm_messages_from_turns, cancelled_turn_outcome, is_clarify_text, map_llm_error, persist,
+    build_llm_messages, cancelled_turn_outcome, is_clarify_text, map_llm_error, persist,
     prompt_text_from_binding,
 };
 use super::types::{Terminal, TurnOutcome, MAX_CLARIFY_ROUNDS, MAX_MCP_TOOL_CALLS, MAX_MCP_TOOL_ROUNDS};
@@ -41,7 +41,7 @@ pub(crate) fn run_loop_with_progress(
     trace_id: &TraceId,
     sink: Option<&ProgressSink>,
 ) -> TurnOutcome {
-    let turns_checkpoint = session.turns.len();
+    let mut turns_checkpoint = session.turns.len();
     // Executable turns require Binding Contract bound.
     let Some((binding, generation)) = current_binding_generation_snapshot() else {
         session.turns.push(Turn {
@@ -96,6 +96,9 @@ pub(crate) fn run_loop_with_progress(
             wrote: false,
         };
     }
+
+    crate::agent::context::maybe_compress(session, config);
+    turns_checkpoint = session.turns.len();
 
     session.turns.push(Turn {
         role: "user".into(),
@@ -164,7 +167,9 @@ pub(crate) fn run_loop_with_progress(
         if chat_turn_interrupted(&session.session_id, generation) {
             return cancelled_turn_outcome(session, turns_checkpoint);
         }
-        let messages = build_llm_messages_from_turns(&session.turns, &system_prompt);
+        let summaries =
+            session::load_summary_bodies(&session.session_id).unwrap_or_default();
+        let messages = build_llm_messages(&session.turns, &system_prompt, &summaries);
         let tool_defs = turn_tools
             .catalog
             .as_ref()

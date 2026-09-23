@@ -82,6 +82,66 @@ pub fn load_last_prompt_breakdown(path: &PathBuf) -> Result<Option<String>, Stri
     .ok_or_else(|| "Session not found".to_string())
 }
 
+pub fn load_summary_bodies(path: &PathBuf) -> Result<Vec<String>, String> {
+    if !path.is_file() {
+        return Ok(Vec::new());
+    }
+    let conn = open(path)?;
+    let mut stmt = conn
+        .prepare("SELECT body FROM summaries ORDER BY replaced_from_seq ASC")
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map([], |row| row.get::<_, String>(0))
+        .map_err(|e| e.to_string())?;
+    let mut bodies = Vec::new();
+    for row in rows {
+        bodies.push(row.map_err(|e| e.to_string())?);
+    }
+    Ok(bodies)
+}
+
+pub fn active_turn_seq_range(path: &PathBuf) -> Result<Option<(i64, i64)>, String> {
+    if !path.is_file() {
+        return Ok(None);
+    }
+    let conn = open(path)?;
+    conn.query_row(
+        "SELECT MIN(seq), MAX(seq) FROM model_turns",
+        [],
+        |row| {
+            let from: Option<i64> = row.get(0)?;
+            let to: Option<i64> = row.get(1)?;
+            Ok(from.zip(to))
+        },
+    )
+    .map_err(|e| e.to_string())
+}
+
+pub fn replace_turns_with_summary(
+    path: &PathBuf,
+    from_seq: i64,
+    to_seq: i64,
+    body: &str,
+) -> Result<(), String> {
+    let mut conn = open(path)?;
+    let now = super::schema::unix_secs();
+    let summary_id = format!("summary_{}", crate::services::id::random_entry_id());
+    let tx = conn.transaction().map_err(|e| e.to_string())?;
+    tx.execute(
+        "INSERT INTO summaries (summary_id, replaced_from_seq, replaced_to_seq, body, created_at)
+         VALUES (?1, ?2, ?3, ?4, ?5)",
+        params![summary_id, from_seq, to_seq, body, now],
+    )
+    .map_err(|e| e.to_string())?;
+    tx.execute(
+        "DELETE FROM model_turns WHERE seq BETWEEN ?1 AND ?2",
+        params![from_seq, to_seq],
+    )
+    .map_err(|e| e.to_string())?;
+    tx.commit().map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 pub fn load_last_prompt_tokens(path: &PathBuf) -> Result<Option<i64>, String> {
     if !path.is_file() {
         return Ok(None);

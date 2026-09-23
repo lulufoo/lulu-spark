@@ -57,10 +57,23 @@ pub fn truncate_turns(turns: &[Turn]) -> Vec<Turn> {
 }
 
 pub fn build_llm_messages_from_turns(turns: &[Turn], system_prompt: &str) -> Vec<Value> {
+    build_llm_messages(turns, system_prompt, &[])
+}
+
+pub fn build_llm_messages(turns: &[Turn], system_prompt: &str, summaries: &[String]) -> Vec<Value> {
     let mut messages = vec![json!({
         "role": "system",
         "content": system_prompt,
     })];
+    for body in summaries {
+        if body.trim().is_empty() {
+            continue;
+        }
+        messages.push(json!({
+            "role": "user",
+            "content": body,
+        }));
+    }
     for turn in truncate_turns(turns) {
         messages.push(turn_to_message(&turn));
     }
@@ -112,7 +125,7 @@ pub fn turn_completed_emit(session_id: &str, wrote: bool, terminal: &str) -> Val
 
 /// Executable reject after cut/cancel: return notice in the response only.
 /// Do not append/persist business turns on the (possibly cut) session.
-pub(super) fn cancelled_turn_outcome(session: &mut Session, turns_checkpoint: usize) -> TurnOutcome {
+pub(crate) fn cancelled_turn_outcome(session: &mut Session, turns_checkpoint: usize) -> TurnOutcome {
     if session.turns.len() != turns_checkpoint {
         session.turns.truncate(turns_checkpoint);
         persist(session);

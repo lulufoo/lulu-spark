@@ -183,7 +183,7 @@ Home 只读这张表，按 `updated_at` 降序取 20 条。
 
 ---
 
-## 7. 压缩预留（不实现）
+## 7. 压缩预留
 
 已预留的压缩数据形态：
 
@@ -192,7 +192,7 @@ Home 只读这张表，按 `updated_at` 降序取 20 条。
 3. `messages` 不改。
 4. 被拿掉的 `model_steps` 行保留，只是不再被 `model_turns` 引用。
 
-当前没有压缩触发、写入或读取逻辑；`summaries` 仅建表。压缩触发条件、摘要格式和保留多少尾部回合不在本次范围。
+触发、摘要请求和主请求怎么组见 `docs/archive/assistant-context-compress/solution-and-plan.md`。
 
 ---
 
