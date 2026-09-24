@@ -10,9 +10,7 @@ argument-hint: '[title | path | pasted Markdown]'
 
 ## Boundary
 
-- Notes are written **only** by the Workbench notes service.
-- Agent **MUST NOT** write `notes/` on disk, call Host HTTP directly, or invoke Rust services.
-- All reads/writes go **MCP → HTTP → notes service**. MCP is a proxy only.
+Operate notes only through MCP. Any other method is forbidden.
 
 ## Parameter SSOT
 
@@ -36,7 +34,7 @@ Map the user request, then call **only** the tools that match. Do not run a fixe
 
 | User intent | Do | Do not |
 |-------------|----|--------|
-| Create / save / archive a note | Stage Markdown on an allow-listed path (desktop) or send `content` (mobile). Infer `project` / `theme` / `title` / `created_at` when the user did not give them — [standalone-resolve.md](references/standalone-resolve.md) if the input is a lone path or paste. Load [full-english-translate.md](references/full-english-translate.md). Then `create_note`. | Write `notes/` on disk |
+| Create / save / archive a note | Infer `project`, `theme`, and `title` when the user did not give them — [path-or-paste.md](references/path-or-paste.md) for a lone path or paste. Load [chinese-companion.md](references/chinese-companion.md). Call `create_note` with the live schema parameters. | — |
 | List catalogs with newest note pointer | `get_all_notes_catalog` | — |
 | Latest digest body per catalog (one call) | `get_latest_digest_per_catalog` | — |
 | List note ids in one catalog | `get_notes_by_catalog` | — |
@@ -44,7 +42,7 @@ Map the user request, then call **only** the tools that match. Do not run a fixe
 | Read one digest | `get_note_digest_by_id` | — |
 | Read one raw body | `get_note_content_by_id` | — |
 
-**Create is one tool.** `digest` is a required `create_note` field. When a digest will be written, pass `digest_body` on the same call. Host AD-0 decides whether `auto` writes. Companion-image when-to-pass is the live MCP description; collecting sibling files is [standalone-resolve.md](references/standalone-resolve.md).
+**Create is one tool.** `digest` is a required `create_note` field. When a digest will be written, pass `digest_body` on the same call. Host AD-0 decides whether `auto` writes. Companion-image when-to-pass is the live MCP description; collecting sibling files is [path-or-paste.md](references/path-or-paste.md).
 
 ## Note Norms
 
@@ -53,11 +51,11 @@ Do not invent norms not listed here.
 
 | Field / concern | Reference | When |
 |-----------------|-----------|------|
-| `title` | [title.md](references/title.md) | Before choosing or proposing a create title |
-| Standalone path / paste | [standalone-resolve.md](references/standalone-resolve.md) | Path or paste with no producer (includes GitHub `created_at`, summary image strip, and sibling-file collection) |
-| Sibling image files | [standalone-resolve.md](references/standalone-resolve.md) | How to collect files next to a staged Markdown |
-| Full-English detect | [full-english-translate.md](references/full-english-translate.md) | Before every `create_note` |
-| `digest_body` shape | [digest-workflow.md](references/digest-workflow.md) | Before composing `digest_body` (`auto` / `always`) |
+| `title` | [choosing-a-title.md](references/choosing-a-title.md) | Before choosing or proposing a create title |
+| Standalone path / paste | [path-or-paste.md](references/path-or-paste.md) | Path or paste with no producer (includes summary image strip and sibling-file collection) |
+| Sibling image files | [path-or-paste.md](references/path-or-paste.md) | How to collect files next to a staged Markdown |
+| Full-English detect | [chinese-companion.md](references/chinese-companion.md) | Before every `create_note` |
+| `digest_body` shape | [digest-body.md](references/digest-body.md) | Before composing `digest_body` (`auto` / `always`) |
 
 - User-explicit values override the corresponding norm; say so briefly when skipping.
 - Field limits still come from live MCP schema (Parameter SSOT).
@@ -73,7 +71,7 @@ Do not invent norms not listed here.
 
 | MCP tool | Purpose |
 |----------|---------|
-| `create_note` | Create a note (desktop: `source_path`; mobile: `content`) |
+| `create_note` | Create a note |
 | `get_all_notes_catalog` | Every project catalog with newest `note_id` + `created_at` (no bodies) |
 | `get_latest_digest_per_catalog` | Newest digest Markdown for every catalog in one call |
 | `get_notes_by_catalog` | Every note id in one catalog (`catalog` = project name) |
@@ -95,7 +93,6 @@ Observable completion for a write request:
 
 ## References
 
-- Path symbols: [archive-concepts](references/archive-concepts.md)
-- Digest writing shape: [digest-workflow](references/digest-workflow.md)
-- Title: [title](references/title.md)
-- Full-English detect: [full-english-translate](references/full-english-translate.md)
+- Choosing a title: [choosing-a-title](references/choosing-a-title.md)
+- Digest body: [digest-body](references/digest-body.md)
+- Chinese companion: [chinese-companion](references/chinese-companion.md)
