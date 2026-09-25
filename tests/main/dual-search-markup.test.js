@@ -22,7 +22,7 @@ describe('dual search markup (index.html)', () => {
       expect(indexHtml).toMatch(new RegExp(`id="gs-${prefix}-dropdown"`));
       expect(indexHtml).not.toMatch(new RegExp(`id="gs-${prefix}-rebuild-btn"`));
     }
-    expect(indexHtml).toMatch(/<IndexRebuildButton \/>/);
+    expect(indexHtml).not.toMatch(/IndexRebuildStatus|IndexRebuildButton/);
   });
 
   it('removes gs-mode-pill and adds shared search classes', () => {

@@ -130,7 +130,7 @@ export function KnowledgeSearchFields() {
         return;
       }
       if (data.error === 'not_indexed') {
-        flushSync(() => setView({ kind: 'status', text: 'Index not built yet. Use ↺ Index in the header.' }));
+        flushSync(() => setView({ kind: 'status', text: 'Index not built yet.' }));
         return;
       }
       const hits = data.hits || [];

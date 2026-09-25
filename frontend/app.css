@@ -145,9 +145,6 @@
     border-radius: 50%;
     animation: gs-spin 0.7s linear infinite;
   }
-  /* Header-only index rebuild control (notes + knowledge). */
-  .header-index-btn { white-space: nowrap; }
-  .header-index-btn.error { border-color: #cf222e; color: #ff8182; }
   .gs-search-dropdown {
     position: absolute;
     top: calc(100% + 6px);

@@ -106,8 +106,6 @@ export function KnowledgeSearchPanel({
             text: (
               <>
                 Knowledge index not built
-                <br />
-                <span style={{ fontSize: 10, color: '#aaa' }}>Use ↺ Index in the header</span>
               </>
             ),
           }),

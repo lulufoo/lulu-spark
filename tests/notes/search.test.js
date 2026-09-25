@@ -179,8 +179,8 @@ describe('notes search module', () => {
     await vi.advanceTimersByTimeAsync(300);
 
     const dropdown = document.getElementById('gs-wb-dropdown');
-    expect(dropdown.textContent).toContain('Index not built yet');
-    expect(dropdown.textContent).toContain('header');
+    expect(dropdown.textContent).toContain('Index not built yet.');
+    expect(dropdown.textContent).not.toContain('header');
   });
 
   it('shows no-results and search-error statuses', async () => {

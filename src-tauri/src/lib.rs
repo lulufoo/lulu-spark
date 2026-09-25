@@ -254,7 +254,7 @@ pub fn run() {
             app.manage(services::reindex::ReindexState::new());
 
             // Keyword index: rebuild on every launch (index only, no git pull).
-            // Header control polls `get_reindex_all_status` for the spinner.
+            // The header does not show this job.
             {
                 use tauri::Manager;
                 let reindex = app.state::<services::reindex::ReindexState>();
