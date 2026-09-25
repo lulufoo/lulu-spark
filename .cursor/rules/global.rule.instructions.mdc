@@ -5,18 +5,12 @@ alwaysApply: true
 
 ## Global Rule Instructions
 
-1. .md file operation requires reading `.cursor/skills/lulu-discipline-skills/md/md-global-discipline.md` first. No exceptions.
+1. Cross-layer / call-direction work → read `docs/architecture/arch-layer-constraints.md`. No exceptions.
 
-2. Git operations → read `.cursor/skills/lulu-discipline-skills/git/git-workflow-standard.md` first. No exceptions.
+2. UI-layer changes → read and follow `docs/architecture/ui-layer-constraints.md`. No exceptions.
 
-3. Git gh operations → read `.cursor/skills/lulu-discipline-skills/git/git-gh-operations.md` first. No exceptions.
+3. UI build (business-layer copy) → read and follow `docs/business/ui-build-constraints.md`. No exceptions.
 
-4. Cross-layer / call-direction work → read `docs/architecture/arch-layer-constraints.md`. No exceptions.
+4. Workbench frontend / Tauri invoke / ACL → read and follow `docs/architecture/workbench-coding-discipline.md`. No exceptions.
 
-5. UI-layer changes → read and follow `docs/architecture/ui-layer-constraints.md`. No exceptions.
-
-6. UI build (business-layer copy) → read and follow `docs/business/ui-build-constraints.md`. No exceptions.
-
-7. Workbench frontend / Tauri invoke / ACL → read and follow `docs/architecture/workbench-coding-discipline.md`. No exceptions.
-
-8. Unit tests (Rust / JS / TS) → read and follow `docs/test/unit-test-principles.md`. No exceptions.
+5. Unit tests (Rust / JS / TS) → read and follow `docs/test/unit-test-principles.md`. No exceptions.
