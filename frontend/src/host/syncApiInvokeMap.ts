@@ -39,14 +39,6 @@ export const SYNC_API_INVOKE_MAP: Record<string, SyncInvokeEntry> = {
         new_project: body.new_project,
       }),
   },
-  '/api/gh-move': {
-    cmd: 'gh_move_assets',
-    args: (body) =>
-      syncPayload({
-        src_url: body.src_url,
-        dst_dir_url: body.dst_dir_url,
-      }),
-  },
   '/api/gh-delete': {
     cmd: 'gh_delete_assets',
     args: (body) => syncPayload({ url: body.url }),

@@ -7,7 +7,6 @@ commands.allow = [
   "workbench_git_revert",
   "delete_entry",
   "move_entry_project",
-  "gh_move_assets",
   "gh_delete_assets",
   "settle_entry",
   "save_comment_draft",

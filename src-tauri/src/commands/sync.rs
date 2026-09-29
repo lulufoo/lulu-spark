@@ -76,13 +76,6 @@ pub async fn move_entry_project(_app: AppHandle, payload: Value) -> Result<Value
 }
 
 #[tauri::command]
-pub async fn gh_move_assets(_app: AppHandle, payload: Value) -> Result<Value, String> {
-    tauri::async_runtime::spawn_blocking(move || github::gh_move_assets(&payload))
-        .await
-        .map_err(|e| e.to_string())
-}
-
-#[tauri::command]
 pub async fn gh_delete_assets(_app: AppHandle, payload: Value) -> Result<Value, String> {
     tauri::async_runtime::spawn_blocking(move || github::gh_delete_assets(&payload))
         .await

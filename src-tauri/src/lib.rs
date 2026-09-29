@@ -72,7 +72,6 @@ pub fn run() {
             commands::sync::kb_git_revert,
             commands::sync::delete_entry,
             commands::sync::move_entry_project,
-            commands::sync::gh_move_assets,
             commands::sync::gh_delete_assets,
             commands::sync::settle_entry,
             commands::read::get_status,

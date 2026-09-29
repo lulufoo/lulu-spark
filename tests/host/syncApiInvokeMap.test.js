@@ -10,7 +10,6 @@ const P4_PATHS = [
   ['/api/pull', 'workbench_git_pull', []],
   ['/api/delete', 'delete_entry', ['id']],
   ['/api/move-project', 'move_entry_project', ['id', 'new_project']],
-  ['/api/gh-move', 'gh_move_assets', ['src_url', 'dst_dir_url']],
   ['/api/gh-delete', 'gh_delete_assets', ['url']],
   [
     '/api/settle',
@@ -25,7 +24,7 @@ const P4_PATHS = [
 
 describe('syncApiInvokeMap', () => {
   it('covers all 10 P4 POST paths with command names', () => {
-    expect(Object.keys(SYNC_API_INVOKE_MAP)).toHaveLength(11);
+    expect(Object.keys(SYNC_API_INVOKE_MAP)).toHaveLength(10);
     for (const [path, cmd] of P4_PATHS) {
       expect(SYNC_API_INVOKE_MAP[path]?.cmd, path).toBe(cmd);
     }
@@ -71,23 +70,6 @@ describe('syncApiInvokeMap', () => {
     ).toEqual({
       cmd: 'move_entry_project',
       args: { payload: { id: 'e1', new_project: 'foo' } },
-    });
-  });
-
-  it('gh-move maps body into payload for gh_move_assets', () => {
-    expect(
-      resolveSyncInvoke('/api/gh-move', {
-        src_url: 'https://github.com/o/r/a',
-        dst_dir_url: 'https://github.com/o/r/tree/main/b',
-      })
-    ).toEqual({
-      cmd: 'gh_move_assets',
-      args: {
-        payload: {
-          src_url: 'https://github.com/o/r/a',
-          dst_dir_url: 'https://github.com/o/r/tree/main/b',
-        },
-      },
     });
   });
 
