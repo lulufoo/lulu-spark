@@ -27,15 +27,6 @@ describe('Move document command functions removed', () => {
     expect(product).not.toMatch(/export\s+\{[^}]*\bdoDeleteDoc\b/);
   });
 
-  it('does not delete ghMove', () => {
-    expect(existsSync(workbenchApiPath)).toBe(true);
-    expect(existsSync(apiPath)).toBe(true);
-    const workbench = readFileSync(workbenchApiPath, 'utf8');
-    const api = readFileSync(apiPath, 'utf8');
-    expect(workbench).toMatch(/export async function ghMove\b/);
-    expect(api).toMatch(/\bghMove\b/);
-  });
-
   it('does not delete ghDelete', () => {
     expect(existsSync(workbenchApiPath)).toBe(true);
     expect(existsSync(apiPath)).toBe(true);

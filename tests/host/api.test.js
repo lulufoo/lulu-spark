@@ -12,7 +12,7 @@ import {
   setConfig,
   saveFile, commitFiles, pullProject, revertFile,
   updateComments, updateLinks, setImportance, setDone,
-  deleteEntry, ghMove,
+  deleteEntry, ghDelete,
   fetchTopics, fetchNotesCategories, createNotesCategory, updateNotesCategory, deleteNotesCategory, moveToProject,
 } from '../../frontend/src/host/api.ts'
 
@@ -273,12 +273,11 @@ test('deleteEntry 发送 id', async () => {
   expect(body.id).toBe('abc123')
 })
 
-test('ghMove 发送 src_url 和 dst_dir_url', async () => {
+test('ghDelete 发送 url', async () => {
   mockFetch({ ok: true })
-  await ghMove('https://github.com/src', 'https://github.com/dst')
+  await ghDelete('https://github.com/src')
   const body = JSON.parse(fetch.mock.calls[0][1].body)
-  expect(body.src_url).toBe('https://github.com/src')
-  expect(body.dst_dir_url).toBe('https://github.com/dst')
+  expect(body.url).toBe('https://github.com/src')
 })
 
 // ── fetchTopics ────────────────────────────────────────────────────────────

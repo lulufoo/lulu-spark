@@ -161,10 +161,6 @@ export async function deleteEntry(id: PathArg) {
   return writePost('/api/delete', { id });
 }
 
-export async function ghMove(srcUrl: string, dstDirUrl: string) {
-  return writePost('/api/gh-move', { src_url: srcUrl, dst_dir_url: dstDirUrl });
-}
-
 export async function ghDelete(url: string) {
   return writePost('/api/gh-delete', { url });
 }

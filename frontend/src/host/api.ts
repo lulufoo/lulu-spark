@@ -39,7 +39,6 @@ export {
   getDraft,
   getNoteDraft,
   ghDelete,
-  ghMove,
   inferGithubUserUrl,
   moveToProject,
   pullProject,
