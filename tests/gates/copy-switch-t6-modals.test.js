@@ -100,10 +100,7 @@ describe('P2 copy-switch — main.js & modals (tech-doc T6)', () => {
 
   it('move-dialog.js uses table B/B2 move/delete copy', () => {
     expect(existsSync(join(repoRoot, 'frontend/src/app-shell/ui/move-dialog.tsx'))).toBe(false);
-    expect(moveDialogJs).toContain('Enter both URLs');
-    expect(moveDialogJs).toContain('Running gh api…');
-    expect(moveDialogJs).not.toContain('确认移动');
-    expect(moveDialogJs).not.toContain('请填写');
+    expect(existsSync(join(repoRoot, 'frontend/src/app-shell/commands/move-dialog.ts'))).toBe(false);
   });
 
   it('settle-dialog.js remains English (t4 baseline)', () => {

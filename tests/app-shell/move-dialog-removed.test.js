@@ -6,55 +6,9 @@ import { listFrontendSourceFiles } from '../helpers/read-frontend-js.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const moveUiPath = join(repoRoot, 'frontend/src/app-shell/ui/move-dialog.tsx');
-const moveCommandPath = join(repoRoot, 'frontend/src/app-shell/commands/move-dialog.ts');
 const shellPath = join(repoRoot, 'frontend/src/shell.tsx');
 const notesMoveUiPath = join(repoRoot, 'frontend/src/notes/ui/move-project-dialog.tsx');
 const notesMoveCommandPath = join(repoRoot, 'frontend/src/notes/commands/move-project-dialog.ts');
-
-const DO_MOVE_DOC_SRC = `export async function doMoveDoc(
-  srcUrl: string,
-  dstUrl: string,
-  setResult: (tone: ResultTone, text: string) => void,
-) {
-  if (!srcUrl || !dstUrl) {
-    setResult('err', 'Enter both URLs');
-    return;
-  }
-  setResult('busy', 'Running gh api…');
-  try {
-    const data = await api.ghMove(srcUrl, dstUrl);
-    if (!data.ok || data.error) throw new Error(data.error || 'failed');
-    if (data.warn) {
-      const movedInfo = data.moved !== undefined ? \` (\${data.moved} files moved)\` : '';
-      setResult('warn', \`⚠ \${data.warn}\${movedInfo}\`);
-      return;
-    }
-    const movedInfo = data.moved !== undefined ? \` (\${data.moved} files total)\` : '';
-    setResult('ok', \`✓ Moved to \${data.dst_path}\${movedInfo}\`);
-    document.dispatchEvent(new CustomEvent('cta:reload'));
-`;
-
-const DO_DELETE_DOC_SRC = `export async function doDeleteDoc(
-  url: string,
-  setResult: (tone: ResultTone, text: string) => void,
-) {
-  if (!url) {
-    setResult('err', 'Enter URL');
-    return;
-  }
-  setResult('busy', 'Running gh api…');
-  try {
-    const data = await api.ghDelete(url);
-    if (!data.ok || data.error) throw new Error(data.error || 'failed');
-    if (data.warn) {
-      const deletedInfo = data.deleted !== undefined ? \` (\${data.deleted} files deleted)\` : '';
-      setResult('warn', \`⚠ \${data.warn}\${deletedInfo}\`);
-      return;
-    }
-    const deletedInfo = data.deleted !== undefined ? \` (\${data.deleted} files total)\` : '';
-    setResult('ok', \`✓ Deleted\${deletedInfo}\`);
-    document.dispatchEvent(new CustomEvent('cta:reload'));
-`;
 
 describe('Move document dialog removed', () => {
   it('deletes move-dialog.tsx', () => {
@@ -80,13 +34,6 @@ describe('Move document dialog removed', () => {
       /export\s+(?:async\s+)?(?:function closeMoveDocDialog|const closeMoveDocDialog|class closeMoveDocDialog|type closeMoveDocDialog)\b/,
     );
     expect(product).not.toMatch(/export\s+\{[^}]*\bcloseMoveDocDialog\b/);
-  });
-
-  it('does not change doMoveDoc or doDeleteDoc into other behavior', () => {
-    expect(existsSync(moveCommandPath)).toBe(true);
-    const src = readFileSync(moveCommandPath, 'utf8');
-    expect(src).toContain(DO_MOVE_DOC_SRC);
-    expect(src).toContain(DO_DELETE_DOC_SRC);
   });
 
   it('does not delete notes move-project-dialog', () => {
