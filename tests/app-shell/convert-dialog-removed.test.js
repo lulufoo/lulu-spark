@@ -5,7 +5,9 @@ import { describe, expect, it } from 'vitest';
 import { listFrontendSourceFiles } from '../helpers/read-frontend-js.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
-const convertCommandPath = join(repoRoot, 'frontend/src/app-shell/commands/convert-dialog.ts');
+const convertUiPath = join(repoRoot, 'frontend/src/app-shell/ui/convert-dialog.tsx');
+const convertStatePath = join(repoRoot, 'frontend/src/app-shell/state/convert.ts');
+const bindDialogPath = join(repoRoot, 'frontend/src/app-shell/ui/bind-dialog.tsx');
 
 const OPEN_BIND_DIALOG_SRC = `export async function openBindDialog() {
   logBindEvent('issue_bind', 'started');
@@ -51,26 +53,31 @@ const OPEN_BIND_DIALOG_SRC = `export async function openBindDialog() {
 }
 `;
 
-describe('Convert command functions removed', () => {
-  it('deletes convert-dialog.ts and the three command functions', () => {
-    expect(existsSync(convertCommandPath)).toBe(false);
+describe('Convert dialog and convertStore removed', () => {
+  it('deletes convert-dialog.tsx and convert.ts', () => {
+    expect(existsSync(convertUiPath)).toBe(false);
+    expect(existsSync(convertStatePath)).toBe(false);
+  });
+
+  it('does not leave ConvertDialog, convertStore, or re-exports', () => {
     const product = listFrontendSourceFiles(join(repoRoot, 'frontend/src'))
       .map((abs) => readFileSync(abs, 'utf8'))
       .join('\n');
-    expect(product).not.toMatch(/\bsetConvertTab\b/);
-    expect(product).not.toMatch(/\bopenConvertDialog\b/);
-    expect(product).not.toMatch(/\bcloseConvertDialog\b/);
+    expect(product).not.toMatch(/\bConvertDialog\b/);
+    expect(product).not.toMatch(/\bconvertStore\b/);
+    expect(product).not.toMatch(/export\s+(?:async\s+)?(?:function|const|class|type)\s+ConvertDialog\b/);
+    expect(product).not.toMatch(/export\s+\{[^}]*\bConvertDialog\b/);
+    expect(product).not.toMatch(/export\s+(?:async\s+)?(?:function|const|class|type)\s+convertStore\b/);
+    expect(product).not.toMatch(/export\s+\{[^}]*\bconvertStore\b/);
   });
 
-  it('keeps QR page and the boot import', () => {
-    expect(existsSync(join(repoRoot, 'frontend/src/app-shell/ui/qr-dialog.tsx'))).toBe(true);
-    expect(existsSync(join(repoRoot, 'frontend/src/app-shell/commands/qr-dialog.ts'))).toBe(true);
-    const boot = readFileSync(join(repoRoot, 'frontend/src/boot.ts'), 'utf8');
-    expect(boot).toMatch(/import ['"]\.\/app-shell\/ui\/qr-dialog\.tsx['"]/);
-  });
-
-  it('does not modify openBindDialog', () => {
+  it('does not delete bind-dialog.tsx or change openBindDialog', () => {
+    expect(existsSync(bindDialogPath)).toBe(true);
     const src = readFileSync(join(repoRoot, 'frontend/src/app-shell/commands/bind-dialog.ts'), 'utf8');
     expect(src).toContain(OPEN_BIND_DIALOG_SRC);
+  });
+
+  it('leaves qrcode.min.js in place', () => {
+    expect(existsSync(join(repoRoot, 'frontend/vendor/qrcode.min.js'))).toBe(true);
   });
 });
