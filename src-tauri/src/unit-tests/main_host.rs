@@ -626,7 +626,6 @@ fn frontend_does_not_write_notes_selection_snapshot() {
         "frontend/src/notes/commands/move-project-dialog.ts",
         "frontend/src/notes/commands/viewer/doc.ts",
         "frontend/src/notes/commands/viewer/create.ts",
-        "frontend/src/notes/commands/viewer/commit.ts",
         "frontend/src/host/writeApiInvokeMap.ts",
         "frontend/src/main.tsx",
         "frontend/src/hash-router.tsx",

@@ -110,7 +110,7 @@ describe('knowledge search host', () => {
     expect(panel.classList.contains('ks-unavailable')).toBe(false);
   });
 
-  it('not_indexed points to the header index control', async () => {
+  it('not_indexed reports the index is not built', async () => {
     apiMocks.searchKnowledge.mockResolvedValue({ error: 'not_indexed' });
     const { mountKnowledgeSearch, triggerKnowledgeSearch } = await loadModule();
     const panel = seedPanel();
@@ -118,7 +118,7 @@ describe('knowledge search host', () => {
     triggerKnowledgeSearch({ title: 'X', common_path: 'x.md' });
     await Promise.resolve();
     expect(panel.querySelector('.ks-status-msg').textContent).toContain('Knowledge index not built');
-    expect(panel.querySelector('.ks-status-msg').textContent).toContain('header');
+    expect(panel.querySelector('.ks-status-msg').textContent).not.toContain('header');
   });
 
   it('toggle collapses the panel', async () => {

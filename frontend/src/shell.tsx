@@ -1,7 +1,5 @@
 import { BindDialog, openBindDialog } from './app-shell/ui/bind-dialog.tsx';
 import { WorkbenchCommitDialog } from './app-shell/ui/workbench-commit-dialog.tsx';
-import { ConvertDialog, openConvertDialog } from './app-shell/ui/convert-dialog.tsx';
-import { MoveDocDialog, openMoveDocDialog } from './app-shell/ui/move-dialog.tsx';
 import { SettingsDialog, openSettingsDialog } from './app-shell/ui/settings/dialog.tsx';
 import { SettingsDialogChrome } from './app-shell/ui/settings/chrome.tsx';
 import { SkillsDialog, _openSkillsDialog } from './app-shell/ui/skills-dialog.tsx';
@@ -47,28 +45,8 @@ export function Shell() {
           </div>
         </div>
         <div id="tools-menu-wrap">
-          <button id="btn-tools-menu">⛓ Tools</button>
+          <button id="btn-tools-menu">Bind</button>
           <div id="tools-menu-dropdown">
-            <button
-              id="btn-move-doc-header"
-              type="button"
-              onClick={() => {
-                closeMenuDropdowns();
-                openMoveDocDialog();
-              }}
-            >
-              <span className="tools-menu-icon">↗</span>GitHub
-            </button>
-            <button
-              id="btn-convert"
-              type="button"
-              onClick={() => {
-                closeMenuDropdowns();
-                openConvertDialog('base64');
-              }}
-            >
-              <span className="tools-menu-icon">🔀</span>Convert
-            </button>
             <button
               id="btn-bind"
               type="button"
@@ -109,9 +87,6 @@ export function Shell() {
         </div>
       </header>
 
-      {/* <!-- Convert tool dialog (Base64 + QR) --> */}
-      <ConvertDialog />
-
       {/* <!-- Bind device dialog --> */}
       <BindDialog />
 
@@ -139,9 +114,6 @@ export function Shell() {
 
       {/* <!-- Move project dialog --> */}
       <MoveProjectDialog />
-
-      {/* <!-- Move document dialog --> */}
-      <MoveDocDialog />
 
       {/* <!-- Settle dialog --> */}
       <SettleDialog />

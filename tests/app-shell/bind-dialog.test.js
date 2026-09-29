@@ -135,17 +135,13 @@ function assertNoAddresses(call) {
 }
 
 describe('bind-dialog markup and wiring', () => {
-  it('adds a Tools bind entry as a sibling of Convert and keeps QR preview in Convert', () => {
+  it('keeps Bind device in the tools menu without a Convert entry', () => {
     const html = shellHtml;
     const tools = extractById(html, 'tools-menu-dropdown');
-    expect(tools).toMatch(/id="btn-convert"/);
     expect(tools).toMatch(/id="btn-bind"/);
-    expect(tools.indexOf('id="btn-convert"')).toBeLessThan(tools.indexOf('id="btn-bind"'));
-    expect(tools).toMatch(/id="btn-convert"[^>]*>[\s\S]*?Convert/);
+    expect(tools).not.toMatch(/id="btn-convert"/);
+    expect(tools).not.toMatch(/id="btn-move-doc-header"/);
     expect(tools).toMatch(/id="btn-bind"[^>]*>[\s\S]*?Bind device/);
-    expect(extractById(html, 'convert-dialog')).toMatch(/id="qr-preview"/);
-    expect(extractById(html, 'convert-dialog')).toMatch(/id="base64-input"/);
-    expect(extractById(html, 'convert-dialog')).not.toMatch(/id="bind-preview"/);
   });
 
   it('adds an independent bind overlay with its own preview node', () => {
@@ -158,15 +154,16 @@ describe('bind-dialog markup and wiring', () => {
     expect(overlay).toMatch(/id="btn-bind-refresh"/);
     expect(overlay).not.toMatch(/id="qr-preview"/);
     expect(overlay).not.toMatch(/id="convert-dialog"/);
-    expect(html.match(/id="convert-dialog"/g) || []).toHaveLength(1);
+    expect(html.match(/id="convert-dialog"/g) || []).toHaveLength(0);
     expect(html.match(/id="qr-dialog"/g) || []).toHaveLength(0);
     expect(html.match(/id="btn-qr"/g) || []).toHaveLength(0);
   });
 
-  it('wires Tools bind entry to openBindDialog, not Convert', () => {
+  it('wires the bind entry to openBindDialog', () => {
     const shell = readSrc('frontend/src/shell.tsx');
     expect(shell).toMatch(/from ['"]\.\/app-shell\/ui\/bind-dialog\.tsx['"]/);
     expect(shell).toMatch(/openBindDialog/);
+    expect(shell).toMatch(/<BindDialog\s*\/>/);
     const bindBlock = shell.match(
       /id="btn-bind"[\s\S]{0,280}openBindDialog/,
     );
@@ -174,11 +171,10 @@ describe('bind-dialog markup and wiring', () => {
     expect(bindBlock[0]).toContain('openBindDialog');
     expect(bindBlock[0]).not.toContain('openQrDialog');
     expect(bindBlock[0]).not.toContain('openConvertDialog');
-    const convertBlock = shell.match(
-      /id="btn-convert"[\s\S]{0,280}openConvertDialog/,
-    );
-    expect(convertBlock, 'must keep #btn-convert → openConvertDialog').toBeTruthy();
-    expect(convertBlock[0]).toContain('openConvertDialog');
+    expect(shell).not.toMatch(/\bopenConvertDialog\b/);
+    expect(shell).not.toMatch(/\bopenMoveDocDialog\b/);
+    expect(shell).not.toMatch(/\bConvertDialog\b/);
+    expect(shell).not.toMatch(/\bMoveDocDialog\b/);
   });
 
   it('does not reuse renderQr, qr-dialog, list_devices, or a frontend address', () => {

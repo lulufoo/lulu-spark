@@ -21,6 +21,9 @@ use serde_json::json;
 fn with_bound_sandbox<F: FnOnce(&TestSandbox)>(f: F) {
     let sandbox = TestSandbox::new();
     r#loop::reset_runtime_for_tests();
+    // Earlier tests may clear the Host registry. Re-seed before Set so this
+    // fixture does not depend on leftover process state.
+    crate::mcp_host::registry::seed_defaults();
     r#loop::try_set_binding_json(&json!({ "key": SEEDED_BUSINESS_KEY })).expect("bind");
     f(&sandbox);
 }

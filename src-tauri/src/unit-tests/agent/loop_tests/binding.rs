@@ -2,6 +2,13 @@
 
 use super::support::*;
 
+/// Session ids are `workbench_chat_<hex>`, so a substring check against the
+/// business key `workbench` matches every live session. Compare colon-separated
+/// fields to the key itself.
+fn record_carries_binding_key(entry: &str) -> bool {
+    let key = crate::mcp_host::registry::SEEDED_BUSINESS_KEY;
+    entry.split(':').any(|part| part == key)
+}
 
 #[test]
 fn set_binding_accepts_valid_tools_prompt_and_callbacks() {
@@ -1688,7 +1695,7 @@ fn t8_binding_request_helpers_route_create_turn_cancel_by_current_session_id() {
                 .lock()
                 .unwrap()
                 .iter()
-                .any(|entry| entry.contains(crate::mcp_host::registry::SEEDED_BUSINESS_KEY)),
+                .any(|entry| record_carries_binding_key(entry)),
             "create/turn must record session identity, not Binding-derived identity"
         );
 
@@ -1710,7 +1717,7 @@ fn t8_binding_request_helpers_route_create_turn_cancel_by_current_session_id() {
                 .lock()
                 .unwrap()
                 .iter()
-                .any(|entry| entry.contains(crate::mcp_host::registry::SEEDED_BUSINESS_KEY)),
+                .any(|entry| record_carries_binding_key(entry)),
             "cancel must record session identity, not Binding-derived identity"
         );
     });
@@ -1825,7 +1832,7 @@ fn t_same_binding_switch_session_create_turn_do_not_reuse_prior_slot() {
                 .lock()
                 .unwrap()
                 .iter()
-                .any(|entry| entry.contains(&session_a) || entry.contains(crate::mcp_host::registry::SEEDED_BUSINESS_KEY)),
+                .any(|entry| entry.contains(&session_a) || record_carries_binding_key(entry)),
             "create/turn must use session B's slot, not session A or Binding identity"
         );
     });
@@ -1923,7 +1930,7 @@ fn t1_create_turn_cancel_reset_callbacks_receive_only_live_session_id() {
                 .lock()
                 .unwrap()
                 .iter()
-                .any(|entry| entry.contains(crate::mcp_host::registry::SEEDED_BUSINESS_KEY)),
+                .any(|entry| record_carries_binding_key(entry)),
             "create/turn must not receive Binding-derived identity"
         );
 

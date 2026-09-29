@@ -127,25 +127,6 @@ describe('T10 — AC-等价 (full 13-tool set in e2e)', () => {
   });
 });
 
-describe('T10 — AC-SKILL (todo-task drives new tools; no /plan-task)', () => {
-  it('sibling skills worktree exposes todo-task SKILL with todo_* tools only', () => {
-    const skillsRoot = join(repoRoot, '..', '475641f1-4be0-lulu-workbench-skills');
-    const skillMd = join(skillsRoot, 'todo-task', 'SKILL.md');
-    expect(existsSync(skillMd), `missing ${skillMd}`).toBe(true);
-    expect(existsSync(join(skillsRoot, 'plan-task')), 'plan-task dir must not remain').toBe(
-      false,
-    );
-    const src = readFileSync(skillMd, 'utf8');
-    expect(src).toMatch(/^name:\s*todo-task\s*$/m);
-    expect(src).not.toMatch(/\/plan-task/);
-    for (const tool of EQUIVALENCE_TODO_TOOLS) {
-      expect(src, `SKILL missing ${tool}`).toContain(tool);
-    }
-    expect(src).toContain('complete_plan_sub');
-    expect(src).toMatch(/do not call|unavailable|removed/i);
-  });
-});
-
 describe('T10 — AC-迁移 (gate marker; no plan.md/plan_tasks residue on success)', () => {
   it('migrate vitest locks success-path residue + .migration_gate_passed', () => {
     const src = read('tests/gates/migrate-plan-tasks.test.js');

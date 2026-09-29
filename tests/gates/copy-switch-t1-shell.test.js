@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { readShellHtml } from '../helpers/read-frontend-js.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
+const shellSrc = readFileSync(join(repoRoot, 'frontend/src/shell.tsx'), 'utf8');
 const indexHtml = [
   readShellHtml(),
   readFileSync(join(repoRoot, 'frontend/src/notes/ui/sidebar.tsx'), 'utf8'),
@@ -35,11 +36,28 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
 
   it('header menus use table B labels', () => {
     expect(extractTagOuter(indexHtml, 'btn-sync-menu')).toContain('⇕ Sync');
-    expect(extractTagOuter(indexHtml, 'btn-tools-menu')).toContain('⛓ Tools');
+    const toolsMenu = extractTagOuter(indexHtml, 'btn-tools-menu');
+    expect(toolsMenu).toMatch(/id="btn-tools-menu"[^>]*>\s*Bind\s*</);
+    expect(toolsMenu).not.toContain('Tools');
+    expect(toolsMenu).not.toContain('⛓');
     expect(extractTagOuter(indexHtml, 'btn-settings')).toMatch(/Settings/);
     expect(extractTagOuter(indexHtml, 'btn-push-index')).toContain('↑ Commit changes');
     expect(extractTagOuter(indexHtml, 'btn-pull')).toContain('↓ Update project');
     expect(extractTagOuter(indexHtml, 'btn-local-refresh')).toContain('⟳ Refresh local');
+  });
+
+  it('keeps Bind device in the tools menu and unmounts GitHub and Convert', () => {
+    expect(shellSrc).toMatch(/id="btn-tools-menu"/);
+    expect(shellSrc).toMatch(/id="tools-menu-dropdown"[\s\S]*id="btn-bind"/);
+    expect(shellSrc).toMatch(/id="btn-bind"[\s\S]*?Bind device/);
+    expect(shellSrc).toMatch(/id="btn-bind"[\s\S]{0,280}openBindDialog/);
+    expect(shellSrc).toMatch(/<BindDialog\s*\/>/);
+    expect(shellSrc).not.toContain('id="btn-move-doc-header"');
+    expect(shellSrc).not.toContain('id="btn-convert"');
+    expect(shellSrc).not.toMatch(/\bConvertDialog\b/);
+    expect(shellSrc).not.toMatch(/\bMoveDocDialog\b/);
+    expect(shellSrc).not.toMatch(/\bopenConvertDialog\b/);
+    expect(shellSrc).not.toMatch(/\bopenMoveDocDialog\b/);
   });
 
   it('search placeholders use table B; the header has no index rebuild control', () => {
