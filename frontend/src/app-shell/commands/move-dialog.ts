@@ -1,19 +1,6 @@
 import * as api from '../../host/api.ts';
-import { moveDocOpenStore } from '../state/dialog-open.ts';
-
-export { moveDocOpenStore };
 
 export type ResultTone = '' | 'ok' | 'warn' | 'err' | 'busy';
-
-export function openMoveDocDialog() {
-  moveDocOpenStore.set(true);
-  document.getElementById('move-doc-dialog')?.classList.add('open');
-}
-
-export function closeMoveDocDialog() {
-  moveDocOpenStore.set(false);
-  document.getElementById('move-doc-dialog')?.classList.remove('open');
-}
 
 export async function doMoveDoc(
   srcUrl: string,
@@ -36,7 +23,6 @@ export async function doMoveDoc(
     const movedInfo = data.moved !== undefined ? ` (${data.moved} files total)` : '';
     setResult('ok', `✓ Moved to ${data.dst_path}${movedInfo}`);
     document.dispatchEvent(new CustomEvent('cta:reload'));
-    setTimeout(closeMoveDocDialog, 2000);
   } catch (e) {
     setResult('err', `✗ ${(e as Error).message}`);
   }
@@ -62,7 +48,6 @@ export async function doDeleteDoc(
     const deletedInfo = data.deleted !== undefined ? ` (${data.deleted} files total)` : '';
     setResult('ok', `✓ Deleted${deletedInfo}`);
     document.dispatchEvent(new CustomEvent('cta:reload'));
-    setTimeout(closeMoveDocDialog, 2000);
   } catch (e) {
     setResult('err', `✗ ${(e as Error).message}`);
   }

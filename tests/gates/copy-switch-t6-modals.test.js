@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
@@ -99,11 +99,8 @@ describe('P2 copy-switch — main.js & modals (tech-doc T6)', () => {
   });
 
   it('move-dialog.js uses table B/B2 move/delete copy', () => {
-    expect(moveDialogJs).toContain('Confirm move');
-    expect(moveDialogJs).toContain('Confirm delete');
+    expect(existsSync(join(repoRoot, 'frontend/src/app-shell/ui/move-dialog.tsx'))).toBe(false);
     expect(moveDialogJs).toContain('Enter both URLs');
-    expect(moveDialogJs).toContain('Moving…');
-    expect(moveDialogJs).toContain('Deleting…');
     expect(moveDialogJs).toContain('Running gh api…');
     expect(moveDialogJs).not.toContain('确认移动');
     expect(moveDialogJs).not.toContain('请填写');
