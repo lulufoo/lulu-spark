@@ -1,12 +1,6 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import {
-  closeConvertDialog,
-  setConvertTab,
-} from '../commands/convert-dialog.ts';
 import { convertStore } from '../state/convert.ts';
 import { renderQr } from './qr-dialog.tsx';
-
-export { closeConvertDialog, openConvertDialog, setConvertTab } from '../commands/convert-dialog.ts';
 
 export function ConvertDialog() {
   const { open, tab } = useSyncExternalStore(convertStore.subscribe, convertStore.getSnapshot);
@@ -55,13 +49,13 @@ export function ConvertDialog() {
       id="convert-dialog"
       className={open ? 'open' : undefined}
       onClick={(e) => {
-        if (e.target === e.currentTarget) closeConvertDialog();
+        if (e.target === e.currentTarget) convertStore.set((s) => ({ ...s, open: false }));
       }}
     >
       <div id="convert-dialog-box">
         <div id="convert-dialog-header">
           <span>🔀 Convert</span>
-          <button id="btn-convert-close" type="button" onClick={() => closeConvertDialog()}>
+          <button id="btn-convert-close" type="button" onClick={() => convertStore.set((s) => ({ ...s, open: false }))}>
             ✕ Close
           </button>
         </div>
@@ -71,7 +65,7 @@ export function ConvertDialog() {
             id="convert-tab-base64"
             className={`convert-tab-btn${tab === 'base64' ? ' active' : ''}`}
             onClick={() => {
-              setConvertTab('base64');
+              convertStore.set((s) => ({ ...s, tab: 'base64' }));
               document.getElementById('base64-input')?.focus();
             }}
           >
@@ -82,7 +76,7 @@ export function ConvertDialog() {
             id="convert-tab-qr"
             className={`convert-tab-btn${tab === 'qr' ? ' active' : ''}`}
             onClick={() => {
-              setConvertTab('qr');
+              convertStore.set((s) => ({ ...s, tab: 'qr' }));
               document.getElementById('qr-input')?.focus();
             }}
           >

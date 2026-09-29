@@ -12,10 +12,16 @@ const qrMocks = vi.hoisted(() => ({
 globalThis.QRCode = qrMocks;
 
 import { ConvertDialog } from '../../frontend/src/app-shell/ui/convert-dialog.tsx';
-import {
-  closeConvertDialog,
-  openConvertDialog,
-} from '../../frontend/src/app-shell/commands/convert-dialog.ts';
+import { convertStore } from '../../frontend/src/app-shell/state/convert.ts';
+
+function closeConvertDialog() {
+  convertStore.set((s) => ({ ...s, open: false }));
+}
+
+function openConvertDialog(tab = 'base64') {
+  const name = tab === 'qr' ? 'qr' : 'base64';
+  convertStore.set({ open: true, tab: name });
+}
 
 describe('ConvertDialog QR tab', () => {
   let root;

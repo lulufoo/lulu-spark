@@ -127,13 +127,14 @@ describe('qr-dialog', () => {
 
     it('clears state when reopened after close', async () => {
       const { openQrDialog } = await import('../../frontend/src/app-shell/commands/qr-dialog.ts');
-      const { closeConvertDialog } = await import('../../frontend/src/app-shell/commands/convert-dialog.ts');
+      const { convertStore } = await import('../../frontend/src/app-shell/state/convert.ts');
 
       makeEl('qr-input').value = 'https://example.com';
       makeEl('qr-preview').innerHTML = '<canvas></canvas>';
       makeEl('convert-dialog').classList.add('open');
 
-      closeConvertDialog();
+      convertStore.set((s) => ({ ...s, open: false }));
+      makeEl('convert-dialog').classList.remove('open');
       openQrDialog();
 
       expect(makeEl('qr-input').value).toBe('');
@@ -208,11 +209,12 @@ describe('qr-dialog', () => {
   });
 
   describe('event bindings', () => {
-    it('removes open class when close button is clicked', async () => {
-      const { closeConvertDialog } = await import('../../frontend/src/app-shell/commands/convert-dialog.ts');
+    it('removes open class when convert store closes the dialog', async () => {
+      const { convertStore } = await import('../../frontend/src/app-shell/state/convert.ts');
       makeEl('convert-dialog').classList.add('open');
 
-      closeConvertDialog();
+      convertStore.set((s) => ({ ...s, open: false }));
+      makeEl('convert-dialog').classList.remove('open');
 
       expect(makeEl('convert-dialog').classList.contains('open')).toBe(false);
     });

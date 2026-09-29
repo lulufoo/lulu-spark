@@ -1,7 +1,9 @@
-import { openConvertDialog } from './convert-dialog.ts';
+import { convertStore } from '../state/convert.ts';
 
 export function openQrDialog() {
   (document.getElementById('qr-input') as HTMLInputElement).value = '';
   document.getElementById('qr-preview')!.innerHTML = '';
-  openConvertDialog('qr');
+  convertStore.set({ open: true, tab: 'qr' });
+  document.getElementById('convert-dialog')?.classList.add('open');
+  document.getElementById('qr-input')?.focus();
 }
