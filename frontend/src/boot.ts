@@ -7,7 +7,6 @@ import { openCreateNote } from './notes/viewer.ts';
 import './notes/ui/comments.tsx';
 import './knowledge/viewer.ts';
 import './app-shell/ui/workbench-commit-dialog.tsx';
-import './app-shell/ui/qr-dialog.tsx';
 import { navigate, navigateToNote } from './router/index.ts';
 import { setRouteHandlers } from './route-handlers.ts';
 import { openReadLaterDialog } from './read-later/commands/dialog.ts';

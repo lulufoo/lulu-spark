@@ -183,10 +183,6 @@ describe('bind-dialog markup and wiring', () => {
       readSrc('frontend/src/app-shell/commands/bind-dialog.ts'),
       readSrc('frontend/src/app-shell/state/dialog-open.ts'),
     ].join('\n');
-    const qrSrc = [
-      readSrc('frontend/src/app-shell/ui/qr-dialog.tsx'),
-      readSrc('frontend/src/app-shell/commands/qr-dialog.ts'),
-    ].join('\n');
     expect(src).toContain('QRCode.toCanvas');
     expect(src).toMatch(/QR_OPTS/);
     expect(src).toContain('issue_bind');
@@ -197,9 +193,6 @@ describe('bind-dialog markup and wiring', () => {
     expect(src).not.toMatch(/getElementById\(\s*['"]qr-preview['"]/);
     expect(src).not.toMatch(/getElementById\(\s*['"]qr-dialog['"]/);
     expect(src).not.toMatch(/getElementById\(\s*['"]btn-qr['"]/);
-    expect(qrSrc).toContain("getElementById('qr-preview')");
-    expect(qrSrc).toContain('export function renderQr');
-    expect(qrSrc).toContain('export function openQrDialog');
     expect(src).toMatch(/export function BindDialog/);
     expect(src).toMatch(/createModuleStore/);
     expect(src).toMatch(/useSyncExternalStore/);

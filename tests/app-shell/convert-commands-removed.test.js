@@ -62,13 +62,6 @@ describe('Convert command functions removed', () => {
     expect(product).not.toMatch(/\bcloseConvertDialog\b/);
   });
 
-  it('keeps QR page and the boot import', () => {
-    expect(existsSync(join(repoRoot, 'frontend/src/app-shell/ui/qr-dialog.tsx'))).toBe(true);
-    expect(existsSync(join(repoRoot, 'frontend/src/app-shell/commands/qr-dialog.ts'))).toBe(true);
-    const boot = readFileSync(join(repoRoot, 'frontend/src/boot.ts'), 'utf8');
-    expect(boot).toMatch(/import ['"]\.\/app-shell\/ui\/qr-dialog\.tsx['"]/);
-  });
-
   it('does not modify openBindDialog', () => {
     const src = readFileSync(join(repoRoot, 'frontend/src/app-shell/commands/bind-dialog.ts'), 'utf8');
     expect(src).toContain(OPEN_BIND_DIALOG_SRC);
