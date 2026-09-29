@@ -37,6 +37,7 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
   it('header menus use table B labels', () => {
     expect(extractTagOuter(indexHtml, 'btn-sync-menu')).toContain('⇕ Sync');
     const toolsMenu = extractTagOuter(indexHtml, 'btn-tools-menu');
+    expect(indexHtml).toContain('id="btn-tools-menu">Bind</button>');
     expect(toolsMenu).toMatch(/id="btn-tools-menu"[^>]*>\s*Bind\s*</);
     expect(toolsMenu).not.toContain('Tools');
     expect(toolsMenu).not.toContain('⛓');

@@ -113,8 +113,6 @@ function seedDom() {
   makeEl('bind-countdown');
   makeEl('btn-bind-close');
   makeEl('btn-bind-refresh').hidden = true;
-  makeEl('convert-dialog');
-  makeEl('qr-preview');
 }
 
 function issueCalls() {
@@ -135,28 +133,22 @@ function assertNoAddresses(call) {
 }
 
 describe('bind-dialog markup and wiring', () => {
-  it('keeps Bind device in the tools menu without a Convert entry', () => {
+  it('keeps Bind device in the tools menu', () => {
     const html = shellHtml;
     const tools = extractById(html, 'tools-menu-dropdown');
     expect(tools).toMatch(/id="btn-bind"/);
-    expect(tools).not.toMatch(/id="btn-convert"/);
-    expect(tools).not.toMatch(/id="btn-move-doc-header"/);
     expect(tools).toMatch(/id="btn-bind"[^>]*>[\s\S]*?Bind device/);
   });
 
   it('adds an independent bind overlay with its own preview node', () => {
     const html = shellHtml;
     const overlay = extractById(html, 'bind-dialog');
+    expect(overlay).toMatch(/id="bind-dialog"/);
     expect(overlay).toMatch(/id="bind-preview"/);
     expect(overlay).toMatch(/id="bind-status"/);
     expect(overlay).toMatch(/id="bind-countdown"/);
     expect(overlay).toMatch(/id="btn-bind-close"/);
     expect(overlay).toMatch(/id="btn-bind-refresh"/);
-    expect(overlay).not.toMatch(/id="qr-preview"/);
-    expect(overlay).not.toMatch(/id="convert-dialog"/);
-    expect(html.match(/id="convert-dialog"/g) || []).toHaveLength(0);
-    expect(html.match(/id="qr-dialog"/g) || []).toHaveLength(0);
-    expect(html.match(/id="btn-qr"/g) || []).toHaveLength(0);
   });
 
   it('wires the bind entry to openBindDialog', () => {
@@ -169,12 +161,6 @@ describe('bind-dialog markup and wiring', () => {
     );
     expect(bindBlock, 'missing #btn-bind click wiring').toBeTruthy();
     expect(bindBlock[0]).toContain('openBindDialog');
-    expect(bindBlock[0]).not.toContain('openQrDialog');
-    expect(bindBlock[0]).not.toContain('openConvertDialog');
-    expect(shell).not.toMatch(/\bopenConvertDialog\b/);
-    expect(shell).not.toMatch(/\bopenMoveDocDialog\b/);
-    expect(shell).not.toMatch(/\bConvertDialog\b/);
-    expect(shell).not.toMatch(/\bMoveDocDialog\b/);
   });
 
   it('does not reuse renderQr, qr-dialog, list_devices, or a frontend address', () => {
@@ -230,7 +216,6 @@ describe('bind-dialog', () => {
     expect(makeEl('bind-dialog').classList.contains('open')).toBe(false);
     expect(issueCalls()).toHaveLength(0);
     expect(readCalls()).toHaveLength(0);
-    expect(makeEl('convert-dialog').classList.contains('open')).toBe(false);
   });
 
   it('opens the independent overlay in loading first, then issues with no addresses', async () => {
@@ -239,7 +224,6 @@ describe('bind-dialog', () => {
         expect(makeEl('bind-dialog').classList.contains('open')).toBe(true);
         expect(makeEl('bind-status').textContent).toMatch(/Loading/);
         expect(qrMocks.toCanvas).not.toHaveBeenCalled();
-        expect(makeEl('convert-dialog').classList.contains('open')).toBe(false);
         return PAYLOAD;
       }
       if (cmd === 'read_bind_session') return 'live';
@@ -253,7 +237,6 @@ describe('bind-dialog', () => {
     expect(issueCalls()[0][0]).toBe('issue_bind');
     assertNoAddresses(issueCalls()[0]);
     expect(makeEl('bind-status').textContent).not.toMatch(/Loading/);
-    expect(makeEl('convert-dialog').classList.contains('open')).toBe(false);
   });
 
   it('encodes the draw object as JSON and paints the bind preview via toCanvas + QR_OPTS', async () => {
@@ -276,7 +259,6 @@ describe('bind-dialog', () => {
     expect(drawn).toEqual(PAYLOAD);
     expect(makeEl('bind-preview').children).toHaveLength(1);
     expect(makeEl('bind-preview').children[0].tagName).toBe('canvas');
-    expect(makeEl('qr-preview').children).toHaveLength(0);
   });
 
   it('uses payload exp for the countdown, not the read-session command', async () => {

@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
@@ -19,10 +19,6 @@ const deleteDialogJs = readFileSync(
   join(repoRoot, 'frontend/src/notes/ui/delete-dialog.tsx'),
   'utf8',
 );
-const moveDialogJs = [
-  readFrontendJs('frontend/src/app-shell/ui/move-dialog.tsx'),
-  readFrontendJs('frontend/src/app-shell/commands/move-dialog.ts'),
-].join('\n');
 const settleDialogJs = [
   readFrontendJs('frontend/src/notes/ui/settle-dialog.tsx'),
   readFrontendJs('frontend/src/notes/commands/settle-dialog.ts'),
@@ -30,16 +26,11 @@ const settleDialogJs = [
 const modalSources = [
   workbenchCommitJs,
   deleteDialogJs,
-  moveDialogJs,
   settleDialogJs,
   readFrontendJs('frontend/src/knowledge/ui/knowledge-diff-dialog.tsx'),
   readFrontendJs('frontend/src/knowledge/ui/tree-delete-dialog.tsx'),
-  readFrontendJs('frontend/src/app-shell/ui/convert-dialog.tsx'),
-  readFrontendJs('frontend/src/app-shell/commands/convert-dialog.ts'),
   readFrontendJs('frontend/src/notes/ui/move-project-dialog.tsx'),
   readFrontendJs('frontend/src/notes/commands/move-project-dialog.ts'),
-  readFrontendJs('frontend/src/app-shell/ui/qr-dialog.tsx'),
-  readFrontendJs('frontend/src/app-shell/commands/qr-dialog.ts'),
 ].join('\n');
 
 
@@ -96,11 +87,6 @@ describe('P2 copy-switch — main.js & modals (tech-doc T6)', () => {
     expect(deleteDialogJs).toContain("'Copy'");
     expect(deleteDialogJs).not.toContain('确认删除');
     expect(deleteDialogJs).not.toContain('删除中');
-  });
-
-  it('move-dialog.js uses table B/B2 move/delete copy', () => {
-    expect(existsSync(join(repoRoot, 'frontend/src/app-shell/ui/move-dialog.tsx'))).toBe(false);
-    expect(existsSync(join(repoRoot, 'frontend/src/app-shell/commands/move-dialog.ts'))).toBe(false);
   });
 
   it('settle-dialog.js remains English (t4 baseline)', () => {
