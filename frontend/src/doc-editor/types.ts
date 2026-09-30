@@ -28,7 +28,3 @@ export type HighlightOverlayConfig = {
   excludeBarId?: string;
   buttonId?: string;
 };
-
-export type TodoHighlightEditor = {
-  fileName?: string;
-};

@@ -3,10 +3,11 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { readKnowledgeViewerSource, readFrontendJs, readNotesViewerSource } from '../helpers/read-frontend-js.js';
+import * as identity from '../../frontend/src/doc-editor/identity.ts';
+import * as docEditor from '../../frontend/src/doc-editor/index.ts';
 import {
   knowledgeDocKey,
   notesDocKey,
-  todosDocKey,
 } from '../../frontend/src/doc-editor/identity.ts';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -17,11 +18,21 @@ function read(rel) {
 }
 
 describe('doc-editor identity and comment cut', () => {
-  it('builds prefixed keys for Notes / Knowledge / Todos', () => {
+  it('builds prefixed keys for Notes / Knowledge only', () => {
     expect(notesDocKey('20260827/why-cache.md')).toBe('notes:20260827/why-cache.md');
     expect(knowledgeDocKey('acme/docs', 'foo.md')).toBe('knowledge:acme/docs/foo.md');
-    expect(todosDocKey('task_1')).toBe('todos:task_1');
-    expect(todosDocKey('task_1', 'att:plan.md')).toBe('todos:task_1:att:plan.md');
+    expect(identity).not.toHaveProperty('todosDocKey');
+    expect(docEditor).not.toHaveProperty('todosDocKey');
+    expect(docEditor).not.toHaveProperty('bindTodoDocHighlights');
+  });
+
+  it('does not ship todos identity or todo bind', () => {
+    expect(existsSync(join(repoRoot, 'frontend/src/doc-editor/todo-bind.ts'))).toBe(false);
+    const identitySrc = read('frontend/src/doc-editor/identity.ts');
+    expect(identitySrc).not.toMatch(/todos:/);
+    expect(identitySrc).not.toMatch(/todosDocKey/);
+    const indexSrc = read('frontend/src/doc-editor/index.ts');
+    expect(indexSrc).not.toMatch(/todosDocKey|todo-bind|bindTodoDocHighlights/);
   });
 
   it('common overlay does not import comments', () => {
@@ -31,7 +42,7 @@ describe('doc-editor identity and comment cut', () => {
     expect(src).not.toMatch(/updateHighlight\(|updateKbHighlight\(/);
   });
 
-  it('Notes / Knowledge / Todos wire the common view and overlay', () => {
+  it('Notes / Knowledge wire the common view and overlay', () => {
     expect(readNotesViewerSource()).toMatch(/renderDocMarkdown/);
     expect(readNotesViewerSource()).toMatch(/setDocEditMode/);
     expect(readNotesViewerSource()).toMatch(/applyCachedHighlights|initDocHighlightOverlay/);
