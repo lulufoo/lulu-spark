@@ -2,7 +2,7 @@
 name: lulu-workbench-skills
 description: >-
   lulu-workbench 归档技能包安装。克隆到平台 skills 目录（Cursor / Copilot / Claude / Codex）；归档经 Workbench App MCP 落盘。
-  Use when: 安装 workbench skills、dialogue-summary dialogue-archive theme-line theme-fetch theme-transcribe note-task todo-task
+  Use when: 安装 workbench skills、dialogue-summary dialogue-archive theme-line theme-fetch theme-transcribe note-task
 ---
 
 # lulu-workbench-skills — 安装
@@ -31,7 +31,7 @@ git clone https://github.com/lulufoo/lulu-workbench-skills.git $SKILL_DIR
 git -C $SKILL_DIR pull --rebase
 ```
 
-克隆完成后平台自动发现子 skill（`dialogue-summary`、`dialogue-archive`、`theme-line`、`theme-fetch`、`theme-transcribe`、`note-task`、`todo-task`），均无需额外操作。digest 写法由 note-task 自己说明，不单独发现。
+克隆完成后平台自动发现子 skill（`dialogue-summary`、`dialogue-archive`、`theme-line`、`theme-fetch`、`theme-transcribe`、`note-task`），均无需额外操作。digest 写法由 note-task 自己说明，不单独发现。
 
 `dialogue-summary` 清洗脚本见包内 [`scripts/transcript-clean-control.py`](scripts/transcript-clean-control.py)；`dialogue-archive` 切片脚本见包内 [`dialogue-archive/scripts/dialogue_archive_normalize.py`](dialogue-archive/scripts/dialogue_archive_normalize.py)。各 skill 自己编排。
 
@@ -49,7 +49,6 @@ git -C $SKILL_DIR pull --rebase
 | `theme-fetch` | [theme-fetch/](theme-fetch/) | 网页文章组稿 → **note-task** |
 | `theme-transcribe` | [theme-transcribe/](theme-transcribe/) | 下载媒体 + Whisper → 完整逐字稿 → **note-task**；无现成字幕时用 |
 | `note-task` | [note-task/](note-task/) | 笔记 MCP 地图：`create_note` / catalog / files |
-| `todo-task` | [todo-task/](todo-task/) | Todo 任务树 CRUD（MCP `todo_*` tools；经 local_http proxy） |
 
 ## 验收
 
