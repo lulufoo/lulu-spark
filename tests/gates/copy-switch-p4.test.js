@@ -10,7 +10,6 @@ const TABLE_A_BRANDS = [
   { zh: 'Workbench 笔记', en: 'Notes', file: 'frontend/src/home/page.tsx' },
   { zh: 'Read Later 待读', en: 'Read Later', file: 'frontend/src/home/page.tsx' },
   { zh: '沉淀知识库', en: 'Knowledge', file: 'frontend/src/home/page.tsx' },
-  { zh: 'Todos', en: 'Todos', file: 'frontend/src/home/page.tsx' },
   { zh: 'Lulu Workbench', en: 'Lulu Workbench', file: 'frontend/src/shell.tsx' },
   { zh: '笔记助手', en: 'Notes Assistant', file: 'frontend/src/notes/ui/assistant.tsx' },
   { zh: 'AI 助手', en: 'Chats', file: 'frontend/src/home/page.tsx' },
@@ -20,8 +19,6 @@ const TABLE_A_BRANDS = [
 const KEY_PATH_FILES = [
   'frontend/src/shell.tsx',
   'frontend/src/home/page.tsx',
-  'frontend/src/todo-task/index.ts',
-  'frontend/src/todo-task/ui/dialog.tsx',
   'frontend/src/notes/viewer.ts',
   'frontend/src/knowledge/viewer.ts',
   'frontend/src/notes/ui/sidebar.tsx',
@@ -50,7 +47,7 @@ function stripComments(source) {
 }
 
 describe('P4 copy-switch post-switch verification (tech-doc T8 / AC-2)', () => {
-  it('table A eight brand entries appear in key-path surfaces (no Chinese remnants)', () => {
+  it('table A brand entries appear in key-path surfaces (no Chinese remnants)', () => {
     for (const { zh, en, file } of TABLE_A_BRANDS) {
       const src = readSource(file);
       expect(src, `${file} missing ${en}`).toContain(en);

@@ -1214,12 +1214,7 @@ fn t4_defensive_cut_hook_path_is_confirmed_and_testable() {
     // Explicit leave→Reset remains the primary path; defensive cut backs missed leave.
     assert_eq!(
         r#loop::DEFENSIVE_CUT_EXPLICIT_RESET_CHAIN,
-        [
-            "frontend/src/todo-task/index.js::dispose",
-            "frontend/src/todo-task/lifecycle.js::onTodosPageLeave",
-            "frontend/src/todo-task/binding.js::resetTodosBinding",
-            "src-tauri/src/agent/binding/mod.rs::reset_binding",
-        ]
+        ["src-tauri/src/agent/binding/mod.rs::reset_binding"]
     );
     // Hook symbol is callable (not a UI-only stub).
     with_sandbox(|| {
@@ -2770,11 +2765,10 @@ fn t4_cursor_ide_is_not_an_app_binding_key() {
 
 #[test]
 fn t4_notes_binding_consumer_follows_todos_key_only_contract() {
-    let binding = repo_file("frontend/src/todo-task/commands/binding.ts");
-    let index = repo_file("frontend/src/todo-task/index.ts");
+    let binding = repo_file("frontend/src/app-shell/commands/workbench-binding.ts");
     assert!(
         binding.contains("WORKBENCH_BUSINESS_KEY") && binding.contains("'workbench'"),
-        "binding.ts must export WORKBENCH_BUSINESS_KEY = workbench"
+        "workbench-binding.ts must export WORKBENCH_BUSINESS_KEY = workbench"
     );
     assert!(
         binding.contains("export async function setWorkbenchBinding"),
@@ -2802,11 +2796,13 @@ fn t4_notes_binding_consumer_follows_todos_key_only_contract() {
         "Workbench Binding must not select an engine"
     );
     assert!(
-        !index.contains("assembleNotesBindingBody")
-            && !index.contains("buildNotesBinding")
-            && !index.contains("resetNotesBinding")
-            && !index.contains("NOTES_BUSINESS_KEY"),
-        "todo-task/index.ts must not re-export old Notes Binding symbols"
+        !{
+            let mut path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+            path.pop();
+            path.push("frontend/src/todo-task");
+            path.exists()
+        },
+        "frontend/src/todo-task must be removed"
     );
 }
 

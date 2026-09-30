@@ -14,7 +14,6 @@ const PUBLIC_CMDS = [
   'theme-fetch',
   'theme-transcribe',
   'note-task',
-  'todo-task',
 ]
 
 test('workbench catalog exposes exactly the public child skills', () => {

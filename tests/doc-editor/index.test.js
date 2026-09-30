@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
@@ -40,6 +40,6 @@ describe('doc-editor identity and comment cut', () => {
     expect(readKnowledgeViewerSource()).toMatch(/setDocEditMode/);
     expect(readKnowledgeViewerSource()).toMatch(/applyCachedHighlights|initDocHighlightOverlay/);
     expect(readKnowledgeViewerSource()).not.toMatch(/updateKbHighlight\(/);
-    expect(read('frontend/src/todo-task/page.tsx')).toMatch(/bindTodoDocHighlights/);
+    expect(existsSync(join(repoRoot, 'frontend/src/todo-task/page.tsx'))).toBe(false);
   });
 });

@@ -31,21 +31,6 @@ export function parseHash(hash?: string): ParsedRoute {
     return { name: 'workbench', params };
   }
 
-  if (path === 'todo-tasks' || path.startsWith('todo-tasks?')) {
-    const queryString = path.includes('?') ? path.slice(path.indexOf('?') + 1) : '';
-    const params: Record<string, string> = {};
-    if (queryString) {
-      const searchParams = new URLSearchParams(queryString);
-      if (searchParams.has('master')) {
-        params.master = searchParams.get('master') ?? '';
-      }
-      if (searchParams.has('sub')) {
-        params.sub = searchParams.get('sub') ?? '';
-      }
-    }
-    return { name: 'todo-tasks', params };
-  }
-
   if (path === 'knowledge' || path === 'knowledge/pick') return { name: 'knowledge-doc', params: { repo: '' } };
 
   if (path.startsWith('knowledge/')) {

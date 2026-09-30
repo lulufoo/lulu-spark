@@ -43,10 +43,6 @@ export function mountReadLaterRoute() {
   openReadLaterDialog();
 }
 
-export function mountTodoTasksRoute() {
-  clearHeaderSyncKnowledgeContext();
-}
-
 export function mountWorkbench(route?: AppRoute) {
   clearHeaderSyncKnowledgeContext();
 

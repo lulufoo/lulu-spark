@@ -169,13 +169,8 @@ describe('readApi contract map', () => {
     });
   });
 
-  it('resolveInvokeFromPath maps todo-tasks to get_todo_tasks', () => {
-    expect(resolveInvokeFromPath('/api/todo-tasks')).toEqual({
-      cmd: 'get_todo_tasks',
-      args: {},
-    });
-    expect(READ_API_INVOKE_MAP['/api/todo-tasks']).toEqual({
-      cmd: 'get_todo_tasks',
-    });
+  it('resolveInvokeFromPath no longer maps todo-tasks', () => {
+    expect(resolveInvokeFromPath('/api/todo-tasks')).toBeNull();
+    expect(READ_API_INVOKE_MAP['/api/todo-tasks']).toBeUndefined();
   });
 });

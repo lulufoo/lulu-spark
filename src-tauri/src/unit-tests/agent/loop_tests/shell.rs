@@ -415,7 +415,6 @@ fn t4_main_and_sidebar_wire_notes_set_without_new_runtime() {
     let main = repo_file("frontend/src/boot.ts");
     let sidebar = repo_file("frontend/src/notes/ui/sidebar.tsx");
     let sidebar_commands = repo_file("frontend/src/notes/commands/sidebar.ts");
-    let lifecycle = repo_file("frontend/src/todo-task/commands/lifecycle.ts");
     assert!(
         main.contains("setWorkbenchBinding")
             && !main.contains("buildNotesBinding")
@@ -437,9 +436,12 @@ fn t4_main_and_sidebar_wire_notes_set_without_new_runtime() {
         "must not start a separate assistant runtime"
     );
     assert!(
-        !lifecycle.contains("resetTodosBinding")
-            && !lifecycle.contains("buildTodosBinding")
-            && lifecycle.contains("notifyShellClose"),
-        "todos-lifecycle must keep shell-close ≠ Reset and must not call deleted Binding helpers"
+        !{
+            let mut path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+            path.pop();
+            path.push("frontend/src/todo-task");
+            path.exists()
+        },
+        "frontend/src/todo-task must be removed with its lifecycle Binding helpers"
     );
 }

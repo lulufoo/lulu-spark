@@ -94,7 +94,7 @@ describe('home-entry-shell integration · legal edges + triggers + hard countere
 
     // Pure FSM path must expose the intermediate B hop.
     const fsm = createHomeEntryFsm({ mode: 'C', entryId: 'read-later' });
-    const switched = fsm.dispatch({ type: 'openEntry', entryId: 'todo-task' });
+    const switched = fsm.dispatch({ type: 'openEntry', entryId: 'builders' });
     expect(switched.accepted).toBe(true);
     expect(switched.transitions).toEqual([
       { from: 'C', to: 'B' },
@@ -126,7 +126,7 @@ describe('home-entry-shell integration · legal edges + triggers + hard countere
     closeBtn(anchor).click();
     expect(shell.getState()).toEqual({ mode: 'B' });
 
-    await shell.openContent('todo-task');
+    await shell.openContent('builders');
     backdrop(anchor).click();
     expect(shell.getState()).toEqual({ mode: 'B' });
 

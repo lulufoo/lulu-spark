@@ -236,10 +236,8 @@ pub const DEFENSIVE_CUT_HOOK_PATH: &str =
     "src-tauri/src/agent/binding/mod.rs::defensive_unbound";
 
 /// Explicit leave→Reset chain that defensive cut backs (does not replace).
+/// Desktop todo leave path removed; Host `reset_binding` remains the explicit cut.
 pub const DEFENSIVE_CUT_EXPLICIT_RESET_CHAIN: &[&str] = &[
-    "frontend/src/todo-task/index.js::dispose",
-    "frontend/src/todo-task/lifecycle.js::onTodosPageLeave",
-    "frontend/src/todo-task/binding.js::resetTodosBinding",
     "src-tauri/src/agent/binding/mod.rs::reset_binding",
 ];
 

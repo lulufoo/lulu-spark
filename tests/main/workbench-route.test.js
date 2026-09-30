@@ -177,7 +177,6 @@ function seedWorkbenchMountDom() {
     <div id="home-view" style="display:none"></div>
     <div id="knowledge-doc-view" style="display:none"></div>
     <div id="read-later-view" style="display:none"></div>
-    <div id="todo-tasks-view" style="display:none"></div>
     <div class="layout">
       <main id="main">
         <div id="status"></div>
@@ -197,7 +196,6 @@ function compileMountWorkbench(env) {
     'clearHeaderSyncKnowledgeContext',
     'hideKnowledgeDocView',
     'hideReadLaterView',
-    'hideTodoTasksView',
     'hideHomeView',
     'feedView',
     'state',
@@ -228,7 +226,6 @@ function stubWorkbenchMountEnv(overrides = {}) {
     clearHeaderSyncKnowledgeContext: () => {},
     hideKnowledgeDocView: () => {},
     hideReadLaterView: () => {},
-    hideTodoTasksView: () => {},
     hideHomeView: () => {},
     feedView: document.getElementById('feed-view') || { style: { display: '' } },
     selectDate,

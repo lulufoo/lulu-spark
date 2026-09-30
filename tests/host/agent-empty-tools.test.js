@@ -18,7 +18,7 @@ import { describe, it, expect, vi } from 'vitest';
 import {
   setWorkbenchBinding,
   WORKBENCH_BUSINESS_KEY,
-} from '../../frontend/src/todo-task/commands/binding.ts';
+} from '../../frontend/src/app-shell/commands/workbench-binding.ts';
 import { readAgentLoopSource } from '../helpers/agent-loop-source.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -32,7 +32,7 @@ const packageJson = JSON.parse(
   readFileSync(join(fixtureRoot, 'package.json'), 'utf8'),
 );
 const todosBindingJs = readFileSync(
-  join(fixtureRoot, 'frontend/src/todo-task/commands/binding.ts'),
+  join(fixtureRoot, 'frontend/src/app-shell/commands/workbench-binding.ts'),
   'utf8',
 );
 

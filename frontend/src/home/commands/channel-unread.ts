@@ -1,11 +1,10 @@
 import * as api from '../../host/api.ts';
 import { setHomeState } from '../state/store.ts';
 
-const UNREAD_CHANNELS = ['notes', 'read_later', 'todos'] as const;
+const UNREAD_CHANNELS = ['notes', 'read_later'] as const;
 const ENTRY_CHANNEL: Record<string, (typeof UNREAD_CHANNELS)[number]> = {
   workbench: 'notes',
   'read-later': 'read_later',
-  'todo-tasks': 'todos',
 };
 
 let unreadGen = 0;
@@ -16,7 +15,7 @@ export function resetChannelUnread() {
 
 export async function refreshChannelUnread() {
   const gen = unreadGen;
-  const next = { notes: false, read_later: false, todos: false };
+  const next = { notes: false, read_later: false };
   for (const channel of UNREAD_CHANNELS) {
     try {
       next[channel] = (await api.getMessageChannelUnread(channel)) === true;

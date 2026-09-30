@@ -68,16 +68,5 @@ export const workbenchSkillsContent = {
         },
       ],
     },
-    {
-      name: 'Todo tasks',
-      url: 'https://github.com/lulufoo/lulu-workbench-skills/tree/main/todo-task',
-      items: [
-        {
-          cmd: 'todo-task',
-          name: 'Todo tasks',
-          desc: 'Create, query, and maintain Todo task trees through Workbench MCP.',
-        },
-      ],
-    },
   ],
 };

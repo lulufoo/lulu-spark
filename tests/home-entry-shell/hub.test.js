@@ -42,7 +42,7 @@ describe('mountHomeHub', () => {
     expect(container.querySelector('[data-role="session-list"]')).not.toBeNull();
 
     const shortcuts = container.querySelectorAll('.home-desktop-shortcut');
-    expect(shortcuts).toHaveLength(4);
+    expect(shortcuts).toHaveLength(3);
 
     const workbenchEntry = container.querySelector('[data-home-entry="workbench"]');
     const readLaterEntry = container.querySelector('[data-home-entry="read-later"]');
@@ -51,11 +51,10 @@ describe('mountHomeHub', () => {
     expect(workbenchEntry).not.toBeNull();
     expect(readLaterEntry).not.toBeNull();
     expect(knowledgeEntry).not.toBeNull();
-    expect(todoTasksEntry).not.toBeNull();
+    expect(todoTasksEntry).toBeNull();
     expect(workbenchEntry.textContent).toMatch(/Notes/);
     expect(readLaterEntry.textContent).toMatch(/Read Later/);
     expect(knowledgeEntry.textContent).toMatch(/Knowledge/);
-    expect(todoTasksEntry.textContent).toMatch(/Todos/);
   });
 
   it('navigates to #/workbench when workbench entry is clicked', () => {
@@ -81,20 +80,7 @@ describe('mountHomeHub', () => {
     expect(navigate).not.toHaveBeenCalledWith('#/read-later');
   });
 
-  it('navigates to #/todo-tasks when todo-tasks entry is clicked', () => {
-    cleanup = mountHomeHub(container, { navigate });
 
-    container.querySelector('[data-home-entry="todo-tasks"]').click();
-    expect(navigate).toHaveBeenCalledWith('#/todo-tasks');
-  });
-
-  it('does not throw when todo-tasks entry is clicked without navigate', () => {
-    cleanup = mountHomeHub(container, {});
-
-    expect(() => {
-      container.querySelector('[data-home-entry="todo-tasks"]').click();
-    }).not.toThrow();
-  });
 
   it('returns cleanup that clears container', () => {
     const cleanup = mountHomeHub(container, { navigate });

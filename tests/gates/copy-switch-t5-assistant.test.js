@@ -18,15 +18,10 @@ const todoTaskAssistantHtmlPath = join(
 );
 const homeHubJs = readFrontendJs('frontend/src/home/hub.tsx');
 const readLaterAssistantJs = readFrontendJs('frontend/src/read-later/ui/assistant.tsx');
-const todoTaskAssistantJs = [
-  readFrontendJs('frontend/src/todo-task/ui/assistant.tsx'),
-  readFrontendJs('frontend/src/todo-task/commands/assistant.ts'),
-].join('\n');
 
 const assistantSources = [
   homeHubJs,
   readLaterAssistantJs,
-  todoTaskAssistantJs,
 ].join('\n');
 
 describe('P2 copy-switch — Assistant pages (tech-doc T5)', () => {
@@ -70,19 +65,9 @@ describe('P2 copy-switch — Assistant pages (tech-doc T5)', () => {
     expect(readLaterAssistantJs).not.toContain('加载中');
   });
 
-  it('todo-task-assistant uses table B/B2 English copy', () => {
-    expect(todoTaskAssistantJs).toContain('No todos yet');
-    expect(todoTaskAssistantJs).toContain(
-      'After creating via MCP, latest tasks appear here',
-    );
-    expect(todoTaskAssistantJs).toContain('Temporarily unavailable');
-    expect(todoTaskAssistantJs).toContain('View all →');
-    expect(todoTaskAssistantJs).toContain('Loading…');
-    expect(todoTaskAssistantJs).toContain('Open Todos');
-    expect(todoTaskAssistantJs).toMatch(/\$\{complete\}\/\$\{total\} complete/);
-    expect(todoTaskAssistantJs).not.toContain('暂无Todos');
-    expect(todoTaskAssistantJs).not.toContain(' 完成');
-    expect(todoTaskAssistantJs).not.toContain('加载中');
+  it('todo-task assistant module is removed', () => {
+    expect(existsSync(join(repoRoot, 'frontend/src/todo-task'))).toBe(false);
+    expect(existsSync(todoTaskAssistantHtmlPath)).toBe(false);
   });
 
   it('assistant sources have no user-facing Chinese (excl. comments)', () => {

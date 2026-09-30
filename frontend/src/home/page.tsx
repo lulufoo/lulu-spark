@@ -100,7 +100,6 @@ function goHomeEntry(
     if (typeof openReadLater === 'function') openReadLater();
     else navigateFn?.('#/read-later');
   } else if (dest === 'knowledge') navigateFn?.('#/knowledge');
-  else if (dest === 'todo-tasks') navigateFn?.('#/todo-tasks');
 }
 
 function unreadProps(unread: boolean) {
@@ -250,21 +249,6 @@ export function HomePage({
               📚
             </span>
             <span className="home-desktop-shortcut-label">Knowledge</span>
-          </button>
-          <button
-            type="button"
-            className="home-chat-nav-item home-desktop-shortcut"
-            data-home-entry="todo-tasks"
-            {...unreadProps(state.channelUnread.todos)}
-            onClick={() => {
-              void markHomeEntryRead('todo-tasks');
-              goHomeEntry('todo-tasks', navigateFn, openReadLater);
-            }}
-          >
-            <span className="home-desktop-shortcut-icon" aria-hidden="true">
-              📋
-            </span>
-            <span className="home-desktop-shortcut-label">Todos</span>
           </button>
         </nav>
         <div className="home-chat-sessions-head">

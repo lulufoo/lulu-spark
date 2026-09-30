@@ -9,13 +9,8 @@ const testScript = pkg.scripts.test;
 
 const TODO_TASK_VITEST = [
   'tests/home-entry-shell/hub.test.js',
-  'tests/todo-task/assistant.test.js',
-  'tests/todo-task/page.test.js',
-  'tests/todo-task/write.test.js',
-  'tests/todo-task/preview-edit.test.js',
-  'tests/todo-task/ui-ac-gate.test.js',
-  'tests/todo-task/ai-assistant-entry.test.js',
   'tests/gates/ai-assistant-p4-smoke.test.js',
+  'tests/gates/todo-desktop-surface-removed.test.js',
 ];
 
 const NOTE_FEATURE_VITEST = [
@@ -25,7 +20,7 @@ const NOTE_FEATURE_VITEST = [
 ];
 
 describe('AC-全量回归 gate (tech-doc T-08 / VF)', () => {
-  it('npm test includes todo-task feature vitest files', () => {
+  it('npm test includes remaining desktop/todo-removal vitest files', () => {
     expect(testScript).toMatch(/vitest run --dir tests/);
     for (const file of TODO_TASK_VITEST) {
       expect(existsSync(join(repoRoot, file)), `missing ${file}`).toBe(true);

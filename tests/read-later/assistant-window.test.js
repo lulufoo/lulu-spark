@@ -18,17 +18,11 @@ const retiredCarriers = [
     window: 'read-later-assistant',
     adapter: /createReadLaterContentAdapter/,
   },
-  {
-    html: 'frontend/todo-task-assistant.html',
-    js: 'frontend/src/todo-task/ui/assistant.tsx',
-    capability: 'src-tauri/capabilities/todo-task-assistant.json',
-    window: 'todo-task-assistant',
-    adapter: /createTodoTaskContentAdapter/,
-  },
+
 ];
 
 describe('retired independent assistant windows', () => {
-  it('retires HTML window carriers; keeps shell content modules', () => {
+  it('retires HTML window carriers; keeps remaining shell content modules', () => {
     for (const item of retiredCarriers) {
       expect(existsSync(join(repoRoot, item.html)), `${item.html} retired`).toBe(
         false,
@@ -37,6 +31,9 @@ describe('retired independent assistant windows', () => {
       const js = readFileSync(join(repoRoot, item.js), 'utf8');
       expect(js).toMatch(item.adapter);
     }
+    expect(existsSync(join(repoRoot, 'frontend/todo-task-assistant.html'))).toBe(false);
+    expect(existsSync(join(repoRoot, 'frontend/src/todo-task'))).toBe(false);
+    expect(existsSync(join(repoRoot, 'src-tauri/capabilities/todo-task-assistant.json'))).toBe(false);
   });
 
   it('retires independent-window helpers and HTML entries from lib.rs', () => {

@@ -172,7 +172,7 @@ describe('home-entry-shell shell · entry cluster + OverlayChrome + triggers (T3
     expect(shell.getState()).toEqual({ mode: 'B' });
 
     // backdrop / outside cluster
-    entryBtn(anchor, 'todo-task').click();
+    entryBtn(anchor, 'notes').click();
     expect(shell.getState().mode).toBe('C');
     backdrop(anchor).click();
     expect(shell.getState()).toEqual({ mode: 'B' });

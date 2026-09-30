@@ -3,7 +3,6 @@ import { applySearchNavChrome } from './app-shell/ui/nav-chrome.ts';
 import { useHostState } from './host/state.ts';
 import { HomePage } from './home/page.tsx';
 import { KnowledgeDocPage } from './knowledge/page.tsx';
-import { TodoTasksPage } from './todo-task/page.tsx';
 import { NotesMain, NotesSidebar } from './notes/page.tsx';
 import { openReadLaterDialog } from './read-later/commands/dialog.ts';
 import { navigate } from './router/index.ts';
@@ -23,7 +22,6 @@ export function ShellPages({
   const host = useHostState();
   const homeOn = routeName === 'home' || routeName === 'read-later';
   const knowledgeOn = routeName === 'knowledge-doc';
-  const todoOn = routeName === 'todo-tasks';
   const notesOn = routeName === 'workbench';
 
   useEffect(() => {
@@ -58,25 +56,6 @@ export function ShellPages({
           />
         ) : null}
       </div>
-      <div
-        id="todo-tasks-view"
-        style={slotStyle(todoOn, {
-          width: '100%',
-          minWidth: 0,
-          height: 'calc(100vh - 52px)',
-          overflow: 'hidden',
-          boxSizing: 'border-box',
-        })}
-      >
-        {todoOn ? (
-          <TodoTasksPage
-            masterId={routeParams.master ?? ''}
-            subId={routeParams.sub ?? ''}
-            navigate={navigate}
-          />
-        ) : null}
-      </div>
-
       <div
         className="layout"
         data-active-date={host.ui.activeDate || ''}

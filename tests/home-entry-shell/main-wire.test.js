@@ -207,29 +207,23 @@ describe('home-entry-shell workbench Binding (t2)', () => {
     expect(setupSlice).not.toMatch(/set_binding/);
   });
 
-  it('business pages have zero Set/Reset: todos, notes, home, selectDate, mountWorkbench', () => {
+  it('business pages have zero Set/Reset: notes, home, selectDate, mountWorkbench', () => {
     const source = readMain();
     const sidebarJs = readFrontendJs('frontend/src/notes/ui/sidebar.tsx');
     const sidebarCommandsJs = readFrontendJs('frontend/src/notes/commands/sidebar.ts');
-    const lifeJs = readFrontendJs('frontend/src/todo-task/commands/lifecycle.ts');
     expect(source).not.toMatch(
       /\bbuildNotesBinding\b|\bresetNotesBinding\b|\bbuildTodosBinding\b|\bresetTodosBinding\b/,
     );
+    expect(source).not.toMatch(/function mountTodoTasksRoute|todo-task\/commands\/lifecycle/);
     const mountWorkbenchIdx = source.indexOf('function mountWorkbench');
     expect(mountWorkbenchIdx).toBeGreaterThanOrEqual(0);
     const mountSlice = source.slice(mountWorkbenchIdx, mountWorkbenchIdx + 400);
     expect(mountSlice).not.toMatch(/set_binding|reset_binding|setWorkbenchBinding|buildNotesBinding/);
 
-    const mountTodosIdx = source.indexOf('function mountTodoTasksRoute');
-    expect(mountTodosIdx).toBeGreaterThanOrEqual(0);
-    const todosSlice = source.slice(mountTodosIdx, mountTodosIdx + 500);
-    expect(todosSlice).not.toMatch(/resetNotesBinding|set_binding|reset_binding/);
-
     expect(sidebarJs).not.toMatch(/buildNotesBinding|set_binding|reset_binding|setWorkbenchBinding/);
     expect(sidebarCommandsJs).not.toMatch(
       /buildNotesBinding|set_binding|reset_binding|setWorkbenchBinding/,
     );
-    expect(lifeJs).not.toMatch(/buildTodosBinding|resetTodosBinding|set_binding|reset_binding/);
   });
 });
 

@@ -14,10 +14,9 @@ import { getBaselineEntries } from './home-entry-shell/entry-config.ts';
 import { createContentRegistry } from './home-entry-shell/content-registry.ts';
 import { mountHomeEntryShell } from './home-entry-shell/shell.tsx';
 import { createReadLaterContentAdapter } from './read-later/ui/assistant.tsx';
-import { createTodoTaskContentAdapter } from './todo-task/ui/assistant.tsx';
 import { createNotesContentAdapter } from './notes/ui/assistant.tsx';
 import { createBuildersContentAdapter } from './builders/ui/assistant.tsx';
-import { setWorkbenchBinding } from './todo-task/commands/binding.ts';
+import { setWorkbenchBinding } from './app-shell/commands/workbench-binding.ts';
 import { initHeaderSync } from './app-shell/commands/header-sync.ts';
 import { normalizeKnowledgeIndex } from './knowledge/state/index.ts';
 import './app-shell/ui/settings/sediment-kb.tsx';
@@ -28,7 +27,6 @@ import {
   mountKnowledgeDocRoute,
   mountHomeRoute,
   mountReadLaterRoute,
-  mountTodoTasksRoute,
   mountWorkbench,
   setHomeEntryShell,
   wrapRouteMount,
@@ -168,7 +166,6 @@ setRouteHandlers({
   home: wrapRouteMount('home', mountHomeRoute),
   'knowledge-doc': wrapRouteMount('knowledge-doc', mountKnowledgeDocRoute),
   'read-later': wrapRouteMount('read-later', mountReadLaterRoute),
-  'todo-tasks': wrapRouteMount('todo-tasks', mountTodoTasksRoute),
 }, '#/home');
 
 function closeNoteAssistantPanel() {
@@ -192,7 +189,6 @@ function openCreateNoteFromFab(opts: { temp_id?: string } = {}) {
 // SK-P3: single shell mount + content adapters in the shared content slot.
 const homeEntryRegistry = createContentRegistry();
 homeEntryRegistry.register('read-later', createReadLaterContentAdapter());
-homeEntryRegistry.register('todo-task', createTodoTaskContentAdapter());
 homeEntryRegistry.register('notes', createNotesContentAdapter());
 homeEntryRegistry.register('builders', createBuildersContentAdapter());
 

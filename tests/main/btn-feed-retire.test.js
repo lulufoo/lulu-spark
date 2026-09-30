@@ -55,7 +55,6 @@ function stubMountEnv() {
     clearHeaderSyncKnowledgeContext: () => {},
     hideKnowledgeDocView: () => {},
     hideReadLaterView: () => {},
-    hideTodoTasksView: () => {},
     hideHomeView: () => {},
     feedView: document.getElementById('feed-view') || { style: { display: '' } },
     navigate: () => {},
@@ -72,7 +71,6 @@ function compileMountFn(fnSource, env) {
     'clearHeaderSyncKnowledgeContext',
     'hideKnowledgeDocView',
     'hideReadLaterView',
-    'hideTodoTasksView',
     'hideHomeView',
     'feedView',
     'navigate',
@@ -130,7 +128,7 @@ describe('T5 retire #btn-feed / showFeedView user entry', () => {
       expect(show).not.toMatch(BARE_BTN_FEED_CLASSLIST);
     });
 
-    it.each(['mountHomeRoute', 'mountTodoTasksRoute', 'mountWorkbench'])(
+    it.each(['mountHomeRoute', 'mountWorkbench'])(
       '%s does not bare-remove active on #btn-feed',
       (name) => {
         const src = extractFunctionSource(readMain(), name);
@@ -150,8 +148,7 @@ describe('T5 retire #btn-feed / showFeedView user entry', () => {
         <div id="home-view" style="display:none"></div>
         <div id="knowledge-doc-view" style="display:none"></div>
         <div id="read-later-view" style="display:none"></div>
-        <div id="todo-tasks-view" style="display:none"></div>
-        <div class="layout">
+            <div class="layout">
           <main>
             <div id="status"></div>
             <div id="date-heading" style="display:none"></div>
@@ -167,7 +164,7 @@ describe('T5 retire #btn-feed / showFeedView user entry', () => {
       document.body.innerHTML = '';
     });
 
-    it.each(['mountHomeRoute', 'mountTodoTasksRoute', 'mountWorkbench'])(
+    it.each(['mountHomeRoute', 'mountWorkbench'])(
       '%s does not throw when #btn-feed is absent',
       (name) => {
         const fnSource = extractFunctionSource(readMain(), name);

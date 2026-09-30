@@ -122,7 +122,6 @@ describe('read-api ACL 与前端 invoke 映射一致', () => {
     const pageFiles = [
       'frontend/src/home/page.tsx',
       'frontend/src/notes/page.tsx',
-      'frontend/src/todo-task/page.tsx',
       'frontend/src/knowledge/page.tsx',
     ]
     for (const rel of pageFiles) {

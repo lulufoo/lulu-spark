@@ -41,7 +41,6 @@ describe('home three-entry boolean unread', () => {
     unreadByChannel = {
       notes: true,
       read_later: true,
-      todos: false,
     };
     window.__TAURI__ = {
       event: {
@@ -79,19 +78,18 @@ describe('home three-entry boolean unread', () => {
       expect(unreadSpy.mock.calls.map((call) => call[0]).sort()).toEqual([
         'notes',
         'read_later',
-        'todos',
       ]);
     });
   }
 
-  it('refreshes Notes / Read Later / Todos boolean dots from host unread on start', async () => {
+  it('refreshes Notes / Read Later boolean dots from host unread on start', async () => {
     await mountReady();
     expect(isEntryUnread(container, 'workbench')).toBe(true);
     expect(isEntryUnread(container, 'read-later')).toBe(true);
-    expect(isEntryUnread(container, 'todo-tasks')).toBe(false);
+    expect(container.querySelector('[data-home-entry="todo-tasks"]')).toBeNull();
     expect(unreadSpy).toHaveBeenCalledWith('notes');
     expect(unreadSpy).toHaveBeenCalledWith('read_later');
-    expect(unreadSpy).toHaveBeenCalledWith('todos');
+    expect(unreadSpy.mock.calls.map((call) => call[0])).not.toContain('todos');
     expect(unreadSpy.mock.calls.map((call) => call[0])).not.toContain('knowledge');
   });
 
@@ -100,16 +98,15 @@ describe('home three-entry boolean unread', () => {
     await vi.waitFor(() => {
       expect(listenHandlers['message-center:changed']).toEqual(expect.any(Function));
     });
-    unreadByChannel.todos = true;
+    unreadByChannel.read_later = false;
     unreadSpy.mockClear();
     listenHandlers['message-center:changed']({});
     await vi.waitFor(() => {
       expect(unreadSpy.mock.calls.map((call) => call[0]).sort()).toEqual([
         'notes',
         'read_later',
-        'todos',
       ]);
-      expect(isEntryUnread(container, 'todo-tasks')).toBe(true);
+      expect(isEntryUnread(container, 'read-later')).toBe(false);
     });
   });
 
@@ -126,15 +123,13 @@ describe('home three-entry boolean unread', () => {
     expect(container.querySelector('[data-role="message-list"]')).toBeNull();
   });
 
-  it('clicking Read Later and Todos marks the matching channels', async () => {
-    unreadByChannel.todos = true;
+  it('clicking Read Later marks the matching channel', async () => {
     const openReadLater = vi.fn();
     cleanup = mountHomeHub(container, { navigate, openReadLater });
     await vi.waitFor(() => {
       expect(unreadSpy.mock.calls.map((call) => call[0]).sort()).toEqual([
         'notes',
         'read_later',
-        'todos',
       ]);
     });
 
@@ -144,16 +139,10 @@ describe('home three-entry boolean unread', () => {
       expect(markSpy).toHaveBeenCalledWith('read_later');
       expect(isEntryUnread(container, 'read-later')).toBe(false);
     });
-
-    container.querySelector('[data-home-entry="todo-tasks"]').click();
-    expect(navigate).toHaveBeenCalledWith('#/todo-tasks');
-    await vi.waitFor(() => {
-      expect(markSpy).toHaveBeenCalledWith('todos');
-      expect(isEntryUnread(container, 'todo-tasks')).toBe(false);
-    });
+    expect(container.querySelector('[data-home-entry="todo-tasks"]')).toBeNull();
   });
 
-  it('hangs unread only on workbench / read-later / todo-tasks', async () => {
+  it('hangs unread only on workbench / read-later', async () => {
     await mountReady();
     expect(isEntryUnread(container, 'workbench')).toBe(true);
     expect(isEntryUnread(container, 'read-later')).toBe(true);

@@ -24,7 +24,6 @@ export type HubStagedEntry = {
 export type ChannelUnread = {
   notes: boolean;
   read_later: boolean;
-  todos: boolean;
 };
 
 export type ContextUsageCategory = {
@@ -52,7 +51,7 @@ export type HomeState = {
 };
 
 function emptyUnread(): ChannelUnread {
-  return { notes: false, read_later: false, todos: false };
+  return { notes: false, read_later: false };
 }
 
 function emptyState(): HomeState {

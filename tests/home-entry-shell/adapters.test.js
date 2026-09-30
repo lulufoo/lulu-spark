@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * T6: four business content adapters mount into the shell content slot;
+ * T6: three business content adapters mount into the shell content slot;
  * own chrome (FAB / popover / modal host) is retired; host callbacks remain.
  */
 import { existsSync, readFileSync } from 'node:fs';
@@ -35,7 +35,6 @@ import { createContentRegistry } from '../../frontend/src/home-entry-shell/conte
 import { getBaselineEntries } from '../../frontend/src/home-entry-shell/entry-config.ts';
 import { mountHomeEntryShell } from '../../frontend/src/home-entry-shell/shell.tsx';
 import { createReadLaterContentAdapter } from '../../frontend/src/read-later/ui/assistant.tsx';
-import { createTodoTaskContentAdapter } from '../../frontend/src/todo-task/ui/assistant.tsx';
 import { createNotesContentAdapter } from '../../frontend/src/notes/ui/assistant.tsx';
 import { createBuildersContentAdapter } from '../../frontend/src/builders/ui/assistant.tsx';
 import { readFrontendJs, readMainSource } from '../helpers/read-frontend-js.js';
@@ -52,13 +51,6 @@ const ADAPTERS = [
     sourcePath: 'frontend/src/read-later/ui/assistant.tsx',
     contentSelector:
       '.read-later-assistant-empty, .read-later-assistant-panel, .read-later-assistant-loading',
-  },
-  {
-    key: 'todo-task',
-    create: createTodoTaskContentAdapter,
-    sourcePath: 'frontend/src/todo-task/ui/assistant.tsx',
-    contentSelector:
-      '.todo-task-assistant-empty, .todo-task-assistant-list, .todo-task-assistant-loading',
   },
   {
     key: 'notes',
@@ -154,19 +146,19 @@ describe('home-entry-shell adapters (T6)', () => {
     }
   });
 
-  it('main.js registers all four baseline adapters on the ContentRegistry', () => {
+  it('main.js registers all three baseline adapters on the ContentRegistry', () => {
     const source = readMain();
     expect(source).toMatch(/createReadLaterContentAdapter/);
-    expect(source).toMatch(/createTodoTaskContentAdapter/);
+    expect(source).not.toMatch(/createTodoTaskContentAdapter/);
     expect(source).toMatch(/createNotesContentAdapter/);
     expect(source).toMatch(/createBuildersContentAdapter/);
     expect(source).toMatch(/\.register\(\s*['"]read-later['"]/);
-    expect(source).toMatch(/\.register\(\s*['"]todo-task['"]/);
+    expect(source).not.toMatch(/\.register\(\s*['"]todo-task['"]/);
     expect(source).toMatch(/\.register\(\s*['"]notes['"]/);
     expect(source).toMatch(/\.register\(\s*['"]builders['"]/);
   });
 
-  it('read-later / todo-task adapters use host.navigate and host.openReadLater', async () => {
+  it('read-later adapter uses host.openReadLater', async () => {
     const navigate = vi.fn();
     const openReadLater = vi.fn();
 
@@ -181,18 +173,6 @@ describe('home-entry-shell adapters (T6)', () => {
     rlSlot.querySelector('.read-later-assistant-manage-link').click();
     expect(openReadLater).toHaveBeenCalled();
     rl.unmount();
-
-    const ptSlot = document.createElement('div');
-    document.body.appendChild(ptSlot);
-    const pt = createTodoTaskContentAdapter().mount(ptSlot, {
-      host: { navigate },
-    });
-    await vi.waitFor(() => {
-      expect(ptSlot.querySelector('.todo-task-assistant-manage-link')).not.toBeNull();
-    });
-    ptSlot.querySelector('.todo-task-assistant-manage-link').click();
-    expect(navigate).toHaveBeenCalledWith('#/todo-tasks');
-    pt.unmount();
   });
 
   it('notes adapter uses host.openCreateNote', async () => {
@@ -208,7 +188,7 @@ describe('home-entry-shell adapters (T6)', () => {
     handle.unmount();
   });
 
-  it('smoke: four entries open shell overlay with usable content (Must Close SK-P3)', async () => {
+  it('smoke: three entries open shell overlay with usable content (Must Close SK-P3)', async () => {
     const registry = createContentRegistry();
     registerAll(registry);
     const config = getBaselineEntries();

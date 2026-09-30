@@ -14,7 +14,6 @@ import { MoveProjectDialog } from './notes/ui/move-project-dialog.tsx';
 import { SettleDialog } from './notes/ui/settle-dialog.tsx';
 import { ReadLaterDialog } from './read-later/ui/dialog.tsx';
 import { CommentDeleteDialog } from './shared/comment-delete.tsx';
-import { TodoTaskDialog } from './todo-task/ui/dialog.tsx';
 import { WorkbenchSearch } from './notes/ui/search.tsx';
 import { KnowledgeSearch } from './knowledge/ui/search.tsx';
 
@@ -126,9 +125,6 @@ export function Shell() {
 
       {/* <!-- Settings dialog --> */}
       <SettingsDialog />
-
-      {/* <!-- Plan Task dialog --> */}
-      <TodoTaskDialog />
 
       {/* <!-- Read Later dialog --> */}
       <ReadLaterDialog />

@@ -7,10 +7,9 @@ import { getBaselineEntries } from '../../frontend/src/home-entry-shell/entry-co
 import { createContentRegistry } from '../../frontend/src/home-entry-shell/content-registry.ts';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
-const BASELINE_KEYS = ['read-later', 'todo-task', 'notes', 'builders'];
+const BASELINE_KEYS = ['read-later', 'notes', 'builders'];
 const BASELINE_TITLES = {
   'read-later': 'Read Later',
-  'todo-task': 'Todos',
   notes: 'Notes Assistant',
   builders: 'Builders',
 };
@@ -23,9 +22,9 @@ describe('home-entry-shell contract · EntryConfig + ContentRegistry (T1)', () =
     registry = createContentRegistry();
   });
 
-  it('baseline four keys: id aligns with contentKey and titles match existing FAB titles', () => {
+  it('baseline three keys: id aligns with contentKey and titles match existing FAB titles', () => {
     const entries = getBaselineEntries();
-    expect(entries).toHaveLength(4);
+    expect(entries).toHaveLength(3);
 
     const byKey = Object.fromEntries(entries.map((e) => [e.contentKey, e]));
     for (const key of BASELINE_KEYS) {
