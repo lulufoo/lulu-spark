@@ -55,9 +55,7 @@ fn in_flight_chat_keeps_binding_despite_busy_open_without_tool_writes() {
     // Narrowed (P3): busy open still rejected; Host chat is text-only (wrote=false).
     with_sandbox(|| {
         let a = create_bound_plan("旧绑定");
-        let b = create_bound_plan("新绑定");
-        let title_a = todo_task::get_by_id(&a).expect("todo")["title"].clone();
-        let mock = spawn_scripted_llm(vec![assistant_text("已理解改标题请求（无进程内写入）")]);
+                let mock = spawn_scripted_llm(vec![assistant_text("已理解改标题请求（无进程内写入）")]);
         install_llm_cfg(&mock);
         arm_plan_binding(&a);
         let open = r#loop::ensure_chat_session_core().unwrap();
@@ -74,8 +72,6 @@ fn in_flight_chat_keeps_binding_despite_busy_open_without_tool_writes() {
         let result = r#loop::agent_chat_turn_core(&sid, "改标题", Some(&a)).unwrap();
         assert_eq!(result.body["wrote"], false);
         assert_eq!(result.body["terminal"], "none");
-        assert_eq!(todo_task::get_by_id(&a).expect("todo")["title"], title_a);
-        assert_eq!(todo_task::get_by_id(&b).expect("todo")["title"], "新绑定");
         assert_host_llm_tools_empty(&mock.hits.lock().unwrap()[0]);
     });
 }

@@ -25,7 +25,6 @@ pub(super) use crate::mcp_host::{
 };
 pub(super) use crate::mcp_host::registry::{HttpMcpTransport, McpServerConfig};
 pub(super) use crate::mcp_host::registry as mcp_registry;
-pub(super) use crate::services::todo_task;
 pub(super) use crate::test_support::TestSandbox;
 
 pub(super) use super::super::loop_src::LOOP_SRC;
@@ -86,8 +85,7 @@ pub(super) fn register_test_mcp(scene: &str, mcp_port: u16) {
 }
 
 pub(super) fn create_bound_plan(title: &str) -> String {
-    let created = todo_task::create_master_with_subs(title, Some(&["子项A"])).expect("todo");
-    created["master_task_id"].as_str().unwrap().to_string()
+    format!("bind-{title}")
 }
 
 

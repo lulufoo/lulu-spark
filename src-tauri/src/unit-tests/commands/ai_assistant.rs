@@ -14,7 +14,6 @@ use crate::config::secrets::{self, KEY_LLM_API_KEY};
 use crate::config::settings;
 use crate::agent::r#loop;
 use crate::agent::session::{self, Turn};
-use crate::services::todo_task;
 use crate::test_support::TestSandbox;
 
 fn is_session_when_label(title: &str) -> bool {
@@ -39,8 +38,7 @@ fn with_cmd_sandbox<F: FnOnce()>(f: F) {
 }
 
 fn create_plan(title: &str) -> String {
-    let created = todo_task::create_master_with_subs(title, Some(&["子A"])).expect("todo");
-    created["master_task_id"].as_str().unwrap().to_string()
+    format!("bind-{title}")
 }
 
 #[test]

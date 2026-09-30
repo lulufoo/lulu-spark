@@ -16,7 +16,6 @@ pub mod github;
 pub mod index_build;
 pub mod link_title;
 pub mod entry_write;
-pub mod todo_task;
 pub mod read_later;
 pub mod message_center;
 pub mod reindex;

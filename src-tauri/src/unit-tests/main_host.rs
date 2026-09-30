@@ -399,31 +399,18 @@ fn options_non_read_later_path_returns_405() {
 const HTTP_CREATE_TODO_MD: &str = "HTTP fixture body";
 
 fn create_todo_master(title: &str, sub_titles: &[&str]) -> (String, String, Value) {
-    let created = crate::services::todo_task::create_master_with_category(
-        title,
-        if sub_titles.is_empty() {
-            None
-        } else {
-            Some(sub_titles)
-        },
-        HTTP_CREATE_TODO_MD,
-        None,
-    )
-    .expect("create master via Services");
-    let master_id = created["master_task_id"]
-        .as_str()
-        .expect("master_task_id")
-        .to_string();
-    let sub_id = created["sub_task_id"]
-        .as_str()
-        .or_else(|| {
-            created["task"]["sub_tasks"]
-                .as_array()
-                .and_then(|subs| subs.first())
-                .and_then(|sub| sub["sub_task_id"].as_str())
-        })
-        .unwrap_or("")
-        .to_string();
+    // Binding / path fixture IDs only — todo_task service is removed (t8).
+    let master_id = format!("bind-{title}");
+    let sub_id = sub_titles
+        .first()
+        .map(|s| format!("sub-{s}"))
+        .unwrap_or_default();
+    let created = json!({
+        "master_task_id": master_id,
+        "sub_task_id": sub_id,
+        "title": title,
+        "body": HTTP_CREATE_TODO_MD,
+    });
     (master_id, sub_id, created)
 }
 

@@ -30,7 +30,6 @@ use crate::agent::diagnostics::{self, DiagnosticEvent, TraceId};
 use crate::agent::llm::{self, LlmConfig, LlmError};
 use crate::agent::session::{self, Session, Turn};
 use crate::agent::WORKBENCH_HOST_SYSTEM_PROMPT;
-use crate::services::todo_task;
 use crate::test_support::{with_config_test_serial, TestSandbox};
 
 fn with_agent_sandbox<F: FnOnce(&TestSandbox)>(f: F) {
@@ -55,10 +54,6 @@ fn sample_openai_tool_defs() -> Vec<Value> {
     })]
 }
 
-fn create_bound_plan(title: &str) -> String {
-    let created = todo_task::create_master_with_subs(title, Some(&["子项A"])).expect("todo");
-    created["master_task_id"].as_str().unwrap().to_string()
-}
 
 fn assert_under_cache_not_knowledge_root(path: &Path, sandbox: &TestSandbox) {
     let cache = sandbox.cache_dir();
@@ -350,21 +345,6 @@ fn t3_agent_legacy_tools_rs_module_removed() {
     );
 }
 
-#[test]
-fn t3_todo_task_persistence_still_available_for_mcp_http() {
-    // Backend keep: todo_task persistence remains for Main Host / MCP Host (not via tools::dispatch).
-    with_agent_sandbox(|_| {
-        let master_id = create_bound_plan("持久化保留");
-        let got = todo_task::get_by_id(&master_id).expect("todo");
-        assert_eq!(got["title"], "持久化保留");
-        let added = todo_task::add_sub(&master_id, "经服务新增", None).expect("todo");
-        assert!(
-            added.get("error").is_none(),
-            "todo_task service must remain callable: {added}"
-        );
-        let _ = std::any::type_name::<crate::main_host::MainHostState>();
-    });
-}
 
 // ── LLM ──────────────────────────────────────────────────────────────────────
 

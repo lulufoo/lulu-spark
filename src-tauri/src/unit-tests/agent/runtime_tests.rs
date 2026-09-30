@@ -16,7 +16,6 @@ use crate::agent::runtime;
 use crate::agent::session::value_exposes_engine_selection;
 use crate::agent::WORKBENCH_HOST_SYSTEM_PROMPT;
 use crate::mcp_host::registry as mcp_registry;
-use crate::services::todo_task;
 use crate::test_support::TestSandbox;
 
 struct MockLlm {
@@ -111,11 +110,7 @@ fn with_sandbox<F: FnOnce()>(f: F) {
 }
 
 fn create_bound_plan(title: &str) -> String {
-    let created = todo_task::create_master_with_subs(title, Some(&["subtask"])).expect("todo");
-    created["master_task_id"]
-        .as_str()
-        .expect("master id")
-        .to_string()
+    format!("bind-{title}")
 }
 
 fn arm_plan_binding(master_task_id: &str) {

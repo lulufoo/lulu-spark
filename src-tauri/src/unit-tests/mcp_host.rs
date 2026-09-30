@@ -208,13 +208,10 @@ fn names_of(tools: &[ToolDescriptor]) -> BTreeSet<String> {
 }
 
 fn plant_todo_migration_gate() {
+    // Path fixture only — todo_task service (and MIGRATION_GATE_FILE) removed in t8.
     let root = crate::config::paths::todo_tasks_dir().expect("todo dir");
     fs::create_dir_all(&root).expect("todo root");
-    fs::write(
-        root.join(crate::services::todo_task::MIGRATION_GATE_FILE),
-        b"ok\n",
-    )
-    .expect("plant migration gate");
+    fs::write(root.join(".migration_gate_passed"), b"ok\n").expect("plant migration gate");
 }
 
 fn plant_empty_notes_index() {

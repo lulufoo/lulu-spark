@@ -291,3 +291,6 @@ mod todo_group_removed;
 
 #[path = "todo_commands_removed.rs"]
 mod todo_commands_removed;
+
+#[path = "todo_service_removed.rs"]
+mod todo_service_removed;

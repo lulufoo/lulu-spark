@@ -43,7 +43,6 @@ const LAYERED_VITEST = [
 ];
 
 const HOST_TOOLS_MARKERS = [
-  't3_todo_task_persistence_still_available_for_mcp_http',
   't3_agent_legacy_tools_rs_module_removed',
 ];
 

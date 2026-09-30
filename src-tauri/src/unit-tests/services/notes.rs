@@ -7,7 +7,6 @@ use crate::services::notes::{
     create_note_content, create_note, create_jot, synthesize_jot_document, update_note,
     update_note_content, JotCreateOpts,
 };
-use crate::services::todo_task::{create_master_with_subs, get_by_id};
 use crate::test_support::TestSandbox;
 
 const SAMPLE_DOC: &str = r#"# Test Title
@@ -410,9 +409,9 @@ fn create_note_rejects_bad_or_duplicate_lang() {
 #[test]
 fn create_note_ignores_task_ids_and_does_not_link_todo() {
     let (sandbox, repo_root) = setup_notes();
-    let created = create_master_with_subs("Archive link", Some(&["Sub"])).expect("todo");
-    let master_id = created["master_task_id"].as_str().unwrap();
-    let sub_id = created["sub_task_id"].as_str().unwrap();
+    // Fake ids — todo_task service removed; create_note must still ignore task_ref fields.
+    let master_id = "bind-Archive-link";
+    let sub_id = "sub-Sub";
 
     let v = create_note(
         &repo_root,
@@ -433,11 +432,6 @@ fn create_note_ignores_task_ids_and_does_not_link_todo() {
     let index: serde_json::Value =
         serde_json::from_str(&fs::read_to_string(notes.join("index.json")).unwrap()).unwrap();
     assert!(index["entries"][archive_id].get("task_ref").is_none());
-
-    let task = get_by_id(master_id).expect("todo");
-    let sub = &task["sub_tasks"][0];
-    assert_eq!(sub["status"], "incomplete");
-    assert!(sub["linked_archive_ids"].as_array().unwrap().is_empty());
 }
 
 fn jot_opts_with_ts(ts: &str) -> JotCreateOpts {
