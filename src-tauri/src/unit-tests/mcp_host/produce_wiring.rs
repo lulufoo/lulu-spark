@@ -9,18 +9,10 @@ use crate::mcp_host::catalog::groups::notes::{
     self, create_note_from_content, create_note_from_source, update_note_from_content,
     update_note_from_source,
 };
-use crate::mcp_host::catalog::groups::todo;
 use crate::services::notes::create_jot;
-use crate::services::todo_task::MIGRATION_GATE_FILE;
 use crate::test_support::TestSandbox;
 
 const SAMPLE_DOC: &str = "# Title\n\n---\n\n正文 Body.\n";
-
-fn plant_todo_gate() {
-    let root = paths::todo_tasks_dir().expect("todo dir");
-    fs::create_dir_all(&root).expect("todo root");
-    fs::write(root.join(MIGRATION_GATE_FILE), b"ok\n").expect("gate");
-}
 
 fn setup_notes_layout(sandbox: &TestSandbox) {
     let notes = sandbox.workbench_root().join("notes");
@@ -32,7 +24,6 @@ fn setup_notes_layout(sandbox: &TestSandbox) {
 fn with_host_sandbox<F: FnOnce(&TestSandbox)>(f: F) {
     let sandbox = TestSandbox::new();
     setup_notes_layout(&sandbox);
-    plant_todo_gate();
     f(&sandbox);
 }
 
@@ -77,10 +68,6 @@ fn occupy_message_center_path_as_dir() {
     fs::create_dir_all(&path).expect("occupy persist path as directory");
 }
 
-fn invoke_todo(name: &str, args: Value) -> Value {
-    (todo::build(name, "workbench").expect(name).invoke)(&args)
-}
-
 fn invoke_notes(name: &str, args: Value) -> Value {
     (notes::build(name, "workbench").expect(name).invoke)(&args)
 }
@@ -88,15 +75,6 @@ fn invoke_notes(name: &str, args: Value) -> Value {
 fn assert_note_ok(value: &Value) {
     assert!(value.get("error").is_none(), "unexpected error: {value}");
     assert_eq!(value.get("ok"), Some(&json!(true)), "expected ok: {value}");
-}
-
-fn assert_todo_created(value: &Value) {
-    assert!(value.get("error").is_none(), "unexpected error: {value}");
-    assert_eq!(
-        value.get("_status"),
-        Some(&json!(201)),
-        "expected 201: {value}"
-    );
 }
 
 fn content_note_args() -> Value {
@@ -113,10 +91,6 @@ fn source_note_args(sandbox: &TestSandbox) -> Value {
         "title": "MCP produce source",
         "digest": "never",
     })
-}
-
-fn todo_args(title: &str) -> Value {
-    json!({ "title": title, "todo_md": "## Body\n\ntext" })
 }
 
 fn src(rel: &str) -> PathBuf {
@@ -208,23 +182,12 @@ fn update_note_from_content_success_adds_notes_record() {
 }
 
 #[test]
-fn create_todo_task_success_adds_todos_record() {
-    with_host_sandbox(|_| {
-        let before = channel_record_count("todos");
-        let result = invoke_todo("create_todo_task", todo_args("MCP produce todo"));
-        assert_todo_created(&result);
-        assert_eq!(channel_record_count("todos"), before + 1);
-    });
-}
-
-#[test]
-fn other_note_todo_and_tauri_writes_are_not_wired() {
+fn other_note_and_tauri_writes_are_not_wired() {
     let mut files = Vec::new();
     collect_rs_files(&src("mcp_host/catalog/groups/notes"), &mut files);
-    collect_rs_files(&src("mcp_host/catalog/groups/todo"), &mut files);
     for path in files {
         let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-        if name == "create_note.rs" || name == "update_note.rs" || name == "create_todo_task.rs" {
+        if name == "create_note.rs" || name == "update_note.rs" {
             continue;
         }
         assert_file_has_no_message_center(&path);
@@ -240,21 +203,6 @@ fn other_note_todo_and_tauri_writes_are_not_wired() {
         );
         assert!(category.get("error").is_none(), "{category}");
         assert_eq!(channel_record_count("notes"), notes_before);
-
-        let created = invoke_todo("create_todo_task", todo_args("Parent for sub"));
-        assert_todo_created(&created);
-        let after_create = channel_record_count("todos");
-        let master_id = created["master_task_id"].as_str().expect("master_task_id");
-        let added = invoke_todo(
-            "add_todo_sub",
-            json!({
-                "master_task_id": master_id,
-                "title": "Sub",
-                "content": "required body"
-            }),
-        );
-        assert_eq!(added.get("_status"), Some(&json!(201)), "{added}");
-        assert_eq!(channel_record_count("todos"), after_create);
 
         let tauri_note = create_note_json(json!({
             "source_path": stage_source(sandbox, SAMPLE_DOC).to_str().unwrap(),
@@ -280,7 +228,6 @@ fn other_note_todo_and_tauri_writes_are_not_wired() {
 fn failed_business_write_does_not_produce() {
     with_host_sandbox(|_| {
         let notes_before = channel_record_count("notes");
-        let todos_before = channel_record_count("todos");
 
         let note = create_note_from_content(&json!({
             "title": "Missing content",
@@ -289,11 +236,6 @@ fn failed_business_write_does_not_produce() {
         assert!(note.get("error").is_some(), "{note}");
         assert_ne!(note.get("ok"), Some(&json!(true)));
         assert_eq!(channel_record_count("notes"), notes_before);
-
-        let todo = invoke_todo("create_todo_task", json!({ "todo_md": "## Body\n\ntext" }));
-        assert!(todo.get("error").is_some(), "{todo}");
-        assert_ne!(todo.get("_status"), Some(&json!(201)));
-        assert_eq!(channel_record_count("todos"), todos_before);
     });
 }
 
@@ -309,9 +251,5 @@ fn message_center_failure_does_not_change_successful_mcp_response() {
         let source = create_note_from_source(&source_note_args(sandbox));
         assert_note_ok(&source);
         assert_eq!(channel_record_count("notes"), 0);
-
-        let todo = invoke_todo("create_todo_task", todo_args("MCP keep success"));
-        assert_todo_created(&todo);
-        assert_eq!(channel_record_count("todos"), 0);
     });
 }

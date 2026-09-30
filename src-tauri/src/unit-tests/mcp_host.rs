@@ -210,7 +210,6 @@ const CURSOR_IDE_SLOT: &str = "cursor_ide";
 
 fn workbench_expected_tool_names() -> BTreeSet<&'static str> {
     let mut names: BTreeSet<&'static str> = NOTES_TOOLS.iter().copied().collect();
-    names.extend(TODO_TOOLS.iter().copied());
     names.extend(KNOWLEDGE_TOOLS.iter().copied());
     names.extend(GLOBAL_TOOLS.iter().copied());
     names
@@ -218,7 +217,6 @@ fn workbench_expected_tool_names() -> BTreeSet<&'static str> {
 
 fn cursor_ide_expected_tool_names() -> BTreeSet<&'static str> {
     let mut names: BTreeSet<&'static str> = NOTES_TOOLS_NON_WORKBENCH.iter().copied().collect();
-    names.extend(TODO_TOOLS.iter().copied());
     names.extend(KNOWLEDGE_TOOLS.iter().copied());
     names.extend(GLOBAL_TOOLS.iter().copied());
     names
@@ -543,12 +541,12 @@ fn tools_list_workbench_and_cursor_ide_are_notes_todo() {
     }
     for todo in TODO_TOOLS {
         assert!(
-            ide_names.contains(*todo),
-            "cursor_ide must keep todo tool {todo}"
+            !ide_names.contains(*todo),
+            "cursor_ide must not keep todo tool {todo}"
         );
         assert!(
-            wb_names.contains(*todo),
-            "workbench must include todo tool {todo}"
+            !wb_names.contains(*todo),
+            "workbench must not include todo tool {todo}"
         );
     }
     for tool in KNOWLEDGE_TOOLS {
@@ -631,56 +629,13 @@ fn mcp_tools_list_publishes_descriptions_schemas_and_mutation_hints() {
             tool.name
         );
     }
-    let create = workbench_tools
-        .iter()
-        .find(|tool| tool.name == "create_todo_task")
-        .expect("create_todo_task");
     assert!(
-        create.description.as_deref().is_some_and(|d| !d.trim().is_empty()),
-        "model-facing Todo tool needs a description"
-    );
-    assert_eq!(
-        create.input_schema["properties"]["title"]["type"], "string",
-        "create_todo_task title must be declared"
-    );
-    assert_eq!(
-        create.input_schema["properties"]["todo_md"]["type"], "string",
-        "create_todo_task todo_md must be declared"
+        workbench_tools.iter().all(|tool| tool.name != "create_todo_task"),
+        "create_todo_task must be absent"
     );
     assert!(
-        create.input_schema["required"]
-            .as_array()
-            .is_some_and(|required| required.iter().any(|v| v == "title")),
-        "create_todo_task title must be required"
-    );
-    assert!(
-        create.input_schema["required"]
-            .as_array()
-            .is_some_and(|required| required.iter().any(|v| v == "todo_md")),
-        "create_todo_task todo_md must be required"
-    );
-    assert_eq!(
-        create
-            .annotations
-            .as_ref()
-            .and_then(|annotations| annotations.read_only_hint),
-        Some(false),
-        "Todo creation must be identified as mutating"
-    );
-    assert!(
-        create.input_schema["properties"].get("sub_titles").is_none(),
-        "create_todo_task must not advertise sub_titles"
-    );
-
-    let add_sub = workbench_tools
-        .iter()
-        .find(|tool| tool.name == "add_todo_sub")
-        .expect("add_todo_sub");
-    assert!(
-        add_sub.input_schema["required"]
-            .as_array()
-            .is_some_and(|required| required.iter().any(|v| v == "content")),
-        "add_todo_sub content must be required"
+        workbench_tools.iter().all(|tool| tool.name != "add_todo_sub"),
+        "add_todo_sub must be absent"
     );
 
     let notes_tools = rt.block_on(list_tools(WORKBENCH_SLOT, workbench_ticket));
@@ -898,21 +853,21 @@ fn representative_tools_call_per_registered_slot_hits_services() {
         .build()
         .expect("runtime");
 
-    let cats = rt
+    let catalogs = rt
         .block_on(proxy_tool_call(
             WORKBENCH_SLOT,
             WORKBENCH_SLOT,
-            "list_todo_categories",
+            "get_all_notes_catalog",
             serde_json::json!({}),
         ))
         .expect("proxy")
-        .expect("todo categories succeed");
-    let cats_json: serde_json::Value =
-        serde_json::from_str(mcp_text_ok(&cats)).expect("categories JSON");
+        .expect("notes catalogs succeed");
+    let catalog_json: serde_json::Value =
+        serde_json::from_str(mcp_text_ok(&catalogs)).expect("catalogs JSON");
     assert!(
-        cats_json.get("categories").is_some() || cats_json.is_object() || cats_json.is_array(),
-        "list_todo_categories must return Services wire, got {}",
-        mcp_text_ok(&cats)
+        catalog_json.is_object() || catalog_json.is_array(),
+        "get_all_notes_catalog must return Services wire, got {}",
+        mcp_text_ok(&catalogs)
     );
 
     let catalogs = rt
@@ -994,8 +949,7 @@ fn tool_dispatch_is_in_process_services() {
         "/src/mcp_host/catalog/groups"
     ));
     assert!(
-        catalog.contains("crate::services::todo_task")
-            && catalog.contains("crate::services::workbench_read")
+        catalog.contains("crate::services::workbench_read")
             && catalog.contains("crate::services::notes"),
         "catalog invoke must call L4 Services"
     );
@@ -1048,8 +1002,8 @@ fn close_gate_smoke_initialize_list_passes_v5_dual_listen_and_session() {
         "tools/list must return at least one tool name"
     );
     assert!(
-        tool_names.iter().any(|n| n == "list_todo_categories"),
-        "workbench tools/list must include list_todo_categories, got {:?}",
+        !tool_names.iter().any(|n| n == "list_todo_categories"),
+        "workbench tools/list must not include list_todo_categories, got {:?}",
         tool_names
     );
 
@@ -1209,8 +1163,8 @@ fn p3_t10_host_dual_slot_list_call_and_unknown_hard_fail_smoke() {
         .expect("workbench tools/list on Host :9876");
     for tool in ["list_todo_tasks", "create_todo_task"] {
         assert!(
-            workbench_names.iter().any(|n| n == tool),
-            "T10/V2: workbench missing {tool}; got {workbench_names:?}"
+            !workbench_names.iter().any(|n| n == tool),
+            "T10/V2: workbench must not expose {tool}; got {workbench_names:?}"
         );
     }
     for tool in NOTES_TOOLS {
@@ -1299,18 +1253,18 @@ fn p3_t10_host_dual_slot_list_call_and_unknown_hard_fail_smoke() {
         Ok((names, is_error, text))
     }
 
-    let (_, todo_err, todo_text) = rt
+    let (_, notes_err, notes_text) = rt
         .block_on(list_and_call(
             CLOSE_GATE_MCP_PORT,
             WORKBENCH_SLOT,
             &workbench_ticket,
-            "list_todo_tasks",
+            "get_all_notes_catalog",
             serde_json::json!({}),
         ))
-        .expect("workbench list_todo_tasks");
+        .expect("workbench get_all_notes_catalog");
     assert!(
-        !todo_err,
-        "T10/V2: workbench representative tools/call must succeed via Host→Sidecar; got {todo_text}"
+        !notes_err,
+        "T10/V2: workbench representative tools/call must succeed via Host→Sidecar; got {notes_text}"
     );
 
     let (_, ide_err, ide_text) = rt
@@ -1641,8 +1595,12 @@ fn registered_workbench_live_ticket_enters_streamable_http() {
         ))
         .expect("tools/list with Live ticket");
     assert!(
-        names.iter().any(|n| n == "list_todo_categories"),
+        names.iter().any(|n| n == "get_all_notes_catalog"),
         "workbench tools/list must remain available, got {names:?}"
+    );
+    assert!(
+        !names.iter().any(|n| n == "list_todo_categories"),
+        "workbench tools/list must not include list_todo_categories, got {names:?}"
     );
     stop_embedded_mcp_runtime(handle).expect("stop");
 }
@@ -2155,11 +2113,7 @@ fn t3_live_device_ticket_can_call_full_workbench_tools_on_mobile() {
             .build()
             .expect("tokio");
 
-        let cases = [
-            ("list_todo_tasks", serde_json::json!({})),
-            ("list_todo_categories", serde_json::json!({})),
-            ("get_all_notes_catalog", serde_json::json!({})),
-        ];
+        let cases = [("get_all_notes_catalog", serde_json::json!({}))];
         for (tool, args) in cases {
             let (names, is_error, text) = rt
                 .block_on(list_and_call_mobile(port, &token, tool, args))

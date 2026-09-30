@@ -27,9 +27,10 @@ fn run_loop_uses_mcp_tools_and_feeds_tool_result_back_to_model() {
     mcp_registry::clear_for_tests();
     mcp_registry::seed_defaults();
 
-    let todo_root = sandbox.workbench_root().join("todo_tasks");
-    fs::create_dir_all(&todo_root).expect("create todo root");
-    fs::write(todo_root.join(".migration_gate_passed"), b"ok\n").expect("plant migration gate");
+    let notes = sandbox.workbench_root().join("notes");
+    fs::create_dir_all(notes.join("raw")).expect("notes raw");
+    fs::create_dir_all(notes.join("digest")).expect("notes digest");
+    fs::write(notes.join("index.json"), br#"{"entries":{}}"#).expect("notes index");
 
     let mcp_port = ephemeral_port();
     let mcp = start_embedded_mcp_runtime(McpRuntimeConfig {
@@ -55,7 +56,7 @@ fn run_loop_uses_mcp_tools_and_feeds_tool_result_back_to_model() {
                 "id": "selection_1",
                 "type": "function",
                 "function": {
-                    "name": "list_todo_tasks",
+                    "name": "get_all_notes_catalog",
                     "arguments": "{}"
                 }
             }]),
@@ -83,7 +84,7 @@ fn run_loop_uses_mcp_tools_and_feeds_tool_result_back_to_model() {
         hits[0]["tools"]
             .as_array()
             .is_some_and(|tools| tools.iter().any(|tool| {
-                tool.pointer("/function/name") == Some(&json!("list_todo_tasks"))
+                tool.pointer("/function/name") == Some(&json!("get_all_notes_catalog"))
             })),
         "active workbench MCP tools must be sent to the model"
     );
@@ -93,7 +94,7 @@ fn run_loop_uses_mcp_tools_and_feeds_tool_result_back_to_model() {
             .is_some_and(|messages| messages.iter().any(|message| {
                 message["role"] == "tool"
                     && message["tool_call_id"] == "selection_1"
-                    && message["name"] == "list_todo_tasks"
+                    && message["name"] == "get_all_notes_catalog"
             })),
         "the model follow-up must receive the MCP result"
     );
@@ -103,16 +104,17 @@ fn run_loop_uses_mcp_tools_and_feeds_tool_result_back_to_model() {
 }
 
 #[test]
-fn run_loop_marks_successful_todo_mcp_mutation_as_wrote() {
+fn run_loop_marks_successful_note_mcp_mutation_as_wrote() {
     let sandbox = TestSandbox::new();
     secrets::test_secrets_clear();
     r#loop::reset_runtime_for_tests();
     mcp_registry::clear_for_tests();
     mcp_registry::seed_defaults();
 
-    let todo_root = sandbox.workbench_root().join("todo_tasks");
-    fs::create_dir_all(&todo_root).expect("create todo root");
-    fs::write(todo_root.join(".migration_gate_passed"), b"ok\n").expect("plant migration gate");
+    let notes = sandbox.workbench_root().join("notes");
+    fs::create_dir_all(notes.join("raw")).expect("notes raw");
+    fs::create_dir_all(notes.join("digest")).expect("notes digest");
+    fs::write(notes.join("index.json"), br#"{"entries":{}}"#).expect("notes index");
     let mcp_port = ephemeral_port();
     let mcp = start_embedded_mcp_runtime(McpRuntimeConfig {
         bind_addr: format!("127.0.0.1:{mcp_port}").parse().expect("MCP address"),
@@ -121,7 +123,7 @@ fn run_loop_marks_successful_todo_mcp_mutation_as_wrote() {
     mcp_registry::register(
         "workbench",
         McpServerConfig {
-            capability_description: "todo test capability".into(),
+            capability_description: "notes test capability".into(),
             http_transport: HttpMcpTransport {
                 name: "workbench-test".into(),
                 url: format!("http://127.0.0.1:{mcp_port}/mcp/workbench"),
@@ -137,35 +139,27 @@ fn run_loop_marks_successful_todo_mcp_mutation_as_wrote() {
                 "id": "create_1",
                 "type": "function",
                 "function": {
-                    "name": "create_todo_task",
-                    "arguments": "{\"title\":\"MCP 创建任务\",\"todo_md\":\"MCP body\"}"
+                    "name": "create_notes_category",
+                    "arguments": "{\"title\":\"MCP 分类\"}"
                 }
             }]),
             None,
         ),
-        assistant_text("已创建任务。"),
+        assistant_text("已创建笔记。"),
     ]);
     r#loop::try_set_binding_json(&json!({ "key": "workbench" })).expect("Set workbench binding");
     let mut session = session::create_session().expect("session");
-    let outcome = r#loop::run_loop(&mut session, "创建一个任务", &cfg_for(&mock));
+    let outcome = r#loop::run_loop(&mut session, "创建一篇笔记", &cfg_for(&mock));
 
     assert_outcome(&outcome, "none", true);
-    assert!(
-        todo_task::list_all().expect("todo").as_array().is_some_and(|tasks| {
-            tasks
-                .iter()
-                .any(|task| task["title"] == "MCP 创建任务")
-        }),
-        "a successful MCP tool mutation must reach Services"
-    );
     let hits = mock.hits.lock().unwrap();
     assert!(
         hits[0]["tools"]
             .as_array()
             .is_some_and(|tools| tools.iter().any(|tool| {
-                tool.pointer("/function/name") == Some(&json!("create_todo_task"))
+                tool.pointer("/function/name") == Some(&json!("create_notes_category"))
             })),
-        "Todo tool definition must reach the model"
+        "Notes tool definition must reach the model"
     );
 
     drop(hits);
@@ -369,7 +363,7 @@ fn run_loop_offers_host_file_tools_and_keeps_scratch_writes_inside_cache() {
                     .iter()
                     .any(|tool| tool.pointer("/function/name") == Some(&json!(name)))
             }) && tools.iter().any(|tool| {
-                tool.pointer("/function/name") == Some(&json!("list_todo_tasks"))
+                tool.pointer("/function/name") == Some(&json!("get_all_notes_catalog"))
             })
         }),
         "model tools must include Host file tools and MCP tools"

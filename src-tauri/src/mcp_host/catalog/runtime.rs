@@ -17,7 +17,6 @@ pub fn build_routes_for_channel(
 
     for (group, keys) in [
         ("notes", &enabled.notes),
-        ("todo", &enabled.todo),
         ("knowledge", &enabled.knowledge),
         ("global", &enabled.global),
     ] {

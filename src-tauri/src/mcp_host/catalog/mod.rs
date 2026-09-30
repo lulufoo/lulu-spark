@@ -14,7 +14,6 @@ use crate::mcp_host::ToolRoute;
 pub fn catalog_groups() -> Vec<(&'static str, Vec<ToolRoute>)> {
     vec![
         ("notes", groups::notes::catalog_snapshot_routes()),
-        ("todo", groups::todo::catalog_snapshot_routes()),
         ("knowledge", groups::knowledge::catalog_snapshot_routes()),
         ("global", groups::global::catalog_snapshot_routes()),
     ]
@@ -23,7 +22,3 @@ pub fn catalog_groups() -> Vec<(&'static str, Vec<ToolRoute>)> {
 #[cfg(test)]
 #[path = "../../unit-tests/mcp_host/catalog.rs"]
 mod tests;
-
-#[cfg(test)]
-#[path = "../../unit-tests/mcp_host/todo_contract.rs"]
-mod todo_contract_tests;

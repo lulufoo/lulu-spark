@@ -5,7 +5,6 @@ use std::path::PathBuf;
 use serde_json::{json, Value};
 
 use crate::mcp_host::{ToolInvoke, ToolRoute};
-use crate::services::todo_task::{self, TodoError};
 
 pub fn object_schema(properties: Value, required: &[&str]) -> Value {
     let mut schema = json!({
@@ -83,20 +82,5 @@ pub fn optional_nonempty_str<'a>(args: &'a Value, key: &str) -> Result<Option<&'
             }
         }
         Some(_) => Err(json!({ "error": format!("Invalid {key}"), "_status": 400 })),
-    }
-}
-
-pub fn todo_wire(result: Result<Value, TodoError>, ok_status: u16) -> Value {
-    todo_task::into_wire(result, ok_status)
-}
-
-pub fn todo_wire_read(result: Result<Value, TodoError>) -> Value {
-    todo_task::into_wire_read(result)
-}
-
-pub fn gated_todo(run: impl FnOnce() -> Value) -> Value {
-    match todo_task::ensure_todo_api_ungated() {
-        Ok(()) => run(),
-        Err(err) => err.into_wire(),
     }
 }

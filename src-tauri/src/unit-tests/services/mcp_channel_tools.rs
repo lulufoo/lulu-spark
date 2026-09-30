@@ -60,11 +60,7 @@ fn set_enabled_subset_filters_only_that_channel() {
     assert!(mobile_notes
         .iter()
         .all(|n| n.as_str() != Some("create_note")));
-    assert!(stored["channels"]["mobile"]["todo"]
-        .as_array()
-        .expect("mobile todo")
-        .iter()
-        .any(|n| n.as_str() == Some("list_todo_tasks")));
+    assert!(stored["channels"]["mobile"].get("todo").is_none());
 }
 
 #[test]
@@ -111,10 +107,11 @@ fn snapshot_lists_groups_and_per_channel_enabled() {
         serde_json::json!(["delete_note"])
     );
     let groups = snap["groups"].as_array().expect("groups");
-    assert_eq!(groups[0]["id"], "notes");
-    assert_eq!(groups[1]["id"], "todo");
-    assert_eq!(groups[2]["id"], "knowledge");
-    assert_eq!(groups[3]["id"], "global");
+    let ids: Vec<_> = groups.iter().filter_map(|g| g["id"].as_str()).collect();
+    assert!(ids.contains(&"notes"));
+    assert!(ids.contains(&"knowledge"));
+    assert!(ids.contains(&"global"));
+    assert!(!ids.contains(&"todo"));
     let mobile: HashSet<&str> = snap["enabled"]["mobile"]
         .as_array()
         .expect("mobile")
@@ -123,7 +120,7 @@ fn snapshot_lists_groups_and_per_channel_enabled() {
         .collect();
     assert!(!mobile.contains("create_note"));
     assert!(!mobile.contains("delete_note"));
-    assert!(mobile.contains("list_todo_tasks"));
+    assert!(!mobile.contains("list_todo_tasks"));
     let workbench: HashSet<&str> = snap["enabled"]["workbench"]
         .as_array()
         .expect("workbench")
@@ -216,9 +213,8 @@ fn load_migrates_legacy_flat_channel_lists() {
     sandbox.assert_not_prod_path(&path).expect("sandbox file");
     let grouped = crate::services::settings::mcp_channel_tools::enabled_by_group("mobile");
     assert!(grouped.notes.contains(&"get_all_notes_catalog".into()));
-    assert!(grouped.todo.contains(&"list_todo_tasks".into()));
     assert!(is_enabled("mobile", "get_all_notes_catalog"));
-    assert!(is_enabled("mobile", "list_todo_tasks"));
+    assert!(!is_enabled("mobile", "list_todo_tasks"));
 }
 
 #[test]

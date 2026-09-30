@@ -5,7 +5,6 @@ use crate::mcp_host::catalog::groups::notes::{
     self, create_note_from_content, create_note_from_source, note_path_invoke,
     update_note_from_content, update_note_from_source,
 };
-use crate::mcp_host::catalog::groups::todo;
 use crate::mcp_host::catalog::{build, build_routes_for_channel, group_for_migrated_api};
 use crate::services::settings::mcp_catalog::GroupedEnabledCatalog;
 
@@ -60,15 +59,6 @@ fn notes_registry_covers_all_snapshot_tools() {
     assert_eq!(snapshot.len(), NOTES_APIS.len());
     for api in NOTES_APIS {
         assert!(notes::contains(api), "missing registry entry for {api}");
-    }
-}
-
-#[test]
-fn todo_registry_covers_all_snapshot_tools() {
-    let snapshot = todo::catalog_snapshot_routes();
-    assert_eq!(snapshot.len(), TODO_APIS.len());
-    for api in TODO_APIS {
-        assert!(todo::contains(api), "missing registry entry for {api}");
     }
 }
 
@@ -173,28 +163,13 @@ fn factory_builds_all_global_apis_with_channel_parity() {
 }
 
 #[test]
-fn factory_builds_all_todo_apis_with_channel_parity() {
-    for (slot, channel) in [
-        ("workbench", "workbench"),
-        ("cursor_ide", "cursor_ide"),
-        ("workbench", "mobile"),
-    ] {
+fn factory_does_not_build_todo_apis() {
+    for channel in ["workbench", "cursor_ide", "mobile"] {
         for api in TODO_APIS {
-            let built = build("todo", api, channel);
-            let legacy = build_channel_tool_table(slot, channel)
-                .and_then(|table| table.tools.into_iter().find(|r| r.name == *api));
-            assert_eq!(
-                built.is_some(),
-                legacy.is_some(),
-                "{api} availability mismatch on slot={slot} channel={channel}"
+            assert!(
+                build("todo", api, channel).is_none(),
+                "{api} must not build on channel={channel}"
             );
-            if let (Some(built), Some(legacy)) = (built, legacy) {
-                assert_eq!(built.name, legacy.name, "{api} name on {channel}");
-                assert!(
-                    invoke_eq(built.invoke, legacy.invoke),
-                    "{api} invoke on {channel}"
-                );
-            }
         }
     }
 }
@@ -205,7 +180,7 @@ fn group_for_migrated_api_maps_all_catalog_keys() {
         assert_eq!(group_for_migrated_api(api), Some("notes"), "{api}");
     }
     for api in TODO_APIS {
-        assert_eq!(group_for_migrated_api(api), Some("todo"), "{api}");
+        assert_eq!(group_for_migrated_api(api), None, "{api}");
     }
     for api in KNOWLEDGE_APIS {
         assert_eq!(group_for_migrated_api(api), Some("knowledge"), "{api}");
@@ -222,16 +197,16 @@ fn group_for_migrated_api_maps_all_catalog_keys() {
 fn runtime_builds_enabled_routes_from_factory_only() {
     let enabled = GroupedEnabledCatalog {
         notes: vec!["get_all_notes_catalog".into(), "create_note".into()],
-        todo: vec!["list_todo_tasks".into(), "create_todo_task".into()],
         knowledge: vec!["get_knowledge_content".into()],
         global: vec!["search_document".into()],
+        ..GroupedEnabledCatalog::default()
     };
     let routes = build_routes_for_channel("workbench", "workbench", &enabled);
     let names: Vec<_> = routes.iter().map(|r| r.name.as_str()).collect();
     assert!(names.contains(&"get_all_notes_catalog"));
     assert!(names.contains(&"create_note"));
-    assert!(names.contains(&"list_todo_tasks"));
-    assert!(names.contains(&"create_todo_task"));
+    assert!(!names.contains(&"list_todo_tasks"));
+    assert!(!names.contains(&"create_todo_task"));
     assert!(names.contains(&"get_knowledge_content"));
     assert!(names.contains(&"search_document"));
     assert!(!names.contains(&"search_notes"));
@@ -310,3 +285,6 @@ fn get_knowledge_content_channel_descriptions_split() {
 
 #[path = "produce_wiring.rs"]
 mod produce_wiring;
+
+#[path = "todo_group_removed.rs"]
+mod todo_group_removed;

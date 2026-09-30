@@ -55,7 +55,6 @@ pub fn migrate_retired_search_groups(mut groups: EnabledByGroup) -> EnabledByGro
 
 fn sort_groups(groups: &mut EnabledByGroup) {
     groups.notes.sort();
-    groups.todo.sort();
     groups.knowledge.sort();
     groups.global.sort();
 }
@@ -80,7 +79,6 @@ pub fn classify_flat(
         }
         match group_for_tool(&name) {
             Some("notes") => groups.notes.push(name),
-            Some("todo") => groups.todo.push(name),
             Some("knowledge") => groups.knowledge.push(name),
             Some("global") => groups.global.push(name),
             _ => {}
@@ -95,11 +93,6 @@ pub fn filter_groups(groups: EnabledByGroup, catalog: &HashSet<String>) -> Enabl
     for name in groups.notes {
         if catalog.contains(&name) {
             filtered.notes.push(name);
-        }
-    }
-    for name in groups.todo {
-        if catalog.contains(&name) {
-            filtered.todo.push(name);
         }
     }
     for name in groups.knowledge {
@@ -120,7 +113,6 @@ pub fn groups_to_flat(groups: &EnabledByGroup) -> HashSet<String> {
     groups
         .notes
         .iter()
-        .chain(groups.todo.iter())
         .chain(groups.knowledge.iter())
         .chain(groups.global.iter())
         .cloned()

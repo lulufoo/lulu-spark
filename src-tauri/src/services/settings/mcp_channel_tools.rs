@@ -1,6 +1,6 @@
 //! Per-channel MCP tool allowlist (`/mcp/workbench`, `/mcp/cursor_ide`, `/mcp/mobile`).
 //!
-//! Persists nested `{ channel: { notes: [], todo: [], knowledge: [], global: [] } }`.
+//! Persists nested `{ channel: { notes: [], knowledge: [], global: [] } }`.
 //! Legacy flat arrays are migrated on read. UI commands still accept/return flat enabled lists.
 //! Retired `search_notes` / `search_knowledge` names rewrite to `search_document`.
 
@@ -30,8 +30,6 @@ static LOCK: Mutex<()> = Mutex::new(());
 pub struct EnabledByGroup {
     #[serde(default)]
     pub notes: Vec<String>,
-    #[serde(default)]
-    pub todo: Vec<String>,
     #[serde(default)]
     pub knowledge: Vec<String>,
     #[serde(default)]
@@ -198,7 +196,6 @@ pub fn snapshot() -> Result<Value, String> {
             (*channel).to_string(),
             json!({
                 "notes": grouped.notes,
-                "todo": grouped.todo,
                 "knowledge": grouped.knowledge,
                 "global": grouped.global,
             }),
@@ -212,7 +209,6 @@ pub fn snapshot() -> Result<Value, String> {
                 "id": id,
                 "label": match *id {
                     "notes" => "Notes",
-                    "todo" => "Todo",
                     "knowledge" => "Knowledge",
                     "global" => "Global",
                     other => other,
