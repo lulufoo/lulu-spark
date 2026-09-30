@@ -227,6 +227,17 @@ export function HomePage({
           <button
             type="button"
             className="home-chat-nav-item home-desktop-shortcut"
+            data-home-entry="knowledge"
+            onClick={() => goHomeEntry('knowledge', navigateFn, openReadLater)}
+          >
+            <span className="home-desktop-shortcut-icon" aria-hidden="true">
+              📚
+            </span>
+            <span className="home-desktop-shortcut-label">Knowledge</span>
+          </button>
+          <button
+            type="button"
+            className="home-chat-nav-item home-desktop-shortcut"
             data-home-entry="read-later"
             {...unreadProps(state.channelUnread.read_later)}
             onClick={() => {
@@ -238,17 +249,6 @@ export function HomePage({
               📑
             </span>
             <span className="home-desktop-shortcut-label">Read Later</span>
-          </button>
-          <button
-            type="button"
-            className="home-chat-nav-item home-desktop-shortcut"
-            data-home-entry="knowledge"
-            onClick={() => goHomeEntry('knowledge', navigateFn, openReadLater)}
-          >
-            <span className="home-desktop-shortcut-icon" aria-hidden="true">
-              📚
-            </span>
-            <span className="home-desktop-shortcut-label">Knowledge</span>
           </button>
         </nav>
         <div className="home-chat-sessions-head">

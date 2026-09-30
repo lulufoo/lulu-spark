@@ -55,6 +55,8 @@ describe('mountHomeHub', () => {
     expect(workbenchEntry.textContent).toMatch(/Notes/);
     expect(readLaterEntry.textContent).toMatch(/Read Later/);
     expect(knowledgeEntry.textContent).toMatch(/Knowledge/);
+    const labels = [...shortcuts].map((entry) => entry.querySelector('.home-desktop-shortcut-label')?.textContent);
+    expect(labels).toEqual(['Notes', 'Knowledge', 'Read Later']);
   });
 
   it('navigates to #/workbench when workbench entry is clicked', () => {
