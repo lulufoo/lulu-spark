@@ -288,3 +288,6 @@ mod produce_wiring;
 
 #[path = "todo_group_removed.rs"]
 mod todo_group_removed;
+
+#[path = "todo_commands_removed.rs"]
+mod todo_commands_removed;

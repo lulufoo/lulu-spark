@@ -186,25 +186,6 @@ const KNOWLEDGE_TOOLS: &[&str] = &[
 
 const GLOBAL_TOOLS: &[&str] = &["search_document"];
 
-/// Todo tools from Node `buildServer()` when `includeTodo` is true.
-const TODO_TOOLS: &[&str] = &[
-    "create_todo_task",
-    "update_todo_task",
-    "list_todo_tasks",
-    "list_todo_categories",
-    "get_todo_task",
-    "delete_todo_task",
-    "add_todo_sub",
-    "update_todo_sub",
-    "delete_todo_sub",
-    "complete_todo",
-    "link_todo_archive",
-    "add_todo_attachment",
-    "list_todo_attachments",
-    "get_todo_attachment",
-    "update_todo_attachment",
-];
-
 const WORKBENCH_SLOT: &str = "workbench";
 const CURSOR_IDE_SLOT: &str = "cursor_ide";
 
@@ -539,16 +520,6 @@ fn tools_list_workbench_and_cursor_ide_are_notes_todo() {
             "workbench must include notes tool {tool}"
         );
     }
-    for todo in TODO_TOOLS {
-        assert!(
-            !ide_names.contains(*todo),
-            "cursor_ide must not keep todo tool {todo}"
-        );
-        assert!(
-            !wb_names.contains(*todo),
-            "workbench must not include todo tool {todo}"
-        );
-    }
     for tool in KNOWLEDGE_TOOLS {
         assert!(
             ide_names.contains(*tool),
@@ -629,14 +600,6 @@ fn mcp_tools_list_publishes_descriptions_schemas_and_mutation_hints() {
             tool.name
         );
     }
-    assert!(
-        workbench_tools.iter().all(|tool| tool.name != "create_todo_task"),
-        "create_todo_task must be absent"
-    );
-    assert!(
-        workbench_tools.iter().all(|tool| tool.name != "add_todo_sub"),
-        "add_todo_sub must be absent"
-    );
 
     let notes_tools = rt.block_on(list_tools(WORKBENCH_SLOT, workbench_ticket));
     assert_eq!(
@@ -1001,11 +964,6 @@ fn close_gate_smoke_initialize_list_passes_v5_dual_listen_and_session() {
         !tool_names.is_empty(),
         "tools/list must return at least one tool name"
     );
-    assert!(
-        !tool_names.iter().any(|n| n == "list_todo_categories"),
-        "workbench tools/list must not include list_todo_categories, got {:?}",
-        tool_names
-    );
 
     stop_embedded_mcp_runtime(mcp_handle).expect("stop MCP");
     main_host::stop(http_handle);
@@ -1029,10 +987,6 @@ fn health_success_is_not_session_level_close_gate_proof() {
     assert!(
         health_json.get("tools").is_none(),
         "health must not carry tools/list payload: {health_json}"
-    );
-    assert!(
-        !health_body.contains("list_todo_categories"),
-        "health body must not embed tools/list names"
     );
 
     let ticket = issue_live_ticket(WORKBENCH_SLOT);
@@ -1161,12 +1115,6 @@ fn p3_t10_host_dual_slot_list_call_and_unknown_hard_fail_smoke() {
             &workbench_ticket,
         ))
         .expect("workbench tools/list on Host :9876");
-    for tool in ["list_todo_tasks", "create_todo_task"] {
-        assert!(
-            !workbench_names.iter().any(|n| n == tool),
-            "T10/V2: workbench must not expose {tool}; got {workbench_names:?}"
-        );
-    }
     for tool in NOTES_TOOLS {
         assert!(
             workbench_names.iter().any(|n| n == *tool),
@@ -1597,10 +1545,6 @@ fn registered_workbench_live_ticket_enters_streamable_http() {
     assert!(
         names.iter().any(|n| n == "get_all_notes_catalog"),
         "workbench tools/list must remain available, got {names:?}"
-    );
-    assert!(
-        !names.iter().any(|n| n == "list_todo_categories"),
-        "workbench tools/list must not include list_todo_categories, got {names:?}"
     );
     stop_embedded_mcp_runtime(handle).expect("stop");
 }

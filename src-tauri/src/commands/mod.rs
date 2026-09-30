@@ -7,7 +7,6 @@ pub mod kb_viewer_state;
 pub mod mcp_oauth;
 pub mod mcp_channel_tools;
 pub mod notes_categories;
-pub mod todo_task;
 pub mod read;
 pub mod read_later;
 pub mod search;
