@@ -29,8 +29,8 @@ class McpToolsJsonTest {
     @Test
     fun parseToolsDoesNotTreatNestedNameAsTool() {
         val body =
-            """{"result":{"tools":[{"name":"create_todo_task","description":"Add a task.","inputSchema":{"type":"object","properties":{"title":{"type":"string","description":"name of the task"}}}}]}}"""
-        assertEquals(listOf("create_todo_task"), parseToolNames(body))
+            """{"result":{"tools":[{"name":"create_note","description":"Add a note.","inputSchema":{"type":"object","properties":{"title":{"type":"string","description":"name of the note"}}}}]}}"""
+        assertEquals(listOf("create_note"), parseToolNames(body))
     }
 
     @Test

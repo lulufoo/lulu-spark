@@ -171,12 +171,12 @@ class ToolDispatcherTest {
         val dispatcher =
             ToolDispatcher(
                 FsTools(),
-                CallingWmcp("list_todo_tasks", """[{"title":"keep"}]"""),
+                CallingWmcp("list_notes", """[{"title":"keep"}]"""),
                 MemoryStorage(),
             )
         assertEquals(
             """[{"title":"keep"}]""",
-            dispatcher.call("list_todo_tasks", "{}", "/tmp"),
+            dispatcher.call("list_notes", "{}", "/tmp"),
         )
     }
 }

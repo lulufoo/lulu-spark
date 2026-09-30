@@ -129,9 +129,9 @@ class LlmClientTest {
     fun decodeToolCallsKeepsArgsThatContainBrackets() {
         val calls =
             decodeToolCalls(
-                """{"choices":[{"finish_reason":"tool_calls","message":{"content":null,"tool_calls":[{"id":"c1","type":"function","function":{"name":"list_todo_tasks","arguments":"[]"}}]}}]}""",
+                """{"choices":[{"finish_reason":"tool_calls","message":{"content":null,"tool_calls":[{"id":"c1","type":"function","function":{"name":"list_notes","arguments":"[]"}}]}}]}""",
             )
-        assertEquals("list_todo_tasks", calls.single().name)
+        assertEquals("list_notes", calls.single().name)
         assertEquals("[]", calls.single().arguments)
     }
 
@@ -139,9 +139,9 @@ class LlmClientTest {
     fun decodeToolCallsReadsObjectArguments() {
         val calls =
             decodeToolCalls(
-                """{"choices":[{"message":{"tool_calls":[{"id":"c2","type":"function","function":{"name":"list_todo_tasks","arguments":{"status":[]}}}]}}]}""",
+                """{"choices":[{"message":{"tool_calls":[{"id":"c2","type":"function","function":{"name":"list_notes","arguments":{"status":[]}}}]}}]}""",
             )
-        assertEquals("list_todo_tasks", calls.single().name)
+        assertEquals("list_notes", calls.single().name)
         assertEquals("""{"status":[]}""", calls.single().arguments)
     }
 
@@ -149,10 +149,10 @@ class LlmClientTest {
     fun decodeToolCallsReadsNameBeforeId() {
         val calls =
             decodeToolCalls(
-                """{"choices":[{"finish_reason":"tool_calls","message":{"tool_calls":[{"function":{"name":"list_todo_tasks","arguments":"[]"},"id":"c3","type":"function"}]}}]}""",
+                """{"choices":[{"finish_reason":"tool_calls","message":{"tool_calls":[{"function":{"name":"list_notes","arguments":"[]"},"id":"c3","type":"function"}]}}]}""",
             )
         assertEquals("c3", calls.single().id)
-        assertEquals("list_todo_tasks", calls.single().name)
+        assertEquals("list_notes", calls.single().name)
         assertEquals("[]", calls.single().arguments)
     }
 
