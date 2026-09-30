@@ -108,9 +108,10 @@ describe('T10 Host MCP archive + contract retarget (V2/V3/V4)', () => {
     expect(checklist).not.toMatch(/P6：离页 Reset/);
   });
 
-  it('npm test runs Host MCP verify script (not Node package verify)', () => {
+  it('Host MCP verify script is a manual entry, not part of npm test', () => {
     const pkg = JSON.parse(read('package.json'));
-    expect(pkg.scripts.test).toContain('scripts/verify-host-mcp.mjs');
+    expect(pkg.scripts.test).not.toContain('verify-host-mcp');
+    expect(pkg.scripts['verify:host-mcp']).toBe('node scripts/verify-host-mcp.mjs');
   });
 
   it('archived Node knowledge-mcp snapshot is removed', () => {

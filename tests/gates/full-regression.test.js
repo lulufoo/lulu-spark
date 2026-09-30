@@ -42,7 +42,8 @@ describe('AC-全量回归 gate (tech-doc T-08 / VF)', () => {
     expect(testScript).toMatch(/--test-threads=1/);
   });
 
-  it('npm test runs Host MCP verify-host-mcp.mjs', () => {
-    expect(testScript).toContain('scripts/verify-host-mcp.mjs');
+  it('npm test keeps Host MCP verify-host-mcp.mjs out of the unit layer', () => {
+    expect(testScript).not.toContain('scripts/verify-host-mcp.mjs');
+    expect(testScript).not.toContain('VERIFY_HOST_MCP_SKIP_CARGO');
   });
 });

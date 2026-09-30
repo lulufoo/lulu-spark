@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit -p tsconfig.json && vite build",
-    "test": "(cd src-tauri && cargo test --lib -- --test-threads=1) && VERIFY_HOST_MCP_SKIP_CARGO=1 node scripts/verify-host-mcp.mjs && npx vitest run --dir tests",
+    "test": "(cd src-tauri && cargo test --lib -- --test-threads=1) && npx vitest run --dir tests",
+    "verify:host-mcp": "node scripts/verify-host-mcp.mjs",
     "tauri": "tauri",
     "icons:regen": "tauri icon frontend/icons/app-icon.svg -o src-tauri/icons && rm -rf src-tauri/icons/android src-tauri/icons/ios && rm -f src-tauri/icons/Square*.png src-tauri/icons/StoreLogo.png src-tauri/icons/64x64.png"
   },
