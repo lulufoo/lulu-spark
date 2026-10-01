@@ -6,16 +6,8 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { readShellHtml } from '../helpers/read-frontend-js.js';
-
-const renderFeedMock = vi.fn();
-
-vi.mock('../../frontend/src/builders/ui/feed.tsx', () => ({
-  renderFeed: (...args) => renderFeedMock(...args),
-}));
-
-import { createBuildersContentAdapter } from '../../frontend/src/builders/ui/assistant.tsx';
 import { readMainSource } from '../helpers/read-frontend-js.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -175,35 +167,12 @@ describe('T5 retire #btn-feed / showFeedView user entry', () => {
     );
   });
 
-  describe('no dual entry — Builders content adapter remains', () => {
-    /** @type {HTMLElement} */
-    let slot;
-
-    beforeEach(() => {
-      slot = document.createElement('div');
-      document.body.appendChild(slot);
-      renderFeedMock.mockReset();
-      renderFeedMock.mockImplementation((container) => {
-        container.innerHTML = '<div class="feed-mock">feed</div>';
-      });
-    });
-
-    afterEach(() => {
-      slot.remove();
-    });
-
+  describe('no dual entry — Builders module is retired', () => {
     it('main.js does not mount Builders through the retired home-entry shell', () => {
       const main = readMain();
       expect(main).not.toMatch(/mountHomeEntryShell\s*\(/);
       expect(main).not.toMatch(/mountBuildersAssistantWidget\s*\(\s*document\.body\b/);
       expect(main).not.toMatch(/createBuildersContentAdapter/);
-    });
-
-    it('Builders content adapter mounts feed into the slot (regression)', () => {
-      const handle = createBuildersContentAdapter().mount(slot, { host: {} });
-      expect(renderFeedMock).toHaveBeenCalledWith(slot);
-      expect(slot.querySelector('.feed-mock')).not.toBeNull();
-      handle.unmount();
     });
 
     it('user-reachable Builders path is not via #btn-feed click wiring', () => {

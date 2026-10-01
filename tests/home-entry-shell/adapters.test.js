@@ -10,7 +10,6 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 const getJsonMock = vi.fn();
 const fetchIndexMock = vi.fn();
-const renderFeedMock = vi.fn();
 
 vi.mock('../../frontend/src/host/apiClient.ts', async (importOriginal) => {
   const actual = await importOriginal();
@@ -27,15 +26,10 @@ vi.mock('../../frontend/src/host/api.ts', () => ({
   fetchIndex: (...args) => fetchIndexMock(...args),
 }));
 
-vi.mock('../../frontend/src/builders/ui/feed.tsx', () => ({
-  renderFeed: (...args) => renderFeedMock(...args),
-}));
-
 import { createContentRegistry } from '../../frontend/src/home-entry-shell/content-registry.ts';
 import { getBaselineEntries } from '../../frontend/src/home-entry-shell/entry-config.ts';
 import { mountHomeEntryShell } from '../../frontend/src/home-entry-shell/shell.tsx';
 import { createNotesContentAdapter } from '../../frontend/src/notes/ui/assistant.tsx';
-import { createBuildersContentAdapter } from '../../frontend/src/builders/ui/assistant.tsx';
 import { readFrontendJs, readMainSource } from '../helpers/read-frontend-js.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -49,12 +43,6 @@ const ADAPTERS = [
     create: createNotesContentAdapter,
     sourcePath: 'frontend/src/notes/ui/assistant.tsx',
     contentSelector: '.note-assistant-empty, .note-assistant-list, .note-assistant-loading',
-  },
-  {
-    key: 'builders',
-    create: createBuildersContentAdapter,
-    sourcePath: 'frontend/src/builders/ui/assistant.tsx',
-    contentSelector: '.feed-mock',
   },
 ];
 
@@ -75,10 +63,6 @@ describe('home-entry-shell adapters (T6)', () => {
     getJsonMock.mockResolvedValue([]);
     fetchIndexMock.mockReset();
     fetchIndexMock.mockResolvedValue({ entries: {} });
-    renderFeedMock.mockReset();
-    renderFeedMock.mockImplementation((container) => {
-      container.innerHTML = '<div class="feed-mock">feed</div>';
-    });
   });
 
   afterEach(() => {

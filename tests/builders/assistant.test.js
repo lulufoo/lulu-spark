@@ -1,76 +1,38 @@
-// @vitest-environment jsdom
-/**
- * T6: Builders is a content adapter — renderFeed into the shell slot; no modal chrome.
- */
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { existsSync, readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { describe, expect, it } from 'vitest';
+import { readFrontendJs, readMainSource } from '../helpers/read-frontend-js.js';
 
-const renderFeedMock = vi.fn();
+const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 
-vi.mock('../../frontend/src/builders/ui/feed.tsx', () => ({
-  renderFeed: (...args) => renderFeedMock(...args),
-}));
-
-import { createBuildersContentAdapter } from '../../frontend/src/builders/ui/assistant.tsx';
-
-describe('createBuildersContentAdapter · slot mount + renderFeed', () => {
-  /** @type {HTMLElement} */
-  let slot;
-
-  beforeEach(() => {
-    slot = document.createElement('div');
-    document.body.appendChild(slot);
-    renderFeedMock.mockReset();
-    renderFeedMock.mockImplementation((container) => {
-      container.innerHTML = '<div class="feed-mock">feed</div>';
-    });
+describe('Builder frontend module retired (T-builder)', () => {
+  it('removes frontend/src/builders and its boot adapter registration', () => {
+    expect(existsSync(join(repoRoot, 'frontend/src/builders'))).toBe(false);
+    const mainJs = readMainSource();
+    expect(mainJs).not.toMatch(/createBuildersContentAdapter/);
+    expect(mainJs).not.toMatch(/from\s+['"].*builders\//);
+    expect(mainJs).not.toMatch(/\.register\(\s*['"]builders['"]/);
   });
 
-  afterEach(() => {
-    slot.remove();
+  it('does not change the /read-later route or Host jot create path', () => {
+    const mainJs = readMainSource();
+    expect(mainJs).toMatch(/function mountReadLaterRoute/);
+    expect(mainJs).toMatch(
+      /['"]read-later['"]:\s*wrapRouteMount\s*\(\s*['"]read-later['"]\s*,\s*mountReadLaterRoute/,
+    );
+    const createSrc = readFrontendJs('frontend/src/notes/commands/viewer/create.ts');
+    expect(createSrc).toMatch(
+      /api\.createNote\(\s*\{\s*body:\s*trimmed\s*,\s*source_type:\s*['"]jot['"]\s*\}\s*\)/,
+    );
+    expect(existsSync(join(repoRoot, 'frontend/src/read-later'))).toBe(true);
   });
 
-  it('mount calls renderFeed once on the content slot (no modal host/body)', () => {
-    const handle = createBuildersContentAdapter().mount(slot, { host: {} });
-
-    expect(renderFeedMock).toHaveBeenCalledTimes(1);
-    expect(renderFeedMock).toHaveBeenCalledWith(slot);
-    expect(slot.querySelector('.feed-mock')).not.toBeNull();
-    expect(slot.querySelector('.builders-modal-host')).toBeNull();
-    expect(slot.querySelector('.builders-modal-header')).toBeNull();
-    expect(document.querySelector('.builders-entry-fab')).toBeNull();
-
-    handle.unmount();
-  });
-
-  it('unmount clears slot content', () => {
-    const handle = createBuildersContentAdapter().mount(slot, { host: {} });
-    expect(slot.querySelector('.feed-mock')).not.toBeNull();
-    handle.unmount();
-    expect(slot.innerHTML).toBe('');
-  });
-
-  it('remount refreshes via renderFeed again on the same slot', () => {
-    const adapter = createBuildersContentAdapter();
-    const first = adapter.mount(slot, { host: {} });
-    first.unmount();
-    const second = adapter.mount(slot, { host: {} });
-
-    expect(renderFeedMock).toHaveBeenCalledTimes(2);
-    expect(renderFeedMock).toHaveBeenNthCalledWith(1, slot);
-    expect(renderFeedMock).toHaveBeenNthCalledWith(2, slot);
-    expect(slot.querySelector('.feed-mock')).not.toBeNull();
-
-    second.unmount();
-  });
-
-  it('renderFeed empty/error still paints into the slot (chrome is shell-owned)', () => {
-    renderFeedMock.mockImplementation((container) => {
-      container.innerHTML = '<div class="feed-error">加载失败：network</div>';
-    });
-
-    const handle = createBuildersContentAdapter().mount(slot, { host: {} });
-    expect(slot.querySelector('.feed-error')).not.toBeNull();
-    expect(slot.querySelector('.builders-modal-header')).toBeNull();
-    handle.unmount();
+  it('does not change MCP create_note invoke mapping', () => {
+    const writeMap = readFileSync(
+      join(repoRoot, 'frontend/src/host/writeApiInvokeMap.ts'),
+      'utf8',
+    );
+    expect(writeMap).toMatch(/create_note/);
   });
 });

@@ -200,8 +200,6 @@ describe('home unread wiring constraints', () => {
     }
 
     const shellSrc = readFrontendJs('frontend/src/home-entry-shell/shell.tsx');
-    const buildersSrc = readFrontendJs('frontend/src/builders/ui/assistant.tsx');
     expect(shellSrc).not.toMatch(/getMessageChannelUnread|markMessageChannelRead|data-home-unread/);
-    expect(buildersSrc).not.toMatch(/getMessageChannelUnread|markMessageChannelRead|data-home-unread/);
   });
 });
