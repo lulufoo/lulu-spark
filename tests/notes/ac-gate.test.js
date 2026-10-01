@@ -82,13 +82,17 @@ describe('Note AC gate (tech-doc VF / T-13)', () => {
       'frontend/src/notes/commands/settle-dialog.ts',
       'frontend/src/notes/commands/move-project-dialog.ts',
       'frontend/src/notes/commands/viewer/doc.ts',
-      'frontend/src/home/page.tsx',
     ]) {
       const src = read(rel);
       expect(src, rel).not.toMatch(/openCreateNote/);
       expect(src, rel).not.toMatch(/新建随记/);
       expect(src, rel).not.toMatch(/createNote/);
     }
+    // Home nav hosts the create entry (T-notes-entry). It may call openCreateNote,
+    // but must not call createNote itself or restore the retired add-note copy.
+    const home = read('frontend/src/home/page.tsx');
+    expect(home).not.toMatch(/新建随记/);
+    expect(home).not.toMatch(/(?<!open)createNote/);
     const writeMap = read('frontend/src/host/writeApiInvokeMap.ts');
     expect(writeMap).toMatch(/cmd:\s*'save_entry'/);
     const syncMap = read('frontend/src/host/syncApiInvokeMap.ts');

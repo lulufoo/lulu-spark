@@ -31,6 +31,7 @@ import {
   useHomeState,
   type HubMessage,
 } from './state/store.ts';
+import { openCreateNote } from '../notes/commands/viewer/create.ts';
 
 export type HomePageChrome = {
   navigate?: (hash: string) => void;
@@ -209,21 +210,45 @@ export function HomePage({
     <div className="home-chat">
       <aside ref={sidebarRef} className="home-chat-sidebar">
         <nav className="home-chat-nav" aria-label="Workbench">
-          <button
-            type="button"
-            className="home-chat-nav-item home-desktop-shortcut"
-            data-home-entry="workbench"
-            {...unreadProps(state.channelUnread.notes)}
-            onClick={() => {
-              void markHomeEntryRead('workbench');
-              goHomeEntry('workbench', navigateFn, openReadLater);
-            }}
-          >
-            <span className="home-desktop-shortcut-icon" aria-hidden="true">
-              📂
-            </span>
-            <span className="home-desktop-shortcut-label">Notes</span>
-          </button>
+          <div className="home-chat-nav-notes">
+            <button
+              type="button"
+              className="home-chat-nav-item home-desktop-shortcut"
+              data-home-entry="workbench"
+              {...unreadProps(state.channelUnread.notes)}
+              onClick={() => {
+                void markHomeEntryRead('workbench');
+                goHomeEntry('workbench', navigateFn, openReadLater);
+              }}
+            >
+              <span className="home-desktop-shortcut-icon" aria-hidden="true">
+                📂
+              </span>
+              <span className="home-desktop-shortcut-label">Notes</span>
+            </button>
+            <button
+              type="button"
+              className="home-chat-new"
+              data-role="create-note"
+              aria-label="New note"
+              title="New note"
+              onClick={() => {
+                const temp_id =
+                  typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+                    ? crypto.randomUUID()
+                    : `note-${Date.now()}`;
+                goHomeEntry('workbench', navigateFn, openReadLater);
+                void openCreateNote({ temp_id });
+              }}
+            >
+              <svg className="home-chat-new-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path
+                  fill="currentColor"
+                  d="M11 5a1 1 0 1 1 2 0v6h6a1 1 0 1 1 0 2h-6v6a1 1 0 1 1-2 0v-6H5a1 1 0 1 1 0-2h6V5z"
+                />
+              </svg>
+            </button>
+          </div>
           <button
             type="button"
             className="home-chat-nav-item home-desktop-shortcut"

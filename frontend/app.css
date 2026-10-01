@@ -7361,6 +7361,15 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
 .home-chat-nav-item:hover {
   background: #e7ebef;
 }
+.home-chat-nav-notes {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.home-chat-nav-notes .home-desktop-shortcut {
+  flex: 1;
+  width: auto;
+}
 .home-chat-nav .home-desktop-shortcut:focus-visible {
   outline: 2px solid #0969da;
   outline-offset: 1px;
