@@ -17,11 +17,9 @@ const todoTaskAssistantHtmlPath = join(
   'frontend/todo-task-assistant.html',
 );
 const homeHubJs = readFrontendJs('frontend/src/home/hub.tsx');
-const readLaterAssistantJs = readFrontendJs('frontend/src/read-later/ui/assistant.tsx');
 
 const assistantSources = [
   homeHubJs,
-  readLaterAssistantJs,
 ].join('\n');
 
 describe('P2 copy-switch — Assistant pages (tech-doc T5)', () => {
@@ -47,22 +45,10 @@ describe('P2 copy-switch — Assistant pages (tech-doc T5)', () => {
     expect(homeHubJs).not.toContain('发送');
   });
 
-  it('read-later-assistant uses table A/B/B2 English copy', () => {
-    expect(readLaterAssistantJs).toContain('Read Later');
-    expect(readLaterAssistantJs).toContain('No items to read later');
-    expect(readLaterAssistantJs).toContain(
-      'After saving with the Chrome extension, latest items appear here',
+  it('read-later hub preview module is retired', () => {
+    expect(existsSync(join(repoRoot, 'frontend/src/read-later/ui/assistant.tsx'))).toBe(
+      false,
     );
-    expect(readLaterAssistantJs).toContain('Temporarily unavailable');
-    expect(readLaterAssistantJs).toContain('Recent items');
-    expect(readLaterAssistantJs).toContain('aria-label="Next"');
-    expect(readLaterAssistantJs).toContain('View all read-later →');
-    expect(readLaterAssistantJs).toContain('Loading…');
-    expect(readLaterAssistantJs).toContain('Open Read Later assistant');
-    expect(readLaterAssistantJs).toContain("toLocaleString('en'");
-    expect(readLaterAssistantJs).not.toContain('待读助手');
-    expect(readLaterAssistantJs).not.toContain('暂无待读');
-    expect(readLaterAssistantJs).not.toContain('加载中');
   });
 
   it('todo-task assistant module is removed', () => {

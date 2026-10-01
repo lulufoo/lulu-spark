@@ -192,11 +192,11 @@ describe('T5 retire #btn-feed / showFeedView user entry', () => {
       slot.remove();
     });
 
-    it('main.js orchestrates Builders via home-entry shell (legacy body mount retired)', () => {
+    it('main.js does not mount Builders through the retired home-entry shell', () => {
       const main = readMain();
-      expect(main).toMatch(/mountHomeEntryShell\s*\(\s*document\.body\b/);
+      expect(main).not.toMatch(/mountHomeEntryShell\s*\(/);
       expect(main).not.toMatch(/mountBuildersAssistantWidget\s*\(\s*document\.body\b/);
-      expect(main).toMatch(/createBuildersContentAdapter/);
+      expect(main).not.toMatch(/createBuildersContentAdapter/);
     });
 
     it('Builders content adapter mounts feed into the slot (regression)', () => {
@@ -208,7 +208,7 @@ describe('T5 retire #btn-feed / showFeedView user entry', () => {
 
     it('user-reachable Builders path is not via #btn-feed click wiring', () => {
       expect(readMain()).not.toMatch(BTN_FEED_CLICK_WIRING);
-      expect(readMain()).toMatch(/createBuildersContentAdapter/);
+      expect(readMain()).not.toMatch(/createBuildersContentAdapter/);
     });
   });
 });

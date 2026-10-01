@@ -222,8 +222,8 @@ describe('home-entry-shell integration · legal edges + triggers + hard countere
     expect(fromA.dispatch({ type: 'openEntry', entryId: 'notes' }).accepted).toBe(false);
 
     const main = readMain();
-    const mounts = main.match(/mountHomeEntryShell\s*\(\s*document\.body\b/g) || [];
-    expect(mounts.length).toBe(1);
+    const mounts = main.match(/mountHomeEntryShell\s*\(/g) || [];
+    expect(mounts.length).toBe(0);
     expect(main).not.toMatch(
       /mount(?:ReadLater|TodoTask|Note|Builders)AssistantWidget\s*\(\s*document\.body\b/,
     );

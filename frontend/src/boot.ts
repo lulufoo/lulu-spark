@@ -3,19 +3,11 @@ import { LAYERS, setGithubUserUrl } from './host/constants.ts';
 import * as api from './host/api.ts';
 import type { HostIndexAnnotation, HostNoteEntry } from './host/snapshot-types.ts';
 import { buildGroups, selectDate, applyListFilters, selectTag } from './notes/commands/sidebar.ts';
-import { openCreateNote } from './notes/viewer.ts';
 import './notes/ui/comments.tsx';
 import './knowledge/viewer.ts';
 import './app-shell/ui/workbench-commit-dialog.tsx';
 import { navigate, navigateToNote } from './router/index.ts';
 import { setRouteHandlers } from './route-handlers.ts';
-import { openReadLaterDialog } from './read-later/commands/dialog.ts';
-import { getBaselineEntries } from './home-entry-shell/entry-config.ts';
-import { createContentRegistry } from './home-entry-shell/content-registry.ts';
-import { mountHomeEntryShell } from './home-entry-shell/shell.tsx';
-import { createReadLaterContentAdapter } from './read-later/ui/assistant.tsx';
-import { createNotesContentAdapter } from './notes/ui/assistant.tsx';
-import { createBuildersContentAdapter } from './builders/ui/assistant.tsx';
 import { setWorkbenchBinding } from './app-shell/commands/workbench-binding.ts';
 import { initHeaderSync } from './app-shell/commands/header-sync.ts';
 import { normalizeKnowledgeIndex } from './knowledge/state/index.ts';
@@ -28,7 +20,6 @@ import {
   mountHomeRoute,
   mountReadLaterRoute,
   mountWorkbench,
-  setHomeEntryShell,
   wrapRouteMount,
 } from './app-shell/routes.ts';
 import type { SettingsConfig } from './app-shell/state/types.ts';
@@ -173,35 +164,6 @@ function closeNoteAssistantPanel() {
   getHomeEntryShell()?.forceRecoverA('leave-host');
 }
 
-function openCreateNoteFromFab(opts: { temp_id?: string } = {}) {
-  closeNoteAssistantPanel();
-  const temp_id =
-    opts?.temp_id ||
-    (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-      ? crypto.randomUUID()
-      : `note-${Date.now()}`);
-  // Create shares micro-route authority with open: location omits note.
-  const date = state.ui?.activeDate || '';
-  navigate(date ? `#/workbench?date=${encodeURIComponent(date)}` : '#/workbench');
-  return openCreateNote({ temp_id });
-}
-
-// SK-P3: single shell mount + content adapters in the shared content slot.
-const homeEntryRegistry = createContentRegistry();
-homeEntryRegistry.register('read-later', createReadLaterContentAdapter());
-homeEntryRegistry.register('notes', createNotesContentAdapter());
-homeEntryRegistry.register('builders', createBuildersContentAdapter());
-
-const homeEntryShell = mountHomeEntryShell(document.body, {
-  config: getBaselineEntries(),
-  registry: homeEntryRegistry,
-  host: {
-    navigate,
-    openReadLater: openReadLaterDialog,
-    openCreateNote: openCreateNoteFromFab,
-  },
-});
-setHomeEntryShell(homeEntryShell);
 console.info('[DEBUG-assistant] boot: setWorkbenchBinding');
 void setWorkbenchBinding().then((result) => {
   console.info('[DEBUG-assistant] boot: setWorkbenchBinding result', result);

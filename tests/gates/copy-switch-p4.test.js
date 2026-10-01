@@ -13,7 +13,6 @@ const TABLE_A_BRANDS = [
   { zh: 'Lulu Workbench', en: 'Lulu Workbench', file: 'frontend/src/shell.tsx' },
   { zh: '笔记助手', en: 'Notes Assistant', file: 'frontend/src/notes/ui/assistant.tsx' },
   { zh: 'AI 助手', en: 'Chats', file: 'frontend/src/home/page.tsx' },
-  { zh: 'Read Later 助手', en: 'Read Later', file: 'frontend/src/read-later/ui/assistant.tsx' },
 ];
 
 const KEY_PATH_FILES = [

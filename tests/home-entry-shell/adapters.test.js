@@ -34,7 +34,6 @@ vi.mock('../../frontend/src/builders/ui/feed.tsx', () => ({
 import { createContentRegistry } from '../../frontend/src/home-entry-shell/content-registry.ts';
 import { getBaselineEntries } from '../../frontend/src/home-entry-shell/entry-config.ts';
 import { mountHomeEntryShell } from '../../frontend/src/home-entry-shell/shell.tsx';
-import { createReadLaterContentAdapter } from '../../frontend/src/read-later/ui/assistant.tsx';
 import { createNotesContentAdapter } from '../../frontend/src/notes/ui/assistant.tsx';
 import { createBuildersContentAdapter } from '../../frontend/src/builders/ui/assistant.tsx';
 import { readFrontendJs, readMainSource } from '../helpers/read-frontend-js.js';
@@ -45,13 +44,6 @@ const CHROME_RE =
   /\.(?:rl-assistant-(?:popover|fab|close)|todo-assistant-(?:popover|fab|close)|note-assistant-(?:popover|fab|close)|builders-(?:modal-host|modal-header|modal-close|entry-fab))\b/;
 
 const ADAPTERS = [
-  {
-    key: 'read-later',
-    create: createReadLaterContentAdapter,
-    sourcePath: 'frontend/src/read-later/ui/assistant.tsx',
-    contentSelector:
-      '.read-later-assistant-empty, .read-later-assistant-panel, .read-later-assistant-loading',
-  },
   {
     key: 'notes',
     create: createNotesContentAdapter,
@@ -146,33 +138,16 @@ describe('home-entry-shell adapters (T6)', () => {
     }
   });
 
-  it('main.js registers all three baseline adapters on the ContentRegistry', () => {
+  it('main.js does not register hub content adapters', () => {
     const source = readMain();
-    expect(source).toMatch(/createReadLaterContentAdapter/);
+    expect(source).not.toMatch(/createReadLaterContentAdapter/);
     expect(source).not.toMatch(/createTodoTaskContentAdapter/);
-    expect(source).toMatch(/createNotesContentAdapter/);
-    expect(source).toMatch(/createBuildersContentAdapter/);
-    expect(source).toMatch(/\.register\(\s*['"]read-later['"]/);
+    expect(source).not.toMatch(/createNotesContentAdapter/);
+    expect(source).not.toMatch(/createBuildersContentAdapter/);
+    expect(source).not.toMatch(/\.register\(\s*['"]read-later['"]/);
     expect(source).not.toMatch(/\.register\(\s*['"]todo-task['"]/);
-    expect(source).toMatch(/\.register\(\s*['"]notes['"]/);
-    expect(source).toMatch(/\.register\(\s*['"]builders['"]/);
-  });
-
-  it('read-later adapter uses host.openReadLater', async () => {
-    const navigate = vi.fn();
-    const openReadLater = vi.fn();
-
-    const rlSlot = document.createElement('div');
-    document.body.appendChild(rlSlot);
-    const rl = createReadLaterContentAdapter().mount(rlSlot, {
-      host: { navigate, openReadLater },
-    });
-    await vi.waitFor(() => {
-      expect(rlSlot.querySelector('.read-later-assistant-manage-link')).not.toBeNull();
-    });
-    rlSlot.querySelector('.read-later-assistant-manage-link').click();
-    expect(openReadLater).toHaveBeenCalled();
-    rl.unmount();
+    expect(source).not.toMatch(/\.register\(\s*['"]notes['"]/);
+    expect(source).not.toMatch(/\.register\(\s*['"]builders['"]/);
   });
 
   it('notes adapter uses host.openCreateNote', async () => {
@@ -188,10 +163,12 @@ describe('home-entry-shell adapters (T6)', () => {
     handle.unmount();
   });
 
-  it('smoke: three entries open shell overlay with usable content (Must Close SK-P3)', async () => {
+  it('smoke: remaining adapters still mount into a local shell slot', async () => {
     const registry = createContentRegistry();
     registerAll(registry);
-    const config = getBaselineEntries();
+    const config = getBaselineEntries().filter((entry) =>
+      ADAPTERS.some((adapter) => adapter.key === entry.contentKey),
+    );
     const anchor = document.createElement('div');
     document.body.appendChild(anchor);
     const shell = mountHomeEntryShell(anchor, {

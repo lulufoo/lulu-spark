@@ -71,14 +71,10 @@ function mountFixture() {
 }
 
 describe('home-entry-shell main wiring (T5)', () => {
-  it('main.js mounts home entry shell once on document.body with config/registry/host', () => {
+  it('main.js does not mount the home-entry shell', () => {
     const source = readMain();
-    const mounts = source.match(/mountHomeEntryShell\s*\(\s*document\.body\b/g) || [];
-    expect(mounts.length, 'exactly one document.body shell mount').toBe(1);
-    expect(source).toMatch(/mountHomeEntryShell\s*\(\s*document\.body\s*,\s*\{/);
-    expect(source).toMatch(/\bconfig\b/);
-    expect(source).toMatch(/\bregistry\b/);
-    expect(source).toMatch(/\bhost\b/);
+    const mounts = source.match(/mountHomeEntryShell\s*\(/g) || [];
+    expect(mounts.length, 'hub shell mount retired').toBe(0);
   });
 
   it('main.js removes the four mount*AssistantWidget(document.body) orchestration points', () => {
@@ -89,17 +85,11 @@ describe('home-entry-shell main wiring (T5)', () => {
     expect(hasFabMutexListener(readMain())).toBe(false);
   });
 
-  it('host retains navigate, openReadLater (→ openReadLaterDialog), and openCreateNote (FAB create semantics)', () => {
+  it('Read Later list stays reachable via dialog, not a hub host object', () => {
     const source = readMain();
-    // Host object must expose the three callbacks used by content adapters.
-    expect(source).toMatch(/host\s*:\s*\{[\s\S]*?\bnavigate\b/);
-    expect(source).toMatch(
-      /openReadLater\s*:\s*openReadLaterDialog|openReadLater\s*,/,
-    );
-    expect(source).toMatch(/openCreateNote\s*:/);
-    // Create-from-FAB semantics must remain reachable (close panel + navigate + openCreateNote).
-    expect(source).toMatch(/function\s+openCreateNoteFromFab|openCreateNoteFromFab\s*=/);
-    expect(source).toMatch(/openCreateNoteFromFab|openCreateNote\s*:\s*openCreateNoteFromFab/);
+    expect(source).toMatch(/openReadLaterDialog/);
+    expect(source).not.toMatch(/openCreateNoteFromFab/);
+    expect(source).not.toMatch(/host\s*:\s*\{[\s\S]*?\bopenCreateNote\b/);
   });
 
   it('shell is not mounted into the home main content area (#home-view / home hub)', () => {
@@ -107,10 +97,8 @@ describe('home-entry-shell main wiring (T5)', () => {
     expect(source).not.toMatch(
       /mountHomeEntryShell\s*\(\s*(?:homeView|document\.getElementById\(\s*['"]home-view['"]\s*\))/,
     );
-    // mountHomeEntryShell must not take the home-hub mount target as its anchor.
     expect(source).not.toMatch(/mountHomeEntryShell\s*\(\s*homeView\b/);
-    // Positive: body mount is the orchestration surface.
-    expect(source).toMatch(/mountHomeEntryShell\s*\(\s*document\.body\b/);
+    expect(source).not.toMatch(/mountHomeEntryShell\s*\(\s*document\.body\b/);
   });
 
   it('app.css removes the old independent four-FAB bottom stack offsets', () => {
@@ -182,14 +170,12 @@ describe('home-entry-shell unmount force A (T5)', () => {
 });
 
 describe('home-entry-shell workbench Binding (t2)', () => {
-  it('main.js Sets workbench Binding once immediately after mountHomeEntryShell', () => {
+  it('main.js Sets workbench Binding once at boot', () => {
     const source = readMain();
-    expect(source).toMatch(
-      /(?:const\s+)?homeEntryShell\s*=\s*mountHomeEntryShell\s*\(\s*document\.body[\s\S]*?\}\s*\)\s*;[\s\S]*?void\s+setWorkbenchBinding\s*\(\s*\)/,
-    );
     const calls = source.match(/void\s+setWorkbenchBinding\s*\(\s*\)/g) || [];
     expect(calls.length, 'exactly one process-level workbench Set').toBe(1);
     expect(source).toMatch(/setWorkbenchBinding/);
+    expect(source).not.toMatch(/mountHomeEntryShell/);
   });
 
   it('does not put the Set in shell.js, #/home enter/leave, or Host process start', () => {

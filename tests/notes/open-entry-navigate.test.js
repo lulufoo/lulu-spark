@@ -61,15 +61,9 @@ describe('T6 source: open/create entries → navigate-to-note (no modal.display 
     expect(listenerSlice).not.toMatch(/openDoc[\s\S]{0,200}navigate/);
   });
 
-  it('openCreateNoteFromFab shares micro-route authority (navigate, omit note while creating)', () => {
-    const fabStart = mainJs.indexOf('function openCreateNoteFromFab');
-    expect(fabStart).toBeGreaterThan(-1);
-    const fabSlice = mainJs.slice(fabStart, fabStart + 600);
-    expect(fabSlice).toMatch(/navigate\s*\(/);
-    expect(fabSlice).toMatch(/#\/workbench/);
-    expect(fabSlice).toMatch(/openCreateNote\s*\(/);
-    // Must not write a temporary note query while creating
-    expect(fabSlice).not.toMatch(/navigateToNote\s*\(/);
+  it('hub create-note FAB path is retired (no openCreateNoteFromFab)', () => {
+    expect(mainJs).not.toMatch(/function openCreateNoteFromFab/);
+    expect(mainJs).not.toMatch(/openCreateNoteFromFab/);
   });
 
   it('workbench-search hit click includes optional layer from data-layer', () => {

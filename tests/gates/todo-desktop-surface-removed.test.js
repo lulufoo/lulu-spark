@@ -74,7 +74,7 @@ describe('t2 desktop todo surface removed', () => {
     expect(read('frontend/src/home/page.tsx')).toMatch(
       /data-home-entry="knowledge"/,
     );
-    expect(read('frontend/src/boot.ts')).toMatch(/createNotesContentAdapter/);
+    expect(read('frontend/src/boot.ts')).not.toMatch(/createNotesContentAdapter/);
   });
 
   it('workbench binding lives outside the deleted todo-task module', () => {

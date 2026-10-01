@@ -24,10 +24,10 @@ describe('Builders ↔ assistants capture-phase mutex retired (main.js T5/T7)', 
     expect(source).not.toMatch(/closest\(\s*['"]\.builders-entry-fab['"]\s*\)/);
   });
 
-  it('main.js mounts the home-entry shell once instead of four assistant widgets', () => {
+  it('main.js does not mount the home-entry shell or four assistant widgets', () => {
     const source = readMain();
-    const mounts = source.match(/mountHomeEntryShell\s*\(\s*document\.body\b/g) || [];
-    expect(mounts.length).toBe(1);
+    const mounts = source.match(/mountHomeEntryShell\s*\(/g) || [];
+    expect(mounts.length).toBe(0);
     expect(source).not.toMatch(
       /mount(?:ReadLater|TodoTask|Note|Builders)AssistantWidget\s*\(\s*document\.body\b/,
     );
@@ -39,6 +39,6 @@ describe('Builders ↔ assistants capture-phase mutex retired (main.js T5/T7)', 
     expect(source).not.toMatch(
       /addEventListener\s*\(\s*['"]click['"]\s*,\s*[^,]+,\s*true\s*\)/,
     );
-    expect(source).toMatch(/mountHomeEntryShell/);
+    expect(source).not.toMatch(/mountHomeEntryShell/);
   });
 });
