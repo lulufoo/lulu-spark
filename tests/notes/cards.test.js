@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { buildCard, updateTitlesInDOM, sourceTypeBadgeHtml, getEntryDiffState } from '../../frontend/src/notes/ui/cards.tsx';
 import { loadTitles } from '../../frontend/src/notes/commands/cards.ts';
 import { state } from '../../frontend/src/host/state.ts';
@@ -208,5 +208,58 @@ describe('getEntryDiffState 三态收敛与 DiffDot 渲染', () => {
   it('无 layers / 空条目数据时 getEntryDiffState 返回 null 不抛错', () => {
     expect(getEntryDiffState({})).toBeNull();
     expect(getEntryDiffState({ common_path: basePath })).toBeNull();
+  });
+});
+
+describe('buildCard digest tooltip 接入（t7 构建路径：buildCard）', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    api.fetchFileContent.mockReset();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    document.querySelector('.digest-tooltip')?.remove();
+  });
+
+  it('digest 存在：悬停 300ms 后显示纯文本预览；空 digest：无 DOM 反应', async () => {
+    const cp = 'proj/topic/202605181200-tip.md';
+    const entry = {
+      common_path: cp,
+      created_at: '202605181200',
+      layers: ['raw', 'digest'],
+    };
+
+    api.fetchFileContent.mockResolvedValueOnce('# **Plain** digest preview');
+    const card = buildCard('tip1', entry, 'Title');
+    document.getElementById('doc-list').appendChild(card);
+
+    card.dispatchEvent(new MouseEvent('mouseenter'));
+    await vi.advanceTimersByTimeAsync(299);
+    expect(api.fetchFileContent).not.toHaveBeenCalled();
+    expect(document.querySelector('.digest-tooltip')).toBeNull();
+
+    await vi.advanceTimersByTimeAsync(1);
+    expect(api.fetchFileContent).toHaveBeenCalledWith('digest', cp);
+    const tip = document.querySelector('.digest-tooltip');
+    expect(tip).not.toBeNull();
+    expect(tip.textContent).toBe('Plain digest preview');
+
+    card.dispatchEvent(new MouseEvent('mouseleave'));
+    expect(document.querySelector('.digest-tooltip')).toBeNull();
+
+    const cp2 = 'proj/topic/202605181201-tip2.md';
+    api.fetchFileContent.mockResolvedValueOnce('');
+    const card2 = buildCard('tip2', {
+      common_path: cp2,
+      created_at: '202605181201',
+      layers: ['raw'],
+    }, 'Title2');
+    document.getElementById('doc-list').appendChild(card2);
+
+    card2.dispatchEvent(new MouseEvent('mouseenter'));
+    await vi.advanceTimersByTimeAsync(300);
+    expect(api.fetchFileContent).toHaveBeenLastCalledWith('digest', cp2);
+    expect(document.querySelector('.digest-tooltip')).toBeNull();
   });
 });

@@ -4,11 +4,13 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 const apiMocks = vi.hoisted(() => ({
   searchWorkbench: vi.fn(),
   searchKnowledge: vi.fn(),
+  fetchFileContent: vi.fn(),
 }));
 
 vi.mock('../../frontend/src/host/api.ts', () => ({
   searchWorkbench: (...args) => apiMocks.searchWorkbench(...args),
   searchKnowledge: (...args) => apiMocks.searchKnowledge(...args),
+  fetchFileContent: (...args) => apiMocks.fetchFileContent(...args),
 }));
 
 function seedWorkbenchSearchDom() {
@@ -87,7 +89,7 @@ describe('notes search module', () => {
     expect(apiMocks.searchWorkbench).toHaveBeenCalledWith('topic-name', 8);
   });
 
-  it('hit click dispatches cta:open-entry with common_path and data-layer', async () => {
+  it('hit click dispatches cta:open-entry with common_path only (no layer)', async () => {
     apiMocks.searchWorkbench.mockResolvedValue({
       hits: [{
         title: 'Entry',
@@ -116,8 +118,8 @@ describe('notes search module', () => {
     expect(handler).toHaveBeenCalledTimes(1);
     expect(handler.mock.calls[0][0].detail).toEqual({
       common_path: '2024/01/entry.md',
-      layer: 'raw',
     });
+    expect('layer' in handler.mock.calls[0][0].detail).toBe(false);
   });
 
   it('renders no per-field rebuild button (header owns index rebuild)', async () => {
@@ -247,5 +249,52 @@ describe('notes search module', () => {
     await vi.advanceTimersByTimeAsync(300);
 
     expect(apiMocks.searchWorkbench).toHaveBeenCalledTimes(1);
+  });
+
+  it('hit row wires digest tooltip: preview after 300ms; empty digest no DOM reaction', async () => {
+    apiMocks.searchWorkbench.mockResolvedValue({
+      hits: [{ title: 'Tip', common_path: 'inbox/notes/tip.md', topic: 't', body: 'b' }],
+    });
+    apiMocks.fetchFileContent.mockResolvedValueOnce('# Tip **preview**');
+
+    const { initWorkbenchSearch } = await loadModule();
+    initWorkbenchSearch();
+
+    const input = document.getElementById('gs-wb-input');
+    input.value = 'tip';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    await vi.advanceTimersByTimeAsync(300);
+
+    const hit = document.querySelector('.gs-hit-wb');
+    expect(hit).toBeTruthy();
+
+    hit.dispatchEvent(new MouseEvent('mouseenter'));
+    await vi.advanceTimersByTimeAsync(299);
+    expect(apiMocks.fetchFileContent).not.toHaveBeenCalled();
+    expect(document.querySelector('.digest-tooltip')).toBeNull();
+
+    await vi.advanceTimersByTimeAsync(1);
+    expect(apiMocks.fetchFileContent).toHaveBeenCalledWith('digest', 'inbox/notes/tip.md');
+    const tip = document.querySelector('.digest-tooltip');
+    expect(tip).not.toBeNull();
+    expect(tip.textContent).toBe('Tip preview');
+
+    hit.dispatchEvent(new MouseEvent('mouseleave'));
+    expect(document.querySelector('.digest-tooltip')).toBeNull();
+
+    apiMocks.searchWorkbench.mockResolvedValue({
+      hits: [{ title: 'Tip2', common_path: 'inbox/notes/tip2.md', topic: 't', body: 'b' }],
+    });
+    apiMocks.fetchFileContent.mockResolvedValueOnce('');
+    input.value = 'tip2';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    await vi.advanceTimersByTimeAsync(300);
+
+    const hit2 = document.querySelector('.gs-hit-wb');
+    expect(hit2).toBeTruthy();
+    hit2.dispatchEvent(new MouseEvent('mouseenter'));
+    await vi.advanceTimersByTimeAsync(300);
+    expect(apiMocks.fetchFileContent).toHaveBeenLastCalledWith('digest', 'inbox/notes/tip2.md');
+    expect(document.querySelector('.digest-tooltip')).toBeNull();
   });
 });

@@ -66,10 +66,13 @@ describe('T6 source: open/create entries → navigate-to-note (no modal.display 
     expect(mainJs).not.toMatch(/openCreateNoteFromFab/);
   });
 
-  it('workbench-search hit click includes optional layer from data-layer', () => {
-    expect(searchJs).toMatch(/dataset\.layer|data-layer/);
-    expect(searchJs).toMatch(/detail\.layer/);
-    expect(searchJs).toMatch(/cta:open-entry/);
+  it('workbench-search openHit dispatches cta:open-entry without layer (gs-hit-layer label removed)', () => {
+    const openStart = searchJs.indexOf('function openHit');
+    expect(openStart).toBeGreaterThan(-1);
+    const openSlice = searchJs.slice(openStart, openStart + 400);
+    expect(openSlice).toMatch(/cta:open-entry/);
+    expect(openSlice).not.toMatch(/layer/);
+    expect(searchJs).not.toMatch(/gs-hit-layer/);
   });
 
   it('cards / note-assistant still emit cta:open-entry (positioning only)', () => {
@@ -85,7 +88,7 @@ describe('T6 source: open/create entries → navigate-to-note (no modal.display 
   });
 });
 
-describe('T6 behavioral: workbench-search layer + cards emit', () => {
+describe('T6 behavioral: main-layer open (workbench-search hits + card title)', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     document.body.innerHTML = `
@@ -119,7 +122,7 @@ describe('T6 behavioral: workbench-search layer + cards emit', () => {
     document.body.innerHTML = '';
   });
 
-  it('hit click dispatches cta:open-entry with common_path and rendered data-layer', async () => {
+  it('hit click dispatches cta:open-entry with common_path only (no layer passthrough)', async () => {
     apiMocks.searchWorkbench.mockResolvedValue({
       hits: [{
         title: 'Entry',
@@ -144,14 +147,14 @@ describe('T6 behavioral: workbench-search layer + cards emit', () => {
 
     const hit = document.querySelector('.gs-hit-wb');
     expect(hit).toBeTruthy();
-    expect(hit.dataset.layer).toBe('digest');
+    expect(document.querySelector('.gs-hit-layer')).toBeNull();
     hit.click();
 
     expect(handler).toHaveBeenCalledTimes(1);
     expect(handler.mock.calls[0][0].detail).toEqual({
       common_path: 'inbox/notes/entry.md',
-      layer: 'digest',
     });
+    expect('layer' in handler.mock.calls[0][0].detail).toBe(false);
     document.removeEventListener('cta:open-entry', handler);
   });
 
@@ -187,7 +190,7 @@ describe('T6 behavioral: workbench-search layer + cards emit', () => {
     document.removeEventListener('cta:open-entry', handler);
   });
 
-  it('card title / layer badge emit cta:open-entry with optional layer (no openDoc)', () => {
+  it('card title click emits cta:open-entry with main layer raw (layer badges removed)', () => {
     const entry = {
       common_path: 'inbox/notes/202607191200-a.md',
       created_at: '202607191200',
@@ -197,15 +200,28 @@ describe('T6 behavioral: workbench-search layer + cards emit', () => {
     const handler = vi.fn();
     document.addEventListener('cta:open-entry', handler);
 
+    expect(card.querySelector('.badge[data-layer]')).toBeNull();
+
     card.querySelector('.doc-title-btn').click();
     expect(handler).toHaveBeenCalledTimes(1);
-    expect(handler.mock.calls[0][0].detail).toMatchObject({
+    expect(handler.mock.calls[0][0].detail).toEqual({
       common_path: entry.common_path,
       layer: 'raw',
     });
+    document.removeEventListener('cta:open-entry', handler);
+  });
 
-    handler.mockClear();
-    card.querySelector('.badge[data-layer="digest"]').click();
+  it('digest-only entry: title click emits cta:open-entry falling back to layer digest', () => {
+    const entry = {
+      common_path: 'inbox/notes/202607191300-d.md',
+      created_at: '202607191300',
+      layers: ['digest'],
+    };
+    const card = buildCard('id2', entry, 'Title');
+    const handler = vi.fn();
+    document.addEventListener('cta:open-entry', handler);
+
+    card.querySelector('.doc-title-btn').click();
     expect(handler).toHaveBeenCalledTimes(1);
     expect(handler.mock.calls[0][0].detail).toEqual({
       common_path: entry.common_path,

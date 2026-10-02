@@ -14,6 +14,7 @@ vi.mock('../../frontend/src/host/api.ts', () => ({
 
 import {
   NoteCommentDialog,
+  NotesDeleteZone,
   openCommentDialog,
   closeCommentDialog,
 } from '../../frontend/src/notes/ui/comments.tsx';
@@ -83,5 +84,18 @@ describe('NoteCommentDialog', () => {
     document.querySelector('#comment-dialog .comment-tab-btn[data-tab="edit"]').click();
     expect(document.getElementById('comment-editor-box').style.display).toBe('');
     expect(document.getElementById('comment-preview-pane').style.display).toBe('none');
+  });
+
+  it('delete button title carries no raw/digest layer wording', () => {
+    const host = document.createElement('div');
+    host.id = 'delete-zone-host';
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    flushSync(() => root.render(createElement(NotesDeleteZone)));
+
+    const btn = document.getElementById('btn-delete');
+    expect(btn).toBeTruthy();
+    expect(btn.getAttribute('title')).not.toMatch(/raw|digest/i);
+    expect(btn.textContent).toContain('Delete this entry');
   });
 });

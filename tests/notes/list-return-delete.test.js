@@ -275,4 +275,10 @@ describe('T8 behavioral: delete-dialog confirm ok', () => {
     expect(document.getElementById('delete-dialog').classList.contains('open')).toBe(true);
     alertSpy.mockRestore();
   });
+
+  it('delete dialog desc copy carries no raw/digest layer wording', () => {
+    const desc = document.getElementById('delete-dialog-desc');
+    expect(desc).toBeTruthy();
+    expect(desc.textContent).not.toMatch(/raw|digest/i);
+  });
 });
