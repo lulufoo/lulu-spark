@@ -3747,6 +3747,7 @@
   .diff-dot { font-size: 11px; margin-left: 6px; font-weight: 600; }
   .diff-dot.modified { color: #d4a72c; }
   .diff-dot.conflict { color: #cf222e; }
+  .diff-dot.unreachable { color: #8c959f; }
   /* ── Status messages ── */
   #status {
     padding: 20px 24px;

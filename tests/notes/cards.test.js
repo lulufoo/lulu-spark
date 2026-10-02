@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { buildCard, updateTitlesInDOM, sourceTypeBadgeHtml } from '../../frontend/src/notes/ui/cards.tsx';
+import { buildCard, updateTitlesInDOM, sourceTypeBadgeHtml, getEntryDiffState } from '../../frontend/src/notes/ui/cards.tsx';
 import { loadTitles } from '../../frontend/src/notes/commands/cards.ts';
 import { state } from '../../frontend/src/host/state.ts';
 import * as api from '../../frontend/src/host/api.ts';
@@ -141,5 +141,72 @@ describe('updateTitlesInDOM source_type badge', () => {
     const first = card.querySelector('.badges').firstElementChild;
     expect(first.classList.contains('badge-source-dialogue')).toBe(true);
     expect(first.textContent).toBe('Dialogue');
+  });
+});
+
+describe('getEntryDiffState 三态收敛与 DiffDot 渲染', () => {
+  const basePath = 'proj/topic/202605181200-note.md';
+
+  function makeEntry(overrides = {}) {
+    return {
+      common_path: basePath,
+      created_at: '202605181200',
+      layers: ['raw'],
+      ...overrides,
+    };
+  }
+
+  it('raw 层 conflict 时 .doc-meta 渲染 .diff-dot.conflict 且文案为 ● conflict', () => {
+    state.index.diffStatus.set(`raw/${basePath}`, 'conflict');
+    const entry = makeEntry();
+    const card = buildCard('dd1', entry, 'Title');
+    const dot = card.querySelector('.doc-meta .diff-dot');
+    expect(getEntryDiffState(entry)).toBe('conflict');
+    expect(dot).not.toBeNull();
+    expect(dot.classList.contains('conflict')).toBe(true);
+    expect(dot.textContent).toBe('● conflict');
+  });
+
+  it('_unreachable_raw 且无 conflict 时 .doc-meta 渲染 .diff-dot.unreachable 与 ● unreachable 文案', () => {
+    const entry = makeEntry({ _unreachable_raw: true });
+    const card = buildCard('dd2', entry, 'Title');
+    const dot = card.querySelector('.doc-meta .diff-dot');
+    expect(getEntryDiffState(entry)).toBe('unreachable');
+    expect(dot).not.toBeNull();
+    expect(dot.classList.contains('unreachable')).toBe(true);
+    expect(dot.textContent).toBe('● unreachable');
+  });
+
+  it('两层状态并存（raw=conflict、digest=modified）时仅显示最高优先级 conflict 单一状态点', () => {
+    state.index.diffStatus.set(`raw/${basePath}`, 'conflict');
+    state.index.diffStatus.set(`digest/${basePath}`, 'modified');
+    const entry = makeEntry({ layers: ['raw', 'digest'] });
+    const card = buildCard('dd3', entry, 'Title');
+    const dots = card.querySelectorAll('.doc-meta .diff-dot');
+    expect(getEntryDiffState(entry)).toBe('conflict');
+    expect(dots.length).toBe(1);
+    expect(dots[0].classList.contains('conflict')).toBe(true);
+  });
+
+  it('unreachable 优先于 modified：raw 不可达 + digest modified 时仅显示 unreachable', () => {
+    state.index.diffStatus.set(`digest/${basePath}`, 'modified');
+    const entry = makeEntry({ layers: ['raw', 'digest'], _unreachable_raw: true });
+    const card = buildCard('dd4', entry, 'Title');
+    const dots = card.querySelectorAll('.doc-meta .diff-dot');
+    expect(getEntryDiffState(entry)).toBe('unreachable');
+    expect(dots.length).toBe(1);
+    expect(dots[0].classList.contains('unreachable')).toBe(true);
+  });
+
+  it('diffStatus 为空且无 unreachable 标记时 .doc-meta 内无任何 .diff-dot 节点', () => {
+    const card = buildCard('dd5', makeEntry(), 'Title');
+    expect(card.querySelector('.doc-meta')).not.toBeNull();
+    expect(card.querySelector('.doc-meta .diff-dot')).toBeNull();
+    expect(card.querySelectorAll('.doc-meta .diff-dot').length).toBe(0);
+  });
+
+  it('无 layers / 空条目数据时 getEntryDiffState 返回 null 不抛错', () => {
+    expect(getEntryDiffState({})).toBeNull();
+    expect(getEntryDiffState({ common_path: basePath })).toBeNull();
   });
 });
