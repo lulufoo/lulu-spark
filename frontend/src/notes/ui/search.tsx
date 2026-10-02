@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { flushSync } from 'react-dom';
 import { searchWorkbench } from '../../host/api.ts';
+import { attachDigestTooltip } from './digest-tooltip.tsx';
 
 const HIST_KEY = 'gs-history-wb';
 const HIST_MAX = 10;
@@ -81,6 +82,31 @@ function GsStatus({ children, color }: { children: ReactNode; color?: string }) 
   return (
     <div className="gs-status" style={color ? { color } : undefined}>
       {children}
+    </div>
+  );
+}
+
+function GsHitRow({ hit, onOpen }: { hit: WbHit; onOpen: (hit: WbHit) => void }) {
+  const rowRef = useRef<HTMLDivElement | null>(null);
+  const cp = hit.common_path || '';
+
+  useEffect(() => {
+    const el = rowRef.current;
+    if (!el) return;
+    return attachDigestTooltip(el, cp);
+  }, [cp]);
+
+  return (
+    <div
+      ref={rowRef}
+      className="gs-hit gs-hit-wb"
+      data-common-path={cp}
+      data-layer={hit.layer || ''}
+      onClick={() => onOpen(hit)}
+    >
+      <div className="gs-hit-title">{hit.title || hit.common_path || ''}</div>
+      <span className="gs-hit-repo">{hit.topic || ''}</span>
+      <div className="gs-hit-snippet" dangerouslySetInnerHTML={{ __html: getSnippet(hit) }} />
     </div>
   );
 }
@@ -201,25 +227,9 @@ export function WorkbenchSearchFields() {
       >
         {view.kind === 'status' ? <GsStatus color={view.color}>{view.text}</GsStatus> : null}
         {view.kind === 'hits'
-          ? view.hits.map((hit, i) => {
-              const title = hit.title || hit.common_path || '';
-              const layer = hit.layer || '';
-              const topic = hit.topic || '';
-              const cp = hit.common_path || '';
-              return (
-                <div
-                  key={`${cp}-${layer}-${i}`}
-                  className="gs-hit gs-hit-wb"
-                  data-common-path={cp}
-                  data-layer={layer}
-                  onClick={() => openHit(hit)}
-                >
-                  <div className="gs-hit-title">{title}</div>
-                  <span className="gs-hit-repo">{topic}</span>
-                  <div className="gs-hit-snippet" dangerouslySetInnerHTML={{ __html: getSnippet(hit) }} />
-                </div>
-              );
-            })
+          ? view.hits.map((hit, i) => (
+              <GsHitRow key={`${hit.common_path || ''}-${hit.layer || ''}-${i}`} hit={hit} onOpen={openHit} />
+            ))
           : null}
         {view.kind === 'history' ? (
           <div className="gs-hist-list">

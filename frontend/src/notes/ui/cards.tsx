@@ -1,7 +1,9 @@
+import { useEffect, useRef } from 'react';
 import { notifyState, state } from '../state/host.ts';
 import { LAYERS } from '../../host/constants.ts';
 import { slugToTitle, filenameFromPath, topicFromPath, timeFromTs } from '../../shared/utils.ts';
 import { openMoveProjectDialog } from './move-project-dialog.tsx';
+import { attachDigestTooltip } from './digest-tooltip.tsx';
 import { renderToHtml } from '../../island.ts';
 import { cycleImportance, loadTitles, toggleDone } from '../commands/cards.ts';
 import type { NoteEntry, NoteTag } from '../state/types.ts';
@@ -252,6 +254,7 @@ export function buildCard(id: string, entry: NoteEntry, title?: string | null) {
   if (entry.importance) card.classList.add(`importance-${entry.importance}`);
   if (entry.common_path.split('/')[0] === 'inbox') card.classList.add('inbox-pending');
   bindCardActions(card, entry);
+  attachDigestTooltip(card, entry.common_path);
   return card;
 }
 
@@ -273,6 +276,14 @@ export function DocCard({
   entry: NoteEntry;
   title: string | null;
 }) {
+  const cardRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const el = cardRef.current;
+    if (!el) return;
+    return attachDigestTooltip(el, entry.common_path);
+  }, [entry.common_path]);
+
   entry._id = id;
   const topic = catalogTopicLabel(entry.common_path);
   const time = timeFromTs(entry.created_at || '');
@@ -315,7 +326,7 @@ export function DocCard({
   }
 
   return (
-    <div className={className} data-id={id} onClick={onClick}>
+    <div ref={cardRef} className={className} data-id={id} onClick={onClick}>
       <CardInner entry={entry} displayTitle={title} topic={topic} topicDesc={topicDesc} time={time} />
     </div>
   );
