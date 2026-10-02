@@ -6,11 +6,6 @@ import { searchWorkbench } from '../../host/api.ts';
 const HIST_KEY = 'gs-history-wb';
 const HIST_MAX = 10;
 
-const LAYER_LABEL: Record<string, string> = {
-  raw: 'Original',
-  digest: 'Summary',
-};
-
 type WbHit = {
   title?: string;
   common_path?: string;
@@ -170,9 +165,7 @@ export function WorkbenchSearchFields() {
   function openHit(hit: WbHit) {
     const cp = hit.common_path;
     if (cp) {
-      const detail: { common_path: string; layer?: string } = { common_path: cp };
-      if (hit.layer) detail.layer = hit.layer;
-      document.dispatchEvent(new CustomEvent('cta:open-entry', { detail }));
+      document.dispatchEvent(new CustomEvent('cta:open-entry', { detail: { common_path: cp } }));
     }
     addHistory(query);
     close();
@@ -222,7 +215,6 @@ export function WorkbenchSearchFields() {
                   onClick={() => openHit(hit)}
                 >
                   <div className="gs-hit-title">{title}</div>
-                  <span className={`gs-hit-layer gs-layer-${layer}`}>{LAYER_LABEL[layer] || layer}</span>
                   <span className="gs-hit-repo">{topic}</span>
                   <div className="gs-hit-snippet" dangerouslySetInnerHTML={{ __html: getSnippet(hit) }} />
                 </div>

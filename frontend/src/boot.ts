@@ -261,9 +261,10 @@ document.addEventListener('cta:open-entry', (event) => {
     : (state.ui?.activeDate || '');
   if (!date) return;
   selectDate(date);
-  // Optional layer only when entry synthesizes one; consumer defaults when absent.
+  // Main-layer resolution pinned here: explicit detail.layer (deep-link compat)
+  // wins; otherwise resolve from the index entry (raw first, digest-only falls back).
   const params: { date: string; note: string; layer?: string } = { date, note: entry.common_path };
-  if (detail.layer) params.layer = detail.layer;
+  params.layer = detail.layer || (LAYERS.find((l) => entry.layers?.includes(l)) ?? 'raw');
   navigateToNote(params);
 });
 
