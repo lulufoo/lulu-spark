@@ -90,13 +90,6 @@ export function getEntryDiffState(entry: NoteEntry): 'conflict' | 'unreachable' 
   return result;
 }
 
-export function getLayerBadgeClass(layer: string, entry: NoteEntry): string {
-  const s = state.index.diffStatus.get(`${layer}/${entry.common_path}`);
-  if (s === 'conflict') return 'badge-conflict';
-  if (s === 'modified') return 'badge-diff';
-  return 'badge-layer';
-}
-
 const SOURCE_TYPE_LABELS: Record<string, string> = {
   dialogue: 'Dialogue',
   summary: 'Summary',
@@ -116,37 +109,6 @@ export function sourceTypeBadgeHtml(sourceType?: string): string {
   const label = sourceType ? SOURCE_TYPE_LABELS[sourceType] : undefined;
   if (!label) return '';
   return renderToHtml(<SourceTypeBadge sourceType={sourceType} />);
-}
-
-function LayerBadges({
-  entry,
-  includeCommentCounts = true,
-}: {
-  entry: NoteEntry;
-  includeCommentCounts?: boolean;
-}) {
-  return (
-    <>
-      {LAYERS.filter((layer) => entry.layers?.includes(layer)).map((layer) => {
-        const cc = includeCommentCounts ? entry._comment_counts?.[layer] : undefined;
-        const ccNode = cc ? <span className="badge-comment-dot">{cc}</span> : null;
-        if (isUnreachable(entry, layer)) {
-          return (
-            <span key={layer} className="badge badge-unreachable" title="File unreachable">
-              {layer}
-              {ccNode}
-            </span>
-          );
-        }
-        return (
-          <button key={layer} className={`badge ${getLayerBadgeClass(layer, entry)}`} data-layer={layer}>
-            {layer}
-            {ccNode}
-          </button>
-        );
-      })}
-    </>
-  );
 }
 
 function LinksBadge({ links }: { links?: unknown[] }) {
@@ -240,7 +202,6 @@ function CardInner({
       </div>
       <div className="badges">
         <SourceTypeBadge sourceType={entry.source_type} />
-        <LayerBadges entry={entry} />
         <TagBadges tags={entry.tags} />
         <LinksBadge links={entry.links} />
         <ImportanceBadge importance={entry.importance} />
@@ -249,18 +210,6 @@ function CardInner({
       </div>
     </>
   );
-}
-
-export function attachBadgeListeners(card: Element, entry: NoteEntry) {
-  card.querySelectorAll('.badge[data-layer]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      document.dispatchEvent(
-        new CustomEvent('cta:open-entry', {
-          detail: { common_path: entry.common_path, layer: (btn as HTMLElement).dataset.layer },
-        }),
-      );
-    });
-  });
 }
 
 function bindCardActions(card: HTMLElement, entry: NoteEntry) {
@@ -272,7 +221,6 @@ function bindCardActions(card: HTMLElement, entry: NoteEntry) {
       }),
     );
   });
-  attachBadgeListeners(card, entry);
   attachTagBadgeListeners(card);
   card.querySelector('[data-action="toggle-done"]')?.addEventListener('click', () => toggleDone(entry));
   card.querySelector('[data-action="cycle-importance"]')?.addEventListener('click', () => cycleImportance(entry));
@@ -307,8 +255,8 @@ export function buildCard(id: string, entry: NoteEntry, title?: string | null) {
   return card;
 }
 
-function openEntry(entry: NoteEntry, layer?: string) {
-  const firstLayer = layer || LAYERS.find((l) => entry.layers?.includes(l)) || 'raw';
+function openEntry(entry: NoteEntry) {
+  const firstLayer = LAYERS.find((l) => entry.layers?.includes(l)) || 'raw';
   document.dispatchEvent(
     new CustomEvent('cta:open-entry', {
       detail: { common_path: entry.common_path, layer: firstLayer },
@@ -341,16 +289,12 @@ export function DocCard({
 
   function onClick(e: { target: EventTarget | null; stopPropagation: () => void }) {
     const t = (e.target as HTMLElement | null)?.closest?.(
-      '[data-tag-key], [data-layer], [data-action], .doc-title-btn',
+      '[data-tag-key], [data-action], .doc-title-btn',
     ) as HTMLElement | null;
     if (!t) return;
     if (t.dataset.tagKey) {
       e.stopPropagation();
       document.dispatchEvent(new CustomEvent('cta:filter-tag', { detail: { key: t.dataset.tagKey } }));
-      return;
-    }
-    if (t.dataset.layer) {
-      openEntry(entry, t.dataset.layer);
       return;
     }
     if (t.dataset.action === 'toggle-done') {
@@ -445,7 +389,6 @@ export function updateTitlesInDOM(date: string) {
       badgesEl.innerHTML = renderToHtml(
         <>
           <SourceTypeBadge sourceType={entry.source_type} />
-          <LayerBadges entry={entry} />
           <TagBadges tags={entry.tags} />
           <LinksBadge links={entry.links} />
           <ImportanceBadge importance={entry.importance} />
@@ -453,7 +396,6 @@ export function updateTitlesInDOM(date: string) {
           <MoveBadge />
         </>,
       );
-      attachBadgeListeners(card, entry);
       attachTagBadgeListeners(card);
       card.classList.toggle('done', !!entry.done);
       card.classList.remove('importance-high', 'importance-medium', 'importance-low');
@@ -483,11 +425,6 @@ export function updateDiffInDOM() {
           <DiffDot diffState={diffState} />
         </>,
       );
-    }
-    const badgesEl = card.querySelector('.badges');
-    if (badgesEl) {
-      badgesEl.innerHTML = renderToHtml(<LayerBadges entry={entry} includeCommentCounts={false} />);
-      attachBadgeListeners(card, entry);
     }
   }
 }
