@@ -576,7 +576,7 @@ export function NotesDeleteZone() {
       <button
         id="btn-delete"
         type="button"
-        title="Deletes all linked files (raw / digest)"
+        title="Deletes all linked files"
         onClick={() => {
           void import('./delete-dialog.tsx').then(({ openDeleteDialog }) => openDeleteDialog());
         }}
