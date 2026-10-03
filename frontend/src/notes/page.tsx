@@ -6,6 +6,7 @@ import { KnowledgeSearchHost } from '../knowledge/ui/knowledge-search.tsx';
 import { getGithubUserUrl, notesFileRelPath, workbenchGithubBlobBase } from '../host/constants.ts';
 import { useHostState } from './state/host.ts';
 import { getHomeEntryShell } from '../home-entry-shell/access.ts';
+import { OverlayDismissButton } from '../shared/overlay-dismiss-button.tsx';
 import { formatDate } from '../shared/utils.ts';
 import { NotesCommentFloatNav, NotesCommentsBar, NotesDeleteZone, openCommentDialog } from './ui/comments.tsx';
 import { NotesDocList } from './ui/cards.tsx';
@@ -353,9 +354,7 @@ function NotesOutletChrome({ routeParams }: { routeParams: Record<string, string
           >
             Cancel
           </button>
-          <button id="md-close" type="button" className="md-header-btn viewer-close" onClick={() => void closeModal()}>
-            ✕ Close
-          </button>
+          <OverlayDismissButton id="md-close" title="Close" onClick={() => void closeModal()} />
         </div>
         <NotesLinksBar />
         <NotesTagsBar />

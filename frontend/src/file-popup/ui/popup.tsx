@@ -1,6 +1,7 @@
 import { useLayoutEffect, useState, useSyncExternalStore, type MouseEvent } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { flushSync } from 'react-dom';
+import { OverlayDismissButton } from '../../shared/overlay-dismiss-button.tsx';
 import {
   cancelFilePopupEdit,
   closeFilePopup,
@@ -114,9 +115,7 @@ export function FilePopup() {
             >
               {copyLabel}
             </button>
-            <button type="button" className="md-header-btn" disabled={view.saving} onClick={() => closeFilePopup()}>
-              Close
-            </button>
+            <OverlayDismissButton disabled={view.saving} onClick={() => closeFilePopup()} />
           </div>
         </div>
         {view.error ? (

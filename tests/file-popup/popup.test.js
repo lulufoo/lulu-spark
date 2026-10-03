@@ -1,13 +1,25 @@
 // @vitest-environment jsdom
+import { readFileSync } from 'node:fs';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { FilePopup } from '../../frontend/src/file-popup/ui/popup.tsx';
 import { emptyFilePopupView, patchView, viewStore } from '../../frontend/src/file-popup/state/store.ts';
+import { repoRoot } from '../helpers/read-frontend-js.js';
 
 vi.mock('../../frontend/src/host/api.ts', () => ({
   fetchDocHighlights: vi.fn(async () => ({ highlights: [] })),
 }));
+
+const GLYPH = '✕';
+
+function visibleCopy(el) {
+  return String(el?.textContent ?? '');
+}
+
+function readRel(rel) {
+  return readFileSync(`${repoRoot}/${rel}`, 'utf8');
+}
 
 describe('FilePopup chrome', () => {
   let container;
@@ -42,7 +54,10 @@ describe('FilePopup chrome', () => {
     });
   }
 
-  it('shows Edit whenever a path is open', () => {
+  it('shows Edit and Copy with the shared dismiss instead of a Close label', () => {
+    const src = readRel('frontend/src/file-popup/ui/popup.tsx');
+    expect(src).toMatch(/<OverlayDismissButton[\s\S]*?closeFilePopup/);
+
     renderOpen({
       path: '/Users/me/knowledge/demo/doc.md',
       title: 'Knowledge doc',
@@ -52,7 +67,12 @@ describe('FilePopup chrome', () => {
     const labels = [...container.querySelectorAll('button')].map((b) => b.textContent.trim());
     expect(labels).toContain('Edit');
     expect(labels).toContain('Copy');
-    expect(labels).toContain('Close');
+    expect(labels).not.toContain('Close');
+
+    const dismiss = container.querySelector('.overlay-dismiss-button');
+    expect(dismiss).not.toBeNull();
+    expect(visibleCopy(dismiss).trim()).toBe(GLYPH);
+    expect(visibleCopy(dismiss)).not.toContain('Close');
   });
 
   it('Copy writes the open path', async () => {
@@ -91,5 +111,34 @@ describe('FilePopup chrome', () => {
     expect(dialog.querySelector('#file-popup-edit-area')?.classList.contains('viewer-edit-area')).toBe(
       true,
     );
+  });
+
+  it('keeps File popup close on the shared dismiss', () => {
+    renderOpen();
+    expect(viewStore.getSnapshot().open).toBe(true);
+    act(() => {
+      container.querySelector('.overlay-dismiss-button').click();
+    });
+    expect(viewStore.getSnapshot().open).toBe(false);
+  });
+
+  it('disables the shared File popup dismiss while saving and does not close', () => {
+    renderOpen({ saving: true });
+    const dismiss = container.querySelector('.overlay-dismiss-button');
+    expect(dismiss).not.toBeNull();
+    expect(dismiss.disabled).toBe(true);
+    act(() => {
+      dismiss.click();
+    });
+    expect(viewStore.getSnapshot().open).toBe(true);
+  });
+
+  it('keeps File popup close in commands and not inside the shared control', () => {
+    const popupSrc = readRel('frontend/src/file-popup/ui/popup.tsx');
+    const commandSrc = readRel('frontend/src/file-popup/commands/popup.ts');
+    const sharedSrc = readRel('frontend/src/shared/overlay-dismiss-button.tsx');
+    expect(commandSrc).toMatch(/export function closeFilePopup/);
+    expect(popupSrc).toMatch(/closeFilePopup/);
+    expect(sharedSrc).not.toMatch(/closeFilePopup/);
   });
 });
