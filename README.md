@@ -1,6 +1,6 @@
 # lulu-workbench
 
-个人 AI 工作台。包含对话知识归档库（DDM 流程）与个人 AI skill 集合。
+Lulu Spark 桌面端。个人知识库，包含对话知识归档库（DDM 流程）与个人 AI skill 集合。仓库目录名仍是 `lulu-workbench`。
 
 ## 双仓库 Setup
 

@@ -9,7 +9,7 @@ flowchart TB
   subgraph UP["Upstream"]
     IDE[Cursor / Claude / Copilot]
     SKILL[SKILL]
-    AND[Workbench Android]
+    AND[Lulu Spark Android]
     CHROME[Chrome extension]
   end
 
@@ -48,7 +48,7 @@ flowchart TB
     IDX[index rebuild]
   end
 
-  INTMCP[Workbench internal MCP]
+  INTMCP[Lulu Spark internal MCP]
 
   IDE --> SKILL
   SKILL -->|127.0.0.1:9876 /mcp/cursor_ide| MCP
@@ -77,9 +77,9 @@ flowchart TB
 | Layer              | Sentence                                                                                                                                                                  |
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **L-up-ide**       | Cursor / Claude / Copilot use Skills; Skills are local MCP clients that enter MCP Host directly through loopback, never through L0.                                        |
-| **L-up-android**   | Workbench Android is an upstream app; it enters only through named Gateway paths.                                                                                         |
+| **L-up-android**   | Lulu Spark Android is an upstream app; it enters only through named Gateway paths.                                                                                         |
 | **L-up-chrome**    | Chrome extension is an upstream local client; it enters only through loopback Gateway path `https://localhost:7654/read-later`.                                           |
-| **L-internal-mcp** | Workbench-internal MCP calls use `127.0.0.1:9876/mcp/workbench` only; they are not upstream and do not use the Gateway.                                                   |
+| **L-internal-mcp** | App-internal MCP calls use `127.0.0.1:9876/mcp/workbench` only; they are not upstream and do not use the Gateway. The path name `workbench` is the slot, not the brand.                                                   |
 | **L0**             | The Gateway does TLS and named-path forwarding only; one port `7654`. It always binds `0.0.0.0:7654`.                                                                     |
 | **L0 paths**       | `/mcp/mobile` and `/health` forward only to MCP Host; `/bind/complete` and loopback-only `/read-later` forward only to Main Host.                                        |
 | **L1-mcp**         | MCP Host is the AI entry. It translates protocol, authenticates, then enters L4. It must not call Main Host or Tauri commands.                                                              |
@@ -99,8 +99,8 @@ Cross-cutting (not a layer): config and secrets flow downward only. Host process
 
 ## Bans
 
-1. Workbench Android must not skip L0. Skills must not enter L0.
-2. `:9876` and `:8765` are loopback. Only Workbench-internal, Skills (MCP Host `:9876` only), and the Gateway may call them.
+1. Lulu Spark Android must not skip L0. Skills must not enter L0.
+2. `:9876` and `:8765` are loopback. Only app-internal MCP, Skills (MCP Host `:9876` only), and the Gateway may call them.
 3. Skills call only `127.0.0.1:9876/mcp/cursor_ide`. Android must not call loopback MCP Host or Main Host directly.
 4. MCP Host and Main Host must not call each other; both enter L4.
 5. MCP Host and Main Host must not enter L4 through Tauri commands.

@@ -139,7 +139,7 @@ describe('badgeFeedbackForResult', () => {
       })
     ).toEqual({
       badgeText: '!',
-      title: '请先启动 Workbench',
+      title: '请先启动 Lulu Spark',
       badgeColor: '#ef4444',
     });
   });

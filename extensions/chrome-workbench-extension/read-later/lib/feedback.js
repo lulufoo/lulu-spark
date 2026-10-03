@@ -10,7 +10,7 @@ export function badgeFeedbackForResult(result) {
   if (result.status === 0) {
     return {
       badgeText: '!',
-      title: '请先启动 Workbench',
+      title: '请先启动 Lulu Spark',
       badgeColor: BADGE_RED,
     };
   }

@@ -1,14 +1,14 @@
-# LuLu Workbench 流程指南
+# Lulu Spark 流程指南
 
 > 仓库：`https://github.com/lulufoo/lulu-workbench`（本地：`lulu-workbench`）
-> 读者：AI（作为执行 instruction）+ LuLu（作为操作手册）
+> 读者：AI（作为执行 instruction）+ Lulu（作为操作手册）
 > 定位：框架层文档。描述系统本质、层次关系和核心流程。实现细节见 `refactor-*/`、`skills/` 及代码注释。
 
 ---
 
 ## 一、定位
 
-LuLu Workbench 是**个人知识处理管道的中枢**，负责三件事：
+Lulu Spark 是**个人知识处理管道的中枢**，负责三件事：
 
 1. 接收各类信息输入，加工为结构化条目（Entry）
 2. 在工作台中进行二次思考、整理笔记

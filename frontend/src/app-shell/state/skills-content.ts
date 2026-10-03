@@ -53,7 +53,7 @@ export const workbenchSkillsContent = {
         {
           cmd: 'note-task',
           name: 'Notes',
-          desc: 'Create and read Workbench notes through MCP.',
+          desc: 'Create and read Lulu Spark notes through MCP.',
         },
       ],
     },

@@ -212,14 +212,14 @@ export function SettingsDialogChrome() {
                   placeholder="https://github.com/lulufoo"
                 />
                 <span id="settings-github-user-hint" className="settings-field-hint">
-                  Inferred from the Workbench directory origin when possible; used for Viewer remote links.
+                  Inferred from the data directory origin when possible; used for Viewer remote links.
                 </span>
               </div>
               <div className="settings-field">
                 <label htmlFor="settings-github-token">GitHub token (sync key)</label>
                 <input id="settings-github-token" type="password" autoComplete="off" />
                 <span id="settings-token-hint" className="settings-field-hint">
-                  Used for Workbench and Knowledge GitHub sync.
+                  Used for data-store and Knowledge GitHub sync.
                 </span>
               </div>
               <div id="settings-result-github" className="settings-result" />

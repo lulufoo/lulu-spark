@@ -21,7 +21,7 @@ export function WorkbenchSettingsPanel() {
             aria-label="Directory"
           />
           <span className="settings-field-hint">
-            Local Workbench data store (notes, todos, Knowledge registry). If it is a git repo, GitHub
+            Local data store (notes, todos, Knowledge registry). If it is a git repo, GitHub
             profile is inferred from origin on save (see Sync).
           </span>
         </div>

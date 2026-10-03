@@ -149,7 +149,7 @@ describe('Workbench GitHub connection', () => {
       /isGithubAccountConfigured[\s\S]*?savedSnapshot\.hasGithubToken[\s\S]*?savedSnapshot\.githubUserUrl/,
     );
     expect(settingsDialogJs).toMatch(/function syncWorkbenchConnectionAccess\(/);
-    expect(settingsDialogJs).toMatch(/Set a Sync token first to bind a Workbench repository/);
+    expect(settingsDialogJs).toMatch(/Set a Sync token first to bind a data-store repository/);
     expect(indexHtml).toMatch(
       /<nav id="settings-nav">[\s\S]*data-panel="workbench"[\s\S]*data-panel="notes"[\s\S]*data-panel="knowledge"[\s\S]*data-panel="llm"[\s\S]*data-panel="github">Sync/,
     );

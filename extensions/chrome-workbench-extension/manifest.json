@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Workbench",
+  "name": "Lulu Spark",
   "version": "1.2.0",
   "description": "Save the current tab to Read Later. On X Home and reply dialog, translate Chinese to English in place.",
   "permissions": ["activeTab"],
@@ -10,7 +10,7 @@
     "type": "module"
   },
   "action": {
-    "default_title": "Save to Workbench Read Later",
+    "default_title": "Save to Lulu Spark Read Later",
     "default_icon": {
       "16": "icons/icon16.png",
       "48": "icons/icon48.png",

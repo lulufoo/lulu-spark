@@ -1,9 +1,9 @@
 import { createModuleStore } from '../../../shared/module-store.ts';
 
 export const GITHUB_USER_HINT_DEFAULT =
-  'Inferred from the Workbench directory origin when possible; used for Viewer remote links.';
+  'Inferred from the data directory origin when possible; used for Viewer remote links.';
 export const WORKBENCH_CONNECT_NEEDS_ACCOUNT =
-  'Set a Sync token first to bind a Workbench repository.';
+  'Set a Sync token first to bind a data-store repository.';
 export const DEFAULT_ENGINE_CATEGORY = 'host';
 
 export const engineKeyHints = {

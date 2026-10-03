@@ -209,7 +209,7 @@ export function HomePage({
   return (
     <div className="home-chat">
       <aside ref={sidebarRef} className="home-chat-sidebar">
-        <nav className="home-chat-nav" aria-label="Workbench">
+        <nav className="home-chat-nav" aria-label="Lulu Spark">
           <div className="home-chat-nav-notes">
             <button
               type="button"

@@ -1,4 +1,4 @@
-# Workbench Coding Discipline
+# Lulu Spark Coding Discipline
 
 ## Rules
 

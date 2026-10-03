@@ -245,7 +245,7 @@ function wireSettingsDialog() {
       if (check?.ok === false) {
         setResult(
           'settings-result-workbench',
-          check.error || 'Workbench directory invalid; not saved.',
+          check.error || 'Data directory invalid; not saved.',
           true,
         );
         return;
@@ -254,7 +254,7 @@ function wireSettingsDialog() {
       const e = err as Error;
       setResult(
         'settings-result-workbench',
-        `Workbench directory validation failed: ${e.message || String(e)}`,
+        `Data directory validation failed: ${e.message || String(e)}`,
         true,
       );
       return;
@@ -301,9 +301,9 @@ function wireSettingsDialog() {
         setGithubUserUrl(payload.github_user_url);
       }
       const parts: string[] = [];
-      if (payload.workbench_root) parts.push('Workbench directory');
+      if (payload.workbench_root) parts.push('Data directory');
       if (payload.github_user_url) parts.push('GitHub profile');
-      if (payload.workbench_github_repo_url) parts.push('Workbench GitHub repository');
+      if (payload.workbench_github_repo_url) parts.push('Data-store GitHub repository');
       let msg = `Saved: ${parts.join(', ')}.`;
       if (messages.length) msg += ` ${messages.join('；')}`;
       setResult('settings-result-workbench', msg);
