@@ -8,7 +8,7 @@
 
 | Skill | 指令 | 说明 |
 |-------|------|------|
-| 安装 / 配置 | `lulu-workbench-skills` | 见 [SKILL.md](SKILL.md) |
+| 安装 / 配置 | `lulu-spark-skills` | 见 [SKILL.md](SKILL.md) |
 | 过程回顾 | `dialogue-summary` | [dialogue-summary/](dialogue-summary/) — 骨架 + 核心加深 + `〔User〕` 定调 → 归档（过程回顾；已定稿文档落盘用 `note-task`） |
 | 原文归档 | `dialogue-archive` | [dialogue-archive/](dialogue-archive/) — 节点切片后 **note-task** 录入；`local-md` 仅落 `.cache` |
 | 完整对话整理 | `theme-line` | [theme-line/](theme-line/) — 采集字幕/已有稿为完整对话后 **note-task** |

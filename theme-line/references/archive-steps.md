@@ -2,7 +2,7 @@
 
 > 组完 **主文件** 后加载 note-task，走 Create。
 >
-> `$SKILL_DIR` = `lulu-workbench-skills` install root.
+> `$SKILL_DIR` = `lulu-spark-skills` install root.
 
 After Phase 2 Compose, execute these steps.
 

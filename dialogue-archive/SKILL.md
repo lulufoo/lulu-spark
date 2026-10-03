@@ -25,7 +25,7 @@ MCP / `source_path`: [`references/archive.md`](references/archive.md).
 
 ## Script Macros
 
-`$SKILL_DIR` = `lulu-workbench-skills` install root (Cursor: `~/.cursor/skills/lulu-workbench-skills`).  
+`$SKILL_DIR` = `lulu-spark-skills` install root (Cursor: `~/.cursor/skills/lulu-spark-skills`).  
 `$WORKSPACE` = active repo root (`--out` under `{workspace}/.cache/…`).
 
 | Macro | Command |

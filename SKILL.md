@@ -1,11 +1,11 @@
 ---
-name: lulu-workbench-skills
+name: lulu-spark-skills
 description: >-
   Lulu Spark 归档技能包安装。克隆到平台 skills 目录（Cursor / Copilot / Claude / Codex）；归档经 Lulu Spark App MCP 落盘。
   Use when: 安装 Lulu Spark skills、安装 workbench skills、dialogue-summary dialogue-archive theme-line theme-transcribe note-task
 ---
 
-# lulu-workbench-skills — 安装
+# lulu-spark-skills — 安装
 
 ## Platform Context
 
@@ -13,7 +13,7 @@ description: >-
 
 | | Cursor | Copilot | Claude | Codex |
 |---|---|---|---|---|
-| `$SKILL_DIR` | `~/.cursor/skills/lulu-workbench-skills` | `~/.copilot/skills/lulu-workbench-skills` | `~/.claude/skills/lulu-workbench-skills` | `~/.agents/skills/lulu-workbench-skills` |
+| `$SKILL_DIR` | `~/.cursor/skills/lulu-spark-skills` | `~/.copilot/skills/lulu-spark-skills` | `~/.claude/skills/lulu-spark-skills` | `~/.agents/skills/lulu-spark-skills` |
 
 检测信号（优先级）：`CURSOR_AGENT` → Cursor · `COPILOT_AGENT` / `VSCODE_TARGET_SESSION_LOG` → Copilot · `CLAUDE_CODE` → Claude · `CODEX_AGENT` → Codex · 均无 → 向用户确认平台后再替换 `$SKILL_DIR`。
 
