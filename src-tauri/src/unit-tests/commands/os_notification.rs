@@ -6,8 +6,9 @@ use std::sync::Mutex;
 use serde_json::{Map, Value};
 
 use crate::commands::os_notification::{
-    build_clicked_event_payload, show_os_notification_with, user_info_with_scheme,
-    validate_os_notification_scheme, NotificationNative, OS_NOTIFICATION_CLICKED_EVENT,
+    build_clicked_event_payload, map_un_deliver, map_un_flag, show_os_notification_with,
+    user_info_with_scheme, validate_os_notification_scheme, NotificationNative,
+    OS_NOTIFICATION_CLICKED_EVENT,
 };
 use crate::test_support::read_rs_dir;
 
@@ -195,6 +196,50 @@ fn unauthorized_subsequent_call_does_not_deliver() {
     assert_eq!(native.request_calls.load(Ordering::SeqCst), 0);
     assert_eq!(native.check_calls.load(Ordering::SeqCst), 1);
     assert_eq!(native.deliver_calls.load(Ordering::SeqCst), 0);
+}
+
+#[test]
+fn map_un_codes_distinguish_no_bundle() {
+    assert_eq!(map_un_flag(1, "request"), Ok(true));
+    assert_eq!(map_un_flag(0, "request"), Ok(false));
+    assert!(map_un_flag(-2, "request")
+        .unwrap_err()
+        .contains("CFBundleIdentifier"));
+    assert_eq!(
+        map_un_flag(-1, "request").unwrap_err(),
+        "UserNotifications request failed"
+    );
+    assert!(map_un_deliver(1).is_ok());
+    assert!(map_un_deliver(-2)
+        .unwrap_err()
+        .contains("CFBundleIdentifier"));
+    assert_eq!(
+        map_un_deliver(-1).unwrap_err(),
+        "UserNotifications deliver failed"
+    );
+}
+
+#[test]
+fn native_objc_guards_un_when_bundle_identifier_missing() {
+    let objc = source("native/os_notification.m");
+    assert!(objc.contains("return bid.length > 0 ? 0 : -2"));
+    assert_eq!(objc.matches("currentNotificationCenter").count(), 4);
+    assert!(objc.matches("workbench_un_unavailable()").count() >= 4);
+}
+
+#[cfg(target_os = "macos")]
+#[test]
+fn unpackaged_test_binary_skips_un_without_abort() {
+    use std::os::raw::c_char;
+    extern "C" {
+        fn workbench_un_request_authorization() -> i32;
+        fn workbench_un_read_authorization() -> i32;
+        fn workbench_un_set_click_callback(cb: extern "C" fn(*const c_char));
+    }
+    extern "C" fn noop(_: *const c_char) {}
+    unsafe { workbench_un_set_click_callback(noop) };
+    assert_eq!(unsafe { workbench_un_request_authorization() }, -2);
+    assert_eq!(unsafe { workbench_un_read_authorization() }, -2);
 }
 
 #[test]

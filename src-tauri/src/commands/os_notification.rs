@@ -10,6 +10,9 @@ use tauri::{AppHandle, Emitter};
 pub const OS_NOTIFICATION_CLICKED_EVENT: &str = "os-notification:clicked";
 const SCHEME_PREFIX: &str = "workbench://";
 const UNAUTHORIZED: &str = "notification not authorized";
+const UN_NO_BUNDLE: i32 = -2;
+const UN_UNAVAILABLE: &str =
+    "UserNotifications unavailable: process has no CFBundleIdentifier (unpackaged/dev binary)";
 
 static PERMISSION_PROBED: AtomicBool = AtomicBool::new(false);
 static CLICK_APP: Mutex<Option<AppHandle>> = Mutex::new(None);
@@ -70,6 +73,23 @@ pub fn show_os_notification_with(
     native.deliver_notification(title, body, &user_info_with_scheme(scheme))
 }
 
+pub fn map_un_flag(code: i32, action: &str) -> Result<bool, String> {
+    match code {
+        1 => Ok(true),
+        0 => Ok(false),
+        UN_NO_BUNDLE => Err(UN_UNAVAILABLE.into()),
+        _ => Err(format!("UserNotifications {action} failed")),
+    }
+}
+
+pub fn map_un_deliver(code: i32) -> Result<(), String> {
+    match code {
+        1 => Ok(()),
+        UN_NO_BUNDLE => Err(UN_UNAVAILABLE.into()),
+        _ => Err("UserNotifications deliver failed".into()),
+    }
+}
+
 fn bind_click_app(app: AppHandle) {
     if let Ok(mut slot) = CLICK_APP.lock() {
         *slot = Some(app);
@@ -126,23 +146,15 @@ mod macos {
         }
     }
 
-    fn map_flag(code: i32, action: &str) -> Result<bool, String> {
-        match code {
-            1 => Ok(true),
-            0 => Ok(false),
-            _ => Err(format!("UserNotifications {action} failed")),
-        }
-    }
-
     pub struct MacOsNotificationNative;
 
     impl NotificationNative for MacOsNotificationNative {
         fn request_authorization(&self) -> Result<bool, String> {
-            map_flag(unsafe { workbench_un_request_authorization() }, "request")
+            super::map_un_flag(unsafe { workbench_un_request_authorization() }, "request")
         }
 
         fn read_authorization_status(&self) -> Result<bool, String> {
-            map_flag(unsafe { workbench_un_read_authorization() }, "status")
+            super::map_un_flag(unsafe { workbench_un_read_authorization() }, "status")
         }
 
         fn deliver_notification(
@@ -158,10 +170,9 @@ mod macos {
             let title = CString::new(title).map_err(|e| e.to_string())?;
             let body = CString::new(body).map_err(|e| e.to_string())?;
             let scheme = CString::new(scheme).map_err(|e| e.to_string())?;
-            match unsafe { workbench_un_deliver(title.as_ptr(), body.as_ptr(), scheme.as_ptr()) } {
-                1 => Ok(()),
-                _ => Err("UserNotifications deliver failed".into()),
-            }
+            super::map_un_deliver(unsafe {
+                workbench_un_deliver(title.as_ptr(), body.as_ptr(), scheme.as_ptr())
+            })
         }
     }
 

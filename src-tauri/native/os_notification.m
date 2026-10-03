@@ -41,7 +41,18 @@ static int wait_off_main(int (^work)(void)) {
   return result;
 }
 
+// Unpackaged `tauri dev` / raw Mach-O has no CFBundleIdentifier.
+// Calling the UN center API then asserts and abort()s.
+static int workbench_un_unavailable(void) {
+  NSString *bid = [[NSBundle mainBundle] bundleIdentifier];
+  return bid.length > 0 ? 0 : -2;
+}
+
 int workbench_un_request_authorization(void) {
+  int unavailable = workbench_un_unavailable();
+  if (unavailable) {
+    return unavailable;
+  }
   return wait_off_main(^{
     dispatch_semaphore_t sem = dispatch_semaphore_create(0);
     __block int granted = 0;
@@ -58,6 +69,10 @@ int workbench_un_request_authorization(void) {
 }
 
 int workbench_un_read_authorization(void) {
+  int unavailable = workbench_un_unavailable();
+  if (unavailable) {
+    return unavailable;
+  }
   return wait_off_main(^{
     dispatch_semaphore_t sem = dispatch_semaphore_create(0);
     __block int granted = 0;
@@ -76,6 +91,10 @@ int workbench_un_read_authorization(void) {
 }
 
 int workbench_un_deliver(const char *title, const char *body, const char *scheme) {
+  int unavailable = workbench_un_unavailable();
+  if (unavailable) {
+    return unavailable;
+  }
   if (!title || !body || !scheme) {
     return -1;
   }
@@ -110,6 +129,9 @@ int workbench_un_deliver(const char *title, const char *body, const char *scheme
 
 void workbench_un_set_click_callback(WorkbenchClickCb cb) {
   g_click_cb = cb;
+  if (workbench_un_unavailable()) {
+    return;
+  }
   static dispatch_once_t once;
   dispatch_once(&once, ^{
     g_delegate = [WorkbenchUNDelegate new];
