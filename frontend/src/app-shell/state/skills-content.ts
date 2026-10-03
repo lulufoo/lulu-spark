@@ -4,7 +4,7 @@ export const workbenchSkillsContent = {
   groups: [
     {
       name: 'Dialogue summary',
-      url: 'https://github.com/lulufoo/lulu-workbench-skills/tree/main/dialogue-summary',
+      url: 'https://github.com/lulufoo/lulu-spark-skills/tree/main/dialogue-summary',
       items: [
         {
           cmd: 'dialogue-summary',
@@ -15,7 +15,7 @@ export const workbenchSkillsContent = {
     },
     {
       name: 'Dialogue archive',
-      url: 'https://github.com/lulufoo/lulu-workbench-skills/tree/main/dialogue-archive',
+      url: 'https://github.com/lulufoo/lulu-spark-skills/tree/main/dialogue-archive',
       items: [
         {
           cmd: 'dialogue-archive',
@@ -26,7 +26,7 @@ export const workbenchSkillsContent = {
     },
     {
       name: 'Full conversation',
-      url: 'https://github.com/lulufoo/lulu-workbench-skills/tree/main/theme-line',
+      url: 'https://github.com/lulufoo/lulu-spark-skills/tree/main/theme-line',
       items: [
         {
           cmd: 'theme-line',
@@ -37,7 +37,7 @@ export const workbenchSkillsContent = {
     },
     {
       name: 'Video transcription',
-      url: 'https://github.com/lulufoo/lulu-workbench-skills/tree/main/theme-transcribe',
+      url: 'https://github.com/lulufoo/lulu-spark-skills/tree/main/theme-transcribe',
       items: [
         {
           cmd: 'theme-transcribe',
@@ -48,7 +48,7 @@ export const workbenchSkillsContent = {
     },
     {
       name: 'Notes',
-      url: 'https://github.com/lulufoo/lulu-workbench-skills/tree/main/note-task',
+      url: 'https://github.com/lulufoo/lulu-spark-skills/tree/main/note-task',
       items: [
         {
           cmd: 'note-task',

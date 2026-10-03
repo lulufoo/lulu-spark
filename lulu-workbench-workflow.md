@@ -1,6 +1,6 @@
 # Lulu Spark 流程指南
 
-> 仓库：`https://github.com/lulufoo/lulu-workbench`（本地：`lulu-workbench`）
+> 仓库：`https://github.com/lulufoo/lulu-spark`（本地：`lulu-spark`）
 > 读者：AI（作为执行 instruction）+ Lulu（作为操作手册）
 > 定位：框架层文档。描述系统本质、层次关系和核心流程。实现细节见 `refactor-*/`、`skills/` 及代码注释。
 

@@ -13,16 +13,16 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/lulufoo/lulu-workbench.git"
+    "url": "git+https://github.com/lulufoo/lulu-spark.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "module",
   "bugs": {
-    "url": "https://github.com/lulufoo/lulu-workbench/issues"
+    "url": "https://github.com/lulufoo/lulu-spark/issues"
   },
-  "homepage": "https://github.com/lulufoo/lulu-workbench#readme",
+  "homepage": "https://github.com/lulufoo/lulu-spark#readme",
   "dependencies": {
     "marked": "^18.0.11",
     "react": "^19.1.1",

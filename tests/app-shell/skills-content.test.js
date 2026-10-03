@@ -37,7 +37,7 @@ test('each public child skill has one clickable item with required display field
 
     const item = group.items[0]
     expect(group.url).toContain(
-      `lulu-workbench-skills/tree/main/${item.cmd}`
+      `lulu-spark-skills/tree/main/${item.cmd}`
     )
     expect(item.name).toBe(group.name)
     expect(item.name).not.toMatch(cjk)

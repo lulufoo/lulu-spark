@@ -1,13 +1,13 @@
-# lulu-workbench
+# lulu-spark
 
-Lulu Spark 桌面端。个人知识库，包含对话知识归档库（DDM 流程）与个人 AI skill 集合。仓库目录名仍是 `lulu-workbench`。
+Lulu Spark 桌面端。个人知识库，包含对话知识归档库（DDM 流程）与个人 AI skill 集合。仓库目录是 `lulu-spark`。
 
 ## 双仓库 Setup
 
 程序与语料分属两个 Git 仓库：
 
 1. **Clone 两个仓库**
-   - `git clone https://github.com/lulufoo/lulu-workbench.git`
+   - `git clone https://github.com/lulufoo/lulu-spark.git`
    - `git clone https://github.com/lulufoo/lulu-workbench-knowledge.git`
 2. **配置路径** — 首次启动 App 打开 **设置**，或编辑 `~/.config/lulu-workbench/config.toml`：
    ```toml
