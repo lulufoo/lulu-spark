@@ -24,6 +24,7 @@ import {
 } from './app-shell/routes.ts';
 import type { SettingsConfig } from './app-shell/state/types.ts';
 import type { WorkbenchEnvelope } from './router/scheme.ts';
+import { startOsNotifyClickHub } from './app-shell/commands/os-notify-click.ts';
 import { handleNotesOsNotifyEnvelope } from './notes/commands/os-notify.ts';
 import { handleReadLaterOsNotifyEnvelope } from './read-later/commands/os-notify.ts';
 
@@ -262,6 +263,22 @@ export function startOsNotifyHub() {
 }
 
 startOsNotifyHub();
+
+function startOsNotifyClickHubWhenReady() {
+  const tryStart = () => {
+    const listen = typeof window !== 'undefined' && window.__TAURI__?.event?.listen;
+    if (typeof listen !== 'function') return false;
+    startOsNotifyClickHub();
+    return true;
+  };
+  if (tryStart()) return;
+  let attempts = 0;
+  const timer = setInterval(() => {
+    if (tryStart() || ++attempts >= 40) clearInterval(timer);
+  }, 50);
+}
+
+startOsNotifyClickHubWhenReady();
 
 document.addEventListener('cta:filter-tag', (event) => {
   const detail = (event as CustomEvent<{ key?: string }>).detail;
