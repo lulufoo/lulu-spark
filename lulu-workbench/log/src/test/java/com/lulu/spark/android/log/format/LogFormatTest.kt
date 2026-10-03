@@ -38,7 +38,7 @@ class LogFormatTest {
     @Test
     fun dailyFileNameUsesDatePrefix() {
         val utc = TimeZone.getTimeZone("UTC")
-        assertEquals("1970-01-01-workbench.jsonl", logFileName(0L, utc))
-        assertEquals("2026-08-29-workbench.jsonl", logFileName(1_787_961_600_000L, utc))
+        assertEquals("1970-01-01-spark.jsonl", logFileName(0L, utc))
+        assertEquals("2026-08-29-spark.jsonl", logFileName(1_787_961_600_000L, utc))
     }
 }

@@ -43,7 +43,7 @@ internal fun isoUtc(tsMs: Long): String {
 internal fun logFileName(tsMs: Long, timeZone: TimeZone = TimeZone.getDefault()): String {
     val format = SimpleDateFormat("yyyy-MM-dd", Locale.US)
     format.timeZone = timeZone
-    return format.format(Date(tsMs)) + "-workbench.jsonl"
+    return format.format(Date(tsMs)) + "-spark.jsonl"
 }
 
 private fun escape(value: String): String =

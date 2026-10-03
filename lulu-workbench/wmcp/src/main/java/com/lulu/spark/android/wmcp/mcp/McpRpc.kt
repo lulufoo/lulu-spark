@@ -7,7 +7,7 @@ internal const val MCP_PROTOCOL_VERSION = "2025-03-26"
 internal const val MCP_ACCEPT = "application/json, text/event-stream"
 
 internal fun mcpInitializeBody(id: Int): String =
-    """{"jsonrpc":"2.0","id":$id,"method":"initialize","params":{"protocolVersion":"$MCP_PROTOCOL_VERSION","capabilities":{},"clientInfo":{"name":"workbench-android","version":"0.1.0"}}}"""
+    """{"jsonrpc":"2.0","id":$id,"method":"initialize","params":{"protocolVersion":"$MCP_PROTOCOL_VERSION","capabilities":{},"clientInfo":{"name":"spark-android","version":"0.1.0"}}}"""
 
 internal fun mcpInitializedBody(): String =
     """{"jsonrpc":"2.0","method":"notifications/initialized","params":{}}"""

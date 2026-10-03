@@ -95,4 +95,4 @@ private fun escapeJson(value: String): String =
     value.replace("\\", "\\\\").replace("\"", "\\\"")
 
 private const val NONCE_LEN = 12
-private val SEAL_INFO = "lulu-workbench-bind-v1".encodeToByteArray()
+private val SEAL_INFO = "lulu-spark-bind-v1".encodeToByteArray()
