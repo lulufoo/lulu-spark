@@ -16,7 +16,7 @@ const PUBLIC_CMDS = [
 ]
 
 test('workbench catalog exposes exactly the public child skills', () => {
-  expect(workbenchSkillsContent.title).toBe('✦ Lulu Workbench Skills')
+  expect(workbenchSkillsContent.title).toBe('✦ Lulu Spark Skills')
   expect(workbenchSkillsContent.groups).toHaveLength(PUBLIC_CMDS.length)
 
   const cmds = workbenchSkillsContent.groups.flatMap((group) =>
@@ -66,10 +66,10 @@ test('workbench catalog does not expose legacy or internal skills', () => {
   expect(allText).not.toContain('digest')
 })
 
-test('SKILL dropdown keeps only Lulu Workbench Skills', () => {
+test('SKILL dropdown keeps only Lulu Spark Skills', () => {
   const html = readShellHtml()
   expect(html).toContain('id="btn-skill-workbench"')
-  expect(html).toContain('✦ Lulu Workbench Skills')
+  expect(html).toContain('✦ Lulu Spark Skills')
   expect(html).not.toContain('id="btn-skill-lulu"')
   expect(html).not.toContain('id="btn-skill-software-dev"')
   expect(html).not.toContain('Lulu Learning Skills')

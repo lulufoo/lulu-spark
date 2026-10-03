@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/schema/acl/schemas/capability.schema.json",
   "identifier": "default",
-  "description": "Default capabilities for Lulu Workbench",
+  "description": "Default capabilities for Lulu Spark",
   "windows": ["main"],
   "permissions": [
     "core:default",

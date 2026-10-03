@@ -1,6 +1,6 @@
-/** Lulu Workbench Skills dialog content (see lulu-workbench-skills SKILL.md). */
+/** Lulu Spark Skills dialog content (see lulu-workbench-skills SKILL.md). */
 export const workbenchSkillsContent = {
-  title: '✦ Lulu Workbench Skills',
+  title: '✦ Lulu Spark Skills',
   groups: [
     {
       name: 'Dialogue summary',

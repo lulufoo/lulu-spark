@@ -30,7 +30,7 @@ export function Shell() {
 
       <header>
         <h1>
-          <a id="btn-nav-home-title" href="#/home" className="header-home-link">Lulu Workbench</a>
+          <a id="btn-nav-home-title" href="#/home" className="header-home-link">Lulu Spark</a>
           <a id="btn-nav-home" href="#/home" className="header-nav-back" hidden>← Home</a>
         </h1>
         <WorkbenchSearch />
@@ -80,7 +80,7 @@ export function Shell() {
                 _openSkillsDialog();
               }}
             >
-              ✦ Lulu Workbench Skills
+              ✦ Lulu Spark Skills
             </button>
           </div>
         </div>

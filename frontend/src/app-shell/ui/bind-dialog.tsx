@@ -12,7 +12,7 @@ export function BindDialog() {
         <div id="bind-dialog-header">
           <div id="bind-dialog-heading">
             <span id="bind-dialog-title">📲 Bind device</span>
-            <p id="bind-dialog-lead">Pair this Mac with the Workbench Android app on the same local network.</p>
+            <p id="bind-dialog-lead">Pair this Mac with the Lulu Spark Android app on the same local network.</p>
           </div>
           <OverlayDismissButton id="btn-bind-close" onClick={() => closeBindDialog()} />
         </div>
@@ -31,7 +31,7 @@ export function BindDialog() {
             </div>
             <p id="bind-host" hidden></p>
             <ol id="bind-steps">
-              <li>Open the Workbench Android app.</li>
+              <li>Open the Lulu Spark Android app.</li>
               <li>Scan this code on the same local network.</li>
               <li>Keep this window open until binding succeeds.</li>
             </ol>
