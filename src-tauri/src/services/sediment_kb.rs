@@ -1,4 +1,4 @@
-//! Sediment knowledge-base SSOT (`paths::sediment_kb_*` under `workbench_root`).
+//! Sediment knowledge-base SSOT (`paths::sediment_kb_*` under `spark_root`).
 
 use std::fs;
 use std::sync::Mutex;
@@ -147,7 +147,7 @@ fn default_repos_file() -> ReposFile {
 }
 
 fn ensure_storage_dir() -> Result<(), SedimentKbError> {
-    if let Ok(wb) = paths::workbench_root() {
+    if let Ok(wb) = paths::spark_root() {
         crate::services::knowledge_layout::ensure_knowledge_registry_layout(&wb)
             .map_err(SedimentKbError::Io)?;
     }

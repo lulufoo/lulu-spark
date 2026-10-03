@@ -17,8 +17,8 @@ const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const NOTE_ID = 'abc';
 const NOTE_PATH = 'inbox/x.md';
 const NOTE_DATE = '20260719';
-const NOTES_OPEN = `workbench://notes/open?id=${NOTE_ID}&path=${encodeURIComponent(NOTE_PATH)}`;
-const READ_LATER_LIST = 'workbench://read-later/list';
+const NOTES_OPEN = `spark://notes/open?id=${NOTE_ID}&path=${encodeURIComponent(NOTE_PATH)}`;
+const READ_LATER_LIST = 'spark://read-later/list';
 
 function readRel(rel) {
   return readFileSync(join(repoRoot, rel), 'utf8');
@@ -78,7 +78,7 @@ describe('handleOsNotifyClicked', () => {
     expect(openSpy).toHaveBeenCalledTimes(1);
     expect(openSpy).toHaveBeenCalledWith(NOTES_OPEN);
     expect(parseHash(window.location.hash)).toEqual({
-      name: 'workbench',
+      name: 'spark',
       params: { date: NOTE_DATE, note: NOTE_PATH },
     });
   });
@@ -105,10 +105,10 @@ describe('handleOsNotifyClicked', () => {
 
   it.each([
     'https://notes/open?id=abc&path=inbox/x.md',
-    'workbench://unknown/open?id=abc&path=inbox/x.md',
-    'workbench://notes/open?id=abc',
-    'workbench://notes/open?path=inbox/x.md',
-    'workbench://read-later/open',
+    'spark://unknown/open?id=abc&path=inbox/x.md',
+    'spark://notes/open?id=abc',
+    'spark://notes/open?path=inbox/x.md',
+    'spark://read-later/open',
     'notes/open?id=abc&path=inbox/x.md',
   ])('forwards unrecognized or incomplete %s to L2 which ignores it', async (badScheme) => {
     const openSpy = vi.spyOn(scheme, 'openWorkbenchScheme');
@@ -130,7 +130,7 @@ describe('handleOsNotifyClicked', () => {
     });
     await expect(handleOsNotifyClicked({ scheme: NOTES_OPEN })).resolves.toBe(true);
     expect(parseHash(window.location.hash)).toEqual({
-      name: 'workbench',
+      name: 'spark',
       params: { date: NOTE_DATE, note: NOTE_PATH },
     });
   });
@@ -156,7 +156,7 @@ describe('startOsNotifyClickHub', () => {
     await handler({ payload: { scheme: NOTES_OPEN } });
     expect(openSpy).toHaveBeenCalledWith(NOTES_OPEN);
     expect(parseHash(window.location.hash)).toEqual({
-      name: 'workbench',
+      name: 'spark',
       params: { date: NOTE_DATE, note: NOTE_PATH },
     });
   });
@@ -201,7 +201,7 @@ describe('startOsNotifyClickHub', () => {
     expect(handlers).toHaveLength(1);
     await handlers[0]({ payload: { scheme: NOTES_OPEN } });
     expect(openSpy).toHaveBeenCalledTimes(1);
-    expect(parseHash(window.location.hash).name).toBe('workbench');
+    expect(parseHash(window.location.hash).name).toBe('spark');
   });
 
   it('does not throw or change the UI when Tauri listen is missing', () => {

@@ -71,7 +71,7 @@ function installLocalStorageMock() {
 
 /** Mirrors main.js wrapRouteMount + workbench mount contract under test. */
 async function simulateWorkbenchRouteMount() {
-  applySearchNavChrome('workbench');
+  applySearchNavChrome('spark');
   const { initWorkbenchSearch } = await import('../../frontend/src/notes/ui/search.tsx');
   initWorkbenchSearch();
 }
@@ -91,11 +91,11 @@ describe('main.js workbench route init wiring (source)', () => {
   it('calls initWorkbenchSearch inside wrapRouteMount for workbench route mount', () => {
     const wrapBody = extractFunctionBody(mainJs, 'wrapRouteMount');
     expect(wrapBody).toMatch(/initWorkbenchSearch\s*\(\s*\)/);
-    expect(wrapBody).toMatch(/routeName\s*===\s*['"]workbench['"]/);
+    expect(wrapBody).toMatch(/routeName\s*===\s*['"]spark['"]/);
   });
 
   it('registers workbench handler via wrapRouteMount', () => {
-    expect(mainJs).toMatch(/workbench:\s*wrapRouteMount\s*\(\s*['"]workbench['"]/);
+    expect(mainJs).toMatch(/spark:\s*wrapRouteMount\s*\(\s*['"]spark['"]/);
   });
 });
 
@@ -202,6 +202,9 @@ function compileMountWorkbench(env) {
     'selectDate',
     'openDoc',
     'notifyState',
+    'logNotifyHop',
+    'parseTraceId',
+    'lastNotifyTrace',
   ];
   const brace = fnSource.indexOf('{');
   const body = fnSource.slice(brace + 1, fnSource.lastIndexOf('}'));
@@ -231,6 +234,9 @@ function stubWorkbenchMountEnv(overrides = {}) {
     selectDate,
     openDoc,
     notifyState: vi.fn(),
+    logNotifyHop: vi.fn(),
+    parseTraceId: vi.fn(),
+    lastNotifyTrace: vi.fn(),
     state,
   };
 }
@@ -246,7 +252,7 @@ describe('T2 mountWorkbench three-branch routing', () => {
 
   it('passes route into mountWorkbench (does not discard params)', () => {
     expect(mainJs).toMatch(
-      /workbench:\s*wrapRouteMount\s*\(\s*['"]workbench['"]\s*,\s*(?:\(\s*route\s*\)\s*=>\s*mountWorkbench\s*\(\s*route\s*\)|mountWorkbench)\s*\)/,
+      /spark:\s*wrapRouteMount\s*\(\s*['"]spark['"]\s*,\s*(?:\(\s*route\s*\)\s*=>\s*mountWorkbench\s*\(\s*route\s*\)|mountWorkbench)\s*\)/,
     );
   });
 
@@ -269,7 +275,7 @@ describe('T2 mountWorkbench three-branch routing', () => {
       state: { index: { data: {} } },
     });
     const mount = compileMountWorkbench(env);
-    const hashBefore = '#/workbench?date=20260719&note=missing/path.md';
+    const hashBefore = '#/spark?date=20260719&note=missing/path.md';
     window.location.hash = hashBefore;
 
     mount({ params: { date: '20260719', note: 'missing/path.md' } });

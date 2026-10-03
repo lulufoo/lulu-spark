@@ -4,7 +4,7 @@ description = "P1 read-only Tauri invoke commands"
 commands.allow = [
   "ping",
   "search_knowledge",
-  "search_workbench",
+  "search_spark",
   "get_topics",
   "get_annotations",
   "get_annotation",
@@ -32,7 +32,7 @@ commands.allow = [
   "get_sediment_kb_categories",
   "get_sediment_kb_repos",
   "infer_github_user_url",
-  "check_workbench_root",
+  "check_spark_root",
   "get_tags_registry",
   "get_read_later",
   "get_todo_tasks",

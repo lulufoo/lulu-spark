@@ -196,7 +196,7 @@ pub(super) fn mount_mobile_service(router: Router, cancel: CancellationToken) ->
         StreamableHttpService::new(
             move || {
                 Ok(SlotHandler {
-                    scene_slot: "workbench".to_string(),
+                    scene_slot: "spark".to_string(),
                     channel: "mobile".to_string(),
                 })
             },

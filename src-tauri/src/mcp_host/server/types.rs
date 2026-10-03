@@ -86,7 +86,7 @@ pub struct ToolDescriptor {
     pub name: String,
 }
 
-pub(crate) const REGISTERED_SCENE_SLOTS: &[&str] = &["workbench", "cursor_ide"];
+pub(crate) const REGISTERED_SCENE_SLOTS: &[&str] = &["spark", "cursor_ide"];
 
 pub struct McpRuntimeConfig {
     pub bind_addr: SocketAddr,

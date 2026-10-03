@@ -21,9 +21,9 @@ export async function confirmDeleteDocument() {
   const date = state.ui.activeDate;
   closeDeleteDialog();
   if (date) {
-    window.location.replace(`#/workbench?date=${encodeURIComponent(date)}`);
+    window.location.replace(`#/spark?date=${encodeURIComponent(date)}`);
   } else {
-    window.location.replace('#/workbench');
+    window.location.replace('#/spark');
   }
   document.dispatchEvent(new CustomEvent('cta:reload'));
 }

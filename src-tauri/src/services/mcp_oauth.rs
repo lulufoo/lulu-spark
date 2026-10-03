@@ -16,21 +16,21 @@ use crate::repositories::atomic_json;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Slot {
-    Workbench,
+    Spark,
     CursorIde,
 }
 
 impl Slot {
     pub fn as_str(self) -> &'static str {
         match self {
-            Slot::Workbench => "workbench",
+            Slot::Spark => "spark",
             Slot::CursorIde => "cursor_ide",
         }
     }
 
     pub fn parse(name: &str) -> Result<Self, OAuthError> {
         match name {
-            "workbench" => Ok(Slot::Workbench),
+            "spark" => Ok(Slot::Spark),
             "cursor_ide" => Ok(Slot::CursorIde),
             _ => Err(OAuthError::slot_unknown),
         }
@@ -254,7 +254,7 @@ pub fn token_hint(secret: &str) -> String {
 
 pub fn ticket_view(channel: &str) -> Result<Value, OAuthError> {
     match channel {
-        "workbench" => slot_ticket_view(Slot::Workbench, false),
+        "spark" => slot_ticket_view(Slot::Spark, false),
         "cursor_ide" => slot_ticket_view(Slot::CursorIde, true),
         "mobile" => mobile_ticket_view(),
         _ => Err(OAuthError::slot_unknown),
@@ -296,7 +296,7 @@ fn mobile_ticket_view() -> Result<Value, OAuthError> {
 
 #[cfg_attr(test, allow(dead_code))]
 fn keyring_service() -> &'static str {
-    "lulu-workbench-mcp-oauth"
+    "lulu-spark-mcp-oauth"
 }
 
 #[cfg(test)]

@@ -7,9 +7,9 @@ use serde_json::{json, Value};
 
 use crate::config::paths;
 use crate::config::roots::{
-    github_user_url_string, knowledge_root_string, notes_root_path, workbench_root_path,
+    github_user_url_string, knowledge_root_string, notes_root_path, spark_root_path,
 };
-use crate::config::settings::workbench_github_blob_base;
+use crate::config::settings::spark_github_blob_base;
 use crate::integrations::github::{self, decode_contents_payload};
 use crate::services::keyword_index::{collect_knowledge_text, upsert_document};
 use crate::repositories::annotation_paths::annotation_json_path;
@@ -266,8 +266,8 @@ fn fill_repo_and_artifacts(repo_root: &Path, p: &mut SettleParams) -> Result<(),
     let ts = now.format("%Y%m%d%H%M").to_string();
     let date_str = format!("{}年{}月{}日", now.year(), now.month(), now.day());
 
-    let wb_root = workbench_root_path(repo_root);
-    let github_blob_base = workbench_github_blob_base(&github_user_url_string(repo_root), &wb_root);
+    let wb_root = spark_root_path(repo_root);
+    let github_blob_base = spark_github_blob_base(&github_user_url_string(repo_root), &wb_root);
     let (filename, dst_path, dst_url, full_content) = build_settle_artifacts(
         &github_blob_base,
         &p.common_path,

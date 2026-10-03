@@ -50,7 +50,7 @@ describe('handleReadLaterOsNotifyEnvelope', () => {
     expect(notifySpy).toHaveBeenCalledWith({
       title: 'Read Later',
       body: 'A link was saved',
-      scheme: 'workbench://read-later/list',
+      scheme: 'spark://read-later/list',
     });
   });
 

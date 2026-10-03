@@ -47,7 +47,7 @@ export function ticketChannel() {
 }
 
 export function showTicketPane(channel: string) {
-  for (const id of ['workbench', 'mobile', 'cursor_ide']) {
+  for (const id of ['spark', 'mobile', 'cursor_ide']) {
     const el = document.getElementById(`settings-mcp-tickets-${id}`);
     if (el) el.hidden = id !== channel;
   }
@@ -66,10 +66,10 @@ async function copyServerBlock(text: string) {
 }
 
 function paintWorkbench(view: TicketView) {
-  const mask = document.getElementById('settings-mcp-workbench-mask');
-  const state = document.getElementById('settings-mcp-workbench-state');
+  const mask = document.getElementById('settings-mcp-spark-mask');
+  const state = document.getElementById('settings-mcp-spark-state');
   const expire = document.getElementById(
-    'btn-settings-mcp-workbench-expire',
+    'btn-settings-mcp-spark-expire',
   ) as HTMLButtonElement | null;
   const live = view.state === 'live';
   if (mask) mask.textContent = live ? view.hint || '••••' : 'No live ticket';
@@ -155,7 +155,7 @@ export async function loadMcpTicketView() {
   showTicketPane(channel);
   try {
     const view = (await api.invoke('get_mcp_ticket_view', { channel })) as TicketView;
-    if (channel === 'workbench') paintWorkbench(view);
+    if (channel === 'spark') paintWorkbench(view);
     else if (channel === 'mobile') paintMobile(view);
     else paintCursor(view);
   } catch (e) {
@@ -233,12 +233,12 @@ export async function copyCursorIdeServerBlock() {
 
 export async function expireWorkbenchTicket() {
   const btn = document.getElementById(
-    'btn-settings-mcp-workbench-expire',
+    'btn-settings-mcp-spark-expire',
   ) as HTMLButtonElement | null;
   if (btn) btn.disabled = true;
   setResult('settings-result-mcp', '');
   try {
-    await api.invoke('revoke_mcp_slot_ticket', { slot: 'workbench' });
+    await api.invoke('revoke_mcp_slot_ticket', { slot: 'spark' });
     setResult('settings-result-mcp', 'Expired Workbench ticket.');
     await loadMcpTicketView();
   } catch (e) {

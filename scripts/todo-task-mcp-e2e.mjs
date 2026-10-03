@@ -87,7 +87,7 @@ export function assertDualChannelE2eContract() {
   if (!doc.includes('127.0.0.1:9876/mcp/cursor_ide')) {
     throw new Error('dual-channel e2e: Skills loopback URL missing from architecture constraints');
   }
-  if (!doc.includes('127.0.0.1:9876/mcp/workbench')) {
+  if (!doc.includes('127.0.0.1:9876/mcp/spark')) {
     throw new Error('dual-channel e2e: workbench internal URL missing from architecture constraints');
   }
   if (!doc.includes('Skills must not enter L0')) {
@@ -136,7 +136,7 @@ async function listToolNamesOnSlot(mcpPort, sceneSlot, clientName) {
 
 /** Live A1/AC2/AC3/AC4 observation: path URL tools/list on both slots; unknown hard-fail. */
 async function runDualChannelLiveProbes(mcpPort) {
-  const workbenchNames = await listToolNamesOnSlot(mcpPort, 'workbench', 'todo-task-mcp-e2e-dual-workbench');
+  const workbenchNames = await listToolNamesOnSlot(mcpPort, 'spark', 'todo-task-mcp-e2e-dual-workbench');
   for (const tool of EQUIVALENCE_TODO_TOOLS) {
     if (!workbenchNames.includes(tool)) {
       throw new Error(`dual-channel AC2: workbench missing ${tool}`);
@@ -249,7 +249,7 @@ function assertMasterStatusWire(status, label) {
 }
 
 const transport = new StreamableHTTPClientTransport(
-  new URL(`http://127.0.0.1:${mcpPort}/mcp/workbench`),
+  new URL(`http://127.0.0.1:${mcpPort}/mcp/spark`),
 );
 const client = new Client({ name: 'todo-task-mcp-e2e', version: '0.3.0' });
 

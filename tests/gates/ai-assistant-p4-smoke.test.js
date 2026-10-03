@@ -179,7 +179,7 @@ describe('Workbench Binding call surface (relocated from todo-task)', () => {
   }
 
   it('Binding Set is key-only workbench; capability surface is Host MCP key', async () => {
-    expect(WORKBENCH_BUSINESS_KEY).toBe('workbench');
+    expect(WORKBENCH_BUSINESS_KEY).toBe('spark');
     const result = await setWorkbenchBinding(trackCallbacks());
     expect(result.ok).toBe(true);
     expect(result.binding).toEqual({ key: WORKBENCH_BUSINESS_KEY });
@@ -187,7 +187,7 @@ describe('Workbench Binding call surface (relocated from todo-task)', () => {
     expect(result.binding).not.toHaveProperty('prompt');
     expect(result.binding).not.toHaveProperty('callbacks');
     expect(invokeMock).toHaveBeenCalledWith('set_binding', {
-      binding: { key: 'workbench' },
+      binding: { key: 'spark' },
     });
   });
 

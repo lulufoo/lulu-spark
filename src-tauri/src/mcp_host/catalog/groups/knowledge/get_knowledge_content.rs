@@ -30,7 +30,7 @@ pub fn build(channel: &str) -> Option<ToolRoute> {
         }),
         &["id"],
     );
-    if channel == "workbench" {
+    if channel == "spark" {
         return Some(route(
             "get_knowledge_content",
             "Stage one knowledge document onto this Chat and return the staged document id (F1, F2, …). Input id comes from search_document (category knowledge). Does not return file path or body.",

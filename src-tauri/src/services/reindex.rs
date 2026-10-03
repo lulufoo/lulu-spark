@@ -9,7 +9,7 @@ use serde_json::{json, Value};
 
 use crate::config::roots::knowledge_root_string;
 use crate::integrations::git;
-use crate::services::index_build::{rebuild_knowledge_index, rebuild_workbench_index};
+use crate::services::index_build::{rebuild_knowledge_index, rebuild_spark_index};
 use crate::services::workbench_read;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -163,7 +163,7 @@ pub fn run_all_reindex_blocking(
         finish_job_error(workbench_slot, e.clone());
         return Err(e);
     }
-    match rebuild_workbench_index(repo_root) {
+    match rebuild_spark_index(repo_root) {
         Ok(log) => finish_job_success(workbench_slot, log),
         Err(e) => {
             finish_job_error(workbench_slot, e.clone());
@@ -213,7 +213,7 @@ pub fn all_status_json(
     Ok(json!({
         "status": status,
         "log": log,
-        "workbench": wb.to_json(),
+        "spark": wb.to_json(),
         "knowledge": kb.to_json(),
     }))
 }

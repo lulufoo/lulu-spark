@@ -17,7 +17,7 @@ const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const NOTE_ID = 'abc';
 const NOTE_PATH = 'inbox/x.md';
 const NOTE_DATE = '20260719';
-const NOTES_OPEN = `workbench://notes/open?id=${NOTE_ID}&path=${encodeURIComponent(NOTE_PATH)}`;
+const NOTES_OPEN = `spark://notes/open?id=${NOTE_ID}&path=${encodeURIComponent(NOTE_PATH)}`;
 
 function collectBundleUrlSchemes(node, found = []) {
   if (Array.isArray(node)) {
@@ -88,7 +88,7 @@ describe('composeWorkbenchScheme', () => {
         action: 'create',
         params: { id: 'e1' },
       }),
-    ).toBe('workbench://read-later/list');
+    ).toBe('spark://read-later/list');
   });
 
   it.each([
@@ -114,7 +114,7 @@ describe('parseWorkbenchScheme', () => {
   });
 
   it('parses read-later/list', () => {
-    expect(parseWorkbenchScheme('workbench://read-later/list')).toEqual({
+    expect(parseWorkbenchScheme('spark://read-later/list')).toEqual({
       kind: 'read-later-list',
     });
   });
@@ -134,7 +134,7 @@ describe('parseWorkbenchScheme', () => {
   });
 
   it('parses read-later/list with only a trace query', () => {
-    expect(parseWorkbenchScheme('workbench://read-later/list?trace=trace_12345678')).toEqual({
+    expect(parseWorkbenchScheme('spark://read-later/list?trace=trace_12345678')).toEqual({
       kind: 'read-later-list',
     });
   });
@@ -147,7 +147,7 @@ describe('parseWorkbenchScheme', () => {
       params: { id: NOTE_ID, common_path: path },
     });
     expect(scheme).toBe(
-      `workbench://notes/open?id=${NOTE_ID}&path=${encodeURIComponent(path)}`,
+      `spark://notes/open?id=${NOTE_ID}&path=${encodeURIComponent(path)}`,
     );
     expect(scheme).not.toMatch(/ /);
     expect(scheme).not.toMatch(/笔记/);
@@ -161,14 +161,14 @@ describe('parseWorkbenchScheme', () => {
   it.each([
     'https://notes/open?id=abc&path=inbox/x.md',
     'notes/open?id=abc&path=inbox/x.md',
-    'workbench://unknown/open?id=abc&path=inbox/x.md',
-    'workbench://notes/list?id=abc&path=inbox/x.md',
-    'workbench://notes/open?id=abc',
-    'workbench://notes/open?path=inbox/x.md',
-    'workbench://notes/open?id=&path=inbox/x.md',
-    'workbench://notes/open?id=abc&path=',
-    'workbench://read-later/open',
-    'workbench://read-later/list?id=e1',
+    'spark://unknown/open?id=abc&path=inbox/x.md',
+    'spark://notes/list?id=abc&path=inbox/x.md',
+    'spark://notes/open?id=abc',
+    'spark://notes/open?path=inbox/x.md',
+    'spark://notes/open?id=&path=inbox/x.md',
+    'spark://notes/open?id=abc&path=',
+    'spark://read-later/open',
+    'spark://read-later/list?id=e1',
     '',
   ])('returns null for unrecognized or incomplete scheme %s', (scheme) => {
     expect(parseWorkbenchScheme(scheme)).toBeNull();
@@ -197,27 +197,27 @@ describe('resolveNotesLanding', () => {
 });
 
 describe('openWorkbenchScheme', () => {
-  it('lands notes/open on #/workbench with resolved date and common_path', () => {
+  it('lands notes/open on #/spark with resolved date and common_path', () => {
     expect(openWorkbenchScheme(NOTES_OPEN)).toBe(true);
     expect(parseHash(window.location.hash)).toEqual({
-      name: 'workbench',
+      name: 'spark',
       params: { date: NOTE_DATE, note: NOTE_PATH },
     });
     expect(dialogEl()?.classList.contains('open')).toBe(false);
   });
 
   it('opens the Read Later dialog for read-later/list', () => {
-    expect(openWorkbenchScheme('workbench://read-later/list')).toBe(true);
+    expect(openWorkbenchScheme('spark://read-later/list')).toBe(true);
     expect(dialogEl()?.classList.contains('open')).toBe(true);
     expect(window.location.hash).toBe('#/home');
   });
 
   it.each([
     'https://notes/open?id=abc&path=inbox/x.md',
-    'workbench://unknown/open?id=abc&path=inbox/x.md',
-    'workbench://notes/open?id=abc',
-    'workbench://notes/open?path=inbox/x.md',
-    'workbench://read-later/open',
+    'spark://unknown/open?id=abc&path=inbox/x.md',
+    'spark://notes/open?id=abc',
+    'spark://notes/open?path=inbox/x.md',
+    'spark://read-later/open',
     'notes/open?id=abc&path=inbox/x.md',
   ])('ignores %s without changing hash or opening Read Later', (scheme) => {
     expect(parseWorkbenchScheme(scheme)).toBeNull();
@@ -239,9 +239,9 @@ describe('workbench URL scheme registration', () => {
     const conf = JSON.parse(
       readFileSync(join(repoRoot, 'src-tauri/tauri.conf.json'), 'utf8'),
     );
-    expect(collectBundleUrlSchemes(conf)).toContain('workbench');
-    expect(parseHash('#/workbench?date=20260719&note=inbox/x.md')).toEqual({
-      name: 'workbench',
+    expect(collectBundleUrlSchemes(conf)).toContain('spark');
+    expect(parseHash('#/spark?date=20260719&note=inbox/x.md')).toEqual({
+      name: 'spark',
       params: { date: '20260719', note: 'inbox/x.md' },
     });
     expect(parseHash('#/read-later')).toEqual({ name: 'read-later', params: {} });

@@ -11,7 +11,7 @@ fn ensure_chat_session_idle_creates_session() {
             v["session_id"]
                 .as_str()
                 .unwrap()
-                .starts_with("workbench_chat_")
+                .starts_with("spark_chat_")
         );
         assert!(v.get("bound_master_task_id").is_none());
         assert_eq!(v["window_label"], "ai-assistant");

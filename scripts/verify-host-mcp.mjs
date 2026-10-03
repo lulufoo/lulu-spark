@@ -19,7 +19,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.join(__dirname, '..');
 const HOST_MCP_BASE = 'http://127.0.0.1:9876';
 
-const REGISTERED_SLOTS = ['workbench', 'cursor_ide'];
+const REGISTERED_SLOTS = ['spark', 'cursor_ide'];
 
 /** Retired App slots — `/mcp/notes` and `/mcp/todo_task` must HTTP 404. */
 const RETIRED_APP_SLOTS = ['notes', 'todo_task'];

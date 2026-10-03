@@ -3,7 +3,7 @@ use super::*;
 fn reset_slots() {
     test_force_keychain_unavailable(false);
     revoke_for_slot(Slot::CursorIde).expect("revoke cursor_ide");
-    revoke_for_slot(Slot::Workbench).expect("revoke workbench");
+    revoke_for_slot(Slot::Spark).expect("revoke workbench");
 }
 
 fn assert_not_live(record: Option<LedgerRecord>) {
@@ -66,13 +66,13 @@ fn verify_for_slot_accepts_live_handle() {
 #[test]
 fn workbench_and_cursor_ide_hold_separate_tickets() {
     reset_slots();
-    let workbench = issue_for_slot(Slot::Workbench).expect("issue workbench");
+    let workbench = issue_for_slot(Slot::Spark).expect("issue workbench");
     let cursor_ide = issue_for_slot(Slot::CursorIde).expect("issue cursor_ide");
     assert_ne!(workbench, cursor_ide);
-    verify_for_slot(Slot::Workbench, workbench.clone()).expect("verify workbench");
+    verify_for_slot(Slot::Spark, workbench.clone()).expect("verify workbench");
     verify_for_slot(Slot::CursorIde, cursor_ide.clone()).expect("verify cursor_ide");
     assert_eq!(
-        verify_for_slot(Slot::Workbench, cursor_ide).expect_err("cross-slot"),
+        verify_for_slot(Slot::Spark, cursor_ide).expect_err("cross-slot"),
         OAuthError::rejected
     );
     assert_eq!(
@@ -139,13 +139,13 @@ fn revoke_for_slot_without_live_ticket_succeeds() {
 #[test]
 fn rotate_for_slot_rejects_workbench_without_new_error_or_slot_unknown() {
     reset_slots();
-    let existing = issue_for_slot(Slot::Workbench).expect("issue workbench");
+    let existing = issue_for_slot(Slot::Spark).expect("issue workbench");
     assert_eq!(
-        rotate_for_slot(Slot::Workbench).expect_err("workbench rotate"),
+        rotate_for_slot(Slot::Spark).expect_err("workbench rotate"),
         OAuthError::rejected
     );
-    verify_for_slot(Slot::Workbench, existing.clone()).expect("unchanged");
-    let record = ledger_record(Slot::Workbench)
+    verify_for_slot(Slot::Spark, existing.clone()).expect("unchanged");
+    let record = ledger_record(Slot::Spark)
         .expect("ledger")
         .expect("record");
     assert_eq!(record.handle, existing);
@@ -184,7 +184,7 @@ fn ticket_face_is_bearer_secret_only_not_slot_or_jwt() {
     if secret.is_empty() {
         panic!("ticket secret must be non-empty");
     }
-    if secret.contains("workbench") || secret.contains("cursor_ide") {
+    if secret.contains("spark") || secret.contains("cursor_ide") {
         panic!("ticket face must not contain a slot name");
     }
     if secret.starts_with("eyJ") || secret.matches('.').count() == 2 {
@@ -200,7 +200,7 @@ fn unknown_slot_name_is_slot_unknown() {
     assert_eq!(Slot::parse("mobile"), Err(OAuthError::slot_unknown));
     assert_eq!(Slot::parse(""), Err(OAuthError::slot_unknown));
     assert_eq!(Slot::parse("Workbench"), Err(OAuthError::slot_unknown));
-    assert_eq!(Slot::parse("workbench"), Ok(Slot::Workbench));
+    assert_eq!(Slot::parse("spark"), Ok(Slot::Spark));
     assert_eq!(Slot::parse("cursor_ide"), Ok(Slot::CursorIde));
 }
 
@@ -213,7 +213,7 @@ fn verify_for_slot_rejects_missing_mismatched_and_revoked_the_same_way() {
         OAuthError::rejected
     );
 
-    let workbench = issue_for_slot(Slot::Workbench).expect("issue workbench");
+    let workbench = issue_for_slot(Slot::Spark).expect("issue workbench");
     assert_eq!(
         verify_for_slot(Slot::CursorIde, workbench).expect_err("mismatch"),
         OAuthError::rejected
@@ -358,12 +358,12 @@ fn list_devices_returns_id_label_revoked_without_token_or_hash() {
 #[test]
 fn ticket_view_masks_workbench_and_lists_mobile_without_secrets() {
     with_device_sandbox(|| {
-        let workbench = issue_for_slot(Slot::Workbench).expect("wb");
+        let workbench = issue_for_slot(Slot::Spark).expect("wb");
         let cursor = issue_for_slot(Slot::CursorIde).expect("ide");
         let phone = issue_for_device("phone-view", Some("Pixel")).expect("phone");
 
-        let wb = ticket_view("workbench").expect("wb view");
-        assert_eq!(wb["channel"], "workbench");
+        let wb = ticket_view("spark").expect("wb view");
+        assert_eq!(wb["channel"], "spark");
         assert_eq!(wb["state"], "live");
         assert_eq!(wb["hint"], token_hint(workbench.as_str()));
         assert!(wb.get("handle").is_none(), "workbench view must omit handle");
@@ -403,7 +403,7 @@ fn device_ticket_does_not_verify_via_slot_and_skips_oauth_keychain() {
         reset_slots();
         let token = issue_for_device("phone-slot", None).expect("issue");
         assert_eq!(
-            verify_for_slot(Slot::Workbench, token.clone()).expect_err("not a slot ticket"),
+            verify_for_slot(Slot::Spark, token.clone()).expect_err("not a slot ticket"),
             OAuthError::rejected
         );
         assert_eq!(
@@ -414,7 +414,7 @@ fn device_ticket_does_not_verify_via_slot_and_skips_oauth_keychain() {
             verify_device_token(token.as_str()).expect("device path"),
             "phone-slot"
         );
-        assert_not_live(ledger_record(Slot::Workbench).expect("workbench"));
+        assert_not_live(ledger_record(Slot::Spark).expect("spark"));
         assert_not_live(ledger_record(Slot::CursorIde).expect("cursor"));
     });
 }

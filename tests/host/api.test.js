@@ -112,10 +112,10 @@ test('fetchAnnotation 对 path 做 encodeURIComponent', async () => {
 })
 
 test('fetchConfig 调用 /api/config', async () => {
-  mockFetch({ workbench_root: '/tmp' })
+  mockFetch({ spark_root: '/tmp' })
   const result = await fetchConfig()
   expect(fetch.mock.calls[0][0]).toBe(`${API_READ_PREFIX}/config`)
-  expect(result.workbench_root).toBe('/tmp')
+  expect(result.spark_root).toBe('/tmp')
 })
 
 test('setConfig 发送 POST 到 /api/config', async () => {

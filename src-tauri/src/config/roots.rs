@@ -8,13 +8,13 @@ fn settings_or_default() -> AppSettings {
     settings::load().unwrap_or_default()
 }
 
-pub fn workbench_root_path(_repo_root: &Path) -> PathBuf {
-    settings_or_default().workbench_root
+pub fn spark_root_path(_repo_root: &Path) -> PathBuf {
+    settings_or_default().spark_root
 }
 
-/// Notes files: `{workbench_root}/notes`.
+/// Notes files: `{spark_root}/notes`.
 pub fn notes_root_path(_repo_root: &Path) -> PathBuf {
-    workbench_root_path(_repo_root).join("notes")
+    spark_root_path(_repo_root).join("notes")
 }
 
 pub fn knowledge_root_string(_repo_root: &Path) -> String {

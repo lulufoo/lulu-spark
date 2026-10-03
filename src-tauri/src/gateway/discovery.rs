@@ -9,7 +9,7 @@ use std::time::Duration;
 
 use crate::host::lan_ip::current_lan_ipv4;
 
-pub const SERVICE_TYPE: &str = "_lulu-workbench._tcp";
+pub const SERVICE_TYPE: &str = "_lulu-spark._tcp";
 pub const DEFAULT_REFRESH_INTERVAL: Duration = Duration::from_secs(30);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -210,7 +210,7 @@ unsafe impl Send for BonjourPublisher {}
 impl Publisher for BonjourPublisher {
     fn publish(&mut self, record: AdvertisedRecord) -> Result<(), String> {
         self.withdraw();
-        let name = CString::new("lulu-workbench").map_err(|err| err.to_string())?;
+        let name = CString::new("lulu-spark").map_err(|err| err.to_string())?;
         let regtype = CString::new(SERVICE_TYPE).map_err(|err| err.to_string())?;
         let host = CString::new(record.ipv4.to_string()).map_err(|err| err.to_string())?;
         let mut sd_ref: DNSServiceRef = std::ptr::null_mut();

@@ -41,7 +41,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             ping,
             commands::read::search_knowledge,
-            commands::read::search_workbench,
+            commands::read::search_spark,
             commands::read::get_topics,
             commands::read::get_annotations,
             commands::read::get_tags_registry,
@@ -51,7 +51,7 @@ pub fn run() {
             commands::read::get_doc_highlights,
             commands::read::get_config,
             commands::read::infer_github_user_url,
-            commands::read::check_workbench_root,
+            commands::read::check_spark_root,
             commands::config_cmd::set_config,
             commands::mcp_oauth::issue_cursor_ide_ticket,
             commands::mcp_oauth::rotate_cursor_ide_ticket,
@@ -255,7 +255,7 @@ pub fn run() {
                 let Ok(repo_root) = crate::config::paths::repo_root() else {
                     return;
                 };
-                let wb = crate::config::roots::workbench_root_path(&repo_root);
+                let wb = crate::config::roots::spark_root_path(&repo_root);
                 let _ = crate::services::notes::ensure_notes_layout(&wb);
                 let _ = crate::services::knowledge_layout::ensure_knowledge_registry_layout(&wb);
                 if !wb.join("notes").join("index.json").is_file() {

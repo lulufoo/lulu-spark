@@ -56,7 +56,7 @@ describe('T10 Host MCP archive + contract retarget (V2/V3/V4)', () => {
 
   it('verify-host-mcp registers workbench + cursor_ide, not todo_task as App slot', () => {
     const src = read('scripts/verify-host-mcp.mjs');
-    expect(src).toContain("REGISTERED_SLOTS = ['workbench', 'cursor_ide']");
+    expect(src).toContain("REGISTERED_SLOTS = ['spark', 'cursor_ide']");
     expect(src).not.toMatch(
       /REGISTERED_SLOTS\s*=\s*\[[^\]]*(['"])todo_task\1/,
     );
@@ -78,8 +78,8 @@ describe('T10 Host MCP archive + contract retarget (V2/V3/V4)', () => {
     const src = read('scripts/todo-task-mcp-e2e.mjs');
     expect(src).toContain('docs/architecture/arch-layer-constraints.md');
     expect(src).toContain('127.0.0.1:9876/mcp/cursor_ide');
-    expect(src).toContain('127.0.0.1:9876/mcp/workbench');
-    expect(src).toMatch(/\/mcp\/workbench/);
+    expect(src).toContain('127.0.0.1:9876/mcp/spark');
+    expect(src).toMatch(/\/mcp\/spark/);
     expect(src).not.toContain('docs/knowledge-mcp.md');
     expect(src).not.toContain('frontend/js/todo-task/binding.js');
     expect(src).not.toContain('http://127.0.0.1:<mcp_port>/mcp/todo_task');
@@ -87,7 +87,7 @@ describe('T10 Host MCP archive + contract retarget (V2/V3/V4)', () => {
       /new URL\(`http:\/\/127\.0\.0\.1:\$\{mcpPort\}\/mcp\/todo_task`\)/,
     );
     expect(src).not.toMatch(/listToolNamesOnSlot\(mcpPort,\s*['"]todo_task['"]/);
-    expect(src).toMatch(/listToolNamesOnSlot\(mcpPort,\s*['"]workbench['"]/);
+    expect(src).toMatch(/listToolNamesOnSlot\(mcpPort,\s*['"]spark['"]/);
     expect(src).toMatch(/must not expose get_notes_selection/);
   });
 
@@ -95,7 +95,7 @@ describe('T10 Host MCP archive + contract retarget (V2/V3/V4)', () => {
     const readme = read('README.md');
     const verify = read('scripts/verify-host-mcp.mjs');
     expect(readme).toContain('http://127.0.0.1:<mcp_port>/mcp/cursor_ide');
-    expect(verify).toContain("REGISTERED_SLOTS = ['workbench', 'cursor_ide']");
+    expect(verify).toContain("REGISTERED_SLOTS = ['spark', 'cursor_ide']");
     expect(readme).not.toContain('get_notes_selection');
     expect(verify).not.toContain('get_notes_selection');
     expect(readme).not.toContain('http://127.0.0.1:<mcp_port>/mcp/todo_task');

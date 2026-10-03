@@ -25,10 +25,10 @@ describe('home Notes create entry · source', () => {
   const page = readPage();
 
   it('puts a create control beside the Notes shortcut, not on the Notes title', () => {
-    expect(page).toMatch(/data-home-entry="workbench"/);
+    expect(page).toMatch(/data-home-entry="spark"/);
     expect(page).toMatch(/data-role="create-note"/);
     expect(page).toMatch(/aria-label="New note"/);
-    const notesBtn = page.indexOf('data-home-entry="workbench"');
+    const notesBtn = page.indexOf('data-home-entry="spark"');
     const createBtn = page.indexOf('data-role="create-note"');
     const notesLabel = page.indexOf('>Notes<');
     expect(notesBtn).toBeGreaterThan(-1);
@@ -94,10 +94,10 @@ describe('home Notes create entry · behavior', () => {
   it('opens the existing create session from a control beside Notes', async () => {
     cleanup = mountHomeHub(container, { navigate });
     await vi.waitFor(() => {
-      expect(container.querySelector('[data-home-entry="workbench"]')).not.toBeNull();
+      expect(container.querySelector('[data-home-entry="spark"]')).not.toBeNull();
     });
 
-    const notes = container.querySelector('[data-home-entry="workbench"]');
+    const notes = container.querySelector('[data-home-entry="spark"]');
     const create = container.querySelector('[data-role="create-note"]');
     const readLater = container.querySelector('[data-home-entry="read-later"]');
     expect(create).not.toBeNull();
@@ -108,7 +108,7 @@ describe('home Notes create entry · behavior', () => {
     expect(container.querySelector('[data-home-entry="notes"]')).toBeNull();
 
     create.click();
-    expect(navigate).toHaveBeenCalledWith('#/workbench');
+    expect(navigate).toHaveBeenCalledWith('#/spark');
     expect(openCreateNoteMock).toHaveBeenCalledTimes(1);
     const arg = openCreateNoteMock.mock.calls[0][0];
     expect(typeof arg.temp_id).toBe('string');

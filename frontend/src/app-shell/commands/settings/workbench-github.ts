@@ -34,8 +34,8 @@ export function renderWorkbenchConnection(repoUrl: string | null | undefined, { 
   workbenchConnectionStore.set({ url, locked });
 }
 
-export function applyWorkbenchGithubRepoFromInferResponse(resp: { workbench_github_repo_url?: string } | null | undefined) {
-  const inferred = normalizeWorkbenchGithubRepoUrl(resp?.workbench_github_repo_url || '');
+export function applyWorkbenchGithubRepoFromInferResponse(resp: { spark_github_repo_url?: string } | null | undefined) {
+  const inferred = normalizeWorkbenchGithubRepoUrl(resp?.spark_github_repo_url || '');
   if (inferred && !isGithubAccountConfigured()) {
     store.workbenchGithubRepoInferredFromOrigin = '';
     renderWorkbenchConnection(savedSnapshot.workbenchGithubRepoUrl, { locked: false });
@@ -57,7 +57,7 @@ export function applyWorkbenchGithubRepoFromInferResponse(resp: { workbench_gith
 }
 
 export async function saveWorkbenchGithubRepoUrl(repoUrl: string) {
-  const resp = await api.setConfig({ workbench_github_repo_url: repoUrl });
+  const resp = await api.setConfig({ spark_github_repo_url: repoUrl });
   if (resp?.error) throw new Error(resp.error);
   savedSnapshot.workbenchGithubRepoUrl = repoUrl;
   renderWorkbenchConnection(repoUrl);

@@ -30,7 +30,7 @@ pub fn allow_roots() -> Vec<PathBuf> {
     if let Ok(p) = paths::knowledge_root() {
         push_root(&mut roots, p);
     }
-    if let Ok(p) = paths::workbench_root() {
+    if let Ok(p) = paths::spark_root() {
         push_root(&mut roots, p);
     }
     if let Ok(p) = paths::cache_dir() {

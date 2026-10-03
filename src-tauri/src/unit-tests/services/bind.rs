@@ -108,7 +108,7 @@ fn complete_bind_issues_device_ticket_and_returns_binding_public_key() {
         assert_eq!(listed[0].device_label.as_deref(), Some("Pixel"));
         assert_eq!(
             verify_for_slot(
-                Slot::Workbench,
+                Slot::Spark,
                 crate::services::mcp_oauth::TicketHandle::from_secret(
                     done.device_mcp_token.clone()
                 )
@@ -183,11 +183,11 @@ fn keychain_bind_service_creates_binding_key_when_missing() {
             "/src/services/bind/mod.rs"
         ));
         assert!(
-            src.contains("lulu-workbench-bind"),
-            "Keychain service must be lulu-workbench-bind"
+            src.contains("lulu-spark-bind"),
+            "Keychain service must be lulu-spark-bind"
         );
         assert!(
-            !src.contains("lulu-workbench-mcp-oauth"),
+            !src.contains("lulu-spark-mcp-oauth"),
             "bind must not write the oauth keychain service"
         );
     });

@@ -45,7 +45,7 @@ const { elements, makeEl, locationStub, navigateToNoteMock } = vi.hoisted(() => 
     return el;
   };
 
-  const locationStub = { hash: '#/workbench?date=20260710', href: 'http://localhost/#/workbench?date=20260710' };
+  const locationStub = { hash: '#/spark?date=20260710', href: 'http://localhost/#/spark?date=20260710' };
   const navigateToNoteMock = vi.fn().mockReturnValue(true);
 
   globalThis.document = {
@@ -163,7 +163,7 @@ function resetDom() {
   }
   makeEl('md-modal').style.display = 'none';
   document.body.style.overflow = '';
-  locationStub.hash = '#/workbench?date=20260710';
+  locationStub.hash = '#/spark?date=20260710';
   state.ui.activeDate = '20260710';
   state.viewer.entry = null;
   state.viewer.rawText = '';
@@ -246,7 +246,7 @@ describe('T5 openCreateNote / finalizeCreateSession on note outlet', () => {
     expect(makeEl('md-modal').style.display).not.toBe('flex');
     expect(state.viewer.createSession?.status).toBe('creating');
     expect(locationStub.hash).not.toMatch(/[?&]note=/);
-    expect(locationStub.hash).toBe('#/workbench?date=20260710');
+    expect(locationStub.hash).toBe('#/spark?date=20260710');
   });
 
   it('create success: navigate note=common_path from createNote', async () => {

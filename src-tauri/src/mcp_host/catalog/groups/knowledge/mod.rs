@@ -37,7 +37,7 @@ pub fn catalog_snapshot_routes() -> Vec<ToolRoute> {
         .iter()
         .map(|(key, build_fn)| {
             build_fn(SNAPSHOT_CHANNEL)
-                .or_else(|| build_fn("workbench"))
+                .or_else(|| build_fn("spark"))
                 .unwrap_or_else(|| panic!("catalog snapshot missing for {key}"))
         })
         .collect()

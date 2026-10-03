@@ -5,25 +5,25 @@ export function McpTicketsHost() {
         <label htmlFor="settings-mcp-ticket-channel">MCP channel</label>
         <select id="settings-mcp-ticket-channel" aria-label="MCP ticket channel">
           <option value="cursor_ide">Cursor IDE</option>
-          <option value="workbench">Workbench</option>
+          <option value="spark">Spark</option>
           <option value="mobile">Mobile</option>
         </select>
       </div>
 
-      <div id="settings-mcp-tickets-workbench" className="settings-mcp-ticket-pane" hidden>
+      <div id="settings-mcp-tickets-spark" className="settings-mcp-ticket-pane" hidden>
         <div className="settings-mcp-ticket-card settings-mcp-ticket-card-masked">
-          <div className="settings-mcp-ticket-kicker">Workbench</div>
-          <div id="settings-mcp-workbench-mask" className="settings-mcp-token-mask">
+          <div className="settings-mcp-ticket-kicker">Spark</div>
+          <div id="settings-mcp-spark-mask" className="settings-mcp-token-mask">
             No live ticket
           </div>
-          <p id="settings-mcp-workbench-state" className="settings-field-hint">
+          <p id="settings-mcp-spark-state" className="settings-field-hint">
             Host-issued ticket. Masked. Expire voids it for the next session.
           </p>
         </div>
         <div className="settings-panel-actions">
           <button
             type="button"
-            id="btn-settings-mcp-workbench-expire"
+            id="btn-settings-mcp-spark-expire"
             className="btn-settings-save"
             disabled
           >

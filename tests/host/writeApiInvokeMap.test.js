@@ -206,14 +206,14 @@ describe('writeApiInvokeMap', () => {
       resolveWriteInvoke('/api/show-os-notification', {
         title: 'New note',
         body: 'A note was added',
-        scheme: 'workbench://notes/open?id=a',
+        scheme: 'spark://notes/open?id=a',
       }),
     ).toEqual({
       cmd: 'show_os_notification',
       args: {
         title: 'New note',
         body: 'A note was added',
-        scheme: 'workbench://notes/open?id=a',
+        scheme: 'spark://notes/open?id=a',
       },
     });
   });
@@ -230,14 +230,14 @@ describe('writeApiInvokeMap', () => {
     await api.showOsNotification({
       title: 'Read Later',
       body: 'A link was saved',
-      scheme: 'workbench://read-later/list',
+      scheme: 'spark://read-later/list',
     });
     expect(globalThis.fetch.mock.calls[0][0]).toMatch(/show-os-notification/);
     expect(globalThis.fetch.mock.calls[0][1].method).toBe('POST');
     expect(JSON.parse(globalThis.fetch.mock.calls[0][1].body)).toEqual({
       title: 'Read Later',
       body: 'A link was saved',
-      scheme: 'workbench://read-later/list',
+      scheme: 'spark://read-later/list',
     });
   });
 

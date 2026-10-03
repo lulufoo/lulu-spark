@@ -16,6 +16,6 @@ fn job_state_idle_has_expected_fields() {
 fn no_python3_spawn_in_reindex_module() {
     let src = include_str!("reindex.rs");
     assert!(!src.contains("Command::new(\"python3\")"));
-    assert!(src.contains("rebuild_workbench_index"));
+    assert!(src.contains("rebuild_spark_index"));
     assert!(src.contains("rebuild_knowledge_index"));
 }

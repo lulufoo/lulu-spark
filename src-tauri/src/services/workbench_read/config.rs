@@ -7,7 +7,7 @@ use serde_json::{json, Value};
 use crate::config::secrets;
 use crate::config::settings;
 
-pub fn check_workbench_root(path: &str) -> Value {
+pub fn check_spark_root(path: &str) -> Value {
     let p = settings::expand_user_path(path);
     if path.trim().is_empty() {
         return json!({ "ok": false, "error": "路径为空" });
@@ -29,13 +29,13 @@ pub fn check_workbench_root(path: &str) -> Value {
     json!({ "ok": true })
 }
 
-pub fn infer_github_user_url(workbench_root: &str) -> Value {
-    let path = settings::expand_user_path(workbench_root);
-    let (github_user_url, workbench_github_repo_url) =
-        crate::config::settings::infer_workbench_github_from_root(&path);
+pub fn infer_github_user_url(spark_root: &str) -> Value {
+    let path = settings::expand_user_path(spark_root);
+    let (github_user_url, spark_github_repo_url) =
+        crate::config::settings::infer_spark_github_from_root(&path);
     serde_json::json!({
         "github_user_url": github_user_url,
-        "workbench_github_repo_url": workbench_github_repo_url,
+        "spark_github_repo_url": spark_github_repo_url,
     })
 }
 

@@ -52,10 +52,10 @@ describe('T8 source: delete success → replace list (not history.back)', () => 
     return deleteJs.slice(okStart, okStart + 1400);
   }
 
-  it('btn-delete-confirm-ok success uses location.replace to #/workbench?date= (no note/layer)', () => {
+  it('btn-delete-confirm-ok success uses location.replace to #/spark?date= (no note/layer)', () => {
     const handler = okHandlerSlice();
     expect(handler).toMatch(/location\.replace\s*\(/);
-    expect(handler).toMatch(/#\/workbench\?date=/);
+    expect(handler).toMatch(/#\/spark\?date=/);
     expect(handler).not.toMatch(/location\.replace\s*\([^)]*note=/);
     expect(handler).not.toMatch(/location\.replace\s*\([^)]*layer=/);
   });
@@ -168,7 +168,7 @@ describe('T8 behavioral: delete-dialog confirm ok', () => {
   beforeEach(async () => {
     vi.resetModules();
     apiMocks.deleteEntry.mockReset();
-    hashValue = '#/workbench?date=20260719&note=inbox%2Fnotes%2Fgone.md&layer=raw';
+    hashValue = '#/spark?date=20260719&note=inbox%2Fnotes%2Fgone.md&layer=raw';
     historyBack = vi.fn();
     replaceCalls = [];
     reloadEvents = [];
@@ -237,10 +237,10 @@ describe('T8 behavioral: delete-dialog confirm ok', () => {
     expect(document.getElementById('delete-dialog').classList.contains('open')).toBe(false);
     expect(replaceCalls.length).toBeGreaterThanOrEqual(1);
     const target = replaceCalls[replaceCalls.length - 1];
-    expect(String(target)).toMatch(/#\/workbench\?date=20260719/);
+    expect(String(target)).toMatch(/#\/spark\?date=20260719/);
     expect(String(target)).not.toMatch(/note=/);
     expect(String(target)).not.toMatch(/layer=/);
-    expect(hashValue).toBe('#/workbench?date=20260719');
+    expect(hashValue).toBe('#/spark?date=20260719');
     expect(historyBack).not.toHaveBeenCalled();
     expect(reloadEvents.length).toBeGreaterThanOrEqual(1);
   });
@@ -257,7 +257,7 @@ describe('T8 behavioral: delete-dialog confirm ok', () => {
 
     await clickConfirmOk();
 
-    expect(stack[stack.length - 1]).toBe('#/workbench?date=20260719');
+    expect(stack[stack.length - 1]).toBe('#/spark?date=20260719');
     expect(stack.some((h) => String(h).includes('note='))).toBe(false);
   });
 

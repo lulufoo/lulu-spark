@@ -217,7 +217,7 @@ pub fn ensure_tls_certificate(config_dir: &Path) -> Result<String, GatewayError>
     if !(cert_path.is_file() && key_path.is_file()) {
         let certified = rcgen::generate_simple_self_signed(vec![
             "localhost".to_string(),
-            "lulu-workbench-gateway".to_string(),
+            "lulu-spark-gateway".to_string(),
         ])
         .map_err(|err| GatewayError::Tls(err.to_string()))?;
         std::fs::write(&cert_path, certified.cert.pem())

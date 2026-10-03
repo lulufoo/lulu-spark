@@ -39,20 +39,20 @@ export function composeWorkbenchScheme(
     const id = stringParam(params, 'id');
     const path = stringParam(params, 'common_path');
     if (!id || !path) return null;
-    return `workbench://notes/open?id=${encodeURIComponent(id)}&path=${encodeURIComponent(path)}${traceQuery}`;
+    return `spark://notes/open?id=${encodeURIComponent(id)}&path=${encodeURIComponent(path)}${traceQuery}`;
   }
 
   if (envelope.business === 'read_later' && envelope.action === 'create') {
     return trace
-      ? `workbench://read-later/list?${TRACE_QUERY}=${encodeURIComponent(trace)}`
-      : 'workbench://read-later/list';
+      ? `spark://read-later/list?${TRACE_QUERY}=${encodeURIComponent(trace)}`
+      : 'spark://read-later/list';
   }
 
   return null;
 }
 
 export function parseWorkbenchScheme(scheme: string): ParsedWorkbenchScheme | null {
-  if (typeof scheme !== 'string' || !scheme.startsWith('workbench://')) return null;
+  if (typeof scheme !== 'string' || !scheme.startsWith('spark://')) return null;
 
   let url: URL;
   try {
@@ -61,7 +61,7 @@ export function parseWorkbenchScheme(scheme: string): ParsedWorkbenchScheme | nu
     return null;
   }
 
-  if (url.protocol !== 'workbench:') return null;
+  if (url.protocol !== 'spark:') return null;
   const path = url.pathname.replace(/\/+$/, '');
 
   if (url.hostname === 'notes' && path === '/open') {

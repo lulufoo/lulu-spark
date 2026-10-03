@@ -109,11 +109,11 @@ describe('Settings Knowledge UI', () => {
 });
 
 describe('Workbench GitHub connection', () => {
-  it('persists a single workbench_github_repo_url and can delete it', () => {
+  it('persists a single spark_github_repo_url and can delete it', () => {
     expect(settingsDialogJs).toMatch(/function normalizeWorkbenchGithubRepoUrl\(/);
     expect(settingsDialogJs).toMatch(/function renderWorkbenchConnection\(/);
     expect(settingsDialogJs).toMatch(
-      /api\.setConfig\(\{ workbench_github_repo_url: repoUrl \}\)/,
+      /api\.setConfig\(\{ spark_github_repo_url: repoUrl \}\)/,
     );
     expect(settingsDialogJs).toMatch(/async function deleteWorkbenchGithubRepo\(/);
     expect(settingsDialogJs).toMatch(/btn-workbench-connect-delete/);
@@ -122,7 +122,7 @@ describe('Workbench GitHub connection', () => {
 
   it('locks the inferred origin repo and hides Delete', () => {
     expect(settingsDialogJs).toMatch(/function applyWorkbenchGithubRepoFromInferResponse\(/);
-    expect(settingsDialogJs).toMatch(/resp\?\.workbench_github_repo_url/);
+    expect(settingsDialogJs).toMatch(/resp\?\.spark_github_repo_url/);
     expect(settingsDialogJs).toMatch(/renderWorkbenchConnection\(inferred, \{ locked: true \}\)/);
     expect(settingsDialogJs).toMatch(/Inferred from workbench directory git origin \(read-only\)/);
   });
@@ -151,10 +151,10 @@ describe('Workbench GitHub connection', () => {
     expect(settingsDialogJs).toMatch(/function syncWorkbenchConnectionAccess\(/);
     expect(settingsDialogJs).toMatch(/Set a Sync token first to bind a data-store repository/);
     expect(indexHtml).toMatch(
-      /<nav id="settings-nav">[\s\S]*data-panel="workbench"[\s\S]*data-panel="notes"[\s\S]*data-panel="knowledge"[\s\S]*data-panel="llm"[\s\S]*data-panel="github">Sync/,
+      /<nav id="settings-nav">[\s\S]*data-panel="spark"[\s\S]*data-panel="notes"[\s\S]*data-panel="knowledge"[\s\S]*data-panel="llm"[\s\S]*data-panel="github">Sync/,
     );
     expect(indexHtml).not.toMatch(
-      /data-panel="workbench"[^>]*\bdisabled\b/,
+      /data-panel="spark"[^>]*\bdisabled\b/,
     );
   });
 

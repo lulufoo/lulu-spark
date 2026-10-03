@@ -24,10 +24,10 @@ fn get_config_has_frontend_contract_keys() {
         .unwrap()
         .to_path_buf();
     let v = get_config(&root);
-    assert!(v.get("workbench_root").is_some());
+    assert!(v.get("spark_root").is_some());
     assert!(v.get("knowledge_root").is_some());
     assert!(v.get("github_user_url").is_some());
-    assert!(v.get("workbench_github_repo_url").is_some());
+    assert!(v.get("spark_github_repo_url").is_some());
     assert!(v.get("assistant_engine").is_some());
     assert!(v.get("cache_dir").is_some());
     assert!(v.get("has_github_token").is_some());
@@ -44,7 +44,7 @@ fn get_config_has_frontend_contract_keys() {
 fn with_sediment_kb_topics_cache<F: FnOnce(&std::path::Path, &std::path::Path)>(f: F) {
     let sandbox = TestSandbox::new();
     let cfg_dir = sandbox.config_dir();
-    let wb = sandbox.workbench_root();
+    let wb = sandbox.spark_root();
     fs::create_dir_all(&wb).expect("mkdir");
     f(cfg_dir, wb.as_path());
 }
@@ -55,7 +55,7 @@ fn with_notes_repo<F: FnOnce(&std::path::Path)>(
 ) {
     let sandbox = TestSandbox::new();
     let cfg_dir = sandbox.config_dir();
-    let notes = sandbox.workbench_root().join("notes");
+    let notes = sandbox.spark_root().join("notes");
     fs::create_dir_all(&notes).expect("notes");
     setup(cfg_dir, notes.as_path());
     f(cfg_dir);
@@ -196,7 +196,7 @@ fn infer_github_user_url_reads_ssh_origin() {
     let v = infer_github_user_url(dir.path().to_str().unwrap());
     assert_eq!(v["github_user_url"], "https://github.com/lulufoo");
     assert_eq!(
-        v["workbench_github_repo_url"],
+        v["spark_github_repo_url"],
         "https://github.com/lulufoo/lulu-workbench-knowledge"
     );
 }
@@ -209,27 +209,27 @@ fn infer_github_user_url_trims_padded_path() {
     let v = infer_github_user_url(&padded);
     assert_eq!(v["github_user_url"], "https://github.com/lulufoo");
     assert_eq!(
-        v["workbench_github_repo_url"],
+        v["spark_github_repo_url"],
         "https://github.com/lulufoo/notes"
     );
 }
 
 #[test]
-fn check_workbench_root_requires_dir_and_index() {
+fn check_spark_root_requires_dir_and_index() {
     let dir = tempfile::tempdir().expect("tmp");
-    let missing = check_workbench_root("/no/such/workbench");
+    let missing = check_spark_root("/no/such/workbench");
     assert_eq!(missing["ok"], false);
 
     let no_index_dir = dir.path().join("empty");
     fs::create_dir_all(&no_index_dir).expect("mkdir");
-    let no_index = check_workbench_root(no_index_dir.to_str().unwrap());
+    let no_index = check_spark_root(no_index_dir.to_str().unwrap());
     assert_eq!(no_index["ok"], false);
     assert!(no_index["error"].as_str().unwrap().contains("index.json"));
 
     let store = dir.path().join("store");
     fs::create_dir_all(&store).expect("mkdir");
     fs::write(store.join("index.json"), br#"{"entries":[]}"#).expect("write");
-    let ok = check_workbench_root(store.to_str().unwrap());
+    let ok = check_spark_root(store.to_str().unwrap());
     assert_eq!(ok["ok"], true);
 }
 
@@ -318,7 +318,7 @@ fn get_notes_file_reads_abs_path_under_knowledge_root() {
 #[test]
 fn get_notes_file_rejects_abs_path_outside_notes_and_knowledge() {
     let sandbox = TestSandbox::new();
-    fs::create_dir_all(sandbox.workbench_root().join("notes")).expect("notes");
+    fs::create_dir_all(sandbox.spark_root().join("notes")).expect("notes");
     let file = sandbox.cache_dir().join("outside.md");
     fs::create_dir_all(file.parent().unwrap()).expect("mkdir");
     fs::write(&file, b"nope").expect("write");

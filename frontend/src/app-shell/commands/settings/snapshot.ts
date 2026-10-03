@@ -17,7 +17,7 @@ export async function loadSettingsSnapshot() {
     const workbenchInput = document.getElementById('settings-workbench-root') as HTMLInputElement | null;
     const githubUserInput = document.getElementById('settings-github-user-url') as HTMLInputElement | null;
     const knowledgeInput = document.getElementById('knowledge-root-path') as HTMLInputElement | null;
-    const wbRoot = cfg?.workbench_root ?? '';
+    const wbRoot = cfg?.spark_root ?? '';
     const knowledgeRoot = cfg?.knowledge_root ?? '';
     const ghUrl = cfg?.github_user_url ?? '';
     if (wbRoot && workbenchInput) {
@@ -38,7 +38,7 @@ export async function loadSettingsSnapshot() {
     setGithubUserUrl(ghUrl);
     savedSnapshot.workbenchRoot = wbRoot;
     savedSnapshot.githubUserUrl = ghUrl;
-    savedSnapshot.workbenchGithubRepoUrl = cfg?.workbench_github_repo_url ?? '';
+    savedSnapshot.workbenchGithubRepoUrl = cfg?.spark_github_repo_url ?? '';
     savedSnapshot.hasGithubToken = Boolean(cfg?.has_github_token);
     renderWorkbenchConnection(savedSnapshot.workbenchGithubRepoUrl);
     setResult('workbench-connect-error', '');

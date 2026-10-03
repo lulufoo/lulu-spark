@@ -8,10 +8,10 @@ use std::collections::{BTreeMap, HashMap};
 use std::sync::{Mutex, OnceLock};
 
 /// Seeded business key for Binding assembly (workbench surface).
-pub const SEEDED_BUSINESS_KEY: &str = "workbench";
+pub const SEEDED_BUSINESS_KEY: &str = "spark";
 
 /// Default inline mcpServers entry name for the Workbench Host MCP surface.
-pub const DEFAULT_HTTP_MCP_SERVER_NAME: &str = "workbench";
+pub const DEFAULT_HTTP_MCP_SERVER_NAME: &str = "spark";
 
 /// Structured HTTP MCP transport for Host consumers (name / URL / headers).
 /// Presence of this value does not claim that the endpoint is ready.

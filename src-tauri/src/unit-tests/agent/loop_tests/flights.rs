@@ -25,7 +25,7 @@ fn replace_set_while_busy_clears_live_session() {
             second["session_id"]
                 .as_str()
                 .unwrap()
-                .starts_with("workbench_chat_")
+                .starts_with("spark_chat_")
         );
         assert_ne!(second["session_id"].as_str().unwrap(), sid);
         assert!(second.get("bound_master_task_id").is_none());

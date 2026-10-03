@@ -80,7 +80,7 @@ fn gateway_start_publishes_lulu_workbench_tcp_with_lan_ip_and_port() {
         let published = publisher.published();
         assert_eq!(published.len(), 1, "Gateway start is what publishes discovery");
         assert_eq!(published[0].service_type, SERVICE_TYPE);
-        assert_eq!(SERVICE_TYPE, "_lulu-workbench._tcp");
+        assert_eq!(SERVICE_TYPE, "_lulu-spark._tcp");
         assert_eq!(published[0].ipv4, Ipv4Addr::new(192, 168, 1, 8));
         assert_eq!(published[0].port, 7654);
         assert_eq!(

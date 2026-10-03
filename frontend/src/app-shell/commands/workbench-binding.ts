@@ -5,7 +5,7 @@
  */
 
 /** Seeded business key — aligned with Host `mcp_host::registry::SEEDED_BUSINESS_KEY`. */
-export const WORKBENCH_BUSINESS_KEY = 'workbench';
+export const WORKBENCH_BUSINESS_KEY = 'spark';
 
 function getTauriInvoke() {
   if (typeof window === 'undefined') return null;

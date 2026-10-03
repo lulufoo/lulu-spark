@@ -83,9 +83,9 @@ fn global_registry_covers_all_snapshot_tools() {
 #[test]
 fn factory_builds_all_notes_apis_with_channel_parity() {
     for (slot, channel) in [
-        ("workbench", "workbench"),
+        ("spark", "spark"),
         ("cursor_ide", "cursor_ide"),
-        ("workbench", "mobile"),
+        ("spark", "mobile"),
     ] {
         for api in NOTES_APIS {
             let built = build("notes", api, channel);
@@ -111,9 +111,9 @@ fn factory_builds_all_notes_apis_with_channel_parity() {
 #[test]
 fn factory_builds_all_knowledge_apis_with_channel_parity() {
     for (slot, channel) in [
-        ("workbench", "workbench"),
+        ("spark", "spark"),
         ("cursor_ide", "cursor_ide"),
-        ("workbench", "mobile"),
+        ("spark", "mobile"),
     ] {
         for api in KNOWLEDGE_APIS {
             let built = build("knowledge", api, channel);
@@ -138,9 +138,9 @@ fn factory_builds_all_knowledge_apis_with_channel_parity() {
 #[test]
 fn factory_builds_all_global_apis_with_channel_parity() {
     for (slot, channel) in [
-        ("workbench", "workbench"),
+        ("spark", "spark"),
         ("cursor_ide", "cursor_ide"),
-        ("workbench", "mobile"),
+        ("spark", "mobile"),
     ] {
         for api in GLOBAL_APIS {
             let built = build("global", api, channel);
@@ -164,7 +164,7 @@ fn factory_builds_all_global_apis_with_channel_parity() {
 
 #[test]
 fn factory_does_not_build_todo_apis() {
-    for channel in ["workbench", "cursor_ide", "mobile"] {
+    for channel in ["spark", "cursor_ide", "mobile"] {
         for api in TODO_APIS {
             assert!(
                 build("todo", api, channel).is_none(),
@@ -201,7 +201,7 @@ fn runtime_builds_enabled_routes_from_factory_only() {
         global: vec!["search_document".into()],
         ..GroupedEnabledCatalog::default()
     };
-    let routes = build_routes_for_channel("workbench", "workbench", &enabled);
+    let routes = build_routes_for_channel("spark", "spark", &enabled);
     let names: Vec<_> = routes.iter().map(|r| r.name.as_str()).collect();
     assert!(names.contains(&"get_all_notes_catalog"));
     assert!(names.contains(&"create_note"));
@@ -223,7 +223,7 @@ fn mobile_create_note_uses_content_invoke() {
 
 #[test]
 fn desktop_create_note_schema_includes_asset_paths() {
-    let route = build("notes", "create_note", "workbench").expect("workbench create_note");
+    let route = build("notes", "create_note", "spark").expect("workbench create_note");
     assert!(invoke_eq(route.invoke, create_note_from_source));
     assert!(route.input_schema["properties"].get("asset_paths").is_some());
     assert!(route.input_schema["properties"].get("source_path").is_some());
@@ -238,20 +238,20 @@ fn mobile_update_note_uses_content_invoke() {
 
 #[test]
 fn workbench_update_note_uses_source_invoke() {
-    let route = build("notes", "update_note", "workbench").expect("workbench update_note");
+    let route = build("notes", "update_note", "spark").expect("workbench update_note");
     assert!(invoke_eq(route.invoke, update_note_from_source));
     assert!(!invoke_eq(route.invoke, update_note_from_content));
 }
 
 #[test]
 fn workbench_get_note_content_stages_via_note_path() {
-    let route = build("notes", "get_note_content", "workbench").expect("workbench");
+    let route = build("notes", "get_note_content", "spark").expect("spark");
     assert!(invoke_eq(route.invoke, note_path_invoke));
 }
 
 #[test]
 fn cursor_ide_get_note_content_returns_path_not_body() {
-    let workbench = build("notes", "get_note_content", "workbench").expect("wb");
+    let workbench = build("notes", "get_note_content", "spark").expect("wb");
     let ide = build("notes", "get_note_content", "cursor_ide").expect("ide");
     let mobile = build("notes", "get_note_content", "mobile").expect("mobile");
     assert!(invoke_eq(ide.invoke, note_path_invoke));
@@ -264,19 +264,19 @@ fn cursor_ide_get_note_content_returns_path_not_body() {
 
 #[test]
 fn delete_note_only_available_on_workbench() {
-    assert!(build("notes", "delete_note", "workbench").is_some());
+    assert!(build("notes", "delete_note", "spark").is_some());
     assert!(build("notes", "delete_note", "cursor_ide").is_none());
     assert!(build("notes", "delete_note", "mobile").is_none());
 }
 
 #[test]
 fn factory_unknown_group_returns_none() {
-    assert!(build("unknown", "get_all_notes_catalog", "workbench").is_none());
+    assert!(build("unknown", "get_all_notes_catalog", "spark").is_none());
 }
 
 #[test]
 fn get_knowledge_content_channel_descriptions_split() {
-    let workbench = build("knowledge", "get_knowledge_content", "workbench").expect("wb");
+    let workbench = build("knowledge", "get_knowledge_content", "spark").expect("wb");
     let ide = build("knowledge", "get_knowledge_content", "cursor_ide").expect("ide");
     assert!(workbench.description.contains("Stage"));
     assert!(ide.description.contains("absolute file path"));

@@ -69,7 +69,7 @@ describe('t2 desktop todo surface removed', () => {
     expect(keys).toContain('builders');
     expect(keys).not.toContain('todo-task');
     expect(read('frontend/src/home/page.tsx')).toMatch(
-      /data-home-entry="workbench"/,
+      /data-home-entry="spark"/,
     );
     expect(read('frontend/src/home/page.tsx')).toMatch(
       /data-home-entry="knowledge"/,

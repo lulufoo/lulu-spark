@@ -4,7 +4,7 @@ use super::*;
 
 fn sample_transport(label: &str) -> HttpMcpTransport {
     HttpMcpTransport {
-        name: "workbench".into(),
+        name: "spark".into(),
         url: format!("http://127.0.0.1:9876/mcp/{label}"),
         headers: BTreeMap::from([(
             "Accept".into(),
@@ -87,7 +87,7 @@ fn config_exposes_capability_description_and_http_transport() {
     let cfg = sample_config("shape");
     assert!(!cfg.capability_description.is_empty());
     let transport = cfg.http_transport();
-    assert_eq!(transport.name, "workbench");
+    assert_eq!(transport.name, "spark");
     assert!(transport.url.starts_with("http://"));
     assert!(
         transport.headers.contains_key("Accept"),
@@ -162,7 +162,7 @@ fn http_transport_is_not_a_user_setting_surface() {
 }
 
 /// Binding business key ≡ MCP scene_slot (App global slot).
-const WORKBENCH_SCENE_SLOT: &str = "workbench";
+const WORKBENCH_SCENE_SLOT: &str = "spark";
 
 const SEEDED_WORKBENCH_CAPABILITY: &str = "internal host-mcp workbench capability surface";
 
@@ -199,11 +199,11 @@ fn seed_defaults_registers_only_workbench_with_mcp_workbench_url() {
     assert_eq!(
         got.http_transport().url,
         expected_seed_url(WORKBENCH_SCENE_SLOT),
-        "workbench transport URL must be http://127.0.0.1:{{port}}/mcp/workbench"
+        "workbench transport URL must be http://127.0.0.1:{{port}}/mcp/spark"
     );
     assert!(
-        got.http_transport().url.ends_with("/mcp/workbench"),
-        "HTTP URL must end with /mcp/workbench: {}",
+        got.http_transport().url.ends_with("/mcp/spark"),
+        "HTTP URL must end with /mcp/spark: {}",
         got.http_transport().url
     );
     let last = got
@@ -290,7 +290,7 @@ fn table_init_and_seed_defaults_only_register_workbench() {
     let init = src.split("get_or_init").nth(1).expect("table get_or_init");
     let init_body = init.split("fn validate_key").next().expect("init body");
     assert!(
-        init_body.contains("workbench") || init_body.contains("SEEDED_BUSINESS_KEY"),
+        init_body.contains("spark") || init_body.contains("SEEDED_BUSINESS_KEY"),
         "table init must seed workbench on Host startup"
     );
     assert!(
@@ -306,7 +306,7 @@ fn table_init_and_seed_defaults_only_register_workbench() {
         .next()
         .expect("seed_defaults body");
     assert!(
-        seed_body.contains("SEEDED_BUSINESS_KEY") || seed_body.contains("workbench"),
+        seed_body.contains("SEEDED_BUSINESS_KEY") || seed_body.contains("spark"),
         "seed_defaults must register workbench"
     );
     assert!(

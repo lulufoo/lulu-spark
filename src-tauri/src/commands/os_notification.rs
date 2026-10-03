@@ -12,7 +12,7 @@ use crate::services::os_notify_trace::{
 };
 
 pub const OS_NOTIFICATION_CLICKED_EVENT: &str = "os-notification:clicked";
-const SCHEME_PREFIX: &str = "workbench://";
+const SCHEME_PREFIX: &str = "spark://";
 const UNAUTHORIZED: &str = "notification not authorized";
 const UN_NO_BUNDLE: i32 = -2;
 const UN_UNAVAILABLE: &str =
@@ -36,7 +36,7 @@ pub fn validate_os_notification_scheme(scheme: &str) -> Result<(), String> {
     if scheme.starts_with(SCHEME_PREFIX) {
         Ok(())
     } else {
-        Err("scheme must start with workbench://".into())
+        Err("scheme must start with spark://".into())
     }
 }
 

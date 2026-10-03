@@ -18,13 +18,13 @@ describe('mountHashRouter', () => {
   it('dispatches the matching vanilla island handler for #/home', async () => {
     const { mountHashRouter } = await import('../../frontend/src/hash-router.tsx');
     const home = vi.fn();
-    const workbench = vi.fn();
+    const spark = vi.fn();
     window.location.hash = '#/home';
-    mountHashRouter({ home, workbench }, { fallback: '#/home' });
+    mountHashRouter({ home, spark }, { fallback: '#/home' });
     await vi.waitFor(() => {
       expect(home).toHaveBeenCalled();
     });
-    expect(workbench).not.toHaveBeenCalled();
+    expect(spark).not.toHaveBeenCalled();
     const ctx = home.mock.calls[0][0];
     expect(ctx.name).toBe('home');
   });
@@ -46,20 +46,20 @@ describe('mountHashRouter', () => {
   it('hashchange dispatches the new route handler', async () => {
     const { mountHashRouter } = await import('../../frontend/src/hash-router.tsx');
     const home = vi.fn();
-    const workbench = vi.fn();
+    const spark = vi.fn();
     const readLater = vi.fn();
     window.location.hash = '#/home';
-    mountHashRouter({ home, workbench, 'read-later': readLater }, { fallback: '#/home' });
+    mountHashRouter({ home, spark, 'read-later': readLater }, { fallback: '#/home' });
     await vi.waitFor(() => {
       expect(home).toHaveBeenCalled();
     });
 
-    window.location.hash = '#/workbench?date=20260828&note=inbox/a.md';
+    window.location.hash = '#/spark?date=20260828&note=inbox/a.md';
     await vi.waitFor(() => {
-      expect(workbench).toHaveBeenCalled();
+      expect(spark).toHaveBeenCalled();
     });
-    expect(workbench.mock.calls[0][0]).toEqual({
-      name: 'workbench',
+    expect(spark.mock.calls[0][0]).toEqual({
+      name: 'spark',
       params: { date: '20260828', note: 'inbox/a.md' },
     });
 
@@ -70,15 +70,15 @@ describe('mountHashRouter', () => {
     expect(readLater.mock.calls[0][0]).toEqual({ name: 'read-later', params: {} });
   });
 
-  it('does not replace a valid #/workbench query to fallback', async () => {
+  it('does not replace a valid #/spark query to fallback', async () => {
     const { mountHashRouter } = await import('../../frontend/src/hash-router.tsx');
     const home = vi.fn();
-    const workbench = vi.fn();
-    const start = '#/workbench?date=20260719&note=inbox/notes/x.md&layer=raw';
+    const spark = vi.fn();
+    const start = '#/spark?date=20260719&note=inbox/notes/x.md&layer=raw';
     window.location.hash = start;
-    mountHashRouter({ home, workbench }, { fallback: '#/home' });
+    mountHashRouter({ home, spark }, { fallback: '#/home' });
     await vi.waitFor(() => {
-      expect(workbench).toHaveBeenCalled();
+      expect(spark).toHaveBeenCalled();
     });
     expect(window.location.hash).toBe(start);
     expect(home).not.toHaveBeenCalled();

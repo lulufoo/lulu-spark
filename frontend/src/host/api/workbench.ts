@@ -36,7 +36,7 @@ export async function inferGithubUserUrl(workbenchRoot: string) {
 
 export async function checkWorkbenchRoot(workbenchRoot: string) {
   return readGet(
-    `/api/check-workbench-root?path=${encodeURIComponent(workbenchRoot)}&_=${Date.now()}`,
+    `/api/check-spark-root?path=${encodeURIComponent(workbenchRoot)}&_=${Date.now()}`,
   );
 }
 

@@ -11,7 +11,7 @@ use crate::test_support::TestSandbox;
 
 fn reset_slots() {
     revoke_for_slot(Slot::CursorIde).expect("revoke cursor_ide");
-    revoke_for_slot(Slot::Workbench).expect("revoke workbench");
+    revoke_for_slot(Slot::Spark).expect("revoke workbench");
 }
 
 fn with_cmd<F: FnOnce()>(test: F) {
@@ -166,7 +166,7 @@ fn rotate_cursor_ide_ticket_voids_old_and_returns_new_handle_only() {
 fn revoke_mcp_slot_ticket_voids_either_live_slot() {
     with_cmd(|| {
         let cursor = issue_for_slot(Slot::CursorIde).expect("seed cursor");
-        let workbench = issue_for_slot(Slot::Workbench).expect("seed workbench");
+        let workbench = issue_for_slot(Slot::Spark).expect("seed workbench");
 
         let revoked_cursor =
             super::revoke_mcp_slot_ticket("cursor_ide".to_string()).expect("revoke cursor");
@@ -176,14 +176,14 @@ fn revoke_mcp_slot_ticket_voids_either_live_slot() {
             verify_for_slot(Slot::CursorIde, cursor).expect_err("cursor revoked"),
             OAuthError::rejected
         );
-        verify_for_slot(Slot::Workbench, workbench.clone()).expect("workbench still live");
+        verify_for_slot(Slot::Spark, workbench.clone()).expect("workbench still live");
 
         let revoked_workbench =
-            super::revoke_mcp_slot_ticket("workbench".to_string()).expect("revoke workbench");
+            super::revoke_mcp_slot_ticket("spark".to_string()).expect("revoke workbench");
         assert_eq!(revoked_workbench, json!({ "ok": true }));
-        assert_not_live(ledger_record(Slot::Workbench).expect("workbench ledger"));
+        assert_not_live(ledger_record(Slot::Spark).expect("workbench ledger"));
         assert_eq!(
-            verify_for_slot(Slot::Workbench, workbench).expect_err("workbench revoked"),
+            verify_for_slot(Slot::Spark, workbench).expect_err("workbench revoked"),
             OAuthError::rejected
         );
     });
@@ -262,7 +262,7 @@ fn success_and_failure_never_write_user_mcp_json() {
     super::issue_cursor_ide_ticket().expect("issue");
     super::rotate_cursor_ide_ticket().expect("rotate");
     super::revoke_mcp_slot_ticket("cursor_ide".to_string()).expect("revoke cursor");
-    super::revoke_mcp_slot_ticket("workbench".to_string()).expect("revoke workbench");
+    super::revoke_mcp_slot_ticket("spark".to_string()).expect("revoke workbench");
     super::revoke_mcp_slot_ticket("mobile".to_string()).expect_err("unknown slot");
 
     assert_mcp_json_untouched(&planted);
@@ -279,11 +279,11 @@ fn oauth_error_maps_to_command_failure_without_rewriting_mcp_json_or_ledger() {
     let sandbox = TestSandbox::new();
     reset_slots();
     let planted = plant_mcp_json(sandbox.config_dir());
-    let existing = issue_for_slot(Slot::Workbench).expect("seed workbench");
+    let existing = issue_for_slot(Slot::Spark).expect("seed workbench");
 
     let err = super::revoke_mcp_slot_ticket("mobile".to_string()).expect_err("unknown slot");
     assert_eq!(err, OAuthError::slot_unknown.to_string());
-    verify_for_slot(Slot::Workbench, existing).expect("unknown slot must not write ledger");
+    verify_for_slot(Slot::Spark, existing).expect("unknown slot must not write ledger");
     assert_mcp_json_untouched(&planted);
 }
 
@@ -304,8 +304,8 @@ fn command_error_strings_do_not_leak_ticket_secret() {
 fn get_mcp_ticket_view_and_device_revoke_use_shared_oauth() {
     let sandbox = TestSandbox::new();
     reset_slots();
-    let workbench = issue_for_slot(Slot::Workbench).expect("wb");
-    let view = super::get_mcp_ticket_view("workbench".into()).expect("view");
+    let workbench = issue_for_slot(Slot::Spark).expect("wb");
+    let view = super::get_mcp_ticket_view("spark".into()).expect("view");
     assert_eq!(view["state"], "live");
     assert!(view.get("handle").is_none());
     assert!(!view.to_string().contains(workbench.as_str()));

@@ -31,7 +31,7 @@ pub async fn search_knowledge(
 }
 
 #[tauri::command]
-pub async fn search_workbench(
+pub async fn search_spark(
     _app: AppHandle,
     q: String,
     limit: Option<u32>,
@@ -92,8 +92,8 @@ pub fn infer_github_user_url(_app: AppHandle, path: String) -> Result<Value, Str
 }
 
 #[tauri::command]
-pub fn check_workbench_root(_app: AppHandle, path: String) -> Result<Value, String> {
-    Ok(workbench_read::check_workbench_root(&path))
+pub fn check_spark_root(_app: AppHandle, path: String) -> Result<Value, String> {
+    Ok(workbench_read::check_spark_root(&path))
 }
 
 #[tauri::command]

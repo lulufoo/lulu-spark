@@ -22,14 +22,14 @@ function makeSandbox() {
   sandboxes.push(base);
   const configDir = join(base, 'config');
   const cacheDir = join(base, 'cache');
-  const wbRoot = join(base, 'workbench');
+  const wbRoot = join(base, 'spark');
   mkdirSync(configDir);
   mkdirSync(cacheDir, { recursive: true });
   mkdirSync(wbRoot, { recursive: true });
   writeFileSync(
     join(configDir, 'config.toml'),
     [
-      `workbench_root = "${wbRoot}"`,
+      `spark_root = "${wbRoot}"`,
       `knowledge_root = "${wbRoot}"`,
       `cache_dir = "${cacheDir}"`,
       '',
@@ -39,7 +39,7 @@ function makeSandbox() {
 }
 
 function runMigrate(configDir, { captureStderr = false } = {}) {
-  const env = { ...process.env, LULU_WB_CONFIG_DIR: configDir };
+  const env = { ...process.env, LULU_SPARK_CONFIG_DIR: configDir };
   if (captureStderr) {
     const { stderr } = spawnSync(scriptPath, [], {
       cwd: repoRoot,
@@ -73,7 +73,7 @@ afterEach(() => {
 });
 
 describe('migrate-local-state', () => {
-  it('migrates sediment-kb and read_later from cache_dir to workbench_root', () => {
+  it('migrates sediment-kb and read_later from cache_dir to spark_root', () => {
     const { configDir, cacheDir, wbRoot } = makeSandbox();
     mkdirSync(join(cacheDir, 'sediment-kb'), { recursive: true });
     const categories = JSON.stringify({ version: 1, categories: [{ id: 'c1', name: 'Cat' }] });

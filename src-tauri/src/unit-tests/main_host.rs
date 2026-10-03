@@ -29,7 +29,7 @@ fn ephemeral_port() -> u16 {
 
 fn setup_repo_without_index() -> RepoFixture {
     let sandbox = TestSandbox::new();
-    let wb = sandbox.workbench_root();
+    let wb = sandbox.spark_root();
     fs::create_dir_all(&wb).expect("mkdir workbench");
     RepoFixture {
         repo_root: sandbox.config_dir().to_path_buf(),
@@ -39,7 +39,7 @@ fn setup_repo_without_index() -> RepoFixture {
 
 fn setup_repo_with_notes() -> RepoFixture {
     let sandbox = TestSandbox::new();
-    let wb = sandbox.workbench_root();
+    let wb = sandbox.spark_root();
     let notes = wb.join("notes");
     fs::create_dir_all(notes.join("digest")).expect("mkdir digest");
     fs::write(notes.join("index.json"), br#"{"entries":[]}"#).expect("index");
@@ -52,7 +52,7 @@ fn setup_repo_with_notes() -> RepoFixture {
 
 fn setup_repo_for_read_later() -> RepoFixture {
     let sandbox = TestSandbox::new();
-    let wb = sandbox.workbench_root();
+    let wb = sandbox.spark_root();
     fs::create_dir_all(&wb).expect("mkdir workbench");
     RepoFixture {
         repo_root: sandbox.config_dir().to_path_buf(),
@@ -70,7 +70,7 @@ fn plant_migration_gate(wb: &std::path::Path) {
 
 fn setup_repo_for_todo_task() -> RepoFixture {
     let sandbox = TestSandbox::new();
-    let wb = sandbox.workbench_root();
+    let wb = sandbox.spark_root();
     fs::create_dir_all(&wb).expect("mkdir workbench");
     // Happy-path todo HTTP tests assume migration already succeeded (t5 wrote the marker).
     plant_migration_gate(&wb);
@@ -583,7 +583,7 @@ fn notes_selection_module_and_mcp_tool_are_gone() {
         !notes_mod.exists(),
         "notes_selection.rs must be deleted"
     );
-    for slot in ["workbench", "cursor_ide", "todo_task", "notes"] {
+    for slot in ["spark", "cursor_ide", "todo_task", "notes"] {
         if let Some(table) = crate::mcp_host::build_slot_tool_table(slot) {
             for tool in &table.tools {
                 let name = tool.name.to_lowercase();

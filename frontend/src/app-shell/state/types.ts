@@ -4,10 +4,10 @@ export type AppRoute = {
 };
 
 export type SettingsConfig = {
-  workbench_root?: string;
+  spark_root?: string;
   knowledge_root?: string;
   github_user_url?: string;
-  workbench_github_repo_url?: string;
+  spark_github_repo_url?: string;
   has_github_token?: boolean;
   mcp_port?: number;
   assistant_engine?: string;
@@ -17,7 +17,7 @@ export type SettingsConfig = {
 
 export type InferGithubResp = {
   github_user_url?: string;
-  workbench_github_repo_url?: string;
+  spark_github_repo_url?: string;
 };
 
 export type HeaderSyncDeps = {

@@ -132,10 +132,10 @@ pub fn to_config_json(
         LlmSettings::default()
     };
     serde_json::json!({
-        "workbench_root": settings.workbench_root.to_string_lossy(),
+        "spark_root": settings.spark_root.to_string_lossy(),
         "knowledge_root": settings.knowledge_root.to_string_lossy(),
         "github_user_url": settings.github_user_url,
-        "workbench_github_repo_url": settings.workbench_github_repo_url,
+        "spark_github_repo_url": settings.spark_github_repo_url,
         "cache_dir": settings.cache_dir.to_string_lossy(),
         "assistant_engine": settings.assistant_engine,
         "http_port": settings.effective_http_port(),
@@ -172,8 +172,8 @@ pub fn apply_config_payload(
         settings.assistant_engine = normalized.to_string();
         engine_touched = true;
     }
-    if let Some(v) = payload.get("workbench_root").and_then(|x| x.as_str()) {
-        settings.workbench_root = std::path::PathBuf::from(v);
+    if let Some(v) = payload.get("spark_root").and_then(|x| x.as_str()) {
+        settings.spark_root = std::path::PathBuf::from(v);
     }
     if let Some(v) = payload.get("knowledge_root").and_then(|x| x.as_str()) {
         settings.knowledge_root = std::path::PathBuf::from(v);
@@ -182,10 +182,10 @@ pub fn apply_config_payload(
         settings.github_user_url = v.to_string();
     }
     if let Some(v) = payload
-        .get("workbench_github_repo_url")
+        .get("spark_github_repo_url")
         .and_then(|x| x.as_str())
     {
-        settings.workbench_github_repo_url = v.trim().to_string();
+        settings.spark_github_repo_url = v.trim().to_string();
     }
     if let Some(llm) = payload.get("llm").and_then(|x| x.as_object()) {
         // Preset fields are readonly — ignore client platform/base_url.

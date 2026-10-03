@@ -23,14 +23,14 @@ function makeSandbox() {
   sandboxes.push(base);
   const configDir = join(base, 'config');
   const cacheDir = join(base, 'cache');
-  const wbRoot = join(base, 'workbench');
+  const wbRoot = join(base, 'spark');
   mkdirSync(configDir);
   mkdirSync(cacheDir, { recursive: true });
   mkdirSync(wbRoot, { recursive: true });
   writeFileSync(
     join(configDir, 'config.toml'),
     [
-      `workbench_root = "${wbRoot}"`,
+      `spark_root = "${wbRoot}"`,
       `knowledge_root = "${wbRoot}"`,
       `cache_dir = "${cacheDir}"`,
       '',
@@ -42,7 +42,7 @@ function makeSandbox() {
 function runMigrate(configDir) {
   return spawnSync(scriptPath, [], {
     cwd: repoRoot,
-    env: { ...process.env, LULU_WB_CONFIG_DIR: configDir },
+    env: { ...process.env, LULU_SPARK_CONFIG_DIR: configDir },
     encoding: 'utf8',
   });
 }

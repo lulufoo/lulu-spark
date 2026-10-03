@@ -1,4 +1,4 @@
-//! Workbench store git commit / pull / revert (`settings.workbench_root`).
+//! Workbench store git commit / pull / revert (`settings.spark_root`).
 
 use std::path::PathBuf;
 
@@ -7,19 +7,19 @@ use serde_json::{json, Value};
 use crate::config::paths;
 use crate::integrations::git::{self, GitError};
 
-fn workbench_root() -> Result<PathBuf, Value> {
-    paths::workbench_root().map_err(|e| json!({ "error": format!("{e:?}") }))
+fn spark_root() -> Result<PathBuf, Value> {
+    paths::spark_root().map_err(|e| json!({ "error": format!("{e:?}") }))
 }
 
 fn not_a_git_repo(workbench: &std::path::Path) -> String {
     format!(
-        "workbench_root is not a git repository: {}",
+        "spark_root is not a git repository: {}",
         workbench.display()
     )
 }
 
 pub fn workbench_git_commit(payload: &Value) -> Value {
-    let workbench = match workbench_root() {
+    let workbench = match spark_root() {
         Ok(p) => p,
         Err(v) => return v,
     };
@@ -79,7 +79,7 @@ pub fn workbench_git_commit(payload: &Value) -> Value {
 }
 
 pub fn workbench_git_pull(_payload: &Value) -> Value {
-    let workbench = match workbench_root() {
+    let workbench = match spark_root() {
         Ok(p) => p,
         Err(v) => return v,
     };
@@ -98,7 +98,7 @@ pub fn workbench_git_pull(_payload: &Value) -> Value {
 }
 
 pub fn workbench_git_revert(payload: &Value) -> Value {
-    let workbench = match workbench_root() {
+    let workbench = match spark_root() {
         Ok(p) => p,
         Err(v) => return v,
     };

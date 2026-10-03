@@ -40,8 +40,8 @@ export const READ_API_INVOKE_MAP: Record<string, ReadInvokeEntry> = {
         : undefined,
     }),
   },
-  '/api/search-workbench': {
-    cmd: 'search_workbench',
+  '/api/search-spark': {
+    cmd: 'search_spark',
     args: (url) => ({
       q: url.searchParams.get('q') ?? '',
       limit: url.searchParams.has('limit')
@@ -68,8 +68,8 @@ export const READ_API_INVOKE_MAP: Record<string, ReadInvokeEntry> = {
     cmd: 'infer_github_user_url',
     args: (url) => ({ path: url.searchParams.get('path') ?? '' }),
   },
-  '/api/check-workbench-root': {
-    cmd: 'check_workbench_root',
+  '/api/check-spark-root': {
+    cmd: 'check_spark_root',
     args: (url) => ({ path: url.searchParams.get('path') ?? '' }),
   },
   '/api/status': { cmd: 'get_status' },

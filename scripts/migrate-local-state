@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""One-shot idempotent migration: cache_dir SSOT → workbench_root.
+"""One-shot idempotent migration: cache_dir SSOT → spark_root.
 
-Reads ``config.toml`` (``LULU_WB_CONFIG_DIR`` or ``~/.config/lulu-spark``).
+Reads ``config.toml`` (``LULU_SPARK_CONFIG_DIR`` or ``~/.config/lulu-spark``).
 Not invoked at application startup — run manually after deploy.
 """
 from __future__ import annotations
@@ -25,7 +25,7 @@ MIGRATIONS: tuple[tuple[str, str], ...] = (
 
 
 def config_dir() -> Path:
-    if env := os.environ.get("LULU_WB_CONFIG_DIR"):
+    if env := os.environ.get("LULU_SPARK_CONFIG_DIR"):
         return Path(env)
     return Path.home() / ".config" / "lulu-spark"
 
@@ -34,7 +34,7 @@ def default_cache_dir() -> Path:
     return Path.home() / ".cache" / "lulu-spark"
 
 
-def default_workbench_root() -> Path:
+def default_spark_root() -> Path:
     return Path.home() / "Code"
 
 
@@ -45,8 +45,8 @@ def load_roots() -> tuple[Path, Path]:
     else:
         data = {}
     cache = Path(data["cache_dir"]) if "cache_dir" in data else default_cache_dir()
-    raw = data.get("workbench_root") or data.get("workbench_knowledge_root")
-    wb = Path(raw) if raw else default_workbench_root()
+    raw = data.get("spark_root")
+    wb = Path(raw) if raw else default_spark_root()
     return cache, wb
 
 

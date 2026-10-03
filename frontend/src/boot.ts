@@ -133,7 +133,7 @@ document.addEventListener('cta:reload', () => loadIndex());
 
 api.fetchConfig().then((d) => {
   const cfg = d as SettingsConfig;
-  state.ui.workbenchRoot = cfg.workbench_root || '';
+  state.ui.workbenchRoot = cfg.spark_root || '';
   state.ui.knowledgeRoot = cfg.knowledge_root || '';
   state.ui.githubUserUrl = cfg.github_user_url || '';
   setGithubUserUrl(cfg.github_user_url);
@@ -158,7 +158,7 @@ initTooltip();
 loadIndex();
 
 setRouteHandlers({
-  workbench: wrapRouteMount('workbench', (route) => mountWorkbench(route)),
+  spark: wrapRouteMount('spark', (route) => mountWorkbench(route)),
   home: wrapRouteMount('home', mountHomeRoute),
   'knowledge-doc': wrapRouteMount('knowledge-doc', mountKnowledgeDocRoute),
   'read-later': wrapRouteMount('read-later', mountReadLaterRoute),

@@ -136,35 +136,35 @@ fn save_roundtrip_keeps_general_settings() {
     let dir = tempfile::tempdir().expect("tmp");
     let _env = TestConfigEnv::prod(dir.path());
     let mut settings = AppSettings::default();
-    settings.workbench_root = Path::new("/tmp/workbench").into();
+    settings.spark_root = Path::new("/tmp/workbench").into();
     settings.github_user_url = "https://github.com/example".into();
     save(&settings).expect("save");
 
     let loaded = load().expect("load");
-    assert_eq!(loaded.workbench_root, settings.workbench_root);
+    assert_eq!(loaded.spark_root, settings.spark_root);
     assert_eq!(loaded.github_user_url, settings.github_user_url);
 }
 
 #[test]
-fn workbench_github_repo_url_can_be_set_and_cleared() {
+fn spark_github_repo_url_can_be_set_and_cleared() {
     let mut settings = AppSettings::default();
     apply_config_payload(
         &mut settings,
         &serde_json::json!({
-            "workbench_github_repo_url": "https://github.com/lulufoo/notes"
+            "spark_github_repo_url": "https://github.com/lulufoo/notes"
         }),
     )
     .expect("apply");
     assert_eq!(
-        settings.workbench_github_repo_url,
+        settings.spark_github_repo_url,
         "https://github.com/lulufoo/notes"
     );
     apply_config_payload(
         &mut settings,
-        &serde_json::json!({ "workbench_github_repo_url": "  " }),
+        &serde_json::json!({ "spark_github_repo_url": "  " }),
     )
     .expect("clear");
-    assert_eq!(settings.workbench_github_repo_url, "");
+    assert_eq!(settings.spark_github_repo_url, "");
 }
 
 #[test]
@@ -174,7 +174,7 @@ fn github_remote_helpers_remain_unchanged() {
         Some("https://github.com/lulufoo".into())
     );
     assert_eq!(
-        workbench_github_blob_base(
+        spark_github_blob_base(
             "https://github.com/lulufoo",
             Path::new("/Users/me/Code/lulu-workbench-knowledge"),
         ),

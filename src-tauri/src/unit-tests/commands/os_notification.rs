@@ -65,8 +65,8 @@ impl NotificationNative for RecordingNative {
 
 #[test]
 fn validate_accepts_workbench_scheme() {
-    assert!(validate_os_notification_scheme("workbench://notes/open?id=a").is_ok());
-    assert!(validate_os_notification_scheme("workbench://read-later/list").is_ok());
+    assert!(validate_os_notification_scheme("spark://notes/open?id=a").is_ok());
+    assert!(validate_os_notification_scheme("spark://read-later/list").is_ok());
 }
 
 #[test]
@@ -77,7 +77,7 @@ fn validate_rejects_scheme_without_workbench_prefix() {
         "notes/open",
         "Workbench://notes/open",
         "workbench:/notes/open",
-        " workbench://notes/open",
+        " spark://notes/open",
     ] {
         assert!(
             validate_os_notification_scheme(scheme).is_err(),
@@ -88,14 +88,14 @@ fn validate_rejects_scheme_without_workbench_prefix() {
 
 #[test]
 fn user_info_writes_scheme_verbatim() {
-    let scheme = "workbench://notes/open?id=a&path=p.md";
+    let scheme = "spark://notes/open?id=a&path=p.md";
     let info = user_info_with_scheme(scheme);
     assert_eq!(info.get("scheme").and_then(|v| v.as_str()), Some(scheme));
 }
 
 #[test]
 fn clicked_payload_is_scheme_object() {
-    let scheme = "workbench://read-later/list";
+    let scheme = "spark://read-later/list";
     assert_eq!(
         build_clicked_event_payload(scheme),
         serde_json::json!({ "scheme": scheme })
@@ -126,7 +126,7 @@ fn invalid_scheme_does_not_request_permission_or_deliver() {
 fn first_authorized_call_requests_permission_and_delivers_user_info() {
     let probed = AtomicBool::new(false);
     let native = RecordingNative::new(true, true);
-    let scheme = "workbench://notes/open?id=n1&path=raw%2Fa.md";
+    let scheme = "spark://notes/open?id=n1&path=raw%2Fa.md";
     show_os_notification_with(&probed, &native, "New note", "A note was added", scheme)
         .expect("authorized first call");
     assert_eq!(native.request_calls.load(Ordering::SeqCst), 1);
@@ -156,7 +156,7 @@ fn subsequent_call_only_reads_authorization_status() {
         &native,
         "Read Later",
         "A link was saved",
-        "workbench://read-later/list",
+        "spark://read-later/list",
     )
     .expect("authorized subsequent call");
     assert_eq!(native.request_calls.load(Ordering::SeqCst), 0);
@@ -173,7 +173,7 @@ fn unauthorized_first_call_does_not_deliver() {
         &native,
         "New note",
         "A note was added",
-        "workbench://notes/open?id=a",
+        "spark://notes/open?id=a",
     )
     .is_err());
     assert_eq!(native.request_calls.load(Ordering::SeqCst), 1);
@@ -190,7 +190,7 @@ fn unauthorized_subsequent_call_does_not_deliver() {
         &native,
         "New note",
         "A note was added",
-        "workbench://notes/open?id=a",
+        "spark://notes/open?id=a",
     )
     .is_err());
     assert_eq!(native.request_calls.load(Ordering::SeqCst), 0);

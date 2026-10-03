@@ -3,7 +3,7 @@ import { setHomeState } from '../state/store.ts';
 
 const UNREAD_CHANNELS = ['notes', 'read_later'] as const;
 const ENTRY_CHANNEL: Record<string, (typeof UNREAD_CHANNELS)[number]> = {
-  workbench: 'notes',
+  spark: 'notes',
   'read-later': 'read_later',
 };
 

@@ -9,7 +9,7 @@
       <string>com.lulu.spark</string>
       <key>CFBundleURLSchemes</key>
       <array>
-        <string>workbench</string>
+        <string>spark</string>
       </array>
     </dict>
   </array>

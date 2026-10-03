@@ -30,16 +30,16 @@ pub fn cache_dir() -> Result<PathBuf, PathsError> {
     Ok(settings()?.cache_dir)
 }
 
-pub fn workbench_root() -> Result<PathBuf, PathsError> {
-    Ok(settings()?.workbench_root)
+pub fn spark_root() -> Result<PathBuf, PathsError> {
+    Ok(settings()?.spark_root)
 }
 
-/// Notes files live at `{workbench_root}/notes/`.
+/// Notes files live at `{spark_root}/notes/`.
 pub fn notes_root() -> Result<PathBuf, PathsError> {
-    Ok(workbench_root()?.join("notes"))
+    Ok(spark_root()?.join("notes"))
 }
 
-/// Notes category registry: `{workbench_root}/notes/categories.json`.
+/// Notes category registry: `{spark_root}/notes/categories.json`.
 pub fn notes_categories_path() -> Result<PathBuf, PathsError> {
     Ok(notes_root()?.join("categories.json"))
 }
@@ -48,36 +48,36 @@ pub fn knowledge_root() -> Result<PathBuf, PathsError> {
     Ok(settings()?.knowledge_root)
 }
 
-/// Knowledge registry (repo list / categories) at `{workbench_root}/knowledge/`.
+/// Knowledge registry (repo list / categories) at `{spark_root}/knowledge/`.
 pub fn sediment_kb_dir() -> Result<PathBuf, PathsError> {
-    Ok(workbench_root()?.join("knowledge"))
+    Ok(spark_root()?.join("knowledge"))
 }
 
 pub fn read_later_path() -> Result<PathBuf, PathsError> {
-    Ok(workbench_root()?
+    Ok(spark_root()?
         .join("read_later")
         .join("read_later.json"))
 }
 
 pub fn message_center_path() -> Result<PathBuf, PathsError> {
-    Ok(workbench_root()?
+    Ok(spark_root()?
         .join("message_center")
         .join("message_center.json"))
 }
 
-/// Per-channel MCP tool checkboxes: `{workbench_root}/mcp_channel_tools.json`.
+/// Per-channel MCP tool checkboxes: `{spark_root}/mcp_channel_tools.json`.
 pub fn mcp_channel_tools_path() -> Result<PathBuf, PathsError> {
-    Ok(workbench_root()?.join("mcp_channel_tools.json"))
+    Ok(spark_root()?.join("mcp_channel_tools.json"))
 }
 
 pub fn todo_tasks_path() -> Result<PathBuf, PathsError> {
-    Ok(workbench_root()?
+    Ok(spark_root()?
         .join("todo_tasks")
         .join("todo_tasks.json"))
 }
 
 pub fn todo_tasks_dir() -> Result<PathBuf, PathsError> {
-    Ok(workbench_root()?.join("todo_tasks"))
+    Ok(spark_root()?.join("todo_tasks"))
 }
 
 pub fn todo_tasks_index_path() -> Result<PathBuf, PathsError> {

@@ -14,20 +14,20 @@ fn parse_accepts_minted_shape_and_rejects_injection() {
 #[test]
 fn trace_from_scheme_reads_query() {
     assert_eq!(
-        trace_from_scheme("workbench://notes/open?id=a&path=p.md&trace=trace_12345678"),
+        trace_from_scheme("spark://notes/open?id=a&path=p.md&trace=trace_12345678"),
         Some("trace_12345678")
     );
     assert_eq!(
-        trace_from_scheme("workbench://read-later/list?trace=trace_12345678"),
+        trace_from_scheme("spark://read-later/list?trace=trace_12345678"),
         Some("trace_12345678")
     );
-    assert!(trace_from_scheme("workbench://read-later/list").is_none());
+    assert!(trace_from_scheme("spark://read-later/list").is_none());
 }
 
 #[test]
 fn scheme_query_fields_reads_id_path_trace() {
     let fields = scheme_query_fields(
-        "workbench://notes/open?id=abc&path=inbox%2Fx.md&trace=trace_12345678",
+        "spark://notes/open?id=abc&path=inbox%2Fx.md&trace=trace_12345678",
     );
     assert_eq!(fields.get("id").and_then(|v| v.as_str()), Some("abc"));
     assert_eq!(
@@ -42,7 +42,7 @@ fn scheme_query_fields_reads_id_path_trace() {
         .get("scheme")
         .and_then(|v| v.as_str())
         .unwrap_or("")
-        .starts_with("workbench://notes/open"));
+        .starts_with("spark://notes/open"));
 }
 
 #[test]

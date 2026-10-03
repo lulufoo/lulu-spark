@@ -20,7 +20,7 @@ const PNG: &[u8] = b"\x89PNG\r\n";
 
 fn setup_notes() -> (TestSandbox, PathBuf) {
     let sandbox = TestSandbox::new();
-    let notes = sandbox.workbench_root().join("notes");
+    let notes = sandbox.spark_root().join("notes");
     fs::create_dir_all(notes.join("raw")).expect("raw dir");
     fs::create_dir_all(notes.join("digest")).expect("digest dir");
     fs::write(notes.join("index.json"), br#"{"entries":{}}"#).expect("index");

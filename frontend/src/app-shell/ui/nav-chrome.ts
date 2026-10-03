@@ -6,7 +6,7 @@ export function applySearchNavChrome(routeName: string) {
   closeKnowledgeSearch();
 
   const onHome = routeName === 'home';
-  const onWorkbench = routeName === 'workbench';
+  const onWorkbench = routeName === 'spark';
   const onKnowledge = routeName === 'knowledge-doc';
 
   const wbWrap = document.getElementById('gs-wb-wrap');

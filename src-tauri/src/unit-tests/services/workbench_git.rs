@@ -10,7 +10,7 @@ fn exec_ok(repo: &std::path::Path, args: &[&str]) {
 /// Sets up a temp git repo with a committed `f.md` ("original"), then calls `f(&wb)`.
 fn with_committed_workbench<F: FnOnce(&std::path::Path)>(f: F) {
     let sandbox = TestSandbox::new();
-    let wb = sandbox.workbench_root();
+    let wb = sandbox.spark_root();
     fs::create_dir_all(&wb).expect("mkdir");
     exec_ok(&wb, &["init"]);
     exec_ok(&wb, &["config", "user.email", "t@t.com"]);

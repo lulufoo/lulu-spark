@@ -84,7 +84,7 @@ describe('home three-entry boolean unread', () => {
 
   it('refreshes Notes / Read Later boolean dots from host unread on start', async () => {
     await mountReady();
-    expect(isEntryUnread(container, 'workbench')).toBe(true);
+    expect(isEntryUnread(container, 'spark')).toBe(true);
     expect(isEntryUnread(container, 'read-later')).toBe(true);
     expect(container.querySelector('[data-home-entry="todo-tasks"]')).toBeNull();
     expect(unreadSpy).toHaveBeenCalledWith('notes');
@@ -112,11 +112,11 @@ describe('home three-entry boolean unread', () => {
 
   it('clicking a dotted entry navigates and marks that channel read', async () => {
     await mountReady();
-    container.querySelector('[data-home-entry="workbench"]').click();
-    expect(navigate).toHaveBeenCalledWith('#/workbench');
+    container.querySelector('[data-home-entry="spark"]').click();
+    expect(navigate).toHaveBeenCalledWith('#/spark');
     await vi.waitFor(() => {
       expect(markSpy).toHaveBeenCalledWith('notes');
-      expect(isEntryUnread(container, 'workbench')).toBe(false);
+      expect(isEntryUnread(container, 'spark')).toBe(false);
     });
     expect(isEntryUnread(container, 'read-later')).toBe(true);
     expect(invokeSpy.mock.calls.map((call) => call[0])).not.toContain('create_note');
@@ -144,7 +144,7 @@ describe('home three-entry boolean unread', () => {
 
   it('hangs unread only on workbench / read-later', async () => {
     await mountReady();
-    expect(isEntryUnread(container, 'workbench')).toBe(true);
+    expect(isEntryUnread(container, 'spark')).toBe(true);
     expect(isEntryUnread(container, 'read-later')).toBe(true);
     expect(isEntryUnread(container, 'knowledge')).toBe(false);
     const knowledge = container.querySelector('[data-home-entry="knowledge"]');

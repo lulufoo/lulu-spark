@@ -94,8 +94,8 @@ impl LlmSettingsEntry {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AppSettings {
-    #[serde(default = "default_workbench_root")]
-    pub workbench_root: PathBuf,
+    #[serde(default = "default_spark_root")]
+    pub spark_root: PathBuf,
     #[serde(default = "default_knowledge_root")]
     pub knowledge_root: PathBuf,
     #[serde(default = "default_cache_dir")]
@@ -104,7 +104,7 @@ pub struct AppSettings {
     pub github_user_url: String,
     /// Optional Workbench GitHub repository URL (`https://github.com/owner/repo`). Empty = none.
     #[serde(default)]
-    pub workbench_github_repo_url: String,
+    pub spark_github_repo_url: String,
     /// Assistant engine selection: `host` (Agent Loop + GLM). Default `host`.
     /// Legacy or empty values are retained on disk but treated as unconfigured.
     #[serde(default = "default_assistant_engine")]
@@ -168,7 +168,7 @@ pub fn expand_user_path(raw: &str) -> PathBuf {
     PathBuf::from(s)
 }
 
-pub(super) fn default_workbench_root() -> PathBuf {
+pub(super) fn default_spark_root() -> PathBuf {
     home_dir().join("Code")
 }
 
@@ -191,11 +191,11 @@ pub(super) fn default_assistant_engine() -> String {
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
-            workbench_root: default_workbench_root(),
+            spark_root: default_spark_root(),
             knowledge_root: default_knowledge_root(),
             cache_dir: default_cache_dir(),
             github_user_url: default_github_user_url(),
-            workbench_github_repo_url: String::new(),
+            spark_github_repo_url: String::new(),
             assistant_engine: default_assistant_engine(),
             llm: Vec::new(),
             http_port: None,

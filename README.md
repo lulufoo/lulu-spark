@@ -11,10 +11,10 @@ Lulu Spark 桌面端。个人知识库，包含对话知识归档库（DDM 流�
    - `git clone https://github.com/lulufoo/lulu-workbench-knowledge.git`
 2. **配置路径** — 首次启动 App 打开 **设置**，或编辑 `~/.config/lulu-spark/config.toml`：
    ```toml
-   workbench_root = "/你的本地路径/lulu-workbench-knowledge"
+   spark_root = "/你的本地路径/lulu-workbench-knowledge"
    knowledge_root = "/你的本地路径/Code"   # 沉淀知识库各 topic 仓库 clone 根目录
    cache_dir = "/Users/你的用户名/.cache/lulu-spark"   # 可选；默认即此路径，一般无需改
-   github_user_url = ""   # 可选；个人 GitHub 主页，如 https://github.com/lulufoo（结合 workbench_root 目录名生成 blob 链接）
+   github_user_url = ""   # 可选；个人 GitHub 主页，如 https://github.com/lulufoo（结合 spark_root 目录名生成 blob 链接）
    ```
    GitHub Token 在设置页写入 Keychain。
 3. **启动 App** — 在 workbench 根目录执行 `cargo tauri dev`（或安装 release 后从启动台打开）。**无需** Python 或 `server.py`。笔记 / 知识检索走进程内 SQLite FTS5；每次启动自动重建索引（右上角 ↺ Index 转圈即在构建，空闲时可点它手动重建）。
@@ -34,7 +34,7 @@ cargo tauri dev      # 官方运行时（同时启 localhost HTTP :8765 + Host M
 
 ## SSOT 与 TestSandbox
 
-Knowledge 登记、Read Later 与笔记的 SSOT（单一数据源）已迁入语料仓 `workbench_root`：
+Knowledge 登记、Read Later 与笔记的 SSOT（单一数据源）已迁入语料仓 `spark_root`：
 
 - `notes/raw/`、`notes/digest/`、`notes/index.json`、`notes/annotations/`、`notes/tags/`
 - `knowledge/categories.json`、`knowledge/repos.json`

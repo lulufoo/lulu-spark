@@ -148,13 +148,13 @@ fn session_save_load_roundtrip_under_cache_agent_sessions() {
 }
 
 #[test]
-fn create_session_id_is_workbench_chat_plus_32_hex() {
+fn create_session_id_is_spark_chat_plus_32_hex() {
     with_agent_sandbox(|_| {
         let sess = session::create_session().expect("create");
         let id = sess.session_id;
         let suffix = id
-            .strip_prefix("workbench_chat_")
-            .expect("new session id must start with workbench_chat_");
+            .strip_prefix("spark_chat_")
+            .expect("new session id must start with spark_chat_");
         assert_eq!(suffix.len(), 32);
         assert!(
             suffix

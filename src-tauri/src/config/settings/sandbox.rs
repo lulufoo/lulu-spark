@@ -9,7 +9,7 @@ use std::io::Write;
 use std::sync::OnceLock;
 
 use super::types::{
-    default_cache_dir, default_knowledge_root, default_workbench_root,
+    default_cache_dir, default_knowledge_root, default_spark_root,
     is_test_sandbox, AppSettings, SettingsError, DEFAULT_PROD_GATEWAY_PORT, DEFAULT_PROD_HTTP_PORT,
     DEFAULT_PROD_MCP_PORT, PROD_CONFIG_FILE_NAME,
 };
@@ -52,9 +52,9 @@ pub fn validate_sandbox_against_prod(
     }
     for (label, path, prod_root) in [
         (
-            "workbench_root",
-            sandbox.workbench_root.as_path(),
-            prod.workbench_root.as_path(),
+            "spark_root",
+            sandbox.spark_root.as_path(),
+            prod.spark_root.as_path(),
         ),
         (
             "knowledge_root",
@@ -142,8 +142,8 @@ pub(crate) fn normalize_prod_paths(settings: &mut AppSettings) {
     if is_unstable_cache_dir(&settings.cache_dir) {
         settings.cache_dir = default_cache_dir();
     }
-    if is_unstable_path(&settings.workbench_root) {
-        settings.workbench_root = default_workbench_root();
+    if is_unstable_path(&settings.spark_root) {
+        settings.spark_root = default_spark_root();
     }
     if is_unstable_path(&settings.knowledge_root) {
         settings.knowledge_root = default_knowledge_root();
@@ -286,7 +286,7 @@ pub(crate) fn atomic_write_test_config(
 #[cfg(test)]
 pub fn write_test_config_with_cache(
     config_path: &Path,
-    workbench_root: &Path,
+    spark_root: &Path,
     knowledge_root: Option<&Path>,
     cache_dir: Option<&Path>,
     http_port: u16,
@@ -294,7 +294,7 @@ pub fn write_test_config_with_cache(
 ) -> Result<(), SettingsError> {
     let knowledge = knowledge_root
         .map(|p| p.display().to_string())
-        .unwrap_or_else(|| workbench_root.display().to_string());
+        .unwrap_or_else(|| spark_root.display().to_string());
     let cache = cache_dir
         .map(|p| p.to_path_buf())
         .or_else(|| config_path.parent().map(|parent| parent.join("cache")))
@@ -307,8 +307,8 @@ pub fn write_test_config_with_cache(
     reject_test_write_to_machine_config(config_path)?;
     fs::create_dir_all(&cache)?;
     let text = format!(
-        "workbench_root = \"{}\"\nknowledge_root = \"{}\"\ncache_dir = \"{}\"\nhttp_port = {http_port}\nmcp_port = {mcp_port}\n",
-        workbench_root.display(),
+        "spark_root = \"{}\"\nknowledge_root = \"{}\"\ncache_dir = \"{}\"\nhttp_port = {http_port}\nmcp_port = {mcp_port}\n",
+        spark_root.display(),
         knowledge,
         cache.display()
     );

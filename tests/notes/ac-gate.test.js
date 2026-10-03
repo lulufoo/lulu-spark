@@ -171,7 +171,7 @@ describe('Note AC gate (tech-doc VF / T-13)', () => {
     const listReturn = read('tests/notes/list-return-delete.test.js');
     expect(listReturn).toMatch(/cta_scroll_/);
     expect(listReturn).toMatch(/location\.replace/);
-    expect(listReturn).toMatch(/#\/workbench\?date=/);
+    expect(listReturn).toMatch(/#\/spark\?date=/);
 
     const dialogAudit = read('tests/main/dialog-removal-audit.test.js');
     expect(dialogAudit).toMatch(/navigateBackToList/);

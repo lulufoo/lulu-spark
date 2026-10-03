@@ -3,7 +3,7 @@ use std::path::Path;
 
 use serde_json::{json, Map, Value};
 
-use crate::config::roots::workbench_root_path;
+use crate::config::roots::spark_root_path;
 
 pub fn get_draft(_repo_root: &Path, path: &str) -> Value {
     let decoded = urlencoding::decode(path).unwrap_or_else(|_| path.into());
@@ -73,11 +73,11 @@ pub fn categories_from_git_status(stdout: &str) -> Map<String, Value> {
 }
 
 pub fn get_status(repo_root: &Path) -> Value {
-    let workbench = workbench_root_path(repo_root);
+    let workbench = spark_root_path(repo_root);
     let git_root = workbench.join(".git");
     if !git_root.exists() {
         let msg = format!(
-            "workbench_root is not a git repository: {}",
+            "spark_root is not a git repository: {}",
             workbench.display()
         );
         return json!({ "error": msg });
@@ -96,7 +96,7 @@ pub fn get_status(repo_root: &Path) -> Value {
     categories.insert("total".into(), json!(total));
     categories.insert("ahead".into(), json!(ahead));
     categories.insert(
-        "workbench_root".into(),
+        "spark_root".into(),
         json!(workbench.to_string_lossy().to_string()),
     );
     Value::Object(categories)

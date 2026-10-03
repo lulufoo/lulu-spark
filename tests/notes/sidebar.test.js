@@ -7,7 +7,7 @@ vi.mock('../../frontend/src/shared/utils.ts', () => ({
 vi.mock('../../frontend/src/notes/ui/cards.tsx', () => ({ renderDocList: vi.fn(), loadTitles: vi.fn() }));
 vi.mock('../../frontend/src/notes/commands/cards.ts', () => ({ loadTitles: vi.fn() }));
 vi.mock('../../frontend/src/router/index.ts', () => ({
-  parseHash: vi.fn(() => ({ name: 'workbench', params: {} })),
+  parseHash: vi.fn(() => ({ name: 'spark', params: {} })),
   navigateToDateList: vi.fn(),
 }));
 
@@ -288,7 +288,7 @@ describe('selectDate while note/create active → list via location', () => {
 
   it('with note in hash: navigates to date list (does not only refresh doc-list)', () => {
     vi.mocked(parseHash).mockReturnValue({
-      name: 'workbench',
+      name: 'spark',
       params: { date: '20260719', note: 'inbox/notes/x.md' },
     });
     selectDate('20260718');
@@ -299,7 +299,7 @@ describe('selectDate while note/create active → list via location', () => {
   it('create in progress: clears createSession and navigates to date list', () => {
     state.viewer.createSession = { tempId: 'tmp', status: 'creating' };
     vi.mocked(parseHash).mockReturnValue({
-      name: 'workbench',
+      name: 'spark',
       params: { date: '20260719' },
     });
     selectDate('20260719');
@@ -310,7 +310,7 @@ describe('selectDate while note/create active → list via location', () => {
 
   it('list mode (no note, not creating): updates list without navigateToDateList', () => {
     vi.mocked(parseHash).mockReturnValue({
-      name: 'workbench',
+      name: 'spark',
       params: { date: '20260719' },
     });
     selectDate('20260718');

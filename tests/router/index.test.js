@@ -10,15 +10,15 @@ import {
 } from '../../frontend/src/router/index.ts';
 
 describe('parseHash', () => {
-  it('parses #/workbench', () => {
-    expect(parseHash('#/workbench')).toEqual({ name: 'workbench', params: {} });
+  it('parses #/spark', () => {
+    expect(parseHash('#/spark')).toEqual({ name: 'spark', params: {} });
   });
 
-  it('parses #/workbench?date=&note=&layer= query params', () => {
+  it('parses #/spark?date=&note=&layer= query params', () => {
     expect(
-      parseHash('#/workbench?date=20260719&note=inbox/notes/x.md&layer=raw'),
+      parseHash('#/spark?date=20260719&note=inbox/notes/x.md&layer=raw'),
     ).toEqual({
-      name: 'workbench',
+      name: 'spark',
       params: {
         date: '20260719',
         note: 'inbox/notes/x.md',
@@ -27,17 +27,17 @@ describe('parseHash', () => {
     });
   });
 
-  it('parses #/workbench with only date query', () => {
-    expect(parseHash('#/workbench?date=20260719')).toEqual({
-      name: 'workbench',
+  it('parses #/spark with only date query', () => {
+    expect(parseHash('#/spark?date=20260719')).toEqual({
+      name: 'spark',
       params: { date: '20260719' },
     });
   });
 
-  it('parses #/workbench with date and note but no layer', () => {
-    const result = parseHash('#/workbench?date=20260719&note=inbox/notes/x.md');
+  it('parses #/spark with date and note but no layer', () => {
+    const result = parseHash('#/spark?date=20260719&note=inbox/notes/x.md');
     expect(result).toEqual({
-      name: 'workbench',
+      name: 'spark',
       params: {
         date: '20260719',
         note: 'inbox/notes/x.md',
@@ -47,8 +47,8 @@ describe('parseHash', () => {
   });
 
   it('does not fabricate note id when note and layer are absent', () => {
-    const result = parseHash('#/workbench?date=20260719');
-    expect(result.name).toBe('workbench');
+    const result = parseHash('#/spark?date=20260719');
+    expect(result.name).toBe('spark');
     expect(result.params).not.toHaveProperty('note');
     expect(result.params).not.toHaveProperty('layer');
   });
@@ -136,7 +136,7 @@ describe('initRouter fallback (library API; app entry uses mountHashRouter)', ()
 
   beforeEach(() => {
     handlers = {
-      workbench: vi.fn(),
+      spark: vi.fn(),
       home: vi.fn(),
       'knowledge-doc': vi.fn(),
     };
@@ -167,27 +167,27 @@ describe('initRouter fallback (library API; app entry uses mountHashRouter)', ()
     vi.unstubAllGlobals();
   });
 
-  it('empty hash falls back to #/workbench', () => {
+  it('empty hash falls back to #/spark', () => {
     hashValue = '';
-    initRouter(handlers, { fallback: '#/workbench' });
-    expect(hashValue).toBe('#/workbench');
-    expect(handlers.workbench).toHaveBeenCalledTimes(1);
+    initRouter(handlers, { fallback: '#/spark' });
+    expect(hashValue).toBe('#/spark');
+    expect(handlers.spark).toHaveBeenCalledTimes(1);
   });
 
-  it('unknown hash falls back to #/workbench', () => {
+  it('unknown hash falls back to #/spark', () => {
     hashValue = '#/unknown';
-    initRouter(handlers, { fallback: '#/workbench' });
-    expect(hashValue).toBe('#/workbench');
-    expect(handlers.workbench).toHaveBeenCalledTimes(1);
+    initRouter(handlers, { fallback: '#/spark' });
+    expect(hashValue).toBe('#/spark');
+    expect(handlers.spark).toHaveBeenCalledTimes(1);
   });
 
   it.each(['', '#', '#/', '#/unknown'])(
     'initRouter redirects %s to fallback and mounts workbench handler',
     (hash) => {
       hashValue = hash;
-      initRouter(handlers, { fallback: '#/workbench' });
-      expect(hashValue).toBe('#/workbench');
-      expect(handlers.workbench).toHaveBeenCalledTimes(1);
+      initRouter(handlers, { fallback: '#/spark' });
+      expect(hashValue).toBe('#/spark');
+      expect(handlers.spark).toHaveBeenCalledTimes(1);
     },
   );
 });
@@ -198,12 +198,12 @@ describe('hash navigation', () => {
   let listeners;
 
   beforeEach(() => {
-    hashValue = '#/workbench';
+    hashValue = '#/spark';
     listeners = {};
     handlers = {
-      workbench: vi.fn(),
+      spark: vi.fn(),
       home: vi.fn(),
-      'knowledge-doc': vi.fn(() => navigate('#/workbench')),
+      'knowledge-doc': vi.fn(() => navigate('#/spark')),
     };
     vi.stubGlobal('window', {
       addEventListener(type, fn) {
@@ -231,9 +231,9 @@ describe('hash navigation', () => {
   });
 
   it('popstate/hashchange re-invokes mount handler', () => {
-    initRouter(handlers, { fallback: '#/workbench' });
-    expect(handlers.workbench).toHaveBeenCalledTimes(1);
-    handlers.workbench.mockClear();
+    initRouter(handlers, { fallback: '#/spark' });
+    expect(handlers.spark).toHaveBeenCalledTimes(1);
+    handlers.spark.mockClear();
 
     hashValue = '#/home';
     listeners.hashchange();
@@ -246,22 +246,22 @@ describe('hash navigation', () => {
   });
 
   it('back navigation from knowledge route does not leave blank mount', () => {
-    initRouter(handlers, { fallback: '#/workbench' });
-    expect(handlers.workbench).toHaveBeenCalledTimes(1);
+    initRouter(handlers, { fallback: '#/spark' });
+    expect(handlers.spark).toHaveBeenCalledTimes(1);
 
     hashValue = '#/knowledge/owner/repo';
     listeners.hashchange();
     expect(handlers['knowledge-doc']).toHaveBeenCalledTimes(1);
 
-    const workbenchCallsAfterRedirect = handlers.workbench.mock.calls.length;
+    const workbenchCallsAfterRedirect = handlers.spark.mock.calls.length;
     expect(workbenchCallsAfterRedirect).toBeGreaterThanOrEqual(1);
 
-    handlers.workbench.mockClear();
-    hashValue = '#/workbench';
+    handlers.spark.mockClear();
+    hashValue = '#/spark';
     listeners.popstate();
 
-    expect(handlers.workbench).toHaveBeenCalledTimes(1);
-    expect(() => handlers.workbench.mock.results[0]?.value).not.toThrow();
+    expect(handlers.spark).toHaveBeenCalledTimes(1);
+    expect(() => handlers.spark.mock.results[0]?.value).not.toThrow();
   });
 });
 
@@ -270,7 +270,7 @@ describe('navigate', () => {
   let listeners;
 
   beforeEach(() => {
-    hashValue = '#/workbench';
+    hashValue = '#/spark';
     listeners = {};
     vi.stubGlobal('window', {
       addEventListener(type, fn) {
@@ -305,7 +305,7 @@ describe('Phase2 fallback via initRouter (library API; app entry uses mountHashR
 
   beforeEach(() => {
     handlers = {
-      workbench: vi.fn(),
+      spark: vi.fn(),
       home: vi.fn(),
       'knowledge-doc': vi.fn(),
     };
@@ -350,13 +350,13 @@ describe('Phase2 fallback via initRouter (library API; app entry uses mountHashR
     expect(handlers.home).toHaveBeenCalledTimes(1);
   });
 
-  it('does not replace #/workbench?… to #/home', () => {
-    hashValue = '#/workbench?date=20260719&note=inbox/notes/x.md&layer=raw';
+  it('does not replace #/spark?… to #/home', () => {
+    hashValue = '#/spark?date=20260719&note=inbox/notes/x.md&layer=raw';
     initRouter(handlers);
-    expect(hashValue).toBe('#/workbench?date=20260719&note=inbox/notes/x.md&layer=raw');
-    expect(handlers.workbench).toHaveBeenCalledTimes(1);
-    expect(handlers.workbench).toHaveBeenCalledWith({
-      name: 'workbench',
+    expect(hashValue).toBe('#/spark?date=20260719&note=inbox/notes/x.md&layer=raw');
+    expect(handlers.spark).toHaveBeenCalledTimes(1);
+    expect(handlers.spark).toHaveBeenCalledWith({
+      name: 'spark',
       params: {
         date: '20260719',
         note: 'inbox/notes/x.md',
@@ -384,9 +384,9 @@ describe('Phase2 fallback via initRouter (library API; app entry uses mountHashR
     initRouter(handlers);
     expect(handlers.home).toHaveBeenCalledTimes(1);
 
-    hashValue = '#/workbench';
+    hashValue = '#/spark';
     listeners.hashchange();
-    expect(handlers.workbench).toHaveBeenCalledTimes(1);
+    expect(handlers.spark).toHaveBeenCalledTimes(1);
 
     handlers.home.mockClear();
     hashValue = '#/home';
@@ -472,7 +472,7 @@ describe('navigateToNote / navigateBackToList (T3)', () => {
   let historyStack;
 
   beforeEach(() => {
-    hashValue = '#/workbench?date=20260719';
+    hashValue = '#/spark?date=20260719';
     listeners = {};
     historyStack = [hashValue];
     historyBack = vi.fn(() => {
@@ -515,18 +515,18 @@ describe('navigateToNote / navigateBackToList (T3)', () => {
     vi.unstubAllGlobals();
   });
 
-  it('list→note writes #/workbench?date=&note= (+optional layer) via navigate history', () => {
+  it('list→note writes #/spark?date=&note= (+optional layer) via navigate history', () => {
     navigateToNote({
       date: '20260719',
       note: 'inbox/notes/x.md',
       layer: 'raw',
     });
     expect(hashValue).toBe(
-      '#/workbench?date=20260719&note=inbox%2Fnotes%2Fx.md&layer=raw',
+      '#/spark?date=20260719&note=inbox%2Fnotes%2Fx.md&layer=raw',
     );
     expect(historyStack.length).toBeGreaterThan(1);
     expect(parseHash(hashValue)).toEqual({
-      name: 'workbench',
+      name: 'spark',
       params: {
         date: '20260719',
         note: 'inbox/notes/x.md',
@@ -537,7 +537,7 @@ describe('navigateToNote / navigateBackToList (T3)', () => {
 
   it('list→note without layer omits layer query', () => {
     navigateToNote({ date: '20260719', note: 'inbox/notes/x.md' });
-    expect(hashValue).toBe('#/workbench?date=20260719&note=inbox%2Fnotes%2Fx.md');
+    expect(hashValue).toBe('#/spark?date=20260719&note=inbox%2Fnotes%2Fx.md');
     expect(parseHash(hashValue).params).not.toHaveProperty('layer');
   });
 
@@ -546,29 +546,29 @@ describe('navigateToNote / navigateBackToList (T3)', () => {
     expect(hashValue).toContain('note=');
     navigateBackToList({ date: '20260719' });
     expect(historyBack).toHaveBeenCalledTimes(1);
-    expect(hashValue).toBe('#/workbench?date=20260719');
+    expect(hashValue).toBe('#/spark?date=20260719');
     expect(parseHash(hashValue).params).not.toHaveProperty('note');
   });
 
   it('without usable history, exit strips note and keeps date', () => {
-    hashValue = '#/workbench?date=20260719&note=inbox%2Fnotes%2Fx.md';
+    hashValue = '#/spark?date=20260719&note=inbox%2Fnotes%2Fx.md';
     historyStack = [hashValue];
     navigateBackToList({ date: '20260719' });
     expect(historyBack).not.toHaveBeenCalled();
-    expect(hashValue).toBe('#/workbench?date=20260719');
+    expect(hashValue).toBe('#/spark?date=20260719');
     expect(parseHash(hashValue)).toEqual({
-      name: 'workbench',
+      name: 'spark',
       params: { date: '20260719' },
     });
   });
 
   it('create-in-progress back/close clears create local state and lands on list without temp note', () => {
-    hashValue = '#/workbench?date=20260719';
+    hashValue = '#/spark?date=20260719';
     historyStack = [hashValue];
     const clearCreate = vi.fn();
     navigateBackToList({ date: '20260719', onClearCreate: clearCreate });
     expect(clearCreate).toHaveBeenCalledTimes(1);
-    expect(hashValue).toBe('#/workbench?date=20260719');
+    expect(hashValue).toBe('#/spark?date=20260719');
     expect(parseHash(hashValue).params).not.toHaveProperty('note');
     expect(historyBack).not.toHaveBeenCalled();
   });
@@ -584,12 +584,12 @@ describe('navigateToNote / navigateBackToList (T3)', () => {
   });
 
   it('exit/back is allowed to mutate hash (abolishes exit-must-not-change-hash)', () => {
-    hashValue = '#/workbench?date=20260719&note=inbox%2Fnotes%2Fx.md';
+    hashValue = '#/spark?date=20260719&note=inbox%2Fnotes%2Fx.md';
     historyStack = [hashValue];
     const before = hashValue;
     navigateBackToList({ date: '20260719' });
     expect(hashValue).not.toBe(before);
-    expect(hashValue).toBe('#/workbench?date=20260719');
+    expect(hashValue).toBe('#/spark?date=20260719');
   });
 
   it('navigateToDateList strips note/layer and lands on chosen date (no history.back)', () => {
@@ -597,7 +597,7 @@ describe('navigateToNote / navigateBackToList (T3)', () => {
     expect(hashValue).toContain('note=');
     navigateToDateList('20260718');
     expect(historyBack).not.toHaveBeenCalled();
-    expect(hashValue).toBe('#/workbench?date=20260718');
+    expect(hashValue).toBe('#/spark?date=20260718');
     expect(parseHash(hashValue).params).not.toHaveProperty('note');
     expect(parseHash(hashValue).params).not.toHaveProperty('layer');
   });

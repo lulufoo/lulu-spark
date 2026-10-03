@@ -1,12 +1,12 @@
 use std::path::Path;
 
 /// Personal GitHub home (`https://github.com/{owner}`) + workbench clone dir name → blob base for file links.
-pub fn workbench_github_blob_base(github_user_url: &str, workbench_root: &Path) -> String {
+pub fn spark_github_blob_base(github_user_url: &str, spark_root: &Path) -> String {
     let trimmed = github_user_url.trim().trim_end_matches('/');
     if trimmed.is_empty() {
         return String::new();
     }
-    let repo = workbench_root
+    let repo = spark_root
         .file_name()
         .and_then(|n| n.to_str())
         .filter(|s| !s.is_empty())
@@ -14,18 +14,18 @@ pub fn workbench_github_blob_base(github_user_url: &str, workbench_root: &Path) 
     format!("{trimmed}/{repo}/blob/main")
 }
 
-fn workbench_git_origin_url(workbench_root: &Path) -> Option<String> {
-    crate::integrations::git::origin_url(workbench_root)
+fn spark_git_origin_url(spark_root: &Path) -> Option<String> {
+    crate::integrations::git::origin_url(spark_root)
 }
 
 /// `https://github.com/{owner}` from `git remote get-url origin` when workbench root is a git repo.
-pub fn infer_github_user_url_from_workbench_root(workbench_root: &Path) -> Option<String> {
-    github_user_home_from_remote_url(&workbench_git_origin_url(workbench_root)?)
+pub fn infer_github_user_url_from_spark_root(spark_root: &Path) -> Option<String> {
+    github_user_home_from_remote_url(&spark_git_origin_url(spark_root)?)
 }
 
 /// Profile + repo URL from one origin read.
-pub fn infer_workbench_github_from_root(workbench_root: &Path) -> (Option<String>, Option<String>) {
-    match workbench_git_origin_url(workbench_root) {
+pub fn infer_spark_github_from_root(spark_root: &Path) -> (Option<String>, Option<String>) {
+    match spark_git_origin_url(spark_root) {
         Some(origin) => (
             github_user_home_from_remote_url(&origin),
             github_repo_url_from_remote_url(&origin),

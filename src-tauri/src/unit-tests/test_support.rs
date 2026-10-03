@@ -302,7 +302,7 @@ fn test_sandbox_new_creates_isolated_three_roots() {
     let sandbox = TestSandbox::new();
     let cfg = settings::load().expect("load");
     let base = sandbox.config_dir();
-    assert!(cfg.workbench_root.starts_with(base));
+    assert!(cfg.spark_root.starts_with(base));
     assert!(cfg.knowledge_root.starts_with(base));
     assert!(cfg.cache_dir.starts_with(base));
     assert_ne!(cfg.cache_dir, default_cache_dir());
@@ -321,7 +321,7 @@ fn write_test_config_persists_to_sandbox_config_toml() {
     let sandbox = TestSandbox::new();
     let path = settings::config_file_path().expect("cfg path");
     let text = fs::read_to_string(&path).expect("read config");
-    assert!(text.contains("workbench_root"));
+    assert!(text.contains("spark_root"));
     assert!(text.contains("knowledge_root"));
     assert!(text.contains("cache_dir"));
     assert!(path.ends_with("config.toml"));
@@ -406,10 +406,10 @@ fn atomic_config_write_replaces_hard_link_without_mutating_protected_file() {
 fn nested_test_sandbox_serializes_distinct_roots() {
     crate::test_support::with_config_test_serial(|| {
         let outer = TestSandbox::new();
-        let outer_wb = settings::load().expect("load").workbench_root;
+        let outer_wb = settings::load().expect("load").spark_root;
         {
             let inner = TestSandbox::new();
-            let inner_wb = settings::load().expect("load").workbench_root;
+            let inner_wb = settings::load().expect("load").spark_root;
             assert_ne!(outer_wb, inner_wb);
             assert!(settings::config_file_path()
                 .expect("cfg")
@@ -417,7 +417,7 @@ fn nested_test_sandbox_serializes_distinct_roots() {
             drop(inner);
         }
         assert_eq!(
-            settings::load().expect("load").workbench_root,
+            settings::load().expect("load").spark_root,
             outer_wb
         );
     });
@@ -451,7 +451,7 @@ fn test_sandbox_records_prod_three_roots_at_new() {
     let sandbox = TestSandbox::new();
     // Prod roots are the fake prod under the sandbox HOME, not the machine prod.
     assert_eq!(
-        sandbox.prod_workbench_root(),
+        sandbox.prod_spark_root(),
         sandbox.config_dir().join("prod-wb")
     );
     assert_eq!(
@@ -467,8 +467,8 @@ fn test_sandbox_write_paths_not_equal_prod_roots() {
     let sandbox = TestSandbox::new();
     let cfg = settings::load().expect("load");
     assert_ne!(
-        cfg.workbench_root,
-        sandbox.prod_workbench_root()
+        cfg.spark_root,
+        sandbox.prod_spark_root()
     );
     assert_ne!(cfg.cache_dir, sandbox.prod_cache_dir());
     assert_ne!(
@@ -478,9 +478,9 @@ fn test_sandbox_write_paths_not_equal_prod_roots() {
 }
 
 #[test]
-fn assert_not_prod_path_rejects_prod_workbench_root() {
+fn assert_not_prod_path_rejects_prod_spark_root() {
     let sandbox = TestSandbox::new();
-    let prod = sandbox.prod_workbench_root();
+    let prod = sandbox.prod_spark_root();
     assert!(sandbox.assert_not_prod_path(&prod).is_err());
     assert!(sandbox
         .assert_not_prod_path(&prod.join("knowledge"))

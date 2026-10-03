@@ -1,4 +1,4 @@
-//! Notes store lives at `{workbench_root}/notes/`.
+//! Notes store lives at `{spark_root}/notes/`.
 //! One-time move from the former notes-at-root layout.
 
 use std::fs;

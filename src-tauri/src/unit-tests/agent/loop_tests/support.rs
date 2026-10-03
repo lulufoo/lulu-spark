@@ -50,7 +50,7 @@ pub(super) fn ephemeral_port() -> u16 {
 pub(super) fn start_isolated_mcp(
     sandbox: &TestSandbox,
 ) -> (crate::mcp_host::McpRuntimeHandle, u16) {
-    let todo_root = sandbox.workbench_root().join("todo_tasks");
+    let todo_root = sandbox.spark_root().join("todo_tasks");
     fs::create_dir_all(&todo_root).expect("create todo root");
     fs::write(todo_root.join(".migration_gate_passed"), b"ok\n").expect("plant migration gate");
     let mcp_port = ephemeral_port();
@@ -594,7 +594,7 @@ pub(super) fn session_authorization_bearer() -> Option<String> {
 
 pub(super) fn reset_workbench_slot() {
     test_force_keychain_unavailable(false);
-    revoke_for_slot(Slot::Workbench).expect("revoke workbench");
+    revoke_for_slot(Slot::Spark).expect("revoke workbench");
 }
 
 pub(super) fn assert_secret_absent_from(text: &str, secret: &str) {
@@ -642,9 +642,9 @@ pub(super) fn assert_workbench_session_holds_live_ticket_seed_untouched() {
         .strip_prefix("Bearer ")
         .filter(|value| !value.is_empty() && !value.contains(' '))
         .expect("session Authorization must be Bearer <handle>");
-    verify_for_slot(Slot::Workbench, TicketHandle::from_secret(handle))
+    verify_for_slot(Slot::Spark, TicketHandle::from_secret(handle))
         .expect("session ticket must be the Live workbench ticket");
-    let record = ledger_record(Slot::Workbench)
+    let record = ledger_record(Slot::Spark)
         .expect("ledger")
         .expect("workbench ledger row");
     assert_eq!(record.state, TicketState::Live);
@@ -691,7 +691,7 @@ pub(super) fn session_ticket_handle() -> TicketHandle {
 }
 
 pub(super) fn live_workbench_record() -> crate::services::mcp_oauth::LedgerRecord {
-    ledger_record(Slot::Workbench)
+    ledger_record(Slot::Spark)
         .expect("ledger")
         .expect("workbench ledger row")
 }

@@ -27,7 +27,7 @@ fn run_loop_uses_mcp_tools_and_feeds_tool_result_back_to_model() {
     mcp_registry::clear_for_tests();
     mcp_registry::seed_defaults();
 
-    let notes = sandbox.workbench_root().join("notes");
+    let notes = sandbox.spark_root().join("notes");
     fs::create_dir_all(notes.join("raw")).expect("notes raw");
     fs::create_dir_all(notes.join("digest")).expect("notes digest");
     fs::write(notes.join("index.json"), br#"{"entries":{}}"#).expect("notes index");
@@ -38,13 +38,13 @@ fn run_loop_uses_mcp_tools_and_feeds_tool_result_back_to_model() {
     })
     .expect("start isolated MCP");
     mcp_registry::register(
-        "workbench",
+        "spark",
         McpServerConfig {
             capability_description: "workbench test capability".into(),
             http_transport: HttpMcpTransport {
                 name: "workbench-test".into(),
-                url: format!("http://127.0.0.1:{mcp_port}/mcp/workbench"),
-                headers: bearer_headers_for_slot("workbench"),
+                url: format!("http://127.0.0.1:{mcp_port}/mcp/spark"),
+                headers: bearer_headers_for_slot("spark"),
             },
         },
     )
@@ -64,7 +64,7 @@ fn run_loop_uses_mcp_tools_and_feeds_tool_result_back_to_model() {
         ),
         assistant_text("已读取当前待办列表。"),
     ]);
-    r#loop::try_set_binding_json(&json!({ "key": "workbench" })).expect("Set workbench binding");
+    r#loop::try_set_binding_json(&json!({ "key": "spark" })).expect("Set workbench binding");
     let mut session = session::create_session().expect("session");
     let outcome = r#loop::run_loop(&mut session, "读取当前待办", &cfg_for(&mock));
 
@@ -111,7 +111,7 @@ fn run_loop_marks_successful_note_mcp_mutation_as_wrote() {
     mcp_registry::clear_for_tests();
     mcp_registry::seed_defaults();
 
-    let notes = sandbox.workbench_root().join("notes");
+    let notes = sandbox.spark_root().join("notes");
     fs::create_dir_all(notes.join("raw")).expect("notes raw");
     fs::create_dir_all(notes.join("digest")).expect("notes digest");
     fs::write(notes.join("index.json"), br#"{"entries":{}}"#).expect("notes index");
@@ -121,13 +121,13 @@ fn run_loop_marks_successful_note_mcp_mutation_as_wrote() {
     })
     .expect("start isolated MCP");
     mcp_registry::register(
-        "workbench",
+        "spark",
         McpServerConfig {
             capability_description: "notes test capability".into(),
             http_transport: HttpMcpTransport {
                 name: "workbench-test".into(),
-                url: format!("http://127.0.0.1:{mcp_port}/mcp/workbench"),
-                headers: bearer_headers_for_slot("workbench"),
+                url: format!("http://127.0.0.1:{mcp_port}/mcp/spark"),
+                headers: bearer_headers_for_slot("spark"),
             },
         },
     )
@@ -147,7 +147,7 @@ fn run_loop_marks_successful_note_mcp_mutation_as_wrote() {
         ),
         assistant_text("已创建笔记。"),
     ]);
-    r#loop::try_set_binding_json(&json!({ "key": "workbench" })).expect("Set workbench binding");
+    r#loop::try_set_binding_json(&json!({ "key": "spark" })).expect("Set workbench binding");
     let mut session = session::create_session().expect("session");
     let outcome = r#loop::run_loop(&mut session, "创建一篇笔记", &cfg_for(&mock));
 
@@ -174,7 +174,7 @@ fn run_loop_returns_argument_and_allowlist_failures_to_the_model_as_tool_turns()
     mcp_registry::clear_for_tests();
     mcp_registry::seed_defaults();
     let (mcp, mcp_port) = start_isolated_mcp(&sandbox);
-    register_test_mcp("workbench", mcp_port);
+    register_test_mcp("spark", mcp_port);
 
     let mock = spawn_scripted_llm(vec![
         assistant_tools(
@@ -200,7 +200,7 @@ fn run_loop_returns_argument_and_allowlist_failures_to_the_model_as_tool_turns()
         ),
         assistant_text("工具参数或权限不正确，未执行读取。"),
     ]);
-    r#loop::try_set_binding_json(&json!({ "key": "workbench" })).expect("Set workbench binding");
+    r#loop::try_set_binding_json(&json!({ "key": "spark" })).expect("Set workbench binding");
     let mut session = session::create_session().expect("session");
     let outcome = r#loop::run_loop(&mut session, "读取选择", &cfg_for(&mock));
 
@@ -243,7 +243,7 @@ fn run_loop_stops_after_bounded_mcp_tool_rounds() {
     mcp_registry::clear_for_tests();
     mcp_registry::seed_defaults();
     let (mcp, mcp_port) = start_isolated_mcp(&sandbox);
-    register_test_mcp("workbench", mcp_port);
+    register_test_mcp("spark", mcp_port);
 
     let responses = (0..=r#loop::MAX_MCP_TOOL_ROUNDS)
         .map(|round| {
@@ -261,7 +261,7 @@ fn run_loop_stops_after_bounded_mcp_tool_rounds() {
         })
         .collect();
     let mock = spawn_scripted_llm(responses);
-    r#loop::try_set_binding_json(&json!({ "key": "workbench" })).expect("Set workbench binding");
+    r#loop::try_set_binding_json(&json!({ "key": "spark" })).expect("Set workbench binding");
     let mut session = session::create_session().expect("session");
     let outcome = r#loop::run_loop(&mut session, "反复读取待办", &cfg_for(&mock));
 
@@ -292,13 +292,13 @@ fn run_loop_offers_host_file_tools_and_keeps_scratch_writes_inside_cache() {
     r#loop::reset_runtime_for_tests();
     mcp_registry::clear_for_tests();
     mcp_registry::seed_defaults();
-    let readable = sandbox.workbench_root().join("readable.md");
+    let readable = sandbox.spark_root().join("readable.md");
     fs::write(&readable, "needle-line\n").expect("plant readable file");
-    let forbidden = sandbox.workbench_root().join("todo.md");
+    let forbidden = sandbox.spark_root().join("todo.md");
     let (mcp, mcp_port) = start_isolated_mcp(&sandbox);
-    register_test_mcp("workbench", mcp_port);
+    register_test_mcp("spark", mcp_port);
 
-    r#loop::try_set_binding_json(&json!({ "key": "workbench" })).expect("Set workbench binding");
+    r#loop::try_set_binding_json(&json!({ "key": "spark" })).expect("Set workbench binding");
     let mut session = session::create_session().expect("session");
     let scratch = sandbox
         .cache_dir()
@@ -437,7 +437,7 @@ fn run_loop_does_not_call_mcp_after_reset_invalidates_its_generation() {
     mcp_registry::clear_for_tests();
     mcp_registry::seed_defaults();
     let (mcp, mcp_port) = start_isolated_mcp(&sandbox);
-    register_test_mcp("workbench", mcp_port);
+    register_test_mcp("spark", mcp_port);
 
     let mock = spawn_llm_with_mid_then_response(
         || r#loop::reset_binding().expect("Reset while LLM response is in flight"),
@@ -453,7 +453,7 @@ fn run_loop_does_not_call_mcp_after_reset_invalidates_its_generation() {
             None,
         ),
     );
-    r#loop::try_set_binding_json(&json!({ "key": "workbench" })).expect("Set workbench binding");
+    r#loop::try_set_binding_json(&json!({ "key": "spark" })).expect("Set workbench binding");
     let mut session = session::create_session().expect("session");
     let outcome = r#loop::run_loop(&mut session, "读取待办", &cfg_for(&mock));
 

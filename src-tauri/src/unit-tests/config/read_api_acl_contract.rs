@@ -41,14 +41,14 @@ const INVOKE_MAP_COMMANDS: &[&str] = &[
     "list_notes_categories",
     "get_topics",
     "search_knowledge",
-    "search_workbench",
+    "search_spark",
     "get_annotations",
     "get_annotation",
     "get_draft",
     "get_note_draft",
     "get_config",
     "infer_github_user_url",
-    "check_workbench_root",
+    "check_spark_root",
     "get_status",
     "kb_read",
     "get_kb_asset",
@@ -195,7 +195,7 @@ fn settings_github_infer_commands_are_acl_allowed() {
     let root = manifest_dir();
     let toml = fs::read_to_string(root.join("permissions/read-api.toml")).expect("toml");
     let allow = parse_read_api_toml_allow(&toml);
-    for cmd in ["infer_github_user_url", "check_workbench_root"] {
+    for cmd in ["infer_github_user_url", "check_spark_root"] {
         assert!(allow.contains(cmd), "{cmd} must be in read-api.toml");
     }
 }

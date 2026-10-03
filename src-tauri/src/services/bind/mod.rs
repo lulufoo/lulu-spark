@@ -21,7 +21,7 @@ use crate::services::mcp_oauth::issue_for_device;
 const BIND_TTL_SECS: u64 = 180;
 const ACCOUNT_SIGNING: &str = "signing";
 const ACCOUNT_BINDING: &str = "binding";
-const SEAL_INFO: &[u8] = b"lulu-workbench-bind-v1";
+const SEAL_INFO: &[u8] = b"lulu-spark-bind-v1";
 pub const BIND_MOBILE_BUSINESS_ID: &str = "Bind_Mobile";
 
 pub fn log_bind_event(event: &'static str, outcome: &'static str) {
@@ -80,7 +80,7 @@ static MEMORY_KEYCHAIN: Mutex<Option<HashMap<String, String>>> = Mutex::new(None
 
 #[cfg_attr(test, allow(dead_code))]
 fn bind_service() -> &'static str {
-    "lulu-workbench-bind"
+    "lulu-spark-bind"
 }
 
 fn now_secs() -> u64 {

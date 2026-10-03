@@ -27,7 +27,7 @@ export function wrapRouteMount(routeName: string, mountFn: (route: AppRoute) => 
     // @ts-expect-error leave-route source scan requires forceRecoverA(
     getHomeEntryShell()?.forceRecoverA('leave-route');
     updateNavChrome(routeName);
-    if (routeName === 'workbench') initWorkbenchSearch();
+    if (routeName === 'spark') initWorkbenchSearch();
     if (routeName === 'knowledge-doc') initKnowledgeSearch();
     return mountFn(route);
   };

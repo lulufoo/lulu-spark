@@ -186,7 +186,7 @@ const KNOWLEDGE_TOOLS: &[&str] = &[
 
 const GLOBAL_TOOLS: &[&str] = &["search_document"];
 
-const WORKBENCH_SLOT: &str = "workbench";
+const SPARK_SLOT: &str = "spark";
 const CURSOR_IDE_SLOT: &str = "cursor_ide";
 
 fn workbench_expected_tool_names() -> BTreeSet<&'static str> {
@@ -270,10 +270,10 @@ fn start_mcp_listener_binds_localhost_ephemeral_port() {
 #[test]
 fn streamable_http_nested_under_mcp_scene_slot_is_reachable() {
     let bind_addr: SocketAddr = "127.0.0.1:0".parse().expect("parse bind addr");
-    let nest_path = "/mcp/workbench";
+    let nest_path = "/mcp/spark";
     let handle = start_mcp_listener(bind_addr).expect("start nested MCP scaffold");
     let local = handle.local_addr();
-    let ticket = issue_live_ticket(WORKBENCH_SLOT);
+    let ticket = issue_live_ticket(SPARK_SLOT);
     let auth = bearer(&ticket);
 
     // Minimal HTTP probe: a POST to the nested MCP path must get an HTTP response
@@ -455,8 +455,8 @@ fn start_embedded_mcp_runtime_fails_closed_when_port_busy() {
 /// Normal: `workbench` routing table = notes ∪ todo ∪ knowledge.
 #[test]
 fn build_slot_tool_table_workbench_is_notes_todo() {
-    let table = build_slot_tool_table(WORKBENCH_SLOT).expect("workbench registered");
-    assert_eq!(table.scene_slot, WORKBENCH_SLOT);
+    let table = build_slot_tool_table(SPARK_SLOT).expect("workbench registered");
+    assert_eq!(table.scene_slot, SPARK_SLOT);
     assert!(!table.tools.is_empty());
 
     let names: BTreeSet<_> = table.tools.iter().map(|t| t.name.as_str()).collect();
@@ -494,7 +494,7 @@ fn build_slot_tool_table_cursor_ide_matches_node_allowlist() {
 /// Boundary: workbench and cursor_ide both expose notes ∪ todo ∪ knowledge; notes-selection is gone.
 #[test]
 fn tools_list_workbench_and_cursor_ide_are_notes_todo() {
-    let wb_names = names_of(&tools_list_for_slot(WORKBENCH_SLOT));
+    let wb_names = names_of(&tools_list_for_slot(SPARK_SLOT));
     let ide_names = names_of(&tools_list_for_slot(CURSOR_IDE_SLOT));
 
     assert!(!wb_names.is_empty());
@@ -573,8 +573,8 @@ fn mcp_tools_list_publishes_descriptions_schemas_and_mutation_hints() {
         }
     };
 
-    let workbench_ticket = issue_live_ticket(WORKBENCH_SLOT);
-    let workbench_tools = rt.block_on(list_tools(WORKBENCH_SLOT, workbench_ticket.clone()));
+    let workbench_ticket = issue_live_ticket(SPARK_SLOT);
+    let workbench_tools = rt.block_on(list_tools(SPARK_SLOT, workbench_ticket.clone()));
     assert_eq!(
         workbench_tools.len(),
         workbench_expected_tool_names().len(),
@@ -598,7 +598,7 @@ fn mcp_tools_list_publishes_descriptions_schemas_and_mutation_hints() {
         );
     }
 
-    let notes_tools = rt.block_on(list_tools(WORKBENCH_SLOT, workbench_ticket));
+    let notes_tools = rt.block_on(list_tools(SPARK_SLOT, workbench_ticket));
     assert_eq!(
         notes_tools.len(),
         workbench_expected_tool_names().len(),
@@ -733,7 +733,7 @@ fn registered_scene_slots_accept_initialize_http() {
     let local = handle.local_addr();
 
     let init = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"t3-registered","version":"0.0.1"}}}"#;
-    for slot in [WORKBENCH_SLOT, CURSOR_IDE_SLOT] {
+    for slot in [SPARK_SLOT, CURSOR_IDE_SLOT] {
         let ticket = issue_live_ticket(slot);
         let auth = bearer(&ticket);
         let (status, body, _) = http_post_json_auth(
@@ -815,8 +815,8 @@ fn representative_tools_call_per_registered_slot_hits_services() {
 
     let catalogs = rt
         .block_on(proxy_tool_call(
-            WORKBENCH_SLOT,
-            WORKBENCH_SLOT,
+            SPARK_SLOT,
+            SPARK_SLOT,
             "get_all_notes_catalog",
             serde_json::json!({}),
         ))
@@ -861,8 +861,8 @@ fn proxy_dispatches_search_document_on_blocking_worker() {
 
     let result = rt
         .block_on(proxy_tool_call(
-            WORKBENCH_SLOT,
-            WORKBENCH_SLOT,
+            SPARK_SLOT,
+            SPARK_SLOT,
             "search_document",
             serde_json::json!({ "q": "regression" }),
         ))
@@ -937,7 +937,7 @@ fn start_close_gate_dual_listen() -> (main_host::MainHostHandle, McpRuntimeHandl
 #[test]
 fn close_gate_smoke_initialize_list_passes_v5_dual_listen_and_session() {
     let (http_handle, mcp_handle) = start_close_gate_dual_listen();
-    let ticket = issue_live_ticket(WORKBENCH_SLOT);
+    let ticket = issue_live_ticket(SPARK_SLOT);
 
     let dual_listen_observed = observe_dual_listen(CLOSE_GATE_MCP_PORT, CLOSE_GATE_SIDECAR_PORT)
         .expect("P1 close gate must observe dual listen");
@@ -948,7 +948,7 @@ fn close_gate_smoke_initialize_list_passes_v5_dual_listen_and_session() {
     let tool_names = rt
         .block_on(run_initialize_and_list_tools_authed(
             CLOSE_GATE_MCP_PORT,
-            WORKBENCH_SLOT,
+            SPARK_SLOT,
             &ticket,
         ))
         .expect("P1 close gate must pass before Node spawn hard-cut");
@@ -986,7 +986,7 @@ fn health_success_is_not_session_level_close_gate_proof() {
         "health must not carry tools/list payload: {health_json}"
     );
 
-    let ticket = issue_live_ticket(WORKBENCH_SLOT);
+    let ticket = issue_live_ticket(SPARK_SLOT);
     let rt = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
@@ -994,7 +994,7 @@ fn health_success_is_not_session_level_close_gate_proof() {
     let tool_names = rt
         .block_on(run_initialize_and_list_tools_authed(
             CLOSE_GATE_MCP_PORT,
-            WORKBENCH_SLOT,
+            SPARK_SLOT,
             &ticket,
         ))
         .expect("session close gate");
@@ -1065,7 +1065,7 @@ fn p3_t10_knowledge_mcp_package_not_runtime_ssot() {
 fn p3_t10_host_dual_slot_list_call_and_unknown_hard_fail_smoke() {
     // Main Host fixture: independent listen on :8765 with migration gate planted.
     let sandbox = TestSandbox::new();
-    let wb = sandbox.workbench_root();
+    let wb = sandbox.spark_root();
     let todo_root = wb.join("todo_tasks");
     fs::create_dir_all(&todo_root).expect("mkdir todo_tasks");
     fs::write(todo_root.join(".migration_gate_passed"), b"ok\n").expect("plant migration gate");
@@ -1104,11 +1104,11 @@ fn p3_t10_host_dual_slot_list_call_and_unknown_hard_fail_smoke() {
         .build()
         .expect("tokio");
 
-    let workbench_ticket = issue_live_ticket(WORKBENCH_SLOT);
+    let workbench_ticket = issue_live_ticket(SPARK_SLOT);
     let workbench_names = rt
         .block_on(run_initialize_and_list_tools_authed(
             CLOSE_GATE_MCP_PORT,
-            WORKBENCH_SLOT,
+            SPARK_SLOT,
             &workbench_ticket,
         ))
         .expect("workbench tools/list on Host :9876");
@@ -1201,7 +1201,7 @@ fn p3_t10_host_dual_slot_list_call_and_unknown_hard_fail_smoke() {
     let (_, notes_err, notes_text) = rt
         .block_on(list_and_call(
             CLOSE_GATE_MCP_PORT,
-            WORKBENCH_SLOT,
+            SPARK_SLOT,
             &workbench_ticket,
             "get_all_notes_catalog",
             serde_json::json!({}),
@@ -1282,7 +1282,7 @@ fn assert_old_app_slots_unregistered() {
 /// Normal: workbench tools/list = notes ∪ todo ∪ knowledge.
 #[test]
 fn tools_list_for_workbench_is_notes_todo() {
-    let names = names_of(&tools_list_for_slot(WORKBENCH_SLOT));
+    let names = names_of(&tools_list_for_slot(SPARK_SLOT));
     let expected: BTreeSet<_> = workbench_expected_tool_names()
         .into_iter()
         .map(str::to_string)
@@ -1296,19 +1296,19 @@ fn tools_list_for_workbench_is_notes_todo() {
 fn registered_scene_slots_are_only_workbench_and_cursor_ide() {
     assert_eq!(
         super::REGISTERED_SCENE_SLOTS,
-        &[WORKBENCH_SLOT, CURSOR_IDE_SLOT]
+        &[SPARK_SLOT, CURSOR_IDE_SLOT]
     );
     assert!(!super::REGISTERED_SCENE_SLOTS.contains(&"notes"));
     assert!(!super::REGISTERED_SCENE_SLOTS.contains(&"todo_task"));
     assert!(!super::REGISTERED_SCENE_SLOTS.contains(&"mobile"));
-    assert!(super::is_registered_scene_slot(WORKBENCH_SLOT));
+    assert!(super::is_registered_scene_slot(SPARK_SLOT));
     assert!(super::is_registered_scene_slot(CURSOR_IDE_SLOT));
 }
 
 /// Boundary: get_notes_selection is not hung on workbench.
 #[test]
 fn get_notes_selection_is_not_hung_on_workbench() {
-    let table = build_slot_tool_table(WORKBENCH_SLOT).expect("workbench registered");
+    let table = build_slot_tool_table(SPARK_SLOT).expect("workbench registered");
     assert!(
         table
             .tools
@@ -1333,7 +1333,7 @@ fn old_app_slots_have_no_tool_table() {
 /// Exception: workbench exposes no MCP write-selection tool.
 #[test]
 fn workbench_slot_has_no_mcp_write_selection_tool() {
-    let table = build_slot_tool_table(WORKBENCH_SLOT).expect("workbench registered");
+    let table = build_slot_tool_table(SPARK_SLOT).expect("workbench registered");
     for tool in &table.tools {
         let name = tool.name.to_lowercase();
         let writes_selection = name.contains("notes_selection")
@@ -1349,7 +1349,7 @@ fn workbench_slot_has_no_mcp_write_selection_tool() {
     }
 }
 
-/// Normal: /mcp/workbench is mounted and tools/list matches the union surface.
+/// Normal: /mcp/spark is mounted and tools/list matches the union surface.
 #[test]
 fn workbench_scene_slot_initialize_lists_union_plus_selection() {
     let port = ephemeral_port();
@@ -1357,11 +1357,11 @@ fn workbench_scene_slot_initialize_lists_union_plus_selection() {
     let handle = start_embedded_mcp_runtime(McpRuntimeConfig { bind_addr }).expect("start");
     let local = handle.local_addr();
 
-    let ticket = issue_live_ticket(WORKBENCH_SLOT);
+    let ticket = issue_live_ticket(SPARK_SLOT);
     let auth = bearer(&ticket);
     let init = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"t3-workbench","version":"0.0.1"}}}"#;
     let (status, body, _) = http_post_json_auth(
-        &format!("http://127.0.0.1:{}/mcp/workbench", local.port()),
+        &format!("http://127.0.0.1:{}/mcp/spark", local.port()),
         init,
         Some(&auth),
         None,
@@ -1382,13 +1382,13 @@ fn workbench_scene_slot_initialize_lists_union_plus_selection() {
     let names = rt
         .block_on(run_initialize_and_list_tools_authed(
             local.port(),
-            WORKBENCH_SLOT,
+            SPARK_SLOT,
             &ticket,
         ))
         .expect("workbench tools/list");
     let got: BTreeSet<_> = names.iter().map(String::as_str).collect();
     let expected = workbench_expected_tool_names();
-    assert_eq!(got, expected, "HTTP tools/list for /mcp/workbench");
+    assert_eq!(got, expected, "HTTP tools/list for /mcp/spark");
 
     stop_embedded_mcp_runtime(handle).expect("stop");
 }
@@ -1456,7 +1456,7 @@ fn p4_cursor_ide_surface_unchanged_notes_plus_todo_original_api() {
 /// P4: neither slot hangs notes-selection tools.
 #[test]
 fn p4_notes_selection_tools_are_gone_from_both_slots() {
-    let wb = names_of(&tools_list_for_slot(WORKBENCH_SLOT));
+    let wb = names_of(&tools_list_for_slot(SPARK_SLOT));
     let ide = names_of(&tools_list_for_slot(CURSOR_IDE_SLOT));
     assert!(!wb.contains("get_notes_selection"));
     assert!(!ide.contains("get_notes_selection"));
@@ -1466,7 +1466,7 @@ fn p4_notes_selection_tools_are_gone_from_both_slots() {
 /// P4: unknown / old App slots still hard-reject after workbench is registered.
 #[test]
 fn p4_unregistered_and_old_app_slots_still_hard_reject() {
-    assert!(build_slot_tool_table(WORKBENCH_SLOT).is_some());
+    assert!(build_slot_tool_table(SPARK_SLOT).is_some());
     assert_old_app_slots_unregistered();
     assert!(build_slot_tool_table("__unknown__").is_none());
     assert!(build_slot_tool_table("").is_none());
@@ -1518,10 +1518,10 @@ fn initialize_body(name: &str) -> String {
 #[test]
 fn registered_workbench_live_ticket_enters_streamable_http() {
     let handle = start_ephemeral_mcp();
-    let ticket = issue_live_ticket(WORKBENCH_SLOT);
+    let ticket = issue_live_ticket(SPARK_SLOT);
     let auth = bearer(&ticket);
     let (status, body, session) = http_post_json_auth(
-        &format!("http://127.0.0.1:{}/mcp/workbench", handle.local_addr().port()),
+        &format!("http://127.0.0.1:{}/mcp/spark", handle.local_addr().port()),
         &initialize_body("t2-workbench-live"),
         Some(&auth),
         None,
@@ -1535,7 +1535,7 @@ fn registered_workbench_live_ticket_enters_streamable_http() {
         .expect("tokio")
         .block_on(run_initialize_and_list_tools_authed(
             handle.local_addr().port(),
-            WORKBENCH_SLOT,
+            SPARK_SLOT,
             &ticket,
         ))
         .expect("tools/list with Live ticket");
@@ -1571,7 +1571,7 @@ fn registered_cursor_ide_live_ticket_enters_streamable_http() {
 /// Normal: GET /health stays exempt, does not consult the ledger, and keeps ok + non-empty mcp.
 #[test]
 fn get_health_is_exempt_and_does_not_consult_ledger() {
-    let _ = revoke_for_slot(Slot::Workbench);
+    let _ = revoke_for_slot(Slot::Spark);
     let _ = revoke_for_slot(Slot::CursorIde);
     let handle = start_ephemeral_mcp();
     let (status, body) = http_get(&format!(
@@ -1616,7 +1616,7 @@ fn adapter_only_calls_verify_for_slot_and_never_issues() {
 /// Boundary: unknown slot and bare /mcp stay 404 without ledger lookup, session, or verify.
 #[test]
 fn unknown_and_bare_mcp_stay_404_without_ledger_or_verify() {
-    let ticket = issue_live_ticket(WORKBENCH_SLOT);
+    let ticket = issue_live_ticket(SPARK_SLOT);
     let auth = bearer(&ticket);
     let handle = start_ephemeral_mcp();
     let port = handle.local_addr().port();
@@ -1658,10 +1658,10 @@ fn unknown_and_bare_mcp_stay_404_without_ledger_or_verify() {
 #[test]
 fn registered_slot_session_cannot_replace_ticket() {
     let handle = start_ephemeral_mcp();
-    let ticket = issue_live_ticket(WORKBENCH_SLOT);
+    let ticket = issue_live_ticket(SPARK_SLOT);
     let auth = bearer(&ticket);
     let url = format!(
-        "http://127.0.0.1:{}/mcp/workbench",
+        "http://127.0.0.1:{}/mcp/spark",
         handle.local_addr().port()
     );
     let (status, body, _) = http_post_json_auth(
@@ -1702,7 +1702,7 @@ fn verify_is_cut_before_streamable_http_service() {
     let handle = start_ephemeral_mcp();
     let (status, body, session) = http_post_json(
         &format!(
-            "http://127.0.0.1:{}/mcp/workbench",
+            "http://127.0.0.1:{}/mcp/spark",
             handle.local_addr().port()
         ),
         &initialize_body("t2-before-nest"),
@@ -1720,7 +1720,7 @@ fn verify_is_cut_before_streamable_http_service() {
 fn registered_slot_missing_unknown_mismatch_revoked_are_uniform_401() {
     let handle = start_ephemeral_mcp();
     let port = handle.local_addr().port();
-    let workbench_url = format!("http://127.0.0.1:{port}/mcp/workbench");
+    let workbench_url = format!("http://127.0.0.1:{port}/mcp/spark");
     let ide_url = format!("http://127.0.0.1:{port}/mcp/cursor_ide");
     let init = initialize_body("t2-reject-cases");
 
@@ -1734,7 +1734,7 @@ fn registered_slot_missing_unknown_mismatch_revoked_are_uniform_401() {
         http_post_json_auth(&workbench_url, &init, Some(&missing_auth), None);
     assert_uniform_401(status, &body, Some(missing.as_str()));
 
-    let workbench = issue_live_ticket(WORKBENCH_SLOT);
+    let workbench = issue_live_ticket(SPARK_SLOT);
     let workbench_auth = bearer(&workbench);
     let (status, body, _) = http_post_json_auth(&ide_url, &init, Some(&workbench_auth), None);
     assert_uniform_401(status, &body, Some(workbench.as_str()));
@@ -1768,7 +1768,7 @@ fn rejected_and_keychain_unavailable_both_map_to_401() {
     let handle = start_ephemeral_mcp();
     let (status, body, _) = http_post_json(
         &format!(
-            "http://127.0.0.1:{}/mcp/workbench",
+            "http://127.0.0.1:{}/mcp/spark",
             handle.local_addr().port()
         ),
         &initialize_body("t2-rejected-401"),
@@ -1844,7 +1844,7 @@ fn post_mobile_initialize(
 fn t3_registered_scene_slots_exclude_mobile() {
     assert_eq!(
         super::REGISTERED_SCENE_SLOTS,
-        &[WORKBENCH_SLOT, CURSOR_IDE_SLOT]
+        &[SPARK_SLOT, CURSOR_IDE_SLOT]
     );
     assert!(!super::REGISTERED_SCENE_SLOTS.contains(&MOBILE_PATH));
     assert!(!super::is_registered_scene_slot(MOBILE_PATH));
@@ -2029,7 +2029,7 @@ fn t3_mcp_mobile_tools_match_workbench_table() {
             !got.contains("delete_note"),
             "/mcp/mobile must not include delete_note"
         );
-        let table = build_channel_tool_table(WORKBENCH_SLOT, MOBILE_PATH).expect("mobile channel");
+        let table = build_channel_tool_table(SPARK_SLOT, MOBILE_PATH).expect("mobile channel");
         let table_names: BTreeSet<_> = table.tools.iter().map(|t| t.name.as_str()).collect();
         assert_eq!(got, table_names);
         assert!(
@@ -2082,7 +2082,7 @@ fn t3_slot_tickets_are_rejected_on_mcp_mobile() {
     with_device_sandbox(|| {
         let handle = start_ephemeral_mcp();
         let port = handle.local_addr().port();
-        for slot in [Slot::Workbench, Slot::CursorIde] {
+        for slot in [Slot::Spark, Slot::CursorIde] {
             let ticket = issue_for_slot(slot).expect("issue slot ticket");
             let auth = bearer(&ticket);
             let (status, body, session) = post_mobile_initialize(port, Some(&auth));
@@ -2189,7 +2189,7 @@ fn channel_filter_hides_and_rejects_create_note_on_mobile() {
 /// Plan B: same MCP name, mobile channel invokes create_note_content.
 #[test]
 fn mobile_channel_create_note_hits_content_api() {
-    let table = build_channel_tool_table(WORKBENCH_SLOT, MOBILE_PATH).expect("overlay");
+    let table = build_channel_tool_table(SPARK_SLOT, MOBILE_PATH).expect("overlay");
     let create = table
         .tools
         .iter()
@@ -2207,7 +2207,7 @@ fn mobile_channel_create_note_hits_content_api() {
     assert!(required.iter().any(|v| v.as_str() == Some("digest")));
     assert!(!required.iter().any(|v| v.as_str() == Some("source_path")));
 
-    let path_table = build_channel_tool_table(WORKBENCH_SLOT, WORKBENCH_SLOT).expect("path");
+    let path_table = build_channel_tool_table(SPARK_SLOT, SPARK_SLOT).expect("path");
     let path_create = path_table
         .tools
         .iter()
@@ -2253,7 +2253,7 @@ fn note_content_tool(table: &SlotToolTable) -> &ToolRoute {
 /// Normal: workbench channel hangs get_note_content on note_path Services.
 #[test]
 fn workbench_channel_get_note_content_hits_note_path() {
-    let table = build_channel_tool_table(WORKBENCH_SLOT, WORKBENCH_SLOT).expect("workbench");
+    let table = build_channel_tool_table(SPARK_SLOT, SPARK_SLOT).expect("spark");
     let tool = note_content_tool(&table);
     assert_eq!(tool.name, "get_note_content");
     assert!(
@@ -2279,7 +2279,7 @@ fn cursor_ide_and_mobile_get_note_content_hit_note_path() {
     assert!(!super::is_registered_scene_slot(MOBILE_PATH));
     assert_eq!(
         super::REGISTERED_SCENE_SLOTS,
-        &[WORKBENCH_SLOT, CURSOR_IDE_SLOT]
+        &[SPARK_SLOT, CURSOR_IDE_SLOT]
     );
 
     let ide = build_channel_tool_table(CURSOR_IDE_SLOT, CURSOR_IDE_SLOT).expect("cursor_ide");
@@ -2301,7 +2301,7 @@ fn cursor_ide_and_mobile_get_note_content_hit_note_path() {
         ide_tool.description
     );
 
-    let mobile = build_channel_tool_table(WORKBENCH_SLOT, MOBILE_PATH).expect("mobile overlay");
+    let mobile = build_channel_tool_table(SPARK_SLOT, MOBILE_PATH).expect("mobile overlay");
     let mobile_tool = note_content_tool(&mobile);
     assert_eq!(mobile_tool.name, "get_note_content");
     assert!(
@@ -2318,7 +2318,7 @@ fn cursor_ide_and_mobile_get_note_content_hit_note_path() {
 /// Product hard-gate: delete_note only on workbench channel.
 #[test]
 fn delete_note_is_workbench_channel_only() {
-    let wb = build_channel_tool_table(WORKBENCH_SLOT, WORKBENCH_SLOT).expect("workbench");
+    let wb = build_channel_tool_table(SPARK_SLOT, SPARK_SLOT).expect("spark");
     assert!(
         wb.tools.iter().any(|t| t.name == "delete_note"),
         "workbench must expose delete_note"
@@ -2330,7 +2330,7 @@ fn delete_note_is_workbench_channel_only() {
         "cursor_ide must not list delete_note"
     );
 
-    let mobile = build_channel_tool_table(WORKBENCH_SLOT, MOBILE_PATH).expect("mobile");
+    let mobile = build_channel_tool_table(SPARK_SLOT, MOBILE_PATH).expect("mobile");
     assert!(
         mobile.tools.iter().all(|t| t.name != "delete_note"),
         "mobile must not list delete_note even with scene_slot=workbench"
@@ -2374,9 +2374,9 @@ fn crate_registers_mcp_host_as_in_process_module() {
 #[test]
 fn get_note_content_name_and_digest_route() {
     for (slot, channel) in [
-        (WORKBENCH_SLOT, WORKBENCH_SLOT),
+        (SPARK_SLOT, SPARK_SLOT),
         (CURSOR_IDE_SLOT, CURSOR_IDE_SLOT),
-        (WORKBENCH_SLOT, MOBILE_PATH),
+        (SPARK_SLOT, MOBILE_PATH),
     ] {
         let table = build_channel_tool_table(slot, channel).expect("table");
         assert!(

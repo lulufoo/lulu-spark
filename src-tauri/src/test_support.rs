@@ -368,7 +368,7 @@ fn write_fake_prod_config(home: &Path) {
 pub struct TestSandbox {
     config_env: TestConfigEnv,
     dir: tempfile::TempDir,
-    prod_workbench_root: PathBuf,
+    prod_spark_root: PathBuf,
     prod_knowledge_root: PathBuf,
     prod_cache_dir: PathBuf,
 }
@@ -383,7 +383,7 @@ impl TestSandbox {
         write_fake_prod_config(dir.path());
 
         let prod = settings::load_prod_settings();
-        let prod_workbench_root = prod.workbench_root.clone();
+        let prod_spark_root = prod.spark_root.clone();
         let prod_knowledge_root = prod.knowledge_root.clone();
         let prod_cache_dir = prod.cache_dir.clone();
 
@@ -391,13 +391,13 @@ impl TestSandbox {
         write_sandbox_config(&config_path, &wb, &clones, &cache, ports);
         let cfg = settings::load().expect("load");
         for path in [
-            cfg.workbench_root.as_path(),
+            cfg.spark_root.as_path(),
             cfg.knowledge_root.as_path(),
             cfg.cache_dir.as_path(),
         ] {
             assert_path_not_under_prod_roots(
                 path,
-                &prod_workbench_root,
+                &prod_spark_root,
                 &prod_knowledge_root,
                 &prod_cache_dir,
             )
@@ -407,7 +407,7 @@ impl TestSandbox {
         Self {
             config_env,
             dir,
-            prod_workbench_root,
+            prod_spark_root,
             prod_knowledge_root,
             prod_cache_dir,
         }
@@ -425,10 +425,10 @@ impl TestSandbox {
         self.config_env.ports()
     }
 
-    pub fn workbench_root(&self) -> PathBuf {
+    pub fn spark_root(&self) -> PathBuf {
         settings::load()
             .expect("load sandbox config")
-            .workbench_root
+            .spark_root
     }
 
     pub fn knowledge_root(&self) -> PathBuf {
@@ -441,8 +441,8 @@ impl TestSandbox {
         settings::load().expect("load sandbox config").cache_dir
     }
 
-    pub fn prod_workbench_root(&self) -> &Path {
-        &self.prod_workbench_root
+    pub fn prod_spark_root(&self) -> &Path {
+        &self.prod_spark_root
     }
 
     pub fn prod_knowledge_root(&self) -> &Path {
@@ -456,7 +456,7 @@ impl TestSandbox {
     pub fn assert_not_prod_path(&self, path: &Path) -> Result<(), ProdPathGuardError> {
         assert_path_not_under_prod_roots(
             path,
-            &self.prod_workbench_root,
+            &self.prod_spark_root,
             &self.prod_knowledge_root,
             &self.prod_cache_dir,
         )
@@ -490,7 +490,7 @@ fn collect_rs_files(dir: &Path, out: &mut Vec<PathBuf>) {
 
 pub fn with_sandbox_notes<F: FnOnce(&Path, &Path)>(prepare_ai_subdir: bool, f: F) {
     let sandbox = TestSandbox::new();
-    let notes = sandbox.workbench_root().join("notes");
+    let notes = sandbox.spark_root().join("notes");
     if prepare_ai_subdir {
         std::fs::create_dir_all(notes.join("annotations/ai")).expect("mkdir");
     } else {

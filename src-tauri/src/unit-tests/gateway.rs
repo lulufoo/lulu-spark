@@ -512,7 +512,7 @@ fn gateway_rejects_unnamed_paths_and_disallowed_methods() {
         "/api/status",
         "/api/read-later",
         "/foo",
-        "/mcp/workbench",
+        "/mcp/spark",
         "/mcp/mobile/extra",
     ] {
         let response = client

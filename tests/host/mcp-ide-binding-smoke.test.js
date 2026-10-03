@@ -18,7 +18,7 @@ describe('T11 IDE/Binding Host MCP acceptance smoke record', () => {
     );
     expect(readme).toContain('http://127.0.0.1:<mcp_port>/mcp/cursor_ide');
     expect(types).toContain('cursor_ide');
-    expect(types).toContain('workbench');
+    expect(types).toContain('spark');
   });
 
   it('npm test includes T11 IDE/Binding smoke gate', () => {

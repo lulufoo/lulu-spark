@@ -44,12 +44,12 @@
     }
   },
   "plugins": {
-    "workbench-scheme": {
+    "spark-scheme": {
       "CFBundleURLTypes": [
         {
           "CFBundleURLName": "com.lulu.spark",
           "CFBundleURLSchemes": [
-            "workbench"
+            "spark"
           ]
         }
       ]

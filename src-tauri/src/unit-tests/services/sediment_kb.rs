@@ -14,7 +14,7 @@ fn with_sediment_kb_cache<F: FnOnce(&Path)>(f: F) {
     let _sandbox = TestSandbox::new();
     let wb = crate::config::settings::load()
         .expect("load")
-        .workbench_root;
+        .spark_root;
     f(wb.as_path());
 }
 

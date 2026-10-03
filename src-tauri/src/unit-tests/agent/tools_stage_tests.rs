@@ -82,7 +82,7 @@ fn catalog_registers_stage_trio_off_cursor_ide_and_mobile() {
     }
     assert!(catalog.is_mutating("stage"));
     assert!(!catalog.is_mutating("list_staged") && !catalog.is_mutating("get_staged"));
-    for (slot, channel) in [("cursor_ide", "cursor_ide"), ("workbench", "mobile")] {
+    for (slot, channel) in [("cursor_ide", "cursor_ide"), ("spark", "mobile")] {
         let table = crate::mcp_host::build_channel_tool_table(slot, channel)
             .expect("table");
         for name in ["stage", "list_staged", "get_staged"] {

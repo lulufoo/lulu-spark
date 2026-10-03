@@ -16,7 +16,7 @@ use crate::test_support::TestSandbox;
 const SAMPLE_DOC: &str = "# Title\n\n---\n\n正文 Body.\n";
 
 fn setup_notes_layout(sandbox: &TestSandbox) {
-    let notes = sandbox.workbench_root().join("notes");
+    let notes = sandbox.spark_root().join("notes");
     fs::create_dir_all(notes.join("raw")).expect("raw");
     fs::create_dir_all(notes.join("digest")).expect("digest");
     fs::write(notes.join("index.json"), br#"{"entries":{}}"#).expect("index");
@@ -70,7 +70,7 @@ fn occupy_message_center_path_as_dir() {
 }
 
 fn invoke_notes(name: &str, args: Value) -> Value {
-    (notes::build(name, "workbench").expect(name).invoke)(&args)
+    (notes::build(name, "spark").expect(name).invoke)(&args)
 }
 
 fn assert_note_ok(value: &Value) {

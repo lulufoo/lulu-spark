@@ -38,7 +38,7 @@ const todosBindingJs = readFileSync(
 
 describe('Host Agent MCP tools — workbench key-only call surface', () => {
   it('setWorkbenchBinding submits key-only workbench (no tools/prompt/callbacks payload)', async () => {
-    expect(WORKBENCH_BUSINESS_KEY).toBe('workbench');
+    expect(WORKBENCH_BUSINESS_KEY).toBe('spark');
     const events = [];
     const invokeMock = vi.fn(async (cmd, args) => {
       if (cmd === 'set_binding') {

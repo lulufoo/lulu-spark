@@ -85,7 +85,7 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
   });
 
   it('settings nav uses Data, Notes, Knowledge, Assistant, then Sync', () => {
-    expect(indexHtml).toMatch(/data-panel="workbench">Data</);
+    expect(indexHtml).toMatch(/data-panel="spark">Data</);
     expect(indexHtml).toMatch(/data-panel="notes">Notes</);
     expect(indexHtml).toMatch(/data-panel="knowledge">Knowledge</);
     expect(indexHtml).toMatch(/data-panel="llm">Assistant</);
@@ -108,8 +108,8 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
       knowledgeTabs.indexOf('data-tab="hidden"'),
     );
     const nav = indexHtml.match(/<nav id="settings-nav">([\s\S]*?)<\/nav>/)?.[1] ?? '';
-    expect(nav.indexOf('data-panel="workbench"')).toBeGreaterThan(-1);
-    expect(nav.indexOf('data-panel="workbench"')).toBeLessThan(
+    expect(nav.indexOf('data-panel="spark"')).toBeGreaterThan(-1);
+    expect(nav.indexOf('data-panel="spark"')).toBeLessThan(
       nav.indexOf('data-panel="notes"'),
     );
     expect(nav.indexOf('data-panel="notes"')).toBeLessThan(

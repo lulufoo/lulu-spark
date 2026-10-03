@@ -73,7 +73,7 @@ describe('handleNotesOsNotifyEnvelope', () => {
     expect(notifySpy).toHaveBeenCalledWith({
       title: 'New note',
       body: 'A note was added',
-      scheme: 'workbench://notes/open?id=abc&path=inbox%2Fx.md',
+      scheme: 'spark://notes/open?id=abc&path=inbox%2Fx.md',
     });
   });
 

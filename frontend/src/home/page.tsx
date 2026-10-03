@@ -96,7 +96,7 @@ function goHomeEntry(
   navigateFn?: (hash: string) => void,
   openReadLater?: () => void,
 ) {
-  if (dest === 'workbench') navigateFn?.('#/workbench');
+  if (dest === 'spark') navigateFn?.('#/spark');
   else if (dest === 'read-later') {
     if (typeof openReadLater === 'function') openReadLater();
     else navigateFn?.('#/read-later');
@@ -214,11 +214,11 @@ export function HomePage({
             <button
               type="button"
               className="home-chat-nav-item home-desktop-shortcut"
-              data-home-entry="workbench"
+              data-home-entry="spark"
               {...unreadProps(state.channelUnread.notes)}
               onClick={() => {
-                void markHomeEntryRead('workbench');
-                goHomeEntry('workbench', navigateFn, openReadLater);
+                void markHomeEntryRead('spark');
+                goHomeEntry('spark', navigateFn, openReadLater);
               }}
             >
               <span className="home-desktop-shortcut-icon" aria-hidden="true">
@@ -237,7 +237,7 @@ export function HomePage({
                   typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
                     ? crypto.randomUUID()
                     : `note-${Date.now()}`;
-                goHomeEntry('workbench', navigateFn, openReadLater);
+                goHomeEntry('spark', navigateFn, openReadLater);
                 void openCreateNote({ temp_id });
               }}
             >

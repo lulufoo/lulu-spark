@@ -40,23 +40,23 @@ def log_event(**fields: object) -> None:
 
 
 def config_dir() -> Path:
-    if env := os.environ.get("LULU_WB_CONFIG_DIR"):
+    if env := os.environ.get("LULU_SPARK_CONFIG_DIR"):
         return Path(env)
     return Path.home() / ".config" / "lulu-spark"
 
 
-def default_workbench_root() -> Path:
+def default_spark_root() -> Path:
     return Path.home() / "Code"
 
 
-def load_workbench_root() -> Path:
+def load_spark_root() -> Path:
     path = config_dir() / "config.toml"
     if path.is_file():
         data = tomllib.loads(path.read_text(encoding="utf-8"))
     else:
         data = {}
-    raw = data.get("workbench_root") or data.get("workbench_knowledge_root")
-    return Path(raw) if raw else default_workbench_root()
+    raw = data.get("spark_root")
+    return Path(raw) if raw else default_spark_root()
 
 
 def gate_path(todo_root: Path) -> Path:
@@ -234,8 +234,8 @@ def rewrite_storage_paths(todo_root: Path) -> None:
 
 
 def main() -> int:
-    wb_root = load_workbench_root()
-    log_event(event="start", workbench_root=str(wb_root))
+    wb_root = load_spark_root()
+    log_event(event="start", spark_root=str(wb_root))
 
     todo_root, root_errors = migrate_root(wb_root)
     if root_errors:

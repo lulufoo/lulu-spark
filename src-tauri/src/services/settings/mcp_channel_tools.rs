@@ -1,4 +1,4 @@
-//! Per-channel MCP tool allowlist (`/mcp/workbench`, `/mcp/cursor_ide`, `/mcp/mobile`).
+//! Per-channel MCP tool allowlist (`/mcp/spark`, `/mcp/cursor_ide`, `/mcp/mobile`).
 //!
 //! Persists nested `{ channel: { notes: [], knowledge: [], global: [] } }`.
 //! Legacy flat arrays are migrated on read. UI commands still accept/return flat enabled lists.
@@ -19,9 +19,9 @@ use super::mcp_channel_classify::{
     rewrite_retired_search_names, sort_enabled_groups,
 };
 
-pub const MCP_CHANNELS: &[&str] = &["workbench", "cursor_ide", "mobile"];
+pub const MCP_CHANNELS: &[&str] = &["spark", "cursor_ide", "mobile"];
 
-/// Catalog tools that Settings may list, but only `/mcp/workbench` may enable or expose.
+/// Catalog tools that Settings may list, but only `/mcp/spark` may enable or expose.
 pub const WORKBENCH_ONLY_TOOLS: &[&str] = &["delete_note"];
 
 static LOCK: Mutex<()> = Mutex::new(());
@@ -60,7 +60,7 @@ fn default_groups_for_channel(channel: &str, catalog: &HashSet<String>) -> Enabl
 }
 
 fn apply_channel_tool_policy(channel: &str, mut names: HashSet<String>) -> HashSet<String> {
-    if channel != "workbench" {
+    if channel != "spark" {
         for tool in WORKBENCH_ONLY_TOOLS {
             names.remove(*tool);
         }
@@ -69,7 +69,7 @@ fn apply_channel_tool_policy(channel: &str, mut names: HashSet<String>) -> HashS
 }
 
 fn apply_group_policy(channel: &str, mut groups: EnabledByGroup) -> EnabledByGroup {
-    if channel != "workbench" {
+    if channel != "spark" {
         groups
             .notes
             .retain(|name| !WORKBENCH_ONLY_TOOLS.contains(&name.as_str()));

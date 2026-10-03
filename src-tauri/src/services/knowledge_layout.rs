@@ -1,5 +1,5 @@
-//! Knowledge registry lives at `{workbench_root}/knowledge/`.
-//! One-time move from `{workbench_root}/sediment-kb/`.
+//! Knowledge registry lives at `{spark_root}/knowledge/`.
+//! One-time move from `{spark_root}/sediment-kb/`.
 
 use std::fs;
 use std::path::Path;

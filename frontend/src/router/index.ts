@@ -13,7 +13,7 @@ export function parseHash(hash?: string): ParsedRoute {
   if (!path) return { name: 'unknown', params: {} };
   if (path === 'home') return { name: 'home', params: {} };
   if (path === 'read-later') return { name: 'read-later', params: {} };
-  if (path === 'workbench' || path.startsWith('workbench?')) {
+  if (path === 'spark' || path.startsWith('spark?')) {
     const queryString = path.includes('?') ? path.slice(path.indexOf('?') + 1) : '';
     const params: Record<string, string> = {};
     if (queryString) {
@@ -28,7 +28,7 @@ export function parseHash(hash?: string): ParsedRoute {
         params.layer = searchParams.get('layer') ?? '';
       }
     }
-    return { name: 'workbench', params };
+    return { name: 'spark', params };
   }
 
   if (path === 'knowledge' || path === 'knowledge/pick') return { name: 'knowledge-doc', params: { repo: '' } };
@@ -93,7 +93,7 @@ function buildWorkbenchHash({ date, note, layer }: NoteNavParams = {}) {
   if (note) searchParams.set('note', note);
   if (layer) searchParams.set('layer', layer);
   const qs = searchParams.toString();
-  return qs ? `#/workbench?${qs}` : '#/workbench';
+  return qs ? `#/spark?${qs}` : '#/spark';
 }
 
 /**

@@ -221,7 +221,7 @@ export async function getReindexStatus() {
 
 export async function searchWorkbench(q: string, limit = 10) {
   const res = await getReadDriver().fetchGet(
-    `/api/search-workbench?q=${encodeURIComponent(q)}&limit=${limit}`
+    `/api/search-spark?q=${encodeURIComponent(q)}&limit=${limit}`
   );
   return res.json();
 }

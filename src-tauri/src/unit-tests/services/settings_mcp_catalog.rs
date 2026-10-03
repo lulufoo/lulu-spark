@@ -7,7 +7,7 @@ use crate::test_support::TestSandbox;
 fn with_channel_tools<F: FnOnce()>(f: F) {
     let _sandbox = TestSandbox::new();
     mcp_channel_tools::set_enabled(
-        "workbench",
+        "spark",
         vec![
             "get_all_notes_catalog".into(),
             "create_note".into(),
@@ -20,11 +20,11 @@ fn with_channel_tools<F: FnOnce()>(f: F) {
 #[test]
 fn enabled_grouped_partitions_flat_settings_by_business() {
     with_channel_tools(|| {
-        let grouped = enabled_grouped("workbench");
+        let grouped = enabled_grouped("spark");
         assert!(grouped.notes.contains(&"get_all_notes_catalog".into()));
         assert!(grouped.notes.contains(&"create_note".into()));
         assert!(!mcp_channel_tools::is_enabled(
-            "workbench",
+            "spark",
             "list_todo_tasks"
         ));
     });

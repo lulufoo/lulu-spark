@@ -22,7 +22,7 @@ export function ShellPages({
   const host = useHostState();
   const homeOn = routeName === 'home' || routeName === 'read-later';
   const knowledgeOn = routeName === 'knowledge-doc';
-  const notesOn = routeName === 'workbench';
+  const notesOn = routeName === 'spark';
 
   useEffect(() => {
     applySearchNavChrome(routeName);

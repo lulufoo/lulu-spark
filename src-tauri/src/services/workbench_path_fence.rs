@@ -11,7 +11,7 @@ pub fn expand_for_business_key(key: &str) -> Option<PathFence> {
     if key != SEEDED_BUSINESS_KEY {
         return None;
     }
-    let wb = stored_path(paths::workbench_root().ok()?);
+    let wb = stored_path(paths::spark_root().ok()?);
     let cache = stored_path(paths::cache_dir().ok()?);
     let knowledge = stored_path(paths::knowledge_root().ok()?);
 

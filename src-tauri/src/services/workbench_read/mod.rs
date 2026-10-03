@@ -7,7 +7,7 @@ mod notes_catalog;
 mod status;
 
 pub use crate::config::roots::{
-    github_user_url_string, knowledge_root_string, workbench_root_path,
+    github_user_url_string, knowledge_root_string, spark_root_path,
 };
 pub use annotations::*;
 pub use config::*;

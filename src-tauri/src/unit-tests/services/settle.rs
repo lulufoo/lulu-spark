@@ -116,7 +116,7 @@ fn local_annotation_updated_when_put_would_succeed() {
         |root| {
             let wb = crate::config::settings::load()
                 .expect("load")
-                .workbench_root;
+                .spark_root;
             fs::create_dir_all(wb.join("annotations/proj")).expect("ann dir");
             let ann_path = wb.join("annotations/proj/note.json");
             fs::write(

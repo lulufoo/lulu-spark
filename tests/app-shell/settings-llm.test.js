@@ -35,10 +35,10 @@ function mountSettingsDom() {
 
 function baseConfig(overrides = {}) {
   return {
-    workbench_root: '',
+    spark_root: '',
     knowledge_root: '',
     github_user_url: '',
-    workbench_github_repo_url: '',
+    spark_github_repo_url: '',
     has_github_token: false,
     assistant_engine: 'host',
     has_host_key: false,

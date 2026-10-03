@@ -29,7 +29,7 @@ function workbenchOnlyTools(snapshot: McpToolsSnapshot | null): Set<string> {
 /** Catalog names visible / selectable for the given MCP channel. */
 function catalogNamesForChannel(snapshot: McpToolsSnapshot | null, channel: string): string[] {
   const only = workbenchOnlyTools(snapshot);
-  if (channel === 'workbench' || !only.size) return catalogNames(snapshot);
+  if (channel === 'spark' || !only.size) return catalogNames(snapshot);
   return catalogNames(snapshot).filter((name) => !only.has(name));
 }
 
@@ -42,7 +42,7 @@ function toolInputs() {
 function selectedChannel() {
   return (
     (document.getElementById('settings-mcp-channel') as HTMLSelectElement | null)?.value ||
-    'workbench'
+    'spark'
   );
 }
 
@@ -70,7 +70,7 @@ export function paintMcpToolGroups() {
     legend.textContent = group.label || group.id;
     fieldset.appendChild(legend);
     for (const tool of group.tools || []) {
-      if (channel !== 'workbench' && only.has(tool.name)) continue;
+      if (channel !== 'spark' && only.has(tool.name)) continue;
       const label = document.createElement('label');
       label.className = 'settings-mcp-tool';
       const input = document.createElement('input');

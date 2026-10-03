@@ -72,7 +72,7 @@ function _refreshFilteredList() {
 
 export function selectDate(date: string) {
   const route = parseHash(typeof window !== 'undefined' ? window.location.hash : '');
-  if (route.name === 'workbench') {
+  if (route.name === 'spark') {
     const params = route.params as { note?: string };
     const hasNote = Boolean(params.note);
     const creating = Boolean(state.viewer?.createSession);

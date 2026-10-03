@@ -27,7 +27,7 @@ fn missing_file_enables_full_catalog_on_every_channel() {
     let all = catalog();
     for channel in MCP_CHANNELS {
         let enabled = enabled_names(channel);
-        if *channel == "workbench" {
+        if *channel == "spark" {
             assert_eq!(enabled, all, "{channel}");
             assert!(is_enabled(channel, "delete_note"), "{channel} delete_note");
         } else {
@@ -47,13 +47,13 @@ fn set_enabled_subset_filters_only_that_channel() {
     set_enabled("mobile", without("create_note")).expect("save mobile");
     assert!(!is_enabled("mobile", "create_note"));
     assert!(is_enabled("mobile", "get_all_notes_catalog"));
-    assert!(is_enabled("workbench", "create_note"));
+    assert!(is_enabled("spark", "create_note"));
     assert!(is_enabled("cursor_ide", "create_note"));
     let path = paths::mcp_channel_tools_path().expect("path");
     sandbox.assert_not_prod_path(&path).expect("sandbox file");
     let stored: serde_json::Value = serde_json::from_str(&fs::read_to_string(&path).expect("read"))
         .expect("json");
-    assert!(stored["channels"].get("workbench").is_none());
+    assert!(stored["channels"].get("spark").is_none());
     let mobile_notes = stored["channels"]["mobile"]["notes"]
         .as_array()
         .expect("mobile notes");
@@ -100,7 +100,7 @@ fn snapshot_lists_groups_and_per_channel_enabled() {
     let snap = snapshot().expect("snapshot");
     assert_eq!(
         snap["channels"],
-        serde_json::json!(["workbench", "cursor_ide", "mobile"])
+        serde_json::json!(["spark", "cursor_ide", "mobile"])
     );
     assert_eq!(
         snap["workbench_only_tools"],
@@ -121,9 +121,9 @@ fn snapshot_lists_groups_and_per_channel_enabled() {
     assert!(!mobile.contains("create_note"));
     assert!(!mobile.contains("delete_note"));
     assert!(!mobile.contains("list_todo_tasks"));
-    let workbench: HashSet<&str> = snap["enabled"]["workbench"]
+    let workbench: HashSet<&str> = snap["enabled"]["spark"]
         .as_array()
-        .expect("workbench")
+        .expect("spark")
         .iter()
         .filter_map(|v| v.as_str())
         .collect();
@@ -139,7 +139,7 @@ fn delete_note_never_enables_on_non_workbench_even_if_listed() {
     assert!(!is_enabled("cursor_ide", "delete_note"));
     set_enabled("mobile", with_delete).expect("save full list");
     assert!(!is_enabled("mobile", "delete_note"));
-    assert!(is_enabled("workbench", "delete_note"));
+    assert!(is_enabled("spark", "delete_note"));
 }
 
 #[test]

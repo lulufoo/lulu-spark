@@ -16,9 +16,9 @@ describe('notify-trace', () => {
 
   it('reads trace from a workbench URL', () => {
     expect(
-      extractTraceFromScheme('workbench://notes/open?id=a&path=p.md&trace=trace_12345678'),
+      extractTraceFromScheme('spark://notes/open?id=a&path=p.md&trace=trace_12345678'),
     ).toBe('trace_12345678');
-    expect(extractTraceFromScheme('workbench://read-later/list')).toBeNull();
+    expect(extractTraceFromScheme('spark://read-later/list')).toBeNull();
   });
 
   it('remembers the last valid trace for later route.workbench', () => {

@@ -9,7 +9,7 @@ use crate::test_support::TestSandbox;
 
 fn with_read_later_sandbox<F: FnOnce(&Path)>(f: F) {
     let _sandbox = TestSandbox::new();
-    let wb = paths::workbench_root().expect("workbench root");
+    let wb = paths::spark_root().expect("workbench root");
     f(&wb);
 }
 
@@ -18,7 +18,7 @@ fn is_iso8601(s: &str) -> bool {
 }
 
 #[test]
-fn read_later_path_is_under_workbench_root() {
+fn read_later_path_is_under_spark_root() {
     with_read_later_sandbox(|wb| {
         let path = paths::read_later_path().expect("path");
         assert_eq!(path, wb.join("read_later").join("read_later.json"));

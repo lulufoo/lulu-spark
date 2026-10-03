@@ -45,7 +45,7 @@ const { elements, makeEl, locationStub, navigateToNoteMock, navigateBackToListMo
     return el;
   };
 
-  const locationStub = { hash: '#/workbench?date=20260710', href: 'http://localhost/#/workbench?date=20260710' };
+  const locationStub = { hash: '#/spark?date=20260710', href: 'http://localhost/#/spark?date=20260710' };
   const navigateToNoteMock = vi.fn().mockReturnValue(true);
   const navigateBackToListMock = vi.fn();
 
@@ -174,7 +174,7 @@ function resetViewerDom() {
   }
   makeEl('md-modal').style.display = 'none';
   document.body.style.overflow = '';
-  locationStub.hash = '#/workbench?date=20260710';
+  locationStub.hash = '#/spark?date=20260710';
   state.ui.activeDate = '20260710';
   state.viewer.entry = null;
   state.viewer.rawText = '';
@@ -285,7 +285,7 @@ describe('create session exit', () => {
 
   it('trim-nonempty exit: Primary create via createNote, then navigate note=common_path', async () => {
     makeEl('md-edit-area').value = '  hello note\n';
-    locationStub.hash = '#/workbench?date=20260710';
+    locationStub.hash = '#/spark?date=20260710';
 
     await closeModal();
 
@@ -336,7 +336,7 @@ describe('create session exit', () => {
 
   it('empty exit lands list via navigateBackToList (history.back or list location)', async () => {
     makeEl('md-edit-area').value = '';
-    locationStub.hash = '#/workbench?date=20260710';
+    locationStub.hash = '#/spark?date=20260710';
 
     await closeModal();
 

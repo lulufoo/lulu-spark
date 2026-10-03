@@ -84,16 +84,16 @@ fn repo_root_matches_cargo_manifest_parent() {
 #[test]
 fn notes_categories_path_under_notes_not_knowledge() {
     let sandbox = TestSandbox::new();
-    let wb = sandbox.workbench_root();
+    let wb = sandbox.spark_root();
     let path = notes_categories_path().expect("notes cats");
     assert_eq!(path, wb.join("notes").join("categories.json"));
     assert_ne!(path, sediment_kb_categories_path().expect("kb cats"));
 }
 
 #[test]
-fn sediment_kb_paths_under_workbench_root() {
+fn sediment_kb_paths_under_spark_root() {
     let sandbox = TestSandbox::new();
-    let wb = sandbox.workbench_root();
+    let wb = sandbox.spark_root();
     let dir = sediment_kb_dir().expect("dir");
     let cats = sediment_kb_categories_path().expect("cats");
     let repos = sediment_kb_repos_path().expect("repos");
@@ -103,17 +103,17 @@ fn sediment_kb_paths_under_workbench_root() {
 }
 
 #[test]
-fn read_later_path_under_workbench_root() {
+fn read_later_path_under_spark_root() {
     let sandbox = TestSandbox::new();
-    let wb = sandbox.workbench_root();
+    let wb = sandbox.spark_root();
     let path = read_later_path().expect("read_later");
     assert_eq!(path, wb.join("read_later").join("read_later.json"));
 }
 
 #[test]
-fn message_center_path_under_workbench_root() {
+fn message_center_path_under_spark_root() {
     let sandbox = TestSandbox::new();
-    let wb = sandbox.workbench_root();
+    let wb = sandbox.spark_root();
     let path = message_center_path().expect("message_center");
     assert_eq!(
         path,
@@ -123,16 +123,16 @@ fn message_center_path_under_workbench_root() {
 }
 
 #[test]
-fn mcp_channel_tools_path_under_workbench_root() {
+fn mcp_channel_tools_path_under_spark_root() {
     let sandbox = TestSandbox::new();
     let path = mcp_channel_tools_path().expect("mcp_channel_tools");
-    assert_eq!(path, sandbox.workbench_root().join("mcp_channel_tools.json"));
+    assert_eq!(path, sandbox.spark_root().join("mcp_channel_tools.json"));
 }
 
 #[test]
-fn todo_tasks_path_under_workbench_root() {
+fn todo_tasks_path_under_spark_root() {
     let sandbox = TestSandbox::new();
-    let wb = sandbox.workbench_root();
+    let wb = sandbox.spark_root();
     let path = todo_tasks_path().expect("todo_tasks");
     assert_eq!(path, wb.join("todo_tasks").join("todo_tasks.json"));
     assert!(
@@ -151,17 +151,17 @@ fn knowledge_root_uses_settings() {
 }
 
 #[test]
-fn notes_root_is_workbench_root_notes() {
+fn notes_root_is_spark_root_notes() {
     let sandbox = TestSandbox::new();
-    let wb = sandbox.workbench_root();
+    let wb = sandbox.spark_root();
     let notes = notes_root().expect("notes_root");
     assert_eq!(notes, wb.join("notes"));
 }
 
 #[test]
-fn ssot_paths_use_configured_workbench_root_not_cache() {
+fn ssot_paths_use_configured_spark_root_not_cache() {
     let sandbox = TestSandbox::new();
-    let wb = sandbox.workbench_root();
+    let wb = sandbox.spark_root();
     let sediment = sediment_kb_dir().expect("sediment");
     let read_later = read_later_path().expect("read_later");
     let todo_tasks = todo_tasks_path().expect("todo_tasks");
@@ -178,9 +178,9 @@ fn ssot_paths_use_configured_workbench_root_not_cache() {
 }
 
 #[test]
-fn todo_tasks_v2_dir_and_index_under_workbench_root() {
+fn todo_tasks_v2_dir_and_index_under_spark_root() {
     let _sandbox = TestSandbox::new();
-    let wb = _sandbox.workbench_root();
+    let wb = _sandbox.spark_root();
     let dir = todo_tasks_dir().expect("todo_tasks_dir");
     let index = todo_tasks_index_path().expect("todo_tasks_index_path");
     assert_eq!(dir, wb.join("todo_tasks"));
@@ -194,7 +194,7 @@ fn todo_tasks_v2_dir_and_index_under_workbench_root() {
 #[test]
 fn todo_tasks_v2_task_paths_resolve_under_tasks_directory() {
     let _sandbox = TestSandbox::new();
-    let wb = _sandbox.workbench_root();
+    let wb = _sandbox.spark_root();
     let master_id = "task_a1b2c3d4e5f6";
     let task_dir = todo_tasks_task_dir(master_id).expect("todo_tasks_task_dir");
     let sub_tasks = todo_tasks_sub_tasks_path(master_id).expect("todo_tasks_sub_tasks_path");
@@ -257,7 +257,7 @@ fn todo_tasks_v2_path_helpers_err_when_settings_unavailable() {
 #[test]
 fn todo_tasks_categories_path_under_todo_tasks_dir_not_sediment() {
     let sandbox = TestSandbox::new();
-    let wb = sandbox.workbench_root();
+    let wb = sandbox.spark_root();
     let dir = todo_tasks_dir().expect("todo_tasks_dir");
     let cats = todo_tasks_categories_path().expect("todo_tasks_categories_path");
     assert_eq!(cats, dir.join("categories.json"));

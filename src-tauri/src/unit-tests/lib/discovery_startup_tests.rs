@@ -27,7 +27,7 @@ fn lib_starts_discovery_only_after_gateway_has_started() {
     let discovery_start = src.find("discovery.try_start").expect("discovery start");
     assert!(
         discovery_start > gateway_set,
-        "publish _lulu-workbench._tcp only after Gateway has started"
+        "publish _lulu-spark._tcp only after Gateway has started"
     );
 }
 

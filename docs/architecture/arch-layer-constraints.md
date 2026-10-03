@@ -56,7 +56,7 @@ flowchart TB
   CHROME -->|localhost:7654 /read-later| GW
   GW -->|/mcp/mobile /health| MCP
   GW -->|/bind/complete /read-later| MAIN
-  INTMCP -->|127.0.0.1:9876 /mcp/workbench| MCP
+  INTMCP -->|127.0.0.1:9876 /mcp/spark| MCP
   UI --> BR --> CMD
   MCP --> L4
   MAIN --> L4
@@ -79,7 +79,7 @@ flowchart TB
 | **L-up-ide**       | Cursor / Claude / Copilot use Skills; Skills are local MCP clients that enter MCP Host directly through loopback, never through L0.                                        |
 | **L-up-android**   | Lulu Spark Android is an upstream app; it enters only through named Gateway paths.                                                                                         |
 | **L-up-chrome**    | Chrome extension is an upstream local client; it enters only through loopback Gateway path `https://localhost:7654/read-later`.                                           |
-| **L-internal-mcp** | App-internal MCP calls use `127.0.0.1:9876/mcp/workbench` only; they are not upstream and do not use the Gateway. The path name `workbench` is the slot, not the brand.                                                   |
+| **L-internal-mcp** | App-internal MCP calls use `127.0.0.1:9876/mcp/spark` only; they are not upstream and do not use the Gateway. The path name `spark` is the slot.                                                   |
 | **L0**             | The Gateway does TLS and named-path forwarding only; one port `7654`. It always binds `0.0.0.0:7654`.                                                                     |
 | **L0 paths**       | `/mcp/mobile` and `/health` forward only to MCP Host; `/bind/complete` and loopback-only `/read-later` forward only to Main Host.                                        |
 | **L1-mcp**         | MCP Host is the AI entry. It translates protocol, authenticates, then enters L4. It must not call Main Host or Tauri commands.                                                              |

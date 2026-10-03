@@ -10,7 +10,7 @@ use crate::config::settings;
 
 #[allow(dead_code)]
 fn keyring_service() -> &'static str {
-    "lulu-workbench"
+    "lulu-spark"
 }
 
 pub const KEY_GITHUB_TOKEN: &str = "github_token";

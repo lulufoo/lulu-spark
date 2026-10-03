@@ -132,7 +132,7 @@ fn inject_workbench_ticket(key: &str, mut config: McpServerConfig) -> Result<Mcp
     if key != registry::SEEDED_BUSINESS_KEY {
         return Ok(config);
     }
-    let handle = match issue_for_slot(Slot::Workbench) {
+    let handle = match issue_for_slot(Slot::Spark) {
         Ok(handle) => handle,
         Err(_) => {
             eprintln!("[DEBUG-assistant] host: inject_workbench_ticket failed");

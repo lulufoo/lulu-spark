@@ -53,7 +53,7 @@ describe('applySearchNavChrome dual search wraps', () => {
   });
 
   it('workbench: wb visible+enabled, kb hidden', () => {
-    applySearchNavChrome('workbench');
+    applySearchNavChrome('spark');
 
     expect(document.getElementById('gs-wb-wrap').hidden).toBe(false);
     expect(document.getElementById('gs-kb-wrap').hidden).toBe(true);
@@ -72,7 +72,7 @@ describe('applySearchNavChrome dual search wraps', () => {
 
   it('calls close*Search on every route switch', () => {
     applySearchNavChrome('home');
-    applySearchNavChrome('workbench');
+    applySearchNavChrome('spark');
     applySearchNavChrome('knowledge-doc');
 
     expect(closeWorkbenchSearch).toHaveBeenCalledTimes(3);
@@ -81,10 +81,10 @@ describe('applySearchNavChrome dual search wraps', () => {
 
   it('rapid home ↔ workbench ↔ knowledge leaves only the active wrap visible', () => {
     applySearchNavChrome('home');
-    applySearchNavChrome('workbench');
+    applySearchNavChrome('spark');
     applySearchNavChrome('knowledge-doc');
     applySearchNavChrome('home');
-    applySearchNavChrome('workbench');
+    applySearchNavChrome('spark');
 
     expect(document.getElementById('gs-wb-wrap').hidden).toBe(false);
     expect(document.getElementById('gs-kb-wrap').hidden).toBe(true);

@@ -44,7 +44,7 @@ describe('mountHomeHub', () => {
     const shortcuts = container.querySelectorAll('.home-desktop-shortcut');
     expect(shortcuts).toHaveLength(3);
 
-    const workbenchEntry = container.querySelector('[data-home-entry="workbench"]');
+    const workbenchEntry = container.querySelector('[data-home-entry="spark"]');
     const readLaterEntry = container.querySelector('[data-home-entry="read-later"]');
     const knowledgeEntry = container.querySelector('[data-home-entry="knowledge"]');
     const todoTasksEntry = container.querySelector('[data-home-entry="todo-tasks"]');
@@ -59,11 +59,11 @@ describe('mountHomeHub', () => {
     expect(labels).toEqual(['Notes', 'Knowledge', 'Read Later']);
   });
 
-  it('navigates to #/workbench when workbench entry is clicked', () => {
+  it('navigates to #/spark when workbench entry is clicked', () => {
     cleanup = mountHomeHub(container, { navigate });
 
-    container.querySelector('[data-home-entry="workbench"]').click();
-    expect(navigate).toHaveBeenCalledWith('#/workbench');
+    container.querySelector('[data-home-entry="spark"]').click();
+    expect(navigate).toHaveBeenCalledWith('#/spark');
   });
 
   it('navigates to #/knowledge when knowledge entry is clicked', () => {

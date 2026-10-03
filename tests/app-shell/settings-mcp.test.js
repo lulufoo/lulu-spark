@@ -34,7 +34,7 @@ const CURSOR_IDE_URL = HEALTH_MCP.replace('<scene_slot>', 'cursor_ide');
 const LIVE_HANDLE = 'ticket-live-reuse';
 const ROTATED_HANDLE = 'ticket-after-rotate';
 const TOOLS_SNAPSHOT = {
-  channels: ['workbench', 'cursor_ide', 'mobile'],
+  channels: ['spark', 'cursor_ide', 'mobile'],
   groups: [
     {
       id: 'notes',
@@ -51,7 +51,7 @@ const TOOLS_SNAPSHOT = {
     },
   ],
   enabled: {
-    workbench: ['create_note', 'get_all_notes_catalog', 'list_todo_tasks'],
+    spark: ['create_note', 'get_all_notes_catalog', 'list_todo_tasks'],
     cursor_ide: ['create_note', 'get_all_notes_catalog', 'list_todo_tasks'],
     mobile: ['get_all_notes_catalog', 'list_todo_tasks'],
   },
@@ -63,10 +63,10 @@ function mountSettingsDom() {
 
 function baseConfig(overrides = {}) {
   return {
-    workbench_root: '',
+    spark_root: '',
     knowledge_root: '',
     github_user_url: '',
-    workbench_github_repo_url: '',
+    spark_github_repo_url: '',
     has_github_token: false,
     assistant_engine: 'host',
     has_host_key: false,
@@ -138,7 +138,7 @@ let writeText;
 describe('Settings MCP panel markup', () => {
   it('adds an independent MCP nav item and panel beside Workbench / Knowledge / Assistant / Sync', () => {
     const nav = indexHtml.match(/<nav id="settings-nav">([\s\S]*?)<\/nav>/)?.[1] ?? '';
-    expect(nav).toMatch(/data-panel="workbench"/);
+    expect(nav).toMatch(/data-panel="spark"/);
     expect(nav).toMatch(/data-panel="knowledge"/);
     expect(nav).toMatch(/data-panel="llm"/);
     expect(nav).toMatch(/data-panel="github"/);
@@ -171,7 +171,7 @@ describe('Settings MCP panel markup', () => {
     expect(indexHtml).toMatch(/id="settings-mcp-server-block"/);
     expect(indexHtml).not.toMatch(/id="btn-settings-mcp-generate"/);
     expect(indexHtml).not.toMatch(/id="btn-settings-mcp-rotate"/);
-    expect(indexHtml).toMatch(/id="btn-settings-mcp-workbench-expire"/);
+    expect(indexHtml).toMatch(/id="btn-settings-mcp-spark-expire"/);
     expect(indexHtml).toMatch(/id="settings-mcp-device-list"/);
     expect(indexHtml).not.toMatch(/id="settings-mcp-revoke-slot"/);
     expect(indexHtml).not.toMatch(/id="btn-settings-mcp-revoke"/);
@@ -230,8 +230,8 @@ describe('Settings MCP panel actions', () => {
       if (cmd === 'set_mcp_channel_tools') return { ok: true };
       if (cmd === 'get_mcp_ticket_view') {
         const channel = args?.channel || 'cursor_ide';
-        if (channel === 'workbench') {
-          return { channel: 'workbench', state: 'live', hint: '••••ab12' };
+        if (channel === 'spark') {
+          return { channel: 'spark', state: 'live', hint: '••••ab12' };
         }
         if (channel === 'mobile') {
           return {
@@ -332,19 +332,19 @@ describe('Settings MCP panel actions', () => {
 
   it('workbench ticket is masked and expire voids the workbench slot', async () => {
     await openMcpPanel();
-    document.getElementById('settings-mcp-ticket-channel').value = 'workbench';
+    document.getElementById('settings-mcp-ticket-channel').value = 'spark';
     document.getElementById('settings-mcp-ticket-channel').dispatchEvent(new Event('change'));
     await vi.waitFor(() =>
-      expect(document.getElementById('settings-mcp-workbench-mask')?.textContent).toBe('••••ab12'),
+      expect(document.getElementById('settings-mcp-spark-mask')?.textContent).toBe('••••ab12'),
     );
-    expect(document.getElementById('settings-mcp-tickets-workbench').hidden).toBe(false);
+    expect(document.getElementById('settings-mcp-tickets-spark').hidden).toBe(false);
     expect(document.getElementById('settings-mcp-tickets-cursor_ide').hidden).toBe(true);
-    expect(document.getElementById('settings-mcp-workbench-mask')?.textContent).not.toContain(
+    expect(document.getElementById('settings-mcp-spark-mask')?.textContent).not.toContain(
       LIVE_HANDLE,
     );
     api.invoke.mockClear();
-    await clickId('btn-settings-mcp-workbench-expire');
-    expect(api.invoke).toHaveBeenCalledWith('revoke_mcp_slot_ticket', { slot: 'workbench' });
+    await clickId('btn-settings-mcp-spark-expire');
+    expect(api.invoke).toHaveBeenCalledWith('revoke_mcp_slot_ticket', { slot: 'spark' });
     expect(invokedNames()).not.toContain('rotate_cursor_ide_ticket');
   });
 
@@ -368,7 +368,7 @@ describe('Settings MCP panel actions', () => {
 
   it('keeps cursor_ide refresh off the workbench expire control', async () => {
     await openMcpPanel();
-    const expire = document.getElementById('btn-settings-mcp-workbench-expire');
+    const expire = document.getElementById('btn-settings-mcp-spark-expire');
     const primary = document.getElementById('btn-settings-mcp-primary');
     expect(expire).toBeTruthy();
     expect(primary).toBeTruthy();
@@ -384,13 +384,13 @@ describe('Settings MCP panel actions', () => {
     api.invoke.mockResolvedValueOnce({ handle: ROTATED_HANDLE });
     await clickId('btn-settings-mcp-primary');
     api.invoke.mockClear();
-    document.getElementById('settings-mcp-ticket-channel').value = 'workbench';
+    document.getElementById('settings-mcp-ticket-channel').value = 'spark';
     document.getElementById('settings-mcp-ticket-channel').dispatchEvent(new Event('change'));
     await vi.waitFor(() =>
-      expect(api.invoke).toHaveBeenCalledWith('get_mcp_ticket_view', { channel: 'workbench' }),
+      expect(api.invoke).toHaveBeenCalledWith('get_mcp_ticket_view', { channel: 'spark' }),
     );
     api.invoke.mockClear();
-    await clickId('btn-settings-mcp-workbench-expire');
+    await clickId('btn-settings-mcp-spark-expire');
 
     expect(api.setConfig).not.toHaveBeenCalled();
     expect(invokedNames().every((cmd) =>
@@ -468,14 +468,14 @@ describe('Settings MCP panel actions', () => {
     expect(resultText()).not.toMatch(/wrote|written|saved/i);
 
     api.invoke.mockClear();
-    document.getElementById('settings-mcp-ticket-channel').value = 'workbench';
+    document.getElementById('settings-mcp-ticket-channel').value = 'spark';
     document.getElementById('settings-mcp-ticket-channel').dispatchEvent(new Event('change'));
     await vi.waitFor(() =>
-      expect(api.invoke).toHaveBeenCalledWith('get_mcp_ticket_view', { channel: 'workbench' }),
+      expect(api.invoke).toHaveBeenCalledWith('get_mcp_ticket_view', { channel: 'spark' }),
     );
     api.invoke.mockClear();
     api.invoke.mockRejectedValueOnce(new Error('expire failed'));
-    document.getElementById('btn-settings-mcp-workbench-expire').click();
+    document.getElementById('btn-settings-mcp-spark-expire').click();
     await vi.waitFor(() => expect(resultText()).toMatch(/fail/i));
     expect(invokedNames()).toEqual(['revoke_mcp_slot_ticket']);
     expect(invokedNames()).not.toContain('rotate_cursor_ide_ticket');
@@ -588,7 +588,7 @@ describe('Settings MCP panel actions', () => {
       if (cmd === 'get_mcp_channel_tools') {
         return {
           ...TOOLS_SNAPSHOT,
-          enabled: { workbench: [], cursor_ide: [], mobile: [] },
+          enabled: { spark: [], cursor_ide: [], mobile: [] },
         };
       }
       return fallback(cmd, args);

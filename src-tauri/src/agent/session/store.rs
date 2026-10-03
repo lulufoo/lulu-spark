@@ -61,7 +61,7 @@ pub fn session_file_path(session_id: &str) -> Result<PathBuf, String> {
 
 pub fn create_session() -> Result<Session, String> {
     let session = Session {
-        session_id: format!("workbench_chat_{}", random_entry_id()),
+        session_id: format!("spark_chat_{}", random_entry_id()),
         turns: Vec::new(),
         staged: Vec::new(),
     };
