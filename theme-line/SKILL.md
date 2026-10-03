@@ -25,7 +25,6 @@ Produce a complete chronological dialogue from captions or an existing transcrip
 |-------|------|
 | **theme-line** | Direct captions / API / local or pasted transcript → complete dialogue. **No** media download. **No** Whisper. |
 | `theme-transcribe` | Download media → Whisper → verbatim draft |
-| `theme-fetch` | Web articles |
 | `note-task` | Persist the note via MCP `create_note` |
 
 Digest may summarize. **raw must keep the full dialogue.**
