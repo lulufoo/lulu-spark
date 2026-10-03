@@ -140,7 +140,6 @@ function wireSettingsDialog() {
   });
 
   btn('btn-settings-close')?.addEventListener('click', closeSettingsDialog);
-  btn('btn-settings-cancel')?.addEventListener('click', closeSettingsDialog);
   document.getElementById('settings-dialog')?.addEventListener('click', (e) => {
     if (e.target === document.getElementById('settings-dialog')) closeSettingsDialog();
   });

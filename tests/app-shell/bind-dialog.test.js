@@ -182,9 +182,17 @@ describe('bind-dialog markup and wiring', () => {
     expect(src).toMatch(/export function BindDialog/);
     expect(src).toMatch(/createModuleStore/);
     expect(src).toMatch(/useSyncExternalStore/);
+    expect(src).toMatch(/<OverlayDismissButton[\s\S]*?\bid=["']btn-bind-close["']/);
     expect(src).toMatch(/id="btn-bind-close"[\s\S]*?onClick/);
     expect(src).toMatch(/id="btn-bind-refresh"[\s\S]*?onClick/);
+    expect(src).not.toMatch(/✕ Close/);
     expect(src).not.toMatch(/addEventListener/);
+  });
+
+  it('does not paint per-dialog Bind close chrome', () => {
+    const css = readSrc('frontend/app.css');
+    expect(css).not.toMatch(/#btn-bind-close\s*\{/);
+    expect(css).not.toMatch(/#btn-bind-close:hover/);
   });
 });
 

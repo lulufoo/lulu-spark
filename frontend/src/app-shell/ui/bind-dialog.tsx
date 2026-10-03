@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react';
+import { OverlayDismissButton } from '../../shared/overlay-dismiss-button.tsx';
 import { bindOpenStore, closeBindDialog, openBindDialog } from '../commands/bind-dialog.ts';
 
 export { closeBindDialog, openBindDialog } from '../commands/bind-dialog.ts';
@@ -13,9 +14,7 @@ export function BindDialog() {
             <span id="bind-dialog-title">📲 Bind device</span>
             <p id="bind-dialog-lead">Pair this Mac with the Workbench Android app on the same local network.</p>
           </div>
-          <button id="btn-bind-close" type="button" onClick={() => closeBindDialog()}>
-            ✕ Close
-          </button>
+          <OverlayDismissButton id="btn-bind-close" onClick={() => closeBindDialog()} />
         </div>
         <div id="bind-dialog-body">
           <div id="bind-qr-card">

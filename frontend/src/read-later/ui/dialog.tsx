@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react';
+import { OverlayDismissButton } from '../../shared/overlay-dismiss-button.tsx';
 import { closeReadLaterDialog } from '../commands/dialog.ts';
 import { readLaterOpenStore } from '../state/dialog-open.ts';
 import { ReadLaterList } from './list.tsx';
@@ -19,15 +20,10 @@ export function ReadLaterDialog() {
       <div id="read-later-dialog-box">
         <div id="read-later-dialog-header">
           <h3>Read Later</h3>
-          <button
-            type="button"
+          <OverlayDismissButton
             id="btn-read-later-close"
-            className="md-header-btn"
-            aria-label="Close"
             onClick={() => closeReadLaterDialog()}
-          >
-            ×
-          </button>
+          />
         </div>
         <div id="read-later-dialog-body">{open ? <ReadLaterList showTabs initialFilter="unread" /> : null}</div>
       </div>

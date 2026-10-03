@@ -5742,17 +5742,6 @@
   color: #1f2328;
   flex-shrink: 0;
 }
-#btn-settings-close {
-  background: none;
-  border: none;
-  font-size: 16px;
-  cursor: pointer;
-  color: #57606a;
-  padding: 2px 6px;
-  border-radius: 4px;
-  line-height: 1;
-}
-#btn-settings-close:hover { background: #eaeef2; }
 .overlay-dismiss-button {
   background: none;
   border: none;
@@ -6247,18 +6236,6 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   font-weight: 600;
   color: #1f2328;
 }
-#btn-notes-cat-edit-close {
-  background: none;
-  border: none;
-  font-size: 16px;
-  cursor: pointer;
-  color: #57606a;
-  padding: 2px 6px;
-  border-radius: 4px;
-  line-height: 1;
-}
-#btn-notes-cat-edit-close:hover:not(:disabled) { background: #eaeef2; }
-#btn-notes-cat-edit-close:disabled { opacity: .5; cursor: default; }
 #notes-cat-edit-dialog-body {
   display: flex;
   flex-direction: column;
@@ -6285,26 +6262,6 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   font-size: 13px;
 }
 .notes-cat-edit-actions-spacer { margin-right: auto; }
-
-/* Footer */
-#settings-dialog-footer {
-  border-top: 1px solid #d0d7de;
-  padding: 8px 16px;
-  display: flex;
-  justify-content: flex-end;
-  flex-shrink: 0;
-  background: #f6f8fa;
-}
-#btn-settings-cancel {
-  background: none;
-  border: 1px solid #d0d7de;
-  border-radius: 6px;
-  padding: 6px 16px;
-  font-size: 13px;
-  cursor: pointer;
-  color: #57606a;
-}
-#btn-settings-cancel:hover { background: #eaeef2; }
 
 /* ── Convert tool dialog (Base64 + QR) ── */
 #convert-dialog {
@@ -6721,17 +6678,6 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   font-weight: 400;
   color: #57606a;
 }
-#btn-bind-close {
-  background: none;
-  border: 1px solid #d0d7de;
-  border-radius: 6px;
-  padding: 3px 10px;
-  font-size: 12px;
-  cursor: pointer;
-  color: #57606a;
-  flex-shrink: 0;
-}
-#btn-bind-close:hover { background: #eaeef2; }
 #bind-dialog-body {
   display: grid;
   grid-template-columns: minmax(220px, 1fr) minmax(220px, 1.1fr);

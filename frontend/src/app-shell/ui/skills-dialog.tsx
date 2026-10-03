@@ -1,4 +1,5 @@
 import { useState, useSyncExternalStore } from 'react';
+import { OverlayDismissButton } from '../../shared/overlay-dismiss-button.tsx';
 import { _closeSkillsDialog, skillsStore } from '../commands/skills-dialog.ts';
 import type { SkillItem } from '../state/skills.ts';
 
@@ -49,14 +50,10 @@ export function SkillsDialog() {
       <div id="skills-dialog-box">
         <div id="skills-dialog-header">
           <h3 id="skills-dialog-title">{title}</h3>
-          <button
+          <OverlayDismissButton
             id="btn-skills-dialog-close"
-            type="button"
-            className="md-header-btn"
             onClick={() => _closeSkillsDialog()}
-          >
-            ✕ Close
-          </button>
+          />
         </div>
         <div id="skills-dialog-body">
           <SkillTable items={items} />
