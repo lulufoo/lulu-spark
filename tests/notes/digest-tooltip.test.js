@@ -47,17 +47,38 @@ describe('digestPreviewText', () => {
     );
   });
 
+  it('文首一级标题、创建时间与 --- 之后只保留正文', () => {
+    const raw = '# Title\n\n> 创建时间：2026年6月19日 14:30\n\n---\n\nHello **world**.\n';
+    expect(digestPreviewText(raw)).toBe('Hello world.');
+  });
+
+  it('文首一级标题与创建时间、无 --- 时从正文起算', () => {
+    const raw = '# Test — 摘要\n\n> 创建时间：2026年6月19日 14:30\n\n## 概述\n\noverview';
+    expect(digestPreviewText(raw)).toBe('概述\n\noverview');
+  });
+
   it('短文本原样返回（仅 trim），不加省略号', () => {
     expect(digestPreviewText('  short text  ')).toBe('short text');
-    expect(digestPreviewText('a'.repeat(200))).toBe('a'.repeat(200));
   });
 
-  it('约 200 字符截断加省略号', () => {
-    expect(digestPreviewText('a'.repeat(250))).toBe('a'.repeat(200) + '…');
+  it('抽完后正文恰好 400 字原样返回，不加省略号', () => {
+    expect(digestPreviewText('a'.repeat(400))).toBe('a'.repeat(400));
   });
 
-  it('空字符串安全返回空字符串', () => {
+  it('约 400 字符截断加省略号', () => {
+    expect(digestPreviewText('a'.repeat(450))).toBe('a'.repeat(400) + '…');
+  });
+
+  it('没有文首一级标题、创建时间或 --- 时整篇当正文再截断', () => {
+    expect(digestPreviewText('just a paragraph')).toBe('just a paragraph');
+    expect(digestPreviewText('# Title\n\n## Sub\n\nplain ' + 'c'.repeat(400))).toBe(
+      ('Title\n\nSub\n\nplain ' + 'c'.repeat(400)).slice(0, 400).trimEnd() + '…',
+    );
+  });
+
+  it('空字符串或只含空白返回空字符串', () => {
     expect(digestPreviewText('')).toBe('');
+    expect(digestPreviewText('   \n\t  ')).toBe('');
   });
 });
 
@@ -94,14 +115,14 @@ describe('attachDigestTooltip 正常分支：digest 存在', () => {
     rectSpy.mockRestore();
   });
 
-  it('长 digest 组件级截断：textContent 为 200 字符加省略号', async () => {
-    api.fetchFileContent.mockResolvedValue('# ' + 'b'.repeat(260));
+  it('长 digest 组件级截断：textContent 为 400 字符加省略号', async () => {
+    api.fetchFileContent.mockResolvedValue('# ' + 'b'.repeat(460));
     const el = anchor();
     attachDigestTooltip(el, CP);
     hover(el);
     await vi.advanceTimersByTimeAsync(300);
     const tip = tooltipEl();
-    expect(tip.textContent).toBe('b'.repeat(200) + '…');
+    expect(tip.textContent).toBe('b'.repeat(400) + '…');
   });
 });
 

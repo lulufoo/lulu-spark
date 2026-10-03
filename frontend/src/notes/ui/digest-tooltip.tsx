@@ -1,7 +1,8 @@
 import { fetchFileContent } from '../../host/api.ts';
 
 const HOVER_DELAY_MS = 300;
-const PREVIEW_MAX_CHARS = 200;
+const PREVIEW_MAX_CHARS = 400;
+const DIGEST_HEADER_RE = /^#\s+[^\n]+\n+>\s*创建时间：[^\n]+\n+(?:---\s*\n+)?/;
 const TOOLTIP_MAX_WIDTH = '360px';
 const TOOLTIP_GAP_PX = 6;
 
@@ -9,7 +10,8 @@ const TOOLTIP_GAP_PX = 6;
 export const digestCache = new Map<string, string | null>();
 
 export function digestPreviewText(raw: string): string {
-  const plain = String(raw ?? '')
+  const body = String(raw ?? '').replace(DIGEST_HEADER_RE, '');
+  const plain = body
     .replace(/^#{1,6}\s+/gm, '')
     .replace(/[*_`]/g, '')
     .trim();
