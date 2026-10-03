@@ -23,6 +23,9 @@ import {
   wrapRouteMount,
 } from './app-shell/routes.ts';
 import type { SettingsConfig } from './app-shell/state/types.ts';
+import type { WorkbenchEnvelope } from './router/scheme.ts';
+import { handleNotesOsNotifyEnvelope } from './notes/commands/os-notify.ts';
+import { handleReadLaterOsNotifyEnvelope } from './read-later/commands/os-notify.ts';
 
 const titleCache = state.index.titleCache;
 
@@ -239,6 +242,26 @@ function registerTagsReconciledListener() {
 }
 
 registerTagsReconciledListener();
+
+export function startOsNotifyHub() {
+  const tryAttach = () => {
+    const listen = typeof window !== 'undefined' && window.__TAURI__?.event?.listen;
+    if (typeof listen !== 'function') return false;
+    void listen('message-center:changed', (event: { payload?: unknown }) => {
+      const payload = event?.payload as WorkbenchEnvelope;
+      void handleNotesOsNotifyEnvelope(payload);
+      void handleReadLaterOsNotifyEnvelope(payload);
+    });
+    return true;
+  };
+  if (tryAttach()) return;
+  let attempts = 0;
+  const timer = setInterval(() => {
+    if (tryAttach() || ++attempts >= 40) clearInterval(timer);
+  }, 50);
+}
+
+startOsNotifyHub();
 
 document.addEventListener('cta:filter-tag', (event) => {
   const detail = (event as CustomEvent<{ key?: string }>).detail;
