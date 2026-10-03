@@ -51,6 +51,7 @@ const P2_PATHS = [
   ['/api/kb/hide-patterns/update', 'update_kb_hide_pattern', ['payload']],
   ['/api/kb/hide-patterns/remove', 'remove_kb_hide_pattern', ['payload']],
   ['/api/kb/viewer-state', 'set_kb_viewer_state', ['repo', 'path']],
+  ['/api/show-os-notification', 'show_os_notification', ['title', 'body', 'scheme']],
 ];
 
 describe('writeApiContract', () => {

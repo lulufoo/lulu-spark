@@ -22,8 +22,8 @@ function stringParam(params: Record<string, unknown>, key: string): string {
 export function composeWorkbenchScheme(
   envelope: WorkbenchEnvelope,
 ): string | null {
-  const params = envelope?.params;
-  if (!params || typeof params !== 'object' || Array.isArray(params)) return null;
+  const params = envelope.params;
+  if (!params || typeof params !== 'object') return null;
 
   if (envelope.business === 'notes' && (envelope.action === 'create' || envelope.action === 'update')) {
     const id = stringParam(params, 'id');
@@ -71,9 +71,10 @@ export function resolveNotesLanding(id: string, path: string): NotesLanding | nu
   const data = state.index.data;
   if (!data) return null;
 
-  const entry =
-    (id && data[id]) ||
-    Object.values(data).find((item) => (id && item._id === id) || (path && item.common_path === path));
+  const byId = id
+    ? data[id] ?? Object.values(data).find((item) => item._id === id)
+    : undefined;
+  const entry = byId ?? Object.values(data).find((item) => path && item.common_path === path);
 
   const created = typeof entry?.created_at === 'string' ? entry.created_at : '';
   const note = typeof entry?.common_path === 'string' ? entry.common_path : '';

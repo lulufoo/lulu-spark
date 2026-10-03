@@ -10,6 +10,8 @@ export {
   markMessageChannelRead,
 } from './api/message-center.ts';
 
+export { showOsNotification } from './api/os-notification.ts';
+
 export {
   createNotesCategory,
   deleteNotesCategory,

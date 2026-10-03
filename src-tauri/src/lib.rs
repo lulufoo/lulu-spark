@@ -156,6 +156,7 @@ pub fn run() {
             commands::kb_viewer_state::set_kb_viewer_state,
             commands::write::create_note,
             commands::write::mark_message_channel_read,
+            commands::os_notification::show_os_notification,
         ])
         .setup(|app| {
             let notify_handle = app.handle().clone();

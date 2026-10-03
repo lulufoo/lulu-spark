@@ -39,6 +39,7 @@ const P2_WRITE_PATHS = [
   '/api/notes-category-update',
   '/api/notes-category-delete',
   '/api/mark-message-channel-read',
+  '/api/show-os-notification',
   '/api/kb/hide-patterns/add',
   '/api/kb/hide-patterns/update',
   '/api/kb/hide-patterns/remove',
@@ -59,7 +60,7 @@ describe('writeApiInvokeMap', () => {
     for (const p of P2_WRITE_PATHS) {
       expect(WRITE_API_INVOKE_MAP[p]?.cmd, p).toBeTruthy();
     }
-    expect(Object.keys(WRITE_API_INVOKE_MAP)).toHaveLength(39);
+    expect(Object.keys(WRITE_API_INVOKE_MAP)).toHaveLength(40);
   });
 
   it('maps /api/file absolute-path write to write_abs_file', () => {
@@ -191,6 +192,52 @@ describe('writeApiInvokeMap', () => {
     ).toEqual({
       cmd: 'mark_message_channel_read',
       args: { channel: 'notes' },
+    });
+  });
+
+  it('WRITE_API_INVOKE_MAP 含 show_os_notification', () => {
+    expect(WRITE_API_INVOKE_MAP['/api/show-os-notification']?.cmd).toBe(
+      'show_os_notification',
+    );
+  });
+
+  it('resolveWriteInvoke maps show-os-notification title/body/scheme', () => {
+    expect(
+      resolveWriteInvoke('/api/show-os-notification', {
+        title: 'New note',
+        body: 'A note was added',
+        scheme: 'workbench://notes/open?id=a',
+      }),
+    ).toEqual({
+      cmd: 'show_os_notification',
+      args: {
+        title: 'New note',
+        body: 'A note was added',
+        scheme: 'workbench://notes/open?id=a',
+      },
+    });
+  });
+
+  it('host/api.ts 对外暴露 showOsNotification，传输走 writePost', async () => {
+    const api = await import('../../frontend/src/host/api.ts');
+    expect(typeof api.showOsNotification).toBe('function');
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({}),
+      text: async () => '{}',
+    });
+    await api.showOsNotification({
+      title: 'Read Later',
+      body: 'A link was saved',
+      scheme: 'workbench://read-later/list',
+    });
+    expect(globalThis.fetch.mock.calls[0][0]).toMatch(/show-os-notification/);
+    expect(globalThis.fetch.mock.calls[0][1].method).toBe('POST');
+    expect(JSON.parse(globalThis.fetch.mock.calls[0][1].body)).toEqual({
+      title: 'Read Later',
+      body: 'A link was saved',
+      scheme: 'workbench://read-later/list',
     });
   });
 

@@ -87,4 +87,5 @@ commands.allow = [
   "set_mcp_channel_tools",
   "revoke_mcp_device_ticket",
   "mark_message_channel_read",
+  "show_os_notification",
 ]

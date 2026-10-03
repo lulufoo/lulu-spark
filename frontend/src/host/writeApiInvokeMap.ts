@@ -263,6 +263,14 @@ export const WRITE_API_INVOKE_MAP: Record<string, WriteInvokeEntry> = {
       channel: body.channel,
     }),
   },
+  '/api/show-os-notification': {
+    cmd: 'show_os_notification',
+    args: (body) => ({
+      title: body.title,
+      body: body.body,
+      scheme: body.scheme,
+    }),
+  },
 };
 
 /**
