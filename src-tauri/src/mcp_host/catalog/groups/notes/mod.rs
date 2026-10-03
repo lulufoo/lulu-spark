@@ -16,9 +16,17 @@ mod update_notes_category;
 
 use crate::mcp_host::ToolRoute;
 
-pub(crate) use create_note::{invoke_from_content as create_note_from_content, invoke_from_source as create_note_from_source};
+pub(crate) use create_note::{
+    invoke_from_content as create_note_from_content,
+    invoke_from_source as create_note_from_source,
+    produce_notes_if_ok as produce_create_note_if_ok,
+};
 pub(crate) use get_note_content::invoke as note_path_invoke;
-pub(crate) use update_note::{invoke_from_content as update_note_from_content, invoke_from_source as update_note_from_source};
+pub(crate) use update_note::{
+    invoke_from_content as update_note_from_content,
+    invoke_from_source as update_note_from_source,
+    produce_notes_if_ok as produce_update_note_if_ok,
+};
 
 pub const GROUP_ID: &str = "notes";
 

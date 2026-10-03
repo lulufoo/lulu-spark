@@ -7,7 +7,9 @@ use crate::commands::read_later::{
     create_read_later_json, delete_read_later_json, get_read_later_json, mark_read_later_json,
 };
 use crate::config::paths;
+use crate::services::message_center::last_changed_envelope;
 use crate::services::read_later;
+use crate::test_support::TestSandbox;
 
 use super::{
     http_get, http_post_with_response, setup_repo_for_read_later, with_server,
@@ -74,6 +76,19 @@ fn post_read_later(port: u16, url: &str, title: &str) -> (u16, Value) {
     )
 }
 
+fn read_later_identity_params(body: &Value) -> Value {
+    match body.get("entry").and_then(|entry| entry.get("id")) {
+        Some(id) => json!({ "id": id }),
+        None => json!({}),
+    }
+}
+
+fn assert_produced_envelope(business: &str, action: &str, params: Value) {
+    let e = last_changed_envelope().expect("envelope");
+    assert_eq!((e.business.as_str(), e.action.as_str(), &e.params), (business, action, &params));
+    assert!(e.params.get("scheme").is_none(), "{e:?}");
+}
+
 #[test]
 fn handle_read_later_post_201_adds_read_later_record() {
     let fixture = setup_repo_for_read_later();
@@ -82,9 +97,9 @@ fn handle_read_later_post_201_adds_read_later_record() {
         let before = channel_record_count("read_later");
         let (status, body) = post_read_later(port, "https://example.com/produce", "Produce");
         assert_eq!(status, 201);
-        assert!(body.get("error").is_none(), "{body}");
-        assert!(body["entry"].is_object(), "{body}");
+        assert!(body.get("error").is_none() && body["entry"].get("id").is_some(), "{body}");
         assert_eq!(channel_record_count("read_later"), before + 1);
+        assert_produced_envelope("read_later", "create", read_later_identity_params(&body));
     });
 }
 
@@ -191,14 +206,15 @@ fn recent_duplicate_409_does_not_produce() {
             "url": "https://example.com/duplicate-produce",
             "title": "Dup"
         });
-        let (first_status, _) = http_post_with_response(port, "/api/read-later", &payload);
+        let (first_status, first_body) = http_post_with_response(port, "/api/read-later", &payload);
         assert_eq!(first_status, 201);
-        assert_eq!(channel_record_count("read_later"), 1);
-
+        assert_produced_envelope("read_later", "create", read_later_identity_params(&first_body));
+        let after_create = last_changed_envelope();
         let (status, body) = http_post_with_response(port, "/api/read-later", &payload);
         assert_eq!(status, 409);
         assert_eq!(body["code"], "read_later_recent_duplicate");
         assert_eq!(channel_record_count("read_later"), 1);
+        assert_eq!(last_changed_envelope(), after_create);
     });
 }
 
@@ -220,4 +236,41 @@ fn message_center_failure_does_not_change_successful_http_201() {
         assert_eq!(again["code"], "read_later_recent_duplicate");
         assert_eq!(channel_record_count("read_later"), 0);
     });
+}
+
+#[test]
+fn post_read_later_400_does_not_produce() {
+    let fixture = setup_repo_for_read_later();
+    let repo_root = fixture.repo_root.clone();
+    with_server(repo_root, |port| {
+        let before = channel_record_count("read_later");
+        let envelope_before = last_changed_envelope();
+        let (status, body) = http_post_with_response(port, "/api/read-later", &json!({ "title": "No url" }));
+        assert_eq!(status, 400, "{body}");
+        assert_eq!(channel_record_count("read_later"), before);
+        assert_eq!(last_changed_envelope(), envelope_before);
+    });
+}
+
+#[test]
+fn produce_read_later_if_created_keeps_timing_when_entry_id_missing() {
+    let _sandbox = TestSandbox::new();
+    let produce = super::super::read_later::produce_read_later_if_created;
+    let before = channel_record_count("read_later");
+    let ok = [
+        json!({"_status": 201}),
+        json!({"_status": 201, "entry": {}}),
+        json!({"_status": 201, "entry": {"id": "e1"}}),
+    ];
+    let params = [json!({}), json!({}), json!({"id": "e1"})];
+    for (value, expected) in ok.into_iter().zip(params) {
+        produce(&value);
+        assert_produced_envelope("read_later", "create", expected);
+    }
+    let after_ok = last_changed_envelope();
+    produce(&json!({"_status": 400, "entry": {"id": "nope"}}));
+    produce(&json!({"error": "boom", "_status": 201, "entry": {"id": "nope"}}));
+    produce(&json!({"_status": 409, "entry": {"id": "nope"}}));
+    assert_eq!(channel_record_count("read_later"), before + 3);
+    assert_eq!(last_changed_envelope(), after_ok);
 }

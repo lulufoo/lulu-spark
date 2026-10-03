@@ -5,9 +5,17 @@ use crate::services::read_later;
 
 use super::respond::{respond_read_later_from_value, respond_read_later_json};
 
-fn produce_read_later_if_created(value: &Value) {
+pub(crate) fn produce_read_later_if_created(value: &Value) {
     if value.get("error").is_none() && value.get("_status") == Some(&json!(201)) {
-        let _ = message_center::produce("read_later");
+        let mut params = serde_json::Map::new();
+        if let Some(id) = value.get("entry").and_then(|entry| entry.get("id")) {
+            params.insert("id".to_string(), id.clone());
+        }
+        let _ = message_center::produce(message_center::Envelope {
+            business: "read_later".to_string(),
+            action: "create".to_string(),
+            params: Value::Object(params),
+        });
     }
 }
 

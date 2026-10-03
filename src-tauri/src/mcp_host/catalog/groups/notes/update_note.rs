@@ -10,9 +10,20 @@ use crate::mcp_host::ToolRoute;
 use crate::services::message_center;
 use crate::services::notes::{update_note, update_note_content};
 
-fn produce_notes_if_ok(result: &Value) {
+pub(crate) fn produce_notes_if_ok(result: &Value) {
     if result.get("error").is_none() && result.get("ok") == Some(&json!(true)) {
-        let _ = message_center::produce("notes");
+        let mut params = serde_json::Map::new();
+        if let Some(id) = result.get("id") {
+            params.insert("id".to_string(), id.clone());
+        }
+        if let Some(path) = result.get("common_path") {
+            params.insert("common_path".to_string(), path.clone());
+        }
+        let _ = message_center::produce(message_center::Envelope {
+            business: "notes".to_string(),
+            action: "update".to_string(),
+            params: Value::Object(params),
+        });
     }
 }
 

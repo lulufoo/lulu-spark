@@ -6,9 +6,10 @@ use serde_json::{json, Value};
 use crate::commands::write::create_note_json;
 use crate::config::paths;
 use crate::mcp_host::catalog::groups::notes::{
-    self, create_note_from_content, create_note_from_source, update_note_from_content,
-    update_note_from_source,
+    self, create_note_from_content, create_note_from_source, produce_create_note_if_ok,
+    produce_update_note_if_ok, update_note_from_content, update_note_from_source,
 };
+use crate::services::message_center::last_changed_envelope;
 use crate::services::notes::create_jot;
 use crate::test_support::TestSandbox;
 
@@ -76,6 +77,27 @@ fn assert_note_ok(value: &Value) {
     assert!(value.get("error").is_none(), "unexpected error: {value}");
     assert_eq!(value.get("ok"), Some(&json!(true)), "expected ok: {value}");
 }
+fn notes_identity_params(result: &Value) -> Value {
+    let mut params = serde_json::Map::new();
+    for key in ["id", "common_path"] {
+        if let Some(value) = result.get(key) { params.insert(key.to_string(), value.clone()); }
+    }
+    Value::Object(params)
+}
+
+fn assert_produced_envelope(business: &str, action: &str, params: Value) {
+    let e = last_changed_envelope().expect("envelope");
+    assert_eq!((e.business.as_str(), e.action.as_str(), &e.params), (business, action, &params));
+    assert!(e.params.get("scheme").is_none(), "{e:?}");
+}
+
+fn assert_notes_produced(action: &str, result: &Value, before: usize) {
+    assert_note_ok(result);
+    let params = notes_identity_params(result);
+    assert!(params.get("id").is_some() && params.get("common_path").is_some(), "{result}");
+    assert_eq!(channel_record_count("notes"), before + 1);
+    assert_produced_envelope("notes", action, params);
+}
 
 fn content_note_args() -> Value {
     json!({
@@ -99,20 +121,12 @@ fn src(rel: &str) -> PathBuf {
 
 fn assert_file_has_no_message_center(path: &Path) {
     let text = fs::read_to_string(path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
-    assert!(
-        !text.contains("message_center") && !text.contains("::produce("),
-        "{} must not wire message center",
-        path.display()
-    );
+    assert!(!text.contains("message_center") && !text.contains("::produce("), "{} must not wire message center", path.display());
 }
 
 fn assert_file_has_no_message_center_produce(path: &Path) {
     let text = fs::read_to_string(path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
-    assert!(
-        !text.contains("message_center::produce") && !text.contains("::produce("),
-        "{} must not wire message center produce",
-        path.display()
-    );
+    assert!(!text.contains("message_center::produce") && !text.contains("::produce("), "{} must not wire message center produce", path.display());
 }
 
 fn collect_rs_files(dir: &Path, out: &mut Vec<PathBuf>) {
@@ -134,8 +148,7 @@ fn create_note_from_content_success_adds_notes_record() {
     with_host_sandbox(|_| {
         let before = channel_record_count("notes");
         let result = create_note_from_content(&content_note_args());
-        assert_note_ok(&result);
-        assert_eq!(channel_record_count("notes"), before + 1);
+        assert_notes_produced("create", &result, before);
     });
 }
 
@@ -144,8 +157,7 @@ fn create_note_from_source_success_adds_notes_record() {
     with_host_sandbox(|sandbox| {
         let before = channel_record_count("notes");
         let result = create_note_from_source(&source_note_args(sandbox));
-        assert_note_ok(&result);
-        assert_eq!(channel_record_count("notes"), before + 1);
+        assert_notes_produced("create", &result, before);
     });
 }
 
@@ -160,8 +172,7 @@ fn update_note_from_source_success_adds_notes_record() {
             "source_path": stage_source(sandbox, "# New\n\n---\n\n改过的正文\n").to_str().unwrap(),
             "digest": "never",
         }));
-        assert_note_ok(&result);
-        assert_eq!(channel_record_count("notes"), before + 1);
+        assert_notes_produced("update", &result, before);
     });
 }
 
@@ -176,8 +187,7 @@ fn update_note_from_content_success_adds_notes_record() {
             "content": "# New\n\n---\n\n手机改正文\n",
             "digest": "never",
         }));
-        assert_note_ok(&result);
-        assert_eq!(channel_record_count("notes"), before + 1);
+        assert_notes_produced("update", &result, before);
     });
 }
 
@@ -197,6 +207,7 @@ fn other_note_and_tauri_writes_are_not_wired() {
 
     with_host_sandbox(|sandbox| {
         let notes_before = channel_record_count("notes");
+        let env_before = last_changed_envelope();
         let category = invoke_notes(
             "create_notes_category",
             json!({ "title": "No produce category" }),
@@ -221,6 +232,7 @@ fn other_note_and_tauri_writes_are_not_wired() {
         .expect("create_jot");
         assert_note_ok(&jot);
         assert_eq!(channel_record_count("notes"), notes_before);
+        assert_eq!(last_changed_envelope(), env_before);
     });
 }
 
@@ -228,14 +240,43 @@ fn other_note_and_tauri_writes_are_not_wired() {
 fn failed_business_write_does_not_produce() {
     with_host_sandbox(|_| {
         let notes_before = channel_record_count("notes");
-
+        let env_before = last_changed_envelope();
         let note = create_note_from_content(&json!({
             "title": "Missing content",
             "digest": "never",
         }));
         assert!(note.get("error").is_some(), "{note}");
         assert_ne!(note.get("ok"), Some(&json!(true)));
+        let updated = update_note_from_content(&json!({
+            "id": "missing-note",
+            "content": "# Missing\n\n---\n\n不会写入\n",
+            "digest": "never",
+        }));
+        assert!(updated.get("error").is_some() || updated.get("ok") != Some(&json!(true)));
         assert_eq!(channel_record_count("notes"), notes_before);
+        assert_eq!(last_changed_envelope(), env_before);
+    });
+}
+
+#[test]
+fn produce_notes_if_ok_keeps_timing_when_identity_fields_missing() {
+    with_host_sandbox(|_| {
+        let before = channel_record_count("notes");
+        let cases = [
+            (produce_create_note_if_ok as fn(&Value), json!({"ok": true}), "create", json!({})),
+            (produce_create_note_if_ok, json!({"ok": true, "id": "only-id"}), "create", json!({"id": "only-id"})),
+            (produce_create_note_if_ok, json!({"ok": true, "common_path": "only/path.md"}), "create", json!({"common_path": "only/path.md"})),
+            (produce_update_note_if_ok, json!({"ok": true, "id": "u1"}), "update", json!({"id": "u1"})),
+        ];
+        let produced = cases.len();
+        for (produce_if_ok, result, action, params) in cases {
+            produce_if_ok(&result);
+            assert_produced_envelope("notes", action, params);
+        }
+        produce_create_note_if_ok(&json!({"ok": false, "id": "nope"}));
+        produce_create_note_if_ok(&json!({"error": "boom", "ok": true, "id": "nope"}));
+        produce_update_note_if_ok(&json!({"error": "boom", "id": "nope"}));
+        assert_eq!(channel_record_count("notes"), before + produced);
     });
 }
 
@@ -243,11 +284,9 @@ fn failed_business_write_does_not_produce() {
 fn message_center_failure_does_not_change_successful_mcp_response() {
     with_host_sandbox(|sandbox| {
         occupy_message_center_path_as_dir();
-
         let note = create_note_from_content(&content_note_args());
         assert_note_ok(&note);
         assert_eq!(channel_record_count("notes"), 0);
-
         let source = create_note_from_source(&source_note_args(sandbox));
         assert_note_ok(&source);
         assert_eq!(channel_record_count("notes"), 0);
