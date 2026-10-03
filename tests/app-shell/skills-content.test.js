@@ -11,7 +11,6 @@ const PUBLIC_CMDS = [
   'dialogue-summary',
   'dialogue-archive',
   'theme-line',
-  'theme-fetch',
   'theme-transcribe',
   'note-task',
 ]
@@ -61,6 +60,7 @@ test('workbench catalog does not expose legacy or internal skills', () => {
   const allText = JSON.stringify(workbenchSkillsContent)
 
   expect(allText).not.toContain('theme-summary')
+  expect(allText).not.toContain('theme-fetch')
   expect(allText).not.toContain('plan-task')
   expect(allText).not.toMatch(/dtd_/)
   expect(allText).not.toContain('digest')

@@ -36,17 +36,6 @@ export const workbenchSkillsContent = {
       ],
     },
     {
-      name: 'Web fetch',
-      url: 'https://github.com/lulufoo/lulu-workbench-skills/tree/main/theme-fetch',
-      items: [
-        {
-          cmd: 'theme-fetch',
-          name: 'Web fetch',
-          desc: 'Fetch a web or WeChat article, format it, and save as a note.',
-        },
-      ],
-    },
-    {
       name: 'Video transcription',
       url: 'https://github.com/lulufoo/lulu-workbench-skills/tree/main/theme-transcribe',
       items: [
