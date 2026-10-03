@@ -12,6 +12,7 @@ pub type ChangedHandler = Arc<dyn Fn() + Send + Sync>;
 
 static WRITE_LOCK: Mutex<()> = Mutex::new(());
 static CHANGED_HANDLER: Mutex<Option<ChangedHandler>> = Mutex::new(None);
+static LAST_CHANGED_ENVELOPE: Mutex<Option<Envelope>> = Mutex::new(None);
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Record {
@@ -19,6 +20,23 @@ pub struct Record {
     pub channel: String,
     pub unread: bool,
     pub created_at: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Envelope {
+    pub business: String,
+    pub action: String,
+    pub params: serde_json::Value,
+}
+
+impl From<&str> for Envelope {
+    fn from(channel: &str) -> Self {
+        Self {
+            business: channel.to_string(),
+            action: "notify".to_string(),
+            params: serde_json::json!({}),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -54,6 +72,17 @@ fn require_channel(channel: &str) -> Result<(), String> {
     }
 }
 
+fn require_envelope(envelope: &Envelope) -> Result<(), String> {
+    require_channel(&envelope.business)?;
+    if envelope.action.is_empty() {
+        return Err("action must not be empty".to_string());
+    }
+    if !envelope.params.is_object() {
+        return Err("params must be a JSON object".to_string());
+    }
+    Ok(())
+}
+
 pub fn set_changed_handler(handler: Option<ChangedHandler>) {
     *CHANGED_HANDLER
         .lock()
@@ -68,6 +97,19 @@ fn notify_changed() {
     if let Some(handler) = handler {
         handler();
     }
+}
+
+pub fn last_changed_envelope() -> Option<Envelope> {
+    LAST_CHANGED_ENVELOPE
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .clone()
+}
+
+fn store_last_changed_envelope(envelope: Envelope) {
+    *LAST_CHANGED_ENVELOPE
+        .lock()
+        .unwrap_or_else(|e| e.into_inner()) = Some(envelope);
 }
 
 fn load_store_unlocked() -> Store {
@@ -93,18 +135,20 @@ fn save_store_unlocked(store: &Store) -> Result<(), String> {
     atomic_json::write_json(&path, &value)
 }
 
-pub fn produce(channel: &str) -> Result<Record, String> {
-    require_channel(channel)?;
+pub fn produce(envelope: impl Into<Envelope>) -> Result<Record, String> {
+    let envelope = envelope.into();
+    require_envelope(&envelope)?;
     with_write_lock(|| {
         let mut store = load_store_unlocked();
         let record = Record {
             id: random_entry_id(),
-            channel: channel.to_string(),
+            channel: envelope.business.clone(),
             unread: true,
             created_at: Utc::now().to_rfc3339(),
         };
         store.records.push(record.clone());
         save_store_unlocked(&store)?;
+        store_last_changed_envelope(envelope);
         notify_changed();
         Ok(record)
     })

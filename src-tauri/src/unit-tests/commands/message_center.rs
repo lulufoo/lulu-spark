@@ -3,8 +3,17 @@ use std::path::PathBuf;
 
 use crate::commands::read::get_message_channel_unread_json;
 use crate::commands::write::mark_message_channel_read_json;
-use crate::services::message_center::{self, channel_unread, mark_channel_read, produce};
+use crate::services::message_center::{self, channel_unread, mark_channel_read, produce, Envelope};
 use crate::test_support::{read_rs_dir, TestSandbox};
+use serde_json::json;
+
+fn notes_create_envelope() -> Envelope {
+    Envelope {
+        business: "notes".to_string(),
+        action: "create".to_string(),
+        params: json!({ "id": "a", "common_path": "p.md" }),
+    }
+}
 
 fn with_message_center_cmd<F: FnOnce()>(f: F) {
     let _sandbox = TestSandbox::new();
@@ -27,7 +36,7 @@ fn get_message_channel_unread_forwards_l4_channel_unread() {
         );
         assert_eq!(channel_unread("notes"), false);
 
-        produce("notes").expect("produce notes");
+        produce(notes_create_envelope()).expect("produce notes");
         let unread = get_message_channel_unread_json("notes").expect("unread after produce");
         assert!(unread);
         assert_eq!(unread, channel_unread("notes"));
@@ -45,7 +54,7 @@ fn get_message_channel_unread_forwards_l4_channel_unread() {
 #[test]
 fn mark_message_channel_read_forwards_l4_mark_channel_read() {
     with_message_center_cmd(|| {
-        produce("notes").expect("produce notes");
+        produce(notes_create_envelope()).expect("produce notes");
         assert!(channel_unread("notes"));
         mark_message_channel_read_json("notes").expect("mark notes read");
         assert!(!get_message_channel_unread_json("notes").expect("unread after mark"));
@@ -56,7 +65,7 @@ fn mark_message_channel_read_forwards_l4_mark_channel_read() {
 #[test]
 fn command_failure_does_not_bypass_l4_authority() {
     with_message_center_cmd(|| {
-        produce("notes").expect("produce notes");
+        produce(notes_create_envelope()).expect("produce notes");
         assert!(channel_unread("notes"));
 
         let cmd_err = mark_message_channel_read_json("knowledge").expect_err("invalid channel");

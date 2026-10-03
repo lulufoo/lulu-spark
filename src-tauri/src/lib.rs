@@ -162,7 +162,11 @@ pub fn run() {
             crate::services::message_center::set_changed_handler(Some(std::sync::Arc::new(
                 move || {
                     use tauri::Emitter;
-                    let _ = notify_handle.emit("message-center:changed", ());
+                    if let Some(envelope) =
+                        crate::services::message_center::last_changed_envelope()
+                    {
+                        let _ = notify_handle.emit("message-center:changed", envelope);
+                    }
                 },
             )));
 

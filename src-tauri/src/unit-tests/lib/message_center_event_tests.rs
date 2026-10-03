@@ -39,8 +39,14 @@ fn setup_adapts_l4_notify_to_desktop_event() {
         "L4 notify adapter and message-center:changed must live in .setup"
     );
     assert!(
-        src.contains("emit(") && src.contains("message-center:changed"),
-        "adapter must emit message-center:changed"
+        src.contains("emit(")
+            && src.contains("message-center:changed")
+            && src.contains("last_changed_envelope"),
+        "adapter must emit message-center:changed with the last envelope"
+    );
+    assert!(
+        !src.contains("\"message-center:changed\", ()"),
+        "setup must not emit an empty message-center:changed payload"
     );
 }
 
