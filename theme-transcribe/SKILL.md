@@ -17,7 +17,6 @@ Turn a media URL or local file into a complete source-language verbatim draft an
 |-------|------|
 | **theme-transcribe** | Acquire once → verbatim → route → hand off `note-task` |
 | `theme-line` | Direct captions / API / paste → complete chronological dialogue. No media download, no Whisper. |
-| `theme-fetch` | Web articles |
 | `note-task` | Persist the note via MCP `create_note` |
 
 ## Triggers
