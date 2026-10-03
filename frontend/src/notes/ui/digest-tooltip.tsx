@@ -5,6 +5,11 @@ const PREVIEW_MAX_CHARS = 400;
 const DIGEST_HEADER_RE = /^#\s+[^\n]+\n+>\s*创建时间：[^\n]+\n+(?:---\s*\n+)?/;
 const TOOLTIP_MAX_WIDTH = '360px';
 const TOOLTIP_GAP_PX = 6;
+const INTERACTIVE_SEL = 'button, [data-action], [data-tag-key], .badge-links';
+
+function isInteractiveTarget(target: EventTarget | null): boolean {
+  return target instanceof Element && Boolean(target.closest(INTERACTIVE_SEL));
+}
 
 /** 模块级会话内缓存：commonPath → digest 原文；null = 已确认无 digest、不再请求 */
 export const digestCache = new Map<string, string | null>();
@@ -28,11 +33,12 @@ function buildTooltip(text: string): HTMLDivElement {
   tip.style.zIndex = '1000';
   tip.style.padding = '6px 10px';
   tip.style.borderRadius = '6px';
-  tip.style.background = 'var(--bg-tooltip, #2a2a2e)';
-  tip.style.color = 'var(--text-tooltip, #f0f0f0)';
+  tip.style.background = '#fff';
+  tip.style.color = '#24292f';
+  tip.style.border = '1px solid #d0d7de';
   tip.style.fontSize = '12px';
   tip.style.lineHeight = '1.5';
-  tip.style.boxShadow = '0 2px 10px rgba(0, 0, 0, 0.25)';
+  tip.style.boxShadow = '0 8px 24px rgba(27, 31, 36, 0.12)';
   tip.textContent = text;
   return tip;
 }
@@ -84,22 +90,42 @@ export function attachDigestTooltip(el: HTMLElement, commonPath: string): () => 
     placeTooltip(tooltip, el.getBoundingClientRect());
   }
 
-  function onMouseEnter() {
+  let suppressShow = false;
+
+  function scheduleShow() {
+    if (showTimer || tooltip) return;
     const session = ++hoverSession;
     showTimer = setTimeout(() => void show(session), HOVER_DELAY_MS);
   }
 
+  function onMouseOver(e: MouseEvent) {
+    if (isInteractiveTarget(e.target)) {
+      suppressShow = true;
+      return;
+    }
+    suppressShow = false;
+    scheduleShow();
+  }
+
+  function onMouseEnter(e: MouseEvent) {
+    if (suppressShow || isInteractiveTarget(e.target)) return;
+    scheduleShow();
+  }
+
   function onMouseLeave() {
+    suppressShow = false;
     hoverSession++;
     removeTooltip();
   }
 
+  el.addEventListener('mouseover', onMouseOver);
   el.addEventListener('mouseenter', onMouseEnter);
   el.addEventListener('mouseleave', onMouseLeave);
 
   return function detach() {
     hoverSession++;
     removeTooltip();
+    el.removeEventListener('mouseover', onMouseOver);
     el.removeEventListener('mouseenter', onMouseEnter);
     el.removeEventListener('mouseleave', onMouseLeave);
   };

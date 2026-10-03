@@ -17,15 +17,73 @@ function anchor() {
 }
 
 function hover(el) {
+  el.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
   el.dispatchEvent(new MouseEvent('mouseenter'));
 }
 
 function leave(el) {
+  el.dispatchEvent(new MouseEvent('mouseout', { bubbles: true }));
   el.dispatchEvent(new MouseEvent('mouseleave'));
+}
+
+function badgeRow() {
+  const row = document.createElement('div');
+  row.className = 'badges';
+
+  const source = document.createElement('span');
+  source.className = 'badge badge-source';
+  source.textContent = 'Note';
+
+  const tagBtn = document.createElement('button');
+  tagBtn.type = 'button';
+  tagBtn.className = 'badge badge-tag';
+  tagBtn.dataset.tagKey = 'foo';
+  tagBtn.textContent = 'tag';
+
+  const links = document.createElement('span');
+  links.className = 'badge badge-links';
+  const linksInner = document.createElement('span');
+  linksInner.textContent = '👍 ×1';
+  links.appendChild(linksInner);
+
+  const actionBtn = document.createElement('button');
+  actionBtn.className = 'badge badge-done';
+  actionBtn.dataset.action = 'toggle-done';
+  const actionInner = document.createElement('span');
+  actionInner.textContent = '○ Mark done';
+  actionBtn.appendChild(actionInner);
+
+  row.append(source, tagBtn, links, actionBtn);
+  document.body.appendChild(row);
+  return { row, source, tagBtn, links, linksInner, actionBtn, actionInner };
+}
+
+/** Enter the row as if the pointer landed on `target` (mouseover bubbles; mouseenter does not). */
+function hoverFrom(row, target) {
+  target.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+  row.dispatchEvent(new MouseEvent('mouseenter'));
 }
 
 function tooltipEl() {
   return document.querySelector('.digest-tooltip');
+}
+
+function cssColor(value) {
+  const probe = document.createElement('div');
+  probe.style.color = value;
+  return probe.style.color;
+}
+
+function cssBackground(value) {
+  const probe = document.createElement('div');
+  probe.style.background = value;
+  return probe.style.background;
+}
+
+function cssBorder(value) {
+  const probe = document.createElement('div');
+  probe.style.border = value;
+  return probe.style.border;
 }
 
 beforeEach(() => {
@@ -105,14 +163,34 @@ describe('attachDigestTooltip 正常分支：digest 存在', () => {
 
     const tip = tooltipEl();
     expect(tip).not.toBeNull();
+    expect(tip.id).not.toBe('_tip');
+    expect(document.getElementById('_tip')).toBeNull();
+    expect(tip.className).toBe('digest-tooltip');
     expect(tip.textContent).toBe('Default digest');
     expect(tip.style.maxWidth).toBe('360px');
     expect(tip.style.whiteSpace).toBe('pre-wrap');
+    expect(tip.style.background).toBe(cssBackground('#fff'));
+    expect(tip.style.color).toBe(cssColor('#24292f'));
+    expect(tip.style.border).toBe(cssBorder('1px solid #d0d7de'));
+    expect(tip.style.boxShadow).toBe('0 8px 24px rgba(27, 31, 36, 0.12)');
+    expect(tip.style.background).not.toMatch(/--bg-tooltip|#2a2a2e/);
+    expect(tip.style.color).not.toMatch(/--text-tooltip|#f0f0f0/);
     // 锚点下方左对齐
     expect(parseFloat(tip.style.left)).toBe(100);
     expect(parseFloat(tip.style.top)).toBeGreaterThanOrEqual(120);
     expect(parseFloat(tip.style.top) - 120).toBeLessThanOrEqual(20);
     rectSpy.mockRestore();
+  });
+
+  it('预览文本走 digestPreviewText：文首标题与创建时间不进浮层', async () => {
+    api.fetchFileContent.mockResolvedValue(
+      '# Title\n\n> 创建时间：2026年6月19日 14:30\n\n---\n\nHello **world**.\n',
+    );
+    const el = anchor();
+    attachDigestTooltip(el, CP);
+    hover(el);
+    await vi.advanceTimersByTimeAsync(300);
+    expect(tooltipEl().textContent).toBe('Hello world.');
   });
 
   it('长 digest 组件级截断：textContent 为 400 字符加省略号', async () => {
@@ -123,6 +201,55 @@ describe('attachDigestTooltip 正常分支：digest 存在', () => {
     await vi.advanceTimersByTimeAsync(300);
     const tip = tooltipEl();
     expect(tip.textContent).toBe('b'.repeat(400) + '…');
+  });
+});
+
+describe('attachDigestTooltip 边界分支：徽章行可点子控件不触发', () => {
+  it.each([
+    ['button', (row) => row.tagBtn],
+    ['[data-action]', (row) => row.actionBtn],
+    ['[data-tag-key]', (row) => row.tagBtn],
+    ['.badge-links', (row) => row.links],
+    ['button 后代', (row) => row.actionInner],
+    ['.badge-links 后代', (row) => row.linksInner],
+  ])('mouseover %s：不显示浮层、不发 digest 请求', async (_label, pick) => {
+    const parts = badgeRow();
+    attachDigestTooltip(parts.row, CP);
+    hoverFrom(parts.row, pick(parts));
+    await vi.advanceTimersByTimeAsync(300);
+    expect(tooltipEl()).toBeNull();
+    expect(api.fetchFileContent).not.toHaveBeenCalled();
+  });
+
+  it('锚点为徽章行且目标不是可点控件：300ms 后浅色独立浮层', async () => {
+    const parts = badgeRow();
+    attachDigestTooltip(parts.row, CP);
+    hoverFrom(parts.row, parts.source);
+    await vi.advanceTimersByTimeAsync(299);
+    expect(tooltipEl()).toBeNull();
+    await vi.advanceTimersByTimeAsync(1);
+    const tip = tooltipEl();
+    expect(tip).not.toBeNull();
+    expect(tip.className).toBe('digest-tooltip');
+    expect(document.getElementById('_tip')).toBeNull();
+    expect(tip.style.background).toBe(cssBackground('#fff'));
+    expect(tip.style.color).toBe(cssColor('#24292f'));
+    expect(tip.style.border).toBe(cssBorder('1px solid #d0d7de'));
+    expect(api.fetchFileContent).toHaveBeenCalledWith('digest', CP);
+  });
+
+  it('先划过可点控件再划到行内不可点区域：才发一次 digest 请求', async () => {
+    const parts = badgeRow();
+    attachDigestTooltip(parts.row, CP);
+    hoverFrom(parts.row, parts.actionBtn);
+    await vi.advanceTimersByTimeAsync(300);
+    expect(api.fetchFileContent).not.toHaveBeenCalled();
+
+    leave(parts.row);
+    hoverFrom(parts.row, parts.source);
+    await vi.advanceTimersByTimeAsync(300);
+    expect(api.fetchFileContent).toHaveBeenCalledTimes(1);
+    expect(tooltipEl()).not.toBeNull();
   });
 });
 
