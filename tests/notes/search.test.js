@@ -1,5 +1,10 @@
 // @vitest-environment jsdom
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+
+const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 
 const apiMocks = vi.hoisted(() => ({
   searchWorkbench: vi.fn(),
@@ -251,7 +256,7 @@ describe('notes search module', () => {
     expect(apiMocks.searchWorkbench).toHaveBeenCalledTimes(1);
   });
 
-  it('hit row wires digest tooltip: preview after 300ms; empty digest no DOM reaction', async () => {
+  it('hit row hover does not show digest tooltip or fetch digest', async () => {
     apiMocks.searchWorkbench.mockResolvedValue({
       hits: [{ title: 'Tip', common_path: 'inbox/notes/tip.md', topic: 't', body: 'b' }],
     });
@@ -269,32 +274,14 @@ describe('notes search module', () => {
     expect(hit).toBeTruthy();
 
     hit.dispatchEvent(new MouseEvent('mouseenter'));
-    await vi.advanceTimersByTimeAsync(299);
+    await vi.advanceTimersByTimeAsync(300);
     expect(apiMocks.fetchFileContent).not.toHaveBeenCalled();
     expect(document.querySelector('.digest-tooltip')).toBeNull();
+  });
 
-    await vi.advanceTimersByTimeAsync(1);
-    expect(apiMocks.fetchFileContent).toHaveBeenCalledWith('digest', 'inbox/notes/tip.md');
-    const tip = document.querySelector('.digest-tooltip');
-    expect(tip).not.toBeNull();
-    expect(tip.textContent).toBe('Tip preview');
-
-    hit.dispatchEvent(new MouseEvent('mouseleave'));
-    expect(document.querySelector('.digest-tooltip')).toBeNull();
-
-    apiMocks.searchWorkbench.mockResolvedValue({
-      hits: [{ title: 'Tip2', common_path: 'inbox/notes/tip2.md', topic: 't', body: 'b' }],
-    });
-    apiMocks.fetchFileContent.mockResolvedValueOnce('');
-    input.value = 'tip2';
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-    await vi.advanceTimersByTimeAsync(300);
-
-    const hit2 = document.querySelector('.gs-hit-wb');
-    expect(hit2).toBeTruthy();
-    hit2.dispatchEvent(new MouseEvent('mouseenter'));
-    await vi.advanceTimersByTimeAsync(300);
-    expect(apiMocks.fetchFileContent).toHaveBeenLastCalledWith('digest', 'inbox/notes/tip2.md');
-    expect(document.querySelector('.digest-tooltip')).toBeNull();
+  it('search.tsx does not import attachDigestTooltip', () => {
+    const src = readFileSync(join(repoRoot, 'frontend/src/notes/ui/search.tsx'), 'utf8');
+    expect(src).not.toMatch(/attachDigestTooltip/);
+    expect(src).not.toMatch(/digest-tooltip/);
   });
 });

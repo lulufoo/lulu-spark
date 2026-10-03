@@ -2,7 +2,6 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { flushSync } from 'react-dom';
 import { searchWorkbench } from '../../host/api.ts';
-import { attachDigestTooltip } from './digest-tooltip.tsx';
 
 const HIST_KEY = 'gs-history-wb';
 const HIST_MAX = 10;
@@ -87,18 +86,10 @@ function GsStatus({ children, color }: { children: ReactNode; color?: string }) 
 }
 
 function GsHitRow({ hit, onOpen }: { hit: WbHit; onOpen: (hit: WbHit) => void }) {
-  const rowRef = useRef<HTMLDivElement | null>(null);
   const cp = hit.common_path || '';
-
-  useEffect(() => {
-    const el = rowRef.current;
-    if (!el) return;
-    return attachDigestTooltip(el, cp);
-  }, [cp]);
 
   return (
     <div
-      ref={rowRef}
       className="gs-hit gs-hit-wb"
       data-common-path={cp}
       data-layer={hit.layer || ''}
