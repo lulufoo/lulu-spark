@@ -254,8 +254,14 @@ export function buildCard(id: string, entry: NoteEntry, title?: string | null) {
   if (entry.importance) card.classList.add(`importance-${entry.importance}`);
   if (entry.common_path.split('/')[0] === 'inbox') card.classList.add('inbox-pending');
   bindCardActions(card, entry);
-  attachDigestTooltip(card, entry.common_path);
+  attachCardDigestTooltip(card, entry.common_path);
   return card;
+}
+
+function attachCardDigestTooltip(root: HTMLElement, commonPath: string): (() => void) | undefined {
+  const badges = root.querySelector('.badges');
+  if (!(badges instanceof HTMLElement)) return;
+  return attachDigestTooltip(badges, commonPath);
 }
 
 function openEntry(entry: NoteEntry) {
@@ -281,7 +287,7 @@ export function DocCard({
   useEffect(() => {
     const el = cardRef.current;
     if (!el) return;
-    return attachDigestTooltip(el, entry.common_path);
+    return attachCardDigestTooltip(el, entry.common_path);
   }, [entry.common_path]);
 
   entry._id = id;

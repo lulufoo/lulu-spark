@@ -1,6 +1,10 @@
 // @vitest-environment jsdom
+import { createElement } from 'react';
+import { createRoot } from 'react-dom/client';
+import { flushSync } from 'react-dom';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { buildCard, updateTitlesInDOM, sourceTypeBadgeHtml, getEntryDiffState } from '../../frontend/src/notes/ui/cards.tsx';
+import { buildCard, DocCard, updateTitlesInDOM, sourceTypeBadgeHtml, getEntryDiffState } from '../../frontend/src/notes/ui/cards.tsx';
+import { digestCache } from '../../frontend/src/notes/ui/digest-tooltip.tsx';
 import { loadTitles } from '../../frontend/src/notes/commands/cards.ts';
 import { state } from '../../frontend/src/host/state.ts';
 import * as api from '../../frontend/src/host/api.ts';
@@ -211,55 +215,159 @@ describe('getEntryDiffState 三态收敛与 DiffDot 渲染', () => {
   });
 });
 
-describe('buildCard digest tooltip 接入（t7 构建路径：buildCard）', () => {
+describe('digest tooltip 挂在最底徽章行（buildCard / DocCard）', () => {
+  let reactRoot;
+
+  function hover(el) {
+    el.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+    el.dispatchEvent(new MouseEvent('mouseenter'));
+  }
+
+  function leave(el) {
+    el.dispatchEvent(new MouseEvent('mouseout', { bubbles: true }));
+    el.dispatchEvent(new MouseEvent('mouseleave'));
+  }
+
+  function tooltipEl() {
+    return document.querySelector('.digest-tooltip');
+  }
+
+  function makeEntry(commonPath, overrides = {}) {
+    return {
+      common_path: commonPath,
+      created_at: '202605181200',
+      layers: ['raw', 'digest'],
+      source_type: 'note',
+      ...overrides,
+    };
+  }
+
+  function renderDocCard(id, entry, title) {
+    const host = document.createElement('div');
+    document.getElementById('doc-list').appendChild(host);
+    reactRoot = createRoot(host);
+    flushSync(() => {
+      reactRoot.render(createElement(DocCard, { id, entry, title }));
+    });
+    return host.querySelector('.doc-card');
+  }
+
+  function hideBadgesQuery() {
+    const orig = Element.prototype.querySelector;
+    return vi.spyOn(Element.prototype, 'querySelector').mockImplementation(function (sel) {
+      if (sel === '.badges') return null;
+      return orig.call(this, sel);
+    });
+  }
+
   beforeEach(() => {
     vi.useFakeTimers();
     api.fetchFileContent.mockReset();
+    digestCache.clear();
   });
 
   afterEach(() => {
+    if (reactRoot) {
+      flushSync(() => reactRoot.unmount());
+      reactRoot = undefined;
+    }
     vi.useRealTimers();
     document.querySelector('.digest-tooltip')?.remove();
   });
 
-  it('digest 存在：悬停 300ms 后显示纯文本预览；空 digest：无 DOM 反应', async () => {
+  it('buildCard：悬停 .badges 300ms 后显示纯文本预览；空 digest 无 DOM 反应', async () => {
     const cp = 'proj/topic/202605181200-tip.md';
-    const entry = {
-      common_path: cp,
-      created_at: '202605181200',
-      layers: ['raw', 'digest'],
-    };
-
     api.fetchFileContent.mockResolvedValueOnce('# **Plain** digest preview');
-    const card = buildCard('tip1', entry, 'Title');
+    const card = buildCard('tip1', makeEntry(cp), 'Title');
     document.getElementById('doc-list').appendChild(card);
+    const badges = card.querySelector('.badges');
 
-    card.dispatchEvent(new MouseEvent('mouseenter'));
+    hover(badges);
     await vi.advanceTimersByTimeAsync(299);
     expect(api.fetchFileContent).not.toHaveBeenCalled();
-    expect(document.querySelector('.digest-tooltip')).toBeNull();
+    expect(tooltipEl()).toBeNull();
 
     await vi.advanceTimersByTimeAsync(1);
     expect(api.fetchFileContent).toHaveBeenCalledWith('digest', cp);
-    const tip = document.querySelector('.digest-tooltip');
+    const tip = tooltipEl();
     expect(tip).not.toBeNull();
     expect(tip.textContent).toBe('Plain digest preview');
 
-    card.dispatchEvent(new MouseEvent('mouseleave'));
-    expect(document.querySelector('.digest-tooltip')).toBeNull();
+    leave(badges);
+    expect(tooltipEl()).toBeNull();
 
     const cp2 = 'proj/topic/202605181201-tip2.md';
     api.fetchFileContent.mockResolvedValueOnce('');
-    const card2 = buildCard('tip2', {
-      common_path: cp2,
-      created_at: '202605181201',
-      layers: ['raw'],
-    }, 'Title2');
+    const card2 = buildCard('tip2', makeEntry(cp2, { created_at: '202605181201', layers: ['raw'] }), 'Title2');
     document.getElementById('doc-list').appendChild(card2);
 
-    card2.dispatchEvent(new MouseEvent('mouseenter'));
+    hover(card2.querySelector('.badges'));
     await vi.advanceTimersByTimeAsync(300);
     expect(api.fetchFileContent).toHaveBeenLastCalledWith('digest', cp2);
-    expect(document.querySelector('.digest-tooltip')).toBeNull();
+    expect(tooltipEl()).toBeNull();
+  });
+
+  it.each(['.doc-card', '.doc-topic', '.doc-title-btn', '.doc-meta'])(
+    'buildCard：悬停 %s 不显示浮层、不发 digest 请求',
+    async (sel) => {
+      const cp = `proj/topic/202605181210-${sel.replace(/[^a-z]+/g, '')}.md`;
+      api.fetchFileContent.mockResolvedValue('# digest');
+      const card = buildCard(`b-${sel}`, makeEntry(cp), 'Title');
+      document.getElementById('doc-list').appendChild(card);
+      const target = sel === '.doc-card' ? card : card.querySelector(sel);
+      hover(target);
+      await vi.advanceTimersByTimeAsync(300);
+      expect(tooltipEl()).toBeNull();
+      expect(api.fetchFileContent).not.toHaveBeenCalled();
+    },
+  );
+
+  it('DocCard：悬停 .badges 显示浮层；主题/标题/时间/整卡不触发', async () => {
+    const cp = 'proj/topic/202605181220-doccard.md';
+    api.fetchFileContent.mockResolvedValue('# **DocCard** digest');
+    const card = renderDocCard('dc1', makeEntry(cp), 'Title');
+    const badges = card.querySelector('.badges');
+
+    hover(card.querySelector('.doc-topic'));
+    hover(card.querySelector('.doc-title-btn'));
+    hover(card.querySelector('.doc-meta'));
+    hover(card);
+    await vi.advanceTimersByTimeAsync(300);
+    expect(tooltipEl()).toBeNull();
+    expect(api.fetchFileContent).not.toHaveBeenCalled();
+
+    hover(badges);
+    await vi.advanceTimersByTimeAsync(300);
+    const tip = tooltipEl();
+    expect(tip).not.toBeNull();
+    expect(tip.textContent).toBe('DocCard digest');
+    expect(api.fetchFileContent).toHaveBeenCalledWith('digest', cp);
+  });
+
+  it('buildCard 没有 .badges：不回退挂到整张卡片', async () => {
+    const cp = 'proj/topic/202605181230-nobadges.md';
+    api.fetchFileContent.mockResolvedValue('# digest');
+    const qs = hideBadgesQuery();
+    const card = buildCard('nb1', makeEntry(cp), 'Title');
+    qs.mockRestore();
+    document.getElementById('doc-list').appendChild(card);
+
+    hover(card);
+    await vi.advanceTimersByTimeAsync(300);
+    expect(tooltipEl()).toBeNull();
+    expect(api.fetchFileContent).not.toHaveBeenCalled();
+  });
+
+  it('DocCard 没有 .badges：不回退挂到整张卡片', async () => {
+    const cp = 'proj/topic/202605181240-nobadges-dc.md';
+    api.fetchFileContent.mockResolvedValue('# digest');
+    const qs = hideBadgesQuery();
+    const card = renderDocCard('nb2', makeEntry(cp), 'Title');
+    qs.mockRestore();
+
+    hover(card);
+    await vi.advanceTimersByTimeAsync(300);
+    expect(tooltipEl()).toBeNull();
+    expect(api.fetchFileContent).not.toHaveBeenCalled();
   });
 });
