@@ -22,7 +22,7 @@ description: >-
 首次克隆到平台 skills 目录：
 
 ```bash
-git clone https://github.com/lulufoo/lulu-workbench-skills.git $SKILL_DIR
+git clone https://github.com/lulufoo/lulu-spark-skills.git $SKILL_DIR
 ```
 
 更新：
