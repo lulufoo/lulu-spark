@@ -131,6 +131,8 @@ const MESSAGE_CENTER_WRITE_COMMANDS: &[&str] = &["mark_message_channel_read"];
 
 const OS_NOTIFICATION_WRITE_COMMANDS: &[&str] = &["show_os_notification"];
 
+const APP_LOG_WRITE_COMMANDS: &[&str] = &["log_app_event"];
+
 #[test]
 fn kb_entry_write_commands_are_acl_allowed() {
     let root = manifest_dir();
@@ -468,6 +470,22 @@ fn os_notification_write_command_is_acl_allowed() {
     let toml = fs::read_to_string(root.join("permissions/write-api.toml")).expect("toml");
     let allow = parse_write_api_toml_allow(&toml);
     let missing: Vec<_> = OS_NOTIFICATION_WRITE_COMMANDS
+        .iter()
+        .filter(|cmd| !allow.contains(**cmd))
+        .copied()
+        .collect();
+    assert!(
+        missing.is_empty(),
+        "commands missing from write-api.toml ACL: {missing:?}"
+    );
+}
+
+#[test]
+fn app_log_write_command_is_acl_allowed() {
+    let root = manifest_dir();
+    let toml = fs::read_to_string(root.join("permissions/write-api.toml")).expect("toml");
+    let allow = parse_write_api_toml_allow(&toml);
+    let missing: Vec<_> = APP_LOG_WRITE_COMMANDS
         .iter()
         .filter(|cmd| !allow.contains(**cmd))
         .copied()

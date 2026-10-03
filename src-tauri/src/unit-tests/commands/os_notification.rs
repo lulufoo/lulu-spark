@@ -279,8 +279,24 @@ fn command_is_thin_native_and_registered() {
         "click path must emit os-notification:clicked"
     );
     assert!(
+        cmd.contains("NODE_NOTIFY_SEND") && cmd.contains("log_hop"),
+        "deliver path must log notify.send with the scheme trace"
+    );
+    assert!(
+        cmd.contains("log_click_native") && !cmd.contains("fn log_os_notify_hop"),
+        "click hops go through app_log; do not keep a notify-only command"
+    );
+    assert!(
         lib.contains("commands::os_notification::show_os_notification"),
         "generate_handler must register show_os_notification"
+    );
+    assert!(
+        lib.contains("commands::app_log::log_app_event"),
+        "generate_handler must register log_app_event"
+    );
+    assert!(
+        lib.contains("RunEvent::Opened") && lib.contains("log_scheme_open"),
+        "scheme-wake via Launch Services must log scheme.open"
     );
 }
 

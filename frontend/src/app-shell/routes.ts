@@ -8,6 +8,7 @@ import { openReadLaterDialog } from '../read-later/commands/dialog.ts';
 import { openDoc } from '../notes/viewer.ts';
 import { selectDate } from '../notes/commands/sidebar.ts';
 import { getHomeEntryShell, setHomeEntryShell } from '../home-entry-shell/access.ts';
+import { lastNotifyTrace, logNotifyHop, parseTraceId } from '../router/notify-trace.ts';
 
 export { getHomeEntryShell, setHomeEntryShell };
 
@@ -51,6 +52,14 @@ export function mountWorkbench(route?: AppRoute) {
   const date = params.date || '';
   const layer = params.layer || 'raw';
   const creating = !!state.viewer?.createSession;
+  const hash = typeof window !== 'undefined' ? window.location.hash : '';
+  logNotifyHop('route.workbench', parseTraceId(params.trace) ?? lastNotifyTrace(), {
+    outcome: notePath ? 'ok' : 'no_note',
+    date,
+    note: notePath,
+    layer,
+    hash,
+  });
 
   if (notePath) {
     const allEntries = Object.values(state.index?.data || {});

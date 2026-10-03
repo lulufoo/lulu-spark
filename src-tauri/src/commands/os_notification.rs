@@ -7,6 +7,10 @@ use std::sync::Mutex;
 use serde_json::{json, Map, Value};
 use tauri::{AppHandle, Emitter};
 
+use crate::services::os_notify_trace::{
+    log_click_native, log_hop, trace_from_scheme, NODE_NOTIFY_SEND,
+};
+
 pub const OS_NOTIFICATION_CLICKED_EVENT: &str = "os-notification:clicked";
 const SCHEME_PREFIX: &str = "workbench://";
 const UNAUTHORIZED: &str = "notification not authorized";
@@ -47,6 +51,7 @@ pub fn build_clicked_event_payload(scheme: &str) -> Value {
 }
 
 pub fn emit_os_notification_clicked(app: &AppHandle, scheme: &str) {
+    log_click_native(scheme, true);
     let _ = app.emit(
         OS_NOTIFICATION_CLICKED_EVENT,
         build_clicked_event_payload(scheme),
@@ -61,6 +66,7 @@ pub fn show_os_notification_with(
     scheme: &str,
 ) -> Result<(), String> {
     validate_os_notification_scheme(scheme)?;
+    let trace = trace_from_scheme(scheme).unwrap_or("trace_missing");
     let first = !probed.swap(true, Ordering::SeqCst);
     let authorized = if first {
         native.request_authorization()?
@@ -68,9 +74,19 @@ pub fn show_os_notification_with(
         native.read_authorization_status()?
     };
     if !authorized {
+        log_hop(NODE_NOTIFY_SEND, trace, "unauthorized");
         return Err(UNAUTHORIZED.into());
     }
-    native.deliver_notification(title, body, &user_info_with_scheme(scheme))
+    match native.deliver_notification(title, body, &user_info_with_scheme(scheme)) {
+        Ok(()) => {
+            log_hop(NODE_NOTIFY_SEND, trace, "ok");
+            Ok(())
+        }
+        Err(err) => {
+            log_hop(NODE_NOTIFY_SEND, trace, "deliver_fail");
+            Err(err)
+        }
+    }
 }
 
 pub fn map_un_flag(code: i32, action: &str) -> Result<bool, String> {
@@ -135,6 +151,7 @@ mod macos {
 
     extern "C" fn on_native_click(scheme: *const c_char) {
         if scheme.is_null() {
+            crate::services::os_notify_trace::log_click_native("", false);
             return;
         }
         let scheme = unsafe { CStr::from_ptr(scheme) }
@@ -143,6 +160,8 @@ mod macos {
         let app = CLICK_APP.lock().ok().and_then(|slot| slot.clone());
         if let Some(app) = app {
             emit_os_notification_clicked(&app, &scheme);
+        } else {
+            crate::services::os_notify_trace::log_click_native(&scheme, false);
         }
     }
 

@@ -157,6 +157,7 @@ pub fn run() {
             commands::write::create_note,
             commands::write::mark_message_channel_read,
             commands::os_notification::show_os_notification,
+            commands::app_log::log_app_event,
         ])
         .setup(|app| {
             let notify_handle = app.handle().clone();
@@ -183,6 +184,7 @@ pub fn run() {
                     config::settings::AppSettings::default()
                 }
             };
+            crate::services::app_log::init();
             let http_port = boot_settings.effective_http_port();
             let mcp_port = boot_settings.effective_mcp_port();
             if let Ok(repo_root) = crate::config::paths::repo_root() {
@@ -270,21 +272,32 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|app_handle, event| {
-            if let tauri::RunEvent::Exit = event {
-                if let Some(embedded) = app_handle.try_state::<EmbeddedMcpRuntime>() {
-                    embedded.stop();
+            match event {
+                tauri::RunEvent::Opened { urls } => {
+                    for url in urls {
+                        crate::services::os_notify_trace::log_scheme_open(url.as_str());
+                    }
                 }
-                if let Some(main_host) = app_handle.try_state::<crate::main_host::MainHostState>()
-                {
-                    main_host.stop();
+                tauri::RunEvent::Exit => {
+                    crate::services::app_log::shutdown();
+                    if let Some(embedded) = app_handle.try_state::<EmbeddedMcpRuntime>() {
+                        embedded.stop();
+                    }
+                    if let Some(main_host) =
+                        app_handle.try_state::<crate::main_host::MainHostState>()
+                    {
+                        main_host.stop();
+                    }
+                    if let Some(discovery) =
+                        app_handle.try_state::<crate::gateway::discovery::DiscoveryState>()
+                    {
+                        discovery.stop();
+                    }
+                    if let Some(gateway) = app_handle.try_state::<crate::gateway::GatewayState>() {
+                        gateway.stop();
+                    }
                 }
-                if let Some(discovery) = app_handle.try_state::<crate::gateway::discovery::DiscoveryState>()
-                {
-                    discovery.stop();
-                }
-                if let Some(gateway) = app_handle.try_state::<crate::gateway::GatewayState>() {
-                    gateway.stop();
-                }
+                _ => {}
             }
         });
 }

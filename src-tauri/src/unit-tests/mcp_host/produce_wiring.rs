@@ -87,7 +87,20 @@ fn notes_identity_params(result: &Value) -> Value {
 
 fn assert_produced_envelope(business: &str, action: &str, params: Value) {
     let e = last_changed_envelope().expect("envelope");
-    assert_eq!((e.business.as_str(), e.action.as_str(), &e.params), (business, action, &params));
+    assert_eq!(e.business.as_str(), business);
+    assert_eq!(e.action.as_str(), action);
+    let mut got = e.params.clone();
+    let tid = got
+        .as_object_mut()
+        .expect("params object")
+        .remove("trace_id")
+        .and_then(|v| v.as_str().map(str::to_string))
+        .expect("trace_id");
+    assert!(
+        crate::services::os_notify_trace::parse_trace_id(&tid).is_some(),
+        "{tid}"
+    );
+    assert_eq!(&got, &params);
     assert!(e.params.get("scheme").is_none(), "{e:?}");
 }
 

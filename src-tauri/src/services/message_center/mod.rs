@@ -7,6 +7,9 @@ use serde::{Deserialize, Serialize};
 use crate::config::paths;
 use crate::repositories::atomic_json;
 use crate::services::id::random_entry_id;
+use crate::services::os_notify_trace::{
+    log_hop, new_trace_id, parse_trace_id, NODE_MESSAGE_CENTER_RECEIVED, TRACE_PARAM,
+};
 
 pub type ChangedHandler = Arc<dyn Fn() + Send + Sync>;
 
@@ -135,9 +138,24 @@ fn save_store_unlocked(store: &Store) -> Result<(), String> {
     atomic_json::write_json(&path, &value)
 }
 
+fn ensure_trace_id(params: &mut serde_json::Value) {
+    let Some(map) = params.as_object_mut() else {
+        return;
+    };
+    let keep = map
+        .get(TRACE_PARAM)
+        .and_then(|v| v.as_str())
+        .and_then(parse_trace_id)
+        .map(str::to_string);
+    if keep.is_none() {
+        map.insert(TRACE_PARAM.to_string(), serde_json::json!(new_trace_id()));
+    }
+}
+
 pub fn produce(envelope: impl Into<Envelope>) -> Result<Record, String> {
-    let envelope = envelope.into();
+    let mut envelope = envelope.into();
     require_envelope(&envelope)?;
+    ensure_trace_id(&mut envelope.params);
     with_write_lock(|| {
         let mut store = load_store_unlocked();
         let record = Record {
@@ -148,6 +166,12 @@ pub fn produce(envelope: impl Into<Envelope>) -> Result<Record, String> {
         };
         store.records.push(record.clone());
         save_store_unlocked(&store)?;
+        let trace = envelope
+            .params
+            .get(TRACE_PARAM)
+            .and_then(|v| v.as_str())
+            .unwrap_or("trace_missing");
+        log_hop(NODE_MESSAGE_CENTER_RECEIVED, trace, "ok");
         store_last_changed_envelope(envelope);
         notify_changed();
         Ok(record)

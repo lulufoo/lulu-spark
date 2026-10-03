@@ -119,6 +119,26 @@ describe('parseWorkbenchScheme', () => {
     });
   });
 
+  it('appends trace on notes/open and still parses id and path', () => {
+    const scheme = composeWorkbenchScheme({
+      business: 'notes',
+      action: 'create',
+      params: { id: NOTE_ID, common_path: NOTE_PATH, trace_id: 'trace_12345678' },
+    });
+    expect(scheme).toBe(`${NOTES_OPEN}&trace=trace_12345678`);
+    expect(parseWorkbenchScheme(scheme)).toEqual({
+      kind: 'notes-open',
+      id: NOTE_ID,
+      path: NOTE_PATH,
+    });
+  });
+
+  it('parses read-later/list with only a trace query', () => {
+    expect(parseWorkbenchScheme('workbench://read-later/list?trace=trace_12345678')).toEqual({
+      kind: 'read-later-list',
+    });
+  });
+
   it('round-trips a path that contains spaces and non-ASCII', () => {
     const path = 'inbox/my 笔记.md';
     const scheme = composeWorkbenchScheme({

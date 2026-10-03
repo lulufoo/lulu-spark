@@ -27,6 +27,7 @@ import type { WorkbenchEnvelope } from './router/scheme.ts';
 import { startOsNotifyClickHub } from './app-shell/commands/os-notify-click.ts';
 import { handleNotesOsNotifyEnvelope } from './notes/commands/os-notify.ts';
 import { handleReadLaterOsNotifyEnvelope } from './read-later/commands/os-notify.ts';
+import { logNotifyHop, parseTraceId, TRACE_PARAM } from './router/notify-trace.ts';
 
 const titleCache = state.index.titleCache;
 
@@ -250,6 +251,14 @@ export function startOsNotifyHub() {
     if (typeof listen !== 'function') return false;
     void listen('message-center:changed', (event: { payload?: unknown }) => {
       const payload = event?.payload as WorkbenchEnvelope;
+      const params = payload?.params;
+      const trace = parseTraceId(
+        params && typeof params === 'object' ? params[TRACE_PARAM] : null,
+      );
+      logNotifyHop('ui.received', trace, {
+        business: payload?.business,
+        action: payload?.action,
+      });
       void handleNotesOsNotifyEnvelope(payload);
       void handleReadLaterOsNotifyEnvelope(payload);
     });

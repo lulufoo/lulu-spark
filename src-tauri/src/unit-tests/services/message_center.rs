@@ -47,6 +47,24 @@ fn notes_create_envelope() -> Envelope {
     )
 }
 
+fn assert_last_envelope_matches_with_trace(expected: &Envelope) {
+    let got = last_changed_envelope().expect("envelope");
+    assert_eq!(got.business, expected.business);
+    assert_eq!(got.action, expected.action);
+    let mut params = got.params.clone();
+    let tid = params
+        .as_object_mut()
+        .expect("params object")
+        .remove("trace_id")
+        .and_then(|v| v.as_str().map(str::to_string))
+        .expect("trace_id");
+    assert!(
+        crate::services::os_notify_trace::parse_trace_id(&tid).is_some(),
+        "{tid}"
+    );
+    assert_eq!(params, expected.params);
+}
+
 fn walk_objects(value: &Value, visit: &mut impl FnMut(&serde_json::Map<String, Value>)) {
     match value {
         Value::Object(map) => {
@@ -91,6 +109,26 @@ fn install_notify_counter() -> Arc<AtomicUsize> {
 }
 
 #[test]
+fn produce_keeps_valid_trace_id() {
+    with_message_center_sandbox(|| {
+        let incoming = envelope(
+            "notes",
+            "create",
+            json!({ "id": "a", "common_path": "p.md", "trace_id": "trace_12345678" }),
+        );
+        produce(incoming).expect("produce");
+        assert_eq!(
+            last_changed_envelope()
+                .expect("envelope")
+                .params
+                .get("trace_id")
+                .and_then(|v| v.as_str()),
+            Some("trace_12345678")
+        );
+    });
+}
+
+#[test]
 fn produce_notes_marks_channel_unread() {
     with_message_center_sandbox(|| {
         assert!(!channel_unread("notes"));
@@ -108,7 +146,7 @@ fn produce_notifies_once_after_persist() {
         let incoming = notes_create_envelope();
         produce(incoming.clone()).expect("produce notes");
         assert_eq!(hits.load(Ordering::SeqCst), 1);
-        assert_eq!(last_changed_envelope(), Some(incoming));
+        assert_last_envelope_matches_with_trace(&incoming);
         assert!(persist_exists());
     });
 }
@@ -141,7 +179,7 @@ fn only_notes_read_later_todos_channels_and_unread_is_independent() {
             let incoming = envelope(business, "create", json!({}));
             assert_eq!(produce(incoming.clone()).expect(business).channel, business);
             assert!(channel_unread(business));
-            assert_eq!(last_changed_envelope(), Some(incoming));
+            assert_last_envelope_matches_with_trace(&incoming);
         }
 
         mark_channel_read("notes").expect("mark notes read");
@@ -166,7 +204,7 @@ fn one_produce_one_record_with_only_min_fields() {
         assert!(first.unread && second.unread);
         assert!(is_iso8601(&first.created_at));
         assert!(is_iso8601(&second.created_at));
-        assert_eq!(last_changed_envelope(), Some(notes_create_envelope()));
+        assert_last_envelope_matches_with_trace(&notes_create_envelope());
 
         for record in [&first, &second] {
             let value = serde_json::to_value(record).expect("serialize record");

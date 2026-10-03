@@ -1,6 +1,13 @@
 import { state } from '../host/state.ts';
 import { openReadLaterDialog } from '../read-later/commands/dialog.ts';
 import { navigateToNote } from './index.ts';
+import {
+  extractTraceFromScheme,
+  logNotifyHop,
+  parseTraceId,
+  TRACE_PARAM,
+  TRACE_QUERY,
+} from './notify-trace.ts';
 
 export type WorkbenchEnvelope = {
   business: string;
@@ -25,15 +32,20 @@ export function composeWorkbenchScheme(
   const params = envelope.params;
   if (!params || typeof params !== 'object') return null;
 
+  const trace = parseTraceId(stringParam(params, TRACE_PARAM));
+  const traceQuery = trace ? `&${TRACE_QUERY}=${encodeURIComponent(trace)}` : '';
+
   if (envelope.business === 'notes' && (envelope.action === 'create' || envelope.action === 'update')) {
     const id = stringParam(params, 'id');
     const path = stringParam(params, 'common_path');
     if (!id || !path) return null;
-    return `workbench://notes/open?id=${encodeURIComponent(id)}&path=${encodeURIComponent(path)}`;
+    return `workbench://notes/open?id=${encodeURIComponent(id)}&path=${encodeURIComponent(path)}${traceQuery}`;
   }
 
   if (envelope.business === 'read_later' && envelope.action === 'create') {
-    return 'workbench://read-later/list';
+    return trace
+      ? `workbench://read-later/list?${TRACE_QUERY}=${encodeURIComponent(trace)}`
+      : 'workbench://read-later/list';
   }
 
   return null;
@@ -60,7 +72,9 @@ export function parseWorkbenchScheme(scheme: string): ParsedWorkbenchScheme | nu
   }
 
   if (url.hostname === 'read-later' && path === '/list') {
-    if (url.search) return null;
+    for (const key of url.searchParams.keys()) {
+      if (key !== TRACE_QUERY) return null;
+    }
     return { kind: 'read-later-list' };
   }
 
@@ -83,15 +97,37 @@ export function resolveNotesLanding(id: string, path: string): NotesLanding | nu
 }
 
 export function openWorkbenchScheme(scheme: string): boolean {
+  const trace = extractTraceFromScheme(scheme);
   const parsed = parseWorkbenchScheme(scheme);
-  if (!parsed) return false;
+  if (!parsed) {
+    logNotifyHop('route.to_business', trace, { outcome: 'parse_fail', scheme });
+    return false;
+  }
 
   if (parsed.kind === 'read-later-list') {
     openReadLaterDialog();
+    logNotifyHop('route.to_business', trace, { outcome: 'ok', kind: 'read-later-list' });
     return true;
   }
 
   const landing = resolveNotesLanding(parsed.id, parsed.path);
-  if (!landing) return false;
-  return navigateToNote({ date: landing.date, note: landing.note });
+  if (!landing) {
+    logNotifyHop('route.to_business', trace, {
+      outcome: 'landing_miss',
+      kind: 'notes-open',
+      id: parsed.id,
+      path: parsed.path,
+    });
+    return false;
+  }
+  const ok = navigateToNote({ date: landing.date, note: landing.note });
+  logNotifyHop('route.to_business', trace, {
+    outcome: ok ? 'ok' : 'nav_fail',
+    kind: 'notes-open',
+    id: parsed.id,
+    path: parsed.path,
+    date: landing.date,
+    note: landing.note,
+  });
+  return ok;
 }
