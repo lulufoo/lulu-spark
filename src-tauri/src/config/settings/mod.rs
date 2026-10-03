@@ -1,5 +1,5 @@
 //! User settings in `config.toml` under the active config root
-//! (`~/.config/lulu-workbench/` or sandbox dirs selected by `TestSandbox` env).
+//! (`~/.config/lulu-spark/` or sandbox dirs selected by `TestSandbox` env).
 
 mod github;
 mod llm;

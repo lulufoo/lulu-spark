@@ -177,7 +177,7 @@ pub(super) fn default_knowledge_root() -> PathBuf {
 }
 
 pub fn default_cache_dir() -> PathBuf {
-    home_dir().join(".cache").join("lulu-workbench")
+    home_dir().join(".cache").join("lulu-spark")
 }
 
 pub(super) fn default_github_user_url() -> String {

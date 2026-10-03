@@ -9,7 +9,7 @@ describe('README TestSandbox docs', () => {
   it('documents TestSandbox config roots and default ports', () => {
     const text = readFileSync(join(root, 'README.md'), 'utf8');
     expect(text).toMatch(/TestSandbox/);
-    expect(text).toMatch(/lulu-workbench-sandbox/);
+    expect(text).toMatch(/lulu-spark-sandbox/);
     expect(text).toMatch(/18765/);
     expect(text).toMatch(/19876/);
     expect(text).toMatch(/8765/);

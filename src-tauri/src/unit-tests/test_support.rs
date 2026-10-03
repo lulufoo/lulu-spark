@@ -208,7 +208,7 @@ fn test_config_env_reports_plane_paths_and_ports() {
         assert_eq!(
             env.config_file_path(),
             home.path()
-                .join(".config/lulu-workbench")
+                .join(".config/lulu-spark")
                 .join("config.toml")
         );
         assert_eq!(
@@ -224,7 +224,7 @@ fn test_config_env_reports_plane_paths_and_ports() {
         assert_eq!(
             env.config_file_path(),
             home.path()
-                .join(".config/lulu-workbench-sandbox-api")
+                .join(".config/lulu-spark-sandbox-api")
                 .join("config.toml")
         );
         assert_eq!(
@@ -355,7 +355,7 @@ fn config_write_guard_rejects_dot_dot_and_symlink_aliases() {
     let temp_machine_home = tempfile::tempdir().expect("temp machine home");
     let protected = temp_machine_home
         .path()
-        .join(".config/lulu-workbench/config.toml");
+        .join(".config/lulu-spark/config.toml");
     fs::create_dir_all(protected.parent().expect("protected parent")).expect("mkdir");
     fs::write(&protected, "cache_dir = \"safe\"").expect("create machine config");
 
@@ -379,7 +379,7 @@ fn atomic_config_write_replaces_hard_link_without_mutating_protected_file() {
     let temp_machine_home = tempfile::tempdir().expect("temp machine home");
     let protected = temp_machine_home
         .path()
-        .join(".config/lulu-workbench/config.toml");
+        .join(".config/lulu-spark/config.toml");
     fs::create_dir_all(protected.parent().expect("protected parent")).expect("mkdir");
     fs::write(&protected, "cache_dir = \"safe\"").expect("create machine config");
     let protected_before = fs::read_to_string(&protected).expect("read protected");

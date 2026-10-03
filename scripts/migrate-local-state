@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """One-shot idempotent migration: cache_dir SSOT → workbench_root.
 
-Reads ``config.toml`` (``LULU_WB_CONFIG_DIR`` or ``~/.config/lulu-workbench``).
+Reads ``config.toml`` (``LULU_WB_CONFIG_DIR`` or ``~/.config/lulu-spark``).
 Not invoked at application startup — run manually after deploy.
 """
 from __future__ import annotations
@@ -27,11 +27,11 @@ MIGRATIONS: tuple[tuple[str, str], ...] = (
 def config_dir() -> Path:
     if env := os.environ.get("LULU_WB_CONFIG_DIR"):
         return Path(env)
-    return Path.home() / ".config" / "lulu-workbench"
+    return Path.home() / ".config" / "lulu-spark"
 
 
 def default_cache_dir() -> Path:
-    return Path.home() / ".cache" / "lulu-workbench"
+    return Path.home() / ".cache" / "lulu-spark"
 
 
 def default_workbench_root() -> Path:

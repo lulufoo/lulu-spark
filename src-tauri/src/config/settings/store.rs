@@ -15,12 +15,12 @@ use super::types::{
 
 /// Fixed prod config directory (never follows `TestSandbox`).
 pub fn prod_config_dir() -> PathBuf {
-    home_dir().join(".config").join("lulu-workbench")
+    home_dir().join(".config").join("lulu-spark")
 }
 
 /// Shared sandbox config directory (secrets + template `config.toml`).
 pub fn shared_sandbox_config_dir() -> PathBuf {
-    home_dir().join(".config").join("lulu-workbench-sandbox")
+    home_dir().join(".config").join("lulu-spark-sandbox")
 }
 
 /// Active config directory from `TestSandbox` / `TestSandboxId`.
@@ -36,7 +36,7 @@ pub fn settings_config_dir() -> Result<PathBuf, SettingsError> {
             validate_test_sandbox_id(&id)?;
             Ok(home_dir()
                 .join(".config")
-                .join(format!("lulu-workbench-sandbox-{id}")))
+                .join(format!("lulu-spark-sandbox-{id}")))
         }
     }
 }

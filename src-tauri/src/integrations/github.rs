@@ -65,7 +65,7 @@ fn request_inner(
         .request(method.clone(), &url)
         .header("Accept", "application/vnd.github+json")
         .header("Authorization", format!("Bearer {token}"))
-        .header("User-Agent", "lulu-workbench");
+        .header("User-Agent", "lulu-spark");
     if let Some(b) = body {
         req = req.json(b);
     }

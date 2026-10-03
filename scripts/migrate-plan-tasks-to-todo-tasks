@@ -42,7 +42,7 @@ def log_event(**fields: object) -> None:
 def config_dir() -> Path:
     if env := os.environ.get("LULU_WB_CONFIG_DIR"):
         return Path(env)
-    return Path.home() / ".config" / "lulu-workbench"
+    return Path.home() / ".config" / "lulu-spark"
 
 
 def default_workbench_root() -> Path:

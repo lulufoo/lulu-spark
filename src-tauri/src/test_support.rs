@@ -297,8 +297,8 @@ impl TestConfigEnv {
 
     pub fn config_file_path(&self) -> PathBuf {
         let config_dir = match &self.plane {
-            TestConfigPlane::Prod => "lulu-workbench".to_owned(),
-            TestConfigPlane::Sandbox { id } => format!("lulu-workbench-sandbox-{id}"),
+            TestConfigPlane::Prod => "lulu-spark".to_owned(),
+            TestConfigPlane::Sandbox { id } => format!("lulu-spark-sandbox-{id}"),
         };
         self.home
             .join(".config")
@@ -345,7 +345,7 @@ fn unique_sandbox_id(prefix: &str) -> String {
 fn write_fake_prod_config(home: &Path) {
     let prod_config_path = home
         .join(".config")
-        .join("lulu-workbench")
+        .join("lulu-spark")
         .join(settings::PROD_CONFIG_FILE_NAME);
     let prod_wb = home.join("prod-wb");
     let prod_clones = home.join("prod-knowledge-clones");

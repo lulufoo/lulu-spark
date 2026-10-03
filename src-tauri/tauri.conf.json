@@ -2,7 +2,7 @@
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Lulu Spark",
   "version": "0.1.0",
-  "identifier": "com.lulu.workbench",
+  "identifier": "com.lulu.spark",
   "build": {
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build",
@@ -47,7 +47,7 @@
     "workbench-scheme": {
       "CFBundleURLTypes": [
         {
-          "CFBundleURLName": "com.lulu.workbench",
+          "CFBundleURLName": "com.lulu.spark",
           "CFBundleURLSchemes": [
             "workbench"
           ]

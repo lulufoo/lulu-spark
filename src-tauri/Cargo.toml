@@ -1,14 +1,14 @@
 [package]
-name = "lulu-workbench"
+name = "lulu-spark"
 version = "0.1.0"
 edition = "2021"
 
 [lib]
-name = "lulu_workbench_lib"
+name = "lulu_spark_lib"
 crate-type = ["lib", "cdylib"]
 
 [[bin]]
-name = "lulu-workbench"
+name = "lulu-spark"
 path = "src/main.rs"
 
 [features]
