@@ -37,7 +37,7 @@ git -C $SKILL_DIR pull --rebase
 
 ## 前置条件
 
-归档 skill 执行前 **Lulu Spark App 必须运行**（MCP `workbench-knowledge` 可用，`http://127.0.0.1:9876/mcp/cursor_ide`）。notes 根目录由 Lulu Spark 管理，**无需**本地配置文件。槽位名仍是 `workbench`。
+归档 skill 执行前 **Lulu Spark App 必须运行**（MCP `workbench-knowledge` 可用，`http://127.0.0.1:9876/mcp/cursor_ide`）。notes 根目录由 Lulu Spark 管理，**无需**本地配置文件。槽位名是 `spark`。
 
 ## 子 skill
 
