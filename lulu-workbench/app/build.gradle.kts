@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.lulu.workbench.android"
+    namespace = "com.lulu.spark.android"
     compileSdk {
         version = release(36) {
             minorApiLevel = 1
@@ -14,7 +14,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.lulu.workbench.android"
+        applicationId = "com.lulu.spark.android"
         minSdk = 24
         targetSdk = 36
         versionCode = 1

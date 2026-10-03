@@ -3,7 +3,7 @@ plugins {
 }
 
 android {
-    namespace = "com.lulu.workbench.android.storage"
+    namespace = "com.lulu.spark.android.storage"
     compileSdk {
         version = release(36) {
             minorApiLevel = 1

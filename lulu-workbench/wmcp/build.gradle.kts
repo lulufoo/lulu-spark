@@ -3,7 +3,7 @@ plugins {
 }
 
 android {
-    namespace = "com.lulu.workbench.android.wmcp"
+    namespace = "com.lulu.spark.android.wmcp"
     compileSdk {
         version = release(36) {
             minorApiLevel = 1

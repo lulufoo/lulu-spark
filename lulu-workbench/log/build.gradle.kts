@@ -3,7 +3,7 @@ plugins {
 }
 
 android {
-    namespace = "com.lulu.workbench.android.log"
+    namespace = "com.lulu.spark.android.log"
     compileSdk {
         version = release(36) {
             minorApiLevel = 1

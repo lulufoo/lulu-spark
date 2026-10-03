@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.lulu.workbench.android.markdown"
+    namespace = "com.lulu.spark.android.markdown"
     compileSdk {
         version = release(36) {
             minorApiLevel = 1

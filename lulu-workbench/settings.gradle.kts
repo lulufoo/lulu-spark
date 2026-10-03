@@ -22,7 +22,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "LuLuWorkbench"
+rootProject.name = "LuluSpark"
 include(":app")
 include(":agent")
 include(":llm")
