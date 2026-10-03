@@ -22,7 +22,7 @@ export function SettingsDialogChrome() {
       </div>
       <div id="settings-dialog-body">
         <nav id="settings-nav">
-          <button type="button" className="settings-nav-item active" data-panel="workbench">Workbench</button>
+          <button type="button" className="settings-nav-item active" data-panel="workbench">Data</button>
           <button type="button" className="settings-nav-item" data-panel="notes">Notes</button>
           <button type="button" className="settings-nav-item" data-panel="knowledge">Knowledge</button>
           <button type="button" className="settings-nav-item" data-panel="llm">Assistant</button>
