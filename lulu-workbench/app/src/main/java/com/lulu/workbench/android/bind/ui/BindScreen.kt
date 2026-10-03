@@ -39,7 +39,7 @@ fun BindScreen(
     ) {
         Text("Mac pair", style = MaterialTheme.typography.titleMedium)
         Text(
-            "Pair this phone with Lulu Workbench on Mac.",
+            "Pair this phone with Lulu Spark on Mac.",
             style = MaterialTheme.typography.bodySmall,
             color = colors.onSurfaceVariant,
         )

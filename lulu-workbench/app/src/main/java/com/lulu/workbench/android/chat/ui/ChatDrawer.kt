@@ -65,7 +65,7 @@ internal fun ChatDrawer(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text(
-                "Lulu Workbench",
+                "Lulu Spark",
                 style = MaterialTheme.typography.titleLarge,
                 color = colors.onSurface,
             )

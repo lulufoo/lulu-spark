@@ -47,7 +47,7 @@ internal fun ChatPane(
         keyboard?.hide()
     }
     val sendEnabled = !state.inFlight && draft.isNotBlank()
-    val title = state.sessions.firstOrNull { it.id == state.sessionId }?.title ?: "Lulu Workbench"
+    val title = state.sessions.firstOrNull { it.id == state.sessionId }?.title ?: "Lulu Spark"
     fun submit() {
         if (!sendEnabled) return
         val text = draft
