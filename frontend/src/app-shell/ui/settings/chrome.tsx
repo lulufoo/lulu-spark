@@ -1,3 +1,4 @@
+import { OverlayDismissButton } from '../../../shared/overlay-dismiss-button.tsx';
 import { KbHidePatternsHost } from './kb-hide-patterns.tsx';
 import { McpChannelToolsHost } from './mcp-channel-tools.tsx';
 import { McpTicketsHost } from './mcp-tickets.tsx';
@@ -17,9 +18,7 @@ export function SettingsDialogChrome() {
     <div id="settings-dialog-box">
       <div id="settings-dialog-header">
         <span>Settings</span>
-        <button id="btn-settings-close" type="button" title="Close">
-          ✕
-        </button>
+        <OverlayDismissButton id="btn-settings-close" title="Close" />
       </div>
       <div id="settings-dialog-body">
         <nav id="settings-nav">
@@ -244,11 +243,6 @@ export function SettingsDialogChrome() {
             </div>
           </div>
         </div>
-      </div>
-      <div id="settings-dialog-footer">
-        <button type="button" id="btn-settings-cancel">
-          Close
-        </button>
       </div>
     </div>
   );

@@ -152,10 +152,15 @@ describe('Settings MCP panel markup', () => {
   });
 
   it('keeps one state-dependent cursor ticket button plus Copy', () => {
-    const panel = indexHtml.match(
-      /id="settings-panel-mcp"[\s\S]*?(?=<div id="settings-panel-|<div id="settings-dialog-footer")/,
-    )?.[0];
-    expect(panel, 'settings-panel-mcp markup').toBeTruthy();
+    const mcpStart = indexHtml.search(/id="settings-panel-mcp"/);
+    expect(mcpStart, 'settings-panel-mcp markup').toBeGreaterThan(-1);
+    const fromMcp = indexHtml.slice(mcpStart);
+    const footerAt = fromMcp.search(/id="settings-dialog-footer"/);
+    const nextPanelAt = fromMcp.slice('id="settings-panel-mcp"'.length).search(/id="settings-panel-/);
+    let end = fromMcp.length;
+    if (footerAt >= 0) end = Math.min(end, footerAt);
+    if (nextPanelAt >= 0) end = Math.min(end, nextPanelAt + 'id="settings-panel-mcp"'.length);
+    const panel = fromMcp.slice(0, end);
     expect(panel).toMatch(/data-tab="tickets"/);
     expect(panel).toMatch(/data-tab="tools"/);
     expect(panel).toMatch(/id="settings-tab-mcp-tickets"/);

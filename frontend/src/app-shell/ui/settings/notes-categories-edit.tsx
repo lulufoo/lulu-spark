@@ -1,4 +1,5 @@
 import { useEffect, useSyncExternalStore } from 'react';
+import { OverlayDismissButton } from '../../../shared/overlay-dismiss-button.tsx';
 import {
   askNotesCategoryDelete,
   cancelNotesCategoryDelete,
@@ -89,15 +90,12 @@ export function NotesCategoriesEditHost() {
               <h3 id="notes-cat-edit-dialog-title">
                 {snap.confirmDelete ? 'Remove category' : 'Edit category'}
               </h3>
-              <button
-                type="button"
+              <OverlayDismissButton
                 id="btn-notes-cat-edit-close"
                 disabled={snap.busy}
                 title="Close"
                 onClick={() => closeNotesCategoryEditor()}
-              >
-                ✕
-              </button>
+              />
             </div>
             {snap.confirmDelete ? (
               <div id="notes-cat-edit-dialog-body">
