@@ -9,14 +9,14 @@
 
 ## MCP prerequisite (`sink=workbench` only)
 
-Workbench App **must** be running.  
+Lulu Spark App **must** be running.  
 **Do not** write notes `raw/` / `digest/` / `index.json` directly. Use MCP only. Load note-task and route Create.
 
 | Op | MCP tool |
 |----|----------|
 | Write raw (+ digest per `digest` field) | `create_note` |
 
-First step when archiving to Workbench: confirm MCP available.
+First step when archiving to Lulu Spark: confirm MCP available.
 
 ## Staging path
 

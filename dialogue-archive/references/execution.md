@@ -14,8 +14,8 @@ MCP: [`archive.md`](archive.md).
 
 ## Parent steps
 
-0. Resolve `sink`: `workbench` (default) or `local-md` when user intent refuses Workbench persist. No phrase enumeration — semantic understanding only.
-1. If `sink=workbench`: confirm Workbench MCP available ([archive.md](archive.md)). If `sink=local-md`: skip MCP check.
+0. Resolve `sink`: `workbench` (default) or `local-md` when user intent refuses Lulu Spark persist. No phrase enumeration — semantic understanding only.
+1. If `sink=workbench`: confirm Lulu Spark MCP available ([archive.md](archive.md)). If `sink=local-md`: skip MCP check.
 2. Resolve current session → jsonl (folder basename = session id). Prefer `<uuid>/<uuid>.jsonl` under `agent-transcripts`.
 3. Resolve `start_node` / `end_node` (1-based closed interval over non-empty JSONL lines):
    - User gave numbers → use them.

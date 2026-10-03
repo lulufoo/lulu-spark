@@ -2,7 +2,7 @@
 name: dialogue-archive
 description: >-
   Normalize dialogue via node-range Python script on Cursor JSONL, then sink to
-  Workbench MCP (source_path + constrained digest) or local-md under .cache.
+  Lulu Spark MCP (source_path + constrained digest) or local-md under .cache.
   Verbatim — no compression. Use when: dialogue-archive、对话原文归档、
   逐轮归档、同步对话到 raw（原文）. Not for process retrospective — use
   dialogue-summary.
@@ -54,7 +54,7 @@ Resolve **before** MCP checks.
 | `sink` | When | Phase B |
 |--------|------|---------|
 | `workbench` | Default | Load note-task; route Create. Digest under content constraint when written |
-| `local-md` | User intent refuses Workbench persist | Keep normalized md under workspace `.cache`; no MCP; no digest |
+| `local-md` | User intent refuses Lulu Spark persist | Keep normalized md under workspace `.cache`; no MCP; no digest |
 
 Understand intent — do **not** maintain a phrase list. Unclear → default `workbench`.
 

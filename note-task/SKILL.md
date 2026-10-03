@@ -1,7 +1,7 @@
 ---
 name: note-task
 description: >-
-  Note-task MCP workflow: create and read Workbench notes via MCP only.
+  Note-task MCP workflow: create and read Lulu Spark notes via MCP only.
   Use when: note-task, create_note, archive a note, save Markdown to notes.
 argument-hint: '[title | path | pasted Markdown]'
 ---
@@ -23,9 +23,9 @@ Before every call, read the live MCP tool `description` / `inputSchema`.
 ## MCP Prerequisite
 
 <HARD-GATE mcp="notes">
-Workbench App **MUST** be running, and the `knowledge-mcp` sidecar spawned.
+Lulu Spark App **MUST** be running, and the `knowledge-mcp` sidecar spawned.
 
-- If Host is down or HTTP unreachable, note tools will not appear — start Workbench App first.
+- If Host is down or HTTP unreachable, note tools will not appear — start Lulu Spark App first.
 </HARD-GATE>
 
 ## Intent Routing

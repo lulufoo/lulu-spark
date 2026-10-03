@@ -1,6 +1,6 @@
 # lulu-workbench-skills
 
-个人 Agent Skill 仓库（面向 [lulu-workbench](https://github.com/lulufoo/lulu-workbench) 的对话归档、过程回顾、字幕对话整理等）。
+个人 Agent Skill 仓库（面向 [Lulu Spark](https://github.com/lulufoo/lulu-workbench) 的对话归档、过程回顾、字幕对话整理等）。仓库目录名仍是 `lulu-workbench-skills`。
 
 ## 安装
 

@@ -1,8 +1,8 @@
 ---
 name: lulu-workbench-skills
 description: >-
-  lulu-workbench 归档技能包安装。克隆到平台 skills 目录（Cursor / Copilot / Claude / Codex）；归档经 Workbench App MCP 落盘。
-  Use when: 安装 workbench skills、dialogue-summary dialogue-archive theme-line theme-transcribe note-task
+  Lulu Spark 归档技能包安装。克隆到平台 skills 目录（Cursor / Copilot / Claude / Codex）；归档经 Lulu Spark App MCP 落盘。
+  Use when: 安装 Lulu Spark skills、安装 workbench skills、dialogue-summary dialogue-archive theme-line theme-transcribe note-task
 ---
 
 # lulu-workbench-skills — 安装
@@ -37,7 +37,7 @@ git -C $SKILL_DIR pull --rebase
 
 ## 前置条件
 
-归档 skill 执行前 **Workbench App 必须运行**（MCP `workbench-knowledge` 可用，`http://127.0.0.1:9876/mcp/cursor_ide`）。notes 根目录由 Workbench 管理，**无需**本地配置文件。
+归档 skill 执行前 **Lulu Spark App 必须运行**（MCP `workbench-knowledge` 可用，`http://127.0.0.1:9876/mcp/cursor_ide`）。notes 根目录由 Lulu Spark 管理，**无需**本地配置文件。槽位名仍是 `workbench`。
 
 ## 子 skill
 
@@ -51,6 +51,6 @@ git -C $SKILL_DIR pull --rebase
 
 ## 验收
 
-触发任一子 skill 时，首步确认 Workbench MCP 可用；归档成功后 MCP 返回 `id` / `common_path` / `raw_path`（或 digest 路径）。
+触发任一子 skill 时，首步确认 Lulu Spark MCP 可用；归档成功后 MCP 返回 `id` / `common_path` / `raw_path`（或 digest 路径）。
 
 路径公式与 digest 写法由 note-task 自己的 references 说明（随 `create_note` 的 `digest_body`）。
