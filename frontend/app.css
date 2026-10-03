@@ -5753,6 +5753,18 @@
   line-height: 1;
 }
 #btn-settings-close:hover { background: #eaeef2; }
+.overlay-dismiss-button {
+  background: none;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  color: #57606a;
+  padding: 2px 6px;
+  border-radius: 4px;
+  line-height: 1;
+}
+.overlay-dismiss-button:hover:not(:disabled) { background: #eaeef2; }
+.overlay-dismiss-button:disabled { opacity: .5; cursor: default; }
 
 /* Body = left nav + right panels */
 #settings-dialog-body {
