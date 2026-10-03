@@ -44,12 +44,15 @@ describe('handleNotesOsNotifyEnvelope', () => {
   let toastSpy;
   /** @type {import('vitest').MockInstance} */
   let alertSpy;
+  /** @type {import('vitest').MockInstance} */
+  let fetchSpy;
 
   beforeEach(() => {
     notifySpy = vi.spyOn(api, 'showOsNotification').mockResolvedValue(undefined);
     composeSpy = vi.spyOn(scheme, 'composeWorkbenchScheme');
     toastSpy = vi.spyOn(toast, 'showToast');
     alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});
+    fetchSpy = vi.spyOn(api, 'fetchIndex').mockResolvedValue({ entries: {} });
   });
 
   afterEach(() => {
@@ -57,10 +60,15 @@ describe('handleNotesOsNotifyEnvelope', () => {
     composeSpy.mockRestore();
     toastSpy.mockRestore();
     alertSpy.mockRestore();
+    fetchSpy.mockRestore();
   });
 
-  it('composes notes/open and shows New note for notes+create', async () => {
+  it('reloads Host index then composes notes/open for notes+create', async () => {
     await handleNotesOsNotifyEnvelope(NOTE_CREATE);
+    expect(fetchSpy).toHaveBeenCalled();
+    expect(fetchSpy.mock.invocationCallOrder[0]).toBeLessThan(
+      notifySpy.mock.invocationCallOrder[0],
+    );
     expect(composeSpy).toHaveBeenCalledWith(NOTE_CREATE);
     expect(notifySpy).toHaveBeenCalledWith({
       title: 'New note',
@@ -69,12 +77,13 @@ describe('handleNotesOsNotifyEnvelope', () => {
     });
   });
 
-  it('does not notify on notes+update', async () => {
+  it('reloads Host index on notes+update without a banner', async () => {
     await handleNotesOsNotifyEnvelope({
       business: 'notes',
       action: 'update',
       params: { id: 'abc', common_path: 'inbox/x.md' },
     });
+    expect(fetchSpy).toHaveBeenCalled();
     expect(composeSpy).not.toHaveBeenCalled();
     expect(notifySpy).not.toHaveBeenCalled();
   });
@@ -85,6 +94,7 @@ describe('handleNotesOsNotifyEnvelope', () => {
     [{ business: 'todos', action: 'create', params: { id: 't1' } }],
   ])('returns without notify for %j', async (envelope) => {
     await handleNotesOsNotifyEnvelope(envelope);
+    expect(fetchSpy).not.toHaveBeenCalled();
     expect(composeSpy).not.toHaveBeenCalled();
     expect(notifySpy).not.toHaveBeenCalled();
   });

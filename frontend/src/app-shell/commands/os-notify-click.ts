@@ -1,4 +1,5 @@
-import { openWorkbenchScheme } from '../../router/scheme.ts';
+import { refreshNotesIndex } from '../../notes/commands/reload-index.ts';
+import { openWorkbenchScheme, parseWorkbenchScheme } from '../../router/scheme.ts';
 
 type ClickPayload = { scheme?: string };
 
@@ -10,11 +11,15 @@ function getTauriListen() {
   return typeof listen === 'function' ? listen : null;
 }
 
-export function handleOsNotifyClicked(payload?: ClickPayload): boolean {
+export async function handleOsNotifyClicked(payload?: ClickPayload): Promise<boolean> {
   if (!payload || typeof payload !== 'object') return false;
   const value = payload.scheme;
   if (typeof value !== 'string' || !value) return false;
-  return openWorkbenchScheme(value);
+  const scheme = value;
+  if (openWorkbenchScheme(scheme)) return true;
+  if (parseWorkbenchScheme(scheme)?.kind !== 'notes-open') return false;
+  await refreshNotesIndex();
+  return openWorkbenchScheme(scheme);
 }
 
 export function startOsNotifyClickHub(): void {
@@ -27,7 +32,7 @@ export function startOsNotifyClickHub(): void {
   if (!listen) return;
 
   void listen('os-notification:clicked', (event) => {
-    handleOsNotifyClicked(event?.payload as ClickPayload | undefined);
+    void handleOsNotifyClicked(event?.payload as ClickPayload | undefined);
   }).then((fn) => {
     unlisten = fn;
   });

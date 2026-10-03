@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import * as api from '../../frontend/src/host/api.ts';
 import { state } from '../../frontend/src/host/state.ts';
 import { readLaterOpenStore } from '../../frontend/src/read-later/state/dialog-open.ts';
 import { parseHash } from '../../frontend/src/router/index.ts';
@@ -71,9 +72,9 @@ afterEach(() => {
 });
 
 describe('handleOsNotifyClicked', () => {
-  it('hands a notes/open scheme to L2 and opens that note', () => {
+  it('hands a notes/open scheme to L2 and opens that note', async () => {
     const openSpy = vi.spyOn(scheme, 'openWorkbenchScheme');
-    expect(handleOsNotifyClicked({ scheme: NOTES_OPEN })).toBe(true);
+    await expect(handleOsNotifyClicked({ scheme: NOTES_OPEN })).resolves.toBe(true);
     expect(openSpy).toHaveBeenCalledTimes(1);
     expect(openSpy).toHaveBeenCalledWith(NOTES_OPEN);
     expect(parseHash(window.location.hash)).toEqual({
@@ -82,21 +83,21 @@ describe('handleOsNotifyClicked', () => {
     });
   });
 
-  it('hands a read-later/list scheme to L2 and opens the list dialog', () => {
+  it('hands a read-later/list scheme to L2 and opens the list dialog', async () => {
     const openSpy = vi.spyOn(scheme, 'openWorkbenchScheme');
-    expect(handleOsNotifyClicked({ scheme: READ_LATER_LIST })).toBe(true);
+    await expect(handleOsNotifyClicked({ scheme: READ_LATER_LIST })).resolves.toBe(true);
     expect(openSpy).toHaveBeenCalledTimes(1);
     expect(openSpy).toHaveBeenCalledWith(READ_LATER_LIST);
     expect(dialogEl()?.classList.contains('open')).toBe(true);
     expect(window.location.hash).toBe('#/home');
   });
 
-  it('returns false and does not land when payload has no scheme', () => {
+  it('returns false and does not land when payload has no scheme', async () => {
     const openSpy = vi.spyOn(scheme, 'openWorkbenchScheme');
-    expect(handleOsNotifyClicked({})).toBe(false);
-    expect(handleOsNotifyClicked({ scheme: undefined })).toBe(false);
-    expect(handleOsNotifyClicked({ scheme: '' })).toBe(false);
-    expect(handleOsNotifyClicked(undefined)).toBe(false);
+    await expect(handleOsNotifyClicked({})).resolves.toBe(false);
+    await expect(handleOsNotifyClicked({ scheme: undefined })).resolves.toBe(false);
+    await expect(handleOsNotifyClicked({ scheme: '' })).resolves.toBe(false);
+    await expect(handleOsNotifyClicked(undefined)).resolves.toBe(false);
     expect(openSpy).not.toHaveBeenCalled();
     expect(window.location.hash).toBe('#/home');
     expect(dialogEl()?.classList.contains('open')).toBe(false);
@@ -109,12 +110,29 @@ describe('handleOsNotifyClicked', () => {
     'workbench://notes/open?path=inbox/x.md',
     'workbench://read-later/open',
     'notes/open?id=abc&path=inbox/x.md',
-  ])('forwards unrecognized or incomplete %s to L2 which ignores it', (badScheme) => {
+  ])('forwards unrecognized or incomplete %s to L2 which ignores it', async (badScheme) => {
     const openSpy = vi.spyOn(scheme, 'openWorkbenchScheme');
-    expect(handleOsNotifyClicked({ scheme: badScheme })).toBe(false);
+    await expect(handleOsNotifyClicked({ scheme: badScheme })).resolves.toBe(false);
     expect(openSpy).toHaveBeenCalledWith(badScheme);
     expect(window.location.hash).toBe('#/home');
     expect(dialogEl()?.classList.contains('open')).toBe(false);
+  });
+
+  it('reloads Host index once and retries notes/open after a landing miss', async () => {
+    state.index.data = {};
+    vi.spyOn(api, 'fetchIndex').mockResolvedValue({
+      entries: {
+        [NOTE_ID]: {
+          common_path: NOTE_PATH,
+          created_at: `${NOTE_DATE}120000`,
+        },
+      },
+    });
+    await expect(handleOsNotifyClicked({ scheme: NOTES_OPEN })).resolves.toBe(true);
+    expect(parseHash(window.location.hash)).toEqual({
+      name: 'workbench',
+      params: { date: NOTE_DATE, note: NOTE_PATH },
+    });
   });
 });
 
@@ -135,7 +153,7 @@ describe('startOsNotifyClickHub', () => {
 
     expect(listen).toHaveBeenCalledTimes(1);
     expect(typeof handler).toBe('function');
-    handler({ payload: { scheme: NOTES_OPEN } });
+    await handler({ payload: { scheme: NOTES_OPEN } });
     expect(openSpy).toHaveBeenCalledWith(NOTES_OPEN);
     expect(parseHash(window.location.hash)).toEqual({
       name: 'workbench',
@@ -157,7 +175,7 @@ describe('startOsNotifyClickHub', () => {
 
     startOsNotifyClickHub();
     await flushListen();
-    handler({ payload: { scheme: READ_LATER_LIST } });
+    await handler({ payload: { scheme: READ_LATER_LIST } });
     expect(dialogEl()?.classList.contains('open')).toBe(true);
     expect(window.location.hash).toBe('#/home');
   });
@@ -181,7 +199,7 @@ describe('startOsNotifyClickHub', () => {
     await flushListen();
 
     expect(handlers).toHaveLength(1);
-    handlers[0]({ payload: { scheme: NOTES_OPEN } });
+    await handlers[0]({ payload: { scheme: NOTES_OPEN } });
     expect(openSpy).toHaveBeenCalledTimes(1);
     expect(parseHash(window.location.hash).name).toBe('workbench');
   });
