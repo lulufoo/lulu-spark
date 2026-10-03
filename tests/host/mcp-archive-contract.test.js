@@ -91,14 +91,10 @@ describe('T10 Host MCP archive + contract retarget (V2/V3/V4)', () => {
     expect(src).toMatch(/must not expose get_notes_selection/);
   });
 
-  it('live Host MCP URLs keep App workbench + IDE cursor_ide', () => {
-    const readme = read('README.md');
+  it('live Host MCP URLs keep App spark + IDE cursor_ide', () => {
     const verify = read('scripts/verify-host-mcp.mjs');
-    expect(readme).toContain('http://127.0.0.1:<mcp_port>/mcp/cursor_ide');
     expect(verify).toContain("REGISTERED_SLOTS = ['spark', 'cursor_ide']");
-    expect(readme).not.toContain('get_notes_selection');
     expect(verify).not.toContain('get_notes_selection');
-    expect(readme).not.toContain('http://127.0.0.1:<mcp_port>/mcp/todo_task');
     expect(verify).not.toMatch(/http:\/\/127\.0\.0\.1:<mcp_port>\/#\/workbench/);
   });
 

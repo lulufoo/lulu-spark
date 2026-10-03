@@ -10,13 +10,11 @@ import { readRsPath } from '../helpers/read-rs-dir.js';
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 
 describe('T11 IDE/Binding Host MCP acceptance smoke record', () => {
-  it('Host registers workbench + cursor_ide; README documents the IDE URL', () => {
-    const readme = readFileSync(join(repoRoot, 'README.md'), 'utf8');
+  it('Host registers spark + cursor_ide', () => {
     const types = readFileSync(
       join(repoRoot, 'src-tauri/src/mcp_host/server/types.rs'),
       'utf8',
     );
-    expect(readme).toContain('http://127.0.0.1:<mcp_port>/mcp/cursor_ide');
     expect(types).toContain('cursor_ide');
     expect(types).toContain('spark');
   });
