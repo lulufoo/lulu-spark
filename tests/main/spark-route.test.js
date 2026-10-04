@@ -5,12 +5,12 @@ import { fileURLToPath } from 'node:url';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 const apiMocks = vi.hoisted(() => ({
-  searchWorkbench: vi.fn(),
+  searchSpark: vi.fn(),
   searchKnowledge: vi.fn(),
 }));
 
 vi.mock('../../frontend/src/host/api.ts', () => ({
-  searchWorkbench: (...args) => apiMocks.searchWorkbench(...args),
+  searchSpark: (...args) => apiMocks.searchSpark(...args),
   searchKnowledge: (...args) => apiMocks.searchKnowledge(...args),
 }));
 
@@ -40,7 +40,7 @@ function extractFunctionBody(source, name) {
   return '';
 }
 
-function seedWorkbenchSearchDom() {
+function seedSparkSearchDom() {
   document.body.innerHTML = `
     <button id="btn-nav-home-title" hidden></button>
     <button id="btn-nav-home"></button>
@@ -69,60 +69,60 @@ function installLocalStorageMock() {
   };
 }
 
-/** Mirrors main.js wrapRouteMount + workbench mount contract under test. */
-async function simulateWorkbenchRouteMount() {
+/** Mirrors main.js wrapRouteMount + spark mount contract under test. */
+async function simulateSparkRouteMount() {
   applySearchNavChrome('spark');
-  const { initWorkbenchSearch } = await import('../../frontend/src/notes/ui/search.tsx');
-  initWorkbenchSearch();
+  const { initSparkSearch } = await import('../../frontend/src/notes/ui/search.tsx');
+  initSparkSearch();
 }
 
-async function loadWorkbenchSearchModule() {
+async function loadSparkSearchModule() {
   vi.resetModules();
   return import('../../frontend/src/notes/ui/search.tsx');
 }
 
-describe('main.js workbench route init wiring (source)', () => {
-  it('imports initWorkbenchSearch from notes/ui/search.tsx', () => {
+describe('main.js spark route init wiring (source)', () => {
+  it('imports initSparkSearch from notes/ui/search.tsx', () => {
     expect(mainJs).toMatch(
-      /import\s*\{[^}]*initWorkbenchSearch[^}]*\}\s*from\s*'[^']*notes\/ui\/search\.tsx'/,
+      /import\s*\{[^}]*initSparkSearch[^}]*\}\s*from\s*'[^']*notes\/ui\/search\.tsx'/,
     );
   });
 
-  it('calls initWorkbenchSearch inside wrapRouteMount for workbench route mount', () => {
+  it('calls initSparkSearch inside wrapRouteMount for spark route mount', () => {
     const wrapBody = extractFunctionBody(mainJs, 'wrapRouteMount');
-    expect(wrapBody).toMatch(/initWorkbenchSearch\s*\(\s*\)/);
+    expect(wrapBody).toMatch(/initSparkSearch\s*\(\s*\)/);
     expect(wrapBody).toMatch(/routeName\s*===\s*['"]spark['"]/);
   });
 
-  it('registers workbench handler via wrapRouteMount', () => {
+  it('registers spark handler via wrapRouteMount', () => {
     expect(mainJs).toMatch(/spark:\s*wrapRouteMount\s*\(\s*['"]spark['"]/);
   });
 });
 
-describe('workbench route mount behavior', () => {
+describe('spark route mount behavior', () => {
   beforeEach(async () => {
     vi.useFakeTimers();
     vi.clearAllMocks();
     installLocalStorageMock();
-    seedWorkbenchSearchDom();
-    apiMocks.searchWorkbench.mockResolvedValue({ hits: [] });
-    await loadWorkbenchSearchModule();
+    seedSparkSearchDom();
+    apiMocks.searchSpark.mockResolvedValue({ hits: [] });
+    await loadSparkSearchModule();
   });
 
   afterEach(() => {
     vi.useRealTimers();
   });
 
-  it('workbench mount: wb wrap visible and input enabled after nav chrome', async () => {
-    await simulateWorkbenchRouteMount();
+  it('spark mount: wb wrap visible and input enabled after nav chrome', async () => {
+    await simulateSparkRouteMount();
 
     expect(document.getElementById('gs-wb-wrap').hidden).toBe(false);
     expect(document.getElementById('gs-kb-wrap').hidden).toBe(true);
     expect(document.getElementById('gs-wb-input').disabled).toBe(false);
   });
 
-  it('leaving workbench route calls closeWorkbenchSearch', async () => {
-    await simulateWorkbenchRouteMount();
+  it('leaving spark route calls closeSparkSearch', async () => {
+    await simulateSparkRouteMount();
 
     const dropdown = document.getElementById('gs-wb-dropdown');
     dropdown.style.display = 'block';
@@ -131,28 +131,28 @@ describe('workbench route mount behavior', () => {
     expect(dropdown.style.display).toBe('none');
   });
 
-  it('initWorkbenchSearch is idempotent on repeated workbench route mounts', async () => {
-    await simulateWorkbenchRouteMount();
-    await simulateWorkbenchRouteMount();
+  it('initSparkSearch is idempotent on repeated spark route mounts', async () => {
+    await simulateSparkRouteMount();
+    await simulateSparkRouteMount();
 
     const input = document.getElementById('gs-wb-input');
     input.value = 'alpha';
     input.dispatchEvent(new Event('input', { bubbles: true }));
     await vi.advanceTimersByTimeAsync(300);
 
-    expect(apiMocks.searchWorkbench).toHaveBeenCalledTimes(1);
+    expect(apiMocks.searchSpark).toHaveBeenCalledTimes(1);
     expect(apiMocks.searchKnowledge).not.toHaveBeenCalled();
   });
 
-  it('TAC-2: workbench search input triggers searchWorkbench only', async () => {
-    await simulateWorkbenchRouteMount();
+  it('TAC-2: spark search input triggers searchSpark only', async () => {
+    await simulateSparkRouteMount();
 
     const input = document.getElementById('gs-wb-input');
     input.value = 'topic';
     input.dispatchEvent(new Event('input', { bubbles: true }));
     await vi.advanceTimersByTimeAsync(300);
 
-    expect(apiMocks.searchWorkbench).toHaveBeenCalledWith('topic', 8);
+    expect(apiMocks.searchSpark).toHaveBeenCalledWith('topic', 8);
     expect(apiMocks.searchKnowledge).not.toHaveBeenCalled();
   });
 });
@@ -172,7 +172,7 @@ function extractFunctionSource(source, name) {
   return '';
 }
 
-function seedWorkbenchMountDom() {
+function seedSparkMountDom() {
   document.body.innerHTML = `
     <div id="home-view" style="display:none"></div>
     <div id="knowledge-doc-view" style="display:none"></div>
@@ -189,9 +189,9 @@ function seedWorkbenchMountDom() {
   `;
 }
 
-function compileMountWorkbench(env) {
-  const fnSource = extractFunctionSource(mainJs, 'mountWorkbench');
-  expect(fnSource, 'mountWorkbench missing').not.toBe('');
+function compileMountSpark(env) {
+  const fnSource = extractFunctionSource(mainJs, 'mountSpark');
+  expect(fnSource, 'mountSpark missing').not.toBe('');
   const locals = [
     'clearHeaderSyncKnowledgeContext',
     'hideKnowledgeDocView',
@@ -217,7 +217,7 @@ function compileMountWorkbench(env) {
   )(env, document);
 }
 
-function stubWorkbenchMountEnv(overrides = {}) {
+function stubSparkMountEnv(overrides = {}) {
   const selectDate = vi.fn();
   const openDoc = vi.fn(async () => {});
   const state = {
@@ -241,27 +241,27 @@ function stubWorkbenchMountEnv(overrides = {}) {
   };
 }
 
-describe('T2 mountWorkbench three-branch routing', () => {
+describe('T2 mountSpark three-branch routing', () => {
   beforeEach(() => {
-    seedWorkbenchMountDom();
+    seedSparkMountDom();
   });
 
   afterEach(() => {
     document.body.innerHTML = '';
   });
 
-  it('passes route into mountWorkbench (does not discard params)', () => {
+  it('passes route into mountSpark (does not discard params)', () => {
     expect(mainJs).toMatch(
-      /spark:\s*wrapRouteMount\s*\(\s*['"]spark['"]\s*,\s*(?:\(\s*route\s*\)\s*=>\s*mountWorkbench\s*\(\s*route\s*\)|mountWorkbench)\s*\)/,
+      /spark:\s*wrapRouteMount\s*\(\s*['"]spark['"]\s*,\s*(?:\(\s*route\s*\)\s*=>\s*mountSpark\s*\(\s*route\s*\)|mountSpark)\s*\)/,
     );
   });
 
   it('resolved note → note outlet open state (not Dialog)', () => {
     const entry = { common_path: 'inbox/notes/a.md', layers: ['raw'] };
-    const env = stubWorkbenchMountEnv({
+    const env = stubSparkMountEnv({
       state: { index: { data: { e1: entry } } },
     });
-    const mount = compileMountWorkbench(env);
+    const mount = compileMountSpark(env);
 
     mount({ params: { date: '20260719', note: 'inbox/notes/a.md', layer: 'raw' } });
 
@@ -271,10 +271,10 @@ describe('T2 mountWorkbench three-branch routing', () => {
   });
 
   it('unresolved note → safe empty with visible prompt; keeps note; no Dialog', () => {
-    const env = stubWorkbenchMountEnv({
+    const env = stubSparkMountEnv({
       state: { index: { data: {} } },
     });
-    const mount = compileMountWorkbench(env);
+    const mount = compileMountSpark(env);
     const hashBefore = '#/spark?date=20260719&note=missing/path.md';
     window.location.hash = hashBefore;
 
@@ -288,12 +288,12 @@ describe('T2 mountWorkbench three-branch routing', () => {
   });
 
   it('no note + create in progress → note outlet create state (not list)', () => {
-    const env = stubWorkbenchMountEnv({
+    const env = stubSparkMountEnv({
       state: {
         viewer: { createSession: { tempId: 'tmp-1', status: 'creating' } },
       },
     });
-    const mount = compileMountWorkbench(env);
+    const mount = compileMountSpark(env);
 
     mount({ params: { date: '20260719' } });
 
@@ -303,8 +303,8 @@ describe('T2 mountWorkbench three-branch routing', () => {
   });
 
   it('no note + not creating → list via selectDate from location.date', () => {
-    const env = stubWorkbenchMountEnv();
-    const mount = compileMountWorkbench(env);
+    const env = stubSparkMountEnv();
+    const mount = compileMountSpark(env);
 
     mount({ params: { date: '20260719' } });
 
@@ -314,12 +314,12 @@ describe('T2 mountWorkbench three-branch routing', () => {
   });
 
   it('forbids treating missing note as always-list when createSession is active', () => {
-    const env = stubWorkbenchMountEnv({
+    const env = stubSparkMountEnv({
       state: {
         viewer: { createSession: { tempId: 'tmp-2', status: 'creating' } },
       },
     });
-    const mount = compileMountWorkbench(env);
+    const mount = compileMountSpark(env);
 
     mount({ params: {} });
 

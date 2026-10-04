@@ -161,7 +161,7 @@ describe('Out-of-scope dismiss chrome stays unchanged', () => {
   it('keeps confirm-only overlays on Cancel without a new header x', () => {
     const confirmFiles = [
       'frontend/src/notes/ui/delete-dialog.tsx',
-      'frontend/src/app-shell/ui/workbench-commit-dialog.tsx',
+      'frontend/src/app-shell/ui/spark-commit-dialog.tsx',
       'frontend/src/notes/ui/comments.tsx',
       'frontend/src/shared/comment-delete.tsx',
     ];

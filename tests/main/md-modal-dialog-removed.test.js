@@ -36,7 +36,7 @@ function extractById(html, id) {
   throw new Error(`unclosed #${id}`);
 }
 
-describe('T7 workbench notes Dialog entry removed (tech-doc T7 / index.html)', () => {
+describe('T7 spark notes Dialog entry removed (tech-doc T7 / index.html)', () => {
   it('removes body-level #md-modal / #md-backdrop Dialog entry', () => {
     expect(indexHtml).not.toMatch(/\bid="md-modal"/);
     expect(indexHtml).not.toMatch(/\bid="md-backdrop"/);

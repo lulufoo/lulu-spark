@@ -23,7 +23,7 @@ export type InferGithubResp = {
 export type HeaderSyncDeps = {
   pullProject: () => Promise<void>;
   loadIndex: () => Promise<void>;
-  openWorkbenchCommit?: () => void | Promise<void>;
+  openSparkCommit?: () => void | Promise<void>;
 };
 
 export function errMessage(err: unknown, fallback: string): string {

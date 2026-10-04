@@ -38,7 +38,7 @@ function extractById(html, id) {
 }
 
 describe('T4 note outlet hosts viewer chrome (tech-doc T4 / index.html)', () => {
-  it('keeps workbench shell: sidebar + #main', () => {
+  it('keeps spark shell: sidebar + #main', () => {
     expect(indexHtml).toMatch(/id="sidebar"/);
     expect(indexHtml).toMatch(/<main[^>]*\bid="main"/);
   });

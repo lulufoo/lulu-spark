@@ -3,17 +3,17 @@ import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { WORKBENCH_BASE } from '../../extensions/chrome-workbench-extension/read-later/lib/config.js';
-import { save } from '../../extensions/chrome-workbench-extension/read-later/lib/readLaterApi.js';
-import { badgeFeedbackForResult } from '../../extensions/chrome-workbench-extension/read-later/lib/feedback.js';
+import { SPARK_BASE } from '../../extensions/chrome-spark-extension/read-later/lib/config.js';
+import { save } from '../../extensions/chrome-spark-extension/read-later/lib/readLaterApi.js';
+import { badgeFeedbackForResult } from '../../extensions/chrome-spark-extension/read-later/lib/feedback.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const extRoot = resolve(__dirname, '../../extensions/chrome-workbench-extension');
+const extRoot = resolve(__dirname, '../../extensions/chrome-spark-extension');
 const manifestPath = resolve(extRoot, 'manifest.json');
 
-describe('chrome-workbench-extension config', () => {
-  it('WORKBENCH_BASE points at the local Workbench Gateway', () => {
-    expect(WORKBENCH_BASE).toBe('https://localhost:7654');
+describe('chrome-spark-extension config', () => {
+  it('SPARK_BASE points at the local Spark Gateway', () => {
+    expect(SPARK_BASE).toBe('https://localhost:7654');
   });
 });
 
@@ -45,7 +45,7 @@ describe('readLaterApi.save', () => {
     });
 
     expect(fetch).toHaveBeenCalledWith(
-      `${WORKBENCH_BASE}/read-later`,
+      `${SPARK_BASE}/read-later`,
       expect.objectContaining({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -58,7 +58,7 @@ describe('readLaterApi.save', () => {
     expect(result).toEqual({ ok: true, status: 201, entry });
   });
 
-  it('returns ok:false with status 0 on network failure when Workbench is unavailable', async () => {
+  it('returns ok:false with status 0 on network failure when Spark is unavailable', async () => {
     fetch.mockRejectedValue(new TypeError('Failed to fetch'));
 
     const result = await save({
@@ -130,7 +130,7 @@ describe('badgeFeedbackForResult', () => {
     });
   });
 
-  it('shows Workbench unavailable message on status 0 (network failure)', () => {
+  it('shows Spark unavailable message on status 0 (network failure)', () => {
     expect(
       badgeFeedbackForResult({
         ok: false,

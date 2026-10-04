@@ -8,7 +8,7 @@ use crate::services::path_fence::PathFence;
 use crate::agent::session::{self, BindingStateSummary, SetError};
 use crate::services::mcp_oauth::{issue_for_slot, Slot};
 use crate::mcp_host::registry::{self, McpServerConfig, McpServerLookupError};
-use crate::services::workbench_path_fence;
+use crate::services::spark_path_fence;
 
 use crate::agent::turn::{emit_lifecycle, emit_shell_binding_changed, request_in_flight_cancel, runtime};
 use crate::agent::turn::{ChatTurnResult, ExecError, ExecuteOutcome};
@@ -110,8 +110,8 @@ pub fn try_set_binding_json(v: &Value) -> Result<(), SetError> {
             return Err(SetError::set_invalid());
         }
     };
-    let config = inject_workbench_ticket(key.as_str(), config)?;
-    let fence = workbench_path_fence::expand_for_business_key(key.as_str());
+    let config = inject_spark_ticket(key.as_str(), config)?;
+    let fence = spark_path_fence::expand_for_business_key(key.as_str());
     // L1+L2: public key-only Set must not feed business tool handles to the
     // Agent Loop. The business key is already resolved into loaded_mcp_server;
     // Binding.tools stays an empty interface slot. File tools are Host-owned
@@ -119,23 +119,23 @@ pub fn try_set_binding_json(v: &Value) -> Result<(), SetError> {
     // LLM system prompt is agent-owned (not registry capability_description).
     let binding = session::Binding {
         tools: json!([]),
-        prompt: json!(crate::agent::WORKBENCH_HOST_SYSTEM_PROMPT),
+        prompt: json!(crate::agent::SPARK_HOST_SYSTEM_PROMPT),
         callbacks: parsed.callbacks,
     };
     set_binding_with_mcp(binding, Some(config), Some(key), fence)
 }
 
-/// After workbench lookup: reuse a Live ticket or issue one, then write
+/// After spark lookup: reuse a Live ticket or issue one, then write
 /// Authorization onto this session's transport copy. Registry seed is unchanged.
 /// Keychain failure returns `set_invalid` and must not reach `set_binding_with_mcp`.
-fn inject_workbench_ticket(key: &str, mut config: McpServerConfig) -> Result<McpServerConfig, SetError> {
+fn inject_spark_ticket(key: &str, mut config: McpServerConfig) -> Result<McpServerConfig, SetError> {
     if key != registry::SEEDED_BUSINESS_KEY {
         return Ok(config);
     }
     let handle = match issue_for_slot(Slot::Spark) {
         Ok(handle) => handle,
         Err(_) => {
-            eprintln!("[DEBUG-assistant] host: inject_workbench_ticket failed");
+            eprintln!("[DEBUG-assistant] host: inject_spark_ticket failed");
             emit_lifecycle("onError", Some("set_invalid"));
             return Err(SetError::set_invalid());
         }
@@ -178,13 +178,13 @@ pub fn loaded_mcp_server() -> Option<McpServerConfig> {
 }
 
 /// Reset unloads this session's Binding, MCP config, and ticket header only.
-/// MUST NOT call `revoke_for_slot`; the workbench ledger ticket stays Live.
+/// MUST NOT call `revoke_for_slot`; the spark ledger ticket stays Live.
 pub const RESET_UNLOADS_SESSION_ONLY: bool = true;
 
 /// Reset: discard current Binding → unbound. Idempotent when already unbound.
 /// Clears `current_session_id` (session cut, clear-first); does not wipe disk turns.
 /// Unloads session capability MCP config and ticket header with the Binding.
-/// Does not revoke the workbench ledger ticket; next Set reuses the Live handle.
+/// Does not revoke the spark ledger ticket; next Set reuses the Live handle.
 /// Bound→unbound emits onUnbound; symmetrically cancels in-flight execute and chat.
 pub fn reset_binding() -> Result<(), ()> {
     let (was_bound, previous_business_id, previous_generation) = {

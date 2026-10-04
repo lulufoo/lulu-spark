@@ -44,22 +44,22 @@ describe('mountHomeHub', () => {
     const shortcuts = container.querySelectorAll('.home-desktop-shortcut');
     expect(shortcuts).toHaveLength(3);
 
-    const workbenchEntry = container.querySelector('[data-home-entry="spark"]');
+    const sparkEntry = container.querySelector('[data-home-entry="spark"]');
     const readLaterEntry = container.querySelector('[data-home-entry="read-later"]');
     const knowledgeEntry = container.querySelector('[data-home-entry="knowledge"]');
     const todoTasksEntry = container.querySelector('[data-home-entry="todo-tasks"]');
-    expect(workbenchEntry).not.toBeNull();
+    expect(sparkEntry).not.toBeNull();
     expect(readLaterEntry).not.toBeNull();
     expect(knowledgeEntry).not.toBeNull();
     expect(todoTasksEntry).toBeNull();
-    expect(workbenchEntry.textContent).toMatch(/Notes/);
+    expect(sparkEntry.textContent).toMatch(/Notes/);
     expect(readLaterEntry.textContent).toMatch(/Read Later/);
     expect(knowledgeEntry.textContent).toMatch(/Knowledge/);
     const labels = [...shortcuts].map((entry) => entry.querySelector('.home-desktop-shortcut-label')?.textContent);
     expect(labels).toEqual(['Notes', 'Knowledge', 'Read Later']);
   });
 
-  it('navigates to #/spark when workbench entry is clicked', () => {
+  it('navigates to #/spark when spark entry is clicked', () => {
     cleanup = mountHomeHub(container, { navigate });
 
     container.querySelector('[data-home-entry="spark"]').click();
@@ -652,7 +652,7 @@ describe('home hub composer and hub pairing', () => {
 describe('home hub shell integration', () => {
   it('main.js mounts HomeHub on home route with Phase2 default landing', () => {
     expect(mainJs).toMatch(/HomePage/);
-    expect(mainJs).not.toMatch(/home:\s*redirectToWorkbench/);
+    expect(mainJs).not.toMatch(/home:\s*redirectToSpark/);
     expect(mainJs).toMatch(/['"]#\/home['"]/);
   });
 

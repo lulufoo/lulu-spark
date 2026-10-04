@@ -3,7 +3,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { test, expect } from 'vitest'
 import { readFrontendJs, readShellHtml } from '../helpers/read-frontend-js.js';
-import { workbenchSkillsContent } from '../../frontend/src/app-shell/state/skills-content.ts'
+import { sparkSkillsContent } from '../../frontend/src/app-shell/state/skills-content.ts'
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..')
 
@@ -15,11 +15,11 @@ const PUBLIC_CMDS = [
   'note-task',
 ]
 
-test('workbench catalog exposes exactly the public child skills', () => {
-  expect(workbenchSkillsContent.title).toBe('✦ Lulu Spark Skills')
-  expect(workbenchSkillsContent.groups).toHaveLength(PUBLIC_CMDS.length)
+test('spark catalog exposes exactly the public child skills', () => {
+  expect(sparkSkillsContent.title).toBe('✦ Lulu Spark Skills')
+  expect(sparkSkillsContent.groups).toHaveLength(PUBLIC_CMDS.length)
 
-  const cmds = workbenchSkillsContent.groups.flatMap((group) =>
+  const cmds = sparkSkillsContent.groups.flatMap((group) =>
     group.items.map((item) => item.cmd)
   )
 
@@ -29,7 +29,7 @@ test('workbench catalog exposes exactly the public child skills', () => {
 
 test('each public child skill has one clickable item with required display fields', () => {
   const cjk = /[\u4e00-\u9fff]/
-  workbenchSkillsContent.groups.forEach((group) => {
+  sparkSkillsContent.groups.forEach((group) => {
     expect(group.name).toEqual(expect.any(String))
     expect(group.name).not.toBe('')
     expect(group.name).not.toMatch(cjk)
@@ -56,8 +56,8 @@ test('skills dialog renders one English table row per skill and no group links',
   expect(src).not.toContain('skill-group-title')
 })
 
-test('workbench catalog does not expose legacy or internal skills', () => {
-  const allText = JSON.stringify(workbenchSkillsContent)
+test('spark catalog does not expose legacy or internal skills', () => {
+  const allText = JSON.stringify(sparkSkillsContent)
 
   expect(allText).not.toContain('theme-summary')
   expect(allText).not.toContain('theme-fetch')
@@ -68,7 +68,7 @@ test('workbench catalog does not expose legacy or internal skills', () => {
 
 test('SKILL dropdown keeps only Lulu Spark Skills', () => {
   const html = readShellHtml()
-  expect(html).toContain('id="btn-skill-workbench"')
+  expect(html).toContain('id="btn-skill-spark"')
   expect(html).toContain('✦ Lulu Spark Skills')
   expect(html).not.toContain('id="btn-skill-lulu"')
   expect(html).not.toContain('id="btn-skill-software-dev"')
@@ -98,8 +98,8 @@ test('skills dialog is a React component without import-time menu listener', () 
   expect(src).not.toMatch(/id="btn-skills-dialog-close"[\s\S]*?md-header-btn/)
   expect(src).not.toMatch(/✕ Close/)
   expect(src).toMatch(/e\.target === e\.currentTarget/)
-  expect(src).not.toMatch(/getElementById\(\s*['"]btn-skill-workbench['"]\s*\)/)
-  expect(src).not.toMatch(/btn-skill-workbench['"]\s*\)!\s*\.addEventListener/)
+  expect(src).not.toMatch(/getElementById\(\s*['"]btn-skill-spark['"]\s*\)/)
+  expect(src).not.toMatch(/btn-skill-spark['"]\s*\)!\s*\.addEventListener/)
 })
 
 test('skills dialog has no per-dialog close button chrome', () => {

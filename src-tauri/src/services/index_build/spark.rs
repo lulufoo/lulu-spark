@@ -1,4 +1,4 @@
-//! Workbench notes keyword index (`raw` / `digest` → FTS5).
+//! Spark notes keyword index (`raw` / `digest` → FTS5).
 
 use std::path::Path;
 

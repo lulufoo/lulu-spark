@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use serde_json::json;
 
 use crate::services::notes::{create_note, create_note_content, update_note};
-use crate::services::workbench_read::get_notes_asset;
+use crate::services::spark_read::get_notes_asset;
 use crate::test_support::TestSandbox;
 
 const SAMPLE_DOC: &str = r#"# Test Title

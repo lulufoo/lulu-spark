@@ -1,6 +1,6 @@
 //! Process-scoped application execution log.
 //!
-//! One Workbench process = one process session = one JSONL file:
+//! One Spark process = one process session = one JSONL file:
 //! `{cache_dir}/app-log/{process_session_id}.jsonl`
 //!
 //! Not the Assistant diagnostic file. Agent stays in

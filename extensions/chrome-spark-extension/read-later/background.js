@@ -11,7 +11,7 @@ async function applyFeedback(result) {
 
   setTimeout(() => {
     chrome.action.setBadgeText({ text: '' });
-    chrome.action.setTitle({ title: 'Save to Workbench Read Later' });
+    chrome.action.setTitle({ title: 'Save to Lulu Spark Read Later' });
   }, FEEDBACK_CLEAR_MS);
 }
 

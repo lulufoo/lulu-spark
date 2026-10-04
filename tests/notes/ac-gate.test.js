@@ -177,7 +177,7 @@ describe('Note AC gate (tech-doc VF / T-13)', () => {
     expect(dialogAudit).toMatch(/navigateBackToList/);
     expect(dialogAudit).toMatch(/no #md-modal display semantics/);
 
-    const mount = read('tests/main/workbench-route.test.js');
+    const mount = read('tests/main/spark-route.test.js');
     expect(mount).toMatch(/safe-empty/);
     expect(mount).toMatch(/unresolved note/);
     expect(mount).toMatch(/layer/);

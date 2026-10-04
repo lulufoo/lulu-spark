@@ -1,12 +1,12 @@
 import { showOsNotification } from '../../host/api.ts';
-import { composeWorkbenchScheme, type WorkbenchEnvelope } from '../../router/scheme.ts';
+import { composeSparkScheme, type SparkEnvelope } from '../../router/scheme.ts';
 
 export async function handleReadLaterOsNotifyEnvelope(
-  envelope: WorkbenchEnvelope,
+  envelope: SparkEnvelope,
 ): Promise<void> {
   if (!envelope || typeof envelope !== 'object') return;
   if (envelope.business !== 'read_later' || envelope.action !== 'create') return;
-  const scheme = composeWorkbenchScheme(envelope);
+  const scheme = composeSparkScheme(envelope);
   if (!scheme) return;
   try {
     await showOsNotification({

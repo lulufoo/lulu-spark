@@ -217,7 +217,7 @@ fn infer_github_user_url_trims_padded_path() {
 #[test]
 fn check_spark_root_requires_dir_and_index() {
     let dir = tempfile::tempdir().expect("tmp");
-    let missing = check_spark_root("/no/such/workbench");
+    let missing = check_spark_root("/no/such/spark");
     assert_eq!(missing["ok"], false);
 
     let no_index_dir = dir.path().join("empty");

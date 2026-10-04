@@ -15,7 +15,7 @@ use crate::services::keyword_index::{collect_knowledge_text, upsert_document};
 use crate::repositories::annotation_paths::annotation_json_path;
 use crate::repositories::atomic_json;
 use crate::services::annotation::read_annotation_object;
-use crate::services::workbench_read::get_topics;
+use crate::services::spark_read::get_topics;
 
 const LAYERS: &[&str] = &["raw", "digest"];
 

@@ -1,5 +1,5 @@
 import { state } from '../../state/host.ts';
-import { getGithubUserUrl, workbenchGithubBlobBase } from '../../../host/constants.ts';
+import { getGithubUserUrl, sparkGithubBlobBase } from '../../../host/constants.ts';
 import * as api from '../../../host/api.ts';
 import { notesDocKey } from '../../../doc-editor/identity.ts';
 import { applyCachedHighlights, initDocHighlightOverlay } from '../../../doc-editor/highlights.ts';
@@ -7,7 +7,7 @@ import { renderDocMarkdown } from '../../../doc-editor/view.tsx';
 import { renderMermaidBlocks } from '../../../shared/mermaid-render.ts';
 
 function resolveRelativeLink(href: string, layer: string, commonPath: string) {
-  const ghBase = workbenchGithubBlobBase(getGithubUserUrl(), state.ui.workbenchRoot);
+  const ghBase = sparkGithubBlobBase(getGithubUserUrl(), state.ui.sparkRoot);
   if (!ghBase) return null;
   try {
     const base = `http://x/notes/${layer}/${commonPath}`;

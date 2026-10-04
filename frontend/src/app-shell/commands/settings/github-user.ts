@@ -1,7 +1,7 @@
 import * as api from '../../../host/api.ts';
 import { errMessage, type InferGithubResp } from '../../state/types.ts';
 import { setGithubUserUrl } from '../../../host/constants.ts';
-import { applyWorkbenchGithubRepoFromInferResponse } from './workbench-github.ts';
+import { applySparkGithubRepoFromInferResponse } from './spark-github.ts';
 import {
   GITHUB_USER_HINT_DEFAULT,
   normalizeGithubUserUrl,
@@ -23,7 +23,7 @@ export function setGithubUserUrlInferredLock(inferredUrl: string, locked: boolea
     input.classList.add('settings-input-readonly');
     setGithubUserUrl(inferredUrl);
     hint.textContent =
-      'Inferred from workbench directory git origin (read-only; change the workbench directory or repo remote)';
+      'Inferred from spark directory git origin (read-only; change the spark directory or repo remote)';
     hint.style.color = '#1a7f37';
   } else {
     store.githubUserUrlInferredFromOrigin = '';
@@ -38,13 +38,13 @@ export function setGithubUserUrlInferredLock(inferredUrl: string, locked: boolea
 export function clearGithubUserUrlInferredLock() {
   setGithubUserUrlInferredLock('', false);
 }
-export async function syncGithubUserUrlLockFromWorkbenchRoot() {
-  const workbenchInput = document.getElementById('settings-workbench-root') as HTMLInputElement | null;
+export async function syncGithubUserUrlLockFromSparkRoot() {
+  const sparkInput = document.getElementById('settings-spark-root') as HTMLInputElement | null;
   const githubInput = document.getElementById('settings-github-user-url') as HTMLInputElement | null;
-  const root = workbenchInput?.value.trim() ?? '';
+  const root = sparkInput?.value.trim() ?? '';
   if (!root) {
     clearGithubUserUrlInferredLock();
-    applyWorkbenchGithubRepoFromInferResponse({});
+    applySparkGithubRepoFromInferResponse({});
     return;
   }
 
@@ -53,7 +53,7 @@ export async function syncGithubUserUrlLockFromWorkbenchRoot() {
     resp = (await api.inferGithubUserUrl(root)) as InferGithubResp;
   } catch (e) {
     clearGithubUserUrlInferredLock();
-    applyWorkbenchGithubRepoFromInferResponse({});
+    applySparkGithubRepoFromInferResponse({});
     setResult(
       'settings-result-github',
       `Could not infer GitHub profile: ${errMessage(e, String(e))}. If you just updated the app, fully restart and try again.`,
@@ -62,7 +62,7 @@ export async function syncGithubUserUrlLockFromWorkbenchRoot() {
     return;
   }
 
-  applyWorkbenchGithubRepoFromInferResponse(resp);
+  applySparkGithubRepoFromInferResponse(resp);
   const inferred = (resp?.github_user_url || '').trim();
   if (!inferred) {
     clearGithubUserUrlInferredLock();
@@ -82,25 +82,25 @@ export async function syncGithubUserUrlLockFromWorkbenchRoot() {
     clearGithubUserUrlInferredLock();
     setResult(
       'settings-result-github',
-      `Entered ${current} does not match origin inference ${inferred}; clear the field or change the workbench directory, then retry.`,
+      `Entered ${current} does not match origin inference ${inferred}; clear the field or change the spark directory, then retry.`,
       true,
     );
   }
 }
 
 /**
- * Infer github_user_url from workbench root (git origin).
+ * Infer github_user_url from spark root (git origin).
  * @returns {Promise<{ ok: boolean, conflict?: boolean, autofilled?: boolean, inferred?: string, existing?: string, noRemote?: boolean, locked?: boolean }>}
  */
-export async function applyWorkbenchRootInference({
+export async function applySparkRootInference({
   revertOnConflict = true,
 }: { revertOnConflict?: boolean } = {}) {
-  const workbenchInput = document.getElementById('settings-workbench-root') as HTMLInputElement;
+  const sparkInput = document.getElementById('settings-spark-root') as HTMLInputElement;
   const githubInput = document.getElementById('settings-github-user-url') as HTMLInputElement;
-  const root = workbenchInput.value.trim();
+  const root = sparkInput.value.trim();
   if (!root) {
     clearGithubUserUrlInferredLock();
-    applyWorkbenchGithubRepoFromInferResponse({});
+    applySparkGithubRepoFromInferResponse({});
     return { ok: true };
   }
 
@@ -109,12 +109,12 @@ export async function applyWorkbenchRootInference({
     resp = (await api.inferGithubUserUrl(root)) as InferGithubResp;
   } catch (e) {
     clearGithubUserUrlInferredLock();
-    applyWorkbenchGithubRepoFromInferResponse({});
+    applySparkGithubRepoFromInferResponse({});
     // @ts-expect-error Settings source scan requires e.message on unknown
     return { ok: false, error: e.message || String(e) };
   }
 
-  applyWorkbenchGithubRepoFromInferResponse(resp);
+  applySparkGithubRepoFromInferResponse(resp);
   const inferred = (resp?.github_user_url || '').trim();
   if (!inferred) {
     clearGithubUserUrlInferredLock();
@@ -127,7 +127,7 @@ export async function applyWorkbenchRootInference({
 
   if (existing && existingNorm !== inferredNorm) {
     if (revertOnConflict) {
-      workbenchInput.value = savedSnapshot.workbenchRoot;
+      sparkInput.value = savedSnapshot.sparkRoot;
     }
     clearGithubUserUrlInferredLock();
     return { ok: false, conflict: true, existing, inferred };

@@ -657,7 +657,7 @@ fn create_note_rejects_document_field() {
 fn create_note_rejects_disallowed_source_path() {
     let (_sandbox, repo_root) = setup_notes();
     // Absolute path outside allow-roots (and typically missing).
-    let outside = PathBuf::from("/var/empty/lulu-workbench-archive-forbid.md");
+    let outside = PathBuf::from("/var/empty/lulu-spark-archive-forbid.md");
     let v = create_note(
         &repo_root,
         &json!({

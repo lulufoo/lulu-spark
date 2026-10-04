@@ -5,13 +5,13 @@ import { fileURLToPath } from 'node:url';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 vi.mock('../../frontend/src/notes/ui/search.tsx', () => ({
-  closeWorkbenchSearch: vi.fn(),
+  closeSparkSearch: vi.fn(),
 }));
 vi.mock('../../frontend/src/knowledge/ui/search.tsx', () => ({
   closeKnowledgeSearch: vi.fn(),
 }));
 
-import { closeWorkbenchSearch } from '../../frontend/src/notes/ui/search.tsx';
+import { closeSparkSearch } from '../../frontend/src/notes/ui/search.tsx';
 import { closeKnowledgeSearch } from '../../frontend/src/knowledge/ui/search.tsx';
 import { applySearchNavChrome } from '../../frontend/src/app-shell/ui/nav-chrome.ts';
 import { readMainSource } from '../helpers/read-frontend-js.js';
@@ -52,7 +52,7 @@ describe('applySearchNavChrome dual search wraps', () => {
     expect(kbInput.disabled).toBe(true);
   });
 
-  it('workbench: wb visible+enabled, kb hidden', () => {
+  it('spark: wb visible+enabled, kb hidden', () => {
     applySearchNavChrome('spark');
 
     expect(document.getElementById('gs-wb-wrap').hidden).toBe(false);
@@ -75,11 +75,11 @@ describe('applySearchNavChrome dual search wraps', () => {
     applySearchNavChrome('spark');
     applySearchNavChrome('knowledge-doc');
 
-    expect(closeWorkbenchSearch).toHaveBeenCalledTimes(3);
+    expect(closeSparkSearch).toHaveBeenCalledTimes(3);
     expect(closeKnowledgeSearch).toHaveBeenCalledTimes(3);
   });
 
-  it('rapid home ↔ workbench ↔ knowledge leaves only the active wrap visible', () => {
+  it('rapid home ↔ spark ↔ knowledge leaves only the active wrap visible', () => {
     applySearchNavChrome('home');
     applySearchNavChrome('spark');
     applySearchNavChrome('knowledge-doc');

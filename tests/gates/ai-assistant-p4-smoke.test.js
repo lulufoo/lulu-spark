@@ -9,9 +9,9 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 
 import {
-  setWorkbenchBinding,
-  WORKBENCH_BUSINESS_KEY,
-} from '../../frontend/src/app-shell/commands/workbench-binding.ts';
+  setSparkBinding,
+  SPARK_BUSINESS_KEY,
+} from '../../frontend/src/app-shell/commands/spark-binding.ts';
 import { readAgentLoopSource, readAgentLoopTestsSource } from '../helpers/agent-loop-source.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -130,7 +130,7 @@ describe('AI assistant P4 layered smoke gate', () => {
   });
 });
 
-describe('Workbench Binding call surface (relocated from todo-task)', () => {
+describe('Spark Binding call surface (relocated from todo-task)', () => {
   let invokeMock;
   let events;
 
@@ -178,11 +178,11 @@ describe('Workbench Binding call surface (relocated from todo-task)', () => {
     };
   }
 
-  it('Binding Set is key-only workbench; capability surface is Host MCP key', async () => {
-    expect(WORKBENCH_BUSINESS_KEY).toBe('spark');
-    const result = await setWorkbenchBinding(trackCallbacks());
+  it('Binding Set is key-only spark; capability surface is Host MCP key', async () => {
+    expect(SPARK_BUSINESS_KEY).toBe('spark');
+    const result = await setSparkBinding(trackCallbacks());
     expect(result.ok).toBe(true);
-    expect(result.binding).toEqual({ key: WORKBENCH_BUSINESS_KEY });
+    expect(result.binding).toEqual({ key: SPARK_BUSINESS_KEY });
     expect(result.binding).not.toHaveProperty('tools');
     expect(result.binding).not.toHaveProperty('prompt');
     expect(result.binding).not.toHaveProperty('callbacks');
@@ -206,7 +206,7 @@ describe('Workbench Binding call surface (relocated from todo-task)', () => {
       }
       return { ok: true, state: 'unbound' };
     });
-    await expect(setWorkbenchBinding(trackCallbacks())).resolves.toMatchObject({
+    await expect(setSparkBinding(trackCallbacks())).resolves.toMatchObject({
       ok: false,
       code: 'set_invalid',
     });
@@ -219,7 +219,7 @@ describe('Workbench Binding call surface (relocated from todo-task)', () => {
       }
       return {};
     });
-    const recovered = await setWorkbenchBinding(trackCallbacks());
+    const recovered = await setSparkBinding(trackCallbacks());
     expect(recovered.ok).toBe(true);
     expect(events.map((e) => e.event)).toEqual(['onBound']);
   });
@@ -245,10 +245,10 @@ describe('t6 layered acceptance L0/L1/L2 gate', () => {
     expect(loopRs).toMatch(/LAYERED_ACCEPTANCE_L2/);
   });
 
-  it('todo desktop module is gone; workbench binding relocated', () => {
+  it('todo desktop module is gone; spark binding relocated', () => {
     expect(existsSync(join(repoRoot, 'frontend/src/todo-task'))).toBe(false);
     expect(
-      existsSync(join(repoRoot, 'frontend/src/app-shell/commands/workbench-binding.ts')),
+      existsSync(join(repoRoot, 'frontend/src/app-shell/commands/spark-binding.ts')),
     ).toBe(true);
   });
 });

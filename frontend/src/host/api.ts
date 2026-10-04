@@ -22,7 +22,7 @@ export {
 export {
   createNote,
   checkFileExists,
-  checkWorkbenchRoot,
+  checkSparkRoot,
   clearNoteDraft,
   commitFiles,
   deleteEntry,
@@ -60,7 +60,7 @@ export {
   updateDocHighlights,
   updateHighlight,
   updateLinks,
-} from './api/workbench.ts';
+} from './api/spark.ts';
 
 export {
   addSedimentKbCategory,
@@ -94,7 +94,7 @@ export {
   saveKbFile,
   saveKbViewerState,
   searchKnowledge,
-  searchWorkbench,
+  searchSpark,
   syncKnowledge,
   updateKbHidePattern,
   updateKbComment,

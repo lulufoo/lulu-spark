@@ -8,7 +8,7 @@
  * Layer map:
  * - Interface layer: Binding.tools remains empty; model tools come from MCP discovery.
  * - Capability layer: business via MCP/HTTP only; no agent/tools.rs.
- * - Binding call surface: key-only workbench Set (C7_4b-T).
+ * - Binding call surface: key-only spark Set (C7_4b-T).
  */
 import { readFileSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -16,9 +16,9 @@ import { fileURLToPath } from 'node:url';
 import { describe, it, expect, vi } from 'vitest';
 
 import {
-  setWorkbenchBinding,
-  WORKBENCH_BUSINESS_KEY,
-} from '../../frontend/src/app-shell/commands/workbench-binding.ts';
+  setSparkBinding,
+  SPARK_BUSINESS_KEY,
+} from '../../frontend/src/app-shell/commands/spark-binding.ts';
 import { readAgentLoopSource } from '../helpers/agent-loop-source.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -32,13 +32,13 @@ const packageJson = JSON.parse(
   readFileSync(join(fixtureRoot, 'package.json'), 'utf8'),
 );
 const todosBindingJs = readFileSync(
-  join(fixtureRoot, 'frontend/src/app-shell/commands/workbench-binding.ts'),
+  join(fixtureRoot, 'frontend/src/app-shell/commands/spark-binding.ts'),
   'utf8',
 );
 
-describe('Host Agent MCP tools — workbench key-only call surface', () => {
-  it('setWorkbenchBinding submits key-only workbench (no tools/prompt/callbacks payload)', async () => {
-    expect(WORKBENCH_BUSINESS_KEY).toBe('spark');
+describe('Host Agent MCP tools — spark key-only call surface', () => {
+  it('setSparkBinding submits key-only spark (no tools/prompt/callbacks payload)', async () => {
+    expect(SPARK_BUSINESS_KEY).toBe('spark');
     const events = [];
     const invokeMock = vi.fn(async (cmd, args) => {
       if (cmd === 'set_binding') {
@@ -62,18 +62,18 @@ describe('Host Agent MCP tools — workbench key-only call surface', () => {
     });
     window.__TAURI__ = { core: { invoke: invokeMock } };
 
-    const result = await setWorkbenchBinding({
+    const result = await setSparkBinding({
       onBound: (p) => events.push({ event: 'onBound', payload: p }),
       onError: (p) => events.push({ event: 'onError', payload: p }),
     });
 
     expect(result.ok).toBe(true);
-    expect(result.binding).toEqual({ key: WORKBENCH_BUSINESS_KEY });
+    expect(result.binding).toEqual({ key: SPARK_BUSINESS_KEY });
     expect(result.binding).not.toHaveProperty('tools');
     expect(result.binding).not.toHaveProperty('prompt');
     expect(result.binding).not.toHaveProperty('callbacks');
     expect(invokeMock).toHaveBeenCalledWith('set_binding', {
-      binding: { key: WORKBENCH_BUSINESS_KEY },
+      binding: { key: SPARK_BUSINESS_KEY },
     });
     expect(events.map((e) => e.event)).toEqual(['onBound']);
 
@@ -96,7 +96,7 @@ describe('Host Agent MCP tools — source / interface layer locks', () => {
     expect(agentModRs).not.toMatch(/pub mod fs_tools/);
     expect(agentModRs).not.toMatch(/pub mod mcp_client/);
     expect(agentModRs).not.toMatch(/openai_tool_definitions/);
-    expect(agentModRs).toMatch(/WORKBENCH_HOST_SYSTEM_PROMPT/);
+    expect(agentModRs).toMatch(/SPARK_HOST_SYSTEM_PROMPT/);
   });
 
   it('derives model tools from active MCP plus Host file tools while Binding.tools remains empty', () => {
@@ -105,7 +105,7 @@ describe('Host Agent MCP tools — source / interface layer locks', () => {
     expect(loopRs).toMatch(/catalog\.definitions\.as_slice\(\)/);
     expect(loopRs).not.toMatch(/mcp_client::/);
     expect(loopRs).not.toMatch(/fs_tools::/);
-    expect(loopRs).toMatch(/workbench_path_fence::expand_for_business_key/);
+    expect(loopRs).toMatch(/spark_path_fence::expand_for_business_key/);
     expect(loopRs).not.toMatch(
       /chat_completions\s*\(\s*&messages\s*,\s*&\s*\[\s*\]\s*,\s*config\s*\)/,
     );

@@ -7,10 +7,10 @@
 use std::collections::{BTreeMap, HashMap};
 use std::sync::{Mutex, OnceLock};
 
-/// Seeded business key for Binding assembly (workbench surface).
+/// Seeded business key for Binding assembly (spark surface).
 pub const SEEDED_BUSINESS_KEY: &str = "spark";
 
-/// Default inline mcpServers entry name for the Workbench Host MCP surface.
+/// Default inline mcpServers entry name for the Spark Host MCP surface.
 pub const DEFAULT_HTTP_MCP_SERVER_NAME: &str = "spark";
 
 /// Structured HTTP MCP transport for Host consumers (name / URL / headers).
@@ -43,9 +43,9 @@ pub enum McpServerLookupError {
     InvalidKey,
 }
 
-/// Decision-level description for the L1 internal MCP `workbench` surface.
-const SEEDED_WORKBENCH_CAPABILITY_DESCRIPTION: &str =
-    "internal host-mcp workbench capability surface";
+/// Decision-level description for the L1 internal MCP `spark` surface.
+const SEEDED_SPARK_CAPABILITY_DESCRIPTION: &str =
+    "internal host-mcp spark capability surface";
 
 fn seeded_http_transport(key: &str) -> HttpMcpTransport {
     let mut headers = BTreeMap::new();
@@ -66,9 +66,9 @@ fn seeded_http_transport(key: &str) -> HttpMcpTransport {
     }
 }
 
-fn seeded_workbench_config() -> McpServerConfig {
+fn seeded_spark_config() -> McpServerConfig {
     McpServerConfig {
-        capability_description: SEEDED_WORKBENCH_CAPABILITY_DESCRIPTION.to_string(),
+        capability_description: SEEDED_SPARK_CAPABILITY_DESCRIPTION.to_string(),
         http_transport: seeded_http_transport(SEEDED_BUSINESS_KEY),
     }
 }
@@ -79,7 +79,7 @@ fn table() -> &'static Mutex<HashMap<String, McpServerConfig>> {
     // not only when tests call `seed_defaults`.
     TABLE.get_or_init(|| {
         let mut map = HashMap::new();
-        map.insert(SEEDED_BUSINESS_KEY.to_string(), seeded_workbench_config());
+        map.insert(SEEDED_BUSINESS_KEY.to_string(), seeded_spark_config());
         Mutex::new(map)
     })
 }
@@ -122,9 +122,9 @@ pub fn lookup(key: &str) -> Result<McpServerConfig, McpServerLookupError> {
         .ok_or(McpServerLookupError::NotFound)
 }
 
-/// Seed (or re-seed after test clear) the L1-backed workbench Binding key.
+/// Seed (or re-seed after test clear) the L1-backed spark Binding key.
 pub fn seed_defaults() {
-    let _ = register(SEEDED_BUSINESS_KEY, seeded_workbench_config());
+    let _ = register(SEEDED_BUSINESS_KEY, seeded_spark_config());
 }
 
 /// Test helper: reset Host-internal registry state.

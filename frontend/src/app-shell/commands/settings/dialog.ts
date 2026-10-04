@@ -4,9 +4,9 @@ import { state } from '../../../host/state.ts';
 import { loadKbHidePatterns } from './kb-hide-patterns.ts';
 import { applyEngineCategorySelection, saveAssistantEnginePanel } from './engine.ts';
 import {
-  applyWorkbenchRootInference,
+  applySparkRootInference,
   clearGithubUserUrlInferredLock,
-  syncGithubUserUrlLockFromWorkbenchRoot,
+  syncGithubUserUrlLockFromSparkRoot,
 } from './github-user.ts';
 import {
   deselectAllMcpChannelTools,
@@ -19,14 +19,14 @@ import {
   clearMcpServerBlock,
   copyCursorIdeServerBlock,
   expireMobileDevice,
-  expireWorkbenchTicket,
+  expireSparkTicket,
   loadMcpTicketView,
   runCursorIdePrimaryAction,
 } from './mcp-tickets.ts';
 import {
-  addWorkbenchGithubRepo,
+  addSparkGithubRepo,
   isGithubAccountConfigured,
-} from './workbench-github.ts';
+} from './spark-github.ts';
 import {
   isGithubUserUrlInferredLocked,
   savedSnapshot,
@@ -85,8 +85,8 @@ export async function openSettingsDialog(opts: SettingsOpenOpts = {}) {
   settingsOpenStore.set(true);
   document.getElementById('settings-dialog')?.classList.add('open');
   ensureWired();
-  setResult('settings-result-workbench', '');
-  setResult('workbench-connect-error', '');
+  setResult('settings-result-spark', '');
+  setResult('spark-connect-error', '');
   setResult('knowledge-root-error', '');
   setResult('settings-result-knowledge', '');
   setResult('settings-result-github', '');
@@ -134,7 +134,7 @@ function wireSettingsDialog() {
       if (panelId !== 'notes') closeNotesCategoryEditor();
       switchPanel(panelId);
       if (panelId === 'github') {
-        await syncGithubUserUrlLockFromWorkbenchRoot();
+        await syncGithubUserUrlLockFromSparkRoot();
       }
     });
   });
@@ -143,11 +143,11 @@ function wireSettingsDialog() {
   document.getElementById('settings-dialog')?.addEventListener('click', (e) => {
     if (e.target === document.getElementById('settings-dialog')) closeSettingsDialog();
   });
-  document.getElementById('btn-workbench-connect-add')?.addEventListener('click', () => {
-    void addWorkbenchGithubRepo();
+  document.getElementById('btn-spark-connect-add')?.addEventListener('click', () => {
+    void addSparkGithubRepo();
   });
-  document.getElementById('workbench-connect-url')?.addEventListener('keydown', (e) => {
-    if ((e as KeyboardEvent).key === 'Enter') document.getElementById('btn-workbench-connect-add')?.click();
+  document.getElementById('spark-connect-url')?.addEventListener('keydown', (e) => {
+    if ((e as KeyboardEvent).key === 'Enter') document.getElementById('btn-spark-connect-add')?.click();
   });
   document.getElementById('btn-knowledge-root-save')?.addEventListener('click', () => {
     void (async () => {
@@ -176,23 +176,23 @@ function wireSettingsDialog() {
   document.getElementById('knowledge-root-path')?.addEventListener('keydown', (e) => {
     if ((e as KeyboardEvent).key === 'Enter') document.getElementById('btn-knowledge-root-save')?.click();
   });
-  input('settings-workbench-root')?.addEventListener('input', () => {
-    const root = input('settings-workbench-root').value.trim();
+  input('settings-spark-root')?.addEventListener('input', () => {
+    const root = input('settings-spark-root').value.trim();
     if (!root) {
       clearGithubUserUrlInferredLock();
     }
   });
 
-  input('settings-workbench-root')?.addEventListener('blur', async () => {
-    const root = input('settings-workbench-root').value.trim();
+  input('settings-spark-root')?.addEventListener('blur', async () => {
+    const root = input('settings-spark-root').value.trim();
     if (!root) {
       return;
     }
-    const pathChanged = root !== savedSnapshot.workbenchRoot;
-    const inference = (await applyWorkbenchRootInference({ revertOnConflict: pathChanged })) as Inference;
+    const pathChanged = root !== savedSnapshot.sparkRoot;
+    const inference = (await applySparkRootInference({ revertOnConflict: pathChanged })) as Inference;
     if (!inference.ok && inference.conflict) {
       setResult(
-        'settings-result-workbench',
+        'settings-result-spark',
         `Directory not saved: GitHub profile on Sync (${inference.existing}) does not match origin inference (${inference.inferred}). Fix or clear the profile on Sync before changing the directory.`,
         true,
       );
@@ -200,7 +200,7 @@ function wireSettingsDialog() {
     }
     if (inference.error) {
       setResult(
-        'settings-result-workbench',
+        'settings-result-spark',
         `Could not infer GitHub profile: ${inference.error}. If you just updated the app, fully restart and try again.`,
         true,
       );
@@ -208,7 +208,7 @@ function wireSettingsDialog() {
     }
     if (inference.locked && inference.inferred) {
       setResult(
-        'settings-result-workbench',
+        'settings-result-spark',
         `GitHub profile inferred from git origin (locked — save on Sync).`,
         false,
       );
@@ -218,33 +218,33 @@ function wireSettingsDialog() {
     }
     if (inference.noRemote) {
       setResult(
-        'settings-result-workbench',
+        'settings-result-spark',
         'No git origin detected; could not auto-infer GitHub profile — enter it manually on Sync.',
         false,
       );
     }
   });
 
-  btn('btn-settings-save-workbench')?.addEventListener('click', async () => {
-    const saveBtn = btn('btn-settings-save-workbench');
-    const workbenchInput = input('settings-workbench-root');
-    const workbenchRoot = workbenchInput.value.trim();
+  btn('btn-settings-save-spark')?.addEventListener('click', async () => {
+    const saveBtn = btn('btn-settings-save-spark');
+    const sparkInput = input('settings-spark-root');
+    const sparkRoot = sparkInput.value.trim();
     const githubUserInput = input('settings-github-user-url');
 
-    if (!workbenchRoot) {
-      setResult('settings-result-workbench', 'Enter a directory path.', true);
+    if (!sparkRoot) {
+      setResult('settings-result-spark', 'Enter a directory path.', true);
       return;
     }
 
-    const includeWorkbenchRoot = true;
+    const includeSparkRoot = true;
     let includeGithubUrl = false;
     const messages: string[] = [];
 
     try {
-      const check = await api.checkWorkbenchRoot(workbenchRoot);
+      const check = await api.checkSparkRoot(sparkRoot);
       if (check?.ok === false) {
         setResult(
-          'settings-result-workbench',
+          'settings-result-spark',
           check.error || 'Data directory invalid; not saved.',
           true,
         );
@@ -253,18 +253,18 @@ function wireSettingsDialog() {
     } catch (err) {
       const e = err as Error;
       setResult(
-        'settings-result-workbench',
+        'settings-result-spark',
         `Data directory validation failed: ${e.message || String(e)}`,
         true,
       );
       return;
     }
 
-    const inference = (await applyWorkbenchRootInference({ revertOnConflict: true })) as Inference;
+    const inference = (await applySparkRootInference({ revertOnConflict: true })) as Inference;
     if (!inference.ok && inference.conflict) {
       setResult(
-        'settings-result-workbench',
-        `Save cancelled: workbench directory and GitHub profile do not match (entered ${inference.existing}, origin inference ${inference.inferred}). spark_root was not written.`,
+        'settings-result-spark',
+        `Save cancelled: spark directory and GitHub profile do not match (entered ${inference.existing}, origin inference ${inference.inferred}). spark_root was not written.`,
         true,
       );
       return;
@@ -278,14 +278,14 @@ function wireSettingsDialog() {
     }
 
     const payload: Record<string, string> = {};
-    if (includeWorkbenchRoot) {
-      payload.spark_root = workbenchRoot;
+    if (includeSparkRoot) {
+      payload.spark_root = sparkRoot;
     }
     if (includeGithubUrl) {
       payload.github_user_url = githubUserInput.value.trim();
     }
-    if (store.workbenchGithubRepoInferredFromOrigin && isGithubAccountConfigured()) {
-      payload.spark_github_repo_url = store.workbenchGithubRepoInferredFromOrigin;
+    if (store.sparkGithubRepoInferredFromOrigin && isGithubAccountConfigured()) {
+      payload.spark_github_repo_url = store.sparkGithubRepoInferredFromOrigin;
     }
 
     if (!Object.keys(payload).length) {
@@ -306,11 +306,11 @@ function wireSettingsDialog() {
       if (payload.spark_github_repo_url) parts.push('Data-store GitHub repository');
       let msg = `Saved: ${parts.join(', ')}.`;
       if (messages.length) msg += ` ${messages.join('；')}`;
-      setResult('settings-result-workbench', msg);
+      setResult('settings-result-spark', msg);
       await loadSettingsSnapshot();
     } catch (err) {
       const e = err as Error;
-      setResult('settings-result-workbench', `Save failed: ${e.message || String(e)}`, true);
+      setResult('settings-result-spark', `Save failed: ${e.message || String(e)}`, true);
     } finally {
       saveBtn.disabled = false;
       saveBtn.textContent = 'Save';
@@ -391,7 +391,7 @@ function wireSettingsDialog() {
     void copyCursorIdeServerBlock();
   });
   document.getElementById('btn-settings-mcp-spark-expire')?.addEventListener('click', () => {
-    void expireWorkbenchTicket();
+    void expireSparkTicket();
   });
   document.getElementById('settings-mcp-device-list')?.addEventListener('click', (event) => {
     const target = event.target as HTMLElement | null;

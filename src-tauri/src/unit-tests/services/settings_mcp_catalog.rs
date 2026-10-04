@@ -31,7 +31,7 @@ fn enabled_grouped_partitions_flat_settings_by_business() {
 }
 
 #[test]
-fn enabled_grouped_respects_workbench_only_policy() {
+fn enabled_grouped_respects_spark_only_policy() {
     with_channel_tools(|| {
         mcp_channel_tools::set_enabled(
             "mobile",

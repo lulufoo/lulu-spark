@@ -3,7 +3,7 @@ use super::*;
 fn reset_slots() {
     test_force_keychain_unavailable(false);
     revoke_for_slot(Slot::CursorIde).expect("revoke cursor_ide");
-    revoke_for_slot(Slot::Spark).expect("revoke workbench");
+    revoke_for_slot(Slot::Spark).expect("revoke spark");
 }
 
 fn assert_not_live(record: Option<LedgerRecord>) {
@@ -64,19 +64,19 @@ fn verify_for_slot_accepts_live_handle() {
 }
 
 #[test]
-fn workbench_and_cursor_ide_hold_separate_tickets() {
+fn spark_and_cursor_ide_hold_separate_tickets() {
     reset_slots();
-    let workbench = issue_for_slot(Slot::Spark).expect("issue workbench");
+    let spark = issue_for_slot(Slot::Spark).expect("issue spark");
     let cursor_ide = issue_for_slot(Slot::CursorIde).expect("issue cursor_ide");
-    assert_ne!(workbench, cursor_ide);
-    verify_for_slot(Slot::Spark, workbench.clone()).expect("verify workbench");
+    assert_ne!(spark, cursor_ide);
+    verify_for_slot(Slot::Spark, spark.clone()).expect("verify spark");
     verify_for_slot(Slot::CursorIde, cursor_ide.clone()).expect("verify cursor_ide");
     assert_eq!(
         verify_for_slot(Slot::Spark, cursor_ide).expect_err("cross-slot"),
         OAuthError::rejected
     );
     assert_eq!(
-        verify_for_slot(Slot::CursorIde, workbench).expect_err("cross-slot"),
+        verify_for_slot(Slot::CursorIde, spark).expect_err("cross-slot"),
         OAuthError::rejected
     );
 }
@@ -137,11 +137,11 @@ fn revoke_for_slot_without_live_ticket_succeeds() {
 }
 
 #[test]
-fn rotate_for_slot_rejects_workbench_without_new_error_or_slot_unknown() {
+fn rotate_for_slot_rejects_spark_without_new_error_or_slot_unknown() {
     reset_slots();
-    let existing = issue_for_slot(Slot::Spark).expect("issue workbench");
+    let existing = issue_for_slot(Slot::Spark).expect("issue spark");
     assert_eq!(
-        rotate_for_slot(Slot::Spark).expect_err("workbench rotate"),
+        rotate_for_slot(Slot::Spark).expect_err("spark rotate"),
         OAuthError::rejected
     );
     verify_for_slot(Slot::Spark, existing.clone()).expect("unchanged");
@@ -199,7 +199,7 @@ fn ticket_face_is_bearer_secret_only_not_slot_or_jwt() {
 fn unknown_slot_name_is_slot_unknown() {
     assert_eq!(Slot::parse("mobile"), Err(OAuthError::slot_unknown));
     assert_eq!(Slot::parse(""), Err(OAuthError::slot_unknown));
-    assert_eq!(Slot::parse("Workbench"), Err(OAuthError::slot_unknown));
+    assert_eq!(Slot::parse("Spark"), Err(OAuthError::slot_unknown));
     assert_eq!(Slot::parse("spark"), Ok(Slot::Spark));
     assert_eq!(Slot::parse("cursor_ide"), Ok(Slot::CursorIde));
 }
@@ -213,9 +213,9 @@ fn verify_for_slot_rejects_missing_mismatched_and_revoked_the_same_way() {
         OAuthError::rejected
     );
 
-    let workbench = issue_for_slot(Slot::Spark).expect("issue workbench");
+    let spark = issue_for_slot(Slot::Spark).expect("issue spark");
     assert_eq!(
-        verify_for_slot(Slot::CursorIde, workbench).expect_err("mismatch"),
+        verify_for_slot(Slot::CursorIde, spark).expect_err("mismatch"),
         OAuthError::rejected
     );
 
@@ -356,19 +356,19 @@ fn list_devices_returns_id_label_revoked_without_token_or_hash() {
 }
 
 #[test]
-fn ticket_view_masks_workbench_and_lists_mobile_without_secrets() {
+fn ticket_view_masks_spark_and_lists_mobile_without_secrets() {
     with_device_sandbox(|| {
-        let workbench = issue_for_slot(Slot::Spark).expect("wb");
+        let spark = issue_for_slot(Slot::Spark).expect("wb");
         let cursor = issue_for_slot(Slot::CursorIde).expect("ide");
         let phone = issue_for_device("phone-view", Some("Pixel")).expect("phone");
 
         let wb = ticket_view("spark").expect("wb view");
         assert_eq!(wb["channel"], "spark");
         assert_eq!(wb["state"], "live");
-        assert_eq!(wb["hint"], token_hint(workbench.as_str()));
-        assert!(wb.get("handle").is_none(), "workbench view must omit handle");
+        assert_eq!(wb["hint"], token_hint(spark.as_str()));
+        assert!(wb.get("handle").is_none(), "spark view must omit handle");
         let wb_text = wb.to_string();
-        assert!(!wb_text.contains(workbench.as_str()));
+        assert!(!wb_text.contains(spark.as_str()));
 
         let ide = ticket_view("cursor_ide").expect("ide view");
         assert_eq!(ide["handle"], cursor.as_str());
@@ -382,7 +382,7 @@ fn ticket_view_masks_workbench_and_lists_mobile_without_secrets() {
 }
 
 #[test]
-fn slot_enum_stays_workbench_and_cursor_ide_only() {
+fn slot_enum_stays_spark_and_cursor_ide_only() {
     assert_eq!(Slot::parse("mobile"), Err(OAuthError::slot_unknown));
     let src = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),

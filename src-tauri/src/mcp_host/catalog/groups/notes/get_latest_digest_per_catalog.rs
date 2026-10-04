@@ -4,7 +4,7 @@ use serde_json::{json, Value};
 
 use crate::mcp_host::catalog::route_util::{notes_repo_root, object_schema, route};
 use crate::mcp_host::ToolRoute;
-use crate::services::workbench_read::get_latest_digest_per_catalog;
+use crate::services::spark_read::get_latest_digest_per_catalog;
 
 pub fn available_in(_channel: &str) -> bool {
     true

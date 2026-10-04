@@ -5,18 +5,18 @@ import { fileURLToPath } from 'node:url';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 const apiMocks = vi.hoisted(() => ({
-  searchWorkbench: vi.fn(),
+  searchSpark: vi.fn(),
   searchKnowledge: vi.fn(),
 }));
 
 vi.mock('../../frontend/src/host/api.ts', () => ({
-  searchWorkbench: (...args) => apiMocks.searchWorkbench(...args),
+  searchSpark: (...args) => apiMocks.searchSpark(...args),
   searchKnowledge: (...args) => apiMocks.searchKnowledge(...args),
 }));
 
 vi.mock('../../frontend/src/notes/ui/search.tsx', () => ({
-  closeWorkbenchSearch: vi.fn(),
-  initWorkbenchSearch: vi.fn(),
+  closeSparkSearch: vi.fn(),
+  initSparkSearch: vi.fn(),
 }));
 
 import { applySearchNavChrome } from '../../frontend/src/app-shell/ui/nav-chrome.ts';
@@ -149,7 +149,7 @@ describe('knowledge-doc route mount behavior', () => {
     await vi.advanceTimersByTimeAsync(300);
 
     expect(apiMocks.searchKnowledge).toHaveBeenCalledTimes(1);
-    expect(apiMocks.searchWorkbench).not.toHaveBeenCalled();
+    expect(apiMocks.searchSpark).not.toHaveBeenCalled();
   });
 
   it('TAC-3: knowledge search input triggers searchKnowledge only', async () => {
@@ -161,6 +161,6 @@ describe('knowledge-doc route mount behavior', () => {
     await vi.advanceTimersByTimeAsync(300);
 
     expect(apiMocks.searchKnowledge).toHaveBeenCalledWith('topic', 8);
-    expect(apiMocks.searchWorkbench).not.toHaveBeenCalled();
+    expect(apiMocks.searchSpark).not.toHaveBeenCalled();
   });
 });

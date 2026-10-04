@@ -540,7 +540,7 @@ fn set_binding_old_app_keys_notes_and_todo_task_fail() {
 }
 
 #[test]
-fn set_binding_empty_key_is_invalid_not_workbench() {
+fn set_binding_empty_key_is_invalid_not_spark() {
     with_cmd_sandbox(|| {
         let empty = set_binding_json(json!({ "key": "" }));
         assert_eq!(empty["ok"], false);

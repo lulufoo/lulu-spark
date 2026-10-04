@@ -64,7 +64,7 @@ pub fn build(api: &str, channel: &str) -> Option<ToolRoute> {
         .and_then(|(_, build)| build(channel))
 }
 
-/// Settings / slot table metadata without channel overlays (except workbench-only tools).
+/// Settings / slot table metadata without channel overlays (except spark-only tools).
 pub fn catalog_snapshot_routes() -> Vec<ToolRoute> {
     REGISTRY
         .iter()

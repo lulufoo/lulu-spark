@@ -89,7 +89,7 @@ pub fn binding_from_json(v: &Value) -> Result<Binding, SetError> {
     }
     // Host-internal parse placeholders only — not client-supplied MCP/tools
     // payload. `prompt: "pending"` is never the final live prompt: key-only Set
-    // (`try_set_binding_json`) replaces it with WORKBENCH_HOST_SYSTEM_PROMPT.
+    // (`try_set_binding_json`) replaces it with SPARK_HOST_SYSTEM_PROMPT.
     Ok(Binding {
         tools: json!([{ "name": KEY_BINDING_TOOL_NAME, "handle": key }]),
         prompt: json!("pending"),

@@ -2,7 +2,7 @@ use serde_json::Value;
 use tauri::AppHandle;
 
 use crate::services::{
-    knowledge, draft, entry_admin, github, settle, workbench_git,
+    knowledge, draft, entry_admin, github, settle, spark_git,
 };
 
 #[tauri::command]
@@ -27,22 +27,22 @@ pub fn clear_note_draft(_app: AppHandle, temp_id: String) -> Result<Value, Strin
 }
 
 #[tauri::command]
-pub async fn workbench_git_commit(_app: AppHandle, payload: Value) -> Result<Value, String> {
-    tauri::async_runtime::spawn_blocking(move || workbench_git::workbench_git_commit(&payload))
+pub async fn spark_git_commit(_app: AppHandle, payload: Value) -> Result<Value, String> {
+    tauri::async_runtime::spawn_blocking(move || spark_git::spark_git_commit(&payload))
         .await
         .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub async fn workbench_git_pull(_app: AppHandle, payload: Value) -> Result<Value, String> {
-    tauri::async_runtime::spawn_blocking(move || workbench_git::workbench_git_pull(&payload))
+pub async fn spark_git_pull(_app: AppHandle, payload: Value) -> Result<Value, String> {
+    tauri::async_runtime::spawn_blocking(move || spark_git::spark_git_pull(&payload))
         .await
         .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub async fn workbench_git_revert(_app: AppHandle, payload: Value) -> Result<Value, String> {
-    tauri::async_runtime::spawn_blocking(move || workbench_git::workbench_git_revert(&payload))
+pub async fn spark_git_revert(_app: AppHandle, payload: Value) -> Result<Value, String> {
+    tauri::async_runtime::spawn_blocking(move || spark_git::spark_git_revert(&payload))
         .await
         .map_err(|e| e.to_string())
 }

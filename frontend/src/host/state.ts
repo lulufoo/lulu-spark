@@ -60,7 +60,7 @@ export const state: HostState = {
   },
   ui: {
     activeDate: null,
-    workbenchRoot: '',
+    sparkRoot: '',
     knowledgeRoot: '',
     githubUserUrl: '',
     activeTopic: null,

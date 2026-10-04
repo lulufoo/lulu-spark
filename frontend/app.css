@@ -4507,8 +4507,8 @@
   }
   #btn-move-project-close:hover { background: #eaeef2; }
 
-  /* ── Workbench commit dialog ── */
-  #workbench-commit-dialog {
+  /* ── Spark commit dialog ── */
+  #spark-commit-dialog {
     position: fixed;
     inset: 0;
     z-index: 2000;
@@ -4517,8 +4517,8 @@
     justify-content: center;
     background: rgba(0,0,0,.55);
   }
-  #workbench-commit-dialog.open { display: flex; }
-  #workbench-commit-dialog-box {
+  #spark-commit-dialog.open { display: flex; }
+  #spark-commit-dialog-box {
     background: #fff;
     border-radius: 10px;
     padding: 24px 24px 20px;
@@ -4530,7 +4530,7 @@
     flex-direction: column;
     gap: 14px;
   }
-  #workbench-commit-dialog-box h3 { font-size: 15px; color: #24292f; margin: 0; font-weight: 600; }
+  #spark-commit-dialog-box h3 { font-size: 15px; color: #24292f; margin: 0; font-weight: 600; }
   .commit-file-group { display: flex; flex-direction: column; gap: 3px; }
   .commit-file-group-title {
     font-size: 10px;
@@ -4726,7 +4726,7 @@
     cursor: pointer;
   }
   #btn-kb-diff-cancel:hover { background: #f6f8fa; }
-  #workbench-commit-msg {
+  #spark-commit-msg {
     width: 100%;
     padding: 7px 10px;
     border: 1px solid #d0d7de;
@@ -4735,14 +4735,14 @@
     outline: none;
     box-sizing: border-box;
   }
-  #workbench-commit-msg:focus { border-color: #0969da; }
-  #workbench-commit-dialog-actions {
+  #spark-commit-msg:focus { border-color: #0969da; }
+  #spark-commit-dialog-actions {
     display: flex;
     align-items: center;
     gap: 10px;
   }
-  #workbench-commit-result { flex: 1; font-size: 12px; }
-  #btn-workbench-commit-ok {
+  #spark-commit-result { flex: 1; font-size: 12px; }
+  #btn-spark-commit-ok {
     background: #1c4a2e;
     color: #cdd9e5;
     border: none;
@@ -4753,9 +4753,9 @@
     font-weight: 600;
     flex-shrink: 0;
   }
-  #btn-workbench-commit-ok:hover:not(:disabled) { background: #2a6040; }
-  #btn-workbench-commit-ok:disabled { opacity: .5; cursor: default; }
-  #btn-workbench-commit-cancel {
+  #btn-spark-commit-ok:hover:not(:disabled) { background: #2a6040; }
+  #btn-spark-commit-ok:disabled { opacity: .5; cursor: default; }
+  #btn-spark-commit-cancel {
     background: none;
     border: 1px solid #d0d7de;
     border-radius: 6px;
@@ -4765,7 +4765,7 @@
     color: #57606a;
     flex-shrink: 0;
   }
-  #btn-workbench-commit-cancel:hover { background: #eaeef2; }
+  #btn-spark-commit-cancel:hover { background: #eaeef2; }
 
   /* ── Comment dialog ── */
   #comment-dialog {
@@ -5847,13 +5847,13 @@
   box-sizing: border-box;
 }
 .settings-connect-row input:focus { border-color: #0969da; }
-#workbench-connect-add[hidden] { display: none; }
-#workbench-connect-item {
+#spark-connect-add[hidden] { display: none; }
+#spark-connect-item {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
-#settings-tab-workbench-connection .repo-list-item {
+#settings-tab-spark-connection .repo-list-item {
   flex-wrap: wrap;
 }
 
@@ -5943,7 +5943,7 @@
   box-sizing: border-box;
   background: #fff;
 }
-#settings-workbench-root,
+#settings-spark-root,
 #knowledge-root-path,
 #settings-github-user-url {
   font-family: ui-monospace, SFMono-Regular, monospace;

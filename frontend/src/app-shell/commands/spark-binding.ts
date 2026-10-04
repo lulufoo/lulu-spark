@@ -1,11 +1,11 @@
 /**
- * App Binding consumer: one process-level key-only Set for the workbench surface.
+ * App Binding consumer: one process-level key-only Set for the spark surface.
  * Host looks up MCP Server config; consumer does not assemble tools/prompt/callbacks
  * or select an engine. No Reset helper — Binding is not tied to page enter/leave.
  */
 
 /** Seeded business key — aligned with Host `mcp_host::registry::SEEDED_BUSINESS_KEY`. */
-export const WORKBENCH_BUSINESS_KEY = 'spark';
+export const SPARK_BUSINESS_KEY = 'spark';
 
 function getTauriInvoke() {
   if (typeof window === 'undefined') return null;
@@ -33,22 +33,22 @@ function emitCallback(fn: ((payload?: unknown) => void) | undefined, payload: un
 }
 
 /**
- * Set key-only workbench Binding via Host Binding Contract.
+ * Set key-only spark Binding via Host Binding Contract.
  * Observes onBound / onError. Does not create a chat session — Set clears the
  * live id; Home starts a conversation with + or the first send.
  *
  * @param {{ onBound?: Function, onUnbound?: Function, onError?: Function }} [callbacks]
  */
-export async function setWorkbenchBinding(hooks: BindingCallbacks = {}) {
-  const binding = { key: WORKBENCH_BUSINESS_KEY };
+export async function setSparkBinding(hooks: BindingCallbacks = {}) {
+  const binding = { key: SPARK_BUSINESS_KEY };
   const invoke = getTauriInvoke();
-  console.info('[DEBUG-assistant] setWorkbenchBinding', {
+  console.info('[DEBUG-assistant] setSparkBinding', {
     hasInvoke: Boolean(invoke),
     hasTauri: Boolean(typeof window !== 'undefined' && window.__TAURI__),
     hasInternals: Boolean(typeof window !== 'undefined' && window.__TAURI_INTERNALS__),
   });
   if (!invoke) {
-    console.info('[DEBUG-assistant] setWorkbenchBinding skip: no invoke');
+    console.info('[DEBUG-assistant] setSparkBinding skip: no invoke');
     emitCallback(hooks.onError, { category: 'set_invalid' });
     return { ok: false, code: 'set_invalid', state: 'unbound', binding };
   }
@@ -56,9 +56,9 @@ export async function setWorkbenchBinding(hooks: BindingCallbacks = {}) {
   let result: SetBindingResult | undefined;
   try {
     result = (await invoke('set_binding', { binding })) as SetBindingResult;
-    console.info('[DEBUG-assistant] setWorkbenchBinding host result', result);
+    console.info('[DEBUG-assistant] setSparkBinding host result', result);
   } catch (err) {
-    console.info('[DEBUG-assistant] setWorkbenchBinding invoke threw', err);
+    console.info('[DEBUG-assistant] setSparkBinding invoke threw', err);
     emitCallback(hooks.onError, { category: 'set_invalid' });
     return { ok: false, code: 'set_invalid', state: 'unbound', binding };
   }

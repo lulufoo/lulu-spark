@@ -22,8 +22,8 @@ describe('searchApiInvokeMap', () => {
 
   it('drops the per-field rebuild commands removed with the header control', () => {
     expect(REINDEX_INVOKE_MAP.reindexKnowledge).toBeUndefined();
-    expect(REINDEX_INVOKE_MAP.reindexWorkbench).toBeUndefined();
-    expect(REINDEX_INVOKE_MAP.getReindexWorkbenchStatus).toBeUndefined();
+    expect(REINDEX_INVOKE_MAP.reindexSpark).toBeUndefined();
+    expect(REINDEX_INVOKE_MAP.getReindexSparkStatus).toBeUndefined();
   });
 
   it('resolveReindexInvoke maps kb repo body', () => {

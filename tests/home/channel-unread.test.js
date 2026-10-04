@@ -142,7 +142,7 @@ describe('home three-entry boolean unread', () => {
     expect(container.querySelector('[data-home-entry="todo-tasks"]')).toBeNull();
   });
 
-  it('hangs unread only on workbench / read-later', async () => {
+  it('hangs unread only on spark / read-later', async () => {
     await mountReady();
     expect(isEntryUnread(container, 'spark')).toBe(true);
     expect(isEntryUnread(container, 'read-later')).toBe(true);

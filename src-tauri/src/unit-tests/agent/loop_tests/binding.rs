@@ -3,7 +3,7 @@
 use super::support::*;
 
 /// Session ids are `spark_chat_<hex>`, so a substring check against the
-/// business key `workbench` matches every live session. Compare colon-separated
+/// business key `spark` matches every live session. Compare colon-separated
 /// fields to the key itself.
 fn record_carries_binding_key(entry: &str) -> bool {
     let key = crate::mcp_host::registry::SEEDED_BUSINESS_KEY;
@@ -2283,7 +2283,7 @@ fn t2_key_only_set_loads_mcp_server_into_session_capability_context() {
         let loaded = r#loop::loaded_mcp_server().expect("Set must load MCP Server config");
         let expected = mcp_registry::lookup(SEEDED_BUSINESS_KEY).expect("registry");
         assert_eq!(loaded.capability_description, expected.capability_description);
-        assert_workbench_session_holds_live_ticket_seed_untouched();
+        assert_spark_session_holds_live_ticket_seed_untouched();
         assert!(
             !loaded.capability_description.trim().is_empty(),
             "loaded config must be decision-level non-empty"
@@ -2486,7 +2486,7 @@ fn t4_read_face_exposes_decision_level_shape_matching_registry_value() {
 
         // Decision-level shape parity with t1 value (capability_description only).
         assert_eq!(view.capability_description, expected.capability_description);
-        assert_workbench_session_holds_live_ticket_seed_untouched();
+        assert_spark_session_holds_live_ticket_seed_untouched();
         assert!(
             !view.capability_description.trim().is_empty(),
             "read face must expose non-empty decision-level capability description"
@@ -2635,7 +2635,7 @@ fn t4_a1_a2_handoff_assumptions_confirmed_not_narrowed() {
             face.capability_description, table.capability_description,
             "A1 confirmed: read face exposes the registry decision-level form"
         );
-        assert_workbench_session_holds_live_ticket_seed_untouched();
+        assert_spark_session_holds_live_ticket_seed_untouched();
 
         // A2: Host authoritative table is the sole lookup source at Set; Binding
         // callers only need the stable business key (already exercised by Set path).
@@ -2655,21 +2655,21 @@ fn t4_a1_a2_handoff_assumptions_confirmed_not_narrowed() {
 }
 
 #[test]
-fn t4_workbench_key_only_set_binds_seeded_workbench_mcp() {
+fn t4_spark_key_only_set_binds_seeded_spark_mcp() {
     with_sandbox(|| {
         use crate::mcp_host::registry::{self, SEEDED_BUSINESS_KEY};
         assert_eq!(r#loop::binding_state(), "unbound");
         r#loop::try_set_binding_json(&key_only_payload(SEEDED_BUSINESS_KEY))
-            .expect("try_set_binding_json({{ key: workbench }}) must succeed when seeded");
+            .expect("try_set_binding_json({{ key: spark }}) must succeed when seeded");
         assert_bound_key(SEEDED_BUSINESS_KEY);
         assert_eq!(SEEDED_BUSINESS_KEY, "spark");
-        let loaded = r#loop::loaded_mcp_server().expect("workbench mcp");
-        let expected = mcp_registry::lookup(SEEDED_BUSINESS_KEY).expect("registry workbench");
+        let loaded = r#loop::loaded_mcp_server().expect("spark mcp");
+        let expected = mcp_registry::lookup(SEEDED_BUSINESS_KEY).expect("registry spark");
         assert_eq!(loaded.capability_description, expected.capability_description);
-        assert_workbench_session_holds_live_ticket_seed_untouched();
+        assert_spark_session_holds_live_ticket_seed_untouched();
         assert!(
             loaded.http_transport().url.ends_with("/mcp/spark"),
-            "workbench seed URL must be /mcp/spark"
+            "spark seed URL must be /mcp/spark"
         );
     });
 }
@@ -2697,12 +2697,12 @@ fn t4_only_other_binding_page_resets_notes() {
             && !mount_plan.contains("reset_binding"),
         "mountTodoTasksRoute must not Set/Reset Binding"
     );
-    let mount_wb = function_slice(&routes, "function mountWorkbench");
+    let mount_wb = function_slice(&routes, "function mountSpark");
     assert!(
         !mount_wb.contains("buildNotesBinding")
             && !mount_wb.contains("set_binding")
             && !mount_wb.contains("reset_binding"),
-        "mountWorkbench must not Set/Reset Binding"
+        "mountSpark must not Set/Reset Binding"
     );
     let mount_home = function_slice(&routes, "function mountHomeRoute");
     assert!(
@@ -2725,7 +2725,7 @@ fn t4_old_app_keys_still_unknown_after_seed_defaults() {
 
         mcp_registry::seed_defaults();
         r#loop::try_set_binding_json(&key_only_payload(SEEDED_BUSINESS_KEY))
-            .expect("seeded workbench Set");
+            .expect("seeded spark Set");
         for key in ["notes", "todo_task"] {
             let err = r#loop::try_set_binding_json(&key_only_payload(key))
                 .expect_err("old App key still hard-reject after seed");
@@ -2736,7 +2736,7 @@ fn t4_old_app_keys_still_unknown_after_seed_defaults() {
 }
 
 #[test]
-fn t4_empty_key_is_invalid_and_does_not_fall_to_workbench() {
+fn t4_empty_key_is_invalid_and_does_not_fall_to_spark() {
     with_sandbox(|| {
         use crate::mcp_host::registry::SEEDED_BUSINESS_KEY;
         let err = r#loop::try_set_binding_json(&key_only_payload(""))
@@ -2745,9 +2745,9 @@ fn t4_empty_key_is_invalid_and_does_not_fall_to_workbench() {
         assert_eq!(r#loop::binding_state(), "unbound");
         assert!(r#loop::loaded_mcp_server().is_none());
 
-        r#loop::try_set_binding_json(&key_only_payload(SEEDED_BUSINESS_KEY)).expect("workbench Set");
+        r#loop::try_set_binding_json(&key_only_payload(SEEDED_BUSINESS_KEY)).expect("spark Set");
         let err = r#loop::try_set_binding_json(&key_only_payload(""))
-            .expect_err("empty key must not replace workbench");
+            .expect_err("empty key must not replace spark");
         assert_eq!(err.as_code(), "set_invalid");
         assert_bound_key(SEEDED_BUSINESS_KEY);
     });
@@ -2765,14 +2765,14 @@ fn t4_cursor_ide_is_not_an_app_binding_key() {
 
 #[test]
 fn t4_notes_binding_consumer_follows_todos_key_only_contract() {
-    let binding = repo_file("frontend/src/app-shell/commands/workbench-binding.ts");
+    let binding = repo_file("frontend/src/app-shell/commands/spark-binding.ts");
     assert!(
-        binding.contains("WORKBENCH_BUSINESS_KEY") && binding.contains("'spark'"),
-        "workbench-binding.ts must export WORKBENCH_BUSINESS_KEY = workbench"
+        binding.contains("SPARK_BUSINESS_KEY") && binding.contains("'spark'"),
+        "spark-binding.ts must export SPARK_BUSINESS_KEY = spark"
     );
     assert!(
-        binding.contains("export async function setWorkbenchBinding"),
-        "setWorkbenchBinding must exist (key-only workbench Set)"
+        binding.contains("export async function setSparkBinding"),
+        "setSparkBinding must exist (key-only spark Set)"
     );
     assert!(
         !binding.contains("NOTES_BUSINESS_KEY")
@@ -2782,18 +2782,18 @@ fn t4_notes_binding_consumer_follows_todos_key_only_contract() {
             && !binding.contains("resetNotesBinding"),
         "old notes/todos Binding helpers must be deleted"
     );
-    let set_fn = function_slice(&binding, "async function setWorkbenchBinding");
+    let set_fn = function_slice(&binding, "async function setSparkBinding");
     assert!(
         set_fn.contains("set_binding") && set_fn.contains("key"),
-        "setWorkbenchBinding must invoke key-only set_binding"
+        "setSparkBinding must invoke key-only set_binding"
     );
     assert!(
         !set_fn.contains("tools:") && !set_fn.contains("prompt:") && !set_fn.contains("callbacks:"),
-        "workbench Set must not assemble tools/prompt/callbacks"
+        "spark Set must not assemble tools/prompt/callbacks"
     );
     assert!(
         !binding.contains("engine_type") && !binding.contains("engineType"),
-        "Workbench Binding must not select an engine"
+        "Spark Binding must not select an engine"
     );
     assert!(
         !{
@@ -2806,61 +2806,61 @@ fn t4_notes_binding_consumer_follows_todos_key_only_contract() {
     );
 }
 
-/// P4: Binding Set workbench must use `try_set_binding_json({ key: "spark" })`.
+/// P4: Binding Set spark must use `try_set_binding_json({ key: "spark" })`.
 /// typed `set_binding(Binding)` does not do registry lookup and cannot substitute.
 #[test]
-fn t6_p4_try_set_binding_json_workbench_succeeds() {
+fn t6_p4_try_set_binding_json_spark_succeeds() {
     with_sandbox(|| {
         r#loop::try_set_binding_json(&json!({ "key": "spark" }))
-            .expect("P4: try_set_binding_json({ key: workbench }) must succeed");
+            .expect("P4: try_set_binding_json({ key: spark }) must succeed");
         assert_bound_key("spark");
     });
 }
 
 #[test]
-fn t6_p4_typed_set_binding_does_not_substitute_for_workbench_key_lookup() {
+fn t6_p4_typed_set_binding_does_not_substitute_for_spark_key_lookup() {
     with_sandbox(|| {
         r#loop::set_binding(empty_tools_binding()).expect("typed Set");
         assert_eq!(r#loop::binding_state(), "bound");
         assert!(
             r#loop::loaded_mcp_server().is_none(),
-            "typed set_binding(Binding) must not registry-lookup workbench"
+            "typed set_binding(Binding) must not registry-lookup spark"
         );
         assert_ne!(
             session::live_context_owner().current_business_id().as_deref(),
             Some("spark"),
-            "typed set_binding must not bind the workbench business key"
+            "typed set_binding must not bind the spark business key"
         );
     });
 }
 
-// --- t5: Binding Set injects workbench ticket; Keychain failure is set_invalid ---
+// --- t5: Binding Set injects spark ticket; Keychain failure is set_invalid ---
 
 #[test]
-fn t5_workbench_set_issues_new_ticket_when_slot_empty() {
+fn t5_spark_set_issues_new_ticket_when_slot_empty() {
     with_sandbox(|| {
-        reset_workbench_slot();
+        reset_spark_slot();
         r#loop::clear_lifecycle_events_for_tests();
         r#loop::try_set_binding_json(&json!({ "key": "spark" }))
-            .expect("workbench Set must succeed");
+            .expect("spark Set must succeed");
         assert_eq!(r#loop::binding_state(), "bound");
         let events = r#loop::drain_lifecycle_events();
         assert!(
             events.iter().any(|e| e.event == "onBound"),
             "successful Set must emit onBound: {events:?}"
         );
-        assert_workbench_session_holds_live_ticket_seed_untouched();
+        assert_spark_session_holds_live_ticket_seed_untouched();
     });
 }
 
 #[test]
-fn t5_workbench_set_reuses_live_ticket_and_does_not_issue_a_second() {
+fn t5_spark_set_reuses_live_ticket_and_does_not_issue_a_second() {
     with_sandbox(|| {
-        reset_workbench_slot();
+        reset_spark_slot();
         let existing = issue_for_slot(Slot::Spark).expect("pre-issue live");
         r#loop::try_set_binding_json(&json!({ "key": "spark" }))
-            .expect("workbench Set");
-        assert_workbench_session_holds_live_ticket_seed_untouched();
+            .expect("spark Set");
+        assert_spark_session_holds_live_ticket_seed_untouched();
         let auth = session_authorization_bearer().expect("session auth");
         let session_handle =
             TicketHandle::from_secret(auth.strip_prefix("Bearer ").expect("Bearer"));
@@ -2877,7 +2877,7 @@ fn t5_registry_seed_stays_without_authorization_after_set() {
         let seed = mcp_registry::lookup("spark").expect("seed");
         assert!(
             !seed.http_transport.headers.contains_key("Authorization"),
-            "seeded_http_transport / lookup(workbench) must stay without ticket header"
+            "seeded_http_transport / lookup(spark) must stay without ticket header"
         );
         assert!(
             session_authorization_bearer()
@@ -2891,7 +2891,7 @@ fn t5_registry_seed_stays_without_authorization_after_set() {
 #[test]
 fn t5_unknown_key_is_not_used_for_keychain_failure() {
     with_sandbox(|| {
-        reset_workbench_slot();
+        reset_spark_slot();
         test_force_keychain_unavailable(true);
         let err = r#loop::try_set_binding_json(&json!({ "key": "spark" }))
             .expect_err("Keychain failure must fail Set");
@@ -2921,7 +2921,7 @@ fn t5_set_error_codes_remain_set_invalid_and_unknown_key_only() {
 #[test]
 fn t5_keychain_write_failure_keeps_unbound_issues_no_ticket_and_skips_on_bound() {
     with_sandbox(|| {
-        reset_workbench_slot();
+        reset_spark_slot();
         r#loop::clear_lifecycle_events_for_tests();
         test_force_keychain_unavailable(true);
         let err = r#loop::try_set_binding_json(&json!({ "key": "spark" }))
@@ -2942,7 +2942,7 @@ fn t5_keychain_write_failure_keeps_unbound_issues_no_ticket_and_skips_on_bound()
                 .as_ref()
                 .map(|row| row.state != TicketState::Live)
                 .unwrap_or(true),
-            "Keychain failure must not leave a Live workbench ticket"
+            "Keychain failure must not leave a Live spark ticket"
         );
     });
 }
@@ -2953,7 +2953,7 @@ fn t5_keychain_write_failure_keeps_original_binding() {
         r#loop::set_binding(valid_binding()).expect("original typed Binding");
         let gen = r#loop::query_binding().generation;
         r#loop::clear_lifecycle_events_for_tests();
-        reset_workbench_slot();
+        reset_spark_slot();
         test_force_keychain_unavailable(true);
         let err = r#loop::try_set_binding_json(&json!({ "key": "spark" }))
             .expect_err("Keychain failure");
@@ -2962,7 +2962,7 @@ fn t5_keychain_write_failure_keeps_original_binding() {
         assert_eq!(r#loop::query_binding().generation, gen);
         assert!(
             r#loop::loaded_mcp_server().is_none(),
-            "failed workbench Set must not load a ticketed transport"
+            "failed spark Set must not load a ticketed transport"
         );
         assert!(session_authorization_bearer().is_none());
         let events = r#loop::drain_lifecycle_events();
@@ -2982,7 +2982,7 @@ fn t5_keychain_write_failure_keeps_original_binding() {
 #[test]
 fn t5_set_path_must_not_log_ticket_or_full_authorization() {
     with_sandbox(|| {
-        reset_workbench_slot();
+        reset_spark_slot();
         r#loop::try_set_binding_json(&json!({ "key": "spark" })).expect("Set");
         let auth = session_authorization_bearer().expect("auth");
         let secret = auth
@@ -2992,7 +2992,7 @@ fn t5_set_path_must_not_log_ticket_or_full_authorization() {
         let loop_src = LOOP_SRC;
         assert!(
             loop_src.contains("issue_for_slot"),
-            "try_set_binding_json must call issue_for_slot after workbench lookup"
+            "try_set_binding_json must call issue_for_slot after spark lookup"
         );
         let debug = loop_src
             .find("[DEBUG-binding-transition]")
@@ -3010,25 +3010,25 @@ fn t5_set_path_must_not_log_ticket_or_full_authorization() {
 }
 
 #[test]
-fn t6_reset_after_workbench_set_unloads_session_ticket_keeps_ledger_live() {
+fn t6_reset_after_spark_set_unloads_session_ticket_keeps_ledger_live() {
     with_sandbox(|| {
         assert!(
             r#loop::RESET_UNLOADS_SESSION_ONLY,
             "Reset must lock session-unload-only"
         );
-        reset_workbench_slot();
+        reset_spark_slot();
         r#loop::try_set_binding_json(&json!({ "key": "spark" }))
-            .expect("workbench Set must inject a ticket");
-        assert_workbench_session_holds_live_ticket_seed_untouched();
+            .expect("spark Set must inject a ticket");
+        assert_spark_session_holds_live_ticket_seed_untouched();
         let issued = session_ticket_handle();
-        let before = live_workbench_record();
+        let before = live_spark_record();
         assert_eq!(before.state, TicketState::Live);
         assert_eq!(before.handle, issued);
 
         r#loop::reset_binding().expect("Reset");
         assert_session_unloaded_without_ticket_header();
 
-        let after = live_workbench_record();
+        let after = live_spark_record();
         assert_eq!(after.state, TicketState::Live);
         assert_eq!(after.handle, issued);
         assert_eq!(after.handle, before.handle);
@@ -3036,24 +3036,24 @@ fn t6_reset_after_workbench_set_unloads_session_ticket_keeps_ledger_live() {
 }
 
 #[test]
-fn t6_reset_then_set_reuses_same_workbench_handle() {
+fn t6_reset_then_set_reuses_same_spark_handle() {
     with_sandbox(|| {
-        reset_workbench_slot();
+        reset_spark_slot();
         r#loop::try_set_binding_json(&json!({ "key": "spark" })).expect("first Set");
         let first = session_ticket_handle();
         r#loop::reset_binding().expect("Reset");
         assert_session_unloaded_without_ticket_header();
-        assert_eq!(live_workbench_record().state, TicketState::Live);
-        assert_eq!(live_workbench_record().handle, first);
+        assert_eq!(live_spark_record().state, TicketState::Live);
+        assert_eq!(live_spark_record().handle, first);
 
         r#loop::try_set_binding_json(&json!({ "key": "spark" })).expect("next Set");
         let second = session_ticket_handle();
         assert_eq!(second, first);
         let reused = issue_for_slot(Slot::Spark).expect("reuse Live ticket");
         assert_eq!(reused, first);
-        assert_eq!(live_workbench_record().state, TicketState::Live);
-        assert_eq!(live_workbench_record().handle, first);
-        assert_workbench_session_holds_live_ticket_seed_untouched();
+        assert_eq!(live_spark_record().state, TicketState::Live);
+        assert_eq!(live_spark_record().handle, first);
+        assert_spark_session_holds_live_ticket_seed_untouched();
     });
 }
 
@@ -3077,9 +3077,9 @@ fn t6_reset_binding_and_with_close_must_not_call_revoke_for_slot() {
 }
 
 #[test]
-fn t6_reset_binding_with_close_does_not_revoke_workbench_ledger() {
+fn t6_reset_binding_with_close_does_not_revoke_spark_ledger() {
     with_sandbox(|| {
-        reset_workbench_slot();
+        reset_spark_slot();
         r#loop::try_set_binding_json(&json!({ "key": "spark" })).expect("Set");
         let issued = session_ticket_handle();
         let session_id = r#loop::ensure_chat_session_core()
@@ -3097,7 +3097,7 @@ fn t6_reset_binding_with_close_does_not_revoke_workbench_ledger() {
         .expect("reset_binding_with_close");
         assert_eq!(*closed.lock().unwrap(), vec![session_id]);
         assert_session_unloaded_without_ticket_header();
-        let record = live_workbench_record();
+        let record = live_spark_record();
         assert_eq!(record.state, TicketState::Live);
         assert_eq!(record.handle, issued);
     });
@@ -3106,7 +3106,7 @@ fn t6_reset_binding_with_close_does_not_revoke_workbench_ledger() {
 #[test]
 fn t6_already_unbound_reset_is_idempotent_and_does_not_change_ledger() {
     with_sandbox(|| {
-        reset_workbench_slot();
+        reset_spark_slot();
         let empty = ledger_record(Slot::Spark).expect("ledger before any Set");
         assert_eq!(r#loop::binding_state(), "unbound");
         r#loop::reset_binding().expect("Reset while never bound");
@@ -3121,7 +3121,7 @@ fn t6_already_unbound_reset_is_idempotent_and_does_not_change_ledger() {
         r#loop::try_set_binding_json(&json!({ "key": "spark" })).expect("Set");
         let issued = session_ticket_handle();
         r#loop::reset_binding().expect("Reset after Set");
-        let after_first = live_workbench_record();
+        let after_first = live_spark_record();
         assert_eq!(after_first.state, TicketState::Live);
         assert_eq!(after_first.handle, issued);
         assert_session_unloaded_without_ticket_header();
@@ -3129,7 +3129,7 @@ fn t6_already_unbound_reset_is_idempotent_and_does_not_change_ledger() {
         r#loop::reset_binding().expect("already-unbound Reset");
         r#loop::reset_binding().expect("second already-unbound Reset");
         assert_session_unloaded_without_ticket_header();
-        let after = live_workbench_record();
+        let after = live_spark_record();
         assert_eq!(after.state, TicketState::Live);
         assert_eq!(after.handle, issued);
         assert_eq!(after.handle, after_first.handle);
@@ -3139,7 +3139,7 @@ fn t6_already_unbound_reset_is_idempotent_and_does_not_change_ledger() {
 #[test]
 fn t6_reset_path_must_not_log_ticket_or_full_authorization() {
     with_sandbox(|| {
-        reset_workbench_slot();
+        reset_spark_slot();
         r#loop::try_set_binding_json(&json!({ "key": "spark" })).expect("Set");
         let secret = session_authorization_bearer()
             .expect("session ticket header")

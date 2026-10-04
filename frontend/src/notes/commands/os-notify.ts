@@ -1,9 +1,9 @@
 import { showOsNotification } from '../../host/api.ts';
-import { composeWorkbenchScheme, type WorkbenchEnvelope } from '../../router/scheme.ts';
+import { composeSparkScheme, type SparkEnvelope } from '../../router/scheme.ts';
 import { refreshNotesIndex } from './reload-index.ts';
 
 export async function handleNotesOsNotifyEnvelope(
-  envelope: WorkbenchEnvelope,
+  envelope: SparkEnvelope,
 ): Promise<void> {
   if (!envelope || typeof envelope !== 'object') return;
   if (envelope.business !== 'notes') return;
@@ -11,7 +11,7 @@ export async function handleNotesOsNotifyEnvelope(
     await refreshNotesIndex();
   }
   if (envelope.action !== 'create') return;
-  const scheme = composeWorkbenchScheme(envelope);
+  const scheme = composeSparkScheme(envelope);
   if (!scheme) return;
   try {
     await showOsNotification({

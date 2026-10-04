@@ -137,7 +137,7 @@ describe('loadAssistantNotes', () => {
 
   it('throws when index payload is invalid / error', async () => {
     fetchIndexMock.mockResolvedValue({
-      error: 'No such file: /tmp/workbench-x/index.json',
+      error: 'No such file: /tmp/spark-x/index.json',
       _status: 404,
     });
     await expect(loadAssistantNotes()).rejects.toThrow(/No such file/);

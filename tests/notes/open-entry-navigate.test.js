@@ -20,11 +20,11 @@ function read(rel) {
 }
 
 const apiMocks = vi.hoisted(() => ({
-  searchWorkbench: vi.fn(),
+  searchSpark: vi.fn(),
 }));
 
 vi.mock('../../frontend/src/host/api.ts', () => ({
-  searchWorkbench: (...args) => apiMocks.searchWorkbench(...args),
+  searchSpark: (...args) => apiMocks.searchSpark(...args),
   setImportance: vi.fn(),
   setDone: vi.fn(),
   fetchFileContent: vi.fn(),
@@ -66,7 +66,7 @@ describe('T6 source: open/create entries → navigate-to-note (no modal.display 
     expect(mainJs).not.toMatch(/openCreateNoteFromFab/);
   });
 
-  it('workbench-search openHit dispatches cta:open-entry without layer (gs-hit-layer label removed)', () => {
+  it('spark-search openHit dispatches cta:open-entry without layer (gs-hit-layer label removed)', () => {
     const openStart = searchJs.indexOf('function openHit');
     expect(openStart).toBeGreaterThan(-1);
     const openSlice = searchJs.slice(openStart, openStart + 400);
@@ -80,15 +80,15 @@ describe('T6 source: open/create entries → navigate-to-note (no modal.display 
     expect(assistantJs).toMatch(/cta:open-entry/);
   });
 
-  it('mountWorkbench open branch mounts via openDoc (consumer; not entry-side)', () => {
-    const start = mainJs.indexOf('function mountWorkbench');
+  it('mountSpark open branch mounts via openDoc (consumer; not entry-side)', () => {
+    const start = mainJs.indexOf('function mountSpark');
     expect(start).toBeGreaterThan(-1);
     const slice = mainJs.slice(start, start + 4500);
     expect(slice).toMatch(/openDoc\s*\(/);
   });
 });
 
-describe('T6 behavioral: main-layer open (workbench-search hits + card title)', () => {
+describe('T6 behavioral: main-layer open (spark-search hits + card title)', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     document.body.innerHTML = `
@@ -110,7 +110,7 @@ describe('T6 behavioral: main-layer open (workbench-search hits + card title)', 
         delete store[key];
       },
     };
-    apiMocks.searchWorkbench.mockReset();
+    apiMocks.searchSpark.mockReset();
     state.index.topicDescriptions = {};
     state.index.diffStatus = new Map();
     state.index.titleCache = new Map();
@@ -123,7 +123,7 @@ describe('T6 behavioral: main-layer open (workbench-search hits + card title)', 
   });
 
   it('hit click dispatches cta:open-entry with common_path only (no layer passthrough)', async () => {
-    apiMocks.searchWorkbench.mockResolvedValue({
+    apiMocks.searchSpark.mockResolvedValue({
       hits: [{
         title: 'Entry',
         common_path: 'inbox/notes/entry.md',
@@ -134,8 +134,8 @@ describe('T6 behavioral: main-layer open (workbench-search hits + card title)', 
     });
 
     vi.resetModules();
-    const { initWorkbenchSearch } = await import('../../frontend/src/notes/ui/search.tsx');
-    initWorkbenchSearch();
+    const { initSparkSearch } = await import('../../frontend/src/notes/ui/search.tsx');
+    initSparkSearch();
 
     const input = document.getElementById('gs-wb-input');
     input.value = 'entry';
@@ -159,7 +159,7 @@ describe('T6 behavioral: main-layer open (workbench-search hits + card title)', 
   });
 
   it('hit click without layer still opens (detail may omit layer)', async () => {
-    apiMocks.searchWorkbench.mockResolvedValue({
+    apiMocks.searchSpark.mockResolvedValue({
       hits: [{
         title: 'No layer',
         common_path: 'inbox/notes/n.md',
@@ -169,8 +169,8 @@ describe('T6 behavioral: main-layer open (workbench-search hits + card title)', 
     });
 
     vi.resetModules();
-    const { initWorkbenchSearch } = await import('../../frontend/src/notes/ui/search.tsx');
-    initWorkbenchSearch();
+    const { initSparkSearch } = await import('../../frontend/src/notes/ui/search.tsx');
+    initSparkSearch();
 
     const input = document.getElementById('gs-wb-input');
     input.value = 'n';

@@ -6,7 +6,7 @@ use serde_json::json;
 use crate::config::paths;
 use crate::agent::r#loop;
 use crate::mcp_host::registry::{self, SEEDED_BUSINESS_KEY};
-use crate::services::workbench_path_fence::expand_for_business_key;
+use crate::services::spark_path_fence::expand_for_business_key;
 use crate::test_support::TestSandbox;
 
 fn same_path(left: &Path, right: &Path) -> bool {
@@ -39,10 +39,10 @@ fn plant_demo_repo(sandbox: &TestSandbox) {
 }
 
 #[test]
-fn expand_workbench_includes_knowledge_root_and_listed_clone() {
+fn expand_spark_includes_knowledge_root_and_listed_clone() {
     with_sandbox(|sandbox| {
         plant_demo_repo(sandbox);
-        let fence = expand_for_business_key(SEEDED_BUSINESS_KEY).expect("workbench fence");
+        let fence = expand_for_business_key(SEEDED_BUSINESS_KEY).expect("spark fence");
         let wb = paths::spark_root().expect("wb");
         let clone = paths::knowledge_root().expect("knowledge_root").join("demo");
         let cache = paths::cache_dir().expect("cache");

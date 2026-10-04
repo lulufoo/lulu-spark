@@ -1,7 +1,7 @@
 import { notifyState, state } from '../host/state.ts';
 import type { AppRoute } from './state/types.ts';
 import { applySearchNavChrome } from './ui/nav-chrome.ts';
-import { initWorkbenchSearch } from '../notes/ui/search.tsx';
+import { initSparkSearch } from '../notes/ui/search.tsx';
 import { initKnowledgeSearch } from '../knowledge/ui/search.tsx';
 import { clearHeaderSyncKnowledgeContext } from './commands/header-sync.ts';
 import { openReadLaterDialog } from '../read-later/commands/dialog.ts';
@@ -27,7 +27,7 @@ export function wrapRouteMount(routeName: string, mountFn: (route: AppRoute) => 
     // @ts-expect-error leave-route source scan requires forceRecoverA(
     getHomeEntryShell()?.forceRecoverA('leave-route');
     updateNavChrome(routeName);
-    if (routeName === 'spark') initWorkbenchSearch();
+    if (routeName === 'spark') initSparkSearch();
     if (routeName === 'knowledge-doc') initKnowledgeSearch();
     return mountFn(route);
   };
@@ -44,7 +44,7 @@ export function mountReadLaterRoute() {
   openReadLaterDialog();
 }
 
-export function mountWorkbench(route?: AppRoute) {
+export function mountSpark(route?: AppRoute) {
   clearHeaderSyncKnowledgeContext();
 
   const params = route?.params || {};
@@ -53,7 +53,7 @@ export function mountWorkbench(route?: AppRoute) {
   const layer = params.layer || 'raw';
   const creating = !!state.viewer?.createSession;
   const hash = typeof window !== 'undefined' ? window.location.hash : '';
-  logNotifyHop('route.workbench', parseTraceId(params.trace) ?? lastNotifyTrace(), {
+  logNotifyHop('route.spark', parseTraceId(params.trace) ?? lastNotifyTrace(), {
     outcome: notePath ? 'ok' : 'no_note',
     date,
     note: notePath,

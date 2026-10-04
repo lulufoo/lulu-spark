@@ -4,7 +4,7 @@ use std::path::Path;
 
 use serde_json::{json, Value};
 
-use crate::services::workbench_read::search_notes;
+use crate::services::spark_read::search_notes;
 
 use super::mcp::search_knowledge_mcp;
 

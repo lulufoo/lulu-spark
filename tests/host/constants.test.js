@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import {
   getGithubUserUrl,
   setGithubUserUrl,
-  workbenchGithubBlobBase,
+  sparkGithubBlobBase,
 } from '../../frontend/src/host/constants.ts'
 
 describe('github_user_url runtime', () => {
@@ -20,10 +20,10 @@ describe('github_user_url runtime', () => {
   })
 })
 
-describe('workbenchGithubBlobBase', () => {
+describe('sparkGithubBlobBase', () => {
   it('从个人主页 + 本地目录名推导 blob 前缀', () => {
     expect(
-      workbenchGithubBlobBase(
+      sparkGithubBlobBase(
         'https://github.com/lulufoo',
         '/Users/me/Code/lulu-workbench-knowledge',
       ),
@@ -31,6 +31,6 @@ describe('workbenchGithubBlobBase', () => {
   })
 
   it('未配置主页时返回空', () => {
-    expect(workbenchGithubBlobBase('', '/Code/lulu-workbench-knowledge')).toBe('')
+    expect(sparkGithubBlobBase('', '/Code/lulu-workbench-knowledge')).toBe('')
   })
 })

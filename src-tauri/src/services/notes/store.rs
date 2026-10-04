@@ -8,7 +8,7 @@ use crate::repositories::atomic_json;
 use crate::services::archive_parse::expected_lang_common_path;
 use crate::services::source_path_allow::{self, MAX_ARCHIVE_SOURCE_BYTES};
 use crate::services::translation_gate;
-use crate::services::workbench_read::get_notes_index;
+use crate::services::spark_read::get_notes_index;
 
 pub(super) struct TranslationDoc {
     pub lang: String,

@@ -10,13 +10,13 @@ vi.mock('../../frontend/src/knowledge/ui/knowledge-diff-dialog.tsx', () => ({
   openKnowledgeDiffDialog: vi.fn(),
 }));
 
-vi.mock('../../frontend/src/app-shell/commands/workbench-commit-dialog.ts', () => ({
-  openWorkbenchCommitDialog: vi.fn(),
+vi.mock('../../frontend/src/app-shell/commands/spark-commit-dialog.ts', () => ({
+  openSparkCommitDialog: vi.fn(),
 }));
 
 import * as api from '../../frontend/src/host/api.ts';
 import { openKnowledgeDiffDialog } from '../../frontend/src/knowledge/ui/knowledge-diff-dialog.tsx';
-import { openWorkbenchCommitDialog } from '../../frontend/src/app-shell/commands/workbench-commit-dialog.ts';
+import { openSparkCommitDialog } from '../../frontend/src/app-shell/commands/spark-commit-dialog.ts';
 import {
   initHeaderSync,
   setHeaderSyncKnowledgeContext,
@@ -35,7 +35,7 @@ describe('header-sync', () => {
     initHeaderSync({
       pullProject: vi.fn(),
       loadIndex: vi.fn(),
-      openWorkbenchCommit: openWorkbenchCommitDialog,
+      openSparkCommit: openSparkCommitDialog,
     });
   });
 
@@ -43,12 +43,12 @@ describe('header-sync', () => {
     setHeaderSyncKnowledgeContext('owner/repo', vi.fn());
     document.getElementById('btn-push-index').click();
     expect(openKnowledgeDiffDialog).toHaveBeenCalledWith('owner/repo');
-    expect(openWorkbenchCommitDialog).not.toHaveBeenCalled();
+    expect(openSparkCommitDialog).not.toHaveBeenCalled();
   });
 
-  it('routes commit to workbench dialog when no knowledge repo is active', () => {
+  it('routes commit to spark dialog when no knowledge repo is active', () => {
     document.getElementById('btn-push-index').click();
-    expect(openWorkbenchCommitDialog).toHaveBeenCalledTimes(1);
+    expect(openSparkCommitDialog).toHaveBeenCalledTimes(1);
     expect(openKnowledgeDiffDialog).not.toHaveBeenCalled();
   });
 

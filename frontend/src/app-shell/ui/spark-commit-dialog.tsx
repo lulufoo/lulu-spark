@@ -1,34 +1,34 @@
 import { useSyncExternalStore } from 'react';
 import {
-  closeWorkbenchCommitDialog,
-  doWorkbenchCommit,
-  setWorkbenchCommitMessage,
-  workbenchCommitOpenStore,
-} from '../commands/workbench-commit-dialog.ts';
-import { workbenchCommitViewStore } from '../state/workbench-commit.ts';
+  closeSparkCommitDialog,
+  doSparkCommit,
+  setSparkCommitMessage,
+  sparkCommitOpenStore,
+} from '../commands/spark-commit-dialog.ts';
+import { sparkCommitViewStore } from '../state/spark-commit.ts';
 
 export {
-  closeWorkbenchCommitDialog,
-  doWorkbenchCommit,
-  openWorkbenchCommitDialog,
-  setWorkbenchCommitMessage,
-} from '../commands/workbench-commit-dialog.ts';
+  closeSparkCommitDialog,
+  doSparkCommit,
+  openSparkCommitDialog,
+  setSparkCommitMessage,
+} from '../commands/spark-commit-dialog.ts';
 
-export function WorkbenchCommitDialog() {
-  const open = useSyncExternalStore(workbenchCommitOpenStore.subscribe, workbenchCommitOpenStore.getSnapshot);
-  const view = useSyncExternalStore(workbenchCommitViewStore.subscribe, workbenchCommitViewStore.getSnapshot);
+export function SparkCommitDialog() {
+  const open = useSyncExternalStore(sparkCommitOpenStore.subscribe, sparkCommitOpenStore.getSnapshot);
+  const view = useSyncExternalStore(sparkCommitViewStore.subscribe, sparkCommitViewStore.getSnapshot);
 
   return (
     <div
-      id="workbench-commit-dialog"
+      id="spark-commit-dialog"
       className={open ? 'open' : undefined}
       onClick={(e) => {
-        if (e.target === e.currentTarget) closeWorkbenchCommitDialog();
+        if (e.target === e.currentTarget) closeSparkCommitDialog();
       }}
     >
-      <div id="workbench-commit-dialog-box">
-        <h3>↑ Workbench commit</h3>
-        <div id="workbench-commit-file-list">
+      <div id="spark-commit-dialog-box">
+        <h3>↑ Spark commit</h3>
+        <div id="spark-commit-file-list">
           {view.loading ? (
             <div style={{ fontSize: 12, color: '#8c959f' }}>Loading…</div>
           ) : view.error ? (
@@ -63,27 +63,27 @@ export function WorkbenchCommitDialog() {
           )}
         </div>
         <input
-          id="workbench-commit-msg"
+          id="spark-commit-msg"
           type="text"
           placeholder="Commit message (empty: chore: update via viewer)"
           autoComplete="off"
           value={view.message}
-          onChange={(e) => setWorkbenchCommitMessage(e.target.value)}
+          onChange={(e) => setSparkCommitMessage(e.target.value)}
         />
-        <div id="workbench-commit-dialog-actions">
-          <span id="workbench-commit-result"></span>
+        <div id="spark-commit-dialog-actions">
+          <span id="spark-commit-result"></span>
           <button
-            id="btn-workbench-commit-cancel"
+            id="btn-spark-commit-cancel"
             type="button"
-            onClick={() => closeWorkbenchCommitDialog()}
+            onClick={() => closeSparkCommitDialog()}
           >
             Cancel
           </button>
           <button
-            id="btn-workbench-commit-ok"
+            id="btn-spark-commit-ok"
             type="button"
             disabled={!view.canCommit}
-            onClick={() => doWorkbenchCommit()}
+            onClick={() => doSparkCommit()}
           >
             {view.okLabel}
           </button>

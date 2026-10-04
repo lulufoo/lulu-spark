@@ -12,7 +12,7 @@ vi.mock('../../frontend/src/host/api.ts', () => ({
   fetchConfig: vi.fn(),
   setConfig: vi.fn(),
   inferGithubUserUrl: vi.fn(),
-  checkWorkbenchRoot: vi.fn(),
+  checkSparkRoot: vi.fn(),
 }));
 
 import * as api from '../../frontend/src/host/api.ts';

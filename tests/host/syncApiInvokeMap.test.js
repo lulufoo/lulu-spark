@@ -6,8 +6,8 @@ import {
 
 /** [path, cmd, payload keys forwarded from HTTP body] */
 const P4_PATHS = [
-  ['/api/commit', 'workbench_git_commit', ['message', 'files']],
-  ['/api/pull', 'workbench_git_pull', []],
+  ['/api/commit', 'spark_git_commit', ['message', 'files']],
+  ['/api/pull', 'spark_git_pull', []],
   ['/api/delete', 'delete_entry', ['id']],
   ['/api/move-project', 'move_entry_project', ['id', 'new_project']],
   ['/api/gh-delete', 'gh_delete_assets', ['url']],
@@ -19,7 +19,7 @@ const P4_PATHS = [
   ['/api/draft', 'save_comment_draft', ['common_path', 'content']],
   ['/api/kb/commit', 'kb_git_commit', ['repo', 'message']],
   ['/api/kb/revert', 'kb_git_revert', ['repo', 'path', 'type']],
-  ['/api/workbench-revert', 'workbench_git_revert', ['path', 'type']],
+  ['/api/spark-revert', 'spark_git_revert', ['path', 'type']],
 ];
 
 describe('syncApiInvokeMap', () => {
@@ -38,18 +38,18 @@ describe('syncApiInvokeMap', () => {
     }
   });
 
-  it('commit maps body into payload for workbench_git_commit', () => {
+  it('commit maps body into payload for spark_git_commit', () => {
     expect(
       resolveSyncInvoke('/api/commit', { message: 'x', files: ['a.md'] })
     ).toEqual({
-      cmd: 'workbench_git_commit',
+      cmd: 'spark_git_commit',
       args: { payload: { message: 'x', files: ['a.md'] } },
     });
   });
 
-  it('pull maps empty payload for workbench_git_pull', () => {
+  it('pull maps empty payload for spark_git_pull', () => {
     expect(resolveSyncInvoke('/api/pull', {})).toEqual({
-      cmd: 'workbench_git_pull',
+      cmd: 'spark_git_pull',
       args: { payload: {} },
     });
   });
@@ -142,18 +142,18 @@ describe('syncApiInvokeMap', () => {
     expect(resolveSyncInvoke('/api/nope', {})).toBeNull();
   });
 
-  it('workbench-revert maps path+type into payload for workbench_git_revert', () => {
+  it('spark-revert maps path+type into payload for spark_git_revert', () => {
     expect(
-      resolveSyncInvoke('/api/workbench-revert', { path: 'raw/foo/bar.md', type: 'modified' })
+      resolveSyncInvoke('/api/spark-revert', { path: 'raw/foo/bar.md', type: 'modified' })
     ).toEqual({
-      cmd: 'workbench_git_revert',
+      cmd: 'spark_git_revert',
       args: { payload: { path: 'raw/foo/bar.md', type: 'modified' } },
     });
   });
 
-  it('workbench-revert with empty body passes undefined values without crashing', () => {
-    const result = resolveSyncInvoke('/api/workbench-revert', {});
-    expect(result?.cmd).toBe('workbench_git_revert');
+  it('spark-revert with empty body passes undefined values without crashing', () => {
+    const result = resolveSyncInvoke('/api/spark-revert', {});
+    expect(result?.cmd).toBe('spark_git_revert');
     expect(result?.args).toEqual({ payload: { path: undefined, type: undefined } });
   });
 });

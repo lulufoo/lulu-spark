@@ -1,13 +1,13 @@
 import { useSyncExternalStore } from 'react';
-import { deleteWorkbenchGithubRepo } from '../../commands/settings/workbench-github.ts';
-import { workbenchConnectionStore } from '../../state/settings/store.ts';
+import { deleteSparkGithubRepo } from '../../commands/settings/spark-github.ts';
+import { sparkConnectionStore } from '../../state/settings/store.ts';
 
-function workbenchGithubRepoFullName(url: string) {
+function sparkGithubRepoFullName(url: string) {
   const m = String(url || '').match(/^https:\/\/github\.com\/([^/]+\/[^/]+)/i);
   return m ? m[1] : String(url || '');
 }
 
-function WorkbenchConnectionItem({
+function SparkConnectionItem({
   fullName,
   url,
   locked,
@@ -35,9 +35,9 @@ function WorkbenchConnectionItem({
           <button
             type="button"
             className="sediment-kb-delete-btn"
-            id="btn-workbench-connect-delete"
+            id="btn-spark-connect-delete"
             onClick={() => {
-              void deleteWorkbenchGithubRepo();
+              void deleteSparkGithubRepo();
             }}
           >
             Delete
@@ -48,15 +48,15 @@ function WorkbenchConnectionItem({
   );
 }
 
-export function WorkbenchConnectionHost() {
+export function SparkConnectionHost() {
   const { url, locked } = useSyncExternalStore(
-    workbenchConnectionStore.subscribe,
-    workbenchConnectionStore.getSnapshot,
+    sparkConnectionStore.subscribe,
+    sparkConnectionStore.getSnapshot,
   );
   if (!url) return null;
   return (
-    <WorkbenchConnectionItem
-      fullName={workbenchGithubRepoFullName(url)}
+    <SparkConnectionItem
+      fullName={sparkGithubRepoFullName(url)}
       url={url}
       locked={locked}
     />

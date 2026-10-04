@@ -6,13 +6,13 @@ export async function openNoteInChat(
   entry: { common_path?: string; translations?: { zh?: string } } | null,
   lang: string | null,
   layer: string,
-  workbenchRoot: string,
+  sparkRoot: string,
   button?: HTMLButtonElement | null,
 ) {
   if (!entry) return;
   const activePath = getActivePath(entry, lang || '', layer) || '';
   const relPath = notesFileRelPath(layer, activePath);
-  const fullPath = workbenchRoot ? `${workbenchRoot}/${relPath}` : relPath;
+  const fullPath = sparkRoot ? `${sparkRoot}/${relPath}` : relPath;
   if (button) button.disabled = true;
   try {
     await openPathInChat(fullPath);

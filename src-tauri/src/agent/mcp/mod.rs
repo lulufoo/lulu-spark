@@ -23,7 +23,7 @@ use crate::mcp_host::registry::McpServerConfig;
 
 use super::tools::catalog::{self, ToolCatalog, ToolResult};
 
-const CLIENT_NAME: &str = "workbench-host-agent";
+const CLIENT_NAME: &str = "spark-host-agent";
 const CLIENT_VERSION: &str = env!("CARGO_PKG_VERSION");
 const RMCP_RESERVED_HEADERS: &[&str] = &["accept", "mcp-session-id", "last-event-id"];
 pub(crate) const DIAGNOSTIC_TRACE_HEADER: &str = "x-lulu-mcp-trace-id";

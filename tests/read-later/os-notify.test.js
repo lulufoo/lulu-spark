@@ -32,7 +32,7 @@ describe('handleReadLaterOsNotifyEnvelope', () => {
 
   beforeEach(() => {
     notifySpy = vi.spyOn(api, 'showOsNotification').mockResolvedValue(undefined);
-    composeSpy = vi.spyOn(scheme, 'composeWorkbenchScheme');
+    composeSpy = vi.spyOn(scheme, 'composeSparkScheme');
     toastSpy = vi.spyOn(toast, 'showToast');
     alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});
   });
@@ -86,7 +86,7 @@ describe('read-later os-notify import constraints', () => {
     const src = readRel('frontend/src/read-later/commands/os-notify.ts');
     expect(src).toMatch(/from ['"].*host\/api\.ts['"]/);
     expect(src).toMatch(/showOsNotification/);
-    expect(src).toMatch(/composeWorkbenchScheme/);
+    expect(src).toMatch(/composeSparkScheme/);
     expect(src).toMatch(/from ['"].*router\/scheme\.ts['"]/);
     expect(src).not.toMatch(/writeApiInvokeMap/);
     expect(src).not.toMatch(/@tauri-apps\//);
@@ -96,7 +96,7 @@ describe('read-later os-notify import constraints', () => {
     const bootSrc = readRel('frontend/src/boot.ts');
     expect(bootSrc).toMatch(/handleReadLaterOsNotifyEnvelope/);
     expect(bootSrc).toMatch(/startOsNotifyHub/);
-    expect(bootSrc).not.toMatch(/composeWorkbenchScheme/);
+    expect(bootSrc).not.toMatch(/composeSparkScheme/);
     expect(bootSrc).not.toMatch(/showOsNotification/);
   });
 });

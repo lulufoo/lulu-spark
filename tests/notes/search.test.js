@@ -7,18 +7,18 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 
 const apiMocks = vi.hoisted(() => ({
-  searchWorkbench: vi.fn(),
+  searchSpark: vi.fn(),
   searchKnowledge: vi.fn(),
   fetchFileContent: vi.fn(),
 }));
 
 vi.mock('../../frontend/src/host/api.ts', () => ({
-  searchWorkbench: (...args) => apiMocks.searchWorkbench(...args),
+  searchSpark: (...args) => apiMocks.searchSpark(...args),
   searchKnowledge: (...args) => apiMocks.searchKnowledge(...args),
   fetchFileContent: (...args) => apiMocks.fetchFileContent(...args),
 }));
 
-function seedWorkbenchSearchDom() {
+function seedSparkSearchDom() {
   document.body.innerHTML = `
     <div id="gs-wb-wrap" class="gs-search-wrap">
       <input id="gs-wb-input" class="gs-search-input" type="text" autocomplete="off" />
@@ -53,23 +53,23 @@ describe('notes search module', () => {
     vi.useFakeTimers();
     vi.clearAllMocks();
     installLocalStorageMock();
-    seedWorkbenchSearchDom();
-    apiMocks.searchWorkbench.mockResolvedValue({ hits: [] });
+    seedSparkSearchDom();
+    apiMocks.searchSpark.mockResolvedValue({ hits: [] });
   });
 
   afterEach(() => {
     vi.useRealTimers();
   });
 
-  it('exports initWorkbenchSearch and closeWorkbenchSearch', async () => {
+  it('exports initSparkSearch and closeSparkSearch', async () => {
     const mod = await loadModule();
-    expect(typeof mod.initWorkbenchSearch).toBe('function');
-    expect(typeof mod.closeWorkbenchSearch).toBe('function');
+    expect(typeof mod.initSparkSearch).toBe('function');
+    expect(typeof mod.closeSparkSearch).toBe('function');
   });
 
-  it('debounced input calls searchWorkbench(q, 8) only', async () => {
-    const { initWorkbenchSearch } = await loadModule();
-    initWorkbenchSearch();
+  it('debounced input calls searchSpark(q, 8) only', async () => {
+    const { initSparkSearch } = await loadModule();
+    initSparkSearch();
 
     const input = document.getElementById('gs-wb-input');
     input.value = 'alpha';
@@ -77,13 +77,13 @@ describe('notes search module', () => {
 
     await vi.advanceTimersByTimeAsync(300);
 
-    expect(apiMocks.searchWorkbench).toHaveBeenCalledWith('alpha', 8);
+    expect(apiMocks.searchSpark).toHaveBeenCalledWith('alpha', 8);
     expect(apiMocks.searchKnowledge).not.toHaveBeenCalled();
   });
 
-  it('strips leading # before calling searchWorkbench', async () => {
-    const { initWorkbenchSearch } = await loadModule();
-    initWorkbenchSearch();
+  it('strips leading # before calling searchSpark', async () => {
+    const { initSparkSearch } = await loadModule();
+    initSparkSearch();
 
     const input = document.getElementById('gs-wb-input');
     input.value = '#topic-name';
@@ -91,11 +91,11 @@ describe('notes search module', () => {
 
     await vi.advanceTimersByTimeAsync(300);
 
-    expect(apiMocks.searchWorkbench).toHaveBeenCalledWith('topic-name', 8);
+    expect(apiMocks.searchSpark).toHaveBeenCalledWith('topic-name', 8);
   });
 
   it('hit click dispatches cta:open-entry with common_path only (no layer)', async () => {
-    apiMocks.searchWorkbench.mockResolvedValue({
+    apiMocks.searchSpark.mockResolvedValue({
       hits: [{
         title: 'Entry',
         common_path: '2024/01/entry.md',
@@ -105,8 +105,8 @@ describe('notes search module', () => {
       }],
     });
 
-    const { initWorkbenchSearch } = await loadModule();
-    initWorkbenchSearch();
+    const { initSparkSearch } = await loadModule();
+    initSparkSearch();
 
     const input = document.getElementById('gs-wb-input');
     input.value = 'entry';
@@ -128,14 +128,14 @@ describe('notes search module', () => {
   });
 
   it('renders no per-field rebuild button (header owns index rebuild)', async () => {
-    const { initWorkbenchSearch } = await loadModule();
-    initWorkbenchSearch();
+    const { initSparkSearch } = await loadModule();
+    initSparkSearch();
     expect(document.getElementById('gs-wb-rebuild-btn')).toBeNull();
     expect(document.querySelector('#gs-wb-wrap .gs-rebuild-btn')).toBeNull();
   });
 
   it('stores history under gs-history-wb without # prefix', async () => {
-    apiMocks.searchWorkbench.mockResolvedValue({
+    apiMocks.searchSpark.mockResolvedValue({
       hits: [{
         title: 'Hit',
         common_path: 'path/a.md',
@@ -145,8 +145,8 @@ describe('notes search module', () => {
       }],
     });
 
-    const { initWorkbenchSearch } = await loadModule();
-    initWorkbenchSearch();
+    const { initSparkSearch } = await loadModule();
+    initSparkSearch();
 
     const input = document.getElementById('gs-wb-input');
     input.value = '#stored-query';
@@ -161,10 +161,10 @@ describe('notes search module', () => {
   });
 
   it('shows search error for unexpected backend failure', async () => {
-    apiMocks.searchWorkbench.mockResolvedValue({ error: 'unavailable' });
+    apiMocks.searchSpark.mockResolvedValue({ error: 'unavailable' });
 
-    const { initWorkbenchSearch } = await loadModule();
-    initWorkbenchSearch();
+    const { initSparkSearch } = await loadModule();
+    initSparkSearch();
 
     document.getElementById('gs-wb-input').value = 'q';
     document.getElementById('gs-wb-input').dispatchEvent(new Event('input', { bubbles: true }));
@@ -176,10 +176,10 @@ describe('notes search module', () => {
   });
 
   it('shows global-search-equivalent status for not_indexed', async () => {
-    apiMocks.searchWorkbench.mockResolvedValue({ error: 'not_indexed' });
+    apiMocks.searchSpark.mockResolvedValue({ error: 'not_indexed' });
 
-    const { initWorkbenchSearch } = await loadModule();
-    initWorkbenchSearch();
+    const { initSparkSearch } = await loadModule();
+    initSparkSearch();
 
     document.getElementById('gs-wb-input').value = 'q';
     document.getElementById('gs-wb-input').dispatchEvent(new Event('input', { bubbles: true }));
@@ -191,15 +191,15 @@ describe('notes search module', () => {
   });
 
   it('shows no-results and search-error statuses', async () => {
-    const { initWorkbenchSearch } = await loadModule();
-    initWorkbenchSearch();
+    const { initSparkSearch } = await loadModule();
+    initSparkSearch();
 
     document.getElementById('gs-wb-input').value = 'empty';
     document.getElementById('gs-wb-input').dispatchEvent(new Event('input', { bubbles: true }));
     await vi.advanceTimersByTimeAsync(300);
     expect(document.getElementById('gs-wb-dropdown').textContent).toContain('No related results');
 
-    apiMocks.searchWorkbench.mockRejectedValue(new Error('network'));
+    apiMocks.searchSpark.mockRejectedValue(new Error('network'));
     document.getElementById('gs-wb-input').value = 'err';
     document.getElementById('gs-wb-input').dispatchEvent(new Event('input', { bubbles: true }));
     await vi.advanceTimersByTimeAsync(300);
@@ -207,8 +207,8 @@ describe('notes search module', () => {
   });
 
   it('Escape closes dropdown and blurs input', async () => {
-    const { initWorkbenchSearch } = await loadModule();
-    initWorkbenchSearch();
+    const { initSparkSearch } = await loadModule();
+    initSparkSearch();
 
     const input = document.getElementById('gs-wb-input');
     const dropdown = document.getElementById('gs-wb-dropdown');
@@ -222,8 +222,8 @@ describe('notes search module', () => {
   });
 
   it('document click outside #gs-wb-wrap closes dropdown', async () => {
-    const { initWorkbenchSearch } = await loadModule();
-    initWorkbenchSearch();
+    const { initSparkSearch } = await loadModule();
+    initSparkSearch();
 
     const dropdown = document.getElementById('gs-wb-dropdown');
     dropdown.style.display = 'block';
@@ -233,37 +233,37 @@ describe('notes search module', () => {
     expect(dropdown.style.display).toBe('none');
   });
 
-  it('closeWorkbenchSearch hides #gs-wb-dropdown', async () => {
-    const { closeWorkbenchSearch } = await loadModule();
+  it('closeSparkSearch hides #gs-wb-dropdown', async () => {
+    const { closeSparkSearch } = await loadModule();
     const dropdown = document.getElementById('gs-wb-dropdown');
     dropdown.style.display = 'block';
 
-    closeWorkbenchSearch();
+    closeSparkSearch();
 
     expect(dropdown.style.display).toBe('none');
   });
 
-  it('initWorkbenchSearch is idempotent (no duplicate search on one input)', async () => {
-    const { initWorkbenchSearch } = await loadModule();
-    initWorkbenchSearch();
-    initWorkbenchSearch();
+  it('initSparkSearch is idempotent (no duplicate search on one input)', async () => {
+    const { initSparkSearch } = await loadModule();
+    initSparkSearch();
+    initSparkSearch();
 
     const input = document.getElementById('gs-wb-input');
     input.value = 'once';
     input.dispatchEvent(new Event('input', { bubbles: true }));
     await vi.advanceTimersByTimeAsync(300);
 
-    expect(apiMocks.searchWorkbench).toHaveBeenCalledTimes(1);
+    expect(apiMocks.searchSpark).toHaveBeenCalledTimes(1);
   });
 
   it('hit row hover does not show digest tooltip or fetch digest', async () => {
-    apiMocks.searchWorkbench.mockResolvedValue({
+    apiMocks.searchSpark.mockResolvedValue({
       hits: [{ title: 'Tip', common_path: 'inbox/notes/tip.md', topic: 't', body: 'b' }],
     });
     apiMocks.fetchFileContent.mockResolvedValueOnce('# Tip **preview**');
 
-    const { initWorkbenchSearch } = await loadModule();
-    initWorkbenchSearch();
+    const { initSparkSearch } = await loadModule();
+    initSparkSearch();
 
     const input = document.getElementById('gs-wb-input');
     input.value = 'tip';

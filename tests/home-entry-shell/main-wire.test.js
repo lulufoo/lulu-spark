@@ -169,12 +169,12 @@ describe('home-entry-shell unmount force A (T5)', () => {
   });
 });
 
-describe('home-entry-shell workbench Binding (t2)', () => {
-  it('main.js Sets workbench Binding once at boot', () => {
+describe('home-entry-shell spark Binding (t2)', () => {
+  it('main.js Sets spark Binding once at boot', () => {
     const source = readMain();
-    const calls = source.match(/void\s+setWorkbenchBinding\s*\(\s*\)/g) || [];
-    expect(calls.length, 'exactly one process-level workbench Set').toBe(1);
-    expect(source).toMatch(/setWorkbenchBinding/);
+    const calls = source.match(/void\s+setSparkBinding\s*\(\s*\)/g) || [];
+    expect(calls.length, 'exactly one process-level spark Set').toBe(1);
+    expect(source).toMatch(/setSparkBinding/);
     expect(source).not.toMatch(/mountHomeEntryShell/);
   });
 
@@ -182,18 +182,18 @@ describe('home-entry-shell workbench Binding (t2)', () => {
     const source = readMain();
     const shellJs = readFrontendJs('frontend/src/home-entry-shell/shell.tsx');
     const libRs = readFileSync(join(repoRoot, 'src-tauri/src/lib.rs'), 'utf8');
-    expect(shellJs).not.toMatch(/setWorkbenchBinding|set_binding|reset_binding/);
+    expect(shellJs).not.toMatch(/setSparkBinding|set_binding|reset_binding/);
     expect(source).not.toMatch(
-      /#\/home[\s\S]{0,160}setWorkbenchBinding|setWorkbenchBinding[\s\S]{0,160}#\/home/,
+      /#\/home[\s\S]{0,160}setSparkBinding|setSparkBinding[\s\S]{0,160}#\/home/,
     );
-    expect(libRs).not.toMatch(/setWorkbenchBinding/);
+    expect(libRs).not.toMatch(/setSparkBinding/);
     const setupIdx = libRs.indexOf('.setup(|app|');
     expect(setupIdx).toBeGreaterThanOrEqual(0);
     const setupSlice = libRs.slice(setupIdx, setupIdx + 800);
     expect(setupSlice).not.toMatch(/set_binding/);
   });
 
-  it('business pages have zero Set/Reset: notes, home, selectDate, mountWorkbench', () => {
+  it('business pages have zero Set/Reset: notes, home, selectDate, mountSpark', () => {
     const source = readMain();
     const sidebarJs = readFrontendJs('frontend/src/notes/ui/sidebar.tsx');
     const sidebarCommandsJs = readFrontendJs('frontend/src/notes/commands/sidebar.ts');
@@ -201,14 +201,14 @@ describe('home-entry-shell workbench Binding (t2)', () => {
       /\bbuildNotesBinding\b|\bresetNotesBinding\b|\bbuildTodosBinding\b|\bresetTodosBinding\b/,
     );
     expect(source).not.toMatch(/function mountTodoTasksRoute|todo-task\/commands\/lifecycle/);
-    const mountWorkbenchIdx = source.indexOf('function mountWorkbench');
-    expect(mountWorkbenchIdx).toBeGreaterThanOrEqual(0);
-    const mountSlice = source.slice(mountWorkbenchIdx, mountWorkbenchIdx + 400);
-    expect(mountSlice).not.toMatch(/set_binding|reset_binding|setWorkbenchBinding|buildNotesBinding/);
+    const mountSparkIdx = source.indexOf('function mountSpark');
+    expect(mountSparkIdx).toBeGreaterThanOrEqual(0);
+    const mountSlice = source.slice(mountSparkIdx, mountSparkIdx + 400);
+    expect(mountSlice).not.toMatch(/set_binding|reset_binding|setSparkBinding|buildNotesBinding/);
 
-    expect(sidebarJs).not.toMatch(/buildNotesBinding|set_binding|reset_binding|setWorkbenchBinding/);
+    expect(sidebarJs).not.toMatch(/buildNotesBinding|set_binding|reset_binding|setSparkBinding/);
     expect(sidebarCommandsJs).not.toMatch(
-      /buildNotesBinding|set_binding|reset_binding|setWorkbenchBinding/,
+      /buildNotesBinding|set_binding|reset_binding|setSparkBinding/,
     );
   });
 });

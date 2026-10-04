@@ -46,7 +46,7 @@ describe('T10 Host MCP archive + contract retarget (V2/V3/V4)', () => {
     expect(existsSync(verifyPath), 'missing scripts/verify-host-mcp.mjs').toBe(true);
     const src = readFileSync(verifyPath, 'utf8');
     expect(src).toContain(HOST_MCP_BASE);
-    expect(src).toMatch(/workbench/);
+    expect(src).toMatch(/spark/);
     expect(src).toMatch(/cursor_ide/);
     // Must not spawn Node MCP as a process (path may appear only as archive-gate joins)
     expect(src).not.toMatch(/spawnSidecar\s*\(/);
@@ -54,7 +54,7 @@ describe('T10 Host MCP archive + contract retarget (V2/V3/V4)', () => {
     expect(src).not.toMatch(/['"]packages\/knowledge-mcp\/index\.mjs['"]/);
   });
 
-  it('verify-host-mcp registers workbench + cursor_ide, not todo_task as App slot', () => {
+  it('verify-host-mcp registers spark + cursor_ide, not todo_task as App slot', () => {
     const src = read('scripts/verify-host-mcp.mjs');
     expect(src).toContain("REGISTERED_SLOTS = ['spark', 'cursor_ide']");
     expect(src).not.toMatch(
@@ -95,7 +95,7 @@ describe('T10 Host MCP archive + contract retarget (V2/V3/V4)', () => {
     const verify = read('scripts/verify-host-mcp.mjs');
     expect(verify).toContain("REGISTERED_SLOTS = ['spark', 'cursor_ide']");
     expect(verify).not.toContain('get_notes_selection');
-    expect(verify).not.toMatch(/http:\/\/127\.0\.0\.1:<mcp_port>\/#\/workbench/);
+    expect(verify).not.toMatch(/http:\/\/127\.0\.0\.1:<mcp_port>\/#\/spark/);
   });
 
   it('P4 smoke checklist P6 no longer writes off-page Reset', () => {

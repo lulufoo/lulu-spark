@@ -29,7 +29,7 @@ use crate::config::settings;
 use crate::agent::diagnostics::{self, DiagnosticEvent, TraceId};
 use crate::agent::llm::{self, LlmConfig, LlmError};
 use crate::agent::session::{self, Session, Turn};
-use crate::agent::WORKBENCH_HOST_SYSTEM_PROMPT;
+use crate::agent::SPARK_HOST_SYSTEM_PROMPT;
 use crate::test_support::{with_config_test_serial, TestSandbox};
 
 fn with_agent_sandbox<F: FnOnce(&TestSandbox)>(f: F) {
@@ -72,7 +72,7 @@ fn assert_under_cache_not_knowledge_root(path: &Path, sandbox: &TestSandbox) {
 
 #[test]
 fn agent_module_mount_point_is_addressable() {
-    let _ = WORKBENCH_HOST_SYSTEM_PROMPT;
+    let _ = SPARK_HOST_SYSTEM_PROMPT;
     let _ = std::any::type_name::<Session>();
 }
 

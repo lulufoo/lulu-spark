@@ -219,7 +219,7 @@ export async function getReindexStatus() {
   return invokeSearch('getReindexStatus');
 }
 
-export async function searchWorkbench(q: string, limit = 10) {
+export async function searchSpark(q: string, limit = 10) {
   const res = await getReadDriver().fetchGet(
     `/api/search-spark?q=${encodeURIComponent(q)}&limit=${limit}`
   );

@@ -74,7 +74,7 @@ fn start_mock(port: u16) -> (DiscoveryHandle, MockPublisher) {
 }
 
 #[test]
-fn gateway_start_publishes_lulu_workbench_tcp_with_lan_ip_and_port() {
+fn gateway_start_publishes_lulu_spark_tcp_with_lan_ip_and_port() {
     with_nics(Some(vec![nic("en0", "192.168.1.8")]), || {
         let (handle, publisher) = start_mock(DEFAULT_PROD_GATEWAY_PORT);
         let published = publisher.published();

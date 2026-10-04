@@ -5,11 +5,11 @@ use crate::config::paths;
 use crate::config::roots::notes_root_path;
 use crate::integrations::gh_read;
 use crate::services::keyword_index::{
-    cache_dir_or_err, search_desktop_knowledge, search_desktop_workbench,
+    cache_dir_or_err, search_desktop_knowledge, search_desktop_spark,
 };
 use crate::services::sediment_kb;
 use crate::services::tags_registry;
-use crate::services::workbench_read;
+use crate::services::spark_read;
 
 fn repo_root() -> Result<std::path::PathBuf, String> {
     paths::repo_root().map_err(|e| format!("{e:?}"))
@@ -39,7 +39,7 @@ pub async fn search_spark(
     let _ = repo_root()?;
     tauri::async_runtime::spawn_blocking(move || {
         let cache = cache_dir_or_err()?;
-        Ok(search_desktop_workbench(&cache, &q, limit))
+        Ok(search_desktop_spark(&cache, &q, limit))
     })
     .await
     .map_err(|e| e.to_string())?
@@ -47,12 +47,12 @@ pub async fn search_spark(
 
 #[tauri::command]
 pub fn get_topics(_app: AppHandle) -> Result<Value, String> {
-    Ok(workbench_read::get_topics(&repo_root()?))
+    Ok(spark_read::get_topics(&repo_root()?))
 }
 
 #[tauri::command]
 pub fn get_annotations(_app: AppHandle) -> Result<Value, String> {
-    Ok(workbench_read::get_annotations_summary(&repo_root()?))
+    Ok(spark_read::get_annotations_summary(&repo_root()?))
 }
 
 #[tauri::command]
@@ -63,12 +63,12 @@ pub fn get_tags_registry(_app: AppHandle) -> Result<Value, String> {
 
 #[tauri::command]
 pub fn get_annotation(_app: AppHandle, path: String) -> Result<Value, String> {
-    Ok(workbench_read::get_annotation(&repo_root()?, &path))
+    Ok(spark_read::get_annotation(&repo_root()?, &path))
 }
 
 #[tauri::command]
 pub fn get_draft(_app: AppHandle, path: String) -> Result<Value, String> {
-    Ok(workbench_read::get_draft(&repo_root()?, &path))
+    Ok(spark_read::get_draft(&repo_root()?, &path))
 }
 
 #[tauri::command]
@@ -83,23 +83,23 @@ pub fn get_doc_highlights(_app: AppHandle, key: String) -> Result<Value, String>
 
 #[tauri::command]
 pub fn get_config(_app: AppHandle) -> Result<Value, String> {
-    Ok(workbench_read::get_config(&repo_root()?))
+    Ok(spark_read::get_config(&repo_root()?))
 }
 
 #[tauri::command]
 pub fn infer_github_user_url(_app: AppHandle, path: String) -> Result<Value, String> {
-    Ok(workbench_read::infer_github_user_url(&path))
+    Ok(spark_read::infer_github_user_url(&path))
 }
 
 #[tauri::command]
 pub fn check_spark_root(_app: AppHandle, path: String) -> Result<Value, String> {
-    Ok(workbench_read::check_spark_root(&path))
+    Ok(spark_read::check_spark_root(&path))
 }
 
 #[tauri::command]
 pub async fn get_status(_app: AppHandle) -> Result<Value, String> {
     let root = repo_root()?;
-    tauri::async_runtime::spawn_blocking(move || workbench_read::get_status(&root))
+    tauri::async_runtime::spawn_blocking(move || spark_read::get_status(&root))
         .await
         .map_err(|e| e.to_string())
 }
@@ -195,7 +195,7 @@ pub async fn fetch_link_title(_app: AppHandle, url: String) -> Result<Value, Str
 
 #[tauri::command]
 pub fn get_notes_index(_app: AppHandle) -> Result<Value, String> {
-    Ok(workbench_read::get_notes_index(&repo_root()?))
+    Ok(spark_read::get_notes_index(&repo_root()?))
 }
 
 #[tauri::command]
@@ -204,7 +204,7 @@ pub fn get_notes_file(
     layer: String,
     path: String,
 ) -> Result<Value, String> {
-    Ok(workbench_read::get_notes_file(&repo_root()?, &layer, &path))
+    Ok(spark_read::get_notes_file(&repo_root()?, &layer, &path))
 }
 
 #[tauri::command]
@@ -219,7 +219,7 @@ pub fn get_notes_asset(
     base: String,
     href: String,
 ) -> Result<Value, String> {
-    Ok(workbench_read::get_notes_asset(
+    Ok(spark_read::get_notes_asset(
         &repo_root()?,
         &layer,
         &base,
@@ -234,7 +234,7 @@ pub fn get_kb_diff_status(_app: AppHandle) -> Result<Value, String> {
         crate::config::roots::knowledge_root_string(&repo_root),
     );
 
-    let repos: Vec<Value> = workbench_read::get_topics(&repo_root)
+    let repos: Vec<Value> = spark_read::get_topics(&repo_root)
         .get("topics")
         .and_then(|topics| topics.as_array())
         .map(|topics| {

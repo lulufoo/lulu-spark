@@ -333,7 +333,7 @@ fn t8_old_app_keys_notes_and_todo_task_fail_host_binding() {
 }
 
 #[test]
-fn t8_empty_key_is_invalid_and_does_not_bind_workbench() {
+fn t8_empty_key_is_invalid_and_does_not_bind_spark() {
     with_sandbox(|| {
         let err = r#loop::try_set_binding_json(&json!({ "key": "" }))
             .expect_err("empty key must fail");

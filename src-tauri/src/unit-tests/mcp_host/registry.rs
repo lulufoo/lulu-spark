@@ -162,9 +162,9 @@ fn http_transport_is_not_a_user_setting_surface() {
 }
 
 /// Binding business key ≡ MCP scene_slot (App global slot).
-const WORKBENCH_SCENE_SLOT: &str = "spark";
+const SPARK_SCENE_SLOT: &str = "spark";
 
-const SEEDED_WORKBENCH_CAPABILITY: &str = "internal host-mcp workbench capability surface";
+const SEEDED_SPARK_CAPABILITY: &str = "internal host-mcp spark capability surface";
 
 fn expected_seed_url(key: &str) -> String {
     format!(
@@ -179,27 +179,27 @@ fn registry_source() -> &'static str {
 }
 
 #[test]
-fn seeded_business_key_is_workbench() {
+fn seeded_business_key_is_spark() {
     assert_eq!(
-        SEEDED_BUSINESS_KEY, WORKBENCH_SCENE_SLOT,
-        "sole seeded Binding key must be workbench"
+        SEEDED_BUSINESS_KEY, SPARK_SCENE_SLOT,
+        "sole seeded Binding key must be spark"
     );
 }
 
 #[test]
-fn seed_defaults_registers_only_workbench_with_mcp_workbench_url() {
+fn seed_defaults_registers_only_spark_with_mcp_spark_url() {
     clear_for_tests();
     seed_defaults();
-    let got = lookup(WORKBENCH_SCENE_SLOT).expect("workbench must be seeded");
+    let got = lookup(SPARK_SCENE_SLOT).expect("spark must be seeded");
     assert!(
         !got.capability_description.trim().is_empty(),
-        "workbench seed must expose a non-empty decision-level description"
+        "spark seed must expose a non-empty decision-level description"
     );
-    assert_eq!(got.capability_description, SEEDED_WORKBENCH_CAPABILITY);
+    assert_eq!(got.capability_description, SEEDED_SPARK_CAPABILITY);
     assert_eq!(
         got.http_transport().url,
-        expected_seed_url(WORKBENCH_SCENE_SLOT),
-        "workbench transport URL must be http://127.0.0.1:{{port}}/mcp/spark"
+        expected_seed_url(SPARK_SCENE_SLOT),
+        "spark transport URL must be http://127.0.0.1:{{port}}/mcp/spark"
     );
     assert!(
         got.http_transport().url.ends_with("/mcp/spark"),
@@ -212,7 +212,7 @@ fn seed_defaults_registers_only_workbench_with_mcp_workbench_url() {
         .rsplit('/')
         .next()
         .expect("url path segment");
-    assert_eq!(last, WORKBENCH_SCENE_SLOT);
+    assert_eq!(last, SPARK_SCENE_SLOT);
 }
 
 #[test]
@@ -239,18 +239,18 @@ fn registry_no_longer_exports_seeded_notes_key() {
 }
 
 #[test]
-fn seed_defaults_after_clear_reseeds_workbench_and_is_idempotent() {
+fn seed_defaults_after_clear_reseeds_spark_and_is_idempotent() {
     clear_for_tests();
-    let err = lookup(WORKBENCH_SCENE_SLOT).expect_err("cleared workbench must be absent");
+    let err = lookup(SPARK_SCENE_SLOT).expect_err("cleared spark must be absent");
     assert_eq!(err, McpServerLookupError::NotFound);
     seed_defaults();
-    let first = lookup(WORKBENCH_SCENE_SLOT).expect("reseed workbench");
+    let first = lookup(SPARK_SCENE_SLOT).expect("reseed spark");
     seed_defaults();
-    let second = lookup(WORKBENCH_SCENE_SLOT).expect("second seed_defaults still finds workbench");
+    let second = lookup(SPARK_SCENE_SLOT).expect("second seed_defaults still finds spark");
     assert_eq!(first, second);
     assert_eq!(
         second.http_transport().url,
-        expected_seed_url(WORKBENCH_SCENE_SLOT)
+        expected_seed_url(SPARK_SCENE_SLOT)
     );
     assert_eq!(
         lookup("notes").expect_err("notes stays unregistered"),
@@ -263,35 +263,35 @@ fn seed_defaults_after_clear_reseeds_workbench_and_is_idempotent() {
 }
 
 #[test]
-fn unregistered_key_still_not_found_after_workbench_seed() {
+fn unregistered_key_still_not_found_after_spark_seed() {
     clear_for_tests();
     seed_defaults();
-    lookup(WORKBENCH_SCENE_SLOT).expect("workbench seeded");
+    lookup(SPARK_SCENE_SLOT).expect("spark seeded");
     let err = lookup("unknown_business_key_xyz").expect_err("unknown key must fail");
     assert_eq!(err, McpServerLookupError::NotFound);
-    let cursor = lookup("cursor_ide").expect_err("workbench must not reuse cursor_ide as a Binding key");
+    let cursor = lookup("cursor_ide").expect_err("spark must not reuse cursor_ide as a Binding key");
     assert_eq!(cursor, McpServerLookupError::NotFound);
 }
 
 #[test]
-fn empty_key_still_invalid_does_not_fall_to_workbench() {
+fn empty_key_still_invalid_does_not_fall_to_spark() {
     clear_for_tests();
     seed_defaults();
     let err = lookup("").expect_err("empty key must fail");
     assert_eq!(err, McpServerLookupError::InvalidKey);
     let ws = lookup("   ").expect_err("whitespace key must fail");
     assert_eq!(ws, McpServerLookupError::InvalidKey);
-    lookup(WORKBENCH_SCENE_SLOT).expect("empty key must not silently land on workbench");
+    lookup(SPARK_SCENE_SLOT).expect("empty key must not silently land on spark");
 }
 
 #[test]
-fn table_init_and_seed_defaults_only_register_workbench() {
+fn table_init_and_seed_defaults_only_register_spark() {
     let src = registry_source();
     let init = src.split("get_or_init").nth(1).expect("table get_or_init");
     let init_body = init.split("fn validate_key").next().expect("init body");
     assert!(
         init_body.contains("spark") || init_body.contains("SEEDED_BUSINESS_KEY"),
-        "table init must seed workbench on Host startup"
+        "table init must seed spark on Host startup"
     );
     assert!(
         !init_body.contains("SEEDED_NOTES") && !init_body.contains("\"notes\""),
@@ -307,7 +307,7 @@ fn table_init_and_seed_defaults_only_register_workbench() {
         .expect("seed_defaults body");
     assert!(
         seed_body.contains("SEEDED_BUSINESS_KEY") || seed_body.contains("spark"),
-        "seed_defaults must register workbench"
+        "seed_defaults must register spark"
     );
     assert!(
         !seed_body.contains("SEEDED_NOTES") && !seed_body.contains("\"notes\""),
@@ -316,6 +316,6 @@ fn table_init_and_seed_defaults_only_register_workbench() {
     let register_count = seed_body.matches("register(").count();
     assert_eq!(
         register_count, 1,
-        "seed_defaults must register exactly one key (workbench), got {register_count}"
+        "seed_defaults must register exactly one key (spark), got {register_count}"
     );
 }

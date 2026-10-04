@@ -1,4 +1,4 @@
-import { workbenchSkillsContent } from '../state/skills-content.ts';
+import { sparkSkillsContent } from '../state/skills-content.ts';
 import { skillsStore, type SkillItem } from '../state/skills.ts';
 
 export { skillsStore };
@@ -10,7 +10,7 @@ function normalizeSkill(item: string | SkillItem): SkillItem {
 }
 
 export function _openSkillsDialog() {
-  const data = workbenchSkillsContent;
+  const data = sparkSkillsContent;
   if (!data) return;
   const items = data.groups.flatMap((g: { items: Array<string | SkillItem> }) => g.items).map(normalizeSkill);
   skillsStore.set({ open: true, title: data.title, items });

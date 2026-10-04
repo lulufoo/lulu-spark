@@ -204,7 +204,7 @@ describe('migrate-local-state', () => {
     expect(() => runMigrate(configDir)).not.toThrow();
   });
 
-  describe('plan_tasks migration (cache plan_tasks.json → workbench plan_tasks/plan_tasks.json)', () => {
+  describe('plan_tasks migration (cache plan_tasks.json → spark plan_tasks/plan_tasks.json)', () => {
     it('copied: copies source when target is absent and creates plan_tasks/', () => {
       const { configDir, cacheDir, wbRoot } = makeSandbox();
       const planTasks = samplePlanTasks();
@@ -230,7 +230,7 @@ describe('migrate-local-state', () => {
       expect(readFileSync(join(wbRoot, 'plan_tasks', 'plan_tasks.json'), 'utf8')).toBe(planTasks);
     });
 
-    it('skip_diff: preserves workbench file when content differs', () => {
+    it('skip_diff: preserves spark file when content differs', () => {
       const { configDir, cacheDir, wbRoot } = makeSandbox();
       writeFileSync(join(cacheDir, 'plan_tasks.json'), samplePlanTasks());
       mkdirSync(join(wbRoot, 'plan_tasks'), { recursive: true });

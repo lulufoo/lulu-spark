@@ -1,4 +1,4 @@
-//! Read-only workbench APIs aligned with `server.py` GET handlers.
+//! Read-only spark APIs aligned with `server.py` GET handlers.
 
 mod annotations;
 mod config;
@@ -16,5 +16,5 @@ pub use notes_catalog::*;
 pub use status::*;
 
 #[cfg(test)]
-#[path = "../../unit-tests/services/workbench_read.rs"]
+#[path = "../../unit-tests/services/spark_read.rs"]
 mod tests;

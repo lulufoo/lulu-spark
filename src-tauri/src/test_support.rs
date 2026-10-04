@@ -44,7 +44,7 @@ pub fn with_config_test_serial<F: FnOnce()>(f: F) {
 }
 
 fn prepare_sandbox_roots(dir: &Path) -> (PathBuf, PathBuf, PathBuf) {
-    let wb = dir.join("workbench-knowledge");
+    let wb = dir.join("spark-knowledge");
     let clones = dir.join("knowledge-clones");
     let cache = dir.join("cache");
     std::fs::create_dir_all(&wb).expect("mkdir wb");

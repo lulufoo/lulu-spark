@@ -5,7 +5,7 @@ use base64::Engine;
 use serde_json::{json, Value};
 
 use crate::repositories::knowledge::kb_safe_path;
-use crate::services::workbench_read::{knowledge_root_string, mime_from_extension};
+use crate::services::spark_read::{knowledge_root_string, mime_from_extension};
 
 fn err_status_code(msg: &str) -> u16 {
     if msg.contains("invalid") || msg.contains("traversal") || msg.contains("required") {

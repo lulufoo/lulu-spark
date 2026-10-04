@@ -88,7 +88,7 @@ fn upsert_document_is_noop_without_index_file() {
 }
 
 #[test]
-fn desktop_workbench_hits_always_expose_raw_layer() {
+fn desktop_spark_hits_always_expose_raw_layer() {
     let (_dir, cache) = temp_cache();
     let conn = open(&cache).expect("open");
     let digest_only = SourceChunk::from_text(
@@ -106,7 +106,7 @@ fn desktop_workbench_hits_always_expose_raw_layer() {
     );
     upsert_chunks(&conn, &[digest_only]).expect("seed");
     drop(conn);
-    let out = search_desktop_workbench(&cache, "角色扮演", Some(5));
+    let out = search_desktop_spark(&cache, "角色扮演", Some(5));
     let hits = out["hits"].as_array().expect("hits");
     assert_eq!(hits.len(), 1);
     assert_eq!(hits[0]["layer"], "raw");
@@ -173,7 +173,7 @@ fn prefilter_does_not_create_missing_index_file() {
 #[test]
 fn desktop_search_reports_not_indexed_when_sqlite_missing() {
     let (_dir, cache) = temp_cache();
-    let wb = search_desktop_workbench(&cache, "角色扮演", Some(5));
+    let wb = search_desktop_spark(&cache, "角色扮演", Some(5));
     assert_eq!(
         wb.get("error").and_then(|v| v.as_str()),
         Some("not_indexed")

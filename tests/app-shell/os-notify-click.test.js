@@ -73,7 +73,7 @@ afterEach(() => {
 
 describe('handleOsNotifyClicked', () => {
   it('hands a notes/open scheme to L2 and opens that note', async () => {
-    const openSpy = vi.spyOn(scheme, 'openWorkbenchScheme');
+    const openSpy = vi.spyOn(scheme, 'openSparkScheme');
     await expect(handleOsNotifyClicked({ scheme: NOTES_OPEN })).resolves.toBe(true);
     expect(openSpy).toHaveBeenCalledTimes(1);
     expect(openSpy).toHaveBeenCalledWith(NOTES_OPEN);
@@ -84,7 +84,7 @@ describe('handleOsNotifyClicked', () => {
   });
 
   it('hands a read-later/list scheme to L2 and opens the list dialog', async () => {
-    const openSpy = vi.spyOn(scheme, 'openWorkbenchScheme');
+    const openSpy = vi.spyOn(scheme, 'openSparkScheme');
     await expect(handleOsNotifyClicked({ scheme: READ_LATER_LIST })).resolves.toBe(true);
     expect(openSpy).toHaveBeenCalledTimes(1);
     expect(openSpy).toHaveBeenCalledWith(READ_LATER_LIST);
@@ -93,7 +93,7 @@ describe('handleOsNotifyClicked', () => {
   });
 
   it('returns false and does not land when payload has no scheme', async () => {
-    const openSpy = vi.spyOn(scheme, 'openWorkbenchScheme');
+    const openSpy = vi.spyOn(scheme, 'openSparkScheme');
     await expect(handleOsNotifyClicked({})).resolves.toBe(false);
     await expect(handleOsNotifyClicked({ scheme: undefined })).resolves.toBe(false);
     await expect(handleOsNotifyClicked({ scheme: '' })).resolves.toBe(false);
@@ -111,7 +111,7 @@ describe('handleOsNotifyClicked', () => {
     'spark://read-later/open',
     'notes/open?id=abc&path=inbox/x.md',
   ])('forwards unrecognized or incomplete %s to L2 which ignores it', async (badScheme) => {
-    const openSpy = vi.spyOn(scheme, 'openWorkbenchScheme');
+    const openSpy = vi.spyOn(scheme, 'openSparkScheme');
     await expect(handleOsNotifyClicked({ scheme: badScheme })).resolves.toBe(false);
     expect(openSpy).toHaveBeenCalledWith(badScheme);
     expect(window.location.hash).toBe('#/home');
@@ -146,7 +146,7 @@ describe('startOsNotifyClickHub', () => {
       return vi.fn();
     });
     window.__TAURI__ = { event: { listen } };
-    const openSpy = vi.spyOn(scheme, 'openWorkbenchScheme');
+    const openSpy = vi.spyOn(scheme, 'openSparkScheme');
 
     startOsNotifyClickHub();
     await flushListen();
@@ -191,7 +191,7 @@ describe('startOsNotifyClickHub', () => {
       };
     });
     window.__TAURI__ = { event: { listen } };
-    const openSpy = vi.spyOn(scheme, 'openWorkbenchScheme');
+    const openSpy = vi.spyOn(scheme, 'openSparkScheme');
 
     startOsNotifyClickHub();
     await flushListen();
@@ -219,23 +219,23 @@ describe('os-notify-click process-level wiring', () => {
     expect(bootSrc).toMatch(/os-notify-click/);
     expect(bootSrc).not.toMatch(/os-notification:clicked/);
     expect(bootSrc).not.toMatch(/handleOsNotifyClicked/);
-    expect(bootSrc).not.toMatch(/openWorkbenchScheme/);
+    expect(bootSrc).not.toMatch(/openSparkScheme/);
     expect(bootSrc).not.toMatch(/userInfo/);
   });
 
   it('consumes t3 { scheme } and hands it to L2 without composing or decoding userInfo', () => {
     const src = readRel('frontend/src/app-shell/commands/os-notify-click.ts');
     expect(src).toMatch(/os-notification:clicked/);
-    expect(src).toMatch(/openWorkbenchScheme/);
+    expect(src).toMatch(/openSparkScheme/);
     expect(src).toMatch(/from ['"].*router\/scheme\.ts['"]/);
     expect(src).not.toMatch(/userInfo/);
-    expect(src).not.toMatch(/composeWorkbenchScheme/);
+    expect(src).not.toMatch(/composeSparkScheme/);
     expect(src).not.toMatch(/showOsNotification|show_os_notification/);
     expect(src).not.toMatch(/writeApiInvokeMap/);
     expect(src).not.toMatch(/@tauri-apps\//);
     expect(src).not.toMatch(/parseHash/);
     const body = extractFunctionBody(src, 'handleOsNotifyClicked');
-    expect(body).toMatch(/openWorkbenchScheme/);
+    expect(body).toMatch(/openSparkScheme/);
     expect(body).not.toMatch(/navigateToNote|openReadLaterDialog/);
   });
 });

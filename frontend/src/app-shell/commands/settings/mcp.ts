@@ -7,7 +7,7 @@ type McpToolGroup = { id: string; label?: string; tools?: McpTool[] };
 type McpToolsSnapshot = {
   groups?: McpToolGroup[];
   enabled?: Record<string, string[]>;
-  workbench_only_tools?: string[];
+  spark_only_tools?: string[];
 };
 
 let toolsSnapshot: McpToolsSnapshot | null = null;
@@ -20,15 +20,15 @@ function catalogNames(snapshot: McpToolsSnapshot | null): string[] {
   );
 }
 
-function workbenchOnlyTools(snapshot: McpToolsSnapshot | null): Set<string> {
+function sparkOnlyTools(snapshot: McpToolsSnapshot | null): Set<string> {
   return new Set(
-    (snapshot?.workbench_only_tools ?? []).filter((name): name is string => Boolean(name)),
+    (snapshot?.spark_only_tools ?? []).filter((name): name is string => Boolean(name)),
   );
 }
 
 /** Catalog names visible / selectable for the given MCP channel. */
 function catalogNamesForChannel(snapshot: McpToolsSnapshot | null, channel: string): string[] {
-  const only = workbenchOnlyTools(snapshot);
+  const only = sparkOnlyTools(snapshot);
   if (channel === 'spark' || !only.size) return catalogNames(snapshot);
   return catalogNames(snapshot).filter((name) => !only.has(name));
 }
@@ -62,7 +62,7 @@ export function paintMcpToolGroups() {
   const groups = toolsSnapshot?.groups;
   if (!Array.isArray(groups) || !groups.length) return;
   const enabled = enabledNamesForChannel(toolsSnapshot, channel);
-  const only = workbenchOnlyTools(toolsSnapshot);
+  const only = sparkOnlyTools(toolsSnapshot);
   for (const group of groups) {
     const fieldset = document.createElement('fieldset');
     fieldset.className = 'settings-mcp-tool-group';

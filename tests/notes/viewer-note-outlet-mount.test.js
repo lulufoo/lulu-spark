@@ -115,7 +115,7 @@ vi.mock('../../frontend/src/knowledge/ui/knowledge-search.tsx', () => ({
 }));
 vi.mock('../../frontend/src/host/constants.ts', () => ({
   getGithubUserUrl: vi.fn(() => ''),
-  workbenchGithubBlobBase: vi.fn(() => null),
+  sparkGithubBlobBase: vi.fn(() => null),
 }));
 vi.mock('../../frontend/src/shared/mermaid-render.ts', () => ({
   initMermaid: vi.fn(),

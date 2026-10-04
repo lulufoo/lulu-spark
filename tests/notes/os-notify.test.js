@@ -49,7 +49,7 @@ describe('handleNotesOsNotifyEnvelope', () => {
 
   beforeEach(() => {
     notifySpy = vi.spyOn(api, 'showOsNotification').mockResolvedValue(undefined);
-    composeSpy = vi.spyOn(scheme, 'composeWorkbenchScheme');
+    composeSpy = vi.spyOn(scheme, 'composeSparkScheme');
     toastSpy = vi.spyOn(toast, 'showToast');
     alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});
     fetchSpy = vi.spyOn(api, 'fetchIndex').mockResolvedValue({ entries: {} });
@@ -131,7 +131,7 @@ describe('startOsNotifyHub process-level wiring', () => {
     expect(body).toMatch(/event\.payload|event\?\.payload/);
     expect(body).toMatch(/handleNotesOsNotifyEnvelope/);
     expect(body).toMatch(/handleReadLaterOsNotifyEnvelope/);
-    expect(body).not.toMatch(/composeWorkbenchScheme/);
+    expect(body).not.toMatch(/composeSparkScheme/);
     expect(body).not.toMatch(/showOsNotification/);
     expect(bootSrc).not.toMatch(/writeApiInvokeMap/);
     expect(bootSrc).not.toMatch(/from ['"]\.\/home\/commands\/hub/);
@@ -155,7 +155,7 @@ describe('notes os-notify import constraints', () => {
     const src = readRel('frontend/src/notes/commands/os-notify.ts');
     expect(src).toMatch(/from ['"].*host\/api\.ts['"]/);
     expect(src).toMatch(/showOsNotification/);
-    expect(src).toMatch(/composeWorkbenchScheme/);
+    expect(src).toMatch(/composeSparkScheme/);
     expect(src).toMatch(/from ['"].*router\/scheme\.ts['"]/);
     expect(src).not.toMatch(/writeApiInvokeMap/);
     expect(src).not.toMatch(/@tauri-apps\//);

@@ -54,6 +54,9 @@ function stubMountEnv() {
     notifyState: () => {},
     selectDate: () => {},
     openDoc: () => {},
+    logNotifyHop: () => {},
+    parseTraceId: () => null,
+    lastNotifyTrace: () => null,
     state: { ui: { activeDate: null }, viewer: { createSession: null, outletMode: '', outletMessage: '' }, index: { data: {} } },
   };
 }
@@ -70,6 +73,9 @@ function compileMountFn(fnSource, env) {
     'notifyState',
     'selectDate',
     'openDoc',
+    'logNotifyHop',
+    'parseTraceId',
+    'lastNotifyTrace',
     'state',
   ];
   const brace = fnSource.indexOf('{');
@@ -120,7 +126,7 @@ describe('T5 retire #btn-feed / showFeedView user entry', () => {
       expect(show).not.toMatch(BARE_BTN_FEED_CLASSLIST);
     });
 
-    it.each(['mountHomeRoute', 'mountWorkbench'])(
+    it.each(['mountHomeRoute', 'mountSpark'])(
       '%s does not bare-remove active on #btn-feed',
       (name) => {
         const src = extractFunctionSource(readMain(), name);
@@ -156,7 +162,7 @@ describe('T5 retire #btn-feed / showFeedView user entry', () => {
       document.body.innerHTML = '';
     });
 
-    it.each(['mountHomeRoute', 'mountWorkbench'])(
+    it.each(['mountHomeRoute', 'mountSpark'])(
       '%s does not throw when #btn-feed is absent',
       (name) => {
         const fnSource = extractFunctionSource(readMain(), name);

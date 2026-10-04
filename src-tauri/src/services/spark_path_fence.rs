@@ -45,5 +45,5 @@ pub fn expand_for_business_key(key: &str) -> Option<PathFence> {
 }
 
 #[cfg(test)]
-#[path = "../unit-tests/services/workbench_path_fence.rs"]
+#[path = "../unit-tests/services/spark_path_fence.rs"]
 mod tests;

@@ -65,7 +65,7 @@ async function copyServerBlock(text: string) {
   return false;
 }
 
-function paintWorkbench(view: TicketView) {
+function paintSpark(view: TicketView) {
   const mask = document.getElementById('settings-mcp-spark-mask');
   const state = document.getElementById('settings-mcp-spark-state');
   const expire = document.getElementById(
@@ -77,8 +77,8 @@ function paintWorkbench(view: TicketView) {
     state.textContent = live
       ? 'Host-issued ticket. Masked. Expire voids it for the next session.'
       : view.state === 'revoked'
-        ? 'Expired. The next Workbench session issues a new ticket.'
-        : 'No Workbench ticket yet.';
+        ? 'Expired. The next Spark session issues a new ticket.'
+        : 'No Spark ticket yet.';
   }
   if (expire) expire.disabled = !live;
 }
@@ -155,7 +155,7 @@ export async function loadMcpTicketView() {
   showTicketPane(channel);
   try {
     const view = (await api.invoke('get_mcp_ticket_view', { channel })) as TicketView;
-    if (channel === 'spark') paintWorkbench(view);
+    if (channel === 'spark') paintSpark(view);
     else if (channel === 'mobile') paintMobile(view);
     else paintCursor(view);
   } catch (e) {
@@ -231,7 +231,7 @@ export async function copyCursorIdeServerBlock() {
   );
 }
 
-export async function expireWorkbenchTicket() {
+export async function expireSparkTicket() {
   const btn = document.getElementById(
     'btn-settings-mcp-spark-expire',
   ) as HTMLButtonElement | null;
@@ -239,7 +239,7 @@ export async function expireWorkbenchTicket() {
   setResult('settings-result-mcp', '');
   try {
     await api.invoke('revoke_mcp_slot_ticket', { slot: 'spark' });
-    setResult('settings-result-mcp', 'Expired Workbench ticket.');
+    setResult('settings-result-mcp', 'Expired Spark ticket.');
     await loadMcpTicketView();
   } catch (e) {
     setResult('settings-result-mcp', `Expire failed: ${errMessage(e, String(e))}`, true);

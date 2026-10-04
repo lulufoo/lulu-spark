@@ -14,7 +14,7 @@ use crate::agent::engine_router;
 use crate::agent::r#loop::{self, ChatTurnResult, EVENT_TURN_COMPLETED};
 use crate::agent::runtime;
 use crate::agent::session::value_exposes_engine_selection;
-use crate::agent::WORKBENCH_HOST_SYSTEM_PROMPT;
+use crate::agent::SPARK_HOST_SYSTEM_PROMPT;
 use crate::mcp_host::registry as mcp_registry;
 use crate::test_support::TestSandbox;
 
@@ -122,7 +122,7 @@ fn arm_plan_binding(master_task_id: &str) {
             { "name": "update_sub_title", "ctx": { "master_task_id": master_task_id } },
             { "name": "update_master_title", "ctx": { "master_task_id": master_task_id } }
         ]),
-        prompt: json!(WORKBENCH_HOST_SYSTEM_PROMPT),
+        prompt: json!(SPARK_HOST_SYSTEM_PROMPT),
         callbacks: json!({}),
     })
     .expect("binding");

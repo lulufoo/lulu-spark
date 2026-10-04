@@ -3,7 +3,7 @@
 use serde_json::{json, Value};
 
 use crate::integrations::github::{self, GithubError};
-use crate::services::workbench_read::get_topics;
+use crate::services::spark_read::get_topics;
 
 pub fn topic_repos(repo_root: &std::path::Path) -> std::collections::HashSet<String> {
     let topics = get_topics(repo_root);

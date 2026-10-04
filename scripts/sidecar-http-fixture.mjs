@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Sidecar HTTP fixture — independent of MCP process model (T10 / L22-VF).
- * Starts a minimal localhost Workbench HTTP mock for /api/* only.
+ * Starts a minimal localhost Spark HTTP mock for /api/* only.
  * Does not spawn Node MCP or Host MCP.
  */
 import http from 'node:http';

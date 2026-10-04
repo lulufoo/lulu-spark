@@ -9,7 +9,7 @@ use crate::test_support::TestSandbox;
 
 fn with_read_later_sandbox<F: FnOnce(&Path)>(f: F) {
     let _sandbox = TestSandbox::new();
-    let wb = paths::spark_root().expect("workbench root");
+    let wb = paths::spark_root().expect("spark root");
     f(&wb);
 }
 

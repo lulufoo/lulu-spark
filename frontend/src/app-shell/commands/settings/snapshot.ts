@@ -5,24 +5,24 @@ import { state } from '../../../host/state.ts';
 import { loadAssistantEnginePanel } from './engine.ts';
 import {
   clearGithubUserUrlInferredLock,
-  syncGithubUserUrlLockFromWorkbenchRoot,
+  syncGithubUserUrlLockFromSparkRoot,
 } from './github-user.ts';
-import { renderWorkbenchConnection, syncWorkbenchConnectionAccess } from './workbench-github.ts';
+import { renderSparkConnection, syncSparkConnectionAccess } from './spark-github.ts';
 import { savedSnapshot, setResult, store } from '../../state/settings/store.ts';
 
 export async function loadSettingsSnapshot() {
   try {
     const cfg = (await api.fetchConfig()) as SettingsConfig;
 
-    const workbenchInput = document.getElementById('settings-workbench-root') as HTMLInputElement | null;
+    const sparkInput = document.getElementById('settings-spark-root') as HTMLInputElement | null;
     const githubUserInput = document.getElementById('settings-github-user-url') as HTMLInputElement | null;
     const knowledgeInput = document.getElementById('knowledge-root-path') as HTMLInputElement | null;
     const wbRoot = cfg?.spark_root ?? '';
     const knowledgeRoot = cfg?.knowledge_root ?? '';
     const ghUrl = cfg?.github_user_url ?? '';
-    if (wbRoot && workbenchInput) {
-      workbenchInput.placeholder = wbRoot;
-      workbenchInput.value = wbRoot;
+    if (wbRoot && sparkInput) {
+      sparkInput.placeholder = wbRoot;
+      sparkInput.value = wbRoot;
     }
     if (knowledgeInput) {
       knowledgeInput.value = knowledgeRoot || state.ui.knowledgeRoot || '';
@@ -36,12 +36,12 @@ export async function loadSettingsSnapshot() {
       githubUserInput.value = ghUrl;
     }
     setGithubUserUrl(ghUrl);
-    savedSnapshot.workbenchRoot = wbRoot;
+    savedSnapshot.sparkRoot = wbRoot;
     savedSnapshot.githubUserUrl = ghUrl;
-    savedSnapshot.workbenchGithubRepoUrl = cfg?.spark_github_repo_url ?? '';
+    savedSnapshot.sparkGithubRepoUrl = cfg?.spark_github_repo_url ?? '';
     savedSnapshot.hasGithubToken = Boolean(cfg?.has_github_token);
-    renderWorkbenchConnection(savedSnapshot.workbenchGithubRepoUrl);
-    setResult('workbench-connect-error', '');
+    renderSparkConnection(savedSnapshot.sparkGithubRepoUrl);
+    setResult('spark-connect-error', '');
 
     const hintEl = document.getElementById('settings-token-hint') as HTMLElement;
     hintEl.textContent = cfg?.has_github_token
@@ -53,8 +53,8 @@ export async function loadSettingsSnapshot() {
       store.mcpPort = cfg.mcp_port;
     }
 
-    await syncGithubUserUrlLockFromWorkbenchRoot();
-    syncWorkbenchConnectionAccess();
+    await syncGithubUserUrlLockFromSparkRoot();
+    syncSparkConnectionAccess();
   } catch {
     const tokenHint = document.getElementById('settings-token-hint');
     if (tokenHint) tokenHint.textContent = 'Could not load settings; you can type and save.';
@@ -63,9 +63,9 @@ export async function loadSettingsSnapshot() {
     loadAssistantEnginePanel({});
     clearGithubUserUrlInferredLock();
     savedSnapshot.githubUserUrl = '';
-    savedSnapshot.workbenchGithubRepoUrl = '';
+    savedSnapshot.sparkGithubRepoUrl = '';
     savedSnapshot.hasGithubToken = false;
-    renderWorkbenchConnection('');
-    syncWorkbenchConnectionAccess();
+    renderSparkConnection('');
+    syncSparkConnectionAccess();
   }
 }

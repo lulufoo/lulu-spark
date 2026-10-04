@@ -159,7 +159,7 @@ describe('loadReadLaterEntries', () => {
 
   it('throws with status 503 when service returns unavailable payload', async () => {
     getJsonMock.mockResolvedValue({
-      error: 'Workbench not running',
+      error: 'Spark not running',
       _status: 503,
     });
     await expect(loadReadLaterEntries()).rejects.toMatchObject({
@@ -411,7 +411,7 @@ describe('mountReadLaterList', () => {
       expect(container.querySelector('.read-later-unavailable')).not.toBeNull();
     });
     expect(container.querySelector('.read-later-item')).toBeNull();
-    expect(container.textContent).not.toContain('请先启动 Workbench');
+    expect(container.textContent).not.toContain('请先启动 Spark');
     dispose();
   });
 
@@ -464,14 +464,14 @@ describe('mountReadLaterList', () => {
 
   it('does not use stale 503-specific unavailable copy', async () => {
     getJsonMock.mockResolvedValue({
-      error: 'Workbench not running',
+      error: 'Spark not running',
       _status: 503,
     });
     const { dispose } = mountReadLaterList(container);
     await vi.waitFor(() => {
       expect(container.querySelector('.read-later-unavailable')).not.toBeNull();
     });
-    expect(container.textContent).not.toContain('请先启动 Workbench');
+    expect(container.textContent).not.toContain('请先启动 Spark');
     dispose();
   });
 

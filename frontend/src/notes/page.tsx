@@ -3,7 +3,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { flushSync } from 'react-dom';
 import { getActivePath } from '../knowledge/state/path.ts';
 import { KnowledgeSearchHost } from '../knowledge/ui/knowledge-search.tsx';
-import { getGithubUserUrl, notesFileRelPath, workbenchGithubBlobBase } from '../host/constants.ts';
+import { getGithubUserUrl, notesFileRelPath, sparkGithubBlobBase } from '../host/constants.ts';
 import { useHostState } from './state/host.ts';
 import { getHomeEntryShell } from '../home-entry-shell/access.ts';
 import { OverlayDismissButton } from '../shared/overlay-dismiss-button.tsx';
@@ -120,12 +120,12 @@ function copyLocalPath(
   entry: { translations?: { zh?: string }; common_path?: string } | null,
   lang: string | null,
   layer: string,
-  workbenchRoot: string,
+  sparkRoot: string,
 ) {
   if (!entry) return;
   const activePath = getActivePath(entry, lang || '', layer) || '';
   const relPath = notesFileRelPath(layer, activePath);
-  const fullPath = workbenchRoot ? `${workbenchRoot}/${relPath}` : relPath;
+  const fullPath = sparkRoot ? `${sparkRoot}/${relPath}` : relPath;
   const btn = document.getElementById('btn-copy-path');
   if (!btn) return;
   void navigator.clipboard.writeText(fullPath).then(() => {
@@ -191,12 +191,12 @@ function NotesOutletChrome({ routeParams }: { routeParams: Record<string, string
   const entry = viewer.entry;
   const layer = viewer.layer || 'raw';
   const hasZh = Boolean(entry?.translations?.zh);
-  const ghBase = workbenchGithubBlobBase(getGithubUserUrl(), host.ui.workbenchRoot);
+  const ghBase = sparkGithubBlobBase(getGithubUserUrl(), host.ui.sparkRoot);
   const activePath = entry ? getActivePath(entry, viewer.lang || '', layer) || '' : '';
   const githubUrl = ghBase && entry ? `${ghBase}/${notesFileRelPath(layer, activePath)}` : '';
   const kbUrl = '';
   const relPath = entry ? notesFileRelPath(layer, activePath) : '';
-  const fullPath = host.ui.workbenchRoot ? `${host.ui.workbenchRoot}/${relPath}` : relPath;
+  const fullPath = host.ui.sparkRoot ? `${host.ui.sparkRoot}/${relPath}` : relPath;
   const fileSize = viewer.fileSize || (viewer.rawText ? formatBytes(viewer.rawText) : '');
   const loadFailed = Boolean(viewer.loadError);
 
@@ -284,7 +284,7 @@ function NotesOutletChrome({ routeParams }: { routeParams: Record<string, string
             data-tip={fullPath}
             style={{ display: entry && !creating ? undefined : 'none' }}
             onClick={() =>
-              copyLocalPath(entry, viewer.lang, viewer.layer, host.ui.workbenchRoot)
+              copyLocalPath(entry, viewer.lang, viewer.layer, host.ui.sparkRoot)
             }
           >
             📁
@@ -301,7 +301,7 @@ function NotesOutletChrome({ routeParams }: { routeParams: Record<string, string
                 entry,
                 viewer.lang,
                 viewer.layer,
-                host.ui.workbenchRoot,
+                host.ui.sparkRoot,
                 event.currentTarget,
               ).catch((err) => {
                 alert(err instanceof Error ? err.message : String(err));

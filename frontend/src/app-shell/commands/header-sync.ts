@@ -29,12 +29,12 @@ async function pullKnowledgeRepo(repo: string) {
 }
 
 /**
- * @param {{ pullProject: () => Promise<void>, loadIndex: () => Promise<void>, openWorkbenchCommit?: () => void | Promise<void> }} deps
+ * @param {{ pullProject: () => Promise<void>, loadIndex: () => Promise<void>, openSparkCommit?: () => void | Promise<void> }} deps
  */
-export function initHeaderSync({ pullProject, loadIndex, openWorkbenchCommit }: HeaderSyncDeps) {
-  const openWorkbench = openWorkbenchCommit ?? (() =>
-    import('./workbench-commit-dialog.ts').then(({ openWorkbenchCommitDialog }) => {
-      void openWorkbenchCommitDialog();
+export function initHeaderSync({ pullProject, loadIndex, openSparkCommit }: HeaderSyncDeps) {
+  const openSpark = openSparkCommit ?? (() =>
+    import('./spark-commit-dialog.ts').then(({ openSparkCommitDialog }) => {
+      void openSparkCommitDialog();
     }));
 
   document.getElementById('btn-push-index')?.addEventListener('click', () => {
@@ -42,7 +42,7 @@ export function initHeaderSync({ pullProject, loadIndex, openWorkbenchCommit }: 
       void openKnowledgeDiffDialog(knowledgeRepo);
       return;
     }
-    void openWorkbench();
+    void openSpark();
   });
 
   document.getElementById('btn-pull')?.addEventListener('click', () => {

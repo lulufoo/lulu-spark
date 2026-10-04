@@ -60,7 +60,7 @@ export type HostIndex = {
 
 export type HostUi = {
   activeDate: string | null;
-  workbenchRoot: string;
+  sparkRoot: string;
   knowledgeRoot: string;
   githubUserUrl: string;
   activeTopic: string | null;

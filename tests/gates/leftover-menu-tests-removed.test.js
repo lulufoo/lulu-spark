@@ -79,7 +79,7 @@ describe('leftover Convert / qr / move tests rewritten', () => {
     expect(t6).not.toMatch(/move-dialog\.js uses table B\/B2 move\/delete copy/);
     expect(t6).toContain('frontend/src/notes/ui/move-project-dialog.tsx');
     expect(t6).toContain('frontend/src/notes/commands/move-project-dialog.ts');
-    expect(t6).toContain('frontend/src/app-shell/ui/workbench-commit-dialog.tsx');
+    expect(t6).toContain('frontend/src/app-shell/ui/spark-commit-dialog.tsx');
     expect(t6).toContain('frontend/src/notes/ui/delete-dialog.tsx');
     expect(t6).toContain('frontend/src/notes/ui/settle-dialog.tsx');
   });

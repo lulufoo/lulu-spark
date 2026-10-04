@@ -1,4 +1,4 @@
-//! Workbench Host MCP domain: business-key registry + embedded Streamable HTTP server.
+//! Spark Host MCP domain: business-key registry + embedded Streamable HTTP server.
 //!
 //! - [`registry`]: key → MCP connection config (URL/headers); does not listen.
 //! - [`catalog`]: business groups, factory, runtime assembly.

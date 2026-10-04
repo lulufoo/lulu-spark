@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { workbenchSkillsContent } from '../../frontend/src/app-shell/state/skills-content.ts';
+import { sparkSkillsContent } from '../../frontend/src/app-shell/state/skills-content.ts';
 import { getBaselineEntries } from '../../frontend/src/home-entry-shell/entry-config.ts';
 import { READ_API_INVOKE_MAP, resolveInvokeFromPath } from '../../frontend/src/host/readApiInvokeMap.ts';
 
@@ -55,11 +55,11 @@ describe('t2 desktop todo surface removed', () => {
   });
 
   it('skills-content no longer points at the todo-task assistant skill', () => {
-    const cmds = workbenchSkillsContent.groups.flatMap((g) =>
+    const cmds = sparkSkillsContent.groups.flatMap((g) =>
       g.items.map((i) => i.cmd),
     );
     expect(cmds).not.toContain('todo-task');
-    expect(JSON.stringify(workbenchSkillsContent)).not.toContain('todo-task');
+    expect(JSON.stringify(sparkSkillsContent)).not.toContain('todo-task');
   });
 
   it('notes and knowledge entry surfaces remain', () => {
@@ -77,12 +77,12 @@ describe('t2 desktop todo surface removed', () => {
     expect(read('frontend/src/boot.ts')).not.toMatch(/createNotesContentAdapter/);
   });
 
-  it('workbench binding lives outside the deleted todo-task module', () => {
+  it('spark binding lives outside the deleted todo-task module', () => {
     expect(
-      existsSync(join(repoRoot, 'frontend/src/app-shell/commands/workbench-binding.ts')),
+      existsSync(join(repoRoot, 'frontend/src/app-shell/commands/spark-binding.ts')),
     ).toBe(true);
     expect(read('frontend/src/boot.ts')).toMatch(
-      /from ['"]\.\/app-shell\/commands\/workbench-binding\.ts['"]/,
+      /from ['"]\.\/app-shell\/commands\/spark-binding\.ts['"]/,
     );
   });
 });

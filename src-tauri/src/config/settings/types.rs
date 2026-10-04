@@ -102,7 +102,7 @@ pub struct AppSettings {
     pub cache_dir: PathBuf,
     #[serde(default = "default_github_user_url")]
     pub github_user_url: String,
-    /// Optional Workbench GitHub repository URL (`https://github.com/owner/repo`). Empty = none.
+    /// Optional Spark GitHub repository URL (`https://github.com/owner/repo`). Empty = none.
     #[serde(default)]
     pub spark_github_repo_url: String,
     /// Assistant engine selection: `host` (Agent Loop + GLM). Default `host`.

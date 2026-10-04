@@ -73,16 +73,16 @@ pub fn categories_from_git_status(stdout: &str) -> Map<String, Value> {
 }
 
 pub fn get_status(repo_root: &Path) -> Value {
-    let workbench = spark_root_path(repo_root);
-    let git_root = workbench.join(".git");
+    let spark = spark_root_path(repo_root);
+    let git_root = spark.join(".git");
     if !git_root.exists() {
         let msg = format!(
             "spark_root is not a git repository: {}",
-            workbench.display()
+            spark.display()
         );
         return json!({ "error": msg });
     }
-    let stdout = match crate::integrations::git::status_porcelain(&workbench) {
+    let stdout = match crate::integrations::git::status_porcelain(&spark) {
         Ok(s) => s,
         Err(e) => return json!({ "error": e.message }),
     };
@@ -92,12 +92,12 @@ pub fn get_status(repo_root: &Path) -> Value {
         .filter_map(|k| categories.get(*k).and_then(|v| v.as_array()))
         .map(|a| a.len())
         .sum();
-    let ahead = crate::integrations::git::ahead_count(&workbench).unwrap_or(0);
+    let ahead = crate::integrations::git::ahead_count(&spark).unwrap_or(0);
     categories.insert("total".into(), json!(total));
     categories.insert("ahead".into(), json!(ahead));
     categories.insert(
         "spark_root".into(),
-        json!(workbench.to_string_lossy().to_string()),
+        json!(spark.to_string_lossy().to_string()),
     );
     Value::Object(categories)
 }

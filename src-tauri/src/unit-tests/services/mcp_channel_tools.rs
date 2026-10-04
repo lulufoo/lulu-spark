@@ -32,7 +32,7 @@ fn missing_file_enables_full_catalog_on_every_channel() {
             assert!(is_enabled(channel, "delete_note"), "{channel} delete_note");
         } else {
             assert!(!enabled.contains("delete_note"), "{channel} must hide delete_note");
-            assert_eq!(enabled.len(), all.len() - 1, "{channel} catalog minus workbench-only");
+            assert_eq!(enabled.len(), all.len() - 1, "{channel} catalog minus spark-only");
         }
         assert!(is_enabled(channel, "create_note"), "{channel} create_note");
         assert!(is_enabled(channel, "update_note"), "{channel} update_note");
@@ -67,7 +67,7 @@ fn set_enabled_subset_filters_only_that_channel() {
 fn set_enabled_all_tools_omits_channel_key() {
     let _sandbox = TestSandbox::new();
     set_enabled("mobile", without("create_note")).expect("subset");
-    // Mobile cannot enable workbench-only tools; "all on" = catalog minus those.
+    // Mobile cannot enable spark-only tools; "all on" = catalog minus those.
     let all_mobile: Vec<String> = {
         let mut names: Vec<String> = catalog()
             .into_iter()
@@ -103,7 +103,7 @@ fn snapshot_lists_groups_and_per_channel_enabled() {
         serde_json::json!(["spark", "cursor_ide", "mobile"])
     );
     assert_eq!(
-        snap["workbench_only_tools"],
+        snap["spark_only_tools"],
         serde_json::json!(["delete_note"])
     );
     let groups = snap["groups"].as_array().expect("groups");
@@ -121,17 +121,17 @@ fn snapshot_lists_groups_and_per_channel_enabled() {
     assert!(!mobile.contains("create_note"));
     assert!(!mobile.contains("delete_note"));
     assert!(!mobile.contains("list_todo_tasks"));
-    let workbench: HashSet<&str> = snap["enabled"]["spark"]
+    let spark: HashSet<&str> = snap["enabled"]["spark"]
         .as_array()
         .expect("spark")
         .iter()
         .filter_map(|v| v.as_str())
         .collect();
-    assert!(workbench.contains("delete_note"));
+    assert!(spark.contains("delete_note"));
 }
 
 #[test]
-fn delete_note_never_enables_on_non_workbench_even_if_listed() {
+fn delete_note_never_enables_on_non_spark_even_if_listed() {
     let _sandbox = TestSandbox::new();
     let mut with_delete: Vec<String> = catalog().into_iter().collect();
     with_delete.sort();
@@ -245,6 +245,6 @@ fn listen_filters_list_and_call_through_settings_catalog() {
     );
     assert!(
         listen.contains("channel: \"mobile\""),
-        "/mcp/mobile must use channel mobile while scene_slot stays workbench"
+        "/mcp/mobile must use channel mobile while scene_slot stays spark"
     );
 }

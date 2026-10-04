@@ -1,7 +1,7 @@
 //! Shared index-build helpers: doc ids, skip rules, title fallback.
 
 pub const SKIP_FILES: &[&str] = &["_index.md", "README.md", "readme.md"];
-pub const WORKBENCH_LAYERS: &[&str] = &["raw", "digest"];
+pub const SPARK_LAYERS: &[&str] = &["raw", "digest"];
 
 /// `re.sub(r'[^a-zA-Z0-9\-_]', '_', raw_id)[:511]` (legacy Python builder rule).
 pub fn sanitize_doc_id(raw_id: &str) -> String {
@@ -18,7 +18,7 @@ pub fn sanitize_doc_id(raw_id: &str) -> String {
         .collect()
 }
 
-pub fn workbench_doc_id(layer: &str, common_path: &str) -> String {
+pub fn spark_doc_id(layer: &str, common_path: &str) -> String {
     sanitize_doc_id(&format!("{layer}__{common_path}"))
 }
 
@@ -39,8 +39,8 @@ pub fn should_skip_md(name: &str) -> bool {
     })
 }
 
-/// Workbench title: first `# ` line, else filename stem without date prefix.
-pub fn extract_workbench_title(content: &str, filename: &str) -> String {
+/// Spark title: first `# ` line, else filename stem without date prefix.
+pub fn extract_spark_title(content: &str, filename: &str) -> String {
     for line in content.lines() {
         let t = line.trim();
         if let Some(rest) = t.strip_prefix("# ") {

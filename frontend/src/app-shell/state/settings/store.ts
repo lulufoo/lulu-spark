@@ -2,7 +2,7 @@ import { createModuleStore } from '../../../shared/module-store.ts';
 
 export const GITHUB_USER_HINT_DEFAULT =
   'Inferred from the data directory origin when possible; used for Viewer remote links.';
-export const WORKBENCH_CONNECT_NEEDS_ACCOUNT =
+export const SPARK_CONNECT_NEEDS_ACCOUNT =
   'Set a Sync token first to bind a data-store repository.';
 export const DEFAULT_ENGINE_CATEGORY = 'host';
 
@@ -16,9 +16,9 @@ export const engineModelByCategory: { host: string | undefined } = {
 };
 
 export const savedSnapshot = {
-  workbenchRoot: '',
+  sparkRoot: '',
   githubUserUrl: '',
-  workbenchGithubRepoUrl: '',
+  sparkGithubRepoUrl: '',
   hasGithubToken: false,
 };
 
@@ -27,7 +27,7 @@ export const store = {
   /** Host MCP listen port (same value GET /health uses in its mcp template). */
   mcpPort: 9876,
   githubUserUrlInferredFromOrigin: '',
-  workbenchGithubRepoInferredFromOrigin: '',
+  sparkGithubRepoInferredFromOrigin: '',
 };
 
 export function setResult(resultElId: string, message: string, isError = false) {
@@ -45,7 +45,7 @@ export function isGithubUserUrlInferredLocked(): boolean {
   return Boolean(store.githubUserUrlInferredFromOrigin);
 }
 
-export const workbenchConnectionStore = createModuleStore({
+export const sparkConnectionStore = createModuleStore({
   url: '',
   locked: false,
 });

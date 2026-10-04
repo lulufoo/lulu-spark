@@ -15,7 +15,7 @@ pub(super) use crate::config::settings;
 pub(super) use crate::agent::llm::LlmConfig;
 pub(super) use crate::agent::r#loop::{self, Terminal, TurnOutcome, EVENT_TURN_COMPLETED};
 pub(super) use crate::agent::session::{self, Turn};
-pub(super) use crate::agent::WORKBENCH_HOST_SYSTEM_PROMPT;
+pub(super) use crate::agent::SPARK_HOST_SYSTEM_PROMPT;
 pub(super) use crate::services::mcp_oauth::{
     issue_for_slot, ledger_record, revoke_for_slot, test_force_keychain_unavailable,
     verify_for_slot, Slot, TicketHandle, TicketState,
@@ -99,7 +99,7 @@ pub(super) fn plan_tools_binding(master: &str) -> r#loop::Binding {
     ]);
     r#loop::Binding {
         tools,
-        prompt: json!(WORKBENCH_HOST_SYSTEM_PROMPT),
+        prompt: json!(SPARK_HOST_SYSTEM_PROMPT),
         callbacks: json!({}),
     }
 }
@@ -560,14 +560,14 @@ pub(super) fn key_only_payload(key: &str) -> Value {
 pub(super) fn empty_tools_binding() -> r#loop::Binding {
     r#loop::Binding {
         tools: json!([]),
-        prompt: json!(WORKBENCH_HOST_SYSTEM_PROMPT),
+        prompt: json!(SPARK_HOST_SYSTEM_PROMPT),
         callbacks: json!({}),
     }
 }
 
-// --- t4: Host Binding key is workbench; old App keys fail at registry lookup ---
+// --- t4: Host Binding key is spark; old App keys fail at registry lookup ---
 //
-// Frontend consumer is process-level setWorkbenchBinding; pages no longer Set/Reset.
+// Frontend consumer is process-level setSparkBinding; pages no longer Set/Reset.
 
 pub(super) fn repo_file(rel: &str) -> String {
     let mut path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -592,9 +592,9 @@ pub(super) fn session_authorization_bearer() -> Option<String> {
     })
 }
 
-pub(super) fn reset_workbench_slot() {
+pub(super) fn reset_spark_slot() {
     test_force_keychain_unavailable(false);
-    revoke_for_slot(Slot::Spark).expect("revoke workbench");
+    revoke_for_slot(Slot::Spark).expect("revoke spark");
 }
 
 pub(super) fn assert_secret_absent_from(text: &str, secret: &str) {
@@ -613,7 +613,7 @@ pub(super) fn assert_secret_absent_from(text: &str, secret: &str) {
     }
 }
 
-pub(super) fn assert_workbench_session_holds_live_ticket_seed_untouched() {
+pub(super) fn assert_spark_session_holds_live_ticket_seed_untouched() {
     let loaded = r#loop::loaded_mcp_server().expect("session MCP transport");
     let seed = mcp_registry::lookup(mcp_registry::SEEDED_BUSINESS_KEY)
         .expect("registry seed");
@@ -631,7 +631,7 @@ pub(super) fn assert_workbench_session_holds_live_ticket_seed_untouched() {
     );
     assert!(
         !seed.http_transport.headers.contains_key("Authorization"),
-        "lookup(workbench) seed headers must not carry Authorization"
+        "lookup(spark) seed headers must not carry Authorization"
     );
     let auth = loaded
         .http_transport
@@ -643,10 +643,10 @@ pub(super) fn assert_workbench_session_holds_live_ticket_seed_untouched() {
         .filter(|value| !value.is_empty() && !value.contains(' '))
         .expect("session Authorization must be Bearer <handle>");
     verify_for_slot(Slot::Spark, TicketHandle::from_secret(handle))
-        .expect("session ticket must be the Live workbench ticket");
+        .expect("session ticket must be the Live spark ticket");
     let record = ledger_record(Slot::Spark)
         .expect("ledger")
-        .expect("workbench ledger row");
+        .expect("spark ledger row");
     assert_eq!(record.state, TicketState::Live);
     assert_eq!(record.handle, TicketHandle::from_secret(handle));
 }
@@ -665,11 +665,11 @@ pub(super) fn assert_bound_key(key: &str) {
         "live business id must be {key}"
     );
     if key == mcp_registry::SEEDED_BUSINESS_KEY {
-        assert_workbench_session_holds_live_ticket_seed_untouched();
+        assert_spark_session_holds_live_ticket_seed_untouched();
     }
 }
 
-// --- t6: Reset unloads session ticket header; does not revoke workbench ledger ---
+// --- t6: Reset unloads session ticket header; does not revoke spark ledger ---
 
 pub(super) fn rust_pub_item<'a>(src: &'a str, marker: &str) -> &'a str {
     let start = src.find(marker).unwrap_or_else(|| panic!("missing {marker}"));
@@ -690,10 +690,10 @@ pub(super) fn session_ticket_handle() -> TicketHandle {
     TicketHandle::from_secret(secret)
 }
 
-pub(super) fn live_workbench_record() -> crate::services::mcp_oauth::LedgerRecord {
+pub(super) fn live_spark_record() -> crate::services::mcp_oauth::LedgerRecord {
     ledger_record(Slot::Spark)
         .expect("ledger")
-        .expect("workbench ledger row")
+        .expect("spark ledger row")
 }
 
 pub(super) fn assert_session_unloaded_without_ticket_header() {

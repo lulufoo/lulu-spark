@@ -65,9 +65,9 @@ pub fn run() {
             commands::sync::save_comment_draft,
             commands::sync::save_note_draft,
             commands::sync::clear_note_draft,
-            commands::sync::workbench_git_commit,
-            commands::sync::workbench_git_pull,
-            commands::sync::workbench_git_revert,
+            commands::sync::spark_git_commit,
+            commands::sync::spark_git_pull,
+            commands::sync::spark_git_revert,
             commands::sync::kb_git_commit,
             commands::sync::kb_git_revert,
             commands::sync::delete_entry,
@@ -238,7 +238,7 @@ pub fn run() {
             {
                 use tauri::Manager;
                 let reindex = app.state::<services::reindex::ReindexState>();
-                let wb_slot = std::sync::Arc::clone(&reindex.workbench_job);
+                let wb_slot = std::sync::Arc::clone(&reindex.spark_job);
                 let kb_slot = std::sync::Arc::clone(&reindex.knowledge_job);
                 std::thread::spawn(move || {
                     let Ok(repo_root) = crate::config::paths::repo_root() else {

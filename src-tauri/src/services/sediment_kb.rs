@@ -462,7 +462,7 @@ pub fn validate_description_source_constraints() {
         .next()
         .expect("sediment prod");
     let write_cmd = include_str!("../commands/write.rs");
-    let workbench_read = include_str!("workbench_read/config.rs");
+    let spark_read = include_str!("spark_read/config.rs");
 
     let validate_fn = sediment_prod
         .split("fn validate_repo_access")
@@ -477,7 +477,7 @@ pub fn validate_description_source_constraints() {
     for (label, src) in [
         ("sediment_kb", sediment_prod),
         ("write", write_cmd),
-        ("workbench_read", workbench_read),
+        ("spark_read", spark_read),
     ] {
         for forbidden in ["README", "frontmatter"] {
             assert!(
@@ -487,7 +487,7 @@ pub fn validate_description_source_constraints() {
         }
     }
 
-    let get_topics = workbench_read
+    let get_topics = spark_read
         .split("pub fn get_topics")
         .nth(1)
         .and_then(|s| s.split("\npub fn ").next())

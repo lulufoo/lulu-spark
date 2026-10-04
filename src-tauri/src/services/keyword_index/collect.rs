@@ -9,10 +9,10 @@ use sha2::{Digest, Sha256};
 
 use crate::config::roots::{knowledge_root_string, notes_root_path};
 use crate::services::index_build::common::{
-    extract_workbench_title, knowledge_doc_id, should_skip_md, workbench_doc_id, WORKBENCH_LAYERS,
+    extract_spark_title, knowledge_doc_id, should_skip_md, spark_doc_id, SPARK_LAYERS,
 };
 use crate::services::knowledge::{compiled_hide_regexes, name_is_hidden};
-use crate::services::workbench_read::{get_topics, load_notes_index_entries};
+use crate::services::spark_read::{get_topics, load_notes_index_entries};
 
 use super::chunk::{chunk_markdown, first_heading_title};
 use regex::Regex;
@@ -126,7 +126,7 @@ fn chunks_from_text(
     fallback_name: &str,
 ) -> Vec<SourceChunk> {
     let title =
-        first_heading_title(body).unwrap_or_else(|| extract_workbench_title(body, fallback_name));
+        first_heading_title(body).unwrap_or_else(|| extract_spark_title(body, fallback_name));
     let path = path_key(abs);
     let mtime = file_mtime_nanos(abs);
     chunk_markdown(body)
@@ -206,7 +206,7 @@ fn note_identity(
 ) -> (String, String) {
     meta.get(common_path)
         .cloned()
-        .unwrap_or_else(|| (workbench_doc_id(layer, common_path), String::new()))
+        .unwrap_or_else(|| (spark_doc_id(layer, common_path), String::new()))
 }
 
 pub fn collect_notes(repo_root: &Path) -> Vec<SourceChunk> {
@@ -214,7 +214,7 @@ pub fn collect_notes(repo_root: &Path) -> Vec<SourceChunk> {
     let meta = notes_meta(repo_root);
     let hide = compiled_hide_regexes();
     let mut chunks = Vec::new();
-    for layer in WORKBENCH_LAYERS {
+    for layer in SPARK_LAYERS {
         let layer_dir = notes.join(layer);
         if !layer_dir.is_dir() {
             continue;
@@ -246,7 +246,7 @@ pub fn note_file_chunks(repo_root: &Path, layer: &str, common_path: &str) -> (St
     let abs = notes.join(layer).join(common_path);
     let key = path_key(&abs);
     let name = abs.file_name().and_then(|n| n.to_str()).unwrap_or("");
-    if !WORKBENCH_LAYERS.contains(&layer)
+    if !SPARK_LAYERS.contains(&layer)
         || !name.ends_with(".md")
         || should_skip_md(name)
         || !abs.is_file()

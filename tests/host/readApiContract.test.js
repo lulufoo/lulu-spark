@@ -17,11 +17,11 @@ describe('readApi contract map', () => {
   it('resolveInvokeFromPath 映射 infer-github-user-url', () => {
     expect(
       resolveInvokeFromPath(
-        '/api/infer-github-user-url?path=%2FUsers%2Fme%2Fworkbench-knowledge',
+        '/api/infer-github-user-url?path=%2FUsers%2Fme%2Fspark-knowledge',
       ),
     ).toEqual({
       cmd: 'infer_github_user_url',
-      args: { path: '/Users/me/workbench-knowledge' },
+      args: { path: '/Users/me/spark-knowledge' },
     });
   });
 

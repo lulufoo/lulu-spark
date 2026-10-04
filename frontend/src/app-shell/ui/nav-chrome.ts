@@ -1,12 +1,12 @@
-import { closeWorkbenchSearch } from '../../notes/ui/search.tsx';
+import { closeSparkSearch } from '../../notes/ui/search.tsx';
 import { closeKnowledgeSearch } from '../../knowledge/ui/search.tsx';
 
 export function applySearchNavChrome(routeName: string) {
-  closeWorkbenchSearch();
+  closeSparkSearch();
   closeKnowledgeSearch();
 
   const onHome = routeName === 'home';
-  const onWorkbench = routeName === 'spark';
+  const onSpark = routeName === 'spark';
   const onKnowledge = routeName === 'knowledge-doc';
 
   const wbWrap = document.getElementById('gs-wb-wrap');
@@ -19,7 +19,7 @@ export function applySearchNavChrome(routeName: string) {
     if (kbWrap) kbWrap.hidden = true;
     if (wbInput) wbInput.disabled = true;
     if (kbInput) kbInput.disabled = true;
-  } else if (onWorkbench) {
+  } else if (onSpark) {
     if (wbWrap) wbWrap.hidden = false;
     if (kbWrap) kbWrap.hidden = true;
     if (wbInput) wbInput.disabled = false;

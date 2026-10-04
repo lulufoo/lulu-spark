@@ -1,7 +1,7 @@
-import { WORKBENCH_BASE } from './config.js';
+import { SPARK_BASE } from './config.js';
 
 export async function save({ url, title }) {
-  const endpoint = `${WORKBENCH_BASE}/read-later`;
+  const endpoint = `${SPARK_BASE}/read-later`;
 
   try {
     const response = await fetch(endpoint, {

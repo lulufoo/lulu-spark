@@ -2,9 +2,9 @@
 identifier = "sync-api"
 description = "P4 sync Tauri invoke commands"
 commands.allow = [
-  "workbench_git_commit",
-  "workbench_git_pull",
-  "workbench_git_revert",
+  "spark_git_commit",
+  "spark_git_pull",
+  "spark_git_revert",
   "delete_entry",
   "move_entry_project",
   "gh_delete_assets",

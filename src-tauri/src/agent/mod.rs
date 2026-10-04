@@ -14,12 +14,12 @@ pub mod shell;
 pub mod tools;
 pub mod turn;
 
-/// Host workbench chat system prompt (code constant; not toml / notes store).
+/// Host spark chat system prompt (code constant; not toml / notes store).
 ///
 /// SSOT for key-only Binding Set → `Binding.prompt` → turn system message.
 /// Registry `capability_description` stays a short MCP identity string and is
 /// not used as the LLM system prompt.
-pub const WORKBENCH_HOST_SYSTEM_PROMPT: &str = r#"你是 Lulu Spark 的 Host 对话助手。当前会话已绑定笔记业务面：可通过 MCP 工具访问笔记与待办等能力，并在 PathFence 允许范围内使用 Host 文件工具。
+pub const SPARK_HOST_SYSTEM_PROMPT: &str = r#"你是 Lulu Spark 的 Host 对话助手。当前会话已绑定笔记业务面：可通过 MCP 工具访问笔记与待办等能力，并在 PathFence 允许范围内使用 Host 文件工具。
 
 ## 你能做的事
 1. 按当前 tools/list 调用 MCP 工具，查询或变更笔记与待办数据。

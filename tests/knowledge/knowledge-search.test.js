@@ -3,12 +3,12 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 const apiMocks = vi.hoisted(() => ({
   searchKnowledge: vi.fn(),
-  searchWorkbench: vi.fn(),
+  searchSpark: vi.fn(),
 }));
 
 vi.mock('../../frontend/src/host/api.ts', () => ({
   searchKnowledge: (...args) => apiMocks.searchKnowledge(...args),
-  searchWorkbench: (...args) => apiMocks.searchWorkbench(...args),
+  searchSpark: (...args) => apiMocks.searchSpark(...args),
 }));
 
 function seedKnowledgeSearchDom() {
@@ -71,7 +71,7 @@ describe('knowledge-search module', () => {
     await vi.advanceTimersByTimeAsync(300);
 
     expect(apiMocks.searchKnowledge).toHaveBeenCalledWith('alpha', 8);
-    expect(apiMocks.searchWorkbench).not.toHaveBeenCalled();
+    expect(apiMocks.searchSpark).not.toHaveBeenCalled();
   });
 
   it('hit click dispatches cta:open-kb-doc with repo, path, url, title', async () => {

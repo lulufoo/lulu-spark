@@ -164,7 +164,7 @@ const NOTES_TOOLS: &[&str] = &[
 ];
 
 /// Notes tools exposed on `/mcp/cursor_ide` and `/mcp/mobile` (channel hard-gate).
-const NOTES_TOOLS_NON_WORKBENCH: &[&str] = &[
+const NOTES_TOOLS_NON_SPARK: &[&str] = &[
     "get_all_notes_catalog",
     "get_latest_digest_per_catalog",
     "get_notes_by_catalog",
@@ -189,7 +189,7 @@ const GLOBAL_TOOLS: &[&str] = &["search_document"];
 const SPARK_SLOT: &str = "spark";
 const CURSOR_IDE_SLOT: &str = "cursor_ide";
 
-fn workbench_expected_tool_names() -> BTreeSet<&'static str> {
+fn spark_expected_tool_names() -> BTreeSet<&'static str> {
     let mut names: BTreeSet<&'static str> = NOTES_TOOLS.iter().copied().collect();
     names.extend(KNOWLEDGE_TOOLS.iter().copied());
     names.extend(GLOBAL_TOOLS.iter().copied());
@@ -197,7 +197,7 @@ fn workbench_expected_tool_names() -> BTreeSet<&'static str> {
 }
 
 fn cursor_ide_expected_tool_names() -> BTreeSet<&'static str> {
-    let mut names: BTreeSet<&'static str> = NOTES_TOOLS_NON_WORKBENCH.iter().copied().collect();
+    let mut names: BTreeSet<&'static str> = NOTES_TOOLS_NON_SPARK.iter().copied().collect();
     names.extend(KNOWLEDGE_TOOLS.iter().copied());
     names.extend(GLOBAL_TOOLS.iter().copied());
     names
@@ -452,23 +452,23 @@ fn start_embedded_mcp_runtime_fails_closed_when_port_busy() {
     );
 }
 
-/// Normal: `workbench` routing table = notes ∪ todo ∪ knowledge.
+/// Normal: `spark` routing table = notes ∪ todo ∪ knowledge.
 #[test]
-fn build_slot_tool_table_workbench_is_notes_todo() {
-    let table = build_slot_tool_table(SPARK_SLOT).expect("workbench registered");
+fn build_slot_tool_table_spark_is_notes_todo() {
+    let table = build_slot_tool_table(SPARK_SLOT).expect("spark registered");
     assert_eq!(table.scene_slot, SPARK_SLOT);
     assert!(!table.tools.is_empty());
 
     let names: BTreeSet<_> = table.tools.iter().map(|t| t.name.as_str()).collect();
-    let expected = workbench_expected_tool_names();
-    assert_eq!(names, expected, "workbench tools must be notes ∪ todo ∪ knowledge");
+    let expected = spark_expected_tool_names();
+    assert_eq!(names, expected, "spark tools must be notes ∪ todo ∪ knowledge");
     assert!(
         !names.contains("get_notes_selection"),
-        "workbench must not hang get_notes_selection"
+        "spark must not hang get_notes_selection"
     );
     assert!(
         table.tools.iter().all(|r| r.invoke as usize != 0),
-        "every workbench tool must bind an in-process Services invoke"
+        "every spark tool must bind an in-process Services invoke"
     );
 }
 
@@ -480,7 +480,7 @@ fn build_slot_tool_table_cursor_ide_matches_node_allowlist() {
     assert!(!table.tools.is_empty());
 
     let names: BTreeSet<_> = table.tools.iter().map(|t| t.name.as_str()).collect();
-    let expected = workbench_expected_tool_names();
+    let expected = spark_expected_tool_names();
     assert_eq!(
         names, expected,
         "cursor_ide slot catalog is notes ∪ todo ∪ knowledge"
@@ -491,9 +491,9 @@ fn build_slot_tool_table_cursor_ide_matches_node_allowlist() {
     );
 }
 
-/// Boundary: workbench and cursor_ide both expose notes ∪ todo ∪ knowledge; notes-selection is gone.
+/// Boundary: spark and cursor_ide both expose notes ∪ todo ∪ knowledge; notes-selection is gone.
 #[test]
-fn tools_list_workbench_and_cursor_ide_are_notes_todo() {
+fn tools_list_spark_and_cursor_ide_are_notes_todo() {
     let wb_names = names_of(&tools_list_for_slot(SPARK_SLOT));
     let ide_names = names_of(&tools_list_for_slot(CURSOR_IDE_SLOT));
 
@@ -501,7 +501,7 @@ fn tools_list_workbench_and_cursor_ide_are_notes_todo() {
     assert!(!ide_names.is_empty());
     assert!(
         !wb_names.contains("get_notes_selection"),
-        "tools_list_for_slot(workbench) must not include get_notes_selection"
+        "tools_list_for_slot(spark) must not include get_notes_selection"
     );
     assert!(
         !ide_names.contains("get_notes_selection"),
@@ -514,7 +514,7 @@ fn tools_list_workbench_and_cursor_ide_are_notes_todo() {
         );
         assert!(
             wb_names.contains(*tool),
-            "workbench must include notes tool {tool}"
+            "spark must include notes tool {tool}"
         );
     }
     for tool in KNOWLEDGE_TOOLS {
@@ -524,7 +524,7 @@ fn tools_list_workbench_and_cursor_ide_are_notes_todo() {
         );
         assert!(
             wb_names.contains(*tool),
-            "workbench must include knowledge tool {tool}"
+            "spark must include knowledge tool {tool}"
         );
     }
     for tool in GLOBAL_TOOLS {
@@ -534,12 +534,12 @@ fn tools_list_workbench_and_cursor_ide_are_notes_todo() {
         );
         assert!(
             wb_names.contains(*tool),
-            "workbench must include global tool {tool}"
+            "spark must include global tool {tool}"
         );
     }
     assert_eq!(
         wb_names, ide_names,
-        "workbench and cursor_ide now share notes ∪ todo ∪ knowledge ∪ global"
+        "spark and cursor_ide now share notes ∪ todo ∪ knowledge ∪ global"
     );
 }
 
@@ -573,14 +573,14 @@ fn mcp_tools_list_publishes_descriptions_schemas_and_mutation_hints() {
         }
     };
 
-    let workbench_ticket = issue_live_ticket(SPARK_SLOT);
-    let workbench_tools = rt.block_on(list_tools(SPARK_SLOT, workbench_ticket.clone()));
+    let spark_ticket = issue_live_ticket(SPARK_SLOT);
+    let spark_tools = rt.block_on(list_tools(SPARK_SLOT, spark_ticket.clone()));
     assert_eq!(
-        workbench_tools.len(),
-        workbench_expected_tool_names().len(),
-        "Workbench MCP tool count"
+        spark_tools.len(),
+        spark_expected_tool_names().len(),
+        "Spark MCP tool count"
     );
-    for tool in &workbench_tools {
+    for tool in &spark_tools {
         assert!(
             tool.description.as_deref().is_some_and(|d| !d.trim().is_empty()),
             "{} needs a model-facing description",
@@ -598,11 +598,11 @@ fn mcp_tools_list_publishes_descriptions_schemas_and_mutation_hints() {
         );
     }
 
-    let notes_tools = rt.block_on(list_tools(SPARK_SLOT, workbench_ticket));
+    let notes_tools = rt.block_on(list_tools(SPARK_SLOT, spark_ticket));
     assert_eq!(
         notes_tools.len(),
-        workbench_expected_tool_names().len(),
-        "Workbench MCP tool count is notes ∪ todo ∪ knowledge ∪ global"
+        spark_expected_tool_names().len(),
+        "Spark MCP tool count is notes ∪ todo ∪ knowledge ∪ global"
     );
     for tool in &notes_tools {
         assert!(
@@ -909,7 +909,7 @@ fn tool_dispatch_is_in_process_services() {
         "/src/mcp_host/catalog/groups"
     ));
     assert!(
-        catalog.contains("crate::services::workbench_read")
+        catalog.contains("crate::services::spark_read")
             && catalog.contains("crate::services::notes"),
         "catalog invoke must call L4 Services"
     );
@@ -1104,18 +1104,18 @@ fn p3_t10_host_dual_slot_list_call_and_unknown_hard_fail_smoke() {
         .build()
         .expect("tokio");
 
-    let workbench_ticket = issue_live_ticket(SPARK_SLOT);
-    let workbench_names = rt
+    let spark_ticket = issue_live_ticket(SPARK_SLOT);
+    let spark_names = rt
         .block_on(run_initialize_and_list_tools_authed(
             CLOSE_GATE_MCP_PORT,
             SPARK_SLOT,
-            &workbench_ticket,
+            &spark_ticket,
         ))
-        .expect("workbench tools/list on Host :9876");
+        .expect("spark tools/list on Host :9876");
     for tool in NOTES_TOOLS {
         assert!(
-            workbench_names.iter().any(|n| n == *tool),
-            "T10/V2: workbench missing notes tool {tool}"
+            spark_names.iter().any(|n| n == *tool),
+            "T10/V2: spark missing notes tool {tool}"
         );
     }
 
@@ -1127,7 +1127,7 @@ fn p3_t10_host_dual_slot_list_call_and_unknown_hard_fail_smoke() {
             &ide_ticket,
         ))
         .expect("cursor_ide tools/list on Host :9876");
-    for tool in NOTES_TOOLS_NON_WORKBENCH {
+    for tool in NOTES_TOOLS_NON_SPARK {
         assert!(
             ide_names.iter().any(|n| n == *tool),
             "T10/V2: cursor_ide missing {tool}; got {ide_names:?}"
@@ -1135,22 +1135,22 @@ fn p3_t10_host_dual_slot_list_call_and_unknown_hard_fail_smoke() {
     }
     assert!(
         !ide_names.iter().any(|n| n == "delete_note"),
-        "T10/V2: cursor_ide must not expose workbench-only delete_note"
+        "T10/V2: cursor_ide must not expose spark-only delete_note"
     );
     assert!(
         !ide_names.iter().any(|n| n == "get_notes_selection"),
         "T10/V2: cursor_ide must not gain notes-selection tools"
     );
     assert!(
-        !workbench_names.iter().any(|n| n == "get_notes_selection"),
-        "T10/V2: workbench must not expose get_notes_selection"
+        !spark_names.iter().any(|n| n == "get_notes_selection"),
+        "T10/V2: spark must not expose get_notes_selection"
     );
-    let wb_set: BTreeSet<_> = workbench_names.iter().map(String::as_str).collect();
+    let wb_set: BTreeSet<_> = spark_names.iter().map(String::as_str).collect();
     let ide_set: BTreeSet<_> = ide_names.iter().map(String::as_str).collect();
     assert_eq!(
         wb_set,
-        workbench_expected_tool_names(),
-        "T10/V2: workbench tools/list"
+        spark_expected_tool_names(),
+        "T10/V2: spark tools/list"
     );
     assert_eq!(
         ide_set,
@@ -1202,14 +1202,14 @@ fn p3_t10_host_dual_slot_list_call_and_unknown_hard_fail_smoke() {
         .block_on(list_and_call(
             CLOSE_GATE_MCP_PORT,
             SPARK_SLOT,
-            &workbench_ticket,
+            &spark_ticket,
             "get_all_notes_catalog",
             serde_json::json!({}),
         ))
-        .expect("workbench get_all_notes_catalog");
+        .expect("spark get_all_notes_catalog");
     assert!(
         !notes_err,
-        "T10/V2: workbench representative tools/call must succeed via Host→Sidecar; got {notes_text}"
+        "T10/V2: spark representative tools/call must succeed via Host→Sidecar; got {notes_text}"
     );
 
     let (_, ide_err, ide_text) = rt
@@ -1279,21 +1279,21 @@ fn assert_old_app_slots_unregistered() {
     }
 }
 
-/// Normal: workbench tools/list = notes ∪ todo ∪ knowledge.
+/// Normal: spark tools/list = notes ∪ todo ∪ knowledge.
 #[test]
-fn tools_list_for_workbench_is_notes_todo() {
+fn tools_list_for_spark_is_notes_todo() {
     let names = names_of(&tools_list_for_slot(SPARK_SLOT));
-    let expected: BTreeSet<_> = workbench_expected_tool_names()
+    let expected: BTreeSet<_> = spark_expected_tool_names()
         .into_iter()
         .map(str::to_string)
         .collect();
-    assert_eq!(names, expected, "workbench tools/list must be notes ∪ todo ∪ knowledge");
+    assert_eq!(names, expected, "spark tools/list must be notes ∪ todo ∪ knowledge");
     assert!(!names.contains("get_notes_selection"));
 }
 
-/// Normal: REGISTERED_SCENE_SLOTS is only workbench + cursor_ide.
+/// Normal: REGISTERED_SCENE_SLOTS is only spark + cursor_ide.
 #[test]
-fn registered_scene_slots_are_only_workbench_and_cursor_ide() {
+fn registered_scene_slots_are_only_spark_and_cursor_ide() {
     assert_eq!(
         super::REGISTERED_SCENE_SLOTS,
         &[SPARK_SLOT, CURSOR_IDE_SLOT]
@@ -1305,10 +1305,10 @@ fn registered_scene_slots_are_only_workbench_and_cursor_ide() {
     assert!(super::is_registered_scene_slot(CURSOR_IDE_SLOT));
 }
 
-/// Boundary: get_notes_selection is not hung on workbench.
+/// Boundary: get_notes_selection is not hung on spark.
 #[test]
-fn get_notes_selection_is_not_hung_on_workbench() {
-    let table = build_slot_tool_table(SPARK_SLOT).expect("workbench registered");
+fn get_notes_selection_is_not_hung_on_spark() {
+    let table = build_slot_tool_table(SPARK_SLOT).expect("spark registered");
     assert!(
         table
             .tools
@@ -1330,10 +1330,10 @@ fn old_app_slots_have_no_tool_table() {
     assert_old_app_slots_unregistered();
 }
 
-/// Exception: workbench exposes no MCP write-selection tool.
+/// Exception: spark exposes no MCP write-selection tool.
 #[test]
-fn workbench_slot_has_no_mcp_write_selection_tool() {
-    let table = build_slot_tool_table(SPARK_SLOT).expect("workbench registered");
+fn spark_slot_has_no_mcp_write_selection_tool() {
+    let table = build_slot_tool_table(SPARK_SLOT).expect("spark registered");
     for tool in &table.tools {
         let name = tool.name.to_lowercase();
         let writes_selection = name.contains("notes_selection")
@@ -1351,7 +1351,7 @@ fn workbench_slot_has_no_mcp_write_selection_tool() {
 
 /// Normal: /mcp/spark is mounted and tools/list matches the union surface.
 #[test]
-fn workbench_scene_slot_initialize_lists_union_plus_selection() {
+fn spark_scene_slot_initialize_lists_union_plus_selection() {
     let port = ephemeral_port();
     let bind_addr: SocketAddr = format!("127.0.0.1:{port}").parse().expect("bind addr");
     let handle = start_embedded_mcp_runtime(McpRuntimeConfig { bind_addr }).expect("start");
@@ -1359,7 +1359,7 @@ fn workbench_scene_slot_initialize_lists_union_plus_selection() {
 
     let ticket = issue_live_ticket(SPARK_SLOT);
     let auth = bearer(&ticket);
-    let init = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"t3-workbench","version":"0.0.1"}}}"#;
+    let init = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"t3-spark","version":"0.0.1"}}}"#;
     let (status, body, _) = http_post_json_auth(
         &format!("http://127.0.0.1:{}/mcp/spark", local.port()),
         init,
@@ -1368,11 +1368,11 @@ fn workbench_scene_slot_initialize_lists_union_plus_selection() {
     );
     assert_ne!(
         status, 404,
-        "registered workbench slot must not hard-reject, body={body}"
+        "registered spark slot must not hard-reject, body={body}"
     );
     assert_ne!(
         status, 401,
-        "registered workbench slot holding a Live ticket must not 401, body={body}"
+        "registered spark slot holding a Live ticket must not 401, body={body}"
     );
 
     let rt = tokio::runtime::Builder::new_current_thread()
@@ -1385,9 +1385,9 @@ fn workbench_scene_slot_initialize_lists_union_plus_selection() {
             SPARK_SLOT,
             &ticket,
         ))
-        .expect("workbench tools/list");
+        .expect("spark tools/list");
     let got: BTreeSet<_> = names.iter().map(String::as_str).collect();
-    let expected = workbench_expected_tool_names();
+    let expected = spark_expected_tool_names();
     assert_eq!(got, expected, "HTTP tools/list for /mcp/spark");
 
     stop_embedded_mcp_runtime(handle).expect("stop");
@@ -1434,8 +1434,8 @@ fn p4_cursor_ide_surface_unchanged_notes_plus_todo_original_api() {
     assert!(!table.tools.is_empty());
 
     let names = names_of(&tools_list_for_slot(CURSOR_IDE_SLOT));
-    // Slot catalog still includes workbench-only tools; channel overlay strips them at listen time.
-    let expected: BTreeSet<_> = workbench_expected_tool_names()
+    // Slot catalog still includes spark-only tools; channel overlay strips them at listen time.
+    let expected: BTreeSet<_> = spark_expected_tool_names()
         .into_iter()
         .map(str::to_string)
         .collect();
@@ -1463,7 +1463,7 @@ fn p4_notes_selection_tools_are_gone_from_both_slots() {
     assert_eq!(wb, ide);
 }
 
-/// P4: unknown / old App slots still hard-reject after workbench is registered.
+/// P4: unknown / old App slots still hard-reject after spark is registered.
 #[test]
 fn p4_unregistered_and_old_app_slots_still_hard_reject() {
     assert!(build_slot_tool_table(SPARK_SLOT).is_some());
@@ -1514,20 +1514,20 @@ fn initialize_body(name: &str) -> String {
     )
 }
 
-/// Normal: registered workbench slot holding that slot's Live ticket enters Streamable HTTP.
+/// Normal: registered spark slot holding that slot's Live ticket enters Streamable HTTP.
 #[test]
-fn registered_workbench_live_ticket_enters_streamable_http() {
+fn registered_spark_live_ticket_enters_streamable_http() {
     let handle = start_ephemeral_mcp();
     let ticket = issue_live_ticket(SPARK_SLOT);
     let auth = bearer(&ticket);
     let (status, body, session) = http_post_json_auth(
         &format!("http://127.0.0.1:{}/mcp/spark", handle.local_addr().port()),
-        &initialize_body("t2-workbench-live"),
+        &initialize_body("t2-spark-live"),
         Some(&auth),
         None,
     );
-    assert_ne!(status, 401, "Live workbench ticket must enter StreamableHttpService, body={body}");
-    assert_ne!(status, 404, "registered workbench must not 404, body={body}");
+    assert_ne!(status, 401, "Live spark ticket must enter StreamableHttpService, body={body}");
+    assert_ne!(status, 404, "registered spark must not 404, body={body}");
     let _ = session;
     let names = tokio::runtime::Builder::new_current_thread()
         .enable_all()
@@ -1541,7 +1541,7 @@ fn registered_workbench_live_ticket_enters_streamable_http() {
         .expect("tools/list with Live ticket");
     assert!(
         names.iter().any(|n| n == "get_all_notes_catalog"),
-        "workbench tools/list must remain available, got {names:?}"
+        "spark tools/list must remain available, got {names:?}"
     );
     stop_embedded_mcp_runtime(handle).expect("stop");
 }
@@ -1720,24 +1720,24 @@ fn verify_is_cut_before_streamable_http_service() {
 fn registered_slot_missing_unknown_mismatch_revoked_are_uniform_401() {
     let handle = start_ephemeral_mcp();
     let port = handle.local_addr().port();
-    let workbench_url = format!("http://127.0.0.1:{port}/mcp/spark");
+    let spark_url = format!("http://127.0.0.1:{port}/mcp/spark");
     let ide_url = format!("http://127.0.0.1:{port}/mcp/cursor_ide");
     let init = initialize_body("t2-reject-cases");
 
-    let (status, body, session) = http_post_json(&workbench_url, &init);
+    let (status, body, session) = http_post_json(&spark_url, &init);
     assert_uniform_401(status, &body, None);
     assert!(session.is_none(), "no-ticket request must not mint a session");
 
     let missing = TicketHandle::from_secret("no-such-ticket");
     let missing_auth = bearer(&missing);
     let (status, body, _) =
-        http_post_json_auth(&workbench_url, &init, Some(&missing_auth), None);
+        http_post_json_auth(&spark_url, &init, Some(&missing_auth), None);
     assert_uniform_401(status, &body, Some(missing.as_str()));
 
-    let workbench = issue_live_ticket(SPARK_SLOT);
-    let workbench_auth = bearer(&workbench);
-    let (status, body, _) = http_post_json_auth(&ide_url, &init, Some(&workbench_auth), None);
-    assert_uniform_401(status, &body, Some(workbench.as_str()));
+    let spark = issue_live_ticket(SPARK_SLOT);
+    let spark_auth = bearer(&spark);
+    let (status, body, _) = http_post_json_auth(&ide_url, &init, Some(&spark_auth), None);
+    assert_uniform_401(status, &body, Some(spark.as_str()));
 
     let live = issue_live_ticket(CURSOR_IDE_SLOT);
     revoke_for_slot(Slot::CursorIde).expect("revoke");
@@ -1839,7 +1839,7 @@ fn post_mobile_initialize(
     )
 }
 
-/// Normal: REGISTERED_SCENE_SLOTS stays workbench + cursor_ide; mobile is not a registered slot.
+/// Normal: REGISTERED_SCENE_SLOTS stays spark + cursor_ide; mobile is not a registered slot.
 #[test]
 fn t3_registered_scene_slots_exclude_mobile() {
     assert_eq!(
@@ -1999,9 +1999,9 @@ fn t3_mcp_mobile_is_mounted_and_accepts_device_ticket() {
     });
 }
 
-/// Normal: live device ticket lists notes∪todo minus workbench-only tools.
+/// Normal: live device ticket lists notes∪todo minus spark-only tools.
 #[test]
-fn t3_mcp_mobile_tools_match_workbench_table() {
+fn t3_mcp_mobile_tools_match_spark_table() {
     with_device_sandbox(|| {
         let token = issue_device_ticket("phone-t3-tools");
         let handle = start_ephemeral_mcp();
@@ -2019,7 +2019,7 @@ fn t3_mcp_mobile_tools_match_workbench_table() {
         let expected = cursor_ide_expected_tool_names();
         assert_eq!(
             got, expected,
-            "/mcp/mobile tools = notes∪todo minus workbench-only (delete_note)"
+            "/mcp/mobile tools = notes∪todo minus spark-only (delete_note)"
         );
         assert!(
             !got.contains("get_notes_selection"),
@@ -2034,15 +2034,15 @@ fn t3_mcp_mobile_tools_match_workbench_table() {
         assert_eq!(got, table_names);
         assert!(
             build_slot_tool_table(MOBILE_PATH).is_none(),
-            "reuse workbench table; do not register a mobile table"
+            "reuse spark table; do not register a mobile table"
         );
         stop_embedded_mcp_runtime(handle).expect("stop");
     });
 }
 
-/// Normal: live device ticket can call the full workbench tool set through /mcp/mobile.
+/// Normal: live device ticket can call the full spark tool set through /mcp/mobile.
 #[test]
-fn t3_live_device_ticket_can_call_full_workbench_tools_on_mobile() {
+fn t3_live_device_ticket_can_call_full_spark_tools_on_mobile() {
     with_device_sandbox(|| {
         plant_todo_migration_gate();
         plant_empty_notes_index();
@@ -2063,7 +2063,7 @@ fn t3_live_device_ticket_can_call_full_workbench_tools_on_mobile() {
             assert_eq!(
                 got,
                 cursor_ide_expected_tool_names(),
-                "mobile channel set = notes∪todo minus workbench-only"
+                "mobile channel set = notes∪todo minus spark-only"
             );
             assert!(!is_error, "mobile {tool} must succeed, got {text}");
             assert!(
@@ -2076,7 +2076,7 @@ fn t3_live_device_ticket_can_call_full_workbench_tools_on_mobile() {
     });
 }
 
-/// Exception: workbench / cursor_ide slot tickets are rejected on /mcp/mobile.
+/// Exception: spark / cursor_ide slot tickets are rejected on /mcp/mobile.
 #[test]
 fn t3_slot_tickets_are_rejected_on_mcp_mobile() {
     with_device_sandbox(|| {
@@ -2142,7 +2142,7 @@ fn t3_revoked_missing_and_unbound_cannot_call_mobile_tools() {
 #[test]
 fn channel_filter_hides_and_rejects_create_note_on_mobile() {
     with_device_sandbox(|| {
-        let all = workbench_expected_tool_names();
+        let all = spark_expected_tool_names();
         let enabled: Vec<String> = all
             .iter()
             .copied()
@@ -2215,7 +2215,7 @@ fn mobile_channel_create_note_hits_content_api() {
         .expect("create_note");
     assert!(
         path_create.invoke == create_note_from_source,
-        "workbench create_note must invoke create_note from source_path"
+        "spark create_note must invoke create_note from source_path"
     );
     let path_required = path_create.input_schema["required"]
         .as_array()
@@ -2250,30 +2250,30 @@ fn note_content_tool(table: &SlotToolTable) -> &ToolRoute {
         .expect("get_note_content")
 }
 
-/// Normal: workbench channel hangs get_note_content on note_path Services.
+/// Normal: spark channel hangs get_note_content on note_path Services.
 #[test]
-fn workbench_channel_get_note_content_hits_note_path() {
+fn spark_channel_get_note_content_hits_note_path() {
     let table = build_channel_tool_table(SPARK_SLOT, SPARK_SLOT).expect("spark");
     let tool = note_content_tool(&table);
     assert_eq!(tool.name, "get_note_content");
     assert!(
         tool.invoke == note_path_invoke,
-        "workbench get_note_content must invoke note_path"
+        "spark get_note_content must invoke note_path"
     );
     assert!(
         tool.description.contains("staged document id") && tool.description.contains("F1"),
-        "workbench description must say the return is a Stage document id, got {}",
+        "spark description must say the return is a Stage document id, got {}",
         tool.description
     );
     assert!(
         !tool.description.to_ascii_lowercase().contains("absolute path"),
-        "workbench description must not tell the model to expect a path: {}",
+        "spark description must not tell the model to expect a path: {}",
         tool.description
     );
 }
 
 /// Normal: cursor_ide and mobile hang get_note_content on note_path (absolute path, no body).
-/// Boundary: /mcp/mobile still uses workbench scene_slot; description split is by channel, not slot.
+/// Boundary: /mcp/mobile still uses spark scene_slot; description split is by channel, not slot.
 #[test]
 fn cursor_ide_and_mobile_get_note_content_hit_note_path() {
     assert!(!super::is_registered_scene_slot(MOBILE_PATH));
@@ -2311,17 +2311,17 @@ fn cursor_ide_and_mobile_get_note_content_hit_note_path() {
     assert!(
         mobile_tool.description.contains("absolute file path")
             && !mobile_tool.description.contains("staged document id"),
-        "mobile must not inherit workbench Stage description from scene_slot=workbench"
+        "mobile must not inherit spark Stage description from scene_slot=spark"
     );
 }
 
-/// Product hard-gate: delete_note only on workbench channel.
+/// Product hard-gate: delete_note only on spark channel.
 #[test]
-fn delete_note_is_workbench_channel_only() {
+fn delete_note_is_spark_channel_only() {
     let wb = build_channel_tool_table(SPARK_SLOT, SPARK_SLOT).expect("spark");
     assert!(
         wb.tools.iter().any(|t| t.name == "delete_note"),
-        "workbench must expose delete_note"
+        "spark must expose delete_note"
     );
 
     let ide = build_channel_tool_table(CURSOR_IDE_SLOT, CURSOR_IDE_SLOT).expect("cursor_ide");
@@ -2333,7 +2333,7 @@ fn delete_note_is_workbench_channel_only() {
     let mobile = build_channel_tool_table(SPARK_SLOT, MOBILE_PATH).expect("mobile");
     assert!(
         mobile.tools.iter().all(|t| t.name != "delete_note"),
-        "mobile must not list delete_note even with scene_slot=workbench"
+        "mobile must not list delete_note even with scene_slot=spark"
     );
 
     let rt = tokio::runtime::Builder::new_current_thread()

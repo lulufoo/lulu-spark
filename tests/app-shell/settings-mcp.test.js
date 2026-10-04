@@ -13,7 +13,7 @@ vi.mock('../../frontend/src/host/api.ts', () => ({
   fetchConfig: vi.fn(),
   setConfig: vi.fn(),
   inferGithubUserUrl: vi.fn(),
-  checkWorkbenchRoot: vi.fn(),
+  checkSparkRoot: vi.fn(),
   invoke: vi.fn(),
 }));
 
@@ -136,7 +136,7 @@ const consoleSpies = [];
 let writeText;
 
 describe('Settings MCP panel markup', () => {
-  it('adds an independent MCP nav item and panel beside Workbench / Knowledge / Assistant / Sync', () => {
+  it('adds an independent MCP nav item and panel beside Spark / Knowledge / Assistant / Sync', () => {
     const nav = indexHtml.match(/<nav id="settings-nav">([\s\S]*?)<\/nav>/)?.[1] ?? '';
     expect(nav).toMatch(/data-panel="spark"/);
     expect(nav).toMatch(/data-panel="knowledge"/);
@@ -145,7 +145,7 @@ describe('Settings MCP panel markup', () => {
     expect(nav).toMatch(/data-panel="mcp"[^>]*>\s*MCP/);
     expect(indexHtml).toMatch(/id="settings-panels"/);
     expect(indexHtml).toMatch(/id="settings-panel-mcp"/);
-    expect(indexHtml).toMatch(/id="settings-panel-workbench"/);
+    expect(indexHtml).toMatch(/id="settings-panel-spark"/);
     expect(indexHtml).toMatch(/id="settings-panel-knowledge"/);
     expect(indexHtml).toMatch(/id="settings-panel-llm"/);
     expect(indexHtml).toMatch(/id="settings-panel-github"/);
@@ -224,7 +224,7 @@ describe('Settings MCP panel actions', () => {
     api.fetchConfig.mockResolvedValue(baseConfig());
     api.setConfig.mockResolvedValue(baseConfig());
     api.inferGithubUserUrl.mockResolvedValue({});
-    api.checkWorkbenchRoot.mockResolvedValue({ ok: true });
+    api.checkSparkRoot.mockResolvedValue({ ok: true });
     api.invoke.mockImplementation(async (cmd, args) => {
       if (cmd === 'get_mcp_channel_tools') return structuredClone(TOOLS_SNAPSHOT);
       if (cmd === 'set_mcp_channel_tools') return { ok: true };
@@ -330,7 +330,7 @@ describe('Settings MCP panel actions', () => {
     );
   });
 
-  it('workbench ticket is masked and expire voids the workbench slot', async () => {
+  it('spark ticket is masked and expire voids the spark slot', async () => {
     await openMcpPanel();
     document.getElementById('settings-mcp-ticket-channel').value = 'spark';
     document.getElementById('settings-mcp-ticket-channel').dispatchEvent(new Event('change'));
@@ -366,7 +366,7 @@ describe('Settings MCP panel actions', () => {
     expect(invokedNames()).not.toContain('rotate_cursor_ide_ticket');
   });
 
-  it('keeps cursor_ide refresh off the workbench expire control', async () => {
+  it('keeps cursor_ide refresh off the spark expire control', async () => {
     await openMcpPanel();
     const expire = document.getElementById('btn-settings-mcp-spark-expire');
     const primary = document.getElementById('btn-settings-mcp-primary');

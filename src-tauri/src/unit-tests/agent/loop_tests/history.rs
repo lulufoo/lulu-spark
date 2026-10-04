@@ -4,16 +4,16 @@ use super::support::*;
 
 
 #[test]
-fn workbench_host_system_prompt_is_nonempty_code_constant() {
-    assert!(!WORKBENCH_HOST_SYSTEM_PROMPT.trim().is_empty());
-    assert!(WORKBENCH_HOST_SYSTEM_PROMPT.contains("Host 对话助手"));
-    assert!(WORKBENCH_HOST_SYSTEM_PROMPT.contains("MCP"));
-    assert!(WORKBENCH_HOST_SYSTEM_PROMPT.contains("PathFence"));
-    assert!(WORKBENCH_HOST_SYSTEM_PROMPT.contains("API Key"));
+fn spark_host_system_prompt_is_nonempty_code_constant() {
+    assert!(!SPARK_HOST_SYSTEM_PROMPT.trim().is_empty());
+    assert!(SPARK_HOST_SYSTEM_PROMPT.contains("Host 对话助手"));
+    assert!(SPARK_HOST_SYSTEM_PROMPT.contains("MCP"));
+    assert!(SPARK_HOST_SYSTEM_PROMPT.contains("PathFence"));
+    assert!(SPARK_HOST_SYSTEM_PROMPT.contains("API Key"));
 }
 
 #[test]
-fn key_only_set_applies_workbench_host_system_prompt_not_registry_capability() {
+fn key_only_set_applies_spark_host_system_prompt_not_registry_capability() {
     with_sandbox(|| {
         use crate::mcp_host::registry::{self, SEEDED_BUSINESS_KEY};
         r#loop::try_set_binding_json(&json!({ "key": SEEDED_BUSINESS_KEY })).expect("Set");
@@ -23,7 +23,7 @@ fn key_only_set_applies_workbench_host_system_prompt_not_registry_capability() {
             .as_ref()
             .map(|b| b.prompt.clone())
             .expect("bound");
-        assert_eq!(prompt, json!(WORKBENCH_HOST_SYSTEM_PROMPT));
+        assert_eq!(prompt, json!(SPARK_HOST_SYSTEM_PROMPT));
         let capability = registry::lookup(SEEDED_BUSINESS_KEY)
             .expect("seed")
             .capability_description;
@@ -57,11 +57,11 @@ fn history_truncation_keeps_system_and_dual_hard_caps() {
                 name: None,
             });
         }
-        let messages = r#loop::build_llm_messages_from_turns(&turns, WORKBENCH_HOST_SYSTEM_PROMPT);
+        let messages = r#loop::build_llm_messages_from_turns(&turns, SPARK_HOST_SYSTEM_PROMPT);
         assert_eq!(messages[0]["role"], "system");
         assert_eq!(
             messages[0]["content"].as_str().unwrap(),
-            WORKBENCH_HOST_SYSTEM_PROMPT
+            SPARK_HOST_SYSTEM_PROMPT
         );
         assert!(
             messages.len() <= r#loop::MAX_HISTORY_MESSAGES + 1,

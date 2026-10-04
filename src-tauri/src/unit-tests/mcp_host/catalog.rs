@@ -223,7 +223,7 @@ fn mobile_create_note_uses_content_invoke() {
 
 #[test]
 fn desktop_create_note_schema_includes_asset_paths() {
-    let route = build("notes", "create_note", "spark").expect("workbench create_note");
+    let route = build("notes", "create_note", "spark").expect("spark create_note");
     assert!(invoke_eq(route.invoke, create_note_from_source));
     assert!(route.input_schema["properties"].get("asset_paths").is_some());
     assert!(route.input_schema["properties"].get("source_path").is_some());
@@ -237,33 +237,33 @@ fn mobile_update_note_uses_content_invoke() {
 }
 
 #[test]
-fn workbench_update_note_uses_source_invoke() {
-    let route = build("notes", "update_note", "spark").expect("workbench update_note");
+fn spark_update_note_uses_source_invoke() {
+    let route = build("notes", "update_note", "spark").expect("spark update_note");
     assert!(invoke_eq(route.invoke, update_note_from_source));
     assert!(!invoke_eq(route.invoke, update_note_from_content));
 }
 
 #[test]
-fn workbench_get_note_content_stages_via_note_path() {
+fn spark_get_note_content_stages_via_note_path() {
     let route = build("notes", "get_note_content", "spark").expect("spark");
     assert!(invoke_eq(route.invoke, note_path_invoke));
 }
 
 #[test]
 fn cursor_ide_get_note_content_returns_path_not_body() {
-    let workbench = build("notes", "get_note_content", "spark").expect("wb");
+    let spark = build("notes", "get_note_content", "spark").expect("wb");
     let ide = build("notes", "get_note_content", "cursor_ide").expect("ide");
     let mobile = build("notes", "get_note_content", "mobile").expect("mobile");
     assert!(invoke_eq(ide.invoke, note_path_invoke));
     assert!(invoke_eq(mobile.invoke, note_path_invoke));
     assert!(ide.description.contains("absolute file path"));
     assert!(!ide.description.contains("Stage"));
-    assert!(workbench.description.contains("Stage"));
-    assert!(!workbench.description.to_ascii_lowercase().contains("absolute path"));
+    assert!(spark.description.contains("Stage"));
+    assert!(!spark.description.to_ascii_lowercase().contains("absolute path"));
 }
 
 #[test]
-fn delete_note_only_available_on_workbench() {
+fn delete_note_only_available_on_spark() {
     assert!(build("notes", "delete_note", "spark").is_some());
     assert!(build("notes", "delete_note", "cursor_ide").is_none());
     assert!(build("notes", "delete_note", "mobile").is_none());
@@ -276,9 +276,9 @@ fn factory_unknown_group_returns_none() {
 
 #[test]
 fn get_knowledge_content_channel_descriptions_split() {
-    let workbench = build("knowledge", "get_knowledge_content", "spark").expect("wb");
+    let spark = build("knowledge", "get_knowledge_content", "spark").expect("wb");
     let ide = build("knowledge", "get_knowledge_content", "cursor_ide").expect("ide");
-    assert!(workbench.description.contains("Stage"));
+    assert!(spark.description.contains("Stage"));
     assert!(ide.description.contains("absolute file path"));
     assert!(!ide.description.contains("Stage"));
 }

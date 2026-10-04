@@ -182,7 +182,7 @@ describe('initRouter fallback (library API; app entry uses mountHashRouter)', ()
   });
 
   it.each(['', '#', '#/', '#/unknown'])(
-    'initRouter redirects %s to fallback and mounts workbench handler',
+    'initRouter redirects %s to fallback and mounts spark handler',
     (hash) => {
       hashValue = hash;
       initRouter(handlers, { fallback: '#/spark' });
@@ -253,8 +253,8 @@ describe('hash navigation', () => {
     listeners.hashchange();
     expect(handlers['knowledge-doc']).toHaveBeenCalledTimes(1);
 
-    const workbenchCallsAfterRedirect = handlers.spark.mock.calls.length;
-    expect(workbenchCallsAfterRedirect).toBeGreaterThanOrEqual(1);
+    const sparkCallsAfterRedirect = handlers.spark.mock.calls.length;
+    expect(sparkCallsAfterRedirect).toBeGreaterThanOrEqual(1);
 
     handlers.spark.mockClear();
     hashValue = '#/spark';
@@ -380,7 +380,7 @@ describe('Phase2 fallback via initRouter (library API; app entry uses mountHashR
     },
   );
 
-  it('back navigation from workbench returns to home hub', () => {
+  it('back navigation from spark returns to home hub', () => {
     initRouter(handlers);
     expect(handlers.home).toHaveBeenCalledTimes(1);
 

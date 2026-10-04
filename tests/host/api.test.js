@@ -46,7 +46,7 @@ test('api.js 无裸 fetch（读路径均经 readGet / writePost）', () => {
   const src = [
     'frontend/src/host/api.ts',
     'frontend/src/host/api/transport.ts',
-    'frontend/src/host/api/workbench.ts',
+    'frontend/src/host/api/spark.ts',
     'frontend/src/host/api/knowledge.ts',
   ].map((rel) => readFileSync(join(repoRoot, rel), 'utf8')).join('\n')
   expect([...src.matchAll(/await fetch\(/g)]).toHaveLength(0)
@@ -82,7 +82,7 @@ test('assertWritePayload 在 Tauri 风格 error 对象上抛出', () => {
 })
 
 test('fetchIndex 在 JSON body 含 error 时抛出（Tauri 路径）', async () => {
-  mockFetch({ error: 'No such file: /tmp/workbench-x/index.json', _status: 404 })
+  mockFetch({ error: 'No such file: /tmp/spark-x/index.json', _status: 404 })
   await expect(fetchIndex()).rejects.toThrow('No such file')
 })
 
@@ -194,10 +194,10 @@ test('pullProject 发送 POST 到 /api/pull', async () => {
   expect(fetch.mock.calls[0][1].method).toBe('POST')
 })
 
-test('revertFile 发送 path 和 type 到 /api/workbench-revert', async () => {
+test('revertFile 发送 path 和 type 到 /api/spark-revert', async () => {
   mockFetch({ ok: true })
   const result = await revertFile('raw/foo/bar.md', 'modified')
-  expect(fetch.mock.calls[0][0]).toBe(`${DEFAULT_DEV_BASE}/api/workbench-revert`)
+  expect(fetch.mock.calls[0][0]).toBe(`${DEFAULT_DEV_BASE}/api/spark-revert`)
   expect(fetch.mock.calls[0][1].method).toBe('POST')
   const body = JSON.parse(fetch.mock.calls[0][1].body)
   expect(body.path).toBe('raw/foo/bar.md')

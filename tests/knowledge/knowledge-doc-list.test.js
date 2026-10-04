@@ -979,7 +979,7 @@ describe('mountKnowledgeDocList', () => {
 describe('knowledge doc route shell integration', () => {
   it('main.js paints KnowledgeDocPage on knowledge-doc instead of createRoot-mounting the slot', () => {
     expect(mainJs).toMatch(/KnowledgeDocPage/);
-    expect(mainJs).not.toMatch(/'knowledge-doc': redirectToWorkbench/);
+    expect(mainJs).not.toMatch(/'knowledge-doc': redirectToSpark/);
     expect(mainJs).toMatch(/knowledge-doc-view|mountKnowledgeDocRoute/);
     const body = (() => {
       const start = mainJs.indexOf('function mountKnowledgeDocRoute');

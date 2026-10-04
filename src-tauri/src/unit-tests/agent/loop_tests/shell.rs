@@ -416,10 +416,10 @@ fn t4_main_and_sidebar_wire_notes_set_without_new_runtime() {
     let sidebar = repo_file("frontend/src/notes/ui/sidebar.tsx");
     let sidebar_commands = repo_file("frontend/src/notes/commands/sidebar.ts");
     assert!(
-        main.contains("setWorkbenchBinding")
+        main.contains("setSparkBinding")
             && !main.contains("buildNotesBinding")
             && !main.contains("resetNotesBinding"),
-        "main.js must Set workbench at app shell and must not wire notes Set/Reset"
+        "main.js must Set spark at app shell and must not wire notes Set/Reset"
     );
     assert!(
         !sidebar.contains("buildNotesBinding") && !sidebar.contains("set_binding"),

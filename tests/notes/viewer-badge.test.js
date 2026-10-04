@@ -98,7 +98,7 @@ vi.mock('../../frontend/src/knowledge/ui/knowledge-search.tsx', () => ({
 }));
 vi.mock('../../frontend/src/host/constants.ts', () => ({
   getGithubUserUrl: vi.fn(() => ''),
-  workbenchGithubBlobBase: vi.fn(() => null),
+  sparkGithubBlobBase: vi.fn(() => null),
 }));
 
 import { enterEditMode, exitEditMode } from '../../frontend/src/notes/viewer.ts';

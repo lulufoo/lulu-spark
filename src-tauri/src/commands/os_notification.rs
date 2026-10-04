@@ -139,14 +139,14 @@ mod macos {
     use std::os::raw::c_char;
 
     extern "C" {
-        fn workbench_un_request_authorization() -> i32;
-        fn workbench_un_read_authorization() -> i32;
-        fn workbench_un_deliver(
+        fn spark_un_request_authorization() -> i32;
+        fn spark_un_read_authorization() -> i32;
+        fn spark_un_deliver(
             title: *const c_char,
             body: *const c_char,
             scheme: *const c_char,
         ) -> i32;
-        fn workbench_un_set_click_callback(cb: extern "C" fn(*const c_char));
+        fn spark_un_set_click_callback(cb: extern "C" fn(*const c_char));
     }
 
     extern "C" fn on_native_click(scheme: *const c_char) {
@@ -169,11 +169,11 @@ mod macos {
 
     impl NotificationNative for MacOsNotificationNative {
         fn request_authorization(&self) -> Result<bool, String> {
-            super::map_un_flag(unsafe { workbench_un_request_authorization() }, "request")
+            super::map_un_flag(unsafe { spark_un_request_authorization() }, "request")
         }
 
         fn read_authorization_status(&self) -> Result<bool, String> {
-            super::map_un_flag(unsafe { workbench_un_read_authorization() }, "status")
+            super::map_un_flag(unsafe { spark_un_read_authorization() }, "status")
         }
 
         fn deliver_notification(
@@ -190,13 +190,13 @@ mod macos {
             let body = CString::new(body).map_err(|e| e.to_string())?;
             let scheme = CString::new(scheme).map_err(|e| e.to_string())?;
             super::map_un_deliver(unsafe {
-                workbench_un_deliver(title.as_ptr(), body.as_ptr(), scheme.as_ptr())
+                spark_un_deliver(title.as_ptr(), body.as_ptr(), scheme.as_ptr())
             })
         }
     }
 
     pub fn install_click_callback() {
-        unsafe { workbench_un_set_click_callback(on_native_click) };
+        unsafe { spark_un_set_click_callback(on_native_click) };
     }
 }
 

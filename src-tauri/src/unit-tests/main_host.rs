@@ -30,7 +30,7 @@ fn ephemeral_port() -> u16 {
 fn setup_repo_without_index() -> RepoFixture {
     let sandbox = TestSandbox::new();
     let wb = sandbox.spark_root();
-    fs::create_dir_all(&wb).expect("mkdir workbench");
+    fs::create_dir_all(&wb).expect("mkdir spark");
     RepoFixture {
         repo_root: sandbox.config_dir().to_path_buf(),
         _sandbox: sandbox,
@@ -53,7 +53,7 @@ fn setup_repo_with_notes() -> RepoFixture {
 fn setup_repo_for_read_later() -> RepoFixture {
     let sandbox = TestSandbox::new();
     let wb = sandbox.spark_root();
-    fs::create_dir_all(&wb).expect("mkdir workbench");
+    fs::create_dir_all(&wb).expect("mkdir spark");
     RepoFixture {
         repo_root: sandbox.config_dir().to_path_buf(),
         _sandbox: sandbox,
@@ -71,7 +71,7 @@ fn plant_migration_gate(wb: &std::path::Path) {
 fn setup_repo_for_todo_task() -> RepoFixture {
     let sandbox = TestSandbox::new();
     let wb = sandbox.spark_root();
-    fs::create_dir_all(&wb).expect("mkdir workbench");
+    fs::create_dir_all(&wb).expect("mkdir spark");
     // Happy-path todo HTTP tests assume migration already succeeded (t5 wrote the marker).
     plant_migration_gate(&wb);
     RepoFixture {

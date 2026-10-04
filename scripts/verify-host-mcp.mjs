@@ -181,7 +181,7 @@ async function main() {
 
   const hostUp = await probeHostIfUp();
   if (hostUp) {
-    console.log(`live Host probe on ${HOST_MCP_BASE} (workbench/cursor_ide + retired 404): OK`);
+    console.log(`live Host probe on ${HOST_MCP_BASE} (spark/cursor_ide + retired 404): OK`);
   } else if (process.env.VERIFY_HOST_MCP_SKIP_CARGO === '1') {
     // npm test already ran Host cargo suite (incl. T10 dual-slot smoke) before this script.
     console.log(

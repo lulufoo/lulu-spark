@@ -64,19 +64,19 @@ impl NotificationNative for RecordingNative {
 }
 
 #[test]
-fn validate_accepts_workbench_scheme() {
+fn validate_accepts_spark_scheme() {
     assert!(validate_os_notification_scheme("spark://notes/open?id=a").is_ok());
     assert!(validate_os_notification_scheme("spark://read-later/list").is_ok());
 }
 
 #[test]
-fn validate_rejects_scheme_without_workbench_prefix() {
+fn validate_rejects_scheme_without_spark_prefix() {
     for scheme in [
         "",
         "https://example.com",
         "notes/open",
-        "Workbench://notes/open",
-        "workbench:/notes/open",
+        "Spark://notes/open",
+        "spark:/notes/open",
         " spark://notes/open",
     ] {
         assert!(
@@ -224,7 +224,7 @@ fn native_objc_guards_un_when_bundle_identifier_missing() {
     let objc = source("native/os_notification.m");
     assert!(objc.contains("return bid.length > 0 ? 0 : -2"));
     assert_eq!(objc.matches("currentNotificationCenter").count(), 4);
-    assert!(objc.matches("workbench_un_unavailable()").count() >= 4);
+    assert!(objc.matches("spark_un_unavailable()").count() >= 4);
 }
 
 #[cfg(target_os = "macos")]
@@ -232,14 +232,14 @@ fn native_objc_guards_un_when_bundle_identifier_missing() {
 fn unpackaged_test_binary_skips_un_without_abort() {
     use std::os::raw::c_char;
     extern "C" {
-        fn workbench_un_request_authorization() -> i32;
-        fn workbench_un_read_authorization() -> i32;
-        fn workbench_un_set_click_callback(cb: extern "C" fn(*const c_char));
+        fn spark_un_request_authorization() -> i32;
+        fn spark_un_read_authorization() -> i32;
+        fn spark_un_set_click_callback(cb: extern "C" fn(*const c_char));
     }
     extern "C" fn noop(_: *const c_char) {}
-    unsafe { workbench_un_set_click_callback(noop) };
-    assert_eq!(unsafe { workbench_un_request_authorization() }, -2);
-    assert_eq!(unsafe { workbench_un_read_authorization() }, -2);
+    unsafe { spark_un_set_click_callback(noop) };
+    assert_eq!(unsafe { spark_un_request_authorization() }, -2);
+    assert_eq!(unsafe { spark_un_read_authorization() }, -2);
 }
 
 #[test]

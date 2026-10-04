@@ -10,7 +10,7 @@ use serde_json::{json, Value};
 use crate::config::roots::knowledge_root_string;
 use crate::integrations::git;
 use crate::services::index_build::{rebuild_knowledge_index, rebuild_spark_index};
-use crate::services::workbench_read;
+use crate::services::spark_read;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct JobState {
@@ -39,14 +39,14 @@ impl JobState {
 
 pub struct ReindexState {
     pub knowledge_job: Arc<Mutex<JobState>>,
-    pub workbench_job: Arc<Mutex<JobState>>,
+    pub spark_job: Arc<Mutex<JobState>>,
 }
 
 impl ReindexState {
     pub fn new() -> Self {
         Self {
             knowledge_job: Arc::new(Mutex::new(JobState::idle())),
-            workbench_job: Arc::new(Mutex::new(JobState::idle())),
+            spark_job: Arc::new(Mutex::new(JobState::idle())),
         }
     }
 }
@@ -155,18 +155,18 @@ pub fn sync_repo_blocking(repo: &str, kb_root: &Path) -> (String, String, Option
 /// Used by app startup and the header "Rebuild index" control.
 pub fn run_all_reindex_blocking(
     repo_root: &Path,
-    workbench_slot: &Arc<Mutex<JobState>>,
+    spark_slot: &Arc<Mutex<JobState>>,
     knowledge_slot: &Arc<Mutex<JobState>>,
 ) -> Result<(), String> {
-    start_job(workbench_slot, "Indexing notes…")?;
+    start_job(spark_slot, "Indexing notes…")?;
     if let Err(e) = start_job(knowledge_slot, "Waiting for notes…") {
-        finish_job_error(workbench_slot, e.clone());
+        finish_job_error(spark_slot, e.clone());
         return Err(e);
     }
     match rebuild_spark_index(repo_root) {
-        Ok(log) => finish_job_success(workbench_slot, log),
+        Ok(log) => finish_job_success(spark_slot, log),
         Err(e) => {
-            finish_job_error(workbench_slot, e.clone());
+            finish_job_error(spark_slot, e.clone());
             finish_job_error(knowledge_slot, "Skipped: notes index failed".to_string());
             return Err(e);
         }
@@ -186,10 +186,10 @@ pub fn run_all_reindex_blocking(
 
 /// Combined view of both slots for the single header control.
 pub fn all_status_json(
-    workbench_slot: &Arc<Mutex<JobState>>,
+    spark_slot: &Arc<Mutex<JobState>>,
     knowledge_slot: &Arc<Mutex<JobState>>,
 ) -> Result<Value, String> {
-    let wb = workbench_slot.lock().map_err(|e| e.to_string())?.clone();
+    let wb = spark_slot.lock().map_err(|e| e.to_string())?.clone();
     let kb = knowledge_slot.lock().map_err(|e| e.to_string())?.clone();
     let status = if wb.status == "running" || kb.status == "running" {
         "running"
@@ -240,7 +240,7 @@ pub fn run_knowledge_pull_and_reindex(
     if let Some(s) = slot {
         set_job_log(s, "拉取本地仓库（并行）…");
     }
-    let topics = workbench_read::get_topics(repo_root);
+    let topics = spark_read::get_topics(repo_root);
     let repos: Vec<String> = topics
         .get("topics")
         .and_then(|t| t.as_array())

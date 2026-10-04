@@ -9,7 +9,7 @@ use serde_json::Value;
 const NOTE_ITEMS: &[&str] = &["raw", "digest", "annotations", "tags", "index.json"];
 const DEAD_LAYERS: &[&str] = &["distilled", "diagnose", "trace"];
 
-/// Ensure `{wb}/notes/index.json` exists, moving note items off the workbench root if needed.
+/// Ensure `{wb}/notes/index.json` exists, moving note items off the spark root if needed.
 pub fn ensure_notes_layout(wb: &Path) -> Result<(), String> {
     let notes = wb.join("notes");
     let new_index = notes.join("index.json");

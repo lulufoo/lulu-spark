@@ -21,7 +21,7 @@ function markVisible(el) {
 
 beforeAll(() => {
   const src = readFileSync(
-    resolve(__dirname, '../../extensions/chrome-workbench-extension/x-zh-en/compose-dom.js'),
+    resolve(__dirname, '../../extensions/chrome-spark-extension/x-zh-en/compose-dom.js'),
     'utf8',
   );
   window.eval(src);

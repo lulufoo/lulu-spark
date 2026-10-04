@@ -6,7 +6,7 @@ import { listFrontendSourceFiles } from '../helpers/read-frontend-js.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const moveCommandPath = join(repoRoot, 'frontend/src/app-shell/commands/move-dialog.ts');
-const workbenchApiPath = join(repoRoot, 'frontend/src/host/api/workbench.ts');
+const sparkApiPath = join(repoRoot, 'frontend/src/host/api/spark.ts');
 const apiPath = join(repoRoot, 'frontend/src/host/api.ts');
 
 describe('Move document command functions removed', () => {
@@ -28,11 +28,11 @@ describe('Move document command functions removed', () => {
   });
 
   it('does not delete ghDelete', () => {
-    expect(existsSync(workbenchApiPath)).toBe(true);
+    expect(existsSync(sparkApiPath)).toBe(true);
     expect(existsSync(apiPath)).toBe(true);
-    const workbench = readFileSync(workbenchApiPath, 'utf8');
+    const spark = readFileSync(sparkApiPath, 'utf8');
     const api = readFileSync(apiPath, 'utf8');
-    expect(workbench).toMatch(/export async function ghDelete\b/);
+    expect(spark).toMatch(/export async function ghDelete\b/);
     expect(api).toMatch(/\bghDelete\b/);
   });
 });

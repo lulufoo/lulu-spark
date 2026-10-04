@@ -1,5 +1,5 @@
 import { BindDialog, openBindDialog } from './app-shell/ui/bind-dialog.tsx';
-import { WorkbenchCommitDialog } from './app-shell/ui/workbench-commit-dialog.tsx';
+import { SparkCommitDialog } from './app-shell/ui/spark-commit-dialog.tsx';
 import { SettingsDialog, openSettingsDialog } from './app-shell/ui/settings/dialog.tsx';
 import { SettingsDialogChrome } from './app-shell/ui/settings/chrome.tsx';
 import { SkillsDialog, _openSkillsDialog } from './app-shell/ui/skills-dialog.tsx';
@@ -14,7 +14,7 @@ import { MoveProjectDialog } from './notes/ui/move-project-dialog.tsx';
 import { SettleDialog } from './notes/ui/settle-dialog.tsx';
 import { ReadLaterDialog } from './read-later/ui/dialog.tsx';
 import { CommentDeleteDialog } from './shared/comment-delete.tsx';
-import { WorkbenchSearch } from './notes/ui/search.tsx';
+import { SparkSearch } from './notes/ui/search.tsx';
 import { KnowledgeSearch } from './knowledge/ui/search.tsx';
 
 function closeMenuDropdowns() {
@@ -33,7 +33,7 @@ export function Shell() {
           <a id="btn-nav-home-title" href="#/home" className="header-home-link">Lulu Spark</a>
           <a id="btn-nav-home" href="#/home" className="header-nav-back" hidden>← Home</a>
         </h1>
-        <WorkbenchSearch />
+        <SparkSearch />
         <KnowledgeSearch />
         <div id="sync-menu-wrap">
           <button id="btn-sync-menu">⇕ Sync</button>
@@ -73,7 +73,7 @@ export function Shell() {
           <button id="btn-skills-menu">✦ SKILL</button>
           <div id="skills-menu-dropdown">
             <button
-              id="btn-skill-workbench"
+              id="btn-skill-spark"
               type="button"
               onClick={() => {
                 closeMenuDropdowns();
@@ -105,8 +105,8 @@ export function Shell() {
       {/* <!-- Comment dialog --> */}
       <NoteCommentDialog />
 
-      {/* <!-- Workbench commit dialog --> */}
-      <WorkbenchCommitDialog />
+      {/* <!-- Spark commit dialog --> */}
+      <SparkCommitDialog />
 
       {/* <!-- Knowledge Diff dialog --> */}
       <KnowledgeDiffDialog />

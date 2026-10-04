@@ -1,4 +1,4 @@
-//! Workbench commands wrapping mcp_oauth ticket issue, rotate, and revoke.
+//! Spark commands wrapping mcp_oauth ticket issue, rotate, and revoke.
 
 use serde_json::{json, Value};
 

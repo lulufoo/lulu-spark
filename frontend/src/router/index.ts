@@ -87,7 +87,7 @@ export function navigate(hash: string) {
 /** Tracks list→note pushes so exit can prefer history.back. */
 let noteNavDepth = 0;
 
-function buildWorkbenchHash({ date, note, layer }: NoteNavParams = {}) {
+function buildSparkHash({ date, note, layer }: NoteNavParams = {}) {
   const searchParams = new URLSearchParams();
   if (date) searchParams.set('date', date);
   if (note) searchParams.set('note', note);
@@ -103,7 +103,7 @@ function buildWorkbenchHash({ date, note, layer }: NoteNavParams = {}) {
 export function navigateToNote({ date, note, layer }: NoteNavParams = {}) {
   if (!date || !note) return false;
   try {
-    navigate(buildWorkbenchHash({ date, note, layer }));
+    navigate(buildSparkHash({ date, note, layer }));
     noteNavDepth += 1;
     return true;
   } catch {
@@ -139,7 +139,7 @@ export function navigateBackToList({ date, onClearCreate }: ListNavOptions = {})
   }
 
   noteNavDepth = 0;
-  navigate(buildWorkbenchHash({ date: resolvedDate }));
+  navigate(buildSparkHash({ date: resolvedDate }));
 }
 
 /**
@@ -148,5 +148,5 @@ export function navigateBackToList({ date, onClearCreate }: ListNavOptions = {})
  */
 export function navigateToDateList(date?: string) {
   noteNavDepth = 0;
-  navigate(buildWorkbenchHash({ date: date || '' }));
+  navigate(buildSparkHash({ date: date || '' }));
 }

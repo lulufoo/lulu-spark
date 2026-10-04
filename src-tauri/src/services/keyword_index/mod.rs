@@ -20,7 +20,7 @@ pub use grep_prefilter::{
 };
 pub use query::{
     cache_dir_or_err, classify_query, fold_by_doc_id, parse_limit, search, search_desktop_knowledge,
-    search_desktop_workbench, search_in_cache, QueryHit, QueryRoute, SearchFilter,
+    search_desktop_spark, search_in_cache, QueryHit, QueryRoute, SearchFilter,
 };
 pub use store::{
     delete_ghosts, distinct_paths, existing_hash, index_exists, indexed_mtimes, open, rebuild,

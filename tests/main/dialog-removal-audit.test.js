@@ -41,7 +41,7 @@ function extractById(html, id) {
 }
 
 describe('T9 Dialog removal audit (tech-doc T9 / SK-P3)', () => {
-  it('keeps a single workbench note chrome tree under #note-outlet', () => {
+  it('keeps a single spark note chrome tree under #note-outlet', () => {
     expect(indexHtml).toMatch(/id="note-outlet"/);
     expect(indexHtml).toMatch(/id="md-panel"/);
     expect(indexHtml).toMatch(/id="note-outlet-message"/);
@@ -70,8 +70,8 @@ describe('T9 Dialog removal audit (tech-doc T9 / SK-P3)', () => {
     expect(viewerJs).not.toMatch(/getElementById\(\s*['"]md-backdrop['"]\s*\)/);
   });
 
-  it('mountWorkbench does not wipe #md-panel / outlet textContent; message stays in state', () => {
-    const start = mainJs.indexOf('function mountWorkbench');
+  it('mountSpark does not wipe #md-panel / outlet textContent; message stays in state', () => {
+    const start = mainJs.indexOf('function mountSpark');
     expect(start).toBeGreaterThanOrEqual(0);
     const brace = mainJs.indexOf('{', start);
     let depth = 0;

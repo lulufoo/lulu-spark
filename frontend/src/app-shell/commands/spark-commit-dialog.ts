@@ -1,15 +1,15 @@
 import * as api from '../../host/api.ts';
 import { showToast } from '../../toast.tsx';
 import {
-  WORKBENCH_COMMIT_GROUPS,
-  emptyWorkbenchCommitView,
-  patchWorkbenchCommit,
-  workbenchCommitOpenStore,
-  workbenchCommitViewStore,
-} from '../state/workbench-commit.ts';
+  SPARK_COMMIT_GROUPS,
+  emptySparkCommitView,
+  patchSparkCommit,
+  sparkCommitOpenStore,
+  sparkCommitViewStore,
+} from '../state/spark-commit.ts';
 
-export { workbenchCommitOpenStore };
-export { workbenchCommitViewStore } from '../state/workbench-commit.ts';
+export { sparkCommitOpenStore };
+export { sparkCommitViewStore } from '../state/spark-commit.ts';
 
 const HEADER_LABEL_IDLE = '↑ Commit changes';
 const HEADER_LABEL_CHECKING = 'Checking…';
@@ -36,7 +36,7 @@ function clearCommitCloseTimer() {
 }
 
 function dualWriteOpen(open: boolean) {
-  const dialog = document.getElementById('workbench-commit-dialog');
+  const dialog = document.getElementById('spark-commit-dialog');
   if (!dialog) return;
   if (open) dialog.classList.add('open');
   else dialog.classList.remove('open');
@@ -49,14 +49,14 @@ function setHeaderBusy(busy: boolean) {
   headerBtn.textContent = busy ? HEADER_LABEL_CHECKING : HEADER_LABEL_IDLE;
 }
 
-export function setWorkbenchCommitMessage(message: string) {
-  patchWorkbenchCommit({ message });
+export function setSparkCommitMessage(message: string) {
+  patchSparkCommit({ message });
 }
 
-export async function openWorkbenchCommitDialog() {
+export async function openSparkCommitDialog() {
   setHeaderBusy(true);
-  workbenchCommitViewStore.set({ ...emptyWorkbenchCommitView(), loading: true });
-  workbenchCommitOpenStore.set(true);
+  sparkCommitViewStore.set({ ...emptySparkCommitView(), loading: true });
+  sparkCommitOpenStore.set(true);
   dualWriteOpen(true);
 
   try {
@@ -65,7 +65,7 @@ export async function openWorkbenchCommitDialog() {
     if (data.error) throw new Error(data.error);
 
     if (!data.total && !data.ahead) {
-      patchWorkbenchCommit({
+      patchSparkCommit({
         loading: false,
         empty: true,
         groups: [],
@@ -74,12 +74,12 @@ export async function openWorkbenchCommitDialog() {
         okLabel: 'Commit',
       });
     } else {
-      const groups = WORKBENCH_COMMIT_GROUPS.flatMap(({ key, label }) => {
+      const groups = SPARK_COMMIT_GROUPS.flatMap(({ key, label }) => {
         const files = data[key];
         if (!files?.length) return [];
         return [{ key, label, files }];
       });
-      patchWorkbenchCommit({
+      patchSparkCommit({
         loading: false,
         empty: false,
         error: '',
@@ -90,7 +90,7 @@ export async function openWorkbenchCommitDialog() {
       });
     }
   } catch (err) {
-    patchWorkbenchCommit({
+    patchSparkCommit({
       loading: false,
       error: (err as Error).message,
       canCommit: true,
@@ -100,10 +100,10 @@ export async function openWorkbenchCommitDialog() {
   }
 }
 
-export function closeWorkbenchCommitDialog() {
-  workbenchCommitOpenStore.set(false);
+export function closeSparkCommitDialog() {
+  sparkCommitOpenStore.set(false);
   clearCommitCloseTimer();
-  workbenchCommitViewStore.set(emptyWorkbenchCommitView());
+  sparkCommitViewStore.set(emptySparkCommitView());
   dualWriteOpen(false);
   const headerBtn = document.getElementById('btn-push-index') as HTMLButtonElement | null;
   if (headerBtn) {
@@ -112,13 +112,13 @@ export function closeWorkbenchCommitDialog() {
   }
 }
 
-export function doWorkbenchCommit() {
-  const leftoverMsg = (document.getElementById('workbench-commit-msg') as HTMLInputElement | null)?.value;
-  const msg = (leftoverMsg ?? workbenchCommitViewStore.getSnapshot().message).trim();
+export function doSparkCommit() {
+  const leftoverMsg = (document.getElementById('spark-commit-msg') as HTMLInputElement | null)?.value;
+  const msg = (leftoverMsg ?? sparkCommitViewStore.getSnapshot().message).trim();
   clearCommitCloseTimer();
   commitCloseTimer = setTimeout(() => {
     commitCloseTimer = null;
-    closeWorkbenchCommitDialog();
+    closeSparkCommitDialog();
 
     void api
       .commitFiles(msg || 'chore: update via viewer')

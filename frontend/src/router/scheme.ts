@@ -9,13 +9,13 @@ import {
   TRACE_QUERY,
 } from './notify-trace.ts';
 
-export type WorkbenchEnvelope = {
+export type SparkEnvelope = {
   business: string;
   action: string;
   params: Record<string, unknown>;
 };
 
-export type ParsedWorkbenchScheme =
+export type ParsedSparkScheme =
   | { kind: 'notes-open'; id: string; path: string }
   | { kind: 'read-later-list' };
 
@@ -26,8 +26,8 @@ function stringParam(params: Record<string, unknown>, key: string): string {
   return typeof value === 'string' ? value : '';
 }
 
-export function composeWorkbenchScheme(
-  envelope: WorkbenchEnvelope,
+export function composeSparkScheme(
+  envelope: SparkEnvelope,
 ): string | null {
   const params = envelope.params;
   if (!params || typeof params !== 'object') return null;
@@ -51,7 +51,7 @@ export function composeWorkbenchScheme(
   return null;
 }
 
-export function parseWorkbenchScheme(scheme: string): ParsedWorkbenchScheme | null {
+export function parseSparkScheme(scheme: string): ParsedSparkScheme | null {
   if (typeof scheme !== 'string' || !scheme.startsWith('spark://')) return null;
 
   let url: URL;
@@ -96,9 +96,9 @@ export function resolveNotesLanding(id: string, path: string): NotesLanding | nu
   return { date: created.slice(0, 8), note };
 }
 
-export function openWorkbenchScheme(scheme: string): boolean {
+export function openSparkScheme(scheme: string): boolean {
   const trace = extractTraceFromScheme(scheme);
-  const parsed = parseWorkbenchScheme(scheme);
+  const parsed = parseSparkScheme(scheme);
   if (!parsed) {
     logNotifyHop('route.to_business', trace, { outcome: 'parse_fail', scheme });
     return false;

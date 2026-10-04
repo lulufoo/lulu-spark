@@ -1,6 +1,6 @@
 use std::path::Path;
 
-/// Personal GitHub home (`https://github.com/{owner}`) + workbench clone dir name → blob base for file links.
+/// Personal GitHub home (`https://github.com/{owner}`) + spark clone dir name → blob base for file links.
 pub fn spark_github_blob_base(github_user_url: &str, spark_root: &Path) -> String {
     let trimmed = github_user_url.trim().trim_end_matches('/');
     if trimmed.is_empty() {
@@ -18,7 +18,7 @@ fn spark_git_origin_url(spark_root: &Path) -> Option<String> {
     crate::integrations::git::origin_url(spark_root)
 }
 
-/// `https://github.com/{owner}` from `git remote get-url origin` when workbench root is a git repo.
+/// `https://github.com/{owner}` from `git remote get-url origin` when spark root is a git repo.
 pub fn infer_github_user_url_from_spark_root(spark_root: &Path) -> Option<String> {
     github_user_home_from_remote_url(&spark_git_origin_url(spark_root)?)
 }

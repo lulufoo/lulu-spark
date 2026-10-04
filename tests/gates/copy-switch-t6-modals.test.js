@@ -10,10 +10,10 @@ const mainJs = [
   readMainSource(),
   readFrontendJs('frontend/src/notes/page.tsx'),
 ].join('\n');
-const workbenchCommitJs = [
-  readFrontendJs('frontend/src/app-shell/ui/workbench-commit-dialog.tsx'),
-  readFrontendJs('frontend/src/app-shell/commands/workbench-commit-dialog.ts'),
-  readFrontendJs('frontend/src/app-shell/state/workbench-commit.ts'),
+const sparkCommitJs = [
+  readFrontendJs('frontend/src/app-shell/ui/spark-commit-dialog.tsx'),
+  readFrontendJs('frontend/src/app-shell/commands/spark-commit-dialog.ts'),
+  readFrontendJs('frontend/src/app-shell/state/spark-commit.ts'),
 ].join('\n');
 const deleteDialogJs = readFileSync(
   join(repoRoot, 'frontend/src/notes/ui/delete-dialog.tsx'),
@@ -24,7 +24,7 @@ const settleDialogJs = [
   readFrontendJs('frontend/src/notes/commands/settle-dialog.ts'),
 ].join('\n');
 const modalSources = [
-  workbenchCommitJs,
+  sparkCommitJs,
   deleteDialogJs,
   settleDialogJs,
   readFrontendJs('frontend/src/knowledge/ui/knowledge-diff-dialog.tsx'),
@@ -59,18 +59,18 @@ describe('P2 copy-switch — main.js & modals (tech-doc T6)', () => {
     expect(mainJs).not.toContain('加载中');
   });
 
-  it('workbench-commit-dialog copy stays English', () => {
-    expect(workbenchCommitJs).toContain('↑ Workbench commit');
-    expect(workbenchCommitJs).toContain('↑ Commit changes');
-    expect(workbenchCommitJs).toContain('Checking…');
-    expect(workbenchCommitJs).toContain('Loading…');
-    expect(workbenchCommitJs).toContain('No changes to commit or push');
-    expect(workbenchCommitJs).toContain("label: 'New'");
-    expect(workbenchCommitJs).toContain('Ready to push');
-    expect(workbenchCommitJs).toContain('local commit(s) not yet pushed');
-    expect(workbenchCommitJs).toContain('✓ Committed and pushed');
-    expect(workbenchCommitJs).not.toContain('提交');
-    expect(workbenchCommitJs).not.toContain('加载中');
+  it('spark-commit-dialog copy stays English', () => {
+    expect(sparkCommitJs).toContain('↑ Spark commit');
+    expect(sparkCommitJs).toContain('↑ Commit changes');
+    expect(sparkCommitJs).toContain('Checking…');
+    expect(sparkCommitJs).toContain('Loading…');
+    expect(sparkCommitJs).toContain('No changes to commit or push');
+    expect(sparkCommitJs).toContain("label: 'New'");
+    expect(sparkCommitJs).toContain('Ready to push');
+    expect(sparkCommitJs).toContain('local commit(s) not yet pushed');
+    expect(sparkCommitJs).toContain('✓ Committed and pushed');
+    expect(sparkCommitJs).not.toContain('提交');
+    expect(sparkCommitJs).not.toContain('加载中');
   });
 
   it('knowledge tree delete requires CONFIRM in English', () => {

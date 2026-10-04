@@ -13,8 +13,8 @@ describe('TG3 — sediment-kb list (repo-list removed)', () => {
     const src = readMainSource();
     expect(src).not.toMatch(/fetchRepoList\b/);
     expect(src).not.toMatch(/getKbCorpusStatus\b/);
-    expect(src).not.toMatch(/syncWorkbenchRepo\b/);
-    expect(src).not.toMatch(/syncWorkbenchCorpus\b/);
+    expect(src).not.toMatch(/syncSparkRepo\b/);
+    expect(src).not.toMatch(/syncSparkCorpus\b/);
   });
 
   it('loadSedimentKbList surfaces API failure as error state', () => {

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { flushSync } from 'react-dom';
-import { searchWorkbench } from '../../host/api.ts';
+import { searchSpark } from '../../host/api.ts';
 
 const HIST_KEY = 'gs-history-wb';
 const HIST_MAX = 10;
@@ -72,7 +72,7 @@ function hideLeftoverDropdown() {
   if (dropdown) dropdown.style.display = 'none';
 }
 
-export function closeWorkbenchSearch() {
+export function closeSparkSearch() {
   hideLeftoverDropdown();
   closeListeners.forEach((fn) => fn());
 }
@@ -102,7 +102,7 @@ function GsHitRow({ hit, onOpen }: { hit: WbHit; onOpen: (hit: WbHit) => void })
   );
 }
 
-export function WorkbenchSearchFields() {
+export function SparkSearchFields() {
   const [query, setQuery] = useState('');
   const [view, setView] = useState<DropdownView>({ kind: 'hidden' });
   const wrapRef = useRef<HTMLDivElement | null>(null);
@@ -143,7 +143,7 @@ export function WorkbenchSearchFields() {
   async function runSearch(q: string) {
     flushSync(() => setView({ kind: 'status', text: 'Searching…' }));
     try {
-      const data = await searchWorkbench(q, 8);
+      const data = await searchSpark(q, 8);
       if (data.error && data.error !== 'not_indexed') {
         flushSync(() => setView({ kind: 'status', text: 'Search error' }));
         return;
@@ -255,10 +255,10 @@ export function WorkbenchSearchFields() {
   );
 }
 
-export function WorkbenchSearch() {
+export function SparkSearch() {
   return (
     <div id="gs-wb-wrap" className="gs-search-wrap" hidden data-wb-search="react">
-      <WorkbenchSearchFields />
+      <SparkSearchFields />
     </div>
   );
 }
@@ -266,8 +266,8 @@ export function WorkbenchSearch() {
 let _initialized = false;
 let _testRoot: Root | null = null;
 
-/** Production: Shell already renders WorkbenchSearch. Tests: mount fields into leftover wrap. */
-export function initWorkbenchSearch() {
+/** Production: Shell already renders SparkSearch. Tests: mount fields into leftover wrap. */
+export function initSparkSearch() {
   if (_initialized) return;
   const wrap = document.getElementById('gs-wb-wrap');
   if (!wrap) return;
@@ -275,7 +275,7 @@ export function initWorkbenchSearch() {
   if (wrap.dataset.wbSearch === 'react') return;
   _testRoot = createRoot(wrap);
   flushSync(() => {
-    _testRoot!.render(<WorkbenchSearchFields />);
+    _testRoot!.render(<SparkSearchFields />);
   });
   wrap.dataset.wbSearch = 'react';
 }

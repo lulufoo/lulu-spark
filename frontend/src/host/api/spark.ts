@@ -28,15 +28,15 @@ export async function fetchConfig() {
   return readGet('/api/config');
 }
 
-export async function inferGithubUserUrl(workbenchRoot: string) {
+export async function inferGithubUserUrl(sparkRoot: string) {
   return readGet(
-    `/api/infer-github-user-url?path=${encodeURIComponent(workbenchRoot)}&_=${Date.now()}`,
+    `/api/infer-github-user-url?path=${encodeURIComponent(sparkRoot)}&_=${Date.now()}`,
   );
 }
 
-export async function checkWorkbenchRoot(workbenchRoot: string) {
+export async function checkSparkRoot(sparkRoot: string) {
   return readGet(
-    `/api/check-spark-root?path=${encodeURIComponent(workbenchRoot)}&_=${Date.now()}`,
+    `/api/check-spark-root?path=${encodeURIComponent(sparkRoot)}&_=${Date.now()}`,
   );
 }
 
@@ -94,7 +94,7 @@ export async function commitFiles(message: string, files?: unknown) {
 }
 
 export async function revertFile(path?: string, type?: string) {
-  return writePost('/api/workbench-revert', { path: path ?? '', type: type ?? '' });
+  return writePost('/api/spark-revert', { path: path ?? '', type: type ?? '' });
 }
 
 export async function pullProject() {

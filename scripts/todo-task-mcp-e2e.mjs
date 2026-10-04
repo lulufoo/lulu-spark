@@ -88,7 +88,7 @@ export function assertDualChannelE2eContract() {
     throw new Error('dual-channel e2e: Skills loopback URL missing from architecture constraints');
   }
   if (!doc.includes('127.0.0.1:9876/mcp/spark')) {
-    throw new Error('dual-channel e2e: workbench internal URL missing from architecture constraints');
+    throw new Error('dual-channel e2e: spark internal URL missing from architecture constraints');
   }
   if (!doc.includes('Skills must not enter L0')) {
     throw new Error('dual-channel e2e: Skills must not enter L0');
@@ -136,19 +136,19 @@ async function listToolNamesOnSlot(mcpPort, sceneSlot, clientName) {
 
 /** Live A1/AC2/AC3/AC4 observation: path URL tools/list on both slots; unknown hard-fail. */
 async function runDualChannelLiveProbes(mcpPort) {
-  const workbenchNames = await listToolNamesOnSlot(mcpPort, 'spark', 'todo-task-mcp-e2e-dual-workbench');
+  const sparkNames = await listToolNamesOnSlot(mcpPort, 'spark', 'todo-task-mcp-e2e-dual-spark');
   for (const tool of EQUIVALENCE_TODO_TOOLS) {
-    if (!workbenchNames.includes(tool)) {
-      throw new Error(`dual-channel AC2: workbench missing ${tool}`);
+    if (!sparkNames.includes(tool)) {
+      throw new Error(`dual-channel AC2: spark missing ${tool}`);
     }
   }
   for (const tool of NOTES_TOOLS_E2E) {
-    if (!workbenchNames.includes(tool)) {
-      throw new Error(`dual-channel AC2: workbench missing ${tool}`);
+    if (!sparkNames.includes(tool)) {
+      throw new Error(`dual-channel AC2: spark missing ${tool}`);
     }
   }
-  if (workbenchNames.includes('get_notes_selection')) {
-    throw new Error('dual-channel AC2: workbench must not expose get_notes_selection');
+  if (sparkNames.includes('get_notes_selection')) {
+    throw new Error('dual-channel AC2: spark must not expose get_notes_selection');
   }
 
   const ideNames = await listToolNamesOnSlot(mcpPort, 'cursor_ide', 'todo-task-mcp-e2e-dual-ide');
@@ -310,7 +310,7 @@ const createResult = await client.callTool({
 const createText = toolText(createResult);
 if (createResult.isError) {
   throw new Error(
-    `create_todo_task failed (Workbench HTTP may be down): ${createText}`,
+    `create_todo_task failed (Spark HTTP may be down): ${createText}`,
   );
 }
 const created = parseJson(createText);
@@ -343,7 +343,7 @@ if (!subA || !subB) {
 const listResult = await client.callTool({ name: 'list_todo_tasks', arguments: {} });
 const listText = toolText(listResult);
 if (listResult.isError) {
-  throw new Error(`list_todo_tasks failed (Workbench HTTP may be down): ${listText}`);
+  throw new Error(`list_todo_tasks failed (Spark HTTP may be down): ${listText}`);
 }
 const listBody = parseJson(listText);
 if (!Array.isArray(listBody)) {

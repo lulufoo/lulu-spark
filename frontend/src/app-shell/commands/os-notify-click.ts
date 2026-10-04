@@ -1,6 +1,6 @@
 import { refreshNotesIndex } from '../../notes/commands/reload-index.ts';
 import { extractTraceFromScheme, logNotifyHop } from '../../router/notify-trace.ts';
-import { openWorkbenchScheme, parseWorkbenchScheme } from '../../router/scheme.ts';
+import { openSparkScheme, parseSparkScheme } from '../../router/scheme.ts';
 
 type ClickPayload = { scheme?: string };
 
@@ -21,10 +21,10 @@ export async function handleOsNotifyClicked(payload?: ClickPayload): Promise<boo
     outcome: 'ok',
     scheme,
   });
-  if (openWorkbenchScheme(scheme)) return true;
-  if (parseWorkbenchScheme(scheme)?.kind !== 'notes-open') return false;
+  if (openSparkScheme(scheme)) return true;
+  if (parseSparkScheme(scheme)?.kind !== 'notes-open') return false;
   await refreshNotesIndex();
-  return openWorkbenchScheme(scheme);
+  return openSparkScheme(scheme);
 }
 
 export function startOsNotifyClickHub(): void {

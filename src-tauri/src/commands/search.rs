@@ -20,13 +20,13 @@ fn repo_root() -> Result<PathBuf, String> {
 pub fn reindex_all(state: State<'_, ReindexState>) -> Result<Value, String> {
     let root = repo_root()?;
     {
-        let wb = state.workbench_job.lock().map_err(|e| e.to_string())?;
+        let wb = state.spark_job.lock().map_err(|e| e.to_string())?;
         let kb = state.knowledge_job.lock().map_err(|e| e.to_string())?;
         if wb.status == "running" || kb.status == "running" {
             return Err("already running".to_string());
         }
     }
-    let wb = Arc::clone(&state.workbench_job);
+    let wb = Arc::clone(&state.spark_job);
     let kb = Arc::clone(&state.knowledge_job);
     tauri::async_runtime::spawn_blocking(move || {
         let _ = run_all_reindex_blocking(&root, &wb, &kb);
@@ -36,7 +36,7 @@ pub fn reindex_all(state: State<'_, ReindexState>) -> Result<Value, String> {
 
 #[tauri::command]
 pub fn get_reindex_all_status(state: State<'_, ReindexState>) -> Result<Value, String> {
-    all_status_json(&state.workbench_job, &state.knowledge_job)
+    all_status_json(&state.spark_job, &state.knowledge_job)
 }
 
 #[tauri::command]

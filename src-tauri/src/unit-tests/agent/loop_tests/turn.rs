@@ -40,15 +40,15 @@ fn run_loop_uses_mcp_tools_and_feeds_tool_result_back_to_model() {
     mcp_registry::register(
         "spark",
         McpServerConfig {
-            capability_description: "workbench test capability".into(),
+            capability_description: "spark test capability".into(),
             http_transport: HttpMcpTransport {
-                name: "workbench-test".into(),
+                name: "spark-test".into(),
                 url: format!("http://127.0.0.1:{mcp_port}/mcp/spark"),
                 headers: bearer_headers_for_slot("spark"),
             },
         },
     )
-    .expect("register workbench MCP");
+    .expect("register spark MCP");
 
     let mock = spawn_scripted_llm(vec![
         assistant_tools(
@@ -64,7 +64,7 @@ fn run_loop_uses_mcp_tools_and_feeds_tool_result_back_to_model() {
         ),
         assistant_text("已读取当前待办列表。"),
     ]);
-    r#loop::try_set_binding_json(&json!({ "key": "spark" })).expect("Set workbench binding");
+    r#loop::try_set_binding_json(&json!({ "key": "spark" })).expect("Set spark binding");
     let mut session = session::create_session().expect("session");
     let outcome = r#loop::run_loop(&mut session, "读取当前待办", &cfg_for(&mock));
 
@@ -86,7 +86,7 @@ fn run_loop_uses_mcp_tools_and_feeds_tool_result_back_to_model() {
             .is_some_and(|tools| tools.iter().any(|tool| {
                 tool.pointer("/function/name") == Some(&json!("get_all_notes_catalog"))
             })),
-        "active workbench MCP tools must be sent to the model"
+        "active spark MCP tools must be sent to the model"
     );
     assert!(
         hits[1]["messages"]
@@ -125,13 +125,13 @@ fn run_loop_marks_successful_note_mcp_mutation_as_wrote() {
         McpServerConfig {
             capability_description: "notes test capability".into(),
             http_transport: HttpMcpTransport {
-                name: "workbench-test".into(),
+                name: "spark-test".into(),
                 url: format!("http://127.0.0.1:{mcp_port}/mcp/spark"),
                 headers: bearer_headers_for_slot("spark"),
             },
         },
     )
-    .expect("register workbench MCP");
+    .expect("register spark MCP");
 
     let mock = spawn_scripted_llm(vec![
         assistant_tools(
@@ -147,7 +147,7 @@ fn run_loop_marks_successful_note_mcp_mutation_as_wrote() {
         ),
         assistant_text("已创建笔记。"),
     ]);
-    r#loop::try_set_binding_json(&json!({ "key": "spark" })).expect("Set workbench binding");
+    r#loop::try_set_binding_json(&json!({ "key": "spark" })).expect("Set spark binding");
     let mut session = session::create_session().expect("session");
     let outcome = r#loop::run_loop(&mut session, "创建一篇笔记", &cfg_for(&mock));
 
@@ -200,7 +200,7 @@ fn run_loop_returns_argument_and_allowlist_failures_to_the_model_as_tool_turns()
         ),
         assistant_text("工具参数或权限不正确，未执行读取。"),
     ]);
-    r#loop::try_set_binding_json(&json!({ "key": "spark" })).expect("Set workbench binding");
+    r#loop::try_set_binding_json(&json!({ "key": "spark" })).expect("Set spark binding");
     let mut session = session::create_session().expect("session");
     let outcome = r#loop::run_loop(&mut session, "读取选择", &cfg_for(&mock));
 
@@ -261,7 +261,7 @@ fn run_loop_stops_after_bounded_mcp_tool_rounds() {
         })
         .collect();
     let mock = spawn_scripted_llm(responses);
-    r#loop::try_set_binding_json(&json!({ "key": "spark" })).expect("Set workbench binding");
+    r#loop::try_set_binding_json(&json!({ "key": "spark" })).expect("Set spark binding");
     let mut session = session::create_session().expect("session");
     let outcome = r#loop::run_loop(&mut session, "反复读取待办", &cfg_for(&mock));
 
@@ -298,7 +298,7 @@ fn run_loop_offers_host_file_tools_and_keeps_scratch_writes_inside_cache() {
     let (mcp, mcp_port) = start_isolated_mcp(&sandbox);
     register_test_mcp("spark", mcp_port);
 
-    r#loop::try_set_binding_json(&json!({ "key": "spark" })).expect("Set workbench binding");
+    r#loop::try_set_binding_json(&json!({ "key": "spark" })).expect("Set spark binding");
     let mut session = session::create_session().expect("session");
     let scratch = sandbox
         .cache_dir()
@@ -453,7 +453,7 @@ fn run_loop_does_not_call_mcp_after_reset_invalidates_its_generation() {
             None,
         ),
     );
-    r#loop::try_set_binding_json(&json!({ "key": "spark" })).expect("Set workbench binding");
+    r#loop::try_set_binding_json(&json!({ "key": "spark" })).expect("Set spark binding");
     let mut session = session::create_session().expect("session");
     let outcome = r#loop::run_loop(&mut session, "读取待办", &cfg_for(&mock));
 

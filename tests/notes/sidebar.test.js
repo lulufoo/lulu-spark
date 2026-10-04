@@ -75,7 +75,7 @@ beforeEach(() => {
   state.ui.activeTopic = null;
   state.ui.activeTagKey = null;
   state.ui.activeDate = null;
-  state.ui.workbenchRoot = '';
+  state.ui.sparkRoot = '';
   state.ui.knowledgeRoot = '';
 });
 

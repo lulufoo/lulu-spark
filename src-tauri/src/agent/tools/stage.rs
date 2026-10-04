@@ -129,7 +129,7 @@ fn get_staged(arguments: &Value, session: &Session) -> Result<String, String> {
     entry_json(entry)
 }
 
-/// After a workbench path-tool success, register Stage and return F1/F2… only.
+/// After a spark path-tool success, register Stage and return F1/F2… only.
 pub fn overlay_note_content(
     name: &str,
     result: ToolResult,

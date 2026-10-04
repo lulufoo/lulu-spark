@@ -14,14 +14,14 @@ describe('notify-trace', () => {
     expect(parseTraceId('trace_bad\nid')).toBeNull();
   });
 
-  it('reads trace from a workbench URL', () => {
+  it('reads trace from a spark URL', () => {
     expect(
       extractTraceFromScheme('spark://notes/open?id=a&path=p.md&trace=trace_12345678'),
     ).toBe('trace_12345678');
     expect(extractTraceFromScheme('spark://read-later/list')).toBeNull();
   });
 
-  it('remembers the last valid trace for later route.workbench', () => {
+  it('remembers the last valid trace for later route.spark', () => {
     expect(rememberNotifyTrace('trace_abcdef12')).toBe('trace_abcdef12');
     expect(lastNotifyTrace()).toBe('trace_abcdef12');
     expect(rememberNotifyTrace(null)).toBe('trace_abcdef12');

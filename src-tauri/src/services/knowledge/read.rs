@@ -6,7 +6,7 @@ use serde_json::{json, Value};
 
 use crate::repositories::knowledge::{kb_annotation_path, kb_list_dir, kb_safe_path};
 use crate::services::sediment_kb;
-use crate::services::workbench_read::{categories_from_git_status, knowledge_root_string};
+use crate::services::spark_read::{categories_from_git_status, knowledge_root_string};
 
 fn err_status_code(msg: &str) -> u16 {
     if msg.contains("invalid") || msg.contains("traversal") || msg.contains("required") {

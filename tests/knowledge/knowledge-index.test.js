@@ -13,7 +13,7 @@ describe('normalizeKnowledgeIndex', () => {
 
   it('顶层 error 抛出可读消息', () => {
     expect(() =>
-      normalizeKnowledgeIndex({ error: 'No such file: /tmp/workbench-x/index.json', _status: 404 }),
+      normalizeKnowledgeIndex({ error: 'No such file: /tmp/spark-x/index.json', _status: 404 }),
     ).toThrow('No such file')
   })
 

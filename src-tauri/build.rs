@@ -4,7 +4,7 @@ fn main() {
         cc::Build::new()
             .file("native/os_notification.m")
             .flag("-fobjc-arc")
-            .compile("workbench_os_notification");
+            .compile("spark_os_notification");
         println!("cargo:rustc-link-lib=framework=Foundation");
         println!("cargo:rustc-link-lib=framework=UserNotifications");
     }

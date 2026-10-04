@@ -261,7 +261,7 @@ pub fn parse_limit(limit: Option<u32>, default: u32) -> u32 {
     }
 }
 
-pub fn search_desktop_workbench(cache_dir: &Path, q: &str, limit: Option<u32>) -> Value {
+pub fn search_desktop_spark(cache_dir: &Path, q: &str, limit: Option<u32>) -> Value {
     let q = q.trim();
     if q.is_empty() {
         return json!({ "error": "q parameter required" });

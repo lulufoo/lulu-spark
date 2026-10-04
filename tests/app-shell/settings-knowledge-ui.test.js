@@ -42,8 +42,8 @@ describe('Settings Knowledge UI', () => {
     expect(indexHtml).toContain('id="settings-kb-hide-list"');
     expect(indexHtml).not.toContain('id="settings-kb-root"');
     expect(indexHtml).not.toContain('id="kb-setting-nav"');
-    expect(indexHtml).toContain('id="settings-tab-workbench-directory"');
-    expect(indexHtml).toContain('id="settings-tab-workbench-connection"');
+    expect(indexHtml).toContain('id="settings-tab-spark-directory"');
+    expect(indexHtml).toContain('id="settings-tab-spark-connection"');
     expect(indexHtml).toContain('id="settings-panel-notes"');
     expect(indexHtml).toContain('id="settings-tab-notes-add"');
     expect(indexHtml).toContain('id="settings-tab-notes-edit"');
@@ -51,7 +51,7 @@ describe('Settings Knowledge UI', () => {
     expect(indexHtml).toContain('id="notes-cat-edit-dialog"');
     expect(indexHtml).toContain('id="notes-cat-edit-dialog-box"');
     expect(indexHtml).not.toContain('id="settings-tab-notes-categories"');
-    expect(indexHtml).not.toContain('id="settings-tab-workbench-categories"');
+    expect(indexHtml).not.toContain('id="settings-tab-spark-categories"');
     expect(indexHtml).toContain('id="settings-tab-knowledge-list"');
     expect(indexHtml).toContain('id="settings-tab-knowledge-add"');
     expect(indexHtml).toContain('id="settings-tab-knowledge-categories"');
@@ -59,8 +59,8 @@ describe('Settings Knowledge UI', () => {
     expect(indexHtml).toContain('id="settings-tab-knowledge-hidden"');
     expect(indexHtml).toContain('id="settings-tab-llm-engine"');
     expect(indexHtml).toContain('id="settings-tab-github-account"');
-    expect(indexHtml).toContain('id="workbench-connect-item"');
-    expect(indexHtml).toMatch(/htmlFor="workbench-connect-url">GitHub repository URL</);
+    expect(indexHtml).toContain('id="spark-connect-item"');
+    expect(indexHtml).toMatch(/htmlFor="spark-connect-url">GitHub repository URL</);
     expect(indexHtml).toContain('id="sediment-kb-add-url"');
     expect(indexHtml).toContain('id="sediment-kb-add-category"');
     expect(indexHtml).toContain('id="sediment-kb-add-description"');
@@ -108,31 +108,31 @@ describe('Settings Knowledge UI', () => {
   });
 });
 
-describe('Workbench GitHub connection', () => {
+describe('Spark GitHub connection', () => {
   it('persists a single spark_github_repo_url and can delete it', () => {
-    expect(settingsDialogJs).toMatch(/function normalizeWorkbenchGithubRepoUrl\(/);
-    expect(settingsDialogJs).toMatch(/function renderWorkbenchConnection\(/);
+    expect(settingsDialogJs).toMatch(/function normalizeSparkGithubRepoUrl\(/);
+    expect(settingsDialogJs).toMatch(/function renderSparkConnection\(/);
     expect(settingsDialogJs).toMatch(
       /api\.setConfig\(\{ spark_github_repo_url: repoUrl \}\)/,
     );
-    expect(settingsDialogJs).toMatch(/async function deleteWorkbenchGithubRepo\(/);
-    expect(settingsDialogJs).toMatch(/btn-workbench-connect-delete/);
+    expect(settingsDialogJs).toMatch(/async function deleteSparkGithubRepo\(/);
+    expect(settingsDialogJs).toMatch(/btn-spark-connect-delete/);
     expect(settingsDialogJs).toMatch(/target="_blank"/);
   });
 
   it('locks the inferred origin repo and hides Delete', () => {
-    expect(settingsDialogJs).toMatch(/function applyWorkbenchGithubRepoFromInferResponse\(/);
+    expect(settingsDialogJs).toMatch(/function applySparkGithubRepoFromInferResponse\(/);
     expect(settingsDialogJs).toMatch(/resp\?\.spark_github_repo_url/);
-    expect(settingsDialogJs).toMatch(/renderWorkbenchConnection\(inferred, \{ locked: true \}\)/);
-    expect(settingsDialogJs).toMatch(/Inferred from workbench directory git origin \(read-only\)/);
+    expect(settingsDialogJs).toMatch(/renderSparkConnection\(inferred, \{ locked: true \}\)/);
+    expect(settingsDialogJs).toMatch(/Inferred from spark directory git origin \(read-only\)/);
   });
 
   it('re-infers on Directory blur even when the path matches the saved snapshot', () => {
     expect(settingsDialogJs).not.toMatch(
-      /if \(!root \|\| root === savedSnapshot\.workbenchRoot\)/,
+      /if \(!root \|\| root === savedSnapshot\.sparkRoot\)/,
     );
     expect(settingsDialogJs).toContain(
-      'const pathChanged = root !== savedSnapshot.workbenchRoot',
+      'const pathChanged = root !== savedSnapshot.sparkRoot',
     );
   });
 
@@ -142,13 +142,13 @@ describe('Workbench GitHub connection', () => {
     );
   });
 
-  it('blocks Workbench Connection binding until a Sync token is saved', () => {
+  it('blocks Spark Connection binding until a Sync token is saved', () => {
     expect(settingsDialogJs).toMatch(/function isGithubAccountConfigured\(/);
     expect(settingsDialogJs).toMatch(/savedSnapshot\.hasGithubToken/);
     expect(settingsDialogJs).toMatch(
       /isGithubAccountConfigured[\s\S]*?savedSnapshot\.hasGithubToken[\s\S]*?savedSnapshot\.githubUserUrl/,
     );
-    expect(settingsDialogJs).toMatch(/function syncWorkbenchConnectionAccess\(/);
+    expect(settingsDialogJs).toMatch(/function syncSparkConnectionAccess\(/);
     expect(settingsDialogJs).toMatch(/Set a Sync token first to bind a data-store repository/);
     expect(indexHtml).toMatch(
       /<nav id="settings-nav">[\s\S]*data-panel="spark"[\s\S]*data-panel="notes"[\s\S]*data-panel="knowledge"[\s\S]*data-panel="llm"[\s\S]*data-panel="github">Sync/,

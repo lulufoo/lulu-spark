@@ -1,4 +1,4 @@
-//! Workbench / notes / knowledge root helpers from `config.toml`.
+//! Spark / notes / knowledge root helpers from `config.toml`.
 
 use std::path::{Path, PathBuf};
 

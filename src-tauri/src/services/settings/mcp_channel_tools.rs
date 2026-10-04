@@ -22,7 +22,7 @@ use super::mcp_channel_classify::{
 pub const MCP_CHANNELS: &[&str] = &["spark", "cursor_ide", "mobile"];
 
 /// Catalog tools that Settings may list, but only `/mcp/spark` may enable or expose.
-pub const WORKBENCH_ONLY_TOOLS: &[&str] = &["delete_note"];
+pub const SPARK_ONLY_TOOLS: &[&str] = &["delete_note"];
 
 static LOCK: Mutex<()> = Mutex::new(());
 
@@ -61,7 +61,7 @@ fn default_groups_for_channel(channel: &str, catalog: &HashSet<String>) -> Enabl
 
 fn apply_channel_tool_policy(channel: &str, mut names: HashSet<String>) -> HashSet<String> {
     if channel != "spark" {
-        for tool in WORKBENCH_ONLY_TOOLS {
+        for tool in SPARK_ONLY_TOOLS {
             names.remove(*tool);
         }
     }
@@ -72,7 +72,7 @@ fn apply_group_policy(channel: &str, mut groups: EnabledByGroup) -> EnabledByGro
     if channel != "spark" {
         groups
             .notes
-            .retain(|name| !WORKBENCH_ONLY_TOOLS.contains(&name.as_str()));
+            .retain(|name| !SPARK_ONLY_TOOLS.contains(&name.as_str()));
     }
     sort_enabled_groups(&mut groups);
     groups
@@ -203,7 +203,7 @@ pub fn snapshot() -> Result<Value, String> {
     }
     Ok(json!({
         "channels": MCP_CHANNELS,
-        "workbench_only_tools": WORKBENCH_ONLY_TOOLS,
+        "spark_only_tools": SPARK_ONLY_TOOLS,
         "groups": groups.iter().map(|(id, tools)| {
             json!({
                 "id": id,

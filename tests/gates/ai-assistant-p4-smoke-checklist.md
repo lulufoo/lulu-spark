@@ -49,7 +49,7 @@
 - [ ] P3：加子项成功且列表/详情出现。✅ Verified（`add_sub_task` + turn-completed 写回刷新；Loop `run_loop_add_sub_and_update_sub_title_paths_are_observable`；`tests/todo-task/deembed-writeback.test.js`）
 - [ ] P4：改主/子标题 Todos 侧可见。✅ Verified（`update_master_title` / `update_sub_title` + wrote 刷新；Loop `run_loop_tool_write_sets_wrote_true_and_persists`）
 - [ ] P5：不支持操作明确拒绝且数据不变。✅ Verified（prompt「目前不支持」；Loop `unsupported_tool_calls_*` / `terminal_no_plan_unsupported_and_error_are_distinguishable`；Binding 不含 complete/abandon/batch）
-- [ ] P6：离页不 Reset；Binding 保持 workbench。✅ Verified（`onTodosPageLeave` 不再 `reset_binding`；`tests/todo-task/lifecycle.test.js` / smoke P6）
+- [ ] P6：离页不 Reset；Binding 保持 spark。✅ Verified（`onTodosPageLeave` 不再 `reset_binding`；`tests/todo-task/lifecycle.test.js` / smoke P6）
 - [ ] N1：调用 open_ai_assistant(masterTaskId)（或等价）不得再作成功主路径且无 bound 副作用。✅ Verified（`TODOS_OPEN_AND_BIND_MAIN_PATH_DISABLED`；Present-only 入口；`tests/todo-task/deembed-writeback.test.js`）
 - [ ] N2：未 Set 仅 Present 时不可发送/执行成功。✅ Verified（Present≠bound；execute `rejected_unbound`；`j1_present_not_bound_execute_rejects_without_set` / smoke N2）
 - [ ] 关壳≠Reset：页内关壳不要求 onUnbound；再 Present 且仍 bound 可聊。✅ Verified（`notifyShellClose` 不 Reset；`tests/todo-task/lifecycle.test.js`）

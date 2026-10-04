@@ -5,10 +5,10 @@ import type { HostIndexAnnotation, HostNoteEntry } from './host/snapshot-types.t
 import { buildGroups, selectDate, applyListFilters, selectTag } from './notes/commands/sidebar.ts';
 import './notes/ui/comments.tsx';
 import './knowledge/viewer.ts';
-import './app-shell/ui/workbench-commit-dialog.tsx';
+import './app-shell/ui/spark-commit-dialog.tsx';
 import { navigate, navigateToNote } from './router/index.ts';
 import { setRouteHandlers } from './route-handlers.ts';
-import { setWorkbenchBinding } from './app-shell/commands/workbench-binding.ts';
+import { setSparkBinding } from './app-shell/commands/spark-binding.ts';
 import { initHeaderSync } from './app-shell/commands/header-sync.ts';
 import { normalizeKnowledgeIndex } from './knowledge/state/index.ts';
 import './app-shell/ui/settings/sediment-kb.tsx';
@@ -19,11 +19,11 @@ import {
   mountKnowledgeDocRoute,
   mountHomeRoute,
   mountReadLaterRoute,
-  mountWorkbench,
+  mountSpark,
   wrapRouteMount,
 } from './app-shell/routes.ts';
 import type { SettingsConfig } from './app-shell/state/types.ts';
-import type { WorkbenchEnvelope } from './router/scheme.ts';
+import type { SparkEnvelope } from './router/scheme.ts';
 import { startOsNotifyClickHub } from './app-shell/commands/os-notify-click.ts';
 import { handleNotesOsNotifyEnvelope } from './notes/commands/os-notify.ts';
 import { handleReadLaterOsNotifyEnvelope } from './read-later/commands/os-notify.ts';
@@ -133,7 +133,7 @@ document.addEventListener('cta:reload', () => loadIndex());
 
 api.fetchConfig().then((d) => {
   const cfg = d as SettingsConfig;
-  state.ui.workbenchRoot = cfg.spark_root || '';
+  state.ui.sparkRoot = cfg.spark_root || '';
   state.ui.knowledgeRoot = cfg.knowledge_root || '';
   state.ui.githubUserUrl = cfg.github_user_url || '';
   setGithubUserUrl(cfg.github_user_url);
@@ -158,7 +158,7 @@ initTooltip();
 loadIndex();
 
 setRouteHandlers({
-  spark: wrapRouteMount('spark', (route) => mountWorkbench(route)),
+  spark: wrapRouteMount('spark', (route) => mountSpark(route)),
   home: wrapRouteMount('home', mountHomeRoute),
   'knowledge-doc': wrapRouteMount('knowledge-doc', mountKnowledgeDocRoute),
   'read-later': wrapRouteMount('read-later', mountReadLaterRoute),
@@ -169,9 +169,9 @@ function closeNoteAssistantPanel() {
   getHomeEntryShell()?.forceRecoverA('leave-host');
 }
 
-console.info('[DEBUG-assistant] boot: setWorkbenchBinding');
-void setWorkbenchBinding().then((result) => {
-  console.info('[DEBUG-assistant] boot: setWorkbenchBinding result', result);
+console.info('[DEBUG-assistant] boot: setSparkBinding');
+void setSparkBinding().then((result) => {
+  console.info('[DEBUG-assistant] boot: setSparkBinding result', result);
 });
 
 /** Present-before-listen race buffer (L11-AR). Cleared on pull / successful open. */
@@ -250,7 +250,7 @@ export function startOsNotifyHub() {
     const listen = typeof window !== 'undefined' && window.__TAURI__?.event?.listen;
     if (typeof listen !== 'function') return false;
     void listen('message-center:changed', (event: { payload?: unknown }) => {
-      const payload = event?.payload as WorkbenchEnvelope;
+      const payload = event?.payload as SparkEnvelope;
       const params = payload?.params;
       const trace = parseTraceId(
         params && typeof params === 'object' ? params[TRACE_PARAM] : null,

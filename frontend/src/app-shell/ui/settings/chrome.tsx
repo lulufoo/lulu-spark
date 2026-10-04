@@ -3,7 +3,7 @@ import { KbHidePatternsHost } from './kb-hide-patterns.tsx';
 import { McpChannelToolsHost } from './mcp-channel-tools.tsx';
 import { McpTicketsHost } from './mcp-tickets.tsx';
 import { NotesSettingsPanel } from './notes-panel.tsx';
-import { WorkbenchSettingsPanel } from './workbench-panel.tsx';
+import { SparkSettingsPanel } from './spark-panel.tsx';
 import {
   onRepoListRefresh,
   onSedimentKbAddSubmit,
@@ -30,7 +30,7 @@ export function SettingsDialogChrome() {
           <button type="button" className="settings-nav-item" data-panel="mcp">MCP</button>
         </nav>
         <div id="settings-panels">
-          <WorkbenchSettingsPanel />
+          <SparkSettingsPanel />
           <NotesSettingsPanel />
           <div id="settings-panel-knowledge" className="settings-panel">
             <div className="settings-tabs" role="tablist">

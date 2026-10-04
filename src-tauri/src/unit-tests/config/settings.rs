@@ -136,7 +136,7 @@ fn save_roundtrip_keeps_general_settings() {
     let dir = tempfile::tempdir().expect("tmp");
     let _env = TestConfigEnv::prod(dir.path());
     let mut settings = AppSettings::default();
-    settings.spark_root = Path::new("/tmp/workbench").into();
+    settings.spark_root = Path::new("/tmp/spark").into();
     settings.github_user_url = "https://github.com/example".into();
     save(&settings).expect("save");
 

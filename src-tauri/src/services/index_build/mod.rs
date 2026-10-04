@@ -2,7 +2,7 @@
 
 pub mod common;
 pub mod knowledge;
-pub mod workbench;
+pub mod spark;
 
 pub use knowledge::rebuild as rebuild_knowledge_index;
-pub use workbench::full_rebuild as rebuild_spark_index;
+pub use spark::full_rebuild as rebuild_spark_index;
