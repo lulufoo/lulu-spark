@@ -54,6 +54,7 @@
 
   /* ── Header ── */
   header {
+    --header-control-height: 28px;
     background: #424a53;
     color: #fff;
     border-bottom: 1px solid #525960;
@@ -63,9 +64,17 @@
     gap: 20px;
     flex-shrink: 0;
   }
-  header h1 { font-size: 15px; font-weight: 600; letter-spacing: .3px; flex: 1; }
-  header h1 .header-home-link,
-  header h1 .header-nav-back {
+  header h1 {
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: .3px;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+  }
+  header h1 .header-home-link {
     font-size: 12px;
     font-weight: 600;
     letter-spacing: .3px;
@@ -73,25 +82,31 @@
   .header-home-link {
     display: inline-flex;
     align-items: center;
-    color: inherit;
+    justify-content: center;
+    width: var(--header-control-height);
+    height: var(--header-control-height);
+    min-width: var(--header-control-height);
+    min-height: var(--header-control-height);
+    flex-shrink: 0;
+    background: #fff;
+    border: 1px solid #656d76;
+    border-radius: 6px;
+    color: #1d1d1f;
     text-decoration: none;
     line-height: 0;
+    box-sizing: border-box;
   }
   .header-home-link[hidden] {
     display: none;
   }
-  .header-home-link:hover { color: #fff; }
+  .header-home-link:hover { color: #1d1d1f; }
+  .header-home-link.is-back:hover { background: #ececef; }
+  .header-home-link.is-back:active { background: #e0e0e3; }
   .header-home-mark {
     display: block;
-    width: 19px;
-    height: 19px;
+    width: 18px;
+    height: 18px;
   }
-  .header-nav-back {
-    color: #b1bac4;
-    text-decoration: none;
-    white-space: nowrap;
-  }
-  .header-nav-back:hover { color: #fff; }
   header a {
     color: #b1bac4;
     font-size: 12px;
@@ -343,19 +358,26 @@
   }
   #btn-sync-menu,
   #btn-tools-menu,
-  #btn-settings {
+  #btn-settings,
+  #btn-skills-menu {
+    display: inline-flex;
+    align-items: center;
+    height: var(--header-control-height);
+    min-height: var(--header-control-height);
     background: #525960;
     border: 1px solid #656d76;
     color: #ecf0f4;
-    padding: 5px 12px;
+    padding: 0 12px;
     border-radius: 6px;
     font-size: 12px;
+    line-height: 1.2;
     cursor: pointer;
     transition: background .15s;
   }
   #btn-sync-menu:hover,
   #btn-tools-menu:hover,
-  #btn-settings:hover { background: #5c6370; }
+  #btn-settings:hover,
+  #btn-skills-menu:hover { background: #5c6370; }
   #sync-menu-dropdown,
   #tools-menu-dropdown {
     position: absolute;
@@ -436,17 +458,6 @@
     right: 0;
     height: 6px;
   }
-  #btn-skills-menu {
-    background: #45654a;
-    border: 1px solid #5a7d60;
-    color: #b6f0be;
-    padding: 5px 12px;
-    border-radius: 6px;
-    font-size: 12px;
-    cursor: pointer;
-    transition: background .15s;
-  }
-  #btn-skills-menu:hover { background: #527a58; }
   #skills-menu-dropdown {
     position: absolute;
     top: calc(100% + 6px);

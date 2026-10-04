@@ -31,12 +31,11 @@ export function Shell() {
       <header>
         <h1>
           <a id="btn-nav-home-title" href="#/home" className="header-home-link" aria-label="Lulu Spark">
-            <svg className="header-home-mark" viewBox="6 6 20 20" aria-hidden="true" focusable="false">
-              <path d="M8 8h7v9h9v7H8z" fill="#f5f5f7" />
+            <svg className="header-home-mark" viewBox="8 8 16 16" aria-hidden="true" focusable="false">
+              <path d="M8 8h7v9h9v7H8z" fill="#1d1d1f" />
               <rect x="18" y="8" width="6" height="6" rx="1.5" fill="#0071e3" />
             </svg>
           </a>
-          <a id="btn-nav-home" href="#/home" className="header-nav-back" hidden>← Home</a>
         </h1>
         <SparkSearch />
         <KnowledgeSearch />
@@ -49,7 +48,7 @@ export function Shell() {
           </div>
         </div>
         <div id="tools-menu-wrap">
-          <button id="btn-tools-menu">Bind</button>
+          <button id="btn-tools-menu">⇔ Bind</button>
           <div id="tools-menu-dropdown">
             <button
               id="btn-bind"

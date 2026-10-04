@@ -656,9 +656,8 @@ describe('home hub shell integration', () => {
     expect(mainJs).toMatch(/['"]#\/home['"]/);
   });
 
-  it('main.js swaps left header title for back link off home', () => {
+  it('main.js keeps the brand mark and marks back off home', () => {
     expect(mainJs).toMatch(/btn-nav-home-title/);
-    expect(mainJs).toMatch(/homeTitle\) homeTitle\.hidden = !onHome/);
-    expect(mainJs).toMatch(/homeNav\) homeNav\.hidden = onHome/);
+    expect(mainJs).toMatch(/classList\.toggle\('is-back', !onHome\)/);
   });
 });

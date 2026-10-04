@@ -31,7 +31,7 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
     expect(homeTitle).toContain('aria-label="Lulu Spark"');
     expect(homeTitle).toContain('header-home-mark');
     expect(homeTitle).not.toMatch(/>\s*Lulu Spark\s*</);
-    expect(extractTagOuter(indexHtml, 'btn-nav-home')).toContain('← Home');
+    expect(indexHtml).not.toMatch(/id="btn-nav-home"(?!-)/);
     expect(indexHtml).toMatch(/data-panel="knowledge">Knowledge</);
     expect(indexHtml).not.toContain('id="btn-repo-menu"');
     expect(indexHtml).not.toContain('id="repo-menu-wrap"');
@@ -40,8 +40,8 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
   it('header menus use table B labels', () => {
     expect(extractTagOuter(indexHtml, 'btn-sync-menu')).toContain('⇕ Sync');
     const toolsMenu = extractTagOuter(indexHtml, 'btn-tools-menu');
-    expect(indexHtml).toContain('id="btn-tools-menu">Bind</button>');
-    expect(toolsMenu).toMatch(/id="btn-tools-menu"[^>]*>\s*Bind\s*</);
+    expect(indexHtml).toContain('id="btn-tools-menu">⇔ Bind</button>');
+    expect(toolsMenu).toMatch(/id="btn-tools-menu"[^>]*>\s*⇔ Bind\s*</);
     expect(toolsMenu).not.toContain('Tools');
     expect(toolsMenu).not.toContain('⛓');
     expect(extractTagOuter(indexHtml, 'btn-settings')).toMatch(/Settings/);

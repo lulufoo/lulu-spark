@@ -102,10 +102,9 @@ describe('applySearchNavChrome dual search wraps', () => {
     expect(document.activeElement).not.toBe(kbInput);
   });
 
-  it('main.js updateNavChrome keeps home header title/back swap', () => {
+  it('main.js updateNavChrome keeps the brand mark and marks back off home', () => {
     expect(mainJs).toMatch(/btn-nav-home-title/);
-    expect(mainJs).toMatch(/homeTitle\) homeTitle\.hidden = !onHome/);
-    expect(mainJs).toMatch(/homeNav\) homeNav\.hidden = onHome/);
+    expect(mainJs).toMatch(/classList\.toggle\('is-back', !onHome\)/);
     expect(mainJs).toMatch(/applySearchNavChrome\(routeName\)/);
   });
 });
