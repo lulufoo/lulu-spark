@@ -4,10 +4,10 @@
 
 | `sink` | MCP |
 |--------|-----|
-| `workbench` | This document applies in full |
+| `spark` | This document applies in full |
 | `local-md` | Skip MCP; write workspace `.cache` only — do **not** write the notes store by hand |
 
-## MCP prerequisite (`sink=workbench` only)
+## MCP prerequisite (`sink=spark` only)
 
 Lulu Spark App **must** be running.  
 **Do not** write notes `raw/` / `digest/` / `index.json` directly. Use MCP only. Load note-task and route Create.

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Clean Cursor agent-transcript messages into workbench-like dialogue raw.
+"""Clean Cursor agent-transcript messages into spark-like dialogue raw.
 
 Design: Cursor chrome (timestamp / user_query wrappers / attached skill dumps)
 is NOT user speech. Extract the utterance, keep skill names as metadata only.

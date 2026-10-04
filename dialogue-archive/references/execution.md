@@ -14,8 +14,8 @@ MCP: [`archive.md`](archive.md).
 
 ## Parent steps
 
-0. Resolve `sink`: `workbench` (default) or `local-md` when user intent refuses Lulu Spark persist. No phrase enumeration — semantic understanding only.
-1. If `sink=workbench`: confirm Lulu Spark MCP available ([archive.md](archive.md)). If `sink=local-md`: skip MCP check.
+0. Resolve `sink`: `spark` (default) or `local-md` when user intent refuses Lulu Spark persist. No phrase enumeration — semantic understanding only.
+1. If `sink=spark`: confirm Lulu Spark MCP available ([archive.md](archive.md)). If `sink=local-md`: skip MCP check.
 2. Resolve current session → jsonl (folder basename = session id). Prefer `<uuid>/<uuid>.jsonl` under `agent-transcripts`.
 3. Resolve `start_node` / `end_node` (1-based closed interval over non-empty JSONL lines):
    - User gave numbers → use them.
@@ -27,12 +27,12 @@ MCP: [`archive.md`](archive.md).
    - This is a staging path only. Do not treat it as Host `common_path`.
 5. Run `$NORMALIZE` with `--transcript` `--start-node` `--end-node` `--out` `--title` (+ optional project/theme/slug). For `local-md`, also pass `--local-md`. Exit ≠ 0 → stop.
 6. Phase B:
-   - `workbench`: load note-task and route Create (`source_type: dialogue`, `content_constraint` when writing digest). **Forbid** `"document"` and Host HTTP.
+   - `spark`: load note-task and route Create (`source_type: dialogue`, `content_constraint` when writing digest). **Forbid** `"document"` and Host HTTP.
    - `local-md`: ensure file at `--out`; stop (no MCP).
 
 **Hard:** Parent **MUST NOT** hand-parse jsonl or hand-build `TURN_SEP` bodies for MCP. Use `$NORMALIZE` only.
 
-Paste path: user supplies finished TURN_SEP markdown on disk → skip steps 3–5; Phase B only (still honor `sink`; workbench still uses `source_path`).
+Paste path: user supplies finished TURN_SEP markdown on disk → skip steps 3–5; Phase B only (still honor `sink`; spark still uses `source_path`).
 
 ---
 
@@ -49,10 +49,10 @@ Must appear in the digest header. Do not re-fetch full raw solely to write diges
 
 ## Done receipt
 
-`workbench` — use Host-returned paths, do not invent them:
+`spark` — use Host-returned paths, do not invent them:
 
 ```text
-> ✅ dialogue-archive complete（sink=workbench）
+> ✅ dialogue-archive complete（sink=spark）
 > 📄 raw：<raw_path>
 > 📋 digest：<digest_path 或已跳过>
 > 🧭 nodes：<start>-<end>；约束：<content_constraint 摘要>
@@ -61,6 +61,6 @@ Must appear in the digest header. Do not re-fetch full raw solely to write diges
 `local-md`:
 
 ```text
-> ✅ dialogue-archive complete（sink=local-md，未上传 workbench）
+> ✅ dialogue-archive complete（sink=local-md，未上传 spark）
 > 📄 local：.cache/dialogue-archive/<ts>-<slug>.md
 ```

@@ -2,7 +2,7 @@
 name: lulu-spark-skills
 description: >-
   Lulu Spark 归档技能包安装。克隆到平台 skills 目录（Cursor / Copilot / Claude / Codex）；归档经 Lulu Spark App MCP 落盘。
-  Use when: 安装 Lulu Spark skills、安装 workbench skills、dialogue-summary dialogue-archive theme-line theme-transcribe note-task
+  Use when: 安装 Lulu Spark skills、安装 spark skills、dialogue-summary dialogue-archive theme-line theme-transcribe note-task
 ---
 
 # lulu-spark-skills — 安装
@@ -37,7 +37,7 @@ git -C $SKILL_DIR pull --rebase
 
 ## 前置条件
 
-归档 skill 执行前 **Lulu Spark App 必须运行**（MCP `workbench-knowledge` 可用，`http://127.0.0.1:9876/mcp/cursor_ide`）。notes 根目录由 Lulu Spark 管理，**无需**本地配置文件。槽位名是 `spark`。
+归档 skill 执行前 **Lulu Spark App 必须运行**（MCP `spark-knowledge` 可用，`http://127.0.0.1:9876/mcp/cursor_ide`）。notes 根目录由 Lulu Spark 管理，**无需**本地配置文件。槽位名是 `spark`。
 
 ## 子 skill
 

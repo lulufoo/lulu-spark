@@ -15,7 +15,7 @@ description: >-
 >
 > 1. **Locate** — transcript + `start_node` / `end_node`
 > 2. **Normalize** — script writes raw markdown (never hand-assemble body)
-> 3. **Sink** — `workbench` (load note-task, Create) or `local-md` (`.cache` only)
+> 3. **Sink** — `spark` (load note-task, Create) or `local-md` (`.cache` only)
 
 **Not** process summary (`dialogue-summary`). Body stays **verbatim** after mechanical strip — no compression.
 
@@ -53,10 +53,10 @@ Resolve **before** MCP checks.
 
 | `sink` | When | Phase B |
 |--------|------|---------|
-| `workbench` | Default | Load note-task; route Create. Digest under content constraint when written |
+| `spark` | Default | Load note-task; route Create. Digest under content constraint when written |
 | `local-md` | User intent refuses Lulu Spark persist | Keep normalized md under workspace `.cache`; no MCP; no digest |
 
-Understand intent — do **not** maintain a phrase list. Unclear → default `workbench`.
+Understand intent — do **not** maintain a phrase list. Unclear → default `spark`.
 
 ---
 
@@ -66,7 +66,7 @@ Understand intent — do **not** maintain a phrase list. Unclear → default `wo
 2. **Path-only `create_note`** — `source_path` only.
 3. **Node indices are AI’s job** — script does not search anchors.
 4. **Digest needs content_constraint** when writing digest.
-5. **MCP only** for notes writes when `sink=workbench`.
+5. **MCP only** for notes writes when `sink=spark`.
 6. **Do not invent Host `common_path`** — staging is `{workspace}/.cache/dialogue-archive/<ts>-<slug>.md`. Host assigns the write identity.
 
 ---
@@ -77,7 +77,7 @@ Understand intent — do **not** maintain a phrase list. Unclear → default `wo
 - Project: closest topics match; else `inbox`
 - Language: preserve per turn
 - `ts`: archive moment (UTC+8 `YYYYMMDDHHMM`) — staging filename only
-- `sink`: `workbench`
+- `sink`: `spark`
 
 ## References
 
