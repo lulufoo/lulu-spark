@@ -17,10 +17,12 @@ pub use slot::{
     build_channel_enabled_table, build_channel_tool_table, build_slot_tool_table,
     tools_list_for_slot,
 };
+#[cfg(test)]
 pub(crate) use slot::is_registered_scene_slot;
+#[cfg(test)]
 pub(crate) use types::REGISTERED_SCENE_SLOTS;
 pub use types::{
-    CloseGateError, CloseGateReport, McpRuntimeConfig, McpRuntimeHandle, McpStartError,
+    invoke_eq, CloseGateError, CloseGateReport, McpRuntimeConfig, McpRuntimeHandle, McpStartError,
     McpStopError, McpToolError, McpToolResult, SlotToolTable, ToolDescriptor, ToolInvoke,
     ToolRoute,
 };

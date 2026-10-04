@@ -1,7 +1,7 @@
 #[cfg(not(test))]
 use tauri::webview::{NewWindowResponse, WebviewWindowBuilder};
 #[cfg(not(test))]
-use tauri::{Manager, Url, WindowEvent};
+use tauri::{Url, WindowEvent};
 #[cfg(not(test))]
 use tauri_plugin_opener::OpenerExt;
 

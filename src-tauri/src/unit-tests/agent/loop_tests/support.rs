@@ -520,7 +520,7 @@ pub(super) fn switch_session_without_resetting_binding(label: &str) -> (String, 
         .expect("session A")
         .to_string();
     let generation = r#loop::query_binding().generation.expect("bound generation");
-    let master = create_bound_plan(label);
+    let _master = create_bound_plan(label);
     let session_b = r#loop::create_chat_session_core()
         .expect("create B")
         .get("session_id")

@@ -2196,7 +2196,7 @@ fn mobile_channel_create_note_hits_content_api() {
         .find(|t| t.name == "create_note")
         .expect("create_note");
     assert!(
-        create.invoke == create_note_from_content,
+        invoke_eq(create.invoke, create_note_from_content),
         "mobile create_note must invoke create_note_content"
     );
     let required = create.input_schema["required"]
@@ -2214,7 +2214,7 @@ fn mobile_channel_create_note_hits_content_api() {
         .find(|t| t.name == "create_note")
         .expect("create_note");
     assert!(
-        path_create.invoke == create_note_from_source,
+        invoke_eq(path_create.invoke, create_note_from_source),
         "spark create_note must invoke create_note from source_path"
     );
     let path_required = path_create.input_schema["required"]
@@ -2257,7 +2257,7 @@ fn spark_channel_get_note_content_hits_note_path() {
     let tool = note_content_tool(&table);
     assert_eq!(tool.name, "get_note_content");
     assert!(
-        tool.invoke == note_path_invoke,
+        invoke_eq(tool.invoke, note_path_invoke),
         "spark get_note_content must invoke note_path"
     );
     assert!(
@@ -2286,7 +2286,7 @@ fn cursor_ide_and_mobile_get_note_content_hit_note_path() {
     let ide_tool = note_content_tool(&ide);
     assert_eq!(ide_tool.name, "get_note_content");
     assert!(
-        ide_tool.invoke == note_path_invoke,
+        invoke_eq(ide_tool.invoke, note_path_invoke),
         "cursor_ide get_note_content must invoke note_path"
     );
     assert!(
@@ -2305,7 +2305,7 @@ fn cursor_ide_and_mobile_get_note_content_hit_note_path() {
     let mobile_tool = note_content_tool(&mobile);
     assert_eq!(mobile_tool.name, "get_note_content");
     assert!(
-        mobile_tool.invoke == note_path_invoke,
+        invoke_eq(mobile_tool.invoke, note_path_invoke),
         "mobile get_note_content must invoke note_path"
     );
     assert!(

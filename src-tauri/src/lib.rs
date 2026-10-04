@@ -9,6 +9,7 @@ pub mod mcp_host;
 pub mod repositories;
 pub mod services;
 
+#[cfg(not(test))]
 use std::net::SocketAddr;
 
 #[cfg(not(test))]

@@ -405,7 +405,7 @@ fn atomic_config_write_replaces_hard_link_without_mutating_protected_file() {
 #[test]
 fn nested_test_sandbox_serializes_distinct_roots() {
     crate::test_support::with_config_test_serial(|| {
-        let outer = TestSandbox::new();
+        let _outer = TestSandbox::new();
         let outer_wb = settings::load().expect("load").spark_root;
         {
             let inner = TestSandbox::new();

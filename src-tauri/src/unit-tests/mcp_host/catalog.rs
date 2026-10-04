@@ -1,4 +1,5 @@
 use crate::mcp_host::build_channel_tool_table;
+use crate::mcp_host::invoke_eq;
 use crate::mcp_host::catalog::groups::global;
 use crate::mcp_host::catalog::groups::knowledge;
 use crate::mcp_host::catalog::groups::notes::{
@@ -48,10 +49,6 @@ const TODO_APIS: &[&str] = &[
     "get_todo_attachment",
     "update_todo_attachment",
 ];
-
-fn invoke_eq(a: fn(&serde_json::Value) -> serde_json::Value, b: fn(&serde_json::Value) -> serde_json::Value) -> bool {
-    a == b
-}
 
 #[test]
 fn notes_registry_covers_all_snapshot_tools() {

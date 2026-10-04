@@ -1213,7 +1213,7 @@ fn t3_nonempty_tools_binding_tool_calls_never_mutate_todo_task() {
 #[test]
 fn t2_empty_tools_binding_text_only_round_succeeds() {
     with_sandbox(|| {
-        let master = create_bound_plan("空tools纯文本");
+        let _master = create_bound_plan("空tools纯文本");
         let mock = spawn_scripted_llm(vec![assistant_text("纯文本回复，无工具")]);
         let mut sess = session::create_session().unwrap();
         r#loop::set_binding(empty_tools_binding()).expect("empty tools Set");
@@ -1228,7 +1228,7 @@ fn t2_empty_tools_binding_text_only_round_succeeds() {
 fn t2_key_only_set_loads_mcp_and_rejects_unreachable_endpoint() {
     with_sandbox(|| {
         use crate::mcp_host::registry::SEEDED_BUSINESS_KEY;
-        let master = create_bound_plan("key-only空tools");
+        let _master = create_bound_plan("key-only空tools");
         let mock = spawn_scripted_llm(vec![assistant_text("key-only工具回复")]);
         let mut sess = session::create_session().unwrap();
         r#loop::try_set_binding_json(&key_only_payload(SEEDED_BUSINESS_KEY))
@@ -1253,7 +1253,7 @@ fn t2_key_only_set_loads_mcp_and_rejects_unreachable_endpoint() {
 #[test]
 fn run_loop_emits_requesting_progress() {
     with_sandbox(|| {
-        let master = create_bound_plan("进度");
+        let _master = create_bound_plan("进度");
         let mock = spawn_scripted_llm(vec![assistant_text("收到")]);
         let mut sess = session::create_session().unwrap();
         r#loop::set_binding(empty_tools_binding()).expect("empty tools Set");

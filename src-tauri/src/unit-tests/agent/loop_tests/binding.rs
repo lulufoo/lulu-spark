@@ -612,7 +612,7 @@ fn execute_after_reset_rejects_and_old_config_not_reused() {
 #[test]
 fn present_without_set_leaves_unbound_and_execute_rejects() {
     with_sandbox(|| {
-        let master = create_bound_plan("仅Present");
+        let _master = create_bound_plan("仅Present");
         let _ = r#loop::ensure_chat_session_core().expect("Present/open shell");
         assert_eq!(
             r#loop::binding_state(),
@@ -1968,7 +1968,7 @@ fn t1_same_binding_switch_session_routes_to_new_slot() {
             .and_then(Value::as_str)
             .expect("session A")
             .to_string();
-        let master = create_bound_plan("t1-switch-session");
+        let _master = create_bound_plan("t1-switch-session");
         let session_b = r#loop::create_chat_session_core()
             .expect("create B")
             .get("session_id")
@@ -2272,7 +2272,7 @@ fn t6_binding_contract_rejects_top_level_business_ids() {
 #[test]
 fn t2_key_only_set_loads_mcp_server_into_session_capability_context() {
     with_sandbox(|| {
-        use crate::mcp_host::registry::{self, SEEDED_BUSINESS_KEY};
+        use crate::mcp_host::registry::SEEDED_BUSINESS_KEY;
         assert_eq!(r#loop::binding_state(), "unbound");
         assert!(r#loop::loaded_mcp_server().is_none());
 
@@ -2331,7 +2331,7 @@ fn t2_set_reset_public_json_reject_engine_selection_params() {
 #[test]
 fn t2_replace_set_with_new_key_replaces_loaded_mcp_config() {
     with_sandbox(|| {
-        use crate::mcp_host::registry::{self, McpServerConfig, SEEDED_BUSINESS_KEY};
+        use crate::mcp_host::registry::{McpServerConfig, SEEDED_BUSINESS_KEY};
         r#loop::try_set_binding_json(&key_only_payload(SEEDED_BUSINESS_KEY)).expect("first Set");
         let first = r#loop::loaded_mcp_server().expect("first loaded");
 
@@ -2477,7 +2477,7 @@ fn t2_binding_from_json_accepts_key_only_rejects_legacy() {
 #[test]
 fn t4_read_face_exposes_decision_level_shape_matching_registry_value() {
     with_sandbox(|| {
-        use crate::mcp_host::registry::{self, SEEDED_BUSINESS_KEY};
+        use crate::mcp_host::registry::SEEDED_BUSINESS_KEY;
         r#loop::try_set_binding_json(&key_only_payload(SEEDED_BUSINESS_KEY)).expect("Set");
 
         let view = r#loop::session_capability_mcp_config()
@@ -2543,7 +2543,7 @@ fn t4_read_face_is_readonly_consumer_mutate_does_not_rewrite_session() {
 #[test]
 fn t4_only_set_reset_lifecycle_may_change_loaded_config() {
     with_sandbox(|| {
-        use crate::mcp_host::registry::{self, McpServerConfig, SEEDED_BUSINESS_KEY};
+        use crate::mcp_host::registry::{McpServerConfig, SEEDED_BUSINESS_KEY};
         assert!(r#loop::session_capability_mcp_config().is_none());
 
         // Lifecycle Set loads.
@@ -2626,7 +2626,7 @@ fn t4_read_face_cannot_reinject_legacy_tools_prompt_callbacks() {
 #[test]
 fn t4_a1_a2_handoff_assumptions_confirmed_not_narrowed() {
     with_sandbox(|| {
-        use crate::mcp_host::registry::{self, SEEDED_BUSINESS_KEY};
+        use crate::mcp_host::registry::SEEDED_BUSINESS_KEY;
         // A1: one decision-level shape, with no channel-specific fields.
         r#loop::try_set_binding_json(&key_only_payload(SEEDED_BUSINESS_KEY)).expect("Set");
         let face = r#loop::session_capability_mcp_config().expect("face");
@@ -2657,7 +2657,7 @@ fn t4_a1_a2_handoff_assumptions_confirmed_not_narrowed() {
 #[test]
 fn t4_spark_key_only_set_binds_seeded_spark_mcp() {
     with_sandbox(|| {
-        use crate::mcp_host::registry::{self, SEEDED_BUSINESS_KEY};
+        use crate::mcp_host::registry::SEEDED_BUSINESS_KEY;
         assert_eq!(r#loop::binding_state(), "unbound");
         r#loop::try_set_binding_json(&key_only_payload(SEEDED_BUSINESS_KEY))
             .expect("try_set_binding_json({{ key: spark }}) must succeed when seeded");
@@ -2714,7 +2714,7 @@ fn t4_only_other_binding_page_resets_notes() {
 #[test]
 fn t4_old_app_keys_still_unknown_after_seed_defaults() {
     with_sandbox(|| {
-        use crate::mcp_host::registry::{self, SEEDED_BUSINESS_KEY};
+        use crate::mcp_host::registry::SEEDED_BUSINESS_KEY;
         mcp_registry::clear_for_tests();
         for key in ["notes", "todo_task"] {
             let err = r#loop::try_set_binding_json(&key_only_payload(key))

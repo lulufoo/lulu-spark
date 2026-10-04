@@ -3,19 +3,23 @@
 //! Transport only: discover (`tools/list`) and call (`tools/call`). Catalog
 //! types live in `agent::tools::catalog`.
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
+#[cfg(test)]
+use std::collections::BTreeMap;
 use std::fmt;
 use std::time::Instant;
 
 use axum::http::{HeaderName, HeaderValue};
 use rmcp::{
     ServiceExt,
-    model::{CallToolRequestParams, ClientCapabilities, ClientInfo, Implementation, Tool},
+    model::{CallToolRequestParams, ClientCapabilities, ClientInfo, Implementation},
     transport::{
         StreamableHttpClientTransport,
         streamable_http_client::StreamableHttpClientTransportConfig,
     },
 };
+#[cfg(test)]
+use rmcp::model::Tool;
 use serde_json::Value;
 
 use crate::agent::diagnostics::{self, DiagnosticEvent, TraceId};

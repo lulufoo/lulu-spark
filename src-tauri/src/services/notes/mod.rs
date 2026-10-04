@@ -17,7 +17,6 @@ pub use categories::{
     list_notes_categories_value, update_notes_category, update_notes_category_value,
     NotesCatError, INBOX_ID,
 };
-pub use digest::*;
 pub use document::*;
 pub use jot::*;
 pub use update::*;

@@ -98,7 +98,7 @@ pub fn remove_key_if_zero(registry: &mut Value, key: &str) {
     }
 }
 
-fn index_common_paths(notes: &Path, index_path: &Path) -> Option<Vec<String>> {
+fn index_common_paths(_notes: &Path, index_path: &Path) -> Option<Vec<String>> {
     let text = fs::read_to_string(index_path).ok()?;
     let index_data: Value = serde_json::from_str(&text).ok()?;
     let entries = index_data

@@ -59,8 +59,12 @@ pub struct McpToolError {
 /// In-process Services call for one allowlisted MCP tool.
 pub type ToolInvoke = fn(&Value) -> Value;
 
+pub fn invoke_eq(a: ToolInvoke, b: ToolInvoke) -> bool {
+    std::ptr::fn_addr_eq(a, b)
+}
+
 /// One allowlisted tool and its in-process Services invoke.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct ToolRoute {
     pub name: String,
     pub description: String,
@@ -72,6 +76,19 @@ pub struct ToolRoute {
     pub input_schema: Value,
     pub invoke: ToolInvoke,
 }
+
+impl PartialEq for ToolRoute {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name
+            && self.description == other.description
+            && self.read_only == other.read_only
+            && self.destructive == other.destructive
+            && self.input_schema == other.input_schema
+            && invoke_eq(self.invoke, other.invoke)
+    }
+}
+
+impl Eq for ToolRoute {}
 
 /// Authoritative slot→tool routing table for a registered `scene_slot`.
 #[derive(Debug, Clone, PartialEq, Eq)]

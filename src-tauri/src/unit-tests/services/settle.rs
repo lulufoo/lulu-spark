@@ -113,7 +113,7 @@ fn append_link_and_remove_comment() {
 fn local_annotation_updated_when_put_would_succeed() {
     with_repo_list(
         r#"{"repos":[{"full_name":"o/proj","name":"proj","type":"knowledge","description":""}]}"#,
-        |root| {
+        |_root| {
             let wb = crate::config::settings::load()
                 .expect("load")
                 .spark_root;

@@ -167,7 +167,7 @@ fn present_preserves_binding_state_unbound_and_bound() {
 #[test]
 fn present_path_does_not_write_contract_business_binding_primary_key() {
     with_sandbox(|| {
-        let master = create_bound_plan("Present无契约业务主键");
+        let _master = create_bound_plan("Present无契约业务主键");
         // Present core must not smear a business primary key into Binding Contract state.
         let _ = r#loop::present_ai_assistant_core().expect("Present");
         assert_query_unbound(&r#loop::query_binding());

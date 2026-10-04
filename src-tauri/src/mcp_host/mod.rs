@@ -21,8 +21,9 @@ pub use server::{
     observe_dual_listen, proxy_tool_call, start_embedded_mcp_runtime, start_mcp_listener,
     stop_embedded_mcp_runtime, tools_list_for_slot, CloseGateError, CloseGateReport,
     McpRuntimeConfig, McpRuntimeHandle, McpStartError, McpStopError, McpToolError, McpToolResult,
-    SlotToolTable, ToolDescriptor, ToolInvoke, ToolRoute,
+    invoke_eq, SlotToolTable, ToolDescriptor, ToolInvoke, ToolRoute,
 };
+#[cfg(test)]
 pub(crate) use server::{is_registered_scene_slot, REGISTERED_SCENE_SLOTS};
 
 #[cfg(test)]

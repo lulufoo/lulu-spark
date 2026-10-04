@@ -81,7 +81,7 @@ fn get_topics_reads_from_sediment_kb_with_category_fields() {
         add_repo, ensure_uncategorized, set_test_repo_validator, UNCATEGORIZED_ID,
     };
 
-    with_sediment_kb_topics_cache(|cfg, wb| {
+    with_sediment_kb_topics_cache(|_cfg, wb| {
         set_test_repo_validator(Some(|name| Ok(name.to_string())));
         ensure_uncategorized().expect("ensure");
         add_repo("lulufoo/kb-a", None, "Saved KB description").expect("add");

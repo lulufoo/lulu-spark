@@ -16,6 +16,7 @@ mod dispatch;
 mod read_later;
 mod respond;
 
+#[cfg(test)]
 pub(crate) use respond::map_value_to_response;
 
 pub struct MainHostHandle {
