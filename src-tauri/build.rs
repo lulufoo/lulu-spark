@@ -1,4 +1,8 @@
 fn main() {
+    // tauri-codegen embeds icons/icon.icns into the macOS `tauri dev` binary.
+    // Without these lines, replacing the icns leaves the old W baked in.
+    println!("cargo:rerun-if-changed=icons/icon.icns");
+    println!("cargo:rerun-if-changed=icons/icon.png");
     if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("macos") {
         println!("cargo:rerun-if-changed=native/os_notification.m");
         cc::Build::new()

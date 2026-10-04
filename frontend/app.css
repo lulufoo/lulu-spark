@@ -70,8 +70,22 @@
     font-weight: 600;
     letter-spacing: .3px;
   }
-  .header-home-link { color: inherit; text-decoration: none; }
+  .header-home-link {
+    display: inline-flex;
+    align-items: center;
+    color: inherit;
+    text-decoration: none;
+    line-height: 0;
+  }
+  .header-home-link[hidden] {
+    display: none;
+  }
   .header-home-link:hover { color: #fff; }
+  .header-home-mark {
+    display: block;
+    width: 19px;
+    height: 19px;
+  }
   .header-nav-back {
     color: #b1bac4;
     text-decoration: none;

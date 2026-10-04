@@ -27,7 +27,10 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
   });
 
   it('header brand and entry controls align with table A', () => {
-    expect(extractTagOuter(indexHtml, 'btn-nav-home-title')).toContain('Lulu Spark');
+    const homeTitle = extractTagOuter(indexHtml, 'btn-nav-home-title');
+    expect(homeTitle).toContain('aria-label="Lulu Spark"');
+    expect(homeTitle).toContain('header-home-mark');
+    expect(homeTitle).not.toMatch(/>\s*Lulu Spark\s*</);
     expect(extractTagOuter(indexHtml, 'btn-nav-home')).toContain('← Home');
     expect(indexHtml).toMatch(/data-panel="knowledge">Knowledge</);
     expect(indexHtml).not.toContain('id="btn-repo-menu"');

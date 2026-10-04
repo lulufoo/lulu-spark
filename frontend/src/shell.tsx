@@ -30,7 +30,12 @@ export function Shell() {
 
       <header>
         <h1>
-          <a id="btn-nav-home-title" href="#/home" className="header-home-link">Lulu Spark</a>
+          <a id="btn-nav-home-title" href="#/home" className="header-home-link" aria-label="Lulu Spark">
+            <svg className="header-home-mark" viewBox="6 6 20 20" aria-hidden="true" focusable="false">
+              <path d="M8 8h7v9h9v7H8z" fill="#f5f5f7" />
+              <rect x="18" y="8" width="6" height="6" rx="1.5" fill="#0071e3" />
+            </svg>
+          </a>
           <a id="btn-nav-home" href="#/home" className="header-nav-back" hidden>← Home</a>
         </h1>
         <SparkSearch />

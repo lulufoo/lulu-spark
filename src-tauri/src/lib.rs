@@ -345,3 +345,7 @@ mod discovery_startup_tests;
 #[cfg(test)]
 #[path = "unit-tests/lib/message_center_event_tests.rs"]
 mod message_center_event_tests;
+
+#[cfg(test)]
+#[path = "unit-tests/lib/dev_dock_icon.rs"]
+mod dev_dock_icon;
