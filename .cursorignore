@@ -2,11 +2,11 @@
 # 被排除的目录不会往下走，必须先一层层打开父目录。
 # https://cursor.com/docs/reference/ignore-file
 
-!lulu-workbench/app/build/
-lulu-workbench/app/build/*
-!lulu-workbench/app/build/generated/
-lulu-workbench/app/build/generated/*
-!lulu-workbench/app/build/generated/hilt/
-!lulu-workbench/app/build/generated/hilt/**
-!lulu-workbench/app/build/generated/ksp/
-!lulu-workbench/app/build/generated/ksp/**
+!lulu-spark/app/build/
+lulu-spark/app/build/*
+!lulu-spark/app/build/generated/
+lulu-spark/app/build/generated/*
+!lulu-spark/app/build/generated/hilt/
+!lulu-spark/app/build/generated/hilt/**
+!lulu-spark/app/build/generated/ksp/
+!lulu-spark/app/build/generated/ksp/**
