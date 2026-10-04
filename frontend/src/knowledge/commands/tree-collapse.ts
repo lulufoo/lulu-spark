@@ -39,7 +39,8 @@ export function toggleKnowledgeTreeCollapsed(from: HTMLElement | null) {
     return;
   }
   persistKnowledgeTreeCollapsed(next);
-  const btn = from?.closest('.kb-btn-tree-toggle') ?? from;
+  const found = from?.closest('.kb-btn-tree-toggle');
+  const btn = found instanceof HTMLElement ? found : from;
   paintKnowledgeTreeToggle(btn, next);
 }
 
