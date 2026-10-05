@@ -47,8 +47,6 @@ const INVOKE_MAP_COMMANDS: &[&str] = &[
     "get_draft",
     "get_note_draft",
     "get_config",
-    "infer_github_user_url",
-    "check_spark_root",
     "get_status",
     "kb_read",
     "get_kb_asset",
@@ -56,7 +54,6 @@ const INVOKE_MAP_COMMANDS: &[&str] = &[
     "kb_annotation",
     "get_kb_hide_patterns",
     "get_kb_viewer_state",
-    "kb_status",
     "get_repo_dirs",
     "check_file",
     "fetch_link_title",
@@ -191,12 +188,12 @@ fn kb_doc_count_command_is_acl_allowed() {
 }
 
 #[test]
-fn settings_github_infer_commands_are_acl_allowed() {
+fn settings_github_infer_commands_are_not_acl_allowed() {
     let root = manifest_dir();
     let toml = fs::read_to_string(root.join("permissions/read-api.toml")).expect("toml");
     let allow = parse_read_api_toml_allow(&toml);
     for cmd in ["infer_github_user_url", "check_spark_root"] {
-        assert!(allow.contains(cmd), "{cmd} must be in read-api.toml");
+        assert!(!allow.contains(cmd), "{cmd} must not stay in read-api.toml");
     }
 }
 

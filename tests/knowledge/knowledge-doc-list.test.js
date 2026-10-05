@@ -518,7 +518,6 @@ describe('mountKnowledgeDocList', () => {
       expect.objectContaining({
         repo: 'owner/repo',
         path: 'readme.md',
-        url: 'https://github.com/owner/repo/blob/main/readme.md',
       }),
     );
   });

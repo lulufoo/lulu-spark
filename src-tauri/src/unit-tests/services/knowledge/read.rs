@@ -31,28 +31,9 @@ fn kb_read_returns_content() {
         |cfg_dir, _| {
             let v = kb_read_json(cfg_dir, "lulufoo/myrepo", "docs/a.md");
             assert_eq!(v["content"], "hello");
-            assert!(v["committed_at"].is_null());
-        },
-    );
-}
-
-#[test]
-fn kb_read_includes_file_last_commit_unix() {
-    with_kb_repo(
-        |_, kb| {
-            let repo_dir = kb.join("myrepo");
-            fs::create_dir_all(repo_dir.join("docs")).expect("mkdir");
-            fs::write(repo_dir.join("docs/a.md"), "hello").expect("w");
-            crate::integrations::git::exec(&repo_dir, &["init"]).expect("init");
-            crate::integrations::git::exec(&repo_dir, &["config", "user.email", "t@t.com"]).expect("email");
-            crate::integrations::git::exec(&repo_dir, &["config", "user.name", "t"]).expect("name");
-            crate::integrations::git::exec(&repo_dir, &["add", "docs/a.md"]).expect("add");
-            crate::integrations::git::exec(&repo_dir, &["commit", "-m", "init"]).expect("commit");
-        },
-        |cfg_dir, _| {
-            let v = kb_read_json(cfg_dir, "lulufoo/myrepo", "docs/a.md");
-            assert_eq!(v["content"], "hello");
-            assert!(v["committed_at"].as_i64().expect("unix") > 0);
+            assert!(v.get("committed_at").is_none());
+            let by_dir = kb_read_json(cfg_dir, "myrepo", "docs/a.md");
+            assert_eq!(by_dir["content"], "hello");
         },
     );
 }
@@ -123,24 +104,24 @@ fn kb_list_json_rejects_traversal() {
 }
 
 #[test]
-fn kb_list_json_repo_not_cloned() {
+fn kb_list_json_directory_not_found() {
     with_kb_repo(
         |_, _kb| {},
         |cfg_dir, _| {
             let v = kb_list_json(cfg_dir, "lulufoo/missing", "", "flat");
-            assert!(v["error"].as_str().unwrap().contains("not cloned"));
+            assert!(v["error"].as_str().unwrap().contains("directory not found"));
             assert_eq!(v["_status"], 404);
         },
     );
 }
 
 #[test]
-fn kb_list_json_invalid_repo_format() {
+fn kb_list_json_invalid_directory_name() {
     with_kb_repo(
         |_, _kb| {},
         |cfg_dir, _| {
-            let v = kb_list_json(cfg_dir, "invalidrepo", "", "flat");
-            assert_eq!(v["error"], "invalid repo format");
+            let v = kb_list_json(cfg_dir, "../secret", "", "flat");
+            assert_eq!(v["error"], "invalid directory name");
             assert_eq!(v["_status"], 400);
         },
     );
@@ -247,19 +228,16 @@ fn kb_doc_count_json_only_counts_md() {
 #[test]
 fn kb_doc_count_json_category_aggregates() {
     use crate::services::sediment_kb::{
-        add_category, add_repo, ensure_uncategorized, set_test_repo_validator, SedimentKbError,
+        add_category, add_directory, ensure_uncategorized, update_repo_category,
     };
 
-    fn ok_validator(full_name: &str) -> Result<String, SedimentKbError> {
-        Ok(full_name.to_string())
-    }
-
     with_kb_and_sediment_cache(|dir, kb| {
-        set_test_repo_validator(Some(ok_validator));
         ensure_uncategorized().expect("ensure");
         let cat_id = add_category("Research").expect("cat");
-        add_repo("owner/repoa", Some(&cat_id), "").expect("add a");
-        add_repo("owner/repob", Some(&cat_id), "").expect("add b");
+        add_directory("repoa").expect("add a");
+        add_directory("repob").expect("add b");
+        update_repo_category("repoa", &cat_id).expect("cat a");
+        update_repo_category("repob", &cat_id).expect("cat b");
 
         let repo_a = kb.join("repoa");
         let repo_b = kb.join("repob");
@@ -269,33 +247,20 @@ fn kb_doc_count_json_category_aggregates() {
         fs::write(repo_a.join("docs/two.md"), "2").expect("w");
         fs::write(repo_b.join("docs/three.md"), "3").expect("w");
 
-        let v = kb_doc_count_json(dir, "owner/repoa", Some(&cat_id));
+        let v = kb_doc_count_json(dir, "repoa", Some(&cat_id));
         assert_eq!(v["count"], 3);
         assert!(v.get("error").is_none());
-        set_test_repo_validator(None);
     });
 }
 
 #[test]
-fn kb_doc_count_json_repo_not_cloned() {
+fn kb_doc_count_json_directory_not_found() {
     with_kb_repo(
         |_, _kb| {},
         |cfg_dir, _| {
             let v = kb_doc_count_json(cfg_dir, "lulufoo/missing", None);
-            assert!(v["error"].as_str().unwrap().contains("not cloned"));
+            assert!(v["error"].as_str().unwrap().contains("directory not found"));
             assert_eq!(v["_status"], 404);
-        },
-    );
-}
-
-#[test]
-fn kb_doc_count_json_invalid_repo_format() {
-    with_kb_repo(
-        |_, _kb| {},
-        |cfg_dir, _| {
-            let v = kb_doc_count_json(cfg_dir, "invalidrepo", None);
-            assert_eq!(v["error"], "invalid repo format");
-            assert_eq!(v["_status"], 400);
         },
     );
 }
@@ -306,7 +271,7 @@ fn kb_doc_count_json_rejects_traversal_in_repo() {
         |_, _kb| {},
         |cfg_dir, _| {
             let v = kb_doc_count_json(cfg_dir, "lulufoo/../secret", None);
-            assert_eq!(v["error"], "invalid repo format");
+            assert_eq!(v["error"], "invalid directory name");
             assert_eq!(v["_status"], 400);
         },
     );

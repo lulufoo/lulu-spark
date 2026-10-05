@@ -208,40 +208,6 @@ pub fn clean_force(repo: &Path, args: &[&str]) -> Result<GitOutput, GitError> {
     exec(repo, cmd.as_slice())
 }
 
-/// Clone `https://github.com/{owner}/{repo}.git` into `dest` (uses PAT when set).
-pub fn clone_repo(repo: &str, dest: &Path) -> Result<GitOutput, GitError> {
-    if dest.exists() {
-        return Err(GitError {
-            message: format!("destination exists: {}", dest.display()),
-            stderr: None,
-            stdout: None,
-        });
-    }
-    if let Some(parent) = dest.parent() {
-        std::fs::create_dir_all(parent).map_err(|e| GitError {
-            message: e.to_string(),
-            stderr: None,
-            stdout: None,
-        })?;
-    }
-    let mut url = format!("https://github.com/{repo}.git");
-    if let Ok(Some(token)) = crate::config::secrets::get_secret(crate::config::secrets::KEY_GITHUB_TOKEN) {
-        if !token.is_empty() {
-            url = format!("https://x-access-token:{token}@github.com/{repo}.git");
-        }
-    }
-    let parent = dest.parent().filter(|p| !p.as_os_str().is_empty()).unwrap_or(Path::new("."));
-    let name = dest
-        .file_name()
-        .and_then(|s| s.to_str())
-        .ok_or_else(|| GitError {
-            message: "invalid dest path".into(),
-            stderr: None,
-            stdout: None,
-        })?;
-    exec(parent, &["clone", &url, name])
-}
-
 pub fn pull_rebase_in_repo(repo: &Path) -> Result<(), GitError> {
     let out = pull_rebase(repo)?;
     if out.success {

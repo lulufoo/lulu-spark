@@ -4,23 +4,18 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 const {
   fetchKbFileContent,
   fetchKbAnnotation,
-  fetchKbStatus,
   fetchKbAssetAsBlobUrl,
 } = vi.hoisted(() => ({
   fetchKbFileContent: vi.fn(),
   fetchKbAnnotation: vi.fn(),
-  fetchKbStatus: vi.fn(),
   fetchKbAssetAsBlobUrl: vi.fn(),
 }));
 
 vi.mock('../../frontend/src/host/api.ts', () => ({
   fetchKbFileContent,
   fetchKbAnnotation,
-  fetchKbStatus,
   fetchKbAssetAsBlobUrl,
   saveKbFile: vi.fn(),
-  commitKbFile: vi.fn(),
-  revertKbFile: vi.fn(),
 }));
 
 vi.mock('../../frontend/src/knowledge/ui/comments.tsx', () => ({
@@ -70,7 +65,6 @@ describe('mountKbReader', () => {
     vi.clearAllMocks();
     fetchKbFileContent.mockResolvedValue({ content: '# Hello\n\nworld' });
     fetchKbAnnotation.mockResolvedValue({});
-    fetchKbStatus.mockResolvedValue({ error: null, total: 0, ahead: 0 });
     globalThis.marked = { parse: (text) => `<p>${text}</p>` };
   });
 
@@ -89,7 +83,6 @@ describe('mountKbReader', () => {
     const { unmount } = await mountKbReader(container, {
       repo: 'owner/repo',
       path: 'docs/guide.md',
-      url: 'https://github.com/owner/repo/blob/main/docs/guide.md',
     });
 
     expect(container.querySelector('.kb-reader-header')).toBeTruthy();
@@ -133,11 +126,7 @@ describe('mountKbReader', () => {
     unmount();
   });
 
-  it('shows last git commit time next to file size', async () => {
-    fetchKbFileContent.mockResolvedValue({
-      content: '# Hello\n\nworld',
-      committed_at: 1_704_067_200,
-    });
+  it('shows file size without git commit time or GitHub copy', async () => {
     const { unmount } = await mountKbReader(container, {
       repo: 'owner/repo',
       path: 'readme.md',
@@ -148,15 +137,13 @@ describe('mountKbReader', () => {
     const toggle = container.querySelector('.kb-btn-tree-toggle');
     const meta = container.querySelector('.kb-reader-header-meta');
     const size = container.querySelector('.kb-file-size');
-    const committed = container.querySelector('.kb-file-committed');
     expect(start?.contains(toggle)).toBe(true);
     expect(toggle?.querySelector('svg')).not.toBeNull();
     expect(toggle?.nextElementSibling).toBe(meta);
-    expect(meta?.contains(committed)).toBe(true);
-    expect(committed?.nextElementSibling).toBe(size);
+    expect(meta?.contains(size)).toBe(true);
     expect(size?.textContent).toMatch(/B|KB|MB/);
-    expect(committed?.hidden).toBe(false);
-    expect(committed?.textContent).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/);
+    expect(container.querySelector('.kb-file-committed')).toBeNull();
+    expect(container.querySelector('.kb-btn-copy-http')).toBeNull();
     unmount();
   });
 

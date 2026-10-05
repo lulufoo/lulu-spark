@@ -156,7 +156,7 @@ export function createTauriDriver(): ApiDriver {
  */
 /**
  * Direct Tauri invoke for P3 reindex commands (not readDriver).
- * @param {'reindexAll'|'getReindexAllStatus'|'reindexKbRepo'|'syncKnowledge'|'getReindexStatus'} key
+ * @param {'reindexAll'|'getReindexAllStatus'|'reindexKbRepo'|'getReindexStatus'} key
  * @param {Record<string, unknown>} [payload]
  */
 export async function invoke(cmd: string, args?: Record<string, unknown>) {

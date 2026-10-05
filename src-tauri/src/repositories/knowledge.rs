@@ -1,19 +1,29 @@
 use std::path::{Path, PathBuf};
 
+/// Last path segment of a knowledge directory key.
+/// Accepts a folder name (`topic`) or a leftover `owner/repo` registry key.
+fn kb_dir_name(repo: &str) -> Result<&str, String> {
+    let repo = repo.trim();
+    if repo.is_empty() || repo.contains("..") || repo.contains('\\') || repo.contains('\0') {
+        return Err("invalid directory name".into());
+    }
+    let name = repo.split('/').next_back().unwrap_or("");
+    if name.is_empty() || name == "." || name == ".." {
+        return Err("invalid directory name".into());
+    }
+    Ok(name)
+}
+
 /// Aligns with `server.py::_kb_safe_path`.
 pub fn kb_safe_path(kb_root: &Path, repo: &str, rel_path: &str) -> Result<PathBuf, String> {
-    let repo = repo.trim();
     let rel_path = rel_path.trim();
-    if repo.is_empty() || !repo.contains('/') {
-        return Err("invalid repo format".into());
-    }
     if rel_path.is_empty() || rel_path.contains("..") {
         return Err("invalid path".into());
     }
-    let repo_name = repo.split('/').next_back().unwrap_or("");
+    let repo_name = kb_dir_name(repo)?;
     let local_dir = kb_root.join(repo_name);
     if !local_dir.is_dir() {
-        return Err(format!("repo not cloned locally: {repo_name}"));
+        return Err(format!("directory not found: {repo_name}"));
     }
     let kb_canon = kb_root
         .canonicalize()
@@ -40,20 +50,16 @@ pub fn kb_safe_path(kb_root: &Path, repo: &str, rel_path: &str) -> Result<PathBu
     Ok(target)
 }
 
-/// List-only path resolver: allows `rel_path == ""` for repo root directory.
+/// List-only path resolver: allows `rel_path == ""` for directory root.
 pub fn kb_list_dir(kb_root: &Path, repo: &str, rel_path: &str) -> Result<PathBuf, String> {
-    let repo = repo.trim();
     let rel_path = rel_path.trim();
-    if repo.is_empty() || !repo.contains('/') {
-        return Err("invalid repo format".into());
-    }
     if rel_path.contains("..") {
         return Err("invalid path".into());
     }
-    let repo_name = repo.split('/').next_back().unwrap_or("");
+    let repo_name = kb_dir_name(repo)?;
     let local_dir = kb_root.join(repo_name);
     if !local_dir.is_dir() {
-        return Err(format!("repo not cloned locally: {repo_name}"));
+        return Err(format!("directory not found: {repo_name}"));
     }
     let kb_canon = kb_root
         .canonicalize()
@@ -88,9 +94,8 @@ pub fn kb_list_dir(kb_root: &Path, repo: &str, rel_path: &str) -> Result<PathBuf
 /// Aligns with `server.py::_kb_annotation_path`.
 pub fn kb_annotation_path(kb_root: &Path, repo: &str, rel_path: &str) -> Result<PathBuf, String> {
     kb_safe_path(kb_root, repo, rel_path)?;
-    let repo = repo.trim();
     let rel_path = rel_path.trim();
-    let repo_name = repo.split('/').next_back().unwrap_or("");
+    let repo_name = kb_dir_name(repo)?;
     let mut ann_rel = rel_path.to_string();
     if ann_rel.ends_with(".md") {
         ann_rel = format!("{}.json", &ann_rel[..ann_rel.len() - 3]);

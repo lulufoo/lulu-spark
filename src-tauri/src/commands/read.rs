@@ -87,16 +87,6 @@ pub fn get_config(_app: AppHandle) -> Result<Value, String> {
 }
 
 #[tauri::command]
-pub fn infer_github_user_url(_app: AppHandle, path: String) -> Result<Value, String> {
-    Ok(spark_read::infer_github_user_url(&path))
-}
-
-#[tauri::command]
-pub fn check_spark_root(_app: AppHandle, path: String) -> Result<Value, String> {
-    Ok(spark_read::check_spark_root(&path))
-}
-
-#[tauri::command]
 pub async fn get_status(_app: AppHandle) -> Result<Value, String> {
     let root = repo_root()?;
     tauri::async_runtime::spawn_blocking(move || spark_read::get_status(&root))
@@ -164,11 +154,6 @@ pub fn kb_annotation(_app: AppHandle, repo: String, path: String) -> Result<Valu
 }
 
 #[tauri::command]
-pub fn kb_status(_app: AppHandle, repo: String) -> Result<Value, String> {
-    Ok(crate::services::knowledge::kb_status_json(&repo_root()?, &repo))
-}
-
-#[tauri::command]
 pub async fn get_repo_dirs(_app: AppHandle, repo: String) -> Result<Value, String> {
     let root = repo_root()?;
     tauri::async_runtime::spawn_blocking(move || gh_read::repo_dirs_json(&root, &repo))
@@ -225,45 +210,6 @@ pub fn get_notes_asset(
         &base,
         &href,
     ))
-}
-
-#[tauri::command]
-pub fn get_kb_diff_status(_app: AppHandle) -> Result<Value, String> {
-    let repo_root = repo_root()?;
-    let knowledge_root = std::path::PathBuf::from(
-        crate::config::roots::knowledge_root_string(&repo_root),
-    );
-
-    let repos: Vec<Value> = spark_read::get_topics(&repo_root)
-        .get("topics")
-        .and_then(|topics| topics.as_array())
-        .map(|topics| {
-            topics
-                .iter()
-                .filter_map(|item| {
-                    let full_name = item.get("repo")?.as_str()?;
-                    let name = full_name.split('/').next_back().unwrap_or(full_name);
-                    if !knowledge_root.join(name).is_dir() {
-                        return None;
-                    }
-
-                    let status = crate::services::knowledge::kb_status_json(&repo_root, full_name);
-                    let has_changes = status
-                        .get("total")
-                        .and_then(|total| total.as_u64())
-                        .map(|total| total > 0)
-                        .unwrap_or(false);
-
-                    Some(json!({
-                        "full_name": full_name,
-                        "has_changes": has_changes,
-                    }))
-                })
-                .collect()
-        })
-        .unwrap_or_default();
-
-    Ok(json!({ "repos": repos }))
 }
 
 pub fn sediment_kb_categories_json() -> Result<Value, String> {

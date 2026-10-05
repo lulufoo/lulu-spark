@@ -64,23 +64,6 @@ export const SYNC_API_INVOKE_MAP: Record<string, SyncInvokeEntry> = {
         content: body.content,
       }),
   },
-  '/api/kb/commit': {
-    cmd: 'kb_git_commit',
-    args: (body) =>
-      syncPayload({
-        repo: body.repo,
-        message: body.message,
-      }),
-  },
-  '/api/kb/revert': {
-    cmd: 'kb_git_revert',
-    args: (body) =>
-      syncPayload({
-        repo: body.repo,
-        path: body.path,
-        type: body.type,
-      }),
-  },
   '/api/spark-revert': {
     cmd: 'spark_git_revert',
     args: (body) => syncPayload({ path: body.path, type: body.type }),

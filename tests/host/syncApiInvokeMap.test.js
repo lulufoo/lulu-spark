@@ -17,14 +17,12 @@ const P4_PATHS = [
     ['common_path', 'comment_id', 'layer', 'doc_theme', 'slug', 'content'],
   ],
   ['/api/draft', 'save_comment_draft', ['common_path', 'content']],
-  ['/api/kb/commit', 'kb_git_commit', ['repo', 'message']],
-  ['/api/kb/revert', 'kb_git_revert', ['repo', 'path', 'type']],
   ['/api/spark-revert', 'spark_git_revert', ['path', 'type']],
 ];
 
 describe('syncApiInvokeMap', () => {
-  it('covers all 10 P4 POST paths with command names', () => {
-    expect(Object.keys(SYNC_API_INVOKE_MAP)).toHaveLength(10);
+  it('covers all P4 POST paths with command names', () => {
+    expect(Object.keys(SYNC_API_INVOKE_MAP)).toHaveLength(8);
     for (const [path, cmd] of P4_PATHS) {
       expect(SYNC_API_INVOKE_MAP[path]?.cmd, path).toBe(cmd);
     }
@@ -116,26 +114,9 @@ describe('syncApiInvokeMap', () => {
     });
   });
 
-  it('kb commit maps body into payload for kb_git_commit', () => {
-    expect(
-      resolveSyncInvoke('/api/kb/commit', { repo: 'o/r', message: 'm' })
-    ).toEqual({
-      cmd: 'kb_git_commit',
-      args: { payload: { repo: 'o/r', message: 'm' } },
-    });
-  });
-
-  it('kb revert maps body into payload for kb_git_revert', () => {
-    expect(
-      resolveSyncInvoke('/api/kb/revert', {
-        repo: 'o/r',
-        path: 'a.md',
-        type: 'file',
-      })
-    ).toEqual({
-      cmd: 'kb_git_revert',
-      args: { payload: { repo: 'o/r', path: 'a.md', type: 'file' } },
-    });
+  it('kb git paths are no longer mapped', () => {
+    expect(resolveSyncInvoke('/api/kb/commit', { repo: 'o/r', message: 'm' })).toBeNull();
+    expect(resolveSyncInvoke('/api/kb/revert', { repo: 'o/r', path: 'a.md', type: 'file' })).toBeNull();
   });
 
   it('resolveSyncInvoke returns null for unknown path', () => {

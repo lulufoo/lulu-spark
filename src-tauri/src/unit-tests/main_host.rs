@@ -39,8 +39,7 @@ fn setup_repo_without_index() -> RepoFixture {
 
 fn setup_repo_with_notes() -> RepoFixture {
     let sandbox = TestSandbox::new();
-    let wb = sandbox.spark_root();
-    let notes = wb.join("notes");
+    let notes = sandbox.data_dir().join("notes");
     fs::create_dir_all(notes.join("digest")).expect("mkdir digest");
     fs::write(notes.join("index.json"), br#"{"entries":[]}"#).expect("index");
     fs::write(notes.join("digest/note.md"), b"digest body").expect("digest file");

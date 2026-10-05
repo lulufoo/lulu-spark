@@ -17,17 +17,15 @@ fn list_categories_includes_uncategorized() {
 #[test]
 fn list_repos_uses_sediment_rows_without_inbox() {
     let _sandbox = TestSandbox::new();
-    sediment_kb::set_test_repo_validator(Some(|full| Ok(full.to_string())));
     sediment_kb::ensure_uncategorized().expect("ensure");
-    sediment_kb::add_repo("acme/demo", None, "desc").expect("add");
+    sediment_kb::add_directory("demo").expect("add");
     let v = list_knowledge_repos_value();
     let rows = v.as_array().expect("array");
     assert_eq!(rows.len(), 1);
-    assert_eq!(rows[0]["full_name"], "acme/demo");
-    assert_eq!(rows[0]["description"], "desc");
+    assert_eq!(rows[0]["full_name"], "demo");
+    assert_eq!(rows[0]["description"], "");
     assert_eq!(rows[0]["category_id"], UNCATEGORIZED_ID);
     assert!(!rows.iter().any(|r| r.get("inbox").is_some()));
-    sediment_kb::set_test_repo_validator(None);
 }
 
 #[test]

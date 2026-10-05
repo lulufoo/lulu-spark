@@ -165,35 +165,9 @@ export async function deleteKbEntry(repo: PathArg, path: PathArg) {
   return writePost('/api/kb/delete', { repo, path });
 }
 
-export async function commitKbFile(repo: PathArg, message: string) {
-  return writePost('/api/kb/commit', { repo, message });
-}
-
-export async function fetchKbStatus(repo: PathArg) {
-  const res = await getReadDriver().fetchGet(
-    `/api/kb/status?repo=${encodeURIComponent(String(repo ?? ''))}`,
-  );
-  return res.json();
-}
-
-export async function fetchKbDiffStatus() {
-  return readGet('/api/kb/diff-status?_=' + Date.now());
-}
-
-export async function revertKbFile(repo: PathArg, path?: PathArg, type?: PathArg) {
-  const body: Record<string, unknown> = { repo };
-  if (path) { body.path = path; body.type = type; }
-  return writePost('/api/kb/revert', body);
-}
-
 export async function reindexKbRepo(repo: string) {
   const { invokeSearch } = await import('../apiClient.ts');
   return invokeSearch('reindexKbRepo', { repo });
-}
-
-export async function syncKnowledge() {
-  const { invokeSearch } = await import('../apiClient.ts');
-  return invokeSearch('syncKnowledge');
 }
 
 export async function searchKnowledge(q: string, limit = 10) {
@@ -234,19 +208,8 @@ export async function fetchSedimentKbRepos() {
   return readGet('/api/sediment-kb/repos');
 }
 
-export async function addSedimentKbRepo(
-  fullName: string,
-  categoryId?: string,
-  description?: string,
-) {
-  const body: Record<string, unknown> = { full_name: fullName };
-  if (categoryId != null && categoryId !== '') {
-    body.category_id = categoryId;
-  }
-  if (description != null && description !== '') {
-    body.description = description;
-  }
-  return writePost('/api/sediment-kb/repos/add', body);
+export async function addSedimentKbRepo(name: string) {
+  return writePost('/api/sediment-kb/repos/add', { name });
 }
 
 export async function removeSedimentKbRepo(fullName: string) {

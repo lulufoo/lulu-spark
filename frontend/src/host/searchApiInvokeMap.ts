@@ -16,7 +16,6 @@ export const REINDEX_INVOKE_MAP: Record<string, ReindexEntry> = {
     cmd: 'reindex_kb_repo',
     args: (payload) => ({ repo: payload?.repo ?? '' }),
   },
-  syncKnowledge: { cmd: 'sync_knowledge' },
   getReindexStatus: { cmd: 'get_reindex_status' },
 };
 

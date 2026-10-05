@@ -14,15 +14,15 @@ describe('readApi contract map', () => {
     }
   });
 
-  it('resolveInvokeFromPath 映射 infer-github-user-url', () => {
+  it('resolveInvokeFromPath 不再映射 infer-github-user-url', () => {
     expect(
       resolveInvokeFromPath(
         '/api/infer-github-user-url?path=%2FUsers%2Fme%2Fspark-knowledge',
       ),
-    ).toEqual({
-      cmd: 'infer_github_user_url',
-      args: { path: '/Users/me/spark-knowledge' },
-    });
+    ).toBeNull();
+    expect(
+      resolveInvokeFromPath('/api/check-spark-root?path=%2Ftmp%2Fspark'),
+    ).toBeNull();
   });
 
   it('resolveInvokeFromPath maps query args', () => {
@@ -89,11 +89,9 @@ describe('readApi contract map', () => {
     });
   });
 
-  it('resolveInvokeFromPath 映射 kb diff status', () => {
-    expect(resolveInvokeFromPath('/api/kb/diff-status?_=123')).toEqual({
-      cmd: 'get_kb_diff_status',
-      args: {},
-    });
+  it('resolveInvokeFromPath 不再映射 kb git status', () => {
+    expect(resolveInvokeFromPath('/api/kb/diff-status?_=123')).toBeNull();
+    expect(resolveInvokeFromPath('/api/kb/status?repo=o%2Fr')).toBeNull();
   });
 
   it('normalizeForContract drops cached_at', () => {

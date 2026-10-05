@@ -7,10 +7,9 @@ import {
   assertReadPayload,
   assertWritePayload,
   fetchIndex, fetchDiffStatus, fetchAnnotationsSummary, fetchAnnotation,
-  fetchKbDiffStatus,
   fetchConfig, fetchFileContent, fetchLinkTitle,
   setConfig,
-  saveFile, commitFiles, pullProject, revertFile,
+  saveFile, commitFiles, revertFile,
   updateComments, updateLinks, setImportance, setDone,
   deleteEntry, ghDelete,
   fetchTopics, fetchNotesCategories, createNotesCategory, updateNotesCategory, deleteNotesCategory, moveToProject,
@@ -152,15 +151,6 @@ test('fetchLinkTitle 对 url 做 encodeURIComponent', async () => {
   expect(result.title).toBe('My Page')
 })
 
-test('fetchKbDiffStatus 调用 /api/kb/diff-status 并返回 JSON', async () => {
-  mockFetch({ repos: [{ full_name: 'o/r', has_changes: true }] })
-  const result = await fetchKbDiffStatus()
-  expect(fetch.mock.calls[0][0]).toMatch(
-    new RegExp(`^${API_READ_PREFIX}/kb/diff-status`)
-  )
-  expect(result).toEqual({ repos: [{ full_name: 'o/r', has_changes: true }] })
-})
-
 // ── POST endpoints ─────────────────────────────────────────────────────────
 
 test('saveFile 发送正确 body', async () => {
@@ -185,13 +175,6 @@ test('commitFiles 传 files 时 body 包含 files', async () => {
   await commitFiles('fix: note', ['raw/ai/note.md'])
   const body = JSON.parse(fetch.mock.calls[0][1].body)
   expect(body.files).toEqual(['raw/ai/note.md'])
-})
-
-test('pullProject 发送 POST 到 /api/pull', async () => {
-  mockFetch({ ok: true })
-  await pullProject()
-  expect(fetch.mock.calls[0][0]).toBe(`${DEFAULT_DEV_BASE}/api/pull`)
-  expect(fetch.mock.calls[0][1].method).toBe('POST')
 })
 
 test('revertFile 发送 path 和 type 到 /api/spark-revert', async () => {

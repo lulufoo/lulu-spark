@@ -23,11 +23,9 @@ const FALLBACK_SHELL_HTML = `
         <span class="kb-reader-header-start">
           <button type="button" class="md-header-btn kb-btn-tree-toggle" title="Collapse directory" aria-label="Collapse directory" aria-expanded="true">${TREE_TOGGLE_ICON_SVG}</button>
           <span class="kb-reader-header-meta">
-            <span class="kb-file-committed" title="Last git commit" hidden></span>
             <span class="kb-file-size"></span>
           </span>
         </span>
-        <button type="button" class="md-header-btn kb-btn-copy-http" data-tip="">&#127760;</button>
         <button type="button" class="md-header-btn kb-btn-copy-path" data-tip="">&#128194;</button>
         <button type="button" class="md-header-btn kb-btn-edit" title="Edit" aria-label="Edit">✏️</button>
         <button type="button" class="md-header-btn kb-btn-add-comment" title="Comment" aria-label="Comment">💬</button>
@@ -64,13 +62,9 @@ export function ReaderShell() {
             <TreeToggleIcon />
           </button>
           <span className="kb-reader-header-meta">
-            <span className="kb-file-committed" title="Last git commit" hidden />
             <span className="kb-file-size" />
           </span>
         </span>
-        <button type="button" className="md-header-btn kb-btn-copy-http" data-tip="">
-          &#127760;
-        </button>
         <button type="button" className="md-header-btn kb-btn-copy-path" data-tip="">
           &#128194;
         </button>

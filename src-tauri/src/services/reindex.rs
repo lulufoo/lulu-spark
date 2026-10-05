@@ -1,16 +1,11 @@
-use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::{Arc, Mutex};
-use std::thread;
 
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
-use crate::config::roots::knowledge_root_string;
-use crate::integrations::git;
 use crate::services::index_build::{rebuild_knowledge_index, rebuild_spark_index};
-use crate::services::spark_read;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct JobState {
@@ -53,101 +48,6 @@ impl ReindexState {
 
 fn now_iso() -> String {
     Utc::now().to_rfc3339()
-}
-
-pub fn sync_repo_blocking(repo: &str, kb_root: &Path) -> (String, String, Option<String>) {
-    let repo_name = repo.split('/').next_back().unwrap_or(repo).to_string();
-    let local_dir = kb_root.join(&repo_name);
-    if !local_dir.is_dir() {
-        match crate::integrations::git::clone_repo(repo, &local_dir) {
-            Ok(o) if o.success => (repo_name, "cloned".to_string(), None),
-            Ok(o) => {
-                let _ = fs::remove_dir_all(&local_dir);
-                let err = o.stderr.trim().to_string();
-                let out = o.stdout.trim().to_string();
-                (
-                    repo_name,
-                    "clone_failed".to_string(),
-                    Some(if err.is_empty() { out } else { err }),
-                )
-            }
-            Err(e) => (
-                repo_name,
-                "clone_failed".to_string(),
-                Some(e.message),
-            ),
-        }
-    } else {
-        let format_output = |stdout: &str, stderr: &str| {
-            let err = stderr.trim().to_string();
-            let out = stdout.trim().to_string();
-            if err.is_empty() { out } else { err }
-        };
-
-        let (stash_empty, stash_out) = match git::stash_save(&local_dir) {
-            Ok(result) => result,
-            Err(e) => {
-                return (
-                    repo_name,
-                    "pull_failed".to_string(),
-                    Some(e.message),
-                )
-            }
-        };
-
-        if !stash_empty && !stash_out.success {
-            return (
-                repo_name,
-                "pull_failed".to_string(),
-                Some(format_output(&stash_out.stdout, &stash_out.stderr)),
-            );
-        }
-
-        match crate::integrations::git::pull_rebase(&local_dir) {
-            Ok(o) if o.success => {
-                if stash_empty {
-                    (repo_name, "pulled".to_string(), None)
-                } else {
-                    match git::stash_pop(&local_dir) {
-                        Ok(pop) if pop.success => (repo_name, "pulled".to_string(), None),
-                        Ok(pop) => (
-                            repo_name,
-                            "pull_failed".to_string(),
-                            Some(format!(
-                                "stash pop failed: {}",
-                                format_output(&pop.stdout, &pop.stderr)
-                            )),
-                        ),
-                        Err(e) => (
-                            repo_name,
-                            "pull_failed".to_string(),
-                            Some(e.message),
-                        ),
-                    }
-                }
-            }
-            Ok(o) => {
-                if !stash_empty {
-                    let _ = git::stash_pop(&local_dir);
-                }
-                (
-                    repo_name,
-                    "pull_failed".to_string(),
-                    Some(format_output(&o.stdout, &o.stderr)),
-                )
-            }
-            Err(e) => {
-                if !stash_empty {
-                    let _ = git::stash_pop(&local_dir);
-                }
-                (
-                    repo_name,
-                    "pull_failed".to_string(),
-                    Some(e.message),
-                )
-            }
-        }
-    }
 }
 
 /// Index-only rebuild of notes then knowledge (no `git pull`). Drives both job
@@ -220,68 +120,10 @@ pub fn all_status_json(
 
 pub fn run_kb_sync_and_index_blocking(repo_root: &Path, repo: &str) -> Result<String, String> {
     let repo = repo.trim();
-    if repo.is_empty() || !repo.contains('/') {
-        return Err("invalid repo format".to_string());
-    }
-    let repo_name = repo.split('/').next_back().unwrap_or(repo);
-    let kb_root = PathBuf::from(knowledge_root_string(repo_root));
-    let (_, status, err) = sync_repo_blocking(repo, &kb_root);
-    if status.contains("failed") {
-        let msg = err.unwrap_or_else(|| "unknown error".to_string());
-        return Err(format!("git sync failed for {repo_name}: {msg}"));
+    if repo.is_empty() {
+        return Err("invalid directory name".to_string());
     }
     rebuild_knowledge_index(repo_root, Some(repo))
-}
-
-pub fn run_knowledge_pull_and_reindex(
-    repo_root: &Path,
-    slot: Option<&Arc<Mutex<JobState>>>,
-) -> Result<String, String> {
-    if let Some(s) = slot {
-        set_job_log(s, "拉取本地仓库（并行）…");
-    }
-    let topics = spark_read::get_topics(repo_root);
-    let repos: Vec<String> = topics
-        .get("topics")
-        .and_then(|t| t.as_array())
-        .map(|arr| {
-            arr.iter()
-                .filter_map(|item| item.get("repo").and_then(|r| r.as_str()).map(String::from))
-                .collect()
-        })
-        .unwrap_or_default();
-
-    let kb_root = PathBuf::from(knowledge_root_string(repo_root));
-    let mut failed_repos = Vec::new();
-    let handles: Vec<_> = repos
-        .iter()
-        .filter(|repo| {
-            let name = repo.split('/').next_back().unwrap_or(repo);
-            kb_root.join(name).is_dir()
-        })
-        .map(|repo| {
-            let repo = repo.clone();
-            let kb = kb_root.clone();
-            thread::spawn(move || sync_repo_blocking(&repo, &kb))
-        })
-        .collect();
-    for handle in handles {
-        if let Ok((name, status, err)) = handle.join() {
-            if status.contains("failed") {
-                failed_repos.push(format!("{name}: {}", err.unwrap_or_default()));
-            }
-        }
-    }
-
-    if let Some(s) = slot {
-        set_job_log(s, "重建索引…");
-    }
-    let mut log = rebuild_knowledge_index(repo_root, None)?;
-    if !failed_repos.is_empty() {
-        log.push_str("\n⚠ 拉取失败：");
-        log.push_str(&failed_repos.join("；"));
-    }
-    Ok(log)
 }
 
 pub fn start_job(

@@ -10,7 +10,7 @@ export function filenameFromPath(commonPath: string): string {
   return (commonPath.split('/').pop() ?? '').replace(/\.md$/, '');
 }
 
-/** GitHub full_name (owner/repo) → repo segment only for display. */
+/** Knowledge directory key (`name` or leftover `owner/repo`) → folder name for display. */
 export function repoShortName(fullName: string | null | undefined): string {
   if (!fullName) return '';
   const slash = fullName.indexOf('/');

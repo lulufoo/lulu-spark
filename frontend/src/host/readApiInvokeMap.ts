@@ -64,14 +64,6 @@ export const READ_API_INVOKE_MAP: Record<string, ReadInvokeEntry> = {
     args: (url) => ({ tempId: url.searchParams.get('temp_id') ?? '' }),
   },
   '/api/config': { cmd: 'get_config' },
-  '/api/infer-github-user-url': {
-    cmd: 'infer_github_user_url',
-    args: (url) => ({ path: url.searchParams.get('path') ?? '' }),
-  },
-  '/api/check-spark-root': {
-    cmd: 'check_spark_root',
-    args: (url) => ({ path: url.searchParams.get('path') ?? '' }),
-  },
   '/api/status': { cmd: 'get_status' },
   '/api/read-later': { cmd: 'get_read_later' },
   '/api/doc-highlights': {
@@ -122,13 +114,6 @@ export const READ_API_INVOKE_MAP: Record<string, ReadInvokeEntry> = {
       repo: url.searchParams.get('repo') ?? '',
       path: url.searchParams.get('path') ?? '',
     }),
-  },
-  '/api/kb/status': {
-    cmd: 'kb_status',
-    args: (url) => ({ repo: url.searchParams.get('repo') ?? '' }),
-  },
-  '/api/kb/diff-status': {
-    cmd: 'get_kb_diff_status',
   },
   '/api/repo-dirs': {
     cmd: 'get_repo_dirs',

@@ -51,8 +51,6 @@ pub fn run() {
             commands::read::get_note_draft,
             commands::read::get_doc_highlights,
             commands::read::get_config,
-            commands::read::infer_github_user_url,
-            commands::read::check_spark_root,
             commands::config_cmd::set_config,
             commands::mcp_oauth::issue_cursor_ide_ticket,
             commands::mcp_oauth::rotate_cursor_ide_ticket,
@@ -69,8 +67,6 @@ pub fn run() {
             commands::sync::spark_git_commit,
             commands::sync::spark_git_pull,
             commands::sync::spark_git_revert,
-            commands::sync::kb_git_commit,
-            commands::sync::kb_git_revert,
             commands::sync::delete_entry,
             commands::sync::move_entry_project,
             commands::sync::gh_delete_assets,
@@ -83,7 +79,6 @@ pub fn run() {
             commands::read::get_kb_hide_patterns,
             commands::kb_viewer_state::get_kb_viewer_state,
             commands::read::kb_annotation,
-            commands::read::kb_status,
             commands::read::get_repo_dirs,
             commands::read::check_file,
             commands::read::fetch_link_title,
@@ -95,7 +90,6 @@ pub fn run() {
             commands::notes_categories::create_notes_category,
             commands::notes_categories::update_notes_category,
             commands::notes_categories::delete_notes_category,
-            commands::read::get_kb_diff_status,
             commands::read::get_sediment_kb_categories,
             commands::read::get_sediment_kb_repos,
             commands::read::get_message_channel_unread,
@@ -123,7 +117,6 @@ pub fn run() {
             commands::search::reindex_all,
             commands::search::get_reindex_all_status,
             commands::search::reindex_kb_repo,
-            commands::search::sync_knowledge,
             commands::search::get_reindex_status,
             commands::write::set_done,
             commands::write::set_importance,
@@ -256,10 +249,10 @@ pub fn run() {
                 let Ok(repo_root) = crate::config::paths::repo_root() else {
                     return;
                 };
-                let wb = crate::config::roots::spark_root_path(&repo_root);
-                let _ = crate::services::notes::ensure_notes_layout(&wb);
-                let _ = crate::services::knowledge_layout::ensure_knowledge_registry_layout(&wb);
-                if !wb.join("notes").join("index.json").is_file() {
+                let data = crate::config::paths::runtime_data_dir();
+                let _ = crate::services::notes::ensure_notes_layout(&data);
+                let _ = crate::services::knowledge_layout::ensure_knowledge_registry_layout(&data);
+                if !data.join("notes").join("index.json").is_file() {
                     return;
                 }
                 if services::tags_registry::reconcile_tags(&repo_root).is_none() {

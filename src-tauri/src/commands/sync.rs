@@ -2,7 +2,7 @@ use serde_json::Value;
 use tauri::AppHandle;
 
 use crate::services::{
-    knowledge, draft, entry_admin, github, settle, spark_git,
+    draft, entry_admin, github, settle, spark_git,
 };
 
 #[tauri::command]
@@ -43,20 +43,6 @@ pub async fn spark_git_pull(_app: AppHandle, payload: Value) -> Result<Value, St
 #[tauri::command]
 pub async fn spark_git_revert(_app: AppHandle, payload: Value) -> Result<Value, String> {
     tauri::async_runtime::spawn_blocking(move || spark_git::spark_git_revert(&payload))
-        .await
-        .map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-pub async fn kb_git_commit(_app: AppHandle, payload: Value) -> Result<Value, String> {
-    tauri::async_runtime::spawn_blocking(move || knowledge::kb_git_commit(&payload))
-        .await
-        .map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-pub async fn kb_git_revert(_app: AppHandle, payload: Value) -> Result<Value, String> {
-    tauri::async_runtime::spawn_blocking(move || knowledge::kb_git_revert(&payload))
         .await
         .map_err(|e| e.to_string())
 }

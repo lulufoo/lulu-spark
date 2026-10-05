@@ -1,4 +1,4 @@
-//! Knowledge clone read / write / cloned-repo git / MCP read surface.
+//! Knowledge directory read / write / MCP read surface.
 //!
 //! Command names and Sidecar `/api/kb/*` paths stay on L1.
 
@@ -7,7 +7,6 @@ mod read;
 mod write;
 mod rename;
 mod entry;
-mod repo_git;
 mod doc_map;
 mod hide_patterns;
 mod viewer_state;
@@ -19,7 +18,6 @@ pub use read::*;
 pub use write::*;
 pub use rename::*;
 pub use entry::*;
-pub use repo_git::*;
 pub use mcp::*;
 pub use search_document::*;
 pub use hide_patterns::{

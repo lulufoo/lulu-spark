@@ -44,6 +44,19 @@ fn kb_list_dir_allows_empty_path_for_repo_root() {
 }
 
 #[test]
+fn resolves_file_under_directory_name() {
+    let dir = tempfile::tempdir().expect("tmp");
+    let kb = dir.path().join("kb");
+    let repo_dir = kb.join("topic-name");
+    fs::create_dir_all(&repo_dir).expect("mkdir");
+    let md = repo_dir.join("docs/a.md");
+    fs::create_dir_all(md.parent().unwrap()).expect("mkdir");
+    fs::write(&md, "# hi").expect("write");
+    let p = kb_safe_path(&kb, "topic-name", "docs/a.md").expect("ok");
+    assert!(p.is_file());
+}
+
+#[test]
 fn kb_list_dir_rejects_traversal() {
     let dir = tempfile::tempdir().expect("tmp");
     let kb = dir.path().join("kb");

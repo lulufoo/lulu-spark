@@ -4,7 +4,6 @@ import { createRoot } from 'react-dom/client';
 import { flushSync } from 'react-dom';
 import * as api from '../host/api.ts';
 import { mountKbReader } from './viewer.ts';
-import { setHeaderSyncKnowledgeContext, clearHeaderSyncKnowledgeContext } from '../app-shell/commands/header-sync.ts';
 import { attachKnowledgeSidebarResize, detachKnowledgeSidebarResize } from './ui/sidebar-resize.ts';
 import { attachKnowledgeTreeToggle, detachKnowledgeTreeToggle } from './commands/tree-collapse.ts';
 import { closeFloatingListSelect, createFloatingListSelect } from '../shared/floating-list-select.ts';
@@ -119,23 +118,13 @@ function startKnowledgeDocSession(
     }
     const pane = container.querySelector('.knowledge-doc-reader-pane');
     if (!pane || !path) return;
-    const blobUrl = buildKbBlobUrl(repo, path);
-    const { unmount } = await mountKbReader(pane as HTMLElement, { repo, path, url: blobUrl });
+    const { unmount } = await mountKbReader(pane as HTMLElement, { repo, path });
     if (disposed) {
       unmount();
       return;
     }
     unmountReader = unmount;
     openedPath = path;
-  }
-
-  function buildKbBlobUrl(repoFullName: string, relativePath: string) {
-    if (!repoFullName || !relativePath) return '';
-    const encodedPath = relativePath
-      .split('/')
-      .map((seg) => encodeURIComponent(seg))
-      .join('/');
-    return `https://github.com/${repoFullName}/blob/main/${encodedPath}`;
   }
 
   function syncKnowledgeHash(relativePath: string) {
@@ -197,14 +186,6 @@ function startKnowledgeDocSession(
     attachKnowledgeTreeToggle(container.querySelector('.knowledge-doc-layout'));
     mountRepoPicker(repos);
   }
-
-  const onKbDiffUpdated = (event: Event) => {
-    const detail = (event as CustomEvent<{ repo?: string }>).detail;
-    if (detail?.repo !== repo) return;
-    void reloadFromDisk().catch(() => {});
-    if (sedimentRepos.length) void refreshRepoPickerCounts(sedimentRepos);
-  };
-  window.addEventListener('kb-diff-updated', onKbDiffUpdated);
 
   const onHidePatternChanged = () => {
     void reloadFromDisk().catch(() => {});
@@ -537,7 +518,6 @@ function startKnowledgeDocSession(
       rootNodes = buildTreeNodes(entries, '');
       renderShell(repos);
       attachKnowledgeSidebarResize(container.querySelector('.knowledge-doc-sidebar') as HTMLElement);
-      setHeaderSyncKnowledgeContext(repo, reloadFromDisk);
       sidebarEl = container.querySelector('.knowledge-doc-sidebar');
       treeEl = container.querySelector('.knowledge-doc-sidebar-tree');
       sidebarEl?.addEventListener('click', onSidebarClick);
@@ -584,8 +564,6 @@ function startKnowledgeDocSession(
     detachKnowledgeTreeToggle();
     unmountReader?.();
     unmountReader = null;
-    clearHeaderSyncKnowledgeContext();
-    window.removeEventListener('kb-diff-updated', onKbDiffUpdated);
     window.removeEventListener('kb:hide-pattern-changed', onHidePatternChanged);
     publishKnowledgeTree([], '');
   }

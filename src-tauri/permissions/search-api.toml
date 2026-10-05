@@ -5,6 +5,5 @@ commands.allow = [
   "reindex_all",
   "get_reindex_all_status",
   "reindex_kb_repo",
-  "sync_knowledge",
   "get_reindex_status",
 ]

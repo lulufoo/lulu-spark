@@ -9,7 +9,6 @@ import { revokeKbBlobUrls } from './images.ts';
 import { paintKbMdBody } from './paint.ts';
 import { openKnowledgeInChat } from '../open-in-chat.ts';
 import { paintKbError, paintKbLoading, paintKbPlain, paintReaderShell } from '../../ui/viewer/shell.tsx';
-import { paintKbCommittedAt } from '../../state/committed-at.ts';
 import { syncKnowledgeTreeToggle } from '../tree-collapse.ts';
 import {
   errMessage,
@@ -43,7 +42,7 @@ export function formatFileSize(text: string) {
  */
 export async function mountKbReader(
   container: KbReaderHost,
-  { repo, path, url }: { repo: string; path: string; url?: string },
+  { repo, path }: { repo: string; path: string; url?: string },
 ) {
   if (container._kbUnmount) {
     container._kbUnmount();
@@ -66,8 +65,6 @@ export async function mountKbReader(
   const ui = {
     treeToggle: container.querySelector('.kb-btn-tree-toggle') as HTMLButtonElement,
     fileSize: container.querySelector('.kb-file-size') as HTMLElement,
-    committedAt: container.querySelector('.kb-file-committed') as HTMLElement,
-    btnCopyHttp: container.querySelector('.kb-btn-copy-http') as HTMLButtonElement,
     btnCopyPath: container.querySelector('.kb-btn-copy-path') as HTMLButtonElement,
     btnOpenInChat: container.querySelector('.kb-btn-open-in-chat') as HTMLButtonElement,
     btnEdit: container.querySelector('.kb-btn-edit') as HTMLButtonElement,
@@ -80,15 +77,12 @@ export async function mountKbReader(
 
   const listeners: ReaderListener[] = [];
 
-  ui.btnCopyHttp.dataset.url = url || '';
-  ui.btnCopyHttp.dataset.tip = url || '';
   const localPath = state.ui.knowledgeRoot
     ? `${state.ui.knowledgeRoot}/${(repo || '').split('/').pop()}/${path}`
     : `${(repo || '').split('/').pop()}/${path}`;
   ui.btnCopyPath.dataset.path = localPath;
   ui.btnCopyPath.dataset.tip = localPath;
   ui.fileSize.textContent = '';
-  paintKbCommittedAt(ui.committedAt, null);
   syncKnowledgeTreeToggle(ui.treeToggle);
 
   function enterEditMode() {
@@ -166,21 +160,6 @@ export async function mountKbReader(
     void saveDoc();
   });
   bindReaderListener(listeners, ui.btnCancelEdit, 'click', exitEditMode);
-  bindReaderListener(listeners, ui.btnCopyHttp, 'click', (e) => {
-    const btn = e.currentTarget as HTMLButtonElement;
-    const copyUrl = btn.dataset.url || '';
-    if (!copyUrl) return;
-    navigator.clipboard
-      .writeText(copyUrl)
-      .then(() => {
-        const orig = btn.textContent;
-        btn.textContent = '✓';
-        setTimeout(() => {
-          btn.textContent = orig;
-        }, 1200);
-      })
-      .catch(() => {});
-  });
   bindReaderListener(listeners, ui.btnOpenInChat, 'click', () => {
     const copyPath = ui.btnCopyPath.dataset.path || '';
     void openKnowledgeInChat(copyPath, ui.btnOpenInChat).catch((err) => {
@@ -220,13 +199,12 @@ export async function mountKbReader(
       if (mdResult.status === 'rejected') {
         throw new Error(errMessage(mdResult.reason, 'fetch failed'));
       }
-      const result = mdResult.value as { error?: string; content?: string; committed_at?: number | null };
+      const result = mdResult.value as { error?: string; content?: string };
       if (result.error) throw new Error(result.error);
 
       const text = typeof result.content === 'string' ? result.content : '';
       state.viewer.rawText = text;
       ui.fileSize.textContent = formatFileSize(text);
-      paintKbCommittedAt(ui.committedAt, result.committed_at);
 
       if (typeof marked !== 'undefined') {
         await paintKbMdBody(text, ui.body);

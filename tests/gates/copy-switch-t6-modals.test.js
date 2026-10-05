@@ -10,11 +10,6 @@ const mainJs = [
   readMainSource(),
   readFrontendJs('frontend/src/notes/page.tsx'),
 ].join('\n');
-const sparkCommitJs = [
-  readFrontendJs('frontend/src/app-shell/ui/spark-commit-dialog.tsx'),
-  readFrontendJs('frontend/src/app-shell/commands/spark-commit-dialog.ts'),
-  readFrontendJs('frontend/src/app-shell/state/spark-commit.ts'),
-].join('\n');
 const deleteDialogJs = readFileSync(
   join(repoRoot, 'frontend/src/notes/ui/delete-dialog.tsx'),
   'utf8',
@@ -24,10 +19,8 @@ const settleDialogJs = [
   readFrontendJs('frontend/src/notes/commands/settle-dialog.ts'),
 ].join('\n');
 const modalSources = [
-  sparkCommitJs,
   deleteDialogJs,
   settleDialogJs,
-  readFrontendJs('frontend/src/knowledge/ui/knowledge-diff-dialog.tsx'),
   readFrontendJs('frontend/src/knowledge/ui/tree-delete-dialog.tsx'),
   readFrontendJs('frontend/src/notes/ui/move-project-dialog.tsx'),
   readFrontendJs('frontend/src/notes/commands/move-project-dialog.ts'),
@@ -41,36 +34,21 @@ function withoutComments(src) {
 describe('P2 copy-switch — main.js & modals (tech-doc T6)', () => {
   it('main.js uses table B/B2 English for core flow copy', () => {
     expect(mainJs).toContain('Retry');
-    expect(mainJs).toContain('Updating…');
-    expect(mainJs).toContain('↓ Update project');
     expect(mainJs).toContain('Could not load index.json:');
     expect(mainJs).toContain('Loading…');
-    expect(mainJs).toContain('No repositories found');
+    expect(mainJs).toContain('No directories found');
     expect(mainJs).toContain('Uncategorized');
-    expect(mainJs).toContain('Cloned');
-    expect(mainJs).toContain('Not cloned');
-    expect(mainJs).toContain('View local changes');
+    expect(mainJs).not.toContain('Cloned');
+    expect(mainJs).not.toContain('Not cloned');
+    expect(mainJs).not.toContain('View local changes');
     expect(mainJs).toContain('Remove from curated list');
-    expect(mainJs).toContain('Enter repository URL');
-    expect(mainJs).toContain('Click to copy');
-    expect(mainJs).toContain('Copied');
+    expect(mainJs).toContain('Enter a directory name.');
+    expect(mainJs).not.toContain('Click to copy');
+    expect(mainJs).not.toContain('Updating…');
+    expect(mainJs).not.toContain('↓ Update project');
     expect(mainJs).not.toContain('重试');
     expect(mainJs).not.toContain('沉淀知识库列表');
     expect(mainJs).not.toContain('加载中');
-  });
-
-  it('spark-commit-dialog copy stays English', () => {
-    expect(sparkCommitJs).toContain('↑ Spark commit');
-    expect(sparkCommitJs).toContain('↑ Commit changes');
-    expect(sparkCommitJs).toContain('Checking…');
-    expect(sparkCommitJs).toContain('Loading…');
-    expect(sparkCommitJs).toContain('No changes to commit or push');
-    expect(sparkCommitJs).toContain("label: 'New'");
-    expect(sparkCommitJs).toContain('Ready to push');
-    expect(sparkCommitJs).toContain('local commit(s) not yet pushed');
-    expect(sparkCommitJs).toContain('✓ Committed and pushed');
-    expect(sparkCommitJs).not.toContain('提交');
-    expect(sparkCommitJs).not.toContain('加载中');
   });
 
   it('knowledge tree delete requires CONFIRM in English', () => {
@@ -101,7 +79,6 @@ describe('P2 copy-switch — main.js & modals (tech-doc T6)', () => {
   });
 
   it('main.js skills chrome is English', () => {
-    expect(mainJs).toContain('Click to copy');
     expect(mainJs).not.toContain('点击复制');
     expect(mainJs).not.toContain('已复制');
     expect(mainJs).not.toContain('Lulu Learning Skills');

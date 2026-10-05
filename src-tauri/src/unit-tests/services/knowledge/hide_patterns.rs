@@ -71,7 +71,7 @@ fn update_and_remove_by_id() {
 #[test]
 fn collect_notes_skips_seed_hidden_dir() {
     let sandbox = TestSandbox::new();
-    let notes = sandbox.spark_root().join("notes").join("raw");
+    let notes = sandbox.data_dir().join("notes").join("raw");
     fs::create_dir_all(notes.join(".cache")).expect("mkdir");
     fs::write(notes.join("keep.md"), "# k").expect("w");
     fs::write(notes.join(".cache/hidden.md"), "# h").expect("w");

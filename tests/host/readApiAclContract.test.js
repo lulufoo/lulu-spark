@@ -58,9 +58,11 @@ describe('read-api ACL 与前端 invoke 映射一致', () => {
     expect(missing, `missing in acl-manifests: ${missing.join(', ')}`).toEqual([])
   })
 
-  it('kb diff status command 已加入 read-api ACL', () => {
-    expect(tomlAllow).toContain('get_kb_diff_status')
-    expect(aclAllow).toContain('get_kb_diff_status')
+  it('knowledge git read commands 已从 read-api ACL 移除', () => {
+    expect(tomlAllow).not.toContain('get_kb_diff_status')
+    expect(aclAllow).not.toContain('get_kb_diff_status')
+    expect(tomlAllow).not.toContain('kb_status')
+    expect(aclAllow).not.toContain('kb_status')
   })
 
   it('kb doc count command 已加入 read-api ACL', () => {
@@ -78,10 +80,10 @@ describe('read-api ACL 与前端 invoke 映射一致', () => {
     expect(aclAllow).toContain('read_bind_session')
   })
 
-  it('设置页依赖的推断/校验命令已列入 ACL', () => {
+  it('设置页不再依赖 GitHub 推断/校验命令', () => {
     for (const cmd of ['infer_github_user_url', 'check_spark_root']) {
-      expect(tomlAllow, `${cmd} in toml`).toContain(cmd)
-      expect(aclAllow, `${cmd} in acl`).toContain(cmd)
+      expect(tomlAllow, `${cmd} not in toml`).not.toContain(cmd)
+      expect(aclAllow, `${cmd} not in acl`).not.toContain(cmd)
     }
   })
 

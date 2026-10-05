@@ -12,6 +12,4 @@ commands.allow = [
   "save_comment_draft",
   "save_note_draft",
   "clear_note_draft",
-  "kb_git_commit",
-  "kb_git_revert",
 ]

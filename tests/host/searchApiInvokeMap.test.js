@@ -8,7 +8,6 @@ const REINDEX_KEYS = [
   'reindexAll',
   'getReindexAllStatus',
   'reindexKbRepo',
-  'syncKnowledge',
   'getReindexStatus',
 ];
 

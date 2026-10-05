@@ -12,22 +12,17 @@ fn repo_root() -> Result<std::path::PathBuf, String> {
 pub fn map_sediment_kb_error(err: SedimentKbError) -> Value {
     match err {
         SedimentKbError::InvalidFormat => serde_json::json!({
-            "error": "无效的仓库地址，请使用 owner/repo 或 GitHub URL",
+            "error": "Invalid directory name",
             "code": "invalid_format",
             "_status": 400,
         }),
-        SedimentKbError::NotAccessible(msg) if msg.contains("GitHub Token") => serde_json::json!({
-            "error": "需要配置 GitHub Token 才能验证仓库",
-            "code": "no_token",
-            "_status": 401,
-        }),
-        SedimentKbError::NotAccessible(_) => serde_json::json!({
-            "error": "无法访问该仓库，请检查地址与 GitHub 权限",
+        SedimentKbError::NotAccessible(msg) => serde_json::json!({
+            "error": msg,
             "code": "not_accessible",
             "_status": 403,
         }),
         SedimentKbError::Duplicate => serde_json::json!({
-            "error": "该仓库已在沉淀知识库中",
+            "error": "That directory is already listed",
             "code": "duplicate",
             "_status": 409,
         }),
@@ -64,18 +59,11 @@ fn sediment_kb_ok() -> Value {
 }
 
 pub fn sediment_kb_add_repo_json(payload: Value) -> Result<Value, String> {
-    let full_name = payload
-        .get("full_name")
+    let name = payload
+        .get("name")
         .and_then(|v| v.as_str())
-        .ok_or_else(|| "missing full_name".to_string())?;
-    let category_id = payload
-        .get("category_id")
-        .and_then(|v| v.as_str());
-    let description = payload
-        .get("description")
-        .and_then(|v| v.as_str())
-        .unwrap_or("");
-    match sediment_kb::add_repo(full_name, category_id, description) {
+        .ok_or_else(|| "missing name".to_string())?;
+    match sediment_kb::add_directory(name) {
         Ok(()) => Ok(sediment_kb_ok()),
         Err(e) => Ok(map_sediment_kb_error(e)),
     }

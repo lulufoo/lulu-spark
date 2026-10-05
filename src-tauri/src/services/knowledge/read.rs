@@ -6,7 +6,7 @@ use serde_json::{json, Value};
 
 use crate::repositories::knowledge::{kb_annotation_path, kb_list_dir, kb_safe_path};
 use crate::services::sediment_kb;
-use crate::services::spark_read::{categories_from_git_status, knowledge_root_string};
+use crate::services::spark_read::knowledge_root_string;
 
 fn err_status_code(msg: &str) -> u16 {
     if msg.contains("invalid") || msg.contains("traversal") || msg.contains("required") {
@@ -27,10 +27,7 @@ pub fn kb_read_json(repo_root: &Path, repo: &str, path: &str) -> Value {
                 return json!({ "error": e, "_status": 404 });
             }
             let content = fs::read_to_string(&target).unwrap_or_default();
-            let repo_name = repo.trim().split('/').next_back().unwrap_or("");
-            let committed_at =
-                crate::integrations::git::file_last_commit_unix(&kb_root.join(repo_name), path.trim());
-            json!({ "content": content, "committed_at": committed_at })
+            json!({ "content": content })
         }
     }
 }
@@ -107,74 +104,6 @@ pub fn kb_list_json(repo_root: &Path, repo: &str, path: &str, mode: &str) -> Val
     }
 }
 
-pub fn kb_status_json(repo_root: &Path, repo: &str) -> Value {
-    let repo = repo.trim();
-    if repo.is_empty() || !repo.contains('/') {
-        return json!({ "error": "repo required", "_status": 400 });
-    }
-    let repo_name = repo.split('/').next_back().unwrap_or("");
-    let kb_root_str = knowledge_root_string(repo_root);
-    let kb_root = Path::new(&kb_root_str);
-    let local_dir = kb_root.join(repo_name);
-    if !local_dir.is_dir() {
-        return json!({
-            "error": format!("repo not cloned: {repo_name}"),
-            "_status": 404,
-        });
-    }
-    let stdout = match crate::integrations::git::status_porcelain(&local_dir) {
-        Ok(s) => s,
-        Err(e) => return json!({ "error": e.message, "_status": 500 }),
-    };
-    let mut categories = categories_from_git_status(&stdout);
-    let ann_dir = local_dir.join(".knowledge_annotations");
-    if ann_dir.is_dir() {
-        let ignored = crate::integrations::git::exec(&local_dir, &["check-ignore", "-q", ".knowledge_annotations"])
-            .map(|o| o.success)
-            .unwrap_or(false);
-        if ignored {
-            if let Ok(ann_out) =
-                crate::integrations::git::exec(&local_dir, &["status", "--porcelain", "--ignored", ".knowledge_annotations/"])
-            {
-                if ann_out.success {
-                    for line in ann_out.stdout.lines() {
-                        if line.len() < 4 {
-                            continue;
-                        }
-                        let xy = &line[..2];
-                        let fpath = line[3..].trim().to_string();
-                        let key = if xy == "!!" || xy == "??" {
-                            Some("new")
-                        } else if xy.starts_with('M') || xy.ends_with('M') {
-                            Some("modified")
-                        } else if xy.starts_with('D') || xy.ends_with('D') {
-                            Some("deleted")
-                        } else {
-                            None
-                        };
-                        if let Some(key) = key {
-                            if let Some(arr) =
-                                categories.get_mut(key).and_then(|v| v.as_array_mut())
-                            {
-                                arr.push(json!(fpath));
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-    let total: usize = ["new", "modified", "deleted", "renamed", "conflicted"]
-        .iter()
-        .filter_map(|k| categories.get(*k).and_then(|v| v.as_array()))
-        .map(|a| a.len())
-        .sum();
-    let ahead = crate::integrations::git::ahead_count(&local_dir).unwrap_or(0);
-    categories.insert("total".into(), json!(total));
-    categories.insert("ahead".into(), json!(ahead));
-    Value::Object(categories)
-}
-
 fn count_md_in_repo_dir(kb_root: &Path, repo_name: &str, hide: &[Regex]) -> usize {
     let local_dir = kb_root.join(repo_name);
     if !local_dir.is_dir() {
@@ -230,14 +159,17 @@ pub fn kb_doc_count_json(
     }
 
     let repo = repo.trim();
-    if repo.is_empty() || !repo.contains('/') || repo.contains("..") {
-        return json!({ "error": "invalid repo format", "_status": 400 });
+    if repo.is_empty() || repo.contains("..") || repo.contains('\\') || repo.contains('\0') {
+        return json!({ "error": "invalid directory name", "_status": 400 });
     }
     let repo_name = repo.split('/').next_back().unwrap_or("");
+    if repo_name.is_empty() || repo_name == "." || repo_name == ".." {
+        return json!({ "error": "invalid directory name", "_status": 400 });
+    }
     let local_dir = kb_root.join(repo_name);
     if !local_dir.is_dir() {
         return json!({
-            "error": format!("repo not cloned: {repo_name}"),
+            "error": format!("directory not found: {repo_name}"),
             "_status": 404,
         });
     }

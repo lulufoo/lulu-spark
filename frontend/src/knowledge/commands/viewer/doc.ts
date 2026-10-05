@@ -37,11 +37,6 @@ export async function openKbDoc(kbHit: { repo: string; path: string; url?: strin
   v.lang = null;
 
   const repoName = (repo || '').split('/').pop();
-  const copyHttp = document.getElementById('kb-btn-copy-http') as HTMLElement | null;
-  if (copyHttp) {
-    copyHttp.dataset.url = url || '';
-    copyHttp.dataset.tip = url || '';
-  }
   const localPath = state.ui.knowledgeRoot
     ? `${state.ui.knowledgeRoot}/${repoName}/${path}`
     : `${repoName}/${path}`;
