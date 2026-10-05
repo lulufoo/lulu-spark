@@ -11,19 +11,13 @@ use crate::config::paths;
 use crate::test_support::TestSandbox;
 
 fn with_sediment_kb_cache<F: FnOnce(&Path)>(f: F) {
-    let _sandbox = TestSandbox::new();
-    let wb = crate::config::settings::load()
-        .expect("load")
-        .spark_root;
-    f(wb.as_path());
+    let sandbox = TestSandbox::new();
+    let data = sandbox.data_dir();
+    f(data.as_path());
 }
 
-fn ok_validator(full_name: &str) -> Result<String, SedimentKbError> {
-    Ok(full_name.to_string())
-}
-
-fn inaccessible_validator(_full_name: &str) -> Result<String, SedimentKbError> {
-    Err(SedimentKbError::not_accessible("repo not found"))
+fn seed_dir(name: &str) {
+    add_directory(name).expect("seed");
 }
 
 #[test]
@@ -55,132 +49,84 @@ fn init_creates_categories_and_repos_with_uncategorized() {
 }
 
 #[test]
-fn add_repo_accepts_owner_slash_repo() {
+fn add_directory_creates_record_and_folder() {
     with_sediment_kb_cache(|_| {
-        set_test_repo_validator(Some(ok_validator));
         ensure_uncategorized().expect("ensure");
-        add_repo("acme/demo", None, "").expect("add");
+        add_directory("topic-notes").expect("add");
         let repos = load_repos().expect("load");
-        assert_eq!(repos.repos.len(), 1);
-        assert_eq!(repos.repos[0].full_name, "acme/demo");
-        assert_eq!(repos.repos[0].category_id, UNCATEGORIZED_ID);
-        set_test_repo_validator(None);
-    });
-}
-
-#[test]
-fn add_repo_saves_trimmed_description() {
-    with_sediment_kb_cache(|_| {
-        set_test_repo_validator(Some(ok_validator));
-        ensure_uncategorized().expect("ensure");
-        add_repo("acme/demo", None, "  demo desc  ").expect("add");
-
-        let repos = load_repos().expect("load");
-        assert_eq!(repos.repos[0].description, "demo desc");
-
-        let topics = list_repos_for_topics().expect("topics");
-        assert_eq!(topics[0].description, "demo desc");
-        set_test_repo_validator(None);
-    });
-}
-
-#[test]
-fn add_repo_saves_empty_description_when_blank() {
-    with_sediment_kb_cache(|_| {
-        set_test_repo_validator(Some(ok_validator));
-        ensure_uncategorized().expect("ensure");
-        add_repo("acme/demo", None, "  ").expect("add");
-
-        let repos = load_repos().expect("load");
+        assert_eq!(repos.repos[0].full_name, "topic-notes");
         assert_eq!(repos.repos[0].description, "");
-        set_test_repo_validator(None);
+        assert_eq!(repos.repos[0].category_id, UNCATEGORIZED_ID);
+        let dir = paths::knowledge_root().expect("kb").join("topic-notes");
+        assert!(dir.is_dir());
     });
 }
 
 #[test]
-fn add_repo_accepts_github_url() {
+fn add_directory_duplicate_rejected() {
     with_sediment_kb_cache(|_| {
-        set_test_repo_validator(Some(ok_validator));
         ensure_uncategorized().expect("ensure");
-        add_repo("https://github.com/acme/demo/", None, "").expect("add");
-        let repos = load_repos().expect("load");
-        assert_eq!(repos.repos[0].full_name, "acme/demo");
-        set_test_repo_validator(None);
+        seed_dir("demo");
+        let err = add_directory("demo").expect_err("dup");
+        assert!(err.is_duplicate());
     });
 }
 
 #[test]
-fn add_repo_with_category() {
+fn add_directory_rejects_slash_name() {
     with_sediment_kb_cache(|_| {
-        set_test_repo_validator(Some(ok_validator));
+        ensure_uncategorized().expect("ensure");
+        let err = add_directory("acme/demo").expect_err("slash");
+        assert!(err.is_invalid_format());
+    });
+}
+
+#[test]
+fn add_directory_then_update_category() {
+    with_sediment_kb_cache(|_| {
         ensure_uncategorized().expect("ensure");
         let cat_id = add_category("AI").expect("add cat");
-        add_repo("acme/demo", Some(&cat_id), "").expect("add");
+        seed_dir("demo");
+        update_repo_category("demo", &cat_id).expect("cat");
         let repos = load_repos().expect("load");
         assert_eq!(repos.repos[0].category_id, cat_id);
-        set_test_repo_validator(None);
-    });
-}
-
-#[test]
-fn add_repo_duplicate_rejected() {
-    with_sediment_kb_cache(|_| {
-        set_test_repo_validator(Some(ok_validator));
-        ensure_uncategorized().expect("ensure");
-        add_repo("acme/demo", None, "").expect("first");
-        let err = add_repo("acme/demo", None, "").expect_err("dup");
-        assert!(err.is_duplicate());
-        set_test_repo_validator(None);
-    });
-}
-
-#[test]
-fn add_repo_invalid_format_rejected() {
-    with_sediment_kb_cache(|_| {
-        set_test_repo_validator(Some(ok_validator));
-        ensure_uncategorized().expect("ensure");
-        let err = add_repo("not-a-repo", None, "").expect_err("invalid");
-        assert!(err.is_invalid_format());
-        set_test_repo_validator(None);
-    });
-}
-
-#[test]
-fn add_repo_not_accessible_rejected() {
-    with_sediment_kb_cache(|_| {
-        set_test_repo_validator(Some(inaccessible_validator));
-        ensure_uncategorized().expect("ensure");
-        let err = add_repo("acme/missing", None, "").expect_err("missing");
-        assert!(err.is_not_accessible());
-        set_test_repo_validator(None);
     });
 }
 
 #[test]
 fn remove_repo_removes_entry() {
     with_sediment_kb_cache(|_| {
-        set_test_repo_validator(Some(ok_validator));
         ensure_uncategorized().expect("ensure");
-        add_repo("acme/demo", None, "").expect("add");
-        super::remove_repo("acme/demo").expect("remove");
+        seed_dir("demo");
+        remove_repo("demo").expect("remove");
         assert!(load_repos().expect("load").repos.is_empty());
-        set_test_repo_validator(None);
+    });
+}
+
+#[test]
+fn remove_repo_does_not_delete_clone_dir() {
+    with_sediment_kb_cache(|_| {
+        ensure_uncategorized().expect("ensure");
+        seed_dir("demo");
+        let clone = paths::knowledge_root().expect("kb").join("demo");
+        fs::write(clone.join("keep.md"), "x").expect("write");
+        remove_repo("demo").expect("remove");
+        assert!(load_repos().expect("load").repos.is_empty());
+        assert!(clone.join("keep.md").is_file());
     });
 }
 
 #[test]
 fn update_repo_category_changes_category() {
     with_sediment_kb_cache(|_| {
-        set_test_repo_validator(Some(ok_validator));
         ensure_uncategorized().expect("ensure");
         let cat_id = add_category("Docs").expect("cat");
-        add_repo("acme/demo", None, "").expect("add");
-        super::update_repo_category("acme/demo", &cat_id).expect("update");
+        seed_dir("demo");
+        update_repo_category("demo", &cat_id).expect("update");
         assert_eq!(
             load_repos().expect("load").repos[0].category_id,
             cat_id
         );
-        set_test_repo_validator(None);
     });
 }
 
@@ -212,17 +158,17 @@ fn add_category_empty_name_rejected() {
 #[test]
 fn remove_category_reassigns_repos_to_uncategorized() {
     with_sediment_kb_cache(|_| {
-        set_test_repo_validator(Some(ok_validator));
         ensure_uncategorized().expect("ensure");
         let cat_id = add_category("Temp").expect("cat");
-        add_repo("acme/a", Some(&cat_id), "").expect("a");
-        add_repo("acme/b", Some(&cat_id), "").expect("b");
+        seed_dir("a");
+        seed_dir("b");
+        update_repo_category("a", &cat_id).expect("a");
+        update_repo_category("b", &cat_id).expect("b");
         remove_category(&cat_id).expect("remove cat");
         let repos = load_repos().expect("load");
         assert!(repos.repos.iter().all(|r| r.category_id == UNCATEGORIZED_ID));
         let cats = load_categories().expect("cats");
         assert!(!cats.categories.iter().any(|c| c.id == cat_id));
-        set_test_repo_validator(None);
     });
 }
 
@@ -238,7 +184,6 @@ fn remove_uncategorized_rejected() {
 #[test]
 fn concurrent_writes_do_not_corrupt_json() {
     with_sediment_kb_cache(|_| {
-        set_test_repo_validator(Some(ok_validator));
         ensure_uncategorized().expect("ensure");
         let counter = Arc::new(AtomicUsize::new(0));
         let mut handles = Vec::new();
@@ -246,8 +191,7 @@ fn concurrent_writes_do_not_corrupt_json() {
             let counter = Arc::clone(&counter);
             handles.push(thread::spawn(move || {
                 let n = counter.fetch_add(1, Ordering::SeqCst);
-                let name = format!("org/repo{n}");
-                add_repo(&name, None, "").expect("add");
+                add_directory(&format!("repo{n}")).expect("add");
             }));
         }
         for h in handles {
@@ -259,7 +203,6 @@ fn concurrent_writes_do_not_corrupt_json() {
             .expect("read");
         let parsed: serde_json::Value = serde_json::from_str(&text).expect("valid json");
         assert_eq!(parsed["version"], json!(1));
-        set_test_repo_validator(None);
     });
 }
 

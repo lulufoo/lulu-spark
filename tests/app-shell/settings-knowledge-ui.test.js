@@ -39,14 +39,31 @@ describe('Settings Knowledge UI', () => {
     expect(indexHtml).not.toContain('id="knowledge-root-dialog"');
     expect(indexHtml).toContain('id="settings-panel-knowledge"');
     expect(indexHtml).toContain('id="knowledge-root-path"');
+    expect(indexHtml).toMatch(/id="knowledge-root-path"[^>]*readOnly/);
+    expect(indexHtml).not.toContain('id="btn-knowledge-root-save"');
+    expect(indexHtml).not.toContain('id="knowledge-root-error"');
     expect(indexHtml).toContain('id="settings-kb-hide-list"');
     expect(indexHtml).not.toContain('id="settings-kb-root"');
     expect(indexHtml).not.toContain('id="kb-setting-nav"');
-    expect(indexHtml).toContain('id="settings-tab-spark-directory"');
-    expect(indexHtml).toContain('id="settings-tab-spark-connection"');
+    expect(indexHtml).not.toContain('id="settings-tab-spark-directory"');
+    expect(indexHtml).not.toContain('id="settings-tab-spark-connection"');
     expect(indexHtml).toContain('id="settings-panel-notes"');
+    expect(indexHtml).toContain('id="settings-tab-notes-directory"');
+    expect(indexHtml).toContain('id="notes-root-path"');
+    expect(indexHtml).toMatch(/id="notes-root-path"[^>]*readOnly/);
     expect(indexHtml).toContain('id="settings-tab-notes-add"');
     expect(indexHtml).toContain('id="settings-tab-notes-edit"');
+    expect(indexHtml).toMatch(/data-tab="directory"[^>]*>\s*Directory\s*</);
+    expect(indexHtml).toMatch(/data-tab="add"[^>]*>\s*Add category\s*</);
+    expect(indexHtml).toMatch(/data-tab="edit"[^>]*>\s*Edit &amp; Delete category\s*</);
+    const notesTabs = indexHtml.match(/id="settings-panel-notes"[\s\S]*?role="tablist">([\s\S]*?)<\/div>/)?.[1] ?? '';
+    expect(notesTabs.indexOf('data-tab="directory"')).toBeGreaterThan(-1);
+    expect(notesTabs.indexOf('data-tab="directory"')).toBeLessThan(
+      notesTabs.indexOf('data-tab="add"'),
+    );
+    expect(notesTabs.indexOf('data-tab="add"')).toBeLessThan(
+      notesTabs.indexOf('data-tab="edit"'),
+    );
     expect(indexHtml).toContain('id="notes-cat-list"');
     expect(indexHtml).toContain('id="notes-cat-edit-dialog"');
     expect(indexHtml).toContain('id="notes-cat-edit-dialog-box"');
@@ -58,36 +75,25 @@ describe('Settings Knowledge UI', () => {
     expect(indexHtml).toContain('id="settings-tab-knowledge-directory"');
     expect(indexHtml).toContain('id="settings-tab-knowledge-hidden"');
     expect(indexHtml).toContain('id="settings-tab-llm-engine"');
-    expect(indexHtml).toContain('id="settings-tab-github-account"');
-    expect(indexHtml).toContain('id="spark-connect-item"');
-    expect(indexHtml).toMatch(/htmlFor="spark-connect-url">GitHub repository URL</);
-    expect(indexHtml).toContain('id="sediment-kb-add-url"');
-    expect(indexHtml).toContain('id="sediment-kb-add-category"');
-    expect(indexHtml).toContain('id="sediment-kb-add-description"');
+    expect(indexHtml).not.toContain('id="settings-tab-github-account"');
+    expect(indexHtml).not.toContain('id="spark-connect-item"');
+    expect(indexHtml).not.toContain('id="spark-connect-url"');
+    expect(indexHtml).toContain('id="sediment-kb-add-name"');
+    expect(indexHtml).not.toContain('id="sediment-kb-add-url"');
+    expect(indexHtml).not.toContain('id="sediment-kb-add-category"');
+    expect(indexHtml).not.toContain('id="sediment-kb-add-description"');
   });
 
-  it('add dialog description field is optional textarea', () => {
-    const match = indexHtml.match(/<textarea id="sediment-kb-add-description"[^>]*>/);
-    expect(match).not.toBeNull();
-  });
-
-  it('prepareSedimentKbAddForm clears description input', () => {
+  it('Add submits a directory name only', () => {
     expect(mainJs).toMatch(
-      /function prepareSedimentKbAddForm\(\)[\s\S]*?getElementById\('sediment-kb-add-description'\)\.value = ''/
+      /function prepareSedimentKbAddForm\(\)[\s\S]*?getElementById\('sediment-kb-add-name'\)/,
     );
-  });
-
-  it('submit handler passes description to addSedimentKbRepo', () => {
     expect(mainJs).toMatch(
-      /btn-sediment-kb-add-submit[\s\S]*?getElementById\('sediment-kb-add-description'\)[\s\S]*?api\.addSedimentKbRepo\([^)]*description/
+      /api\.addSedimentKbRepo\(name\)/,
     );
-  });
-
-  it('addSedimentKbRepo includes description in request body', () => {
-    expect(apiJs).toMatch(
-      /export async function addSedimentKbRepo\(\s*fullName\??(?::[^,)]+)?,\s*categoryId\??(?::[^,)]+)?,\s*description\??(?::[^,)]+)?/,
-    );
-    expect(apiJs).toMatch(/body\.description = description/);
+    expect(apiJs).toMatch(/export async function addSedimentKbRepo\(\s*name:/);
+    expect(apiJs).toMatch(/writePost\('\/api\/sediment-kb\/repos\/add', \{ name \}\)/);
+    expect(apiJs).not.toMatch(/body\.description = description/);
   });
 
   it('main.js wires Knowledge list helpers', () => {
@@ -96,8 +102,9 @@ describe('Settings Knowledge UI', () => {
     expect(mainJs).toMatch(/function prepareSedimentKbList\(/);
     expect(mainJs).not.toMatch(/function openSedimentKbCorpusDialog\(/);
     expect(mainJs).not.toMatch(/openSettingsDialog\(\{ panel: 'knowledge'/);
-    expect(settingsDialogJs).toMatch(
-      /btn-knowledge-root-save[\s\S]*?api\.setConfig\(\{ knowledge_root: knowledgeRoot \}\)/
+    expect(settingsDialogJs).not.toMatch(/btn-knowledge-root-save/);
+    expect(settingsDialogJs).not.toMatch(
+      /api\.setConfig\(\{ knowledge_root: knowledgeRoot \}\)/,
     );
     expect(settingsDialogJs).toMatch(/loadKbHidePatterns\(/);
     expect(mainJs).toMatch(/function renderSedimentKbListByCategory\(/);
@@ -106,64 +113,63 @@ describe('Settings Knowledge UI', () => {
     expect(mainJs).not.toMatch(/btn-kb-corpus-sync/);
     expect(mainJs).not.toMatch(/btn-kb-setting-connect-add/);
   });
+
+  it('lists configured repos without Sync or Link; Delete stays', () => {
+    expect(settingsDialogJs).toMatch(/function onDeleteSedimentKbRepo\(/);
+    expect(settingsDialogJs).toMatch(/api\.removeSedimentKbRepo\(/);
+    expect(settingsDialogJs).not.toMatch(/function onSyncSedimentKbRepo\(/);
+    expect(settingsDialogJs).not.toMatch(/className="repo-sync-btn"/);
+    expect(settingsDialogJs).not.toMatch(/>Cloned</);
+    expect(settingsDialogJs).not.toMatch(/Not cloned/);
+    expect(settingsDialogJs).not.toMatch(/Link ↗/);
+    expect(settingsDialogJs).not.toMatch(/className="repo-list-item-link"/);
+    expect(settingsDialogJs).not.toMatch(/✎/);
+    expect(settingsDialogJs).not.toMatch(/View local changes/);
+    expect(settingsDialogJs).not.toMatch(/repo-diff-badge/);
+    expect(settingsDialogJs).not.toMatch(/fetchKbDiffStatus/);
+    expect(settingsDialogJs).not.toMatch(/openKnowledgeDiffDialog/);
+    expect(settingsDialogJs).toMatch(/className="sediment-kb-inline-category"/);
+    expect(settingsDialogJs).toMatch(/function prepareSedimentKbManage\(/);
+  });
 });
 
-describe('Spark GitHub connection', () => {
-  it('persists a single spark_github_repo_url and can delete it', () => {
-    expect(settingsDialogJs).toMatch(/function normalizeSparkGithubRepoUrl\(/);
-    expect(settingsDialogJs).toMatch(/function renderSparkConnection\(/);
-    expect(settingsDialogJs).toMatch(
-      /api\.setConfig\(\{ spark_github_repo_url: repoUrl \}\)/,
+describe('Settings Data panel', () => {
+  it('does not render Data nav or spark directory/connection markup', () => {
+    expect(indexHtml).not.toMatch(/data-panel="spark"/);
+    expect(indexHtml).not.toContain('id="settings-panel-spark"');
+    expect(indexHtml).not.toContain('id="settings-tab-spark-directory"');
+    expect(indexHtml).not.toContain('id="settings-tab-spark-connection"');
+    expect(indexHtml).not.toContain('id="settings-spark-root"');
+    expect(indexHtml).not.toContain('id="spark-connect-item"');
+    expect(indexHtml).not.toContain('id="spark-connect-url"');
+    expect(settingsDialogJs).not.toMatch(/function renderSparkConnection\(/);
+    expect(settingsDialogJs).not.toMatch(/function applySparkRootInference\(/);
+    expect(settingsDialogJs).not.toMatch(/api\.setConfig\(\{ spark_github_repo_url/);
+    const nav = indexHtml.match(/<nav id="settings-nav">([\s\S]*?)<\/nav>/)?.[1] ?? '';
+    expect(nav.indexOf('data-panel="notes"')).toBeGreaterThan(-1);
+    expect(nav.indexOf('data-panel="notes"')).toBeLessThan(
+      nav.indexOf('data-panel="knowledge"'),
     );
-    expect(settingsDialogJs).toMatch(/async function deleteSparkGithubRepo\(/);
-    expect(settingsDialogJs).toMatch(/btn-spark-connect-delete/);
-    expect(settingsDialogJs).toMatch(/target="_blank"/);
+    expect(nav.indexOf('data-panel="knowledge"')).toBeLessThan(
+      nav.indexOf('data-panel="llm"'),
+    );
+    expect(nav.indexOf('data-panel="llm"')).toBeLessThan(
+      nav.indexOf('data-panel="mcp"'),
+    );
+    expect(nav).not.toMatch(/data-panel="github"/);
   });
+});
 
-  it('locks the inferred origin repo and hides Delete', () => {
-    expect(settingsDialogJs).toMatch(/function applySparkGithubRepoFromInferResponse\(/);
-    expect(settingsDialogJs).toMatch(/resp\?\.spark_github_repo_url/);
-    expect(settingsDialogJs).toMatch(/renderSparkConnection\(inferred, \{ locked: true \}\)/);
-    expect(settingsDialogJs).toMatch(/Inferred from spark directory git origin \(read-only\)/);
-  });
-
-  it('re-infers on Directory blur even when the path matches the saved snapshot', () => {
-    expect(settingsDialogJs).not.toMatch(
-      /if \(!root \|\| root === savedSnapshot\.sparkRoot\)/,
-    );
-    expect(settingsDialogJs).toContain(
-      'const pathChanged = root !== savedSnapshot.sparkRoot',
-    );
-  });
-
-  it('does not disguise infer API errors as missing git origin', () => {
-    expect(settingsDialogJs).toMatch(
-      /return \{ ok: false, error: e\.message \|\| String\(e\) \}/,
-    );
-  });
-
-  it('blocks Spark Connection binding until a Sync token is saved', () => {
-    expect(settingsDialogJs).toMatch(/function isGithubAccountConfigured\(/);
-    expect(settingsDialogJs).toMatch(/savedSnapshot\.hasGithubToken/);
-    expect(settingsDialogJs).toMatch(
-      /isGithubAccountConfigured[\s\S]*?savedSnapshot\.hasGithubToken[\s\S]*?savedSnapshot\.githubUserUrl/,
-    );
-    expect(settingsDialogJs).toMatch(/function syncSparkConnectionAccess\(/);
-    expect(settingsDialogJs).toMatch(/Set a Sync token first to bind a data-store repository/);
-    expect(indexHtml).toMatch(
-      /<nav id="settings-nav">[\s\S]*data-panel="spark"[\s\S]*data-panel="notes"[\s\S]*data-panel="knowledge"[\s\S]*data-panel="llm"[\s\S]*data-panel="github">Sync/,
-    );
-    expect(indexHtml).not.toMatch(
-      /data-panel="spark"[^>]*\bdisabled\b/,
-    );
-  });
-
-  it('keeps GitHub profile above the Sync token', () => {
-    const panelAt = indexHtml.indexOf('id="settings-panel-github"');
-    const profileAt = indexHtml.indexOf('id="settings-github-user-url"');
-    const tokenAt = indexHtml.indexOf('id="settings-github-token"');
-    expect(panelAt).toBeGreaterThan(-1);
-    expect(profileAt).toBeGreaterThan(panelAt);
-    expect(tokenAt).toBeGreaterThan(profileAt);
+describe('Settings Sync panel', () => {
+  it('does not render Sync nav or GitHub bind markup', () => {
+    expect(indexHtml).not.toMatch(/data-panel="github"/);
+    expect(indexHtml).not.toContain('id="settings-panel-github"');
+    expect(indexHtml).not.toContain('id="settings-tab-github-account"');
+    expect(indexHtml).not.toContain('id="settings-github-user-url"');
+    expect(indexHtml).not.toContain('id="settings-github-token"');
+    expect(indexHtml).not.toContain('id="btn-settings-save-github"');
+    expect(settingsDialogJs).not.toMatch(/btn-settings-save-github/);
+    expect(settingsDialogJs).not.toMatch(/setGithubUserUrl\(/);
+    expect(settingsDialogJs).not.toMatch(/savedSnapshot/);
   });
 });

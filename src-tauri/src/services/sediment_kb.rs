@@ -2,14 +2,10 @@
 
 use std::fs;
 use std::sync::Mutex;
-#[cfg(test)]
-use std::sync::OnceLock;
 
-use reqwest::Method;
 use serde::{Deserialize, Serialize};
 
 use crate::config::paths;
-use crate::integrations::github;
 use crate::repositories::atomic_json;
 
 use super::id::random_hex12;
@@ -17,12 +13,6 @@ use super::id::random_hex12;
 pub const UNCATEGORIZED_ID: &str = "uncategorized";
 
 static WRITE_LOCK: Mutex<()> = Mutex::new(());
-
-#[cfg(test)]
-type RepoValidatorFn = fn(&str) -> Result<String, SedimentKbError>;
-
-#[cfg(test)]
-static TEST_REPO_VALIDATOR: OnceLock<Mutex<Option<RepoValidatorFn>>> = OnceLock::new();
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TopicRow {
@@ -115,12 +105,6 @@ impl std::fmt::Display for SedimentKbError {
     }
 }
 
-#[cfg(test)]
-pub fn set_test_repo_validator(validator: Option<RepoValidatorFn>) {
-    let lock = TEST_REPO_VALIDATOR.get_or_init(|| Mutex::new(None));
-    *lock.lock().expect("test validator lock") = validator;
-}
-
 fn with_write_lock<F, T>(f: F) -> T
 where
     F: FnOnce() -> T,
@@ -147,10 +131,9 @@ fn default_repos_file() -> ReposFile {
 }
 
 fn ensure_storage_dir() -> Result<(), SedimentKbError> {
-    if let Ok(wb) = paths::spark_root() {
-        crate::services::knowledge_layout::ensure_knowledge_registry_layout(&wb)
-            .map_err(SedimentKbError::Io)?;
-    }
+    let data = paths::runtime_data_dir();
+    crate::services::knowledge_layout::ensure_knowledge_registry_layout(&data)
+        .map_err(SedimentKbError::Io)?;
     let dir = paths::sediment_kb_dir().map_err(|e| SedimentKbError::Io(format!("{e:?}")))?;
     fs::create_dir_all(&dir).map_err(|e| SedimentKbError::Io(e.to_string()))
 }
@@ -285,54 +268,53 @@ fn normalize_full_name(input: &str) -> Result<String, SedimentKbError> {
     Err(SedimentKbError::invalid_format())
 }
 
-fn validate_repo_access(full_name: &str) -> Result<String, SedimentKbError> {
-    #[cfg(test)]
-    if let Some(lock) = TEST_REPO_VALIDATOR.get() {
-        if let Some(validator) = *lock.lock().expect("test validator lock") {
-            return validator(full_name);
-        }
-    }
-
-    let parts: Vec<&str> = full_name.split('/').collect();
-    if parts.len() != 2 {
-        return Err(SedimentKbError::invalid_format());
-    }
-    let (owner, repo) = (parts[0], parts[1]);
-    match github::request(Method::GET, &format!("repos/{owner}/{repo}"), None) {
-        Ok(_) => Ok(full_name.to_string()),
-        Err(e) => Err(SedimentKbError::not_accessible(e.message)),
-    }
-}
-
 fn category_exists(categories: &CategoriesFile, category_id: &str) -> bool {
     categories.categories.iter().any(|c| c.id == category_id)
 }
 
-pub fn add_repo(
-    full_name: &str,
-    category_id: Option<&str>,
-    description: &str,
-) -> Result<(), SedimentKbError> {
+fn repo_dir_name(full_name: &str) -> &str {
+    full_name.rsplit('/').next().unwrap_or(full_name)
+}
+
+fn normalize_dir_name(input: &str) -> Result<String, SedimentKbError> {
+    let name = input.trim();
+    if name.is_empty() || name == "." || name == ".." {
+        return Err(SedimentKbError::invalid_format());
+    }
+    if name.contains('/') || name.contains('\\') || name.contains('\0') {
+        return Err(SedimentKbError::invalid_format());
+    }
+    Ok(name.to_string())
+}
+
+fn normalize_repo_key(input: &str) -> Result<String, SedimentKbError> {
+    let trimmed = input.trim();
+    if trimmed.contains('/') {
+        normalize_full_name(trimmed)
+    } else {
+        normalize_dir_name(trimmed)
+    }
+}
+
+pub fn add_directory(name: &str) -> Result<(), SedimentKbError> {
     with_write_lock(|| {
         ensure_uncategorized_unlocked()?;
-        let normalized = normalize_full_name(full_name)?;
-        let validated = validate_repo_access(&normalized)?;
-
-        let categories = load_categories()?;
-        let cat_id = category_id.unwrap_or(UNCATEGORIZED_ID);
-        if !category_exists(&categories, cat_id) {
-            return Err(SedimentKbError::CategoryNotFound);
-        }
-
+        let dir_name = normalize_dir_name(name)?;
         let mut repos = load_repos()?;
-        if repos.repos.iter().any(|r| r.full_name == validated) {
+        if repos
+            .repos
+            .iter()
+            .any(|r| repo_dir_name(&r.full_name) == dir_name)
+        {
             return Err(SedimentKbError::Duplicate);
         }
-
+        let root = paths::knowledge_root().map_err(|e| SedimentKbError::Io(format!("{e:?}")))?;
+        let dir = root.join(&dir_name);
+        fs::create_dir_all(&dir).map_err(|e| SedimentKbError::Io(e.to_string()))?;
         repos.repos.push(RepoEntry {
-            full_name: validated,
-            description: description.trim().to_string(),
-            category_id: cat_id.to_string(),
+            full_name: dir_name,
+            description: String::new(),
+            category_id: UNCATEGORIZED_ID.to_string(),
         });
         save_repos_unlocked(&repos)?;
         Ok(())
@@ -342,10 +324,10 @@ pub fn add_repo(
 pub fn remove_repo(full_name: &str) -> Result<(), SedimentKbError> {
     with_write_lock(|| {
         ensure_uncategorized_unlocked()?;
-        let normalized = normalize_full_name(full_name)?;
+        let key = normalize_repo_key(full_name)?;
         let mut repos = load_repos()?;
         let before = repos.repos.len();
-        repos.repos.retain(|r| r.full_name != normalized);
+        repos.repos.retain(|r| r.full_name != key);
         if repos.repos.len() == before {
             return Err(SedimentKbError::RepoNotFound);
         }
@@ -356,13 +338,13 @@ pub fn remove_repo(full_name: &str) -> Result<(), SedimentKbError> {
 pub fn update_repo_category(full_name: &str, category_id: &str) -> Result<(), SedimentKbError> {
     with_write_lock(|| {
         ensure_uncategorized_unlocked()?;
-        let normalized = normalize_full_name(full_name)?;
+        let key = normalize_repo_key(full_name)?;
         let categories = load_categories()?;
         if !category_exists(&categories, category_id) {
             return Err(SedimentKbError::CategoryNotFound);
         }
         let mut repos = load_repos()?;
-        let Some(entry) = repos.repos.iter_mut().find(|r| r.full_name == normalized) else {
+        let Some(entry) = repos.repos.iter_mut().find(|r| r.full_name == key) else {
             return Err(SedimentKbError::RepoNotFound);
         };
         entry.category_id = category_id.to_string();
@@ -464,14 +446,13 @@ pub fn validate_description_source_constraints() {
     let write_cmd = include_str!("../commands/write.rs");
     let spark_read = include_str!("spark_read/config.rs");
 
-    let validate_fn = sediment_prod
-        .split("fn validate_repo_access")
-        .nth(1)
-        .and_then(|s| s.split("\nfn ").next())
-        .expect("validate_repo_access");
     assert!(
-        !validate_fn.contains("description"),
-        "validate_repo_access must not extract GitHub description"
+        !sediment_prod.contains("validate_repo_access"),
+        "sediment_kb must not call GitHub to validate repos"
+    );
+    assert!(
+        !sediment_prod.contains("integrations::github"),
+        "sediment_kb must not import the GitHub client"
     );
 
     for (label, src) in [

@@ -6,7 +6,6 @@ export type SedimentKbRepo = {
   description: string;
   category_id: string;
   category_name: string;
-  local_exists: boolean;
 };
 
 export type SedimentKbCategory = {
@@ -14,36 +13,23 @@ export type SedimentKbCategory = {
   name: string;
 };
 
-export type SedimentKbStatus = {
-  full_name: string;
-  name?: string;
-  description?: string;
-  local_exists: boolean;
-};
-
 export type SedimentKbSnap = {
   repos: SedimentKbRepo[];
   categories: SedimentKbCategory[];
-  statusMap: Record<string, SedimentKbStatus>;
-  diffStatus: Map<string, boolean> | null;
   listError: string;
   listLoading: boolean;
   manageError: string;
   manageFatal: boolean;
-  syncingRepo: string;
 };
 
 export function emptySedimentKbSnap(): SedimentKbSnap {
   return {
     repos: [],
     categories: [],
-    statusMap: {},
-    diffStatus: null,
     listError: '',
     listLoading: false,
     manageError: '',
     manageFatal: false,
-    syncingRepo: '',
   };
 }
 

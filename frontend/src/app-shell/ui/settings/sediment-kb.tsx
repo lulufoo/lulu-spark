@@ -1,12 +1,10 @@
 import { Fragment, useSyncExternalStore } from 'react';
 import * as api from '../../../host/api.ts';
-import { openKnowledgeDiffDialog } from '../../../knowledge/ui/knowledge-diff-dialog.tsx';
 import {
   patchSedimentKb,
   sedimentKbStore,
   type SedimentKbCategory,
   type SedimentKbRepo,
-  type SedimentKbStatus,
 } from '../../state/settings/sediment-kb.ts';
 import { errMessage } from '../../state/types.ts';
 
@@ -34,28 +32,16 @@ export async function _ensureSedimentKbCategories() {
 function RepoListItem({
   repo,
   categories,
-  status,
-  hasDiff,
-  syncing,
 }: {
   repo: SedimentKbRepo;
   categories: SedimentKbCategory[];
-  status?: SedimentKbStatus;
-  hasDiff?: boolean;
-  syncing?: boolean;
 }) {
   const name = repo.name || repo.full_name || '';
-  const url = `https://github.com/${repo.full_name || repo.name}`;
   return (
     <div className="repo-list-item">
       <div className="repo-list-item-info">
         <div className="repo-list-item-name">
           {name}
-          {status ? (
-            status.local_exists
-              ? <span className="repo-local-badge repo-local-ok">Cloned</span>
-              : <span className="repo-local-badge repo-local-missing">Not cloned</span>
-          ) : null}
         </div>
         {repo.description ? <div className="repo-list-item-desc">{repo.description}</div> : null}
       </div>
@@ -72,31 +58,6 @@ function RepoListItem({
             <option key={c.id} value={c.id}>{c.name}</option>
           ))}
         </select>
-        {hasDiff ? (
-          <button
-            type="button"
-            className="repo-diff-badge"
-            data-repo={repo.full_name}
-            title="View local changes"
-            onClick={() => openKnowledgeDiffDialog(repo.full_name)}
-          >
-            ✎
-          </button>
-        ) : null}
-        {status ? (
-          <button
-            type="button"
-            className="repo-sync-btn"
-            data-repo={repo.full_name}
-            disabled={syncing}
-            onClick={() => {
-              void onSyncSedimentKbRepo(repo.full_name);
-            }}
-          >
-            {syncing ? '…' : 'SYNC'}
-          </button>
-        ) : null}
-        <a className="repo-list-item-link" href={url} target="_blank" rel="noopener noreferrer">Link ↗</a>
         <button
           type="button"
           className="sediment-kb-delete-btn"
@@ -116,15 +77,9 @@ function RepoListItem({
 function RepoListByCategory({
   repos,
   categories,
-  statusMap,
-  diffStatus,
-  syncingRepo,
 }: {
   repos: SedimentKbRepo[];
   categories: SedimentKbCategory[];
-  statusMap: Record<string, SedimentKbStatus>;
-  diffStatus: Map<string, boolean> | null;
-  syncingRepo: string;
 }) {
   const groups: Record<string, SedimentKbRepo[]> = {};
   for (const r of repos) {
@@ -150,9 +105,6 @@ function RepoListByCategory({
               key={r.full_name}
               repo={r}
               categories={categories}
-              status={statusMap[r.full_name]}
-              hasDiff={diffStatus?.get(r.full_name) === true}
-              syncing={syncingRepo === r.full_name}
             />
           ))}
         </Fragment>
@@ -174,15 +126,12 @@ export function SedimentKbRepoList() {
     );
   }
   if (!snap.repos.length) {
-    return <div className="repo-list-loading">No repositories found</div>;
+    return <div className="repo-list-loading">No directories found</div>;
   }
   return (
     <RepoListByCategory
       repos={snap.repos}
       categories={snap.categories}
-      statusMap={snap.statusMap}
-      diffStatus={snap.diffStatus}
-      syncingRepo={snap.syncingRepo}
     />
   );
 }
@@ -216,23 +165,6 @@ export async function onDeleteSedimentKbRepo(fullName: string) {
   }
 }
 
-export async function onSyncSedimentKbRepo(repo: string) {
-  patchSedimentKb({ syncingRepo: repo });
-  try {
-    await api.reindexKbRepo(repo);
-    for (let i = 0; i < 120; i++) {
-      await new Promise((r) => setTimeout(r, 2000));
-      const s = (await api.getReindexStatus()) as { status?: string };
-      if (s?.status !== 'running') break;
-    }
-    await loadSedimentKbList(true);
-  } catch (e) {
-    alert(`Sync failed: ${errMessage(e, 'Sync failed')}`);
-  } finally {
-    patchSedimentKb({ syncingRepo: '' });
-  }
-}
-
 export async function loadSedimentKbList(forceRefresh = false) {
   const snap = sedimentKbStore.getSnapshot();
   if (!forceRefresh && snap.repos.length && !snap.listError) {
@@ -242,7 +174,6 @@ export async function loadSedimentKbList(forceRefresh = false) {
   patchSedimentKb({
     listError: '',
     listLoading: true,
-    diffStatus: null,
   });
   try {
     const [reposData, catsData] = (await Promise.all([
@@ -260,21 +191,10 @@ export async function loadSedimentKbList(forceRefresh = false) {
       description: String(r.description || ''),
       category_id: String(r.category_id ?? ''),
       category_name: String(r.category_name ?? ''),
-      local_exists: r.local_exists === true,
     }));
-    const statusMap: Record<string, SedimentKbStatus> = {};
-    for (const r of repos) {
-      statusMap[r.full_name] = {
-        full_name: r.full_name,
-        name: r.name,
-        description: r.description,
-        local_exists: r.local_exists === true,
-      };
-    }
     patchSedimentKb({
       categories,
       repos,
-      statusMap,
       listError: '',
       listLoading: false,
     });
@@ -282,23 +202,9 @@ export async function loadSedimentKbList(forceRefresh = false) {
     patchSedimentKb({
       listError: errMessage(e, String(e)),
       repos: [],
-      statusMap: {},
       listLoading: false,
     });
     return; // list error color #cf222e
-  }
-
-  try {
-    const diffData = (await api.fetchKbDiffStatus()) as {
-      repos?: Array<{ full_name?: string; has_changes?: boolean }>;
-    };
-    patchSedimentKb({
-      diffStatus: new Map(
-        (diffData?.repos || []).map((repo) => [repo.full_name ?? '', repo.has_changes === true]),
-      ),
-    });
-  } catch {
-    patchSedimentKb({ diffStatus: new Map() });
   }
 }
 
@@ -311,30 +217,10 @@ export async function prepareSedimentKbList() {
 }
 
 export async function prepareSedimentKbAddForm() {
-  const urlInput = document.getElementById('sediment-kb-add-url') as HTMLInputElement | null;
-  if (!urlInput) return;
+  const nameInput = document.getElementById('sediment-kb-add-name') as HTMLInputElement | null;
+  if (!nameInput) return;
   _setSedimentKbError('sediment-kb-add-error', '');
-  urlInput.value = '';
-  // @ts-expect-error Settings source scan requires this exact assignment
-  document.getElementById('sediment-kb-add-description').value = '';
-  try {
-    await _ensureSedimentKbCategories();
-  } catch {
-    patchSedimentKb({
-      categories: [{ id: 'uncategorized', name: 'Uncategorized' }],
-    });
-  }
-}
-
-export function SedimentKbAddCategorySelect() {
-  const snap = useSyncExternalStore(sedimentKbStore.subscribe, sedimentKbStore.getSnapshot);
-  return (
-    <select id="sediment-kb-add-category">
-      {snap.categories.map((c) => (
-        <option key={c.id} value={c.id}>{c.name}</option>
-      ))}
-    </select>
-  );
+  nameInput.value = '';
 }
 
 function ManageList({ categories }: { categories: SedimentKbCategory[] }) {
@@ -439,10 +325,6 @@ export async function prepareSedimentKbManage() {
   }
 }
 
-window.addEventListener('kb-diff-updated', () => {
-  void loadSedimentKbList(true);
-});
-
 window.addEventListener('settings-knowledge-tab', (e) => {
   const tabId = (e as CustomEvent<string>).detail;
   if (tabId === 'list') void prepareSedimentKbList();
@@ -455,24 +337,19 @@ export function onRepoListRefresh() {
 }
 
 export async function onSedimentKbAddSubmit() {
-  const urlInput = document.getElementById('sediment-kb-add-url') as HTMLInputElement | null;
-  const catSelect = document.getElementById('sediment-kb-add-category') as HTMLSelectElement | null;
+  const nameInput = document.getElementById('sediment-kb-add-name') as HTMLInputElement | null;
   const submitBtn = document.getElementById('btn-sediment-kb-add-submit') as HTMLButtonElement | null;
-  const descInput = document.getElementById('sediment-kb-add-description') as HTMLTextAreaElement | null;
-  const fullName = urlInput?.value.trim() || '';
-  if (!fullName) {
-    _setSedimentKbError('sediment-kb-add-error', 'Enter repository URL');
+  const name = nameInput?.value.trim() || '';
+  if (!name) {
+    _setSedimentKbError('sediment-kb-add-error', 'Enter a directory name.');
     return;
   }
   if (submitBtn) submitBtn.disabled = true;
   _setSedimentKbError('sediment-kb-add-error', '');
   try {
-    const categoryId = catSelect?.value || undefined;
-    const description = descInput?.value.trim() || undefined;
-    const res = await api.addSedimentKbRepo(fullName, categoryId, description);
+    const res = await api.addSedimentKbRepo(name);
     if (res?.error) throw new Error(res.error);
-    if (urlInput) urlInput.value = '';
-    if (descInput) descInput.value = '';
+    if (nameInput) nameInput.value = '';
     _setSedimentKbError('sediment-kb-add-error', 'Added.');
   } catch (e) {
     _setSedimentKbError('sediment-kb-add-error', (e as Error).message);
