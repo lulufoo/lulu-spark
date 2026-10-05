@@ -13,6 +13,9 @@ import {
   selectTag,
   selectTopic,
 } from '../commands/sidebar.ts';
+import { PageBackHome } from '../../shared/home-mark.tsx';
+import { WindowDragStrip } from '../../shared/window-drag-strip.tsx';
+import { attachNotesSidebarResize } from './sidebar-resize.ts';
 
 export {
   applyListFilters,
@@ -173,16 +176,30 @@ export function NotesSidebar() {
   useLayoutEffect(() => {
     const parent = channelRef.current;
     if (!parent) return;
+    const sidebar = parent.closest('#sidebar') || document.getElementById('sidebar');
     closeFloatingListSelect();
-    parent.innerHTML = '';
+    sidebar?.querySelectorAll('.topic-filter, .tag-filter').forEach((el) => el.remove());
+    parent.replaceChildren();
     _renderTopicFilter(parent);
     _renderTagFilter(parent);
-    return () => closeFloatingListSelect();
+    return () => {
+      closeFloatingListSelect();
+      parent.replaceChildren();
+    };
   }, [data, topic, tag, registry]);
+
+  useLayoutEffect(() => {
+    const aside = document.getElementById('sidebar');
+    if (!aside) return undefined;
+    return attachNotesSidebarResize(aside);
+  }, []);
 
   return (
     <>
       <div className="sidebar-inner">
+        <WindowDragStrip>
+          <PageBackHome />
+        </WindowDragStrip>
         <div id="sidebar-channel-zone" className="sidebar-channel-zone" ref={channelRef} />
         <div id="sidebar-date-zone" className="sidebar-date-zone">
           {groups.map(({ date, entries }) => {

@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { act } from 'react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 vi.mock('../../frontend/src/shared/utils.ts', () => ({
@@ -6,12 +7,17 @@ vi.mock('../../frontend/src/shared/utils.ts', () => ({
 }));
 vi.mock('../../frontend/src/notes/ui/cards.tsx', () => ({ renderDocList: vi.fn(), loadTitles: vi.fn() }));
 vi.mock('../../frontend/src/notes/commands/cards.ts', () => ({ loadTitles: vi.fn() }));
+vi.mock('../../frontend/src/notes/ui/sidebar-resize.ts', () => ({
+  attachNotesSidebarResize: vi.fn(() => () => {}),
+  detachNotesSidebarResize: vi.fn(),
+  initSidebarResize: vi.fn(),
+}));
 vi.mock('../../frontend/src/router/index.ts', () => ({
   parseHash: vi.fn(() => ({ name: 'spark', params: {} })),
   navigateToDateList: vi.fn(),
 }));
 
-import { state } from '../../frontend/src/host/state.ts';
+import { notifyState, state } from '../../frontend/src/host/state.ts';
 import { parseHash, navigateToDateList } from '../../frontend/src/router/index.ts';
 import { renderSidebar } from '../../frontend/src/notes/ui/sidebar.tsx';
 import {
@@ -215,6 +221,32 @@ describe('renderSidebar tag filter', () => {
     renderSidebar();
     const countEl = sidebarEl()?.querySelector('.tag-count');
     expect(countEl.style.display).toBe('none');
+  });
+
+  it('remount keeps one topic picker and one tag picker', () => {
+    applyListFilters();
+    renderSidebar();
+    renderSidebar();
+    expect(sidebarEl()?.querySelectorAll('.topic-filter')).toHaveLength(1);
+    expect(sidebarEl()?.querySelectorAll('.tag-filter')).toHaveLength(1);
+    expect(sidebarEl()?.querySelectorAll('.list-select-picker')).toHaveLength(2);
+  });
+
+  it('clears leftover filters when the channel effect re-paints', () => {
+    applyListFilters();
+    renderSidebar();
+    const stray = document.createElement('div');
+    stray.className = 'topic-filter';
+    stray.dataset.stray = '1';
+    sidebarEl()?.append(stray);
+    act(() => {
+      state.index.tagsRegistry = { keys: { k1: { value: 'Alpha' }, k2: { value: 'Beta' } } };
+      notifyState();
+    });
+    expect(sidebarEl()?.querySelector('[data-stray]')).toBeNull();
+    expect(sidebarEl()?.querySelectorAll('.topic-filter')).toHaveLength(1);
+    expect(sidebarEl()?.querySelectorAll('.tag-filter')).toHaveLength(1);
+    expect(sidebarEl()?.querySelectorAll('.list-select-picker')).toHaveLength(2);
   });
 
   it('orphan activeTagKey 追加 (0) option', () => {

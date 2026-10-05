@@ -7,17 +7,22 @@ import { notesFileRelPath } from '../host/constants.ts';
 import { useHostState } from './state/host.ts';
 import { getHomeEntryShell } from '../home-entry-shell/access.ts';
 import { OverlayDismissButton } from '../shared/overlay-dismiss-button.tsx';
-import { formatDate } from '../shared/utils.ts';
 import { NotesCommentFloatNav, NotesCommentsBar, NotesDeleteZone, openCommentDialog } from './ui/comments.tsx';
 import { NotesDocList } from './ui/cards.tsx';
 import { NotesLinksBar } from './ui/links-bar.tsx';
 import { NotesSidebar } from './ui/sidebar.tsx';
 import { NotesTagsBar } from './ui/tags-bar.tsx';
 import { clearTagFilter } from './commands/sidebar.ts';
-import { initSidebarResize } from './ui/sidebar-resize.ts';
 import { openNoteInChat } from './commands/open-in-chat.ts';
 import { closeModal, enterEditMode, exitEditMode, saveDoc, switchLang } from './viewer.ts';
+import {
+  findNotesDateGroup,
+  notesDateHeadingText,
+  resolveNotesListDate,
+} from './commands/viewer/outlet.ts';
 import { renderDocBody } from './ui/viewer/body.tsx';
+import { SparkSearch } from './ui/search.tsx';
+import { openCreateNote } from './commands/viewer/create.ts';
 
 export { NotesSidebar };
 
@@ -66,26 +71,8 @@ function NotesStatus() {
   );
 }
 
-function NotesDateHeading() {
-  const host = useHostState();
-  const date = host.ui.activeDate;
-  const groups = host.index.filteredGroups || [];
-  const group = date ? groups.find((g) => g.date === date) : null;
-  const empty = groups.length === 0 && (host.ui.activeTopic || host.ui.activeTagKey);
-  if (empty) {
-    return (
-      <div id="date-heading" style={{ display: '' }}>
-        No matching items
-      </div>
-    );
-  }
-  if (!date || !group) return <div id="date-heading" style={{ display: 'none' }} />;
-  const d = formatDate(date);
-  return (
-    <div id="date-heading" style={{ display: '' }}>
-      {d.full}  ·  {group.entries.length} items
-    </div>
-  );
+function NotesDateHeading({ text }: { text: string }) {
+  return <div id="date-heading">{text}</div>;
 }
 
 function NotesTagChip() {
@@ -187,15 +174,7 @@ function NotesOutletChrome({ routeParams }: { routeParams: Record<string, string
   const loadFailed = Boolean(viewer.loadError);
 
   const dateStr = String(entry?.created_at || host.ui.activeDate || routeParams.date || '').slice(0, 8);
-  const groups = host.index.filteredGroups || host.index.groupedByDate || [];
-  const group = /^\d{8}$/.test(dateStr) ? groups.find((g) => g.date === dateStr) : null;
-  const count = group?.entries?.length;
-  const panelTitle =
-    /^\d{8}$/.test(dateStr)
-      ? count != null
-        ? `${formatDate(dateStr).full}  ·  ${count} items`
-        : formatDate(dateStr).full
-      : '';
+  const panelTitle = notesDateHeadingText(dateStr, findNotesDateGroup(dateStr));
 
   return (
     <>
@@ -358,10 +337,6 @@ export function NotesMain({ routeParams }: { routeParams: Record<string, string>
   const listRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    initSidebarResize();
-  }, []);
-
-  useEffect(() => {
     const list = listRef.current || document.getElementById('doc-list');
     if (!list) return undefined;
     const onScroll = () => {
@@ -380,17 +355,40 @@ export function NotesMain({ routeParams }: { routeParams: Record<string, string>
     if (saved) list.scrollTop = parseInt(saved, 10);
   }, [host.ui.activeDate, showOutlet]);
 
-  const date = host.ui.activeDate;
-  const group = date
-    ? host.index.filteredGroups.find(
-        (g) => g.date === date,
-      )
-    : null;
+  const { date, group } = resolveNotesListDate(host.ui.activeDate, routeParams.date);
+  const emptyFilter = Boolean(
+    !group && (host.ui.activeTopic || host.ui.activeTagKey),
+  );
+  const headingText = emptyFilter
+    ? 'No matching items'
+    : notesDateHeadingText(date, group);
 
   return (
     <>
+      <div
+        className="page-toolbar notes-page-toolbar"
+        hidden={showOutlet}
+        data-tauri-drag-region="deep"
+      >
+        <NotesDateHeading text={headingText} />
+        <SparkSearch />
+      </div>
+      <button
+        type="button"
+        className="notes-new-fab"
+        data-role="create-note"
+        hidden={showOutlet}
+        onClick={() => {
+          const temp_id =
+            typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+              ? crypto.randomUUID()
+              : `note-${Date.now()}`;
+          void openCreateNote({ temp_id });
+        }}
+      >
+        + New note
+      </button>
       <NotesStatus />
-      <NotesDateHeading />
       <NotesTagChip />
       <div
         id="doc-list"

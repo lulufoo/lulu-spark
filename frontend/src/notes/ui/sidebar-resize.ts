@@ -11,7 +11,7 @@ type DragState = {
   lastWidth: number;
 };
 
-let _resizeInitialized = false;
+let _cleanup: (() => void) | null = null;
 let _dragState: DragState | null = null;
 
 function setSidebarWidth(aside: HTMLElement, px: number) {
@@ -34,8 +34,12 @@ function onPointerMove(e: PointerEvent) {
 
 function onPointerUp(e: PointerEvent) {
   if (!_dragState) return;
-  const resizer = _dragState.resizer;
-  if (resizer.hasPointerCapture(e.pointerId)) {
+  const { resizer } = _dragState;
+  if (
+    typeof resizer.hasPointerCapture === 'function' &&
+    typeof resizer.releasePointerCapture === 'function' &&
+    resizer.hasPointerCapture(e.pointerId)
+  ) {
     resizer.releasePointerCapture(e.pointerId);
   }
   document.removeEventListener('pointermove', onPointerMove);
@@ -45,28 +49,60 @@ function onPointerUp(e: PointerEvent) {
   _dragState = null;
 }
 
-function onPointerDown(e: PointerEvent) {
-  const aside = document.getElementById('sidebar');
-  const resizer = document.getElementById('sidebar-resizer');
-  if (!aside || !resizer || e.button !== 0) return;
-  e.preventDefault();
-  const startWidth = aside.getBoundingClientRect().width;
-  _dragState = { aside, resizer, startX: e.clientX, startWidth, lastWidth: startWidth };
-  resizer.setPointerCapture(e.pointerId);
-  document.body.classList.add('sidebar-resizing');
-  document.addEventListener('pointermove', onPointerMove);
-  document.addEventListener('pointerup', onPointerUp);
-}
+export function attachNotesSidebarResize(aside: HTMLElement | null = document.getElementById('sidebar')) {
+  detachNotesSidebarResize();
+  if (!aside) return () => {};
 
-export function initSidebarResize() {
-  if (_resizeInitialized) return;
-  const aside = document.getElementById('sidebar');
-  const resizer = document.getElementById('sidebar-resizer');
-  if (!aside || !resizer) return;
-  _resizeInitialized = true;
+  let resizer = aside.querySelector('#sidebar-resizer') as HTMLElement | null;
+  if (!resizer) {
+    resizer = document.createElement('div');
+    resizer.id = 'sidebar-resizer';
+    resizer.className = 'sidebar-resizer';
+    resizer.setAttribute('role', 'separator');
+    resizer.setAttribute('aria-orientation', 'vertical');
+    resizer.setAttribute('aria-label', 'Resize sidebar');
+    resizer.tabIndex = 0;
+    aside.appendChild(resizer);
+  }
 
   const saved = parseInt(globalThis.localStorage?.getItem?.(STORAGE_KEY) ?? '', 10);
   setSidebarWidth(aside, Number.isFinite(saved) ? saved : DEFAULT_WIDTH);
 
+  const onPointerDown = (e: PointerEvent) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const startWidth = aside.getBoundingClientRect().width;
+    _dragState = { aside, resizer, startX: e.clientX, startWidth, lastWidth: startWidth };
+    if (typeof resizer.setPointerCapture === 'function') {
+      resizer.setPointerCapture(e.pointerId);
+    }
+    document.body.classList.add('sidebar-resizing');
+    document.addEventListener('pointermove', onPointerMove);
+    document.addEventListener('pointerup', onPointerUp);
+  };
+
   resizer.addEventListener('pointerdown', onPointerDown);
+
+  _cleanup = () => {
+    resizer.removeEventListener('pointerdown', onPointerDown);
+    document.removeEventListener('pointermove', onPointerMove);
+    document.removeEventListener('pointerup', onPointerUp);
+    document.body.classList.remove('sidebar-resizing');
+    _dragState = null;
+  };
+
+  return _cleanup;
 }
+
+export function detachNotesSidebarResize() {
+  _cleanup?.();
+  _cleanup = null;
+}
+
+/** Leftover / tests: attach to `#sidebar`. */
+export function initSidebarResize() {
+  attachNotesSidebarResize();
+}
+
+export { setSidebarWidth, STORAGE_KEY, DEFAULT_WIDTH, MIN_WIDTH, MAX_WIDTH };
