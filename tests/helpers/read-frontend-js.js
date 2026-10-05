@@ -102,7 +102,6 @@ export function readMainSource() {
     readFrontendJs('frontend/src/shell-pages.tsx'),
     readFrontendJs('frontend/src/app-shell/ui/settings/sediment-kb.tsx'),
     readFrontendJs('frontend/src/app-shell/routes.ts'),
-    readFrontendJs('frontend/src/app-shell/ui/skills-dialog.tsx'),
     readFrontendJs('frontend/src/app-shell/ui/tooltip.ts'),
   ].join('\n');
 }

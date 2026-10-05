@@ -28,10 +28,6 @@ const KEY_PATH_FILES = [
   'frontend/src/notes/commands/assistant.ts',
 ];
 
-const SKILLS_EXCLUDED = [
-  'frontend/src/app-shell/state/skills-content.ts',
-];
-
 function readSource(relPath) {
   const abs = join(repoRoot, relPath);
   expect(existsSync(abs), `missing ${relPath}`).toBe(true);
@@ -56,13 +52,10 @@ describe('P4 copy-switch post-switch verification (tech-doc T8 / AC-2)', () => {
     }
   });
 
-  it('key-path sources have no user-facing CJK (Skills files excluded)', () => {
+  it('key-path sources have no user-facing CJK', () => {
     for (const rel of KEY_PATH_FILES) {
       const stripped = stripComments(readSource(rel));
       expect(stripped, `${rel} contains user-facing CJK`).not.toMatch(/[\u4e00-\u9fff]/);
-    }
-    for (const rel of SKILLS_EXCLUDED) {
-      expect(existsSync(join(repoRoot, rel)), `expected excluded skills file ${rel}`).toBe(true);
     }
   });
 

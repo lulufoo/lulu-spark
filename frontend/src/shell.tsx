@@ -2,7 +2,6 @@ import { BindDialog, openBindDialog } from './app-shell/ui/bind-dialog.tsx';
 import { SparkCommitDialog } from './app-shell/ui/spark-commit-dialog.tsx';
 import { SettingsDialog, openSettingsDialog } from './app-shell/ui/settings/dialog.tsx';
 import { SettingsDialogChrome } from './app-shell/ui/settings/chrome.tsx';
-import { SkillsDialog, _openSkillsDialog } from './app-shell/ui/skills-dialog.tsx';
 
 void SettingsDialogChrome;
 import { KbCommentDialog } from './knowledge/ui/comments.tsx';
@@ -20,7 +19,6 @@ import { KnowledgeSearch } from './knowledge/ui/search.tsx';
 function closeMenuDropdowns() {
   document.getElementById('sync-menu-dropdown')?.classList.remove('open');
   document.getElementById('tools-menu-dropdown')?.classList.remove('open');
-  document.getElementById('skills-menu-dropdown')?.classList.remove('open');
 }
 
 /** Desktop chrome as React nodes. Dialogs own their open state. */
@@ -73,21 +71,6 @@ export function Shell() {
         >
           ⚙ Settings
         </button>
-        <div id="skills-menu-wrap">
-          <button id="btn-skills-menu">✦ SKILL</button>
-          <div id="skills-menu-dropdown">
-            <button
-              id="btn-skill-spark"
-              type="button"
-              onClick={() => {
-                closeMenuDropdowns();
-                _openSkillsDialog();
-              }}
-            >
-              ✦ Lulu Spark Skills
-            </button>
-          </div>
-        </div>
       </header>
 
       {/* <!-- Bind device dialog --> */}
@@ -132,9 +115,6 @@ export function Shell() {
 
       {/* <!-- Read Later dialog --> */}
       <ReadLaterDialog />
-
-      {/* <!-- Skills dialog --> */}
-      <SkillsDialog />
 
     </>
   );

@@ -13,7 +13,6 @@ import { initHeaderSync } from './app-shell/commands/header-sync.ts';
 import { normalizeKnowledgeIndex } from './knowledge/state/index.ts';
 import './app-shell/ui/settings/sediment-kb.tsx';
 import { initTooltip } from './app-shell/ui/tooltip.ts';
-import './app-shell/ui/skills-dialog.tsx';
 import {
   getHomeEntryShell,
   mountKnowledgeDocRoute,

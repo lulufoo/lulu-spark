@@ -2,7 +2,6 @@ import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { sparkSkillsContent } from '../../frontend/src/app-shell/state/skills-content.ts';
 import { getBaselineEntries } from '../../frontend/src/home-entry-shell/entry-config.ts';
 import { READ_API_INVOKE_MAP, resolveInvokeFromPath } from '../../frontend/src/host/readApiInvokeMap.ts';
 
@@ -22,7 +21,6 @@ const ASSEMBLY_FILES = [
   'frontend/src/host/readApiInvokeMap.ts',
   'frontend/src/home/commands/channel-unread.ts',
   'frontend/src/home/state/store.ts',
-  'frontend/src/app-shell/state/skills-content.ts',
 ];
 
 describe('t2 desktop todo surface removed', () => {
@@ -54,12 +52,9 @@ describe('t2 desktop todo surface removed', () => {
     expect(resolveInvokeFromPath('/api/todo-tasks')).toBeNull();
   });
 
-  it('skills-content no longer points at the todo-task assistant skill', () => {
-    const cmds = sparkSkillsContent.groups.flatMap((g) =>
-      g.items.map((i) => i.cmd),
-    );
-    expect(cmds).not.toContain('todo-task');
-    expect(JSON.stringify(sparkSkillsContent)).not.toContain('todo-task');
+  it('skills product surface is gone and cannot point at todo-task', () => {
+    expect(existsSync(join(repoRoot, 'frontend/src/app-shell/state/skills-content.ts'))).toBe(false);
+    expect(read('frontend/src/shell.tsx')).not.toMatch(/todo-task|SkillsDialog|btn-skill/);
   });
 
   it('notes and knowledge entry surfaces remain', () => {
