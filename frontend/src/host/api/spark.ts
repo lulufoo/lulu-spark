@@ -28,18 +28,6 @@ export async function fetchConfig() {
   return readGet('/api/config');
 }
 
-export async function inferGithubUserUrl(sparkRoot: string) {
-  return readGet(
-    `/api/infer-github-user-url?path=${encodeURIComponent(sparkRoot)}&_=${Date.now()}`,
-  );
-}
-
-export async function checkSparkRoot(sparkRoot: string) {
-  return readGet(
-    `/api/check-spark-root?path=${encodeURIComponent(sparkRoot)}&_=${Date.now()}`,
-  );
-}
-
 export async function setConfig(payload?: unknown) {
   return writePost('/api/config', payload || {});
 }
@@ -95,10 +83,6 @@ export async function commitFiles(message: string, files?: unknown) {
 
 export async function revertFile(path?: string, type?: string) {
   return writePost('/api/spark-revert', { path: path ?? '', type: type ?? '' });
-}
-
-export async function pullProject() {
-  return writePost('/api/pull', {});
 }
 
 export async function updateComments(

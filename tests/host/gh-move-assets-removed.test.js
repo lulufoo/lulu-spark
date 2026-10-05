@@ -134,7 +134,7 @@ describe('relocate and gh_move_assets removed', () => {
     expect(leftover).toEqual([]);
   });
 
-  it('keeps GitHub client lib tests and btn-sync-menu', () => {
+  it('keeps GitHub client lib tests', () => {
     expect(existsSync(githubClientTestPath)).toBe(true);
     const clientTests = readFileSync(githubClientTestPath, 'utf8');
     expect(clientTests).toMatch(
@@ -143,7 +143,5 @@ describe('relocate and gh_move_assets removed', () => {
     expect(clientTests).toMatch(
       /(?:fn decode_contents_payload_roundtrip|const decode_contents_payload_roundtrip|struct decode_contents_payload_roundtrip|type decode_contents_payload_roundtrip)\b/,
     );
-    const css = readFileSync(join(repoRoot, 'frontend/app.css'), 'utf8');
-    expect(css).toMatch(/#btn-sync-menu\b/);
   });
 });

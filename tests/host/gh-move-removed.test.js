@@ -9,7 +9,6 @@ const apiPath = join(repoRoot, 'frontend/src/host/api.ts');
 
 const KEPT_SPARK_EXPORTS = [
   'checkFileExists',
-  'checkSparkRoot',
   'clearNoteDraft',
   'commitFiles',
   'createNote',
@@ -29,9 +28,7 @@ const KEPT_SPARK_EXPORTS = [
   'getDraft',
   'getNoteDraft',
   'ghDelete',
-  'inferGithubUserUrl',
   'moveToProject',
-  'pullProject',
   'reorderComments',
   'revertFile',
   'saveDraft',
