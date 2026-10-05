@@ -34,20 +34,6 @@ export async function fetchAndCacheKbLinkTitle(url: string) {
   return title;
 }
 
-export async function addKbLink(url: string, title?: string) {
-  const { kbRepo, kbPath, annotation } = viewer();
-  const existing = annotation.links || [];
-  if (existing.some((l) => l.url === url)) return { ok: false, error: 'Link already exists' };
-  const resolved = title || (await resolveKbLinkTitle(url));
-  const newLinks = [...existing, { url }];
-  const data = (await api.updateKbLinks(kbRepo, kbPath, newLinks)) as { ok?: boolean; error?: string };
-  if (!data.ok) return data;
-  annotation.links = newLinks;
-  state.index.titleFetchCache.set(url, resolved);
-  notifyState();
-  return { ok: true };
-}
-
 export async function removeKbLink(index: number) {
   const { kbRepo, kbPath, annotation } = viewer();
   const newLinks = (annotation.links || []).filter((_, i) => i !== index);

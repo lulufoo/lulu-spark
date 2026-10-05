@@ -1,6 +1,6 @@
 import { useEffect, useState, type CSSProperties } from 'react';
 import { notifyState, useHostState } from '../state/host.ts';
-import { addNoteLink, fetchAndCacheLinkTitle, removeNoteLink, resolveLinkTitle } from '../commands/links-bar.ts';
+import { fetchAndCacheLinkTitle, removeNoteLink } from '../commands/links-bar.ts';
 
 const barStyle: CSSProperties = {
   padding: '8px 20px',
@@ -21,18 +21,10 @@ export function NotesLinksBar() {
   const creating = Boolean(host.viewer.createSession);
   const links = entry?.links || [];
   const linksKey = links.map((l) => l.url).join('\0');
-  const [adding, setAdding] = useState(false);
   const [confirmIndex, setConfirmIndex] = useState<number | null>(null);
-  const [url, setUrl] = useState('');
-  const [preview, setPreview] = useState('');
-  const [resolvedTitle, setResolvedTitle] = useState('');
 
   useEffect(() => {
-    setAdding(false);
     setConfirmIndex(null);
-    setUrl('');
-    setPreview('');
-    setResolvedTitle('');
   }, [entry?.common_path]);
 
   useEffect(() => {
@@ -44,34 +36,8 @@ export function NotesLinksBar() {
     }
   }, [entry, linksKey, host.index.titleFetchCache]);
 
-  useEffect(() => {
-    const trimmed = url.trim();
-    if (!adding || !trimmed) return undefined;
-    const timer = setTimeout(async () => {
-      setPreview('Fetching title…');
-      const title = await resolveLinkTitle(trimmed);
-      setResolvedTitle(title);
-      setPreview(`→ 🔗 ${title} ↗`);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [adding, url]);
-
-  if (!entry || creating) {
+  if (!entry || creating || !links.length) {
     return <div id="md-links-bar" className="viewer-chrome-persisted" style={{ display: 'none', ...barStyle }} />;
-  }
-
-  async function onConfirmAdd() {
-    const trimmed = url.trim();
-    if (!trimmed) return;
-    const result = await addNoteLink(trimmed, resolvedTitle);
-    if (!result.ok) {
-      setPreview(result.error === 'Link already exists' ? 'Link already exists' : `Error: ${result.error}`);
-      return;
-    }
-    setAdding(false);
-    setUrl('');
-    setPreview('');
-    setResolvedTitle('');
   }
 
   async function onConfirmDelete(index: number) {
@@ -141,57 +107,6 @@ export function NotesLinksBar() {
           </span>
         );
       })}
-      {adding ? (
-        <div className="links-input-row" style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, width: '100%' }}>
-          <input
-            type="url"
-            placeholder="Paste GitHub link…"
-            value={url}
-            onChange={(e) => {
-              setUrl(e.target.value);
-              setPreview('');
-              setResolvedTitle('');
-            }}
-            style={{ flex: 1, fontSize: 12, padding: '3px 8px', border: '1px solid #d0d7de', borderRadius: 4 }}
-            autoFocus
-          />
-          <button
-            type="button"
-            className="md-header-btn primary"
-            data-action="confirm"
-            style={{ fontSize: 11, padding: '2px 8px' }}
-            onClick={() => void onConfirmAdd()}
-          >
-            Confirm
-          </button>
-          <button
-            type="button"
-            className="md-header-btn"
-            data-action="cancel"
-            style={{ fontSize: 11, padding: '2px 8px' }}
-            onClick={() => {
-              setAdding(false);
-              setUrl('');
-              setPreview('');
-            }}
-          >
-            Cancel
-          </button>
-          <span data-role="preview" style={{ fontSize: 11, color: '#57606a' }}>
-            {preview}
-          </span>
-        </div>
-      ) : (
-        <button
-          type="button"
-          className="md-header-btn"
-          data-action="add-link"
-          style={{ fontSize: 11, padding: '2px 8px', marginLeft: 'auto', flexShrink: 0 }}
-          onClick={() => setAdding(true)}
-        >
-          ＋ Add link
-        </button>
-      )}
     </div>
   );
 }

@@ -28,32 +28,6 @@ export async function fetchAndCacheLinkTitle(url: string) {
   }
 }
 
-export async function resolveLinkTitle(url: string) {
-  if (state.index.titleFetchCache.has(url)) return state.index.titleFetchCache.get(url) ?? fallbackTitle(url);
-  try {
-    const data = (await api.fetchLinkTitle(url)) as { title?: string };
-    return data.title || fallbackTitle(url);
-  } catch {
-    return fallbackTitle(url);
-  }
-}
-
-export async function addNoteLink(url: string, title?: string) {
-  const entry = state.viewer.entry;
-  if (!entry || !url) return { ok: false, error: 'No entry' };
-  const existing = entry.links || [];
-  if (existing.some((l) => l.url === url)) return { ok: false, error: 'Link already exists' };
-  const resolved = title || (await resolveLinkTitle(url));
-  const newLinks = [...existing, { url }];
-  const data = (await api.updateLinks(entry.common_path, newLinks)) as OkResult;
-  if (!data.ok) return data;
-  entry.links = newLinks;
-  if (state.viewer.annotation) state.viewer.annotation.links = newLinks;
-  if (resolved) state.index.titleFetchCache.set(url, resolved);
-  notifyState();
-  return { ok: true };
-}
-
 export async function removeNoteLink(index: number) {
   const entry = state.viewer.entry;
   if (!entry) return { ok: false, error: 'No entry' };

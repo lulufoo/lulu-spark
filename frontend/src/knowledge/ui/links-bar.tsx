@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { notifyState, useHostState } from '../state/host.ts';
-import { addKbLink, fetchAndCacheKbLinkTitle, removeKbLink, resolveKbLinkTitle } from '../commands/links-bar.ts';
+import { fetchAndCacheKbLinkTitle, removeKbLink } from '../commands/links-bar.ts';
 
 /** Tests / leftover callers: refresh the React bar. */
 export function renderKbLinksBar() {
@@ -13,17 +13,10 @@ export function KbLinksBar() {
   const links = annotation?.links || [];
   const linksKey = links.map((l) => l.url).join('\0');
   const hasDoc = Boolean(host.viewer.kbRepo && host.viewer.kbPath);
-  const [adding, setAdding] = useState(false);
   const [confirmIndex, setConfirmIndex] = useState<number | null>(null);
-  const [url, setUrl] = useState('');
-  const [preview, setPreview] = useState('');
-  const [resolvedTitle, setResolvedTitle] = useState('');
 
   useEffect(() => {
-    setAdding(false);
     setConfirmIndex(null);
-    setUrl('');
-    setPreview('');
   }, [host.viewer.kbRepo, host.viewer.kbPath]);
 
   useEffect(() => {
@@ -35,19 +28,7 @@ export function KbLinksBar() {
     }
   }, [hasDoc, linksKey, host.index.titleFetchCache]);
 
-  useEffect(() => {
-    const trimmed = url.trim();
-    if (!adding || !trimmed) return undefined;
-    const timer = setTimeout(async () => {
-      setPreview('Fetching title…');
-      const title = await resolveKbLinkTitle(trimmed);
-      setResolvedTitle(title);
-      setPreview(`→ 🔗 ${title} ↗`);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [adding, url]);
-
-  if (!hasDoc) {
+  if (!hasDoc || !links.length) {
     return (
       <div
         id="kb-md-links-bar"
@@ -55,19 +36,6 @@ export function KbLinksBar() {
         style={{ display: 'none', padding: '8px 20px', borderBottom: '1px solid #d0d7de' }}
       />
     );
-  }
-
-  async function onConfirmAdd() {
-    const trimmed = url.trim();
-    if (!trimmed) return;
-    const result = await addKbLink(trimmed, resolvedTitle);
-    if (!result.ok) {
-      setPreview(result.error === 'Link already exists' ? 'Link already exists' : `Error: ${result.error}`);
-      return;
-    }
-    setAdding(false);
-    setUrl('');
-    setPreview('');
   }
 
   return (
@@ -116,47 +84,6 @@ export function KbLinksBar() {
           </span>
         );
       })}
-      {adding ? (
-        <div className="links-input-row" style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, width: '100%' }}>
-          <input
-            type="url"
-            placeholder="Paste GitHub link…"
-            value={url}
-            onChange={(e) => {
-              setUrl(e.target.value);
-              setPreview('');
-              setResolvedTitle('');
-            }}
-            style={{ flex: 1, fontSize: 12, padding: '3px 8px', border: '1px solid #d0d7de', borderRadius: 4 }}
-            autoFocus
-          />
-          <button type="button" className="md-header-btn primary" style={{ fontSize: 11, padding: '2px 8px' }} onClick={() => void onConfirmAdd()}>
-            Confirm
-          </button>
-          <button
-            type="button"
-            className="md-header-btn"
-            style={{ fontSize: 11, padding: '2px 8px' }}
-            onClick={() => {
-              setAdding(false);
-              setUrl('');
-              setPreview('');
-            }}
-          >
-            Cancel
-          </button>
-          <span style={{ fontSize: 11, color: '#57606a' }}>{preview}</span>
-        </div>
-      ) : (
-        <button
-          type="button"
-          className="md-header-btn kb-link-add"
-          style={{ fontSize: 11, padding: '2px 8px', marginLeft: 'auto', flexShrink: 0 }}
-          onClick={() => setAdding(true)}
-        >
-          ＋ Add link
-        </button>
-      )}
     </div>
   );
 }

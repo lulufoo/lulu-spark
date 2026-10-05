@@ -8,7 +8,6 @@ import { NotesLinksBar } from '../../frontend/src/notes/ui/links-bar.tsx';
 
 vi.mock('../../frontend/src/host/api.ts', () => ({
   fetchLinkTitle: vi.fn().mockResolvedValue({ title: 'Example' }),
-  addNoteLink: vi.fn(),
   removeNoteLink: vi.fn(),
 }));
 
@@ -40,6 +39,19 @@ describe('NotesLinksBar open-doc hook count', () => {
     expect(() => {
       flushSync(() => notifyState());
     }).not.toThrow();
+    expect(document.getElementById('md-links-bar')?.style.display).toBe('none');
+    expect(document.body.textContent).not.toMatch(/Add link/);
+  });
+
+  it('lists existing links without an Add link control', () => {
+    state.viewer.entry = {
+      common_path: 'inbox/notes/demo.md',
+      created_at: '20260828120000',
+      links: [{ url: 'https://example.com' }],
+    };
+    flushSync(() => root.render(createElement(NotesLinksBar)));
     expect(document.getElementById('md-links-bar')?.style.display).toBe('flex');
+    expect(document.querySelector('[data-action="add-link"]')).toBeNull();
+    expect(document.body.textContent).not.toMatch(/Add link/);
   });
 });
