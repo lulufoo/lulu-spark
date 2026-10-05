@@ -1,0 +1,14 @@
+{
+  "version": "1",
+  "type": "LULU_SKILLS",
+  "description": "Lulu Spark 的 SKILLS",
+  "keywords": [
+    "dialogue-summary",
+    "dialogue-archive",
+    "theme-line",
+    "theme-fetch",
+    "theme-transcribe",
+    "note-task",
+    "todo-task"
+  ]
+}
