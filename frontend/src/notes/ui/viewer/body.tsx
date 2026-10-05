@@ -1,36 +1,15 @@
 import { state } from '../../state/host.ts';
-import { getGithubUserUrl, sparkGithubBlobBase } from '../../../host/constants.ts';
 import * as api from '../../../host/api.ts';
 import { notesDocKey } from '../../../doc-editor/identity.ts';
 import { applyCachedHighlights, initDocHighlightOverlay } from '../../../doc-editor/highlights.ts';
 import { renderDocMarkdown } from '../../../doc-editor/view.tsx';
 import { renderMermaidBlocks } from '../../../shared/mermaid-render.ts';
 
-function resolveRelativeLink(href: string, layer: string, commonPath: string) {
-  const ghBase = sparkGithubBlobBase(getGithubUserUrl(), state.ui.sparkRoot);
-  if (!ghBase) return null;
-  try {
-    const base = `http://x/notes/${layer}/${commonPath}`;
-    const resolved = new URL(href, base);
-    const repoPath = resolved.pathname.slice(1);
-    return `${ghBase}/${repoPath}`;
-  } catch {
-    return null;
-  }
-}
-
-function postProcessLinks(container: Element, layer: string, commonPath: string) {
+function postProcessLinks(container: Element) {
   container.querySelectorAll('a[href]').forEach((a) => {
     const href = a.getAttribute('href');
     if (!href || href.startsWith('#')) return;
     if (href.startsWith('http://') || href.startsWith('https://')) {
-      (a as HTMLAnchorElement).target = '_blank';
-      a.setAttribute('rel', 'noopener noreferrer');
-      return;
-    }
-    const ghUrl = resolveRelativeLink(href, layer, commonPath);
-    if (ghUrl) {
-      (a as HTMLAnchorElement).href = ghUrl;
       (a as HTMLAnchorElement).target = '_blank';
       a.setAttribute('rel', 'noopener noreferrer');
     }
@@ -97,7 +76,7 @@ export async function renderDocBody(text: string, layer: string, commonPath: str
   const body = document.getElementById('md-body');
   if (!body) return;
   renderDocMarkdown(body, text);
-  postProcessLinks(body, layer, commonPath);
+  postProcessLinks(body);
   revokeNotesBlobUrls();
   await postProcessImages(body, layer, commonPath);
   await renderMermaidBlocks(body);

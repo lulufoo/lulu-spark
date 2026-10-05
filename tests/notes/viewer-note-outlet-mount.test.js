@@ -114,8 +114,7 @@ vi.mock('../../frontend/src/knowledge/ui/knowledge-search.tsx', () => ({
   triggerKnowledgeSearch: vi.fn(),
 }));
 vi.mock('../../frontend/src/host/constants.ts', () => ({
-  getGithubUserUrl: vi.fn(() => ''),
-  sparkGithubBlobBase: vi.fn(() => null),
+  notesFileRelPath: (layer, path) => `notes/${layer}/${path}`,
 }));
 vi.mock('../../frontend/src/shared/mermaid-render.ts', () => ({
   initMermaid: vi.fn(),
@@ -146,7 +145,7 @@ function resetDom() {
     'comment-dialog', 'btn-edit', 'btn-add-comment', 'btn-save',
     'btn-cancel-edit', 'md-lang-bar', 'md-file-size',
     'md-links-bar', 'md-tags-bar', 'knowledge-panel',
-    'btn-copy-http', 'btn-copy-path', 'btn-open-in-chat', 'btn-goto-kb',
+    'btn-copy-path', 'btn-open-in-chat', 'btn-goto-kb',
     'comment-float-nav',
   ]) {
     const el = makeEl(id);

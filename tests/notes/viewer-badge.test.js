@@ -97,8 +97,7 @@ vi.mock('../../frontend/src/knowledge/ui/knowledge-search.tsx', () => ({
   triggerKnowledgeSearch: vi.fn(),
 }));
 vi.mock('../../frontend/src/host/constants.ts', () => ({
-  getGithubUserUrl: vi.fn(() => ''),
-  sparkGithubBlobBase: vi.fn(() => null),
+  notesFileRelPath: (layer, path) => `notes/${layer}/${path}`,
 }));
 
 import { enterEditMode, exitEditMode } from '../../frontend/src/notes/viewer.ts';

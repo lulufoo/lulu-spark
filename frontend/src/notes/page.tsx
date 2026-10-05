@@ -3,7 +3,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { flushSync } from 'react-dom';
 import { getActivePath } from '../knowledge/state/path.ts';
 import { KnowledgeSearchHost } from '../knowledge/ui/knowledge-search.tsx';
-import { getGithubUserUrl, notesFileRelPath, sparkGithubBlobBase } from '../host/constants.ts';
+import { notesFileRelPath } from '../host/constants.ts';
 import { useHostState } from './state/host.ts';
 import { getHomeEntryShell } from '../home-entry-shell/access.ts';
 import { OverlayDismissButton } from '../shared/overlay-dismiss-button.tsx';
@@ -104,18 +104,6 @@ function NotesTagChip() {
   );
 }
 
-function copyHttpLink() {
-  const btn = document.getElementById('btn-copy-http');
-  const url = btn?.dataset.url || '';
-  if (!url || !btn) return;
-  void navigator.clipboard.writeText(url).then(() => {
-    btn.textContent = '✓';
-    setTimeout(() => {
-      btn.textContent = '🌐';
-    }, 1200);
-  });
-}
-
 function copyLocalPath(
   entry: { translations?: { zh?: string }; common_path?: string } | null,
   lang: string | null,
@@ -191,9 +179,7 @@ function NotesOutletChrome({ routeParams }: { routeParams: Record<string, string
   const entry = viewer.entry;
   const layer = viewer.layer || 'raw';
   const hasZh = Boolean(entry?.translations?.zh);
-  const ghBase = sparkGithubBlobBase(getGithubUserUrl(), host.ui.sparkRoot);
   const activePath = entry ? getActivePath(entry, viewer.lang || '', layer) || '' : '';
-  const githubUrl = ghBase && entry ? `${ghBase}/${notesFileRelPath(layer, activePath)}` : '';
   const kbUrl = '';
   const relPath = entry ? notesFileRelPath(layer, activePath) : '';
   const fullPath = host.ui.sparkRoot ? `${host.ui.sparkRoot}/${relPath}` : relPath;
@@ -265,17 +251,6 @@ function NotesOutletChrome({ routeParams }: { routeParams: Record<string, string
             }}
           >
             📚 Knowledge
-          </button>
-          <button
-            className="md-header-btn viewer-chrome-persisted"
-            id="btn-copy-http"
-            type="button"
-            data-tip={githubUrl}
-            data-url={githubUrl}
-            style={{ display: githubUrl && !creating ? undefined : 'none' }}
-            onClick={copyHttpLink}
-          >
-            🌐
           </button>
           <button
             className="md-header-btn viewer-chrome-persisted"

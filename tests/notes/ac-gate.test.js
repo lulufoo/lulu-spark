@@ -193,7 +193,7 @@ describe('Note AC gate (tech-doc VF / T-13)', () => {
     expect(viewer).toMatch(/CREATE_CHROME_HIDDEN_IDS/);
     expect(viewer).toMatch(/applyCreateChrome/);
     expect(viewer).toMatch(/is-create/);
-    expect(viewer).toMatch(/btn-copy-http/);
+    expect(viewer).not.toMatch(/btn-copy-http/);
     expect(viewer).toMatch(/btn-copy-path/);
     expect(viewer).toMatch(/btn-open-in-chat/);
     expect(viewer).toMatch(/createChromePrevDisplay/);
