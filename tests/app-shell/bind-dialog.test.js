@@ -133,11 +133,11 @@ function assertNoAddresses(call) {
 }
 
 describe('bind-dialog markup and wiring', () => {
-  it('keeps Bind device in the tools menu', () => {
-    const html = shellHtml;
-    const tools = extractById(html, 'tools-menu-dropdown');
-    expect(tools).toMatch(/id="btn-bind"/);
-    expect(tools).toMatch(/id="btn-bind"[^>]*>[\s\S]*?Bind device/);
+  it('keeps Bind on the home workspace rail', () => {
+    const home = readSrc('frontend/src/home/page.tsx');
+    expect(home).toMatch(/id="btn-bind"/);
+    expect(home).toMatch(/data-home-nav-group="settings"/);
+    expect(home).toMatch(/openBindDialog/);
   });
 
   it('adds an independent bind overlay with its own preview node', () => {
@@ -154,9 +154,10 @@ describe('bind-dialog markup and wiring', () => {
   it('wires the bind entry to openBindDialog', () => {
     const shell = readSrc('frontend/src/shell.tsx');
     expect(shell).toMatch(/from ['"]\.\/app-shell\/ui\/bind-dialog\.tsx['"]/);
-    expect(shell).toMatch(/openBindDialog/);
     expect(shell).toMatch(/<BindDialog\s*\/>/);
-    const bindBlock = shell.match(
+    const home = readSrc('frontend/src/home/page.tsx');
+    expect(home).toMatch(/from ['"]\.\.\/app-shell\/ui\/bind-dialog\.tsx['"]/);
+    const bindBlock = home.match(
       /id="btn-bind"[\s\S]{0,280}openBindDialog/,
     );
     expect(bindBlock, 'missing #btn-bind click wiring').toBeTruthy();

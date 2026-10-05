@@ -6,8 +6,11 @@ import { readShellHtml } from '../helpers/read-frontend-js.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const shellSrc = readFileSync(join(repoRoot, 'frontend/src/shell.tsx'), 'utf8');
+const homeSrc = readFileSync(join(repoRoot, 'frontend/src/home/page.tsx'), 'utf8');
 const indexHtml = [
   readShellHtml(),
+  homeSrc,
+  readFileSync(join(repoRoot, 'frontend/src/shared/home-mark.tsx'), 'utf8'),
   readFileSync(join(repoRoot, 'frontend/src/notes/ui/sidebar.tsx'), 'utf8'),
   readFileSync(join(repoRoot, 'frontend/src/notes/ui/search.tsx'), 'utf8'),
   readFileSync(join(repoRoot, 'frontend/src/knowledge/ui/search.tsx'), 'utf8'),
@@ -26,37 +29,40 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
     expect(indexHtml).not.toMatch(/lang="zh-CN"/);
   });
 
-  it('header brand and entry controls align with table A', () => {
-    const homeTitle = extractTagOuter(indexHtml, 'btn-nav-home-title');
-    expect(homeTitle).toContain('aria-label="Lulu Spark"');
-    expect(homeTitle).toContain('header-home-mark');
-    expect(homeTitle).not.toMatch(/>\s*Lulu Spark\s*</);
+  it('home brand and entry controls align with table A', () => {
+    expect(homeSrc).not.toMatch(/home-chat-brand-label/);
+    expect(homeSrc).not.toMatch(/<HomeMark/);
+    expect(homeSrc).toMatch(/<WindowDragStrip/);
+    expect(homeSrc).toMatch(/data-tauri-drag-region/);
+    expect(indexHtml).not.toMatch(/id="btn-nav-home-title"/);
     expect(indexHtml).not.toMatch(/id="btn-nav-home"(?!-)/);
     expect(indexHtml).toMatch(/data-panel="knowledge">Knowledge</);
     expect(indexHtml).not.toContain('id="btn-repo-menu"');
     expect(indexHtml).not.toContain('id="repo-menu-wrap"');
   });
 
-  it('header menus use table B labels', () => {
+  it('home workspace rail uses table B labels', () => {
     expect(indexHtml).not.toContain('id="btn-sync-menu"');
     expect(indexHtml).not.toContain('⇕ Sync');
     expect(indexHtml).not.toContain('id="btn-push-index"');
     expect(indexHtml).not.toContain('id="btn-pull"');
     expect(indexHtml).not.toContain('id="btn-local-refresh"');
-    const toolsMenu = extractTagOuter(indexHtml, 'btn-tools-menu');
-    expect(indexHtml).toContain('id="btn-tools-menu">⇔ Bind</button>');
-    expect(toolsMenu).toMatch(/id="btn-tools-menu"[^>]*>\s*⇔ Bind\s*</);
-    expect(toolsMenu).not.toContain('Tools');
-    expect(toolsMenu).not.toContain('⛓');
+    expect(indexHtml).not.toContain('id="btn-tools-menu"');
+    expect(homeSrc).toMatch(/data-home-nav-group="workspace"/);
+    expect(homeSrc).toMatch(/data-home-nav-group="settings"/);
+    expect(homeSrc).toMatch(/home-chat-nav-label">Workspace</);
+    expect(homeSrc).toMatch(/home-chat-nav-label">Settings</);
+    expect(homeSrc).not.toMatch(/home-chat-nav-label">Library</);
+    expect(homeSrc).toMatch(/id="btn-bind"[\s\S]*?Bind Device/);
     expect(extractTagOuter(indexHtml, 'btn-settings')).toMatch(/Settings/);
   });
 
-  it('keeps Bind device in the tools menu and unmounts GitHub and Convert', () => {
-    expect(shellSrc).toMatch(/id="btn-tools-menu"/);
-    expect(shellSrc).toMatch(/id="tools-menu-dropdown"[\s\S]*id="btn-bind"/);
-    expect(shellSrc).toMatch(/id="btn-bind"[\s\S]*?Bind device/);
-    expect(shellSrc).toMatch(/id="btn-bind"[\s\S]{0,280}openBindDialog/);
+  it('keeps Bind on the home rail and unmounts GitHub and Convert', () => {
+    expect(shellSrc).not.toMatch(/id="btn-tools-menu"/);
     expect(shellSrc).toMatch(/<BindDialog\s*\/>/);
+    expect(homeSrc).toMatch(/id="btn-bind"/);
+    expect(homeSrc).toMatch(/id="btn-bind"[\s\S]{0,280}openBindDialog/);
+    expect(homeSrc).toMatch(/id="btn-settings"/);
     expect(shellSrc).not.toContain('id="btn-move-doc-header"');
     expect(shellSrc).not.toContain('id="btn-convert"');
     expect(shellSrc).not.toMatch(/\bConvertDialog\b/);

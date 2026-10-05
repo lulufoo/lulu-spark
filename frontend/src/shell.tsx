@@ -1,5 +1,5 @@
-import { BindDialog, openBindDialog } from './app-shell/ui/bind-dialog.tsx';
-import { SettingsDialog, openSettingsDialog } from './app-shell/ui/settings/dialog.tsx';
+import { BindDialog } from './app-shell/ui/bind-dialog.tsx';
+import { SettingsDialog } from './app-shell/ui/settings/dialog.tsx';
 import { SettingsDialogChrome } from './app-shell/ui/settings/chrome.tsx';
 
 void SettingsDialogChrome;
@@ -10,57 +10,11 @@ import { MoveProjectDialog } from './notes/ui/move-project-dialog.tsx';
 import { SettleDialog } from './notes/ui/settle-dialog.tsx';
 import { ReadLaterDialog } from './read-later/ui/dialog.tsx';
 import { CommentDeleteDialog } from './shared/comment-delete.tsx';
-import { SparkSearch } from './notes/ui/search.tsx';
-import { KnowledgeSearch } from './knowledge/ui/search.tsx';
-
-function closeMenuDropdowns() {
-  document.getElementById('tools-menu-dropdown')?.classList.remove('open');
-}
 
 /** Desktop chrome as React nodes. Dialogs own their open state. */
 export function Shell() {
   return (
     <>
-
-      <header>
-        <h1>
-          <a id="btn-nav-home-title" href="#/home" className="header-home-link" aria-label="Lulu Spark">
-            <svg className="header-home-mark" viewBox="8 8 16 16" aria-hidden="true" focusable="false">
-              <path d="M8 8h7v9h9v7H8z" fill="#1d1d1f" />
-              <rect x="18" y="8" width="6" height="6" rx="1.5" fill="#0071e3" />
-            </svg>
-          </a>
-        </h1>
-        <SparkSearch />
-        <KnowledgeSearch />
-        <div id="tools-menu-wrap">
-          <button id="btn-tools-menu">⇔ Bind</button>
-          <div id="tools-menu-dropdown">
-            <button
-              id="btn-bind"
-              type="button"
-              onClick={() => {
-                closeMenuDropdowns();
-                openBindDialog();
-              }}
-            >
-              <span className="tools-menu-icon">📲</span>Bind device
-            </button>
-          </div>
-        </div>
-        <button
-          id="btn-settings"
-          type="button"
-          title="Settings"
-          onClick={() => {
-            closeMenuDropdowns();
-            void openSettingsDialog();
-          }}
-        >
-          ⚙ Settings
-        </button>
-      </header>
-
       {/* <!-- Bind device dialog --> */}
       <BindDialog />
 
@@ -94,7 +48,6 @@ export function Shell() {
 
       {/* <!-- Read Later dialog --> */}
       <ReadLaterDialog />
-
     </>
   );
 }

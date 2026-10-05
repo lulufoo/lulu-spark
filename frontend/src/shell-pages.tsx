@@ -29,12 +29,12 @@ export function ShellPages({
   }, [routeName]);
 
   return (
-    <>
+    <div className="app-pages">
       <div
         id="home-view"
         style={slotStyle(homeOn, {
           overflow: 'hidden',
-          height: 'calc(100vh - 52px)',
+          height: '100%',
           boxSizing: 'border-box',
         })}
       >
@@ -43,7 +43,7 @@ export function ShellPages({
       <div
         id="knowledge-doc-view"
         style={slotStyle(knowledgeOn, {
-          height: 'calc(100vh - 52px)',
+          height: '100%',
           boxSizing: 'border-box',
         })}
       >
@@ -72,6 +72,6 @@ export function ShellPages({
           />
         </main>
       </div>
-    </>
+    </div>
   );
 }

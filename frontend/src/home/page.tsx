@@ -32,6 +32,9 @@ import {
   type HubMessage,
 } from './state/store.ts';
 import { openCreateNote } from '../notes/commands/viewer/create.ts';
+import { openBindDialog } from '../app-shell/ui/bind-dialog.tsx';
+import { openSettingsDialog } from '../app-shell/ui/settings/dialog.tsx';
+import { WindowDragStrip } from '../shared/window-drag-strip.tsx';
 
 export type HomePageChrome = {
   navigate?: (hash: string) => void;
@@ -209,72 +212,104 @@ export function HomePage({
   return (
     <div className="home-chat">
       <aside ref={sidebarRef} className="home-chat-sidebar">
+        <WindowDragStrip />
         <nav className="home-chat-nav" aria-label="Lulu Spark">
-          <div className="home-chat-nav-notes">
+          <div className="home-chat-nav-group" data-home-nav-group="workspace">
+            <div className="home-chat-nav-label">Workspace</div>
+            <div className="home-chat-nav-notes">
+              <button
+                type="button"
+                className="home-chat-nav-item home-desktop-shortcut"
+                data-home-entry="spark"
+                {...unreadProps(state.channelUnread.notes)}
+                onClick={() => {
+                  void markHomeEntryRead('spark');
+                  goHomeEntry('spark', navigateFn, openReadLater);
+                }}
+              >
+                <span className="home-desktop-shortcut-icon" aria-hidden="true">
+                  📂
+                </span>
+                <span className="home-desktop-shortcut-label">Notes</span>
+              </button>
+              <button
+                type="button"
+                className="home-chat-new"
+                data-role="create-note"
+                aria-label="New note"
+                title="New note"
+                onClick={() => {
+                  const temp_id =
+                    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+                      ? crypto.randomUUID()
+                      : `note-${Date.now()}`;
+                  goHomeEntry('spark', navigateFn, openReadLater);
+                  void openCreateNote({ temp_id });
+                }}
+              >
+                <svg className="home-chat-new-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path
+                    fill="currentColor"
+                    d="M11 5a1 1 0 1 1 2 0v6h6a1 1 0 1 1 0 2h-6v6a1 1 0 1 1-2 0v-6H5a1 1 0 1 1 0-2h6V5z"
+                  />
+                </svg>
+              </button>
+            </div>
             <button
               type="button"
               className="home-chat-nav-item home-desktop-shortcut"
-              data-home-entry="spark"
-              {...unreadProps(state.channelUnread.notes)}
-              onClick={() => {
-                void markHomeEntryRead('spark');
-                goHomeEntry('spark', navigateFn, openReadLater);
-              }}
+              data-home-entry="knowledge"
+              onClick={() => goHomeEntry('knowledge', navigateFn, openReadLater)}
             >
               <span className="home-desktop-shortcut-icon" aria-hidden="true">
-                📂
+                📚
               </span>
-              <span className="home-desktop-shortcut-label">Notes</span>
+              <span className="home-desktop-shortcut-label">Knowledge</span>
             </button>
             <button
               type="button"
-              className="home-chat-new"
-              data-role="create-note"
-              aria-label="New note"
-              title="New note"
+              className="home-chat-nav-item home-desktop-shortcut"
+              data-home-entry="read-later"
+              {...unreadProps(state.channelUnread.read_later)}
               onClick={() => {
-                const temp_id =
-                  typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-                    ? crypto.randomUUID()
-                    : `note-${Date.now()}`;
-                goHomeEntry('spark', navigateFn, openReadLater);
-                void openCreateNote({ temp_id });
+                void markHomeEntryRead('read-later');
+                goHomeEntry('read-later', navigateFn, openReadLater);
               }}
             >
-              <svg className="home-chat-new-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                <path
-                  fill="currentColor"
-                  d="M11 5a1 1 0 1 1 2 0v6h6a1 1 0 1 1 0 2h-6v6a1 1 0 1 1-2 0v-6H5a1 1 0 1 1 0-2h6V5z"
-                />
-              </svg>
+              <span className="home-desktop-shortcut-icon" aria-hidden="true">
+                📑
+              </span>
+              <span className="home-desktop-shortcut-label">Read Later</span>
             </button>
           </div>
-          <button
-            type="button"
-            className="home-chat-nav-item home-desktop-shortcut"
-            data-home-entry="knowledge"
-            onClick={() => goHomeEntry('knowledge', navigateFn, openReadLater)}
-          >
-            <span className="home-desktop-shortcut-icon" aria-hidden="true">
-              📚
-            </span>
-            <span className="home-desktop-shortcut-label">Knowledge</span>
-          </button>
-          <button
-            type="button"
-            className="home-chat-nav-item home-desktop-shortcut"
-            data-home-entry="read-later"
-            {...unreadProps(state.channelUnread.read_later)}
-            onClick={() => {
-              void markHomeEntryRead('read-later');
-              goHomeEntry('read-later', navigateFn, openReadLater);
-            }}
-          >
-            <span className="home-desktop-shortcut-icon" aria-hidden="true">
-              📑
-            </span>
-            <span className="home-desktop-shortcut-label">Read Later</span>
-          </button>
+          <div className="home-chat-nav-group" data-home-nav-group="settings">
+            <div className="home-chat-nav-label">Settings</div>
+            <button
+              type="button"
+              className="home-chat-nav-item"
+              id="btn-bind"
+              onClick={() => openBindDialog()}
+            >
+              <span className="home-desktop-shortcut-icon" aria-hidden="true">
+                📲
+              </span>
+              <span className="home-desktop-shortcut-label">Bind Device</span>
+            </button>
+            <button
+              type="button"
+              className="home-chat-nav-item"
+              id="btn-settings"
+              title="Settings"
+              onClick={() => {
+                void openSettingsDialog();
+              }}
+            >
+              <span className="home-desktop-shortcut-icon" aria-hidden="true">
+                ⚙
+              </span>
+              <span className="home-desktop-shortcut-label">Settings</span>
+            </button>
+          </div>
         </nav>
         <div className="home-chat-sessions-head">
           <span className="home-chat-sessions-title">Chats</span>
@@ -323,7 +358,9 @@ export function HomePage({
         />
       </aside>
       <section className="home-chat-main">
-        <SessionMenu sessionId={state.currentSessionId} onCopy={copyCurrentSessionId} />
+        <div className="home-chat-main-drag" data-tauri-drag-region="deep">
+          <SessionMenu sessionId={state.currentSessionId} onCopy={copyCurrentSessionId} />
+        </div>
         <div ref={messagesRef} className="home-chat-messages" data-role="messages" aria-live="polite">
           <MessageThread
             hostBound={state.hostBound}

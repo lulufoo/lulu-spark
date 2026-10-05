@@ -12,13 +12,6 @@ import { lastNotifyTrace, logNotifyHop, parseTraceId } from '../router/notify-tr
 export { getHomeEntryShell, setHomeEntryShell };
 
 function updateNavChrome(routeName: string) {
-  const onHome = routeName === 'home';
-  const homeTitle = document.getElementById('btn-nav-home-title');
-  if (homeTitle) {
-    homeTitle.hidden = false;
-    homeTitle.classList.toggle('is-back', !onHome);
-    homeTitle.setAttribute('aria-label', onHome ? 'Lulu Spark' : 'Home');
-  }
   applySearchNavChrome(routeName);
 }
 

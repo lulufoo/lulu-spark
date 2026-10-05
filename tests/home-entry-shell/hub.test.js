@@ -35,6 +35,9 @@ describe('mountHomeHub', () => {
     expect(container.querySelector('.home-hub-subtitle')).toBeNull();
     expect(container.querySelector('.home-chat')).not.toBeNull();
     expect(container.querySelector('.home-chat-sidebar')).not.toBeNull();
+    expect(container.querySelector('.window-drag-strip[data-tauri-drag-region="deep"]')).not.toBeNull();
+    expect(container.querySelector('.home-chat-brand')).toBeNull();
+    expect(container.querySelector('.home-chat-main-drag[data-tauri-drag-region="deep"]')).not.toBeNull();
     const resizer = container.querySelector('.home-chat-sidebar-resizer.sidebar-resizer');
     expect(resizer).not.toBeNull();
     expect(resizer?.getAttribute('role')).toBe('separator');
@@ -656,8 +659,9 @@ describe('home hub shell integration', () => {
     expect(mainJs).toMatch(/['"]#\/home['"]/);
   });
 
-  it('main.js keeps the brand mark and marks back off home', () => {
-    expect(mainJs).toMatch(/btn-nav-home-title/);
-    expect(mainJs).toMatch(/classList\.toggle\('is-back', !onHome\)/);
+  it('main.js keeps search chrome without a global header back mark', () => {
+    expect(mainJs).not.toMatch(/btn-nav-home-title/);
+    expect(mainJs).not.toMatch(/classList\.toggle\('is-back', !onHome\)/);
+    expect(mainJs).toMatch(/applySearchNavChrome\(routeName\)/);
   });
 });

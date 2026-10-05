@@ -103,7 +103,7 @@ describe('leftover Convert / qr / move tests rewritten', () => {
   it('rewrites the tools-menu copy assertion to Bind', () => {
     expect(existsSync(t1Path)).toBe(true);
     const t1 = readFileSync(t1Path, 'utf8');
-    expect(t1).toMatch(/id="btn-tools-menu"[^>]*>\s*⇔ Bind\s*</);
+    expect(t1).toMatch(/not\.toContain\('id="btn-tools-menu"'\)/);
     expect(t1).not.toMatch(/⛓ Tools/);
     expect(t1).toMatch(/id="btn-bind"/);
     expect(t1).toMatch(/openBindDialog/);
