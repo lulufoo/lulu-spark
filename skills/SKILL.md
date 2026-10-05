@@ -14,21 +14,26 @@ description: >-
 | | Cursor | Copilot | Claude | Codex |
 |---|---|---|---|---|
 | `$SKILL_DIR` | `~/.cursor/skills/lulu-spark-skills` | `~/.copilot/skills/lulu-spark-skills` | `~/.claude/skills/lulu-spark-skills` | `~/.agents/skills/lulu-spark-skills` |
+| `$SRC` | `~/.cursor/skills/.lulu-spark-src` | `~/.copilot/skills/.lulu-spark-src` | `~/.claude/skills/.lulu-spark-src` | `~/.agents/skills/.lulu-spark-src` |
 
 检测信号（优先级）：`CURSOR_AGENT` → Cursor · `COPILOT_AGENT` / `VSCODE_TARGET_SESSION_LOG` → Copilot · `CLAUDE_CODE` → Claude · `CODEX_AGENT` → Codex · 均无 → 向用户确认平台后再替换 `$SKILL_DIR`。
 
 ## 安装
 
-首次克隆到平台 skills 目录：
+Skills 在 [lulu-spark](https://github.com/lulufoo/lulu-spark) 的 `skills/`。平台要求 `$SKILL_DIR` 根上有 `SKILL.md`，所以先 sparse checkout 主仓，再把 `skills/` 链到 `$SKILL_DIR`。
+
+若 `$SKILL_DIR` 已是旧的 `lulu-spark-skills` clone，先删掉再装。
 
 ```bash
-git clone https://github.com/lulufoo/lulu-spark-skills.git $SKILL_DIR
+git clone --filter=blob:none --sparse https://github.com/lulufoo/lulu-spark.git "$SRC"
+git -C "$SRC" sparse-checkout set skills
+ln -sfn "$SRC/skills" "$SKILL_DIR"
 ```
 
 更新：
 
 ```bash
-git -C $SKILL_DIR pull --rebase
+git -C "$SRC" pull --rebase
 ```
 
 克隆完成后平台自动发现子 skill（`dialogue-summary`、`dialogue-archive`、`theme-line`、`theme-transcribe`、`note-task`），均无需额外操作。digest 写法由 note-task 自己说明，不单独发现。

@@ -1,6 +1,6 @@
 # lulu-spark-skills
 
-个人 Agent Skill 仓库（面向 [Lulu Spark](https://github.com/lulufoo/lulu-spark) 的对话归档、过程回顾、字幕对话整理等）。仓库目录是 `lulu-spark-skills`。
+Lulu Spark 的 Agent Skills（对话归档、过程回顾、字幕对话整理等）。本目录是 [lulu-spark](https://github.com/lulufoo/lulu-spark) 里的 `skills/`。
 
 ## 安装
 

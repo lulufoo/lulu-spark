@@ -1,10 +1,10 @@
-/** Lulu Spark Skills dialog content (see lulu-spark-skills SKILL.md). */
+/** Lulu Spark Skills dialog content (see skills/SKILL.md). */
 export const sparkSkillsContent = {
   title: '✦ Lulu Spark Skills',
   groups: [
     {
       name: 'Dialogue summary',
-      url: 'https://github.com/lulufoo/lulu-spark-skills/tree/main/dialogue-summary',
+      url: 'https://github.com/lulufoo/lulu-spark/tree/main/skills/dialogue-summary',
       items: [
         {
           cmd: 'dialogue-summary',
@@ -15,7 +15,7 @@ export const sparkSkillsContent = {
     },
     {
       name: 'Dialogue archive',
-      url: 'https://github.com/lulufoo/lulu-spark-skills/tree/main/dialogue-archive',
+      url: 'https://github.com/lulufoo/lulu-spark/tree/main/skills/dialogue-archive',
       items: [
         {
           cmd: 'dialogue-archive',
@@ -26,7 +26,7 @@ export const sparkSkillsContent = {
     },
     {
       name: 'Full conversation',
-      url: 'https://github.com/lulufoo/lulu-spark-skills/tree/main/theme-line',
+      url: 'https://github.com/lulufoo/lulu-spark/tree/main/skills/theme-line',
       items: [
         {
           cmd: 'theme-line',
@@ -37,7 +37,7 @@ export const sparkSkillsContent = {
     },
     {
       name: 'Video transcription',
-      url: 'https://github.com/lulufoo/lulu-spark-skills/tree/main/theme-transcribe',
+      url: 'https://github.com/lulufoo/lulu-spark/tree/main/skills/theme-transcribe',
       items: [
         {
           cmd: 'theme-transcribe',
@@ -48,7 +48,7 @@ export const sparkSkillsContent = {
     },
     {
       name: 'Notes',
-      url: 'https://github.com/lulufoo/lulu-spark-skills/tree/main/note-task',
+      url: 'https://github.com/lulufoo/lulu-spark/tree/main/skills/note-task',
       items: [
         {
           cmd: 'note-task',
