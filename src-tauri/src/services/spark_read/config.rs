@@ -42,11 +42,7 @@ pub fn infer_github_user_url(spark_root: &str) -> Value {
 pub fn get_config(_repo_root: &Path) -> Value {
     let _ = _repo_root;
     let s = settings::load().unwrap_or_default();
-    settings::to_config_json(
-        &s,
-        secrets::has_github_token(),
-        secrets::has_host_key(),
-    )
+    settings::to_config_json(&s, secrets::has_host_key())
 }
 
 /// Derive topics from sediment-kb repos (+ inbox virtual entry).

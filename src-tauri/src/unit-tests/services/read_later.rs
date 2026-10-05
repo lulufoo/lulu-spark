@@ -8,9 +8,9 @@ use crate::config::paths;
 use crate::test_support::TestSandbox;
 
 fn with_read_later_sandbox<F: FnOnce(&Path)>(f: F) {
-    let _sandbox = TestSandbox::new();
-    let wb = paths::spark_root().expect("spark root");
-    f(&wb);
+    let sandbox = TestSandbox::new();
+    let data = sandbox.data_dir();
+    f(&data);
 }
 
 fn is_iso8601(s: &str) -> bool {
@@ -18,13 +18,20 @@ fn is_iso8601(s: &str) -> bool {
 }
 
 #[test]
-fn read_later_path_is_under_spark_root() {
-    with_read_later_sandbox(|wb| {
+fn read_later_path_is_under_runtime_data_dir() {
+    with_read_later_sandbox(|data| {
         let path = paths::read_later_path().expect("path");
-        assert_eq!(path, wb.join("read_later").join("read_later.json"));
+        assert_eq!(path, data.join("read_later").join("read_later.json"));
         let cache = paths::cache_dir().expect("cache");
         assert_ne!(path, cache.join("read_later.json"));
         assert!(!path.starts_with(&cache));
+        assert_ne!(
+            path,
+            paths::spark_root()
+                .expect("spark root")
+                .join("read_later")
+                .join("read_later.json")
+        );
     });
 }
 

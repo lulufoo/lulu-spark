@@ -9,8 +9,8 @@ use super::sandbox::{
     is_unstable_path, normalize_prod_paths, should_normalize_for_path, validate_sandbox_against_prod,
 };
 use super::types::{
-    home_dir, is_test_sandbox, test_sandbox_id_raw, validate_test_sandbox_id, AppSettings,
-    LlmSettings, LlmSettingsEntry, SettingsError, PROD_CONFIG_FILE_NAME,
+    default_cache_dir, home_dir, is_test_sandbox, test_sandbox_id_raw, validate_test_sandbox_id,
+    AppSettings, LlmSettings, LlmSettingsEntry, SettingsError, PROD_CONFIG_FILE_NAME,
 };
 
 /// Fixed prod config directory (never follows `TestSandbox`).
@@ -121,11 +121,10 @@ pub fn save(settings: &AppSettings) -> Result<(), SettingsError> {
 /// Never echoes plaintext api keys — only the Host/GLM key hint.
 pub fn to_config_json(
     settings: &AppSettings,
-    has_github_token: bool,
     has_host_key: bool,
 ) -> serde_json::Value {
-    let current = if normalize_engine_value(&settings.assistant_engine).is_some() {
-        llm_entry_by_type(&settings.llm, "host")
+    let current = if let Some(engine) = normalize_engine_value(&settings.assistant_engine) {
+        llm_entry_by_type(&settings.llm, engine)
             .map(LlmSettingsEntry::fields)
             .unwrap_or_default()
     } else {
@@ -133,16 +132,14 @@ pub fn to_config_json(
     };
     serde_json::json!({
         "spark_root": settings.spark_root.to_string_lossy(),
-        "knowledge_root": settings.knowledge_root.to_string_lossy(),
-        "github_user_url": settings.github_user_url,
-        "spark_github_repo_url": settings.spark_github_repo_url,
+        "knowledge_root": default_cache_dir().join("data").join("knowledge").to_string_lossy(),
+        "notes_root": default_cache_dir().join("data").join("notes").to_string_lossy(),
         "cache_dir": settings.cache_dir.to_string_lossy(),
         "assistant_engine": settings.assistant_engine,
         "http_port": settings.effective_http_port(),
         "mcp_port": settings.effective_mcp_port(),
         "gateway_port": settings.effective_gateway_port(),
         "test_sandbox": is_test_sandbox(),
-        "has_github_token": has_github_token,
         "has_host_key": has_host_key,
         "llm": {
             "platform": current.platform,
@@ -154,15 +151,16 @@ pub fn to_config_json(
 
 /// Apply `set_config` payload keys onto settings (toml fields only).
 /// Illegal or legacy `assistant_engine` values are rejected.
-/// Flat `llm` maps to the Host list entry (create if missing).
-/// `llm.platform` / `llm.base_url` from the client are ignored (preset readonly); when
-/// `assistant_engine` or `llm.model` is applied they are stamped from the builtin category preset.
+/// Flat `llm` maps to the active category list entry (create if missing).
+/// `llm.platform` from the client is ignored (preset readonly). `llm.base_url` is
+/// writable; empty falls back to that category's default. Platform is stamped
+/// whenever `assistant_engine`, `llm.model`, or `llm.base_url` is applied.
 pub fn apply_config_payload(
     settings: &mut AppSettings,
     payload: &serde_json::Value,
 ) -> Result<(), SettingsError> {
     let mut engine_touched = false;
-    let mut llm_model_touched = false;
+    let mut llm_fields_touched = false;
     if let Some(v) = payload.get("assistant_engine").and_then(|x| x.as_str()) {
         let Some(normalized) = normalize_engine_value(v) else {
             return Err(SettingsError::ConfigGuard(format!(
@@ -178,28 +176,25 @@ pub fn apply_config_payload(
     if let Some(v) = payload.get("knowledge_root").and_then(|x| x.as_str()) {
         settings.knowledge_root = std::path::PathBuf::from(v);
     }
-    if let Some(v) = payload.get("github_user_url").and_then(|x| x.as_str()) {
-        settings.github_user_url = v.to_string();
-    }
-    if let Some(v) = payload
-        .get("spark_github_repo_url")
-        .and_then(|x| x.as_str())
-    {
-        settings.spark_github_repo_url = v.trim().to_string();
-    }
     if let Some(llm) = payload.get("llm").and_then(|x| x.as_object()) {
-        // Preset fields are readonly — ignore client platform/base_url.
-        if let Some(v) = llm.get("model").and_then(|x| x.as_str()) {
+        let model = llm.get("model").and_then(|x| x.as_str());
+        let base_url = llm.get("base_url").and_then(|x| x.as_str());
+        if model.is_some() || base_url.is_some() {
             let engine = normalize_engine_value(&settings.assistant_engine).unwrap_or("host");
             let mut fields = llm_entry_by_type(&settings.llm, engine)
                 .map(LlmSettingsEntry::fields)
                 .unwrap_or_default();
-            fields.model = v.to_string();
+            if let Some(v) = model {
+                fields.model = v.to_string();
+            }
+            if let Some(v) = base_url {
+                fields.base_url = v.trim().to_string();
+            }
             upsert_llm_entry(&mut settings.llm, engine, &fields)?;
-            llm_model_touched = true;
+            llm_fields_touched = true;
         }
     }
-    if engine_touched || llm_model_touched {
+    if engine_touched || llm_fields_touched {
         stamp_readonly_preset_fields(settings);
     }
     // `cache_dir` is not user-settable via API; use `default_cache_dir()` / manual toml edit.

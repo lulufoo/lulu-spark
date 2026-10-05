@@ -432,13 +432,19 @@ impl TestSandbox {
     }
 
     pub fn knowledge_root(&self) -> PathBuf {
-        settings::load()
-            .expect("load sandbox config")
-            .knowledge_root
+        let dir = settings::default_cache_dir().join("data").join("knowledge");
+        std::fs::create_dir_all(&dir).expect("mkdir knowledge");
+        dir
     }
 
     pub fn cache_dir(&self) -> PathBuf {
         settings::load().expect("load sandbox config").cache_dir
+    }
+
+    pub fn data_dir(&self) -> PathBuf {
+        let dir = settings::default_cache_dir().join("data");
+        std::fs::create_dir_all(&dir).expect("mkdir data");
+        dir
     }
 
     pub fn prod_spark_root(&self) -> &Path {
@@ -490,7 +496,7 @@ fn collect_rs_files(dir: &Path, out: &mut Vec<PathBuf>) {
 
 pub fn with_sandbox_notes<F: FnOnce(&Path, &Path)>(prepare_ai_subdir: bool, f: F) {
     let sandbox = TestSandbox::new();
-    let notes = sandbox.spark_root().join("notes");
+    let notes = sandbox.data_dir().join("notes");
     if prepare_ai_subdir {
         std::fs::create_dir_all(notes.join("annotations/ai")).expect("mkdir");
     } else {

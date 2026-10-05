@@ -34,33 +34,45 @@ pub fn spark_root() -> Result<PathBuf, PathsError> {
     Ok(settings()?.spark_root)
 }
 
-/// Notes files live at `{spark_root}/notes/`.
-pub fn notes_root() -> Result<PathBuf, PathsError> {
-    Ok(spark_root()?.join("notes"))
+/// Durable user store: `{HOME}/.cache/lulu-spark/data`.
+/// Does not follow `cache_dir` or `spark_root` in config.
+pub fn runtime_data_dir() -> PathBuf {
+    settings::default_cache_dir().join("data")
 }
 
-/// Notes category registry: `{spark_root}/notes/categories.json`.
+/// Notes files live at `{runtime_data_dir}/notes/`.
+pub fn notes_root() -> Result<PathBuf, PathsError> {
+    Ok(runtime_data_dir().join("notes"))
+}
+
+/// Notes category registry: `{runtime_data_dir}/notes/categories.json`.
 pub fn notes_categories_path() -> Result<PathBuf, PathsError> {
     Ok(notes_root()?.join("categories.json"))
 }
 
-pub fn knowledge_root() -> Result<PathBuf, PathsError> {
-    Ok(settings()?.knowledge_root)
+/// Knowledge clones: `{HOME}/.cache/lulu-spark/data/knowledge`.
+/// Does not follow `knowledge_root` or `cache_dir` in config.
+pub fn runtime_knowledge_dir() -> PathBuf {
+    runtime_data_dir().join("knowledge")
 }
 
-/// Knowledge registry (repo list / categories) at `{spark_root}/knowledge/`.
+pub fn knowledge_root() -> Result<PathBuf, PathsError> {
+    Ok(runtime_knowledge_dir())
+}
+
+/// Knowledge registry (repo list / categories) at `{runtime_data_dir}/knowledge/`.
 pub fn sediment_kb_dir() -> Result<PathBuf, PathsError> {
-    Ok(spark_root()?.join("knowledge"))
+    Ok(runtime_data_dir().join("knowledge"))
 }
 
 pub fn read_later_path() -> Result<PathBuf, PathsError> {
-    Ok(spark_root()?
-        .join("read_later")
-        .join("read_later.json"))
+    Ok(runtime_data_dir().join("read_later").join("read_later.json"))
 }
 
+/// Runtime unread ledger: `{HOME}/.cache/lulu-spark/message_center/message_center.json`.
+/// Does not follow `cache_dir` or `spark_root` in config.
 pub fn message_center_path() -> Result<PathBuf, PathsError> {
-    Ok(spark_root()?
+    Ok(settings::default_cache_dir()
         .join("message_center")
         .join("message_center.json"))
 }

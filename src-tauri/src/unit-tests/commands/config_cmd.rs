@@ -23,7 +23,6 @@ fn host_config_persists_glm_model_and_host_credential_without_echoing_secret() {
 
         let json = settings::to_config_json(
             &app_settings,
-            false,
             secrets::has_host_key(),
         );
         assert_eq!(json["assistant_engine"], "host");

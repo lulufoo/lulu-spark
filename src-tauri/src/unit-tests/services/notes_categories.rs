@@ -5,7 +5,7 @@ use std::fs;
 
 fn setup() -> TestSandbox {
     let sandbox = TestSandbox::new();
-    let notes = sandbox.spark_root().join("notes");
+    let notes = sandbox.data_dir().join("notes");
     fs::create_dir_all(&notes).expect("notes");
     fs::write(notes.join("index.json"), br#"{"entries":{}}"#).expect("index");
     sandbox
@@ -14,9 +14,11 @@ fn setup() -> TestSandbox {
 #[test]
 fn notes_categories_path_under_notes_not_knowledge() {
     let sandbox = TestSandbox::new();
-    let wb = sandbox.spark_root();
     let path = crate::config::paths::notes_categories_path().expect("path");
-    assert_eq!(path, wb.join("notes").join("categories.json"));
+    assert_eq!(
+        path,
+        sandbox.data_dir().join("notes").join("categories.json")
+    );
     let knowledge = crate::config::paths::sediment_kb_categories_path().expect("kb");
     assert_ne!(path, knowledge);
 }
@@ -24,7 +26,7 @@ fn notes_categories_path_under_notes_not_knowledge() {
 #[test]
 fn ensure_writes_inbox_only_and_does_not_scan_index() {
     let sandbox = setup();
-    let notes = sandbox.spark_root().join("notes");
+    let notes = sandbox.data_dir().join("notes");
     fs::write(
         notes.join("index.json"),
         serde_json::to_string(&json!({
@@ -52,7 +54,7 @@ fn ensure_writes_inbox_only_and_does_not_scan_index() {
 #[test]
 fn add_and_delete_do_not_touch_index_or_raw() {
     let sandbox = setup();
-    let notes = sandbox.spark_root().join("notes");
+    let notes = sandbox.data_dir().join("notes");
     let id = "cccccccccccccccccccccccccccccccc";
     fs::create_dir_all(notes.join("raw/ai-software-dev/theme")).expect("dir");
     fs::write(notes.join("raw/ai-software-dev/theme/n.md"), "# n").expect("raw");
@@ -88,7 +90,7 @@ fn delete_inbox_and_invalid_id_rejected() {
 #[test]
 fn update_title_does_not_touch_index_or_id() {
     let sandbox = setup();
-    let notes = sandbox.spark_root().join("notes");
+    let notes = sandbox.data_dir().join("notes");
     let id = "dddddddddddddddddddddddddddddddd";
     fs::create_dir_all(notes.join("raw/ops/theme")).expect("dir");
     fs::write(notes.join("raw/ops/theme/n.md"), "# n").expect("raw");

@@ -1,4 +1,4 @@
-//! Spark / notes / knowledge root helpers from `config.toml`.
+//! Spark / notes / knowledge root helpers.
 
 use std::path::{Path, PathBuf};
 
@@ -12,14 +12,13 @@ pub fn spark_root_path(_repo_root: &Path) -> PathBuf {
     settings_or_default().spark_root
 }
 
-/// Notes files: `{spark_root}/notes`.
+/// Notes files: `{HOME}/.cache/lulu-spark/data/notes`.
 pub fn notes_root_path(_repo_root: &Path) -> PathBuf {
-    spark_root_path(_repo_root).join("notes")
+    crate::config::paths::runtime_data_dir().join("notes")
 }
 
 pub fn knowledge_root_string(_repo_root: &Path) -> String {
-    settings_or_default()
-        .knowledge_root
+    crate::config::paths::runtime_knowledge_dir()
         .to_string_lossy()
         .into_owned()
 }

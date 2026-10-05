@@ -12,10 +12,11 @@ pub fn expand_for_business_key(key: &str) -> Option<PathFence> {
         return None;
     }
     let wb = stored_path(paths::spark_root().ok()?);
+    let data = stored_path(paths::runtime_data_dir());
     let cache = stored_path(paths::cache_dir().ok()?);
     let knowledge = stored_path(paths::knowledge_root().ok()?);
 
-    let mut read_allow = vec![wb.clone()];
+    let mut read_allow = vec![wb.clone(), data];
     let mut read_deny = vec![wb.join(".git")];
 
     let repos_file = paths::sediment_kb_repos_path().ok();

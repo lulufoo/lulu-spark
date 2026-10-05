@@ -242,8 +242,13 @@ impl From<toml::ser::Error> for SettingsError {
     }
 }
 
-/// True when an entry selects the only supported Host platform.
+/// True when an entry type is a known category and its platform matches that preset.
 pub fn is_supported_host_llm_entry(entry: &LlmSettingsEntry) -> bool {
-    super::llm::normalize_engine_value(&entry.engine_type) == Some("host")
-        && entry.platform.trim().eq_ignore_ascii_case(HOST_LLM_PLATFORM)
+    let Some(engine) = super::llm::normalize_engine_value(&entry.engine_type) else {
+        return false;
+    };
+    let Some((platform, _)) = super::llm::builtin_preset_fields(engine) else {
+        return false;
+    };
+    entry.platform.trim().eq_ignore_ascii_case(platform)
 }

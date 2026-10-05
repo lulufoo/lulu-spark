@@ -1,27 +1,5 @@
-let githubUserUrl = ''
-
 /** @deprecated */
 export const REPO = ''
-
-export function setGithubUserUrl(url?: string | null) {
-  githubUserUrl = (url || '').replace(/\/$/, '')
-}
-
-export function getGithubUserUrl(): string {
-  return githubUserUrl
-}
-
-/** `https://github.com/{owner}` + spark clone dir name → blob base for file links. */
-export function sparkGithubBlobBase(
-  githubUserUrlArg?: string | null,
-  sparkRoot?: string | null,
-): string {
-  const trimmed = (githubUserUrlArg || '').trim().replace(/\/$/, '')
-  if (!trimmed) return ''
-  const parts = (sparkRoot || '').split(/[/\\]/).filter(Boolean)
-  const repo = parts.length ? parts[parts.length - 1] : 'lulu-workbench-knowledge'
-  return `${trimmed}/${repo}/blob/main`
-}
 
 export const NOTES_DIR = 'notes'
 

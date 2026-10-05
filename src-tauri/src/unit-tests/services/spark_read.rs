@@ -26,11 +26,12 @@ fn get_config_has_frontend_contract_keys() {
     let v = get_config(&root);
     assert!(v.get("spark_root").is_some());
     assert!(v.get("knowledge_root").is_some());
-    assert!(v.get("github_user_url").is_some());
-    assert!(v.get("spark_github_repo_url").is_some());
+    assert!(v.get("notes_root").is_some());
+    assert!(v.get("github_user_url").is_none());
+    assert!(v.get("spark_github_repo_url").is_none());
     assert!(v.get("assistant_engine").is_some());
     assert!(v.get("cache_dir").is_some());
-    assert!(v.get("has_github_token").is_some());
+    assert!(v.get("has_github_token").is_none());
     assert!(v.get("has_host_key").is_some());
     assert!(v.get("has_cursor_key").is_none());
     assert!(v.get("llm").is_some());
@@ -55,7 +56,7 @@ fn with_notes_repo<F: FnOnce(&std::path::Path)>(
 ) {
     let sandbox = TestSandbox::new();
     let cfg_dir = sandbox.config_dir();
-    let notes = sandbox.spark_root().join("notes");
+    let notes = sandbox.data_dir().join("notes");
     fs::create_dir_all(&notes).expect("notes");
     setup(cfg_dir, notes.as_path());
     f(cfg_dir);
@@ -77,15 +78,11 @@ fn get_topics_missing_sediment_kb_inits_and_returns_inbox_only() {
 
 #[test]
 fn get_topics_reads_from_sediment_kb_with_category_fields() {
-    use crate::services::sediment_kb::{
-        add_repo, ensure_uncategorized, set_test_repo_validator, UNCATEGORIZED_ID,
-    };
+    use crate::services::sediment_kb::{add_directory, ensure_uncategorized, UNCATEGORIZED_ID};
 
     with_sediment_kb_topics_cache(|_cfg, wb| {
-        set_test_repo_validator(Some(|name| Ok(name.to_string())));
         ensure_uncategorized().expect("ensure");
-        add_repo("lulufoo/kb-a", None, "Saved KB description").expect("add");
-        set_test_repo_validator(None);
+        add_directory("kb-a").expect("add");
 
         let v = get_topics(wb);
         assert!(v.get("error").is_none(), "unexpected error: {v:?}");
@@ -93,9 +90,9 @@ fn get_topics_reads_from_sediment_kb_with_category_fields() {
         let topics = v["topics"].as_array().expect("topics array");
         let kb = topics
             .iter()
-            .find(|t| t.get("repo") == Some(&serde_json::json!("lulufoo/kb-a")))
+            .find(|t| t.get("repo") == Some(&serde_json::json!("kb-a")))
             .expect("sediment-kb repo topic");
-        assert_eq!(kb["description"], "Saved KB description");
+        assert_eq!(kb["description"], "");
         assert_eq!(kb["category_id"], UNCATEGORIZED_ID);
         assert_eq!(kb["category_name"], "未分类");
         assert!(
@@ -152,19 +149,16 @@ fn get_topics_empty_repos_returns_inbox_only() {
 #[test]
 fn list_repos_for_topics_resolves_uncategorized_name() {
     use crate::services::sediment_kb::{
-        add_repo, ensure_uncategorized, list_repos_for_topics, set_test_repo_validator,
-        UNCATEGORIZED_ID,
+        add_directory, ensure_uncategorized, list_repos_for_topics, UNCATEGORIZED_ID,
     };
 
     with_sediment_kb_topics_cache(|_, _| {
-        set_test_repo_validator(Some(|name| Ok(name.to_string())));
         ensure_uncategorized().expect("ensure");
-        add_repo("acme/demo", None, "").expect("add");
-        set_test_repo_validator(None);
+        add_directory("demo").expect("add");
 
         let rows = list_repos_for_topics().expect("list");
         assert_eq!(rows.len(), 1);
-        assert_eq!(rows[0].repo, "acme/demo");
+        assert_eq!(rows[0].repo, "demo");
         assert_eq!(rows[0].category_id, UNCATEGORIZED_ID);
         assert_eq!(rows[0].category_name, "未分类");
     });
@@ -318,7 +312,7 @@ fn get_notes_file_reads_abs_path_under_knowledge_root() {
 #[test]
 fn get_notes_file_rejects_abs_path_outside_notes_and_knowledge() {
     let sandbox = TestSandbox::new();
-    fs::create_dir_all(sandbox.spark_root().join("notes")).expect("notes");
+    fs::create_dir_all(sandbox.data_dir().join("notes")).expect("notes");
     let file = sandbox.cache_dir().join("outside.md");
     fs::create_dir_all(file.parent().unwrap()).expect("mkdir");
     fs::write(&file, b"nope").expect("write");

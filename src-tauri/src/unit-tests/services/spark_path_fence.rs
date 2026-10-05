@@ -28,7 +28,7 @@ fn with_sandbox<F: FnOnce(&TestSandbox)>(f: F) {
 }
 
 fn plant_demo_repo(sandbox: &TestSandbox) {
-    let kb = sandbox.spark_root().join("knowledge");
+    let kb = sandbox.data_dir().join("knowledge");
     fs::create_dir_all(&kb).expect("knowledge");
     fs::write(
         kb.join("repos.json"),

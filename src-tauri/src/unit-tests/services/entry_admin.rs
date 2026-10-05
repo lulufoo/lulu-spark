@@ -8,7 +8,7 @@ fn with_notes_fixture<F: FnOnce(&std::path::Path, &std::path::Path)>(
 ) {
     let sandbox = TestSandbox::new();
     let cfg_dir = sandbox.config_dir();
-    let notes = sandbox.spark_root().join("notes");
+    let notes = sandbox.data_dir().join("notes");
     fs::create_dir_all(&notes).expect("notes");
     setup(cfg_dir, notes.as_path());
     f(cfg_dir, notes.as_path());

@@ -6,7 +6,7 @@ use crate::test_support::TestSandbox;
 #[test]
 fn save_entry_updates_file() {
     let sandbox = TestSandbox::new();
-    let notes = sandbox.spark_root().join("notes");
+    let notes = sandbox.data_dir().join("notes");
     let md = notes.join("digest").join("foo.md");
     fs::create_dir_all(md.parent().unwrap()).expect("mkdir");
     fs::write(&md, "old").expect("w");
@@ -28,7 +28,7 @@ fn save_entry_syncs_keyword_index_for_touched_file() {
     use crate::services::keyword_index::{open, search, search_desktop_spark, SearchFilter};
 
     let sandbox = TestSandbox::new();
-    let notes = sandbox.spark_root().join("notes");
+    let notes = sandbox.data_dir().join("notes");
     let md = notes.join("raw").join("proj").join("sync.md");
     fs::create_dir_all(md.parent().unwrap()).expect("mkdir");
     fs::write(&md, "# Sync\n\nold body without keywords").expect("w");

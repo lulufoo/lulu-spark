@@ -84,41 +84,51 @@ fn repo_root_matches_cargo_manifest_parent() {
 #[test]
 fn notes_categories_path_under_notes_not_knowledge() {
     let sandbox = TestSandbox::new();
-    let wb = sandbox.spark_root();
+    let data = sandbox.data_dir();
     let path = notes_categories_path().expect("notes cats");
-    assert_eq!(path, wb.join("notes").join("categories.json"));
+    assert_eq!(path, data.join("notes").join("categories.json"));
     assert_ne!(path, sediment_kb_categories_path().expect("kb cats"));
 }
 
 #[test]
-fn sediment_kb_paths_under_spark_root() {
+fn sediment_kb_paths_under_runtime_data_dir() {
     let sandbox = TestSandbox::new();
-    let wb = sandbox.spark_root();
+    let data = sandbox.data_dir();
     let dir = sediment_kb_dir().expect("dir");
     let cats = sediment_kb_categories_path().expect("cats");
     let repos = sediment_kb_repos_path().expect("repos");
-    assert_eq!(dir, wb.join("knowledge"));
+    assert_eq!(dir, data.join("knowledge"));
     assert_eq!(cats, dir.join("categories.json"));
     assert_eq!(repos, dir.join("repos.json"));
+    assert_ne!(dir, sandbox.spark_root().join("knowledge"));
 }
 
 #[test]
-fn read_later_path_under_spark_root() {
+fn read_later_path_under_runtime_data_dir() {
     let sandbox = TestSandbox::new();
-    let wb = sandbox.spark_root();
     let path = read_later_path().expect("read_later");
-    assert_eq!(path, wb.join("read_later").join("read_later.json"));
+    assert_eq!(
+        path,
+        sandbox.data_dir().join("read_later").join("read_later.json")
+    );
+    assert_ne!(
+        path,
+        sandbox.spark_root().join("read_later").join("read_later.json")
+    );
 }
 
 #[test]
-fn message_center_path_under_spark_root() {
+fn message_center_path_ignores_configured_cache_dir() {
     let sandbox = TestSandbox::new();
-    let wb = sandbox.spark_root();
+    let configured = cache_dir().expect("cache");
     let path = message_center_path().expect("message_center");
     assert_eq!(
         path,
-        wb.join("message_center").join("message_center.json")
+        settings::default_cache_dir()
+            .join("message_center")
+            .join("message_center.json")
     );
+    assert!(!path.starts_with(&configured));
     sandbox.assert_not_prod_path(&path).expect("sandbox path");
 }
 
@@ -142,20 +152,27 @@ fn todo_tasks_path_under_spark_root() {
 }
 
 #[test]
-fn knowledge_root_uses_settings() {
+fn knowledge_root_is_runtime_knowledge_dir() {
     let sandbox = TestSandbox::new();
-    assert_eq!(
-        knowledge_root().expect("knowledge_root"),
-        sandbox.knowledge_root()
+    let kb = knowledge_root().expect("knowledge_root");
+    assert_eq!(kb, sandbox.knowledge_root());
+    assert_eq!(kb, runtime_knowledge_dir());
+    assert_eq!(kb, sandbox.data_dir().join("knowledge"));
+    assert_eq!(kb, sediment_kb_dir().expect("sediment"));
+    assert_ne!(
+        kb,
+        crate::config::settings::load()
+            .expect("load")
+            .knowledge_root
     );
 }
 
 #[test]
-fn notes_root_is_spark_root_notes() {
+fn notes_root_is_runtime_data_notes() {
     let sandbox = TestSandbox::new();
-    let wb = sandbox.spark_root();
     let notes = notes_root().expect("notes_root");
-    assert_eq!(notes, wb.join("notes"));
+    assert_eq!(notes, sandbox.data_dir().join("notes"));
+    assert_ne!(notes, sandbox.spark_root().join("notes"));
 }
 
 #[test]
@@ -164,16 +181,22 @@ fn ssot_paths_use_configured_spark_root_not_cache() {
     let wb = sandbox.spark_root();
     let sediment = sediment_kb_dir().expect("sediment");
     let read_later = read_later_path().expect("read_later");
+    let notes = notes_root().expect("notes");
     let todo_tasks = todo_tasks_path().expect("todo_tasks");
     let message_center = message_center_path().expect("message_center");
-    assert!(sediment.starts_with(&wb));
-    assert!(read_later.starts_with(&wb));
+    let data = sandbox.data_dir();
+    assert!(sediment.starts_with(&data));
+    assert!(read_later.starts_with(&data));
+    assert!(notes.starts_with(&data));
     assert!(todo_tasks.starts_with(&wb));
-    assert!(message_center.starts_with(&wb));
     let cache = cache_dir().expect("cache");
+    assert!(!sediment.starts_with(&wb));
+    assert!(!read_later.starts_with(&wb));
+    assert!(!notes.starts_with(&wb));
     assert!(!sediment.starts_with(&cache));
     assert!(!read_later.starts_with(&cache));
     assert!(!todo_tasks.starts_with(&cache));
+    assert!(!message_center.starts_with(&wb));
     assert!(!message_center.starts_with(&cache));
 }
 

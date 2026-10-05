@@ -29,7 +29,6 @@ fn apply_config_payload(payload: &Value) -> Result<Value, String> {
     settings::save(&settings).map_err(|e| format!("{e}"))?;
     Ok(settings::to_config_json(
         &settings,
-        secrets::has_github_token(),
         secrets::has_host_key(),
     ))
 }
