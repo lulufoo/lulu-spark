@@ -100,7 +100,7 @@ fn snapshot_lists_groups_and_per_channel_enabled() {
     let snap = snapshot().expect("snapshot");
     assert_eq!(
         snap["channels"],
-        serde_json::json!(["spark", "cursor_ide", "mobile"])
+        serde_json::json!(["spark", "cursor", "codex", "claude", "mobile"])
     );
     assert_eq!(
         snap["spark_only_tools"],

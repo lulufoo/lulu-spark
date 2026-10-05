@@ -31,7 +31,7 @@ impl Slot {
     pub fn parse(name: &str) -> Result<Self, OAuthError> {
         match name {
             "spark" => Ok(Slot::Spark),
-            "cursor_ide" => Ok(Slot::CursorIde),
+            "cursor" | "cursor_ide" | "codex" | "claude" => Ok(Slot::CursorIde),
             _ => Err(OAuthError::slot_unknown),
         }
     }
@@ -255,7 +255,11 @@ pub fn token_hint(secret: &str) -> String {
 pub fn ticket_view(channel: &str) -> Result<Value, OAuthError> {
     match channel {
         "spark" => slot_ticket_view(Slot::Spark, false),
-        "cursor_ide" => slot_ticket_view(Slot::CursorIde, true),
+        "cursor" | "cursor_ide" | "codex" | "claude" => {
+            let mut value = slot_ticket_view(Slot::CursorIde, true)?;
+            value["channel"] = json!(channel);
+            Ok(value)
+        }
         "mobile" => mobile_ticket_view(),
         _ => Err(OAuthError::slot_unknown),
     }

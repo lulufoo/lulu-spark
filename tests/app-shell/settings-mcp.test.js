@@ -12,8 +12,6 @@ import { listFrontendSourceFiles, readHostApiSource } from '../helpers/read-fron
 vi.mock('../../frontend/src/host/api.ts', () => ({
   fetchConfig: vi.fn(),
   setConfig: vi.fn(),
-  inferGithubUserUrl: vi.fn(),
-  checkSparkRoot: vi.fn(),
   invoke: vi.fn(),
 }));
 
@@ -30,11 +28,11 @@ const apiSrc = readHostApiSource();
 
 const MCP_PORT = 19876;
 const HEALTH_MCP = `http://127.0.0.1:${MCP_PORT}/mcp/<scene_slot>`;
-const CURSOR_IDE_URL = HEALTH_MCP.replace('<scene_slot>', 'cursor_ide');
+const CURSOR_URL = HEALTH_MCP.replace('<scene_slot>', 'cursor');
 const LIVE_HANDLE = 'ticket-live-reuse';
 const ROTATED_HANDLE = 'ticket-after-rotate';
 const TOOLS_SNAPSHOT = {
-  channels: ['spark', 'cursor_ide', 'mobile'],
+  channels: ['spark', 'cursor', 'codex', 'claude', 'mobile'],
   groups: [
     {
       id: 'notes',
@@ -52,7 +50,9 @@ const TOOLS_SNAPSHOT = {
   ],
   enabled: {
     spark: ['create_note', 'get_all_notes_catalog', 'list_todo_tasks'],
-    cursor_ide: ['create_note', 'get_all_notes_catalog', 'list_todo_tasks'],
+    cursor: ['create_note', 'get_all_notes_catalog', 'list_todo_tasks'],
+    codex: ['create_note', 'get_all_notes_catalog', 'list_todo_tasks'],
+    claude: ['create_note', 'get_all_notes_catalog', 'list_todo_tasks'],
     mobile: ['get_all_notes_catalog', 'list_todo_tasks'],
   },
 };
@@ -65,9 +65,6 @@ function baseConfig(overrides = {}) {
   return {
     spark_root: '',
     knowledge_root: '',
-    github_user_url: '',
-    spark_github_repo_url: '',
-    has_github_token: false,
     assistant_engine: 'host',
     has_host_key: false,
     mcp_port: MCP_PORT,
@@ -136,19 +133,27 @@ const consoleSpies = [];
 let writeText;
 
 describe('Settings MCP panel markup', () => {
-  it('adds an independent MCP nav item and panel beside Spark / Knowledge / Assistant / Sync', () => {
+  it('adds an independent MCP nav item and panel beside Notes / Knowledge / Agent', () => {
     const nav = indexHtml.match(/<nav id="settings-nav">([\s\S]*?)<\/nav>/)?.[1] ?? '';
-    expect(nav).toMatch(/data-panel="spark"/);
+    expect(nav).not.toMatch(/data-panel="spark"/);
+    expect(nav).toMatch(/data-panel="notes"/);
     expect(nav).toMatch(/data-panel="knowledge"/);
     expect(nav).toMatch(/data-panel="llm"/);
-    expect(nav).toMatch(/data-panel="github"/);
+    expect(nav).not.toMatch(/data-panel="github"/);
     expect(nav).toMatch(/data-panel="mcp"[^>]*>\s*MCP/);
     expect(indexHtml).toMatch(/id="settings-panels"/);
     expect(indexHtml).toMatch(/id="settings-panel-mcp"/);
-    expect(indexHtml).toMatch(/id="settings-panel-spark"/);
+    expect(indexHtml).not.toMatch(/id="settings-panel-spark"/);
+    expect(indexHtml).toMatch(/id="settings-panel-notes"/);
     expect(indexHtml).toMatch(/id="settings-panel-knowledge"/);
     expect(indexHtml).toMatch(/id="settings-panel-llm"/);
-    expect(indexHtml).toMatch(/id="settings-panel-github"/);
+    expect(indexHtml).not.toMatch(/id="settings-panel-github"/);
+    expect(indexHtml).toMatch(/value="cursor">Cursor</);
+    expect(indexHtml).not.toMatch(/>Cursor IDE</);
+    expect(indexHtml).toMatch(/value="codex">Codex</);
+    expect(indexHtml).toMatch(/value="claude">Claude</);
+    expect(indexHtml).toMatch(/value="cursor">\/mcp\/cursor</);
+    expect(indexHtml).not.toMatch(/\/mcp\/cursor_ide/);
   });
 
   it('keeps one state-dependent cursor ticket button plus Copy', () => {
@@ -223,13 +228,11 @@ describe('Settings MCP panel actions', () => {
     mountSettingsDom();
     api.fetchConfig.mockResolvedValue(baseConfig());
     api.setConfig.mockResolvedValue(baseConfig());
-    api.inferGithubUserUrl.mockResolvedValue({});
-    api.checkSparkRoot.mockResolvedValue({ ok: true });
     api.invoke.mockImplementation(async (cmd, args) => {
       if (cmd === 'get_mcp_channel_tools') return structuredClone(TOOLS_SNAPSHOT);
       if (cmd === 'set_mcp_channel_tools') return { ok: true };
       if (cmd === 'get_mcp_ticket_view') {
-        const channel = args?.channel || 'cursor_ide';
+        const channel = args?.channel || 'cursor';
         if (channel === 'spark') {
           return { channel: 'spark', state: 'live', hint: '••••ab12' };
         }
@@ -242,7 +245,7 @@ describe('Settings MCP panel actions', () => {
             ],
           };
         }
-        return { channel: 'cursor_ide', state: 'none' };
+        return { channel: 'cursor', state: 'none' };
       }
       if (cmd === 'revoke_mcp_device_ticket' || cmd === 'revoke_mcp_slot_ticket') {
         return { ok: true };
@@ -284,8 +287,8 @@ describe('Settings MCP panel actions', () => {
   it('live cursor view paints Refresh and primary then rotates', async () => {
     const fallback = api.invoke.getMockImplementation();
     api.invoke.mockImplementation(async (cmd, args) => {
-      if (cmd === 'get_mcp_ticket_view' && (args?.channel || 'cursor_ide') === 'cursor_ide') {
-        return { channel: 'cursor_ide', state: 'live', handle: LIVE_HANDLE };
+      if (cmd === 'get_mcp_ticket_view' && (args?.channel || 'cursor') === 'cursor') {
+        return { channel: 'cursor', state: 'live', handle: LIVE_HANDLE };
       }
       return fallback(cmd, args);
     });
@@ -303,18 +306,54 @@ describe('Settings MCP panel actions', () => {
     expect(invokedNames()).toEqual(['rotate_cursor_ide_ticket']);
   });
 
-  it('generate/copy yields a full mcp.json server block on the health-template cursor_ide URL', async () => {
+  it('generate/copy yields a full mcp.json server block on the health-template cursor URL', async () => {
     await openMcpPanel();
     await clickId('btn-settings-mcp-primary');
 
     const displayed = parseServerBlock(serverBlockText());
-    expect(displayed.url).toBe(CURSOR_IDE_URL);
-    expect(displayed.url).toBe(`http://127.0.0.1:${MCP_PORT}/mcp/cursor_ide`);
+    expect(displayed.url).toBe(CURSOR_URL);
+    expect(displayed.url).toBe(`http://127.0.0.1:${MCP_PORT}/mcp/cursor`);
     expect(displayed.headers.Authorization).toBe(`Bearer ${LIVE_HANDLE}`);
 
     expect(writeText).toHaveBeenCalled();
     const copied = parseServerBlock(writeText.mock.calls[0][0]);
     expect(copied).toEqual(displayed);
+  });
+
+  it('formats Codex as config.toml and Claude as mcp.json', async () => {
+    await openMcpPanel();
+    const select = document.getElementById('settings-mcp-ticket-channel');
+    select.value = 'codex';
+    select.dispatchEvent(new Event('change'));
+    await vi.waitFor(() =>
+      expect(api.invoke).toHaveBeenCalledWith('get_mcp_ticket_view', { channel: 'codex' }),
+    );
+    api.invoke.mockClear();
+    api.invoke.mockResolvedValueOnce({ handle: LIVE_HANDLE });
+    await clickId('btn-settings-mcp-primary');
+    const toml = serverBlockText();
+    expect(toml).toContain('[mcp_servers.lulu-spark]');
+    expect(toml).toContain(`url = "http://127.0.0.1:${MCP_PORT}/mcp/codex"`);
+    expect(toml).toContain(`Authorization = "Bearer ${LIVE_HANDLE}"`);
+
+    select.value = 'claude';
+    select.dispatchEvent(new Event('change'));
+    await vi.waitFor(() =>
+      expect(api.invoke).toHaveBeenCalledWith('get_mcp_ticket_view', { channel: 'claude' }),
+    );
+    api.invoke.mockClear();
+    api.invoke.mockResolvedValueOnce({ handle: LIVE_HANDLE });
+    await clickId('btn-settings-mcp-primary');
+    const claude = JSON.parse(serverBlockText());
+    expect(claude).toEqual({
+      mcpServers: {
+        'lulu-spark': {
+          type: 'http',
+          url: `http://127.0.0.1:${MCP_PORT}/mcp/claude`,
+          headers: { Authorization: `Bearer ${LIVE_HANDLE}` },
+        },
+      },
+    });
   });
 
   it('Copy pastes the live block without issuing or rotating', async () => {
@@ -338,7 +377,7 @@ describe('Settings MCP panel actions', () => {
       expect(document.getElementById('settings-mcp-spark-mask')?.textContent).toBe('••••ab12'),
     );
     expect(document.getElementById('settings-mcp-tickets-spark').hidden).toBe(false);
-    expect(document.getElementById('settings-mcp-tickets-cursor_ide').hidden).toBe(true);
+    expect(document.getElementById('settings-mcp-tickets-ide').hidden).toBe(true);
     expect(document.getElementById('settings-mcp-spark-mask')?.textContent).not.toContain(
       LIVE_HANDLE,
     );
@@ -588,7 +627,7 @@ describe('Settings MCP panel actions', () => {
       if (cmd === 'get_mcp_channel_tools') {
         return {
           ...TOOLS_SNAPSHOT,
-          enabled: { spark: [], cursor_ide: [], mobile: [] },
+          enabled: { spark: [], cursor: [], mobile: [] },
         };
       }
       return fallback(cmd, args);

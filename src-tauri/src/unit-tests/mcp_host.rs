@@ -1069,7 +1069,7 @@ fn p3_t10_host_dual_slot_list_call_and_unknown_hard_fail_smoke() {
     let todo_root = wb.join("todo_tasks");
     fs::create_dir_all(&todo_root).expect("mkdir todo_tasks");
     fs::write(todo_root.join(".migration_gate_passed"), b"ok\n").expect("plant migration gate");
-    let notes = wb.join("notes");
+    let notes = sandbox.data_dir().join("notes");
     fs::create_dir_all(&notes).expect("notes");
     fs::write(notes.join("index.json"), br#"{"entries":{}}"#).expect("plant empty notes index");
 
@@ -1294,14 +1294,16 @@ fn tools_list_for_spark_is_notes_todo() {
 /// Normal: REGISTERED_SCENE_SLOTS is only spark + cursor_ide.
 #[test]
 fn registered_scene_slots_are_only_spark_and_cursor_ide() {
-    assert_eq!(
-        super::REGISTERED_SCENE_SLOTS,
-        &[SPARK_SLOT, CURSOR_IDE_SLOT]
-    );
+    assert!(super::REGISTERED_SCENE_SLOTS.contains(&SPARK_SLOT));
+    assert!(super::REGISTERED_SCENE_SLOTS.contains(&"cursor"));
+    assert!(super::REGISTERED_SCENE_SLOTS.contains(&CURSOR_IDE_SLOT));
+    assert!(super::REGISTERED_SCENE_SLOTS.contains(&"codex"));
+    assert!(super::REGISTERED_SCENE_SLOTS.contains(&"claude"));
     assert!(!super::REGISTERED_SCENE_SLOTS.contains(&"notes"));
     assert!(!super::REGISTERED_SCENE_SLOTS.contains(&"todo_task"));
     assert!(!super::REGISTERED_SCENE_SLOTS.contains(&"mobile"));
     assert!(super::is_registered_scene_slot(SPARK_SLOT));
+    assert!(super::is_registered_scene_slot("cursor"));
     assert!(super::is_registered_scene_slot(CURSOR_IDE_SLOT));
 }
 
@@ -1842,10 +1844,9 @@ fn post_mobile_initialize(
 /// Normal: REGISTERED_SCENE_SLOTS stays spark + cursor_ide; mobile is not a registered slot.
 #[test]
 fn t3_registered_scene_slots_exclude_mobile() {
-    assert_eq!(
-        super::REGISTERED_SCENE_SLOTS,
-        &[SPARK_SLOT, CURSOR_IDE_SLOT]
-    );
+    assert!(super::REGISTERED_SCENE_SLOTS.contains(&SPARK_SLOT));
+    assert!(super::REGISTERED_SCENE_SLOTS.contains(&"cursor"));
+    assert!(super::REGISTERED_SCENE_SLOTS.contains(&CURSOR_IDE_SLOT));
     assert!(!super::REGISTERED_SCENE_SLOTS.contains(&MOBILE_PATH));
     assert!(!super::is_registered_scene_slot(MOBILE_PATH));
     assert!(build_slot_tool_table(MOBILE_PATH).is_none());
@@ -2277,10 +2278,9 @@ fn spark_channel_get_note_content_hits_note_path() {
 #[test]
 fn cursor_ide_and_mobile_get_note_content_hit_note_path() {
     assert!(!super::is_registered_scene_slot(MOBILE_PATH));
-    assert_eq!(
-        super::REGISTERED_SCENE_SLOTS,
-        &[SPARK_SLOT, CURSOR_IDE_SLOT]
-    );
+    assert!(super::REGISTERED_SCENE_SLOTS.contains(&SPARK_SLOT));
+    assert!(super::REGISTERED_SCENE_SLOTS.contains(&"cursor"));
+    assert!(super::REGISTERED_SCENE_SLOTS.contains(&CURSOR_IDE_SLOT));
 
     let ide = build_channel_tool_table(CURSOR_IDE_SLOT, CURSOR_IDE_SLOT).expect("cursor_ide");
     let ide_tool = note_content_tool(&ide);

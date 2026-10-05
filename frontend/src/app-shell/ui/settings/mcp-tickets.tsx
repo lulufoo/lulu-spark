@@ -4,7 +4,9 @@ export function McpTicketsHost() {
       <div className="settings-field">
         <label htmlFor="settings-mcp-ticket-channel">MCP channel</label>
         <select id="settings-mcp-ticket-channel" aria-label="MCP ticket channel">
-          <option value="cursor_ide">Cursor IDE</option>
+          <option value="cursor">Cursor</option>
+          <option value="codex">Codex</option>
+          <option value="claude">Claude</option>
           <option value="spark">Spark</option>
           <option value="mobile">Mobile</option>
         </select>
@@ -39,9 +41,11 @@ export function McpTicketsHost() {
         <div id="settings-mcp-device-list" className="settings-mcp-device-list" />
       </div>
 
-      <div id="settings-mcp-tickets-cursor_ide" className="settings-mcp-ticket-pane">
+      <div id="settings-mcp-tickets-ide" className="settings-mcp-ticket-pane">
         <div className="settings-field">
-          <label htmlFor="settings-mcp-server-block">Cursor IDE server block</label>
+          <label htmlFor="settings-mcp-server-block" id="settings-mcp-server-block-label">
+            Cursor server block
+          </label>
           <textarea
             id="settings-mcp-server-block"
             rows={8}

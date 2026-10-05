@@ -1,4 +1,5 @@
-//! Per-channel MCP tool allowlist (`/mcp/spark`, `/mcp/cursor_ide`, `/mcp/mobile`).
+//! Per-channel MCP tool allowlist (`/mcp/spark`, `/mcp/cursor`, `/mcp/codex`,
+//! `/mcp/claude`, `/mcp/mobile`). `cursor_ide` is a legacy alias of `cursor`.
 //!
 //! Persists nested `{ channel: { notes: [], knowledge: [], global: [] } }`.
 //! Legacy flat arrays are migrated on read. UI commands still accept/return flat enabled lists.
@@ -19,7 +20,18 @@ use super::mcp_channel_classify::{
     rewrite_retired_search_names, sort_enabled_groups,
 };
 
-pub const MCP_CHANNELS: &[&str] = &["spark", "cursor_ide", "mobile"];
+pub const MCP_CHANNELS: &[&str] = &["spark", "cursor", "codex", "claude", "mobile"];
+
+fn canonical_channel(name: &str) -> Option<&'static str> {
+    match name {
+        "spark" => Some("spark"),
+        "cursor" | "cursor_ide" => Some("cursor"),
+        "codex" => Some("codex"),
+        "claude" => Some("claude"),
+        "mobile" => Some("mobile"),
+        _ => None,
+    }
+}
 
 /// Catalog tools that Settings may list, but only `/mcp/spark` may enable or expose.
 pub const SPARK_ONLY_TOOLS: &[&str] = &["delete_note"];
@@ -39,10 +51,6 @@ pub struct EnabledByGroup {
 #[derive(Debug, Default, Clone)]
 struct Stored {
     channels: BTreeMap<String, EnabledByGroup>,
-}
-
-fn is_channel(name: &str) -> bool {
-    MCP_CHANNELS.contains(&name)
 }
 
 fn catalog_names() -> HashSet<String> {
@@ -112,9 +120,12 @@ fn load_stored() -> Stored {
     let catalog = catalog_names();
     let mut stored = Stored::default();
     for (channel, entry) in channels {
+        let Some(canon) = canonical_channel(channel) else {
+            continue;
+        };
         stored
             .channels
-            .insert(channel.clone(), normalize_channel_entry(entry, &catalog));
+            .insert(canon.to_string(), normalize_channel_entry(entry, &catalog));
     }
     stored
 }
@@ -141,9 +152,9 @@ fn enabled_groups_from_stored(
 /// Enabled API keys partitioned by business group for one MCP channel.
 pub fn enabled_by_group(channel: &str) -> EnabledByGroup {
     let _guard = LOCK.lock().ok();
-    if !is_channel(channel) {
+    let Some(channel) = canonical_channel(channel) else {
         return EnabledByGroup::default();
-    }
+    };
     let catalog = catalog_names();
     enabled_groups_from_stored(&load_stored(), channel, &catalog)
 }
@@ -159,9 +170,9 @@ pub fn is_enabled(channel: &str, name: &str) -> bool {
 
 pub fn set_enabled(channel: &str, enabled: Vec<String>) -> Result<(), String> {
     let _guard = LOCK.lock().map_err(|e| e.to_string())?;
-    if !is_channel(channel) {
+    let Some(channel) = canonical_channel(channel) else {
         return Err(format!("unknown mcp channel: {channel}"));
-    }
+    };
     let catalog = catalog_names();
     let enabled = rewrite_retired_search_names(enabled);
     for name in &enabled {

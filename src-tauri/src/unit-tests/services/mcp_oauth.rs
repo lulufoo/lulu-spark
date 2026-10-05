@@ -202,6 +202,9 @@ fn unknown_slot_name_is_slot_unknown() {
     assert_eq!(Slot::parse("Spark"), Err(OAuthError::slot_unknown));
     assert_eq!(Slot::parse("spark"), Ok(Slot::Spark));
     assert_eq!(Slot::parse("cursor_ide"), Ok(Slot::CursorIde));
+    assert_eq!(Slot::parse("cursor"), Ok(Slot::CursorIde));
+    assert_eq!(Slot::parse("codex"), Ok(Slot::CursorIde));
+    assert_eq!(Slot::parse("claude"), Ok(Slot::CursorIde));
 }
 
 #[test]

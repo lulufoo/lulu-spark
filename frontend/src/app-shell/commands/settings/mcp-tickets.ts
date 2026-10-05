@@ -15,19 +15,62 @@ type TicketView = {
   }>;
 };
 
-export function cursorIdeServerUrl() {
-  return `http://127.0.0.1:${store.mcpPort}/mcp/cursor_ide`;
+const IDE_CHANNELS = ['cursor', 'codex', 'claude'] as const;
+const IDE_LABELS: Record<string, string> = {
+  cursor: 'Cursor',
+  codex: 'Codex',
+  claude: 'Claude',
+};
+
+function isIdeChannel(channel: string) {
+  return IDE_CHANNELS.includes(channel as (typeof IDE_CHANNELS)[number]);
 }
 
-export function formatCursorIdeServerBlock(handle: string) {
+export function ideServerUrl(channel: string) {
+  const path = isIdeChannel(channel) ? channel : 'cursor';
+  return `http://127.0.0.1:${store.mcpPort}/mcp/${path}`;
+}
+
+export function formatIdeServerBlock(channel: string, handle: string) {
+  const url = ideServerUrl(channel);
+  if (channel === 'codex') {
+    return [
+      '[mcp_servers.lulu-spark]',
+      `url = "${url}"`,
+      `http_headers = { Authorization = "Bearer ${handle}" }`,
+    ].join('\n');
+  }
+  if (channel === 'claude') {
+    return JSON.stringify(
+      {
+        mcpServers: {
+          'lulu-spark': {
+            type: 'http',
+            url,
+            headers: { Authorization: `Bearer ${handle}` },
+          },
+        },
+      },
+      null,
+      2,
+    );
+  }
   return JSON.stringify(
     {
-      url: cursorIdeServerUrl(),
+      url,
       headers: { Authorization: `Bearer ${handle}` },
     },
     null,
     2,
   );
+}
+
+export function cursorIdeServerUrl() {
+  return ideServerUrl('cursor');
+}
+
+export function formatCursorIdeServerBlock(handle: string) {
+  return formatIdeServerBlock('cursor', handle);
 }
 
 export function setMcpServerBlock(text: string) {
@@ -42,15 +85,18 @@ export function clearMcpServerBlock() {
 export function ticketChannel() {
   return (
     (document.getElementById('settings-mcp-ticket-channel') as HTMLSelectElement | null)?.value
-    || 'cursor_ide'
+    || 'cursor'
   );
 }
 
 export function showTicketPane(channel: string) {
-  for (const id of ['spark', 'mobile', 'cursor_ide']) {
+  const pane = isIdeChannel(channel) ? 'ide' : channel;
+  for (const id of ['spark', 'mobile', 'ide']) {
     const el = document.getElementById(`settings-mcp-tickets-${id}`);
-    if (el) el.hidden = id !== channel;
+    if (el) el.hidden = id !== pane;
   }
+  const label = document.getElementById('settings-mcp-server-block-label');
+  if (label) label.textContent = `${IDE_LABELS[channel] || 'Cursor'} server block`;
 }
 
 async function copyServerBlock(text: string) {
@@ -143,7 +189,7 @@ function paintCursorPrimary() {
 function paintCursor(view: TicketView) {
   cursorLive = view.state === 'live' && Boolean(view.handle);
   if (cursorLive && view.handle) {
-    setMcpServerBlock(formatCursorIdeServerBlock(view.handle));
+    setMcpServerBlock(formatIdeServerBlock(ticketChannel(), view.handle));
   } else {
     clearMcpServerBlock();
   }
@@ -169,7 +215,7 @@ async function issueOrRotateCursorIdeBlock(cmd: string, copiedMessage: string, f
     const resp = (await api.invoke(cmd)) as { handle?: string };
     const issued = resp?.handle;
     if (!issued) throw new Error('Ticket command failed');
-    const text = formatCursorIdeServerBlock(issued);
+    const text = formatIdeServerBlock(ticketChannel(), issued);
     setMcpServerBlock(text);
     const copied = await copyServerBlock(text);
     cursorLive = true;
@@ -179,7 +225,7 @@ async function issueOrRotateCursorIdeBlock(cmd: string, copiedMessage: string, f
       'settings-result-mcp',
       copied
         ? copiedMessage
-        : `${doneLabel} cursor_ide server block. Clipboard copy was blocked — copy the block from the field.`,
+        : `${doneLabel} ${IDE_LABELS[ticketChannel()] || 'Cursor'} server block. Clipboard copy was blocked — copy the block from the field.`,
     );
   } catch (e) {
     if (!cursorLive) clearMcpServerBlock();
@@ -198,13 +244,13 @@ export async function runCursorIdePrimaryAction() {
     if (cursorLive) {
       await issueOrRotateCursorIdeBlock(
         'rotate_cursor_ide_ticket',
-        'Refreshed and copied cursor_ide server block.',
+        `Refreshed and copied ${IDE_LABELS[ticketChannel()] || 'Cursor'} server block.`,
         'Refresh',
       );
     } else {
       await issueOrRotateCursorIdeBlock(
         'issue_cursor_ide_ticket',
-        'Generated and copied cursor_ide server block.',
+        `Generated and copied ${IDE_LABELS[ticketChannel()] || 'Cursor'} server block.`,
         'Generate',
       );
     }
@@ -219,14 +265,14 @@ export async function copyCursorIdeServerBlock() {
     .trim();
   setResult('settings-result-mcp', '');
   if (!text) {
-    setResult('settings-result-mcp', 'Generate a Cursor IDE ticket first.', true);
+    setResult('settings-result-mcp', `Generate a ${IDE_LABELS[ticketChannel()] || 'Cursor'} ticket first.`, true);
     return;
   }
   const copied = await copyServerBlock(text);
   setResult(
     'settings-result-mcp',
     copied
-      ? 'Copied cursor_ide server block.'
+      ? `Copied ${IDE_LABELS[ticketChannel()] || 'Cursor'} server block.`
       : 'Clipboard copy was blocked — copy the block from the field.',
   );
 }
