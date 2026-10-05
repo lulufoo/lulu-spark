@@ -3,7 +3,6 @@ import type { AppRoute } from './state/types.ts';
 import { applySearchNavChrome } from './ui/nav-chrome.ts';
 import { initSparkSearch } from '../notes/ui/search.tsx';
 import { initKnowledgeSearch } from '../knowledge/ui/search.tsx';
-import { clearHeaderSyncKnowledgeContext } from './commands/header-sync.ts';
 import { openReadLaterDialog } from '../read-later/commands/dialog.ts';
 import { openDoc } from '../notes/viewer.ts';
 import { selectDate } from '../notes/commands/sidebar.ts';
@@ -35,9 +34,7 @@ export function wrapRouteMount(routeName: string, mountFn: (route: AppRoute) => 
   };
 }
 
-export function mountHomeRoute() {
-  clearHeaderSyncKnowledgeContext();
-}
+export function mountHomeRoute() {}
 
 export function mountKnowledgeDocRoute() {}
 
@@ -47,8 +44,6 @@ export function mountReadLaterRoute() {
 }
 
 export function mountSpark(route?: AppRoute) {
-  clearHeaderSyncKnowledgeContext();
-
   const params = route?.params || {};
   const notePath = params.note || '';
   const date = params.date || '';

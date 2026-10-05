@@ -1,15 +1,13 @@
 import { state, loadDiffStatus, mergeAnnotations, notifyState } from './host/state.ts';
-import { LAYERS, setGithubUserUrl } from './host/constants.ts';
+import { LAYERS } from './host/constants.ts';
 import * as api from './host/api.ts';
 import type { HostIndexAnnotation, HostNoteEntry } from './host/snapshot-types.ts';
 import { buildGroups, selectDate, applyListFilters, selectTag } from './notes/commands/sidebar.ts';
 import './notes/ui/comments.tsx';
 import './knowledge/viewer.ts';
-import './app-shell/ui/spark-commit-dialog.tsx';
 import { navigate, navigateToNote } from './router/index.ts';
 import { setRouteHandlers } from './route-handlers.ts';
 import { setSparkBinding } from './app-shell/commands/spark-binding.ts';
-import { initHeaderSync } from './app-shell/commands/header-sync.ts';
 import { normalizeKnowledgeIndex } from './knowledge/state/index.ts';
 import './app-shell/ui/settings/sediment-kb.tsx';
 import { initTooltip } from './app-shell/ui/tooltip.ts';
@@ -28,19 +26,12 @@ import { handleNotesOsNotifyEnvelope } from './notes/commands/os-notify.ts';
 import { handleReadLaterOsNotifyEnvelope } from './read-later/commands/os-notify.ts';
 import { logNotifyHop, parseTraceId, TRACE_PARAM } from './router/notify-trace.ts';
 
-const titleCache = state.index.titleCache;
-
 type NotesCategoriesPayload = {
   categories?: Array<{ id?: string; folder?: string; title?: string; description?: string }>;
 };
 
 type TagsRegistryPayload = {
   keys?: Record<string, { value?: string; refs?: number }>;
-};
-
-type PullPayload = {
-  error?: string;
-  stderr?: string;
 };
 
 // ── Fetch index.json ───────────────────────────────────────────────────────
@@ -96,34 +87,6 @@ function showError(msg: string) {
   notifyState();
 }
 
-// ── Pull project ───────────────────────────────────────────────────────────
-
-async function pullProject() {
-  const btn = document.getElementById('btn-pull') as HTMLButtonElement;
-  btn.disabled = true;
-  btn.textContent = 'Updating…';
-  try {
-    const data = (await api.pullProject()) as PullPayload;
-    if (data.error) throw new Error((data.error || '') + (data.stderr ? '\n' + data.stderr : ''));
-
-    titleCache.clear();
-    if (state.index.data) {
-      for (const entry of Object.values(state.index.data)) {
-        LAYERS.forEach((l) => delete (entry as Record<string, unknown>)[`_unreachable_${l}`]);
-      }
-    }
-    await loadIndex();
-  } catch (e) {
-    // @ts-expect-error boot copy scan uses e.message
-    alert(`Update failed: ${e.message}`);
-  } finally {
-    btn.disabled = false;
-    btn.textContent = '↓ Update project';
-  }
-}
-
-initHeaderSync({ pullProject, loadIndex });
-
 // ── cta:reload ─────────────────────────────────────────────────────────────
 
 document.addEventListener('cta:reload', () => loadIndex());
@@ -134,8 +97,6 @@ api.fetchConfig().then((d) => {
   const cfg = d as SettingsConfig;
   state.ui.sparkRoot = cfg.spark_root || '';
   state.ui.knowledgeRoot = cfg.knowledge_root || '';
-  state.ui.githubUserUrl = cfg.github_user_url || '';
-  setGithubUserUrl(cfg.github_user_url);
 }).catch(() => {});
 api.fetchNotesCategories().then((data) => {
   const payload = data as NotesCategoriesPayload;

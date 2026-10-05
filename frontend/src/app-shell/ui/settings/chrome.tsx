@@ -3,12 +3,10 @@ import { KbHidePatternsHost } from './kb-hide-patterns.tsx';
 import { McpChannelToolsHost } from './mcp-channel-tools.tsx';
 import { McpTicketsHost } from './mcp-tickets.tsx';
 import { NotesSettingsPanel } from './notes-panel.tsx';
-import { SparkSettingsPanel } from './spark-panel.tsx';
 import {
   onRepoListRefresh,
   onSedimentKbAddSubmit,
   onSedimentKbManageAdd,
-  SedimentKbAddCategorySelect,
   SedimentKbManageList,
   SedimentKbRepoList,
 } from './sediment-kb.tsx';
@@ -22,21 +20,18 @@ export function SettingsDialogChrome() {
       </div>
       <div id="settings-dialog-body">
         <nav id="settings-nav">
-          <button type="button" className="settings-nav-item active" data-panel="spark">Data</button>
-          <button type="button" className="settings-nav-item" data-panel="notes">Notes</button>
+          <button type="button" className="settings-nav-item active" data-panel="notes">Notes</button>
           <button type="button" className="settings-nav-item" data-panel="knowledge">Knowledge</button>
-          <button type="button" className="settings-nav-item" data-panel="llm">Assistant</button>
-          <button type="button" className="settings-nav-item" data-panel="github">Sync</button>
+          <button type="button" className="settings-nav-item" data-panel="llm">Agent</button>
           <button type="button" className="settings-nav-item" data-panel="mcp">MCP</button>
         </nav>
         <div id="settings-panels">
-          <SparkSettingsPanel />
           <NotesSettingsPanel />
           <div id="settings-panel-knowledge" className="settings-panel">
             <div className="settings-tabs" role="tablist">
               <button type="button" className="settings-tab active" data-tab="directory" role="tab">Directory</button>
-              <button type="button" className="settings-tab" data-tab="list" role="tab">List</button>
               <button type="button" className="settings-tab" data-tab="categories" role="tab">Categories</button>
+              <button type="button" className="settings-tab" data-tab="list" role="tab">List</button>
               <button type="button" className="settings-tab" data-tab="add" role="tab">Add</button>
               <button type="button" className="settings-tab" data-tab="hidden" role="tab">Hidden files</button>
             </div>
@@ -46,33 +41,18 @@ export function SettingsDialogChrome() {
               data-tab="directory"
             >
               <div className="settings-field">
-                <label htmlFor="knowledge-root-path">
-                  Knowledge directory (knowledge_root)
-                </label>
-                <input id="knowledge-root-path" type="text" spellCheck={false} autoComplete="off" />
-                <span className="settings-field-hint">Clone root for topic knowledge repos</span>
-              </div>
-              <div id="knowledge-root-error" className="settings-result" />
-              <div className="settings-panel-actions">
-                <button id="btn-knowledge-root-save" type="button" className="btn-settings-save">
-                  Save
-                </button>
-              </div>
-            </div>
-            <div id="settings-tab-knowledge-list" className="settings-tab-panel" data-tab="list">
-              <div id="repo-list-title-group" className="settings-knowledge-list-head">
-                <button
-                  id="btn-repo-list-refresh"
-                  type="button"
-                  className="btn-settings-save"
-                  title="Refresh"
-                  onClick={() => onRepoListRefresh()}
-                >
-                  Refresh
-                </button>
-              </div>
-              <div id="repo-list-content">
-                <SedimentKbRepoList />
+                <label htmlFor="knowledge-root-path">Knowledge directory</label>
+                <input
+                  id="knowledge-root-path"
+                  type="text"
+                  spellCheck={false}
+                  autoComplete="off"
+                  readOnly
+                  className="settings-input-readonly"
+                />
+                <span className="settings-field-hint">
+                  Fixed knowledge directory. Not configurable.
+                </span>
               </div>
             </div>
             <div id="settings-tab-knowledge-categories" className="settings-tab-panel" data-tab="categories">
@@ -101,27 +81,38 @@ export function SettingsDialogChrome() {
               </div>
               <div id="sediment-kb-manage-error" className="settings-result" />
             </div>
+            <div id="settings-tab-knowledge-list" className="settings-tab-panel" data-tab="list">
+              <div id="repo-list-title-group" className="settings-knowledge-list-head">
+                <button
+                  id="btn-repo-list-refresh"
+                  type="button"
+                  className="btn-settings-save"
+                  title="Refresh"
+                  onClick={() => onRepoListRefresh()}
+                >
+                  Refresh
+                </button>
+              </div>
+              <div id="repo-list-content">
+                <SedimentKbRepoList />
+              </div>
+            </div>
             <div id="settings-tab-knowledge-add" className="settings-tab-panel" data-tab="add">
               <div className="settings-field">
-                <label htmlFor="sediment-kb-add-url">GitHub repository URL</label>
+                <label htmlFor="sediment-kb-add-name">Directory name</label>
                 <input
-                  id="sediment-kb-add-url"
+                  id="sediment-kb-add-name"
                   type="text"
-                  placeholder="owner/repo or GitHub URL"
+                  placeholder="topic-name"
                   autoComplete="off"
                   spellCheck={false}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') void onSedimentKbAddSubmit();
                   }}
                 />
-              </div>
-              <div className="settings-field">
-                <label htmlFor="sediment-kb-add-category">Category (optional)</label>
-                <SedimentKbAddCategorySelect />
-              </div>
-              <div className="settings-field">
-                <label htmlFor="sediment-kb-add-description">Description (optional)</label>
-                <textarea id="sediment-kb-add-description" rows={3} placeholder="Repository description" autoComplete="off" spellCheck={false} />
+                <span className="settings-field-hint">
+                  Creates a folder under the Knowledge directory.
+                </span>
               </div>
               <div id="sediment-kb-add-error" className="settings-result" />
               <div className="settings-panel-actions">
@@ -139,17 +130,22 @@ export function SettingsDialogChrome() {
           </div>
           <div id="settings-panel-llm" className="settings-panel">
             <div className="settings-tabs" role="tablist">
-              <button type="button" className="settings-tab active" data-tab="engine" role="tab">Engine</button>
+              <button type="button" className="settings-tab active" data-tab="engine" role="tab">LLM</button>
             </div>
             <div id="settings-tab-llm-engine" className="settings-tab-panel active" data-tab="engine">
               <div className="settings-field">
-                <label htmlFor="settings-llm-engine">Engine category</label>
+                <label htmlFor="settings-llm-engine">LLM category</label>
                 <select id="settings-llm-engine">
+                  <option value="openai">OpenAI</option>
+                  <option value="claude">Claude</option>
+                  <option value="grok">Grok</option>
                   <option value="host">GLM</option>
+                  <option value="kimi">Kimi</option>
+                  <option value="qwen">Qwen</option>
                 </select>
                 <span className="settings-field-hint">
-                  GLM is the only supported assistant engine. Preset fields below are read-only
-                  except Model.
+                  Platform is read-only. Model and Base URL can be edited.
+                  Use the matching API key for the selected category.
                 </span>
               </div>
               <div className="settings-field">
@@ -164,14 +160,13 @@ export function SettingsDialogChrome() {
                 />
               </div>
               <div className="settings-field">
-                <label htmlFor="settings-llm-base-url">Base URL (read-only)</label>
+                <label htmlFor="settings-llm-base-url">Base URL</label>
                 <input
                   id="settings-llm-base-url"
                   type="text"
                   spellCheck={false}
                   autoComplete="off"
-                  readOnly
-                  className="settings-input-readonly"
+                  placeholder="Provider API base URL"
                 />
               </div>
               <div className="settings-field">
@@ -192,39 +187,6 @@ export function SettingsDialogChrome() {
               <div id="settings-result-llm" className="settings-result" />
               <div className="settings-panel-actions">
                 <button type="button" id="btn-settings-save-llm" className="btn-settings-save">
-                  Save
-                </button>
-              </div>
-            </div>
-          </div>
-          <div id="settings-panel-github" className="settings-panel">
-            <div className="settings-tabs" role="tablist">
-              <button type="button" className="settings-tab active" data-tab="account" role="tab">Account</button>
-            </div>
-            <div id="settings-tab-github-account" className="settings-tab-panel active" data-tab="account">
-              <div className="settings-field">
-                <label htmlFor="settings-github-user-url">GitHub profile (github_user_url)</label>
-                <input
-                  id="settings-github-user-url"
-                  type="text"
-                  spellCheck={false}
-                  autoComplete="off"
-                  placeholder="https://github.com/lulufoo"
-                />
-                <span id="settings-github-user-hint" className="settings-field-hint">
-                  Inferred from the data directory origin when possible; used for Viewer remote links.
-                </span>
-              </div>
-              <div className="settings-field">
-                <label htmlFor="settings-github-token">GitHub token (sync key)</label>
-                <input id="settings-github-token" type="password" autoComplete="off" />
-                <span id="settings-token-hint" className="settings-field-hint">
-                  Used for data-store and Knowledge GitHub sync.
-                </span>
-              </div>
-              <div id="settings-result-github" className="settings-result" />
-              <div className="settings-panel-actions">
-                <button type="button" id="btn-settings-save-github" className="btn-settings-save">
                   Save
                 </button>
               </div>

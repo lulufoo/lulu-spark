@@ -16,8 +16,6 @@ import {
 vi.mock('../../frontend/src/host/api.ts', () => ({
   fetchConfig: vi.fn(),
   setConfig: vi.fn(),
-  inferGithubUserUrl: vi.fn(),
-  checkSparkRoot: vi.fn(),
   invoke: vi.fn(),
   fetchNotesCategories: vi.fn(),
   fetchKbHidePatterns: vi.fn(),
@@ -52,9 +50,6 @@ function baseConfig() {
   return {
     spark_root: '',
     knowledge_root: '',
-    github_user_url: '',
-    spark_github_repo_url: '',
-    has_github_token: false,
     assistant_engine: 'host',
     has_host_key: false,
     mcp_port: 19876,
@@ -72,8 +67,6 @@ describe('Settings header and footer dismiss', () => {
     vi.clearAllMocks();
     api.fetchConfig.mockResolvedValue(baseConfig());
     api.setConfig.mockResolvedValue(baseConfig());
-    api.inferGithubUserUrl.mockResolvedValue({});
-    api.checkSparkRoot.mockResolvedValue({ ok: true });
     api.fetchNotesCategories.mockResolvedValue({ categories: [] });
     api.fetchKbHidePatterns.mockResolvedValue({ patterns: [] });
     api.invoke.mockResolvedValue({
@@ -144,8 +137,6 @@ describe('Settings close hook without #btn-settings-close', () => {
     vi.clearAllMocks();
     api.fetchConfig.mockResolvedValue(baseConfig());
     api.setConfig.mockResolvedValue(baseConfig());
-    api.inferGithubUserUrl.mockResolvedValue({});
-    api.checkSparkRoot.mockResolvedValue({ ok: true });
     api.fetchNotesCategories.mockResolvedValue({ categories: [] });
     api.fetchKbHidePatterns.mockResolvedValue({ patterns: [] });
     api.invoke.mockResolvedValue({ channels: [], groups: [], enabled: {} });

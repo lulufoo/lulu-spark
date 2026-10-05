@@ -38,16 +38,17 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
   });
 
   it('header menus use table B labels', () => {
-    expect(extractTagOuter(indexHtml, 'btn-sync-menu')).toContain('⇕ Sync');
+    expect(indexHtml).not.toContain('id="btn-sync-menu"');
+    expect(indexHtml).not.toContain('⇕ Sync');
+    expect(indexHtml).not.toContain('id="btn-push-index"');
+    expect(indexHtml).not.toContain('id="btn-pull"');
+    expect(indexHtml).not.toContain('id="btn-local-refresh"');
     const toolsMenu = extractTagOuter(indexHtml, 'btn-tools-menu');
     expect(indexHtml).toContain('id="btn-tools-menu">⇔ Bind</button>');
     expect(toolsMenu).toMatch(/id="btn-tools-menu"[^>]*>\s*⇔ Bind\s*</);
     expect(toolsMenu).not.toContain('Tools');
     expect(toolsMenu).not.toContain('⛓');
     expect(extractTagOuter(indexHtml, 'btn-settings')).toMatch(/Settings/);
-    expect(extractTagOuter(indexHtml, 'btn-push-index')).toContain('↑ Commit changes');
-    expect(extractTagOuter(indexHtml, 'btn-pull')).toContain('↓ Update project');
-    expect(extractTagOuter(indexHtml, 'btn-local-refresh')).toContain('⟳ Refresh local');
   });
 
   it('keeps Bind device in the tools menu and unmounts GitHub and Convert', () => {
@@ -87,34 +88,33 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
     expect(indexHtml).not.toContain('Read Later 待读');
   });
 
-  it('settings nav uses Data, Notes, Knowledge, Assistant, then Sync', () => {
-    expect(indexHtml).toMatch(/data-panel="spark">Data</);
+  it('settings nav uses Notes, Knowledge, Agent, then MCP', () => {
+    expect(indexHtml).not.toMatch(/data-panel="spark">Data</);
     expect(indexHtml).toMatch(/data-panel="notes">Notes</);
     expect(indexHtml).toMatch(/data-panel="knowledge">Knowledge</);
-    expect(indexHtml).toMatch(/data-panel="llm">Assistant</);
-    expect(indexHtml).not.toMatch(/data-panel="llm">Assistant \/ Engine</);
-    expect(indexHtml).toMatch(/data-panel="github">Sync</);
+    expect(indexHtml).toMatch(/data-panel="llm">Agent</);
+    expect(indexHtml).not.toMatch(/data-panel="llm">Assistant/);
+    expect(indexHtml).not.toMatch(/data-panel="github">Sync</);
     expect(indexHtml).not.toMatch(/data-panel="github">GitHub account</);
+    expect(indexHtml).toMatch(/data-panel="mcp">MCP</);
     expect(indexHtml).toMatch(/data-tab="hidden"[^>]*>Hidden files</);
     const knowledgeTabs = indexHtml.match(/id="settings-panel-knowledge"[\s\S]*?role="tablist">([\s\S]*?)<\/div>/)?.[1] ?? '';
     expect(knowledgeTabs.indexOf('data-tab="directory"')).toBeGreaterThan(-1);
     expect(knowledgeTabs.indexOf('data-tab="directory"')).toBeLessThan(
-      knowledgeTabs.indexOf('data-tab="list"'),
-    );
-    expect(knowledgeTabs.indexOf('data-tab="list"')).toBeLessThan(
       knowledgeTabs.indexOf('data-tab="categories"'),
     );
     expect(knowledgeTabs.indexOf('data-tab="categories"')).toBeLessThan(
+      knowledgeTabs.indexOf('data-tab="list"'),
+    );
+    expect(knowledgeTabs.indexOf('data-tab="list"')).toBeLessThan(
       knowledgeTabs.indexOf('data-tab="add"'),
     );
     expect(knowledgeTabs.indexOf('data-tab="add"')).toBeLessThan(
       knowledgeTabs.indexOf('data-tab="hidden"'),
     );
     const nav = indexHtml.match(/<nav id="settings-nav">([\s\S]*?)<\/nav>/)?.[1] ?? '';
-    expect(nav.indexOf('data-panel="spark"')).toBeGreaterThan(-1);
-    expect(nav.indexOf('data-panel="spark"')).toBeLessThan(
-      nav.indexOf('data-panel="notes"'),
-    );
+    expect(nav).not.toMatch(/data-panel="spark"/);
+    expect(nav.indexOf('data-panel="notes"')).toBeGreaterThan(-1);
     expect(nav.indexOf('data-panel="notes"')).toBeLessThan(
       nav.indexOf('data-panel="knowledge"'),
     );
@@ -122,8 +122,9 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
       nav.indexOf('data-panel="llm"'),
     );
     expect(nav.indexOf('data-panel="llm"')).toBeLessThan(
-      nav.indexOf('data-panel="github"'),
+      nav.indexOf('data-panel="mcp"'),
     );
+    expect(nav).not.toMatch(/data-panel="github"/);
   });
 
   it('delete dialog copy uses table B2 strings', () => {

@@ -62,7 +62,6 @@ export type HostUi = {
   activeDate: string | null;
   sparkRoot: string;
   knowledgeRoot: string;
-  githubUserUrl: string;
   activeTopic: string | null;
   activeTagKey: string | null;
   loadError: string | null;

@@ -193,7 +193,6 @@ function compileMountSpark(env) {
   const fnSource = extractFunctionSource(mainJs, 'mountSpark');
   expect(fnSource, 'mountSpark missing').not.toBe('');
   const locals = [
-    'clearHeaderSyncKnowledgeContext',
     'hideKnowledgeDocView',
     'hideReadLaterView',
     'hideHomeView',
@@ -226,7 +225,6 @@ function stubSparkMountEnv(overrides = {}) {
     viewer: { createSession: null, ...(overrides.state?.viewer || {}) },
   };
   return {
-    clearHeaderSyncKnowledgeContext: () => {},
     hideKnowledgeDocView: () => {},
     hideReadLaterView: () => {},
     hideHomeView: () => {},

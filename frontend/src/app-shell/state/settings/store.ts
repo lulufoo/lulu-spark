@@ -1,33 +1,17 @@
-import { createModuleStore } from '../../../shared/module-store.ts';
-
-export const GITHUB_USER_HINT_DEFAULT =
-  'Inferred from the data directory origin when possible; used for Viewer remote links.';
-export const SPARK_CONNECT_NEEDS_ACCOUNT =
-  'Set a Sync token first to bind a data-store repository.';
 export const DEFAULT_ENGINE_CATEGORY = 'host';
 
 export const engineKeyHints = {
   has_host_key: false,
 };
 
-/** Host model draft (`undefined` = not loaded for this panel session). */
-export const engineModelByCategory: { host: string | undefined } = {
-  host: undefined,
-};
-
-export const savedSnapshot = {
-  sparkRoot: '',
-  githubUserUrl: '',
-  sparkGithubRepoUrl: '',
-  hasGithubToken: false,
-};
+/** Per-category drafts (`undefined` = not loaded for this panel session). */
+export const engineModelByCategory: Record<string, string | undefined> = {};
+export const engineBaseUrlByCategory: Record<string, string | undefined> = {};
 
 export const store = {
-  activeEngineCategory: DEFAULT_ENGINE_CATEGORY as 'host',
+  activeEngineCategory: DEFAULT_ENGINE_CATEGORY,
   /** Host MCP listen port (same value GET /health uses in its mcp template). */
   mcpPort: 9876,
-  githubUserUrlInferredFromOrigin: '',
-  sparkGithubRepoInferredFromOrigin: '',
 };
 
 export function setResult(resultElId: string, message: string, isError = false) {
@@ -37,15 +21,3 @@ export function setResult(resultElId: string, message: string, isError = false) 
   el.style.color = isError ? '#cf222e' : '#1a7f37';
 }
 
-export function normalizeGithubUserUrl(url: string | null | undefined): string {
-  return (url || '').trim().replace(/\/$/, '').toLowerCase();
-}
-
-export function isGithubUserUrlInferredLocked(): boolean {
-  return Boolean(store.githubUserUrlInferredFromOrigin);
-}
-
-export const sparkConnectionStore = createModuleStore({
-  url: '',
-  locked: false,
-});

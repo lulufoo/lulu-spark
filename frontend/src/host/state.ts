@@ -62,7 +62,6 @@ export const state: HostState = {
     activeDate: null,
     sparkRoot: '',
     knowledgeRoot: '',
-    githubUserUrl: '',
     activeTopic: null,
     activeTagKey: null,
     loadError: null,

@@ -1,12 +1,9 @@
 import { BindDialog, openBindDialog } from './app-shell/ui/bind-dialog.tsx';
-import { SparkCommitDialog } from './app-shell/ui/spark-commit-dialog.tsx';
 import { SettingsDialog, openSettingsDialog } from './app-shell/ui/settings/dialog.tsx';
 import { SettingsDialogChrome } from './app-shell/ui/settings/chrome.tsx';
 
 void SettingsDialogChrome;
 import { KbCommentDialog } from './knowledge/ui/comments.tsx';
-import { KnowledgeDiffDialog } from './knowledge/ui/knowledge-diff-dialog.tsx';
-import { KbCommitDialog } from './knowledge/ui/viewer/commit.tsx';
 import { NoteCommentDialog } from './notes/ui/comments.tsx';
 import { DeleteDialog } from './notes/ui/delete-dialog.tsx';
 import { MoveProjectDialog } from './notes/ui/move-project-dialog.tsx';
@@ -17,7 +14,6 @@ import { SparkSearch } from './notes/ui/search.tsx';
 import { KnowledgeSearch } from './knowledge/ui/search.tsx';
 
 function closeMenuDropdowns() {
-  document.getElementById('sync-menu-dropdown')?.classList.remove('open');
   document.getElementById('tools-menu-dropdown')?.classList.remove('open');
 }
 
@@ -37,14 +33,6 @@ export function Shell() {
         </h1>
         <SparkSearch />
         <KnowledgeSearch />
-        <div id="sync-menu-wrap">
-          <button id="btn-sync-menu">⇕ Sync</button>
-          <div id="sync-menu-dropdown">
-            <button id="btn-push-index">↑ Commit changes</button>
-            <button id="btn-pull">↓ Update project</button>
-            <button id="btn-local-refresh">⟳ Refresh local</button>
-          </div>
-        </div>
         <div id="tools-menu-wrap">
           <button id="btn-tools-menu">⇔ Bind</button>
           <div id="tools-menu-dropdown">
@@ -76,9 +64,6 @@ export function Shell() {
       {/* <!-- Bind device dialog --> */}
       <BindDialog />
 
-      {/* <!-- KB Commit dialog --> */}
-      <KbCommitDialog />
-
       {/* <!-- KB Comment dialog --> */}
       <KbCommentDialog />
 
@@ -91,12 +76,6 @@ export function Shell() {
 
       {/* <!-- Comment dialog --> */}
       <NoteCommentDialog />
-
-      {/* <!-- Spark commit dialog --> */}
-      <SparkCommitDialog />
-
-      {/* <!-- Knowledge Diff dialog --> */}
-      <KnowledgeDiffDialog />
 
       {/* <!-- Move project dialog --> */}
       <MoveProjectDialog />

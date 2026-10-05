@@ -44,7 +44,6 @@ const BTN_FEED_CLICK_WIRING =
 
 function stubMountEnv() {
   return {
-    clearHeaderSyncKnowledgeContext: () => {},
     hideKnowledgeDocView: () => {},
     hideReadLaterView: () => {},
     hideHomeView: () => {},
@@ -63,7 +62,6 @@ function stubMountEnv() {
 
 function compileMountFn(fnSource, env) {
   const locals = [
-    'clearHeaderSyncKnowledgeContext',
     'hideKnowledgeDocView',
     'hideReadLaterView',
     'hideHomeView',

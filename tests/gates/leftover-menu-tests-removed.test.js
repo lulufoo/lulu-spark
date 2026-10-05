@@ -18,6 +18,9 @@ const deletedProductModules = [
   'frontend/src/app-shell/commands/convert-dialog.ts',
   'frontend/src/app-shell/ui/qr-dialog.tsx',
   'frontend/src/app-shell/commands/qr-dialog.ts',
+  'frontend/src/app-shell/ui/spark-commit-dialog.tsx',
+  'frontend/src/app-shell/commands/spark-commit-dialog.ts',
+  'frontend/src/app-shell/state/spark-commit.ts',
 ];
 
 const t6Path = join(repoRoot, 'tests/gates/copy-switch-t6-modals.test.js');
@@ -79,7 +82,7 @@ describe('leftover Convert / qr / move tests rewritten', () => {
     expect(t6).not.toMatch(/move-dialog\.js uses table B\/B2 move\/delete copy/);
     expect(t6).toContain('frontend/src/notes/ui/move-project-dialog.tsx');
     expect(t6).toContain('frontend/src/notes/commands/move-project-dialog.ts');
-    expect(t6).toContain('frontend/src/app-shell/ui/spark-commit-dialog.tsx');
+    expect(t6).not.toContain('frontend/src/app-shell/ui/spark-commit-dialog.tsx');
     expect(t6).toContain('frontend/src/notes/ui/delete-dialog.tsx');
     expect(t6).toContain('frontend/src/notes/ui/settle-dialog.tsx');
   });
