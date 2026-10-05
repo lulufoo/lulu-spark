@@ -35,7 +35,7 @@ fn stage_chat_document_grants_exact_file_and_reuses_handle() {
             .as_str()
             .unwrap()
             .to_string();
-        let file = sandbox.spark_root().join("notes").join("open.md");
+        let file = sandbox.data_dir().join("notes").join("open.md");
         fs::create_dir_all(file.parent().unwrap()).expect("dir");
         fs::write(&file, "body").expect("write");
         let first = stage_chat_document_json(&sid, &file.to_string_lossy()).expect("stage");
@@ -55,7 +55,7 @@ fn stage_chat_document_rejects_directory_and_in_flight() {
             .as_str()
             .unwrap()
             .to_string();
-        let dir = sandbox.spark_root().join("notes");
+        let dir = sandbox.data_dir().join("notes");
         fs::create_dir_all(&dir).expect("dir");
         let err = stage_chat_document_json(&sid, &dir.to_string_lossy()).expect_err("dir");
         assert!(err.contains("regular file"), "got {err}");
@@ -83,7 +83,7 @@ fn stage_chat_document_does_not_grant_write() {
             .as_str()
             .unwrap()
             .to_string();
-        let notes = sandbox.spark_root().join("notes");
+        let notes = sandbox.data_dir().join("notes");
         fs::create_dir_all(&notes).expect("notes");
         let file_a = notes.join("a.md");
         let file_b = notes.join("b.md");

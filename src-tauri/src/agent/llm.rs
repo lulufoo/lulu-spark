@@ -50,13 +50,13 @@ pub struct AssistantMessage {
 
 pub fn load_llm_config() -> Result<LlmConfig, LlmError> {
     let settings = settings::load().map_err(|_| LlmError::MissingConfig)?;
-    if !settings.assistant_engine.trim().eq_ignore_ascii_case("host") {
+    let Some(engine) = settings::normalize_engine_value(&settings.assistant_engine) else {
         return Err(LlmError::MissingConfig);
-    }
+    };
     let api_key = secrets::get_secret(KEY_LLM_API_KEY)
         .map_err(|_| LlmError::MissingConfig)?
         .unwrap_or_default();
-    let entry = settings::llm_entry_by_type(&settings.llm, "host")
+    let entry = settings::llm_entry_by_type(&settings.llm, engine)
         .filter(|entry| settings::is_supported_host_llm_entry(entry));
     let cfg = LlmConfig {
         api_key,

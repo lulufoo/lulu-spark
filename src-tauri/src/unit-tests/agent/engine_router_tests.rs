@@ -31,11 +31,14 @@ fn host_settings_with_model(model: &str) -> AppSettings {
 }
 
 #[test]
-fn resolve_engine_accepts_only_host_and_treats_legacy_values_as_unconfigured() {
-    assert_eq!(
-        engine_router::resolve_engine(&settings_with_engine("host")).expect("host"),
-        EngineKind::Host
-    );
+fn resolve_engine_accepts_known_categories_and_treats_legacy_values_as_unconfigured() {
+    for raw in ["host", "openai", "claude", "grok", "kimi", "qwen"] {
+        assert_eq!(
+            engine_router::resolve_engine(&settings_with_engine(raw)).expect(raw),
+            EngineKind::Host,
+            "{raw}"
+        );
+    }
 
     for raw in ["", "   ", "cursor", "bogus"] {
         assert!(

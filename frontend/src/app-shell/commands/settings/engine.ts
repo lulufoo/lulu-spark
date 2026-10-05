@@ -3,15 +3,16 @@ import { errMessage, type SettingsConfig } from '../../state/types.ts';
 import { getEnginePreset, listEngineCategories } from '../../state/settings/engine-presets.ts';
 import {
   DEFAULT_ENGINE_CATEGORY,
+  engineBaseUrlByCategory,
   engineKeyHints,
   engineModelByCategory,
   setResult,
   store,
 } from '../../state/settings/store.ts';
 
-function normalizeEngineCategory(raw: unknown): 'host' {
+function normalizeEngineCategory(raw: unknown): string {
   const id = String(raw || '').trim();
-  return id === 'host' ? id : DEFAULT_ENGINE_CATEGORY;
+  return getEnginePreset(id) ? id : DEFAULT_ENGINE_CATEGORY;
 }
 
 function ensureEngineCategoryOptions() {
@@ -30,9 +31,8 @@ function ensureEngineCategoryOptions() {
   }
 }
 
-function credentialHintForCategory(categoryId: string) {
-  const hasKey = categoryId === 'host' && engineKeyHints.has_host_key;
-  return hasKey
+function credentialHintForCategory(_categoryId: string) {
+  return engineKeyHints.has_host_key
     ? 'API key configured. Enter a new key to replace it.'
     : 'No API key configured.';
 }
@@ -41,7 +41,10 @@ function resolveEnginePreset(categoryId: string) {
   return getEnginePreset(categoryId) || getEnginePreset(DEFAULT_ENGINE_CATEGORY);
 }
 
-function fillReadonlyPresetFields(categoryId: string) {
+function fillPresetFields(
+  categoryId: string,
+  opts: { baseUrl?: string; forceBaseUrl?: boolean } = {},
+) {
   const preset = resolveEnginePreset(categoryId);
   const platformInput = document.getElementById('settings-llm-platform') as HTMLInputElement | null;
   const baseUrlInput = document.getElementById('settings-llm-base-url') as HTMLInputElement | null;
@@ -51,20 +54,25 @@ function fillReadonlyPresetFields(categoryId: string) {
     platformInput.classList.add('settings-input-readonly');
   }
   if (baseUrlInput) {
-    baseUrlInput.value = preset?.fields?.base_url ?? '';
-    baseUrlInput.readOnly = true;
-    baseUrlInput.classList.add('settings-input-readonly');
+    const saved = (opts.baseUrl ?? '').trim();
+    const fallback = preset?.fields?.base_url ?? '';
+    if (opts.forceBaseUrl || !baseUrlInput.value.trim()) {
+      baseUrlInput.value = saved || fallback;
+    }
+    baseUrlInput.readOnly = false;
+    baseUrlInput.classList.remove('settings-input-readonly');
   }
 }
 
 /**
- * Fill Assistant/Engine panel from config (category, readonly preset, model, credential hint).
+ * Fill Agent/LLM panel from config (category, preset, model, base URL, credential hint).
  */
 export function loadAssistantEnginePanel(cfg?: SettingsConfig | Record<string, unknown>) {
   ensureEngineCategoryOptions();
   const rec = (cfg ?? {}) as SettingsConfig;
   const categoryId = normalizeEngineCategory(rec.assistant_engine);
   const llm = rec.llm ?? {};
+  const preset = resolveEnginePreset(categoryId);
 
   engineKeyHints.has_host_key = Boolean(rec.has_host_key);
   const engineSelect = document.getElementById('settings-llm-engine') as HTMLSelectElement | null;
@@ -73,13 +81,18 @@ export function loadAssistantEnginePanel(cfg?: SettingsConfig | Record<string, u
   const apiKeyInput = document.getElementById('settings-llm-api-key') as HTMLInputElement | null;
 
   store.activeEngineCategory = categoryId;
-  // The facade exposes only the Host/GLM model.
-  engineModelByCategory.host = undefined;
-  engineModelByCategory[categoryId] =
-    typeof llm.model === 'string' ? llm.model : '';
+  const savedModel = typeof llm.model === 'string' ? llm.model : '';
+  engineModelByCategory[categoryId] = savedModel || preset?.fields?.model || '';
+  engineBaseUrlByCategory[categoryId] =
+    typeof llm.base_url === 'string' && llm.base_url.trim()
+      ? llm.base_url.trim()
+      : preset?.fields?.base_url || '';
 
   if (engineSelect) engineSelect.value = categoryId;
-  fillReadonlyPresetFields(categoryId);
+  fillPresetFields(categoryId, {
+    baseUrl: engineBaseUrlByCategory[categoryId],
+    forceBaseUrl: true,
+  });
   if (modelInput) {
     modelInput.value = engineModelByCategory[categoryId] ?? '';
     modelInput.readOnly = false;
@@ -90,7 +103,7 @@ export function loadAssistantEnginePanel(cfg?: SettingsConfig | Record<string, u
 }
 
 /**
- * Rebind panel to the Host/GLM model + readonly preset fields.
+ * Rebind panel to the selected category preset and any in-session draft.
  */
 export async function applyEngineCategorySelection(
   categoryId: unknown,
@@ -100,21 +113,30 @@ export async function applyEngineCategorySelection(
   const prev = store.activeEngineCategory;
   const engineSelect = document.getElementById('settings-llm-engine') as HTMLSelectElement | null;
   const modelInput = document.getElementById('settings-llm-model') as HTMLInputElement | null;
+  const baseUrlInput = document.getElementById('settings-llm-base-url') as HTMLInputElement | null;
   const keyHint = document.getElementById('settings-llm-key-hint');
   const apiKeyInput = document.getElementById('settings-llm-api-key') as HTMLInputElement | null;
+  const preset = resolveEnginePreset(id);
 
   if (modelInput) {
     engineModelByCategory[prev] = modelInput.value;
   }
+  if (baseUrlInput) {
+    engineBaseUrlByCategory[prev] = baseUrlInput.value;
+  }
   store.activeEngineCategory = id;
 
   if (engineSelect) engineSelect.value = id;
-  fillReadonlyPresetFields(id);
+  fillPresetFields(id, {
+    baseUrl: engineBaseUrlByCategory[id] ?? '',
+    forceBaseUrl: true,
+  });
   if (clearCredential && apiKeyInput) apiKeyInput.value = '';
   if (keyHint) keyHint.textContent = credentialHintForCategory(id);
 
   if (modelInput && store.activeEngineCategory === id) {
-    modelInput.value = engineModelByCategory[id] ?? '';
+    const draft = engineModelByCategory[id];
+    modelInput.value = draft ?? preset?.fields?.model ?? '';
     modelInput.readOnly = false;
     modelInput.disabled = false;
   }
@@ -122,15 +144,23 @@ export async function applyEngineCategorySelection(
 
 export async function saveAssistantEnginePanel() {
   const btn = document.getElementById('btn-settings-save-llm') as HTMLButtonElement;
-  void normalizeEngineCategory(
+  const categoryId = normalizeEngineCategory(
     (document.getElementById('settings-llm-engine') as HTMLSelectElement | null)?.value,
   );
-  const model = (document.getElementById('settings-llm-model') as HTMLInputElement | null)?.value.trim() ?? '';
+  const preset = resolveEnginePreset(categoryId);
+  const model =
+    (document.getElementById('settings-llm-model') as HTMLInputElement | null)?.value.trim()
+    || preset?.fields?.model
+    || '';
+  const baseUrl =
+    (document.getElementById('settings-llm-base-url') as HTMLInputElement | null)?.value.trim()
+    || preset?.fields?.base_url
+    || '';
   const apiKey = (document.getElementById('settings-llm-api-key') as HTMLInputElement | null)?.value.trim() ?? '';
 
   const payload: Record<string, unknown> = {
-    assistant_engine: 'host',
-    llm: { model },
+    assistant_engine: categoryId,
+    llm: { model, base_url: baseUrl },
   };
   if (apiKey) {
     payload.api_key_host = apiKey;
@@ -141,7 +171,7 @@ export async function saveAssistantEnginePanel() {
   try {
     const resp = await api.setConfig(payload);
     if (resp?.error) throw new Error(resp.error);
-    const parts = ['Engine', 'Model'];
+    const parts = ['LLM', 'Base URL', 'Model'];
     if (apiKey) parts.push('Credential');
     setResult('settings-result-llm', `Saved: ${parts.join(', ')}.`);
     const cleared = document.getElementById('settings-llm-api-key') as HTMLInputElement | null;

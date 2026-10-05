@@ -27,7 +27,7 @@ fn run_loop_uses_mcp_tools_and_feeds_tool_result_back_to_model() {
     mcp_registry::clear_for_tests();
     mcp_registry::seed_defaults();
 
-    let notes = sandbox.spark_root().join("notes");
+    let notes = sandbox.data_dir().join("notes");
     fs::create_dir_all(notes.join("raw")).expect("notes raw");
     fs::create_dir_all(notes.join("digest")).expect("notes digest");
     fs::write(notes.join("index.json"), br#"{"entries":{}}"#).expect("notes index");
@@ -111,7 +111,7 @@ fn run_loop_marks_successful_note_mcp_mutation_as_wrote() {
     mcp_registry::clear_for_tests();
     mcp_registry::seed_defaults();
 
-    let notes = sandbox.spark_root().join("notes");
+    let notes = sandbox.data_dir().join("notes");
     fs::create_dir_all(notes.join("raw")).expect("notes raw");
     fs::create_dir_all(notes.join("digest")).expect("notes digest");
     fs::write(notes.join("index.json"), br#"{"entries":{}}"#).expect("notes index");

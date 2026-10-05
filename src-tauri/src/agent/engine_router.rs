@@ -1,6 +1,6 @@
 //! Settings → Agent Loop routing and runtime configuration.
 //!
-//! The Host/GLM path is the only supported assistant channel. Legacy or
+//! Known LLM categories share the Host OpenAI-compatible adapter. Legacy or
 //! unknown `assistant_engine` values remain untouched in local settings but
 //! resolve to an unconfigured state and never invoke an Agent.
 
@@ -9,7 +9,7 @@ use serde::Serialize;
 use crate::config::secrets::{self, KEY_LLM_API_KEY};
 use crate::config::settings::{self, AppSettings};
 
-/// The only supported assistant engine: Agent Loop backed by GLM.
+/// Agent Loop path. Every known LLM category maps here.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum EngineKind {
@@ -42,7 +42,7 @@ impl std::fmt::Display for EngineRouteError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             EngineRouteError::Unconfigured => {
-                write!(f, "assistant engine is not configured; configure Host / GLM")
+                write!(f, "assistant engine is not configured; configure an LLM category")
             }
             EngineRouteError::Adapter(message) => write!(f, "adapter error: {message}"),
         }
@@ -65,12 +65,11 @@ pub struct RouteOutcome {
     pub body: String,
 }
 
-/// Resolve the only supported engine from settings.
+/// Resolve a known LLM category to the Host adapter.
 ///
-/// `host` selects Agent Loop. Empty, legacy, and every other value are
-/// deliberately treated as unconfigured instead of silently falling back.
+/// Empty, legacy, and unknown values stay unconfigured instead of falling back.
 pub fn resolve_engine(settings: &AppSettings) -> Result<EngineKind, EngineRouteError> {
-    if settings.assistant_engine.trim().eq_ignore_ascii_case("host") {
+    if settings::normalize_engine_value(&settings.assistant_engine).is_some() {
         Ok(EngineKind::Host)
     } else {
         Err(EngineRouteError::Unconfigured)
@@ -82,7 +81,8 @@ pub fn read_engine_runtime_config(
     settings: &AppSettings,
 ) -> Result<EngineRuntimeConfig, EngineRouteError> {
     let engine = resolve_engine(settings)?;
-    let model = settings::llm_entry_by_type(&settings.llm, "host")
+    let model = settings::normalize_engine_value(&settings.assistant_engine)
+        .and_then(|kind| settings::llm_entry_by_type(&settings.llm, kind))
         .map(|entry| entry.model.clone())
         .unwrap_or_default();
     let credential = secrets::get_secret(KEY_LLM_API_KEY)

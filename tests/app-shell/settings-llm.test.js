@@ -11,8 +11,6 @@ import { SettingsDialog } from '../../frontend/src/app-shell/ui/settings/dialog.
 vi.mock('../../frontend/src/host/api.ts', () => ({
   fetchConfig: vi.fn(),
   setConfig: vi.fn(),
-  inferGithubUserUrl: vi.fn(),
-  checkSparkRoot: vi.fn(),
 }));
 
 import * as api from '../../frontend/src/host/api.ts';
@@ -37,9 +35,6 @@ function baseConfig(overrides = {}) {
   return {
     spark_root: '',
     knowledge_root: '',
-    github_user_url: '',
-    spark_github_repo_url: '',
-    has_github_token: false,
     assistant_engine: 'host',
     has_host_key: false,
     llm: {
@@ -52,30 +47,56 @@ function baseConfig(overrides = {}) {
 }
 
 describe('Host-only Assistant settings', () => {
-  it('exposes only GLM in the preset catalog', () => {
-    expect(ENGINE_CATEGORIES).toEqual([
-      { id: 'host', label: 'GLM' },
+  it('exposes OpenAI, Claude, Grok, GLM, Kimi, and Qwen presets', () => {
+    expect(ENGINE_CATEGORIES.map((c) => c.id)).toEqual([
+      'openai',
+      'claude',
+      'grok',
+      'host',
+      'kimi',
+      'qwen',
     ]);
-    expect(listEngineCategories()).toEqual([
-      { id: 'host', label: 'GLM' },
+    expect(listEngineCategories().map((c) => c.label)).toEqual([
+      'OpenAI',
+      'Claude',
+      'Grok',
+      'GLM',
+      'Kimi',
+      'Qwen',
     ]);
 
-    const preset = getEnginePreset('host');
-    expect(preset.displayName).toBe('GLM');
-    expect(preset.editableFields).toEqual(['model']);
-    expect(preset.fields).toEqual({
+    const glm = getEnginePreset('host');
+    expect(glm.displayName).toBe('GLM');
+    expect(glm.editableFields).toEqual(['model', 'base_url']);
+    expect(glm.fields).toEqual({
       platform: 'glm',
       base_url: 'https://open.bigmodel.cn/api/paas/v4',
       model: '',
     });
+    expect(getEnginePreset('openai').fields).toEqual({
+      platform: 'openai',
+      base_url: 'https://api.openai.com/v1',
+      model: 'gpt-4.1',
+    });
+    expect(getEnginePreset('claude').fields.base_url).toBe('https://api.anthropic.com/v1');
+    expect(getEnginePreset('grok').fields.base_url).toBe('https://api.x.ai/v1');
+    expect(getEnginePreset('kimi').fields.base_url).toBe('https://api.moonshot.cn/v1');
+    expect(getEnginePreset('qwen').fields.base_url).toBe(
+      'https://dashscope.aliyuncs.com/compatible-mode/v1',
+    );
     expect(getEnginePreset('cursor')).toBeNull();
   });
 
-  it('renders one engine option and no Cursor UI', () => {
+  it('renders the six category options and no Cursor UI', () => {
     const select = indexHtml.match(
       /<select id="settings-llm-engine">([\s\S]*?)<\/select>/,
     )?.[1];
+    expect(select).toContain('value="openai"');
+    expect(select).toContain('value="claude"');
+    expect(select).toContain('value="grok"');
     expect(select).toContain('value="host"');
+    expect(select).toContain('value="kimi"');
+    expect(select).toContain('value="qwen"');
     expect(select).not.toMatch(/cursor/i);
     expect(indexHtml).not.toMatch(/Cursor Agent/);
   });
@@ -103,7 +124,7 @@ describe('Host-only Assistant settings', () => {
     await import('../../frontend/src/app-shell/commands/settings/dialog.ts');
   });
 
-  it('loads the GLM preset and model without a second engine slot', async () => {
+  it('loads the GLM preset and model among the six categories', async () => {
     const { openSettingsDialog } = await import(
       '../../frontend/src/app-shell/commands/settings/dialog.ts'
     );
@@ -114,10 +135,30 @@ describe('Host-only Assistant settings', () => {
     expect(document.getElementById('settings-llm-base-url').value).toBe(
       'https://open.bigmodel.cn/api/paas/v4',
     );
+    expect(document.getElementById('settings-llm-base-url').readOnly).toBe(false);
     expect(document.getElementById('settings-llm-model').value).toBe('glm-4');
+    expect(document.querySelectorAll('#settings-llm-engine option')).toHaveLength(6);
     expect(document.getElementById('settings-llm-key-hint').textContent).toMatch(
       /configured|API key/i,
     );
+  });
+
+  it('loads a saved Base URL and keeps the field editable', async () => {
+    api.fetchConfig.mockResolvedValueOnce(baseConfig({
+      llm: {
+        platform: 'glm',
+        base_url: 'https://proxy.example/v4',
+        model: 'glm-4',
+      },
+    }));
+    const { openSettingsDialog } = await import(
+      '../../frontend/src/app-shell/commands/settings/dialog.ts'
+    );
+    await openSettingsDialog();
+
+    const input = document.getElementById('settings-llm-base-url');
+    expect(input.value).toBe('https://proxy.example/v4');
+    expect(input.readOnly).toBe(false);
   });
 
   it('saves only Host/GLM model and credential fields', async () => {
@@ -133,10 +174,29 @@ describe('Host-only Assistant settings', () => {
     const payload = api.setConfig.mock.calls[0][0];
     expect(payload).toEqual({
       assistant_engine: 'host',
-      llm: { model: 'glm-4-air' },
+      llm: {
+        model: 'glm-4-air',
+        base_url: 'https://open.bigmodel.cn/api/paas/v4',
+      },
       api_key_host: 'sk-host-new',
     });
     expect(payload.api_key_cursor).toBeUndefined();
+  });
+
+  it('saves a custom Base URL', async () => {
+    const { openSettingsDialog } = await import(
+      '../../frontend/src/app-shell/commands/settings/dialog.ts'
+    );
+    await openSettingsDialog();
+    document.getElementById('settings-llm-base-url').value = 'https://proxy.example/v4';
+    document.getElementById('settings-llm-model').value = 'glm-4-air';
+    document.getElementById('btn-settings-save-llm').click();
+
+    await vi.waitFor(() => expect(api.setConfig).toHaveBeenCalled());
+    expect(api.setConfig.mock.calls[0][0].llm).toEqual({
+      model: 'glm-4-air',
+      base_url: 'https://proxy.example/v4',
+    });
   });
 
   it.each(['cursor', '', '   ', 'bogus', null, undefined])(
@@ -157,7 +217,35 @@ describe('Host-only Assistant settings', () => {
       expect(document.getElementById('settings-llm-base-url').value).toBe(
         'https://open.bigmodel.cn/api/paas/v4',
       );
-      expect(document.querySelectorAll('#settings-llm-engine option')).toHaveLength(1);
+      expect(document.querySelectorAll('#settings-llm-engine option')).toHaveLength(6);
     },
   );
+
+  it('fills OpenAI preset fields when the category changes', async () => {
+    const { openSettingsDialog } = await import(
+      '../../frontend/src/app-shell/commands/settings/dialog.ts'
+    );
+    await openSettingsDialog();
+    const select = document.getElementById('settings-llm-engine');
+    select.value = 'openai';
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+
+    await vi.waitFor(() => {
+      expect(document.getElementById('settings-llm-platform').value).toBe('openai');
+    });
+    expect(document.getElementById('settings-llm-base-url').value).toBe(
+      'https://api.openai.com/v1',
+    );
+    expect(document.getElementById('settings-llm-model').value).toBe('gpt-4.1');
+
+    document.getElementById('btn-settings-save-llm').click();
+    await vi.waitFor(() => expect(api.setConfig).toHaveBeenCalled());
+    expect(api.setConfig.mock.calls[0][0]).toMatchObject({
+      assistant_engine: 'openai',
+      llm: {
+        model: 'gpt-4.1',
+        base_url: 'https://api.openai.com/v1',
+      },
+    });
+  });
 });
