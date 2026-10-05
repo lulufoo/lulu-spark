@@ -203,6 +203,7 @@ describe('ai-assistant window shell (t5)', () => {
     expect(capability.identifier).toBe('default');
     expect(capability.windows).toContain('main');
     expect(capability.permissions).toContain('core:default');
+    expect(capability.permissions).toContain('core:window:allow-start-dragging');
     expect(capability.permissions).toContain('write-api');
     const capFiles = readdirSync(join(repoRoot, 'src-tauri/capabilities')).filter(
       (name) => name.endsWith('.json'),
