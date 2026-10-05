@@ -76,7 +76,7 @@ describe('T10 Host MCP archive + contract retarget (V2/V3/V4)', () => {
 
   it('todo-task-mcp-e2e reads architecture constraints for Skills loopback and L0 paths', () => {
     const src = read('scripts/todo-task-mcp-e2e.mjs');
-    expect(src).toContain('docs/architecture/arch-layer-constraints.md');
+    expect(src).toContain('docs/mac/architecture/arch-layer-constraints.md');
     expect(src).toContain('127.0.0.1:9876/mcp/cursor_ide');
     expect(src).toContain('127.0.0.1:9876/mcp/spark');
     expect(src).toMatch(/\/mcp\/spark/);

@@ -76,12 +76,15 @@ const NOTES_TOOLS_E2E = [
 export function assertDualChannelE2eContract() {
   const docPath = path.join(
     E2E_REPO_ROOT,
+    '..',
+    'lulu-spark-workspace',
     'docs',
+    'mac',
     'architecture',
     'arch-layer-constraints.md',
   );
   if (!fs.existsSync(docPath)) {
-    throw new Error('dual-channel e2e: missing docs/architecture/arch-layer-constraints.md');
+    throw new Error('dual-channel e2e: missing docs/mac/architecture/arch-layer-constraints.md');
   }
   const doc = fs.readFileSync(docPath, 'utf8');
   if (!doc.includes('127.0.0.1:9876/mcp/cursor_ide')) {
