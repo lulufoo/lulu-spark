@@ -275,35 +275,19 @@ describe('mountKnowledgeDocList', () => {
     expect(container.querySelector('.knowledge-doc-main-list')).toBeNull();
   });
 
-  it('puts directory toggle left of reader header meta', async () => {
+  it('does not render a directory collapse toggle', async () => {
     api.fetchKbList.mockResolvedValue(sampleRootEntries);
 
     const unmount = mountKnowledgeDocList(container, { repo: 'owner/repo', navigate });
     await flushPromises();
 
-    const toggle = container.querySelector('.kb-btn-tree-toggle');
-    const meta = container.querySelector('.kb-reader-header-meta');
-    expect(toggle).not.toBeNull();
-    expect(toggle?.nextElementSibling).toBe(meta);
-
-    toggle.click();
-    expect(container.querySelector('.knowledge-doc-layout')?.classList.contains('is-tree-collapsed')).toBe(true);
-    expect(localStorage.getItem('knowledge_tree_collapsed')).toBe('1');
-    expect(toggle.classList.contains('is-collapsed')).toBe(true);
-    expect(toggle.querySelector('svg')).not.toBeNull();
-    unmount();
-  });
-
-  it('restores collapsed directory from localStorage', async () => {
-    localStorage.setItem('knowledge_tree_collapsed', '1');
-    api.fetchKbList.mockResolvedValue(sampleRootEntries);
-
-    const unmount = mountKnowledgeDocList(container, { repo: 'owner/repo', navigate });
-    await flushPromises();
-
-    expect(container.querySelector('.knowledge-doc-layout')?.classList.contains('is-tree-collapsed')).toBe(true);
-    expect(container.querySelector('.kb-btn-tree-toggle')?.classList.contains('is-collapsed')).toBe(true);
-    expect(container.querySelector('.kb-btn-tree-toggle')?.querySelector('svg')).not.toBeNull();
+    expect(container.querySelector('.kb-btn-tree-toggle')).toBeNull();
+    expect(container.querySelector('.knowledge-doc-layout')?.classList.contains('is-tree-collapsed')).toBe(false);
+    const header = container.querySelector('.kb-reader-header');
+    expect(header?.querySelector('#gs-kb-wrap')).toBe(header?.firstElementChild);
+    expect(header?.querySelector('#gs-kb-wrap')?.nextElementSibling).toBe(
+      container.querySelector('.kb-reader-header-meta'),
+    );
     unmount();
   });
 

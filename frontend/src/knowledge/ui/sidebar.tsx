@@ -4,6 +4,8 @@ import { knowledgeTreeStore } from '../state/tree.ts';
 import { KnowledgeTreeDeleteDialog } from './tree-delete-dialog.tsx';
 import { KnowledgeTreeMenu } from './tree-menu.tsx';
 import { ReaderShell } from './viewer/shell.tsx';
+import { PageBackHome } from '../../shared/home-mark.tsx';
+import { WindowDragStrip } from '../../shared/window-drag-strip.tsx';
 
 function TreeChevron({ expanded }: { expanded: boolean }) {
   return (
@@ -231,6 +233,9 @@ export function KnowledgeDocLayout() {
   return (
     <div className="knowledge-doc-layout">
       <aside className="knowledge-doc-sidebar">
+        <WindowDragStrip>
+          <PageBackHome />
+        </WindowDragStrip>
         <div className="knowledge-doc-sidebar-header">
           <div className="knowledge-repo-picker-host" />
         </div>

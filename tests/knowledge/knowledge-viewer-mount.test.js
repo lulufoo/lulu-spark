@@ -133,13 +133,14 @@ describe('mountKbReader', () => {
     });
     await flushPromises();
 
-    const start = container.querySelector('.kb-reader-header-start');
-    const toggle = container.querySelector('.kb-btn-tree-toggle');
+    const header = container.querySelector('.kb-reader-header');
+    const search = container.querySelector('#gs-kb-wrap');
     const meta = container.querySelector('.kb-reader-header-meta');
     const size = container.querySelector('.kb-file-size');
-    expect(start?.contains(toggle)).toBe(true);
-    expect(toggle?.querySelector('svg')).not.toBeNull();
-    expect(toggle?.nextElementSibling).toBe(meta);
+    expect(container.querySelector('.kb-btn-tree-toggle')).toBeNull();
+    expect(header?.getAttribute('data-tauri-drag-region')).toBe('deep');
+    expect(header?.firstElementChild).toBe(search);
+    expect(search?.nextElementSibling).toBe(meta);
     expect(meta?.contains(size)).toBe(true);
     expect(size?.textContent).toMatch(/B|KB|MB/);
     expect(container.querySelector('.kb-file-committed')).toBeNull();

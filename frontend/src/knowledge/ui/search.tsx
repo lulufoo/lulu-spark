@@ -242,9 +242,9 @@ export function KnowledgeSearchFields() {
   );
 }
 
-export function KnowledgeSearch() {
+export function KnowledgeSearch({ hidden: startHidden = true }: { hidden?: boolean } = {}) {
   return (
-    <div id="gs-kb-wrap" className="gs-search-wrap" hidden data-kb-search="react">
+    <div id="gs-kb-wrap" className="gs-search-wrap" hidden={startHidden} data-kb-search="react">
       <KnowledgeSearchFields />
     </div>
   );

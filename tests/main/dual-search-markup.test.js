@@ -6,7 +6,11 @@ import { describe, it, expect } from 'vitest';
 import { readShellHtml } from '../helpers/read-frontend-js.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
-const indexHtml = readShellHtml();
+const indexHtml = [
+  readShellHtml(),
+  readFileSync(join(fixtureRoot, 'frontend/src/notes/ui/search.tsx'), 'utf8'),
+  readFileSync(join(fixtureRoot, 'frontend/src/knowledge/ui/search.tsx'), 'utf8'),
+].join('\n');
 const appCss = readFileSync(join(fixtureRoot, 'frontend/app.css'), 'utf8');
 
 describe('dual search markup (index.html)', () => {
@@ -46,6 +50,10 @@ describe('dual search CSS (app.css)', () => {
     expect(appCss).not.toMatch(/#gs-mode-pill\b/);
     expect(appCss).toMatch(/\.gs-search-wrap\b/);
     expect(appCss).toMatch(/\.gs-search-input\b/);
+    expect(appCss).toMatch(/\.gs-search-input \{[\s\S]*?background: #fff;/);
+    expect(appCss).toMatch(/\.page-toolbar \.gs-search-input \{[\s\S]*?background: #fff;/);
+    expect(appCss).toMatch(/\.kb-reader-header \.gs-search-input[\s\S]*?background: #f6f8fa;/);
+    expect(appCss).toMatch(/\.gs-search-input \{[\s\S]*?min-height: 36px;/);
     expect(appCss).toMatch(/\.gs-search-dropdown\b/);
   });
 
