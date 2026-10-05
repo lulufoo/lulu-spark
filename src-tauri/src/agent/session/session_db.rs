@@ -28,7 +28,28 @@ fn open(path: &PathBuf) -> Result<Connection, String> {
     conn.execute_batch(SESSION_SCHEMA)
         .map_err(|e| e.to_string())?;
     ensure_last_prompt_columns(&conn)?;
+    ensure_column(&conn, "meta", "llm", "TEXT")?;
     Ok(conn)
+}
+
+fn ensure_column(conn: &Connection, table: &str, column: &str, decl: &str) -> Result<(), String> {
+    let mut stmt = conn
+        .prepare(&format!("PRAGMA table_info({table})"))
+        .map_err(|e| e.to_string())?;
+    let names = stmt
+        .query_map([], |row| row.get::<_, String>(1))
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+    if names.iter().any(|name| name == column) {
+        return Ok(());
+    }
+    conn.execute(
+        &format!("ALTER TABLE {table} ADD COLUMN {column} {decl}"),
+        [],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 fn ensure_last_prompt_columns(conn: &Connection) -> Result<(), String> {
@@ -170,14 +191,16 @@ pub fn save(path: &PathBuf, session: &Session, title: &str, now: i64) -> Result<
     let tx = conn.transaction().map_err(|e| e.to_string())?;
     turn_store::sync(&tx, &stored_steps, &session.turns, now)?;
     sync_staged(&tx, &stored_staged, &session.staged)?;
+    let llm = session.llm.as_deref().unwrap_or("");
     tx.execute(
-        "INSERT INTO meta (session_id, created_at, updated_at, title, status)
-         VALUES (?1, ?2, ?3, ?4, ?5)
+        "INSERT INTO meta (session_id, created_at, updated_at, title, status, llm)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6)
          ON CONFLICT(session_id) DO UPDATE SET
            updated_at = excluded.updated_at,
            title = excluded.title,
-           status = excluded.status",
-        params![session.session_id, created_at, now, title, SESSION_STATUS_IDLE],
+           status = excluded.status,
+           llm = excluded.llm",
+        params![session.session_id, created_at, now, title, SESSION_STATUS_IDLE, llm],
     )
     .map_err(|e| e.to_string())?;
     tx.commit().map_err(|e| e.to_string())?;
@@ -189,13 +212,21 @@ pub fn load(path: &PathBuf) -> Result<Session, String> {
         return Err("Session not found".into());
     }
     let conn = open(path)?;
-    let session_id: String = conn
-        .query_row("SELECT session_id FROM meta LIMIT 1", [], |row| row.get(0))
+    let (session_id, llm): (String, Option<String>) = conn
+        .query_row(
+            "SELECT session_id, llm FROM meta LIMIT 1",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
         .map_err(|e| e.to_string())?;
+    let llm = llm
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
     Ok(Session {
         session_id,
         turns: turn_store::load_turns(&conn)?,
         staged: load_staged(&conn)?,
+        llm,
     })
 }
 

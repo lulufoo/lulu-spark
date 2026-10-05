@@ -152,6 +152,7 @@ fn other_tools_pass_through() {
         session_id: "sess_passthrough".into(),
         turns: Vec::new(),
         staged: Vec::new(),
+        llm: None,
     };
     let result = ToolResult {
         content: json!({ "id": "x", "ok": true, "path": "/tmp/x.md" }).to_string(),

@@ -230,3 +230,49 @@ fn save_writes_only_changed_staged_entries() {
         assert_eq!(updates, 1);
     });
 }
+
+#[test]
+fn catalog_stamps_create_llm_and_keeps_empty_unset() {
+    with_sandbox(|_| {
+        let first = session::create_session().expect("first");
+        assert_eq!(first.llm.as_deref(), Some("host"));
+        let listed = session::list_session_summaries().expect("list");
+        assert_eq!(listed[0]["llm"], "host");
+
+        let mut settings = crate::config::settings::load().expect("load settings");
+        settings.assistant_engine = "claude".into();
+        crate::config::settings::save(&settings).expect("save settings");
+        let second = session::create_session().expect("second");
+        assert_eq!(second.llm.as_deref(), Some("claude"));
+        let again = session::load_session(&first.session_id).expect("reload first");
+        assert_eq!(again.llm.as_deref(), Some("host"));
+
+        let listed = session::list_session_summaries().expect("list two");
+        let claude = listed
+            .iter()
+            .find(|row| row["session_id"] == second.session_id)
+            .expect("claude row");
+        let host = listed
+            .iter()
+            .find(|row| row["session_id"] == first.session_id)
+            .expect("host row");
+        assert_eq!(claude["llm"], "claude");
+        assert_eq!(host["llm"], "host");
+
+        let bare = session::Session {
+            session_id: "spark_chat_legacy_llm".into(),
+            turns: Vec::new(),
+            staged: Vec::new(),
+            llm: None,
+        };
+        session::save_session(&bare).expect("save bare");
+        let loaded = session::load_session(&bare.session_id).expect("load bare");
+        assert!(loaded.llm.is_none());
+        let listed = session::list_session_summaries().expect("list bare");
+        let row = listed
+            .iter()
+            .find(|item| item["session_id"] == bare.session_id)
+            .expect("bare row");
+        assert!(row.get("llm").is_none());
+    });
+}

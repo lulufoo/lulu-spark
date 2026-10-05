@@ -59,11 +59,21 @@ pub fn session_file_path(session_id: &str) -> Result<PathBuf, String> {
     Ok(sessions_dir()?.join(format!("{id}.sqlite")))
 }
 
+fn current_session_llm() -> Option<String> {
+    crate::config::settings::load()
+        .ok()
+        .and_then(|settings| {
+            crate::config::settings::normalize_engine_value(&settings.assistant_engine)
+                .map(|id| id.to_string())
+        })
+}
+
 pub fn create_session() -> Result<Session, String> {
     let session = Session {
         session_id: format!("spark_chat_{}", random_entry_id()),
         turns: Vec::new(),
         staged: Vec::new(),
+        llm: current_session_llm(),
     };
     save_session(&session)?;
     Ok(session)
@@ -74,7 +84,13 @@ pub fn save_session(session: &Session) -> Result<(), String> {
     let now = unix_secs();
     let title = session_list_title(session, now);
     session_db::save(&path, session, &title, now)?;
-    catalog::upsert(&catalog_file_path()?, &session.session_id, &title, now)?;
+    catalog::upsert(
+        &catalog_file_path()?,
+        &session.session_id,
+        &title,
+        now,
+        session.llm.as_deref().unwrap_or(""),
+    )?;
     Ok(())
 }
 

@@ -1,5 +1,25 @@
 import { useState } from 'react';
+import { getEnginePreset } from '../../app-shell/state/settings/engine-presets.ts';
+import { LlmMark } from '../../shared/llm-mark.tsx';
 import { sessionListLabel, type HubSession } from '../state/store.ts';
+
+function ChatIcon() {
+  return (
+    <svg className="home-chat-session-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path
+        fill="currentColor"
+        d="M4 4h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H9l-5 4v-4H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"
+      />
+    </svg>
+  );
+}
+
+function SessionLlmIcon({ llm }: { llm?: string }) {
+  if (!getEnginePreset(String(llm || ''))) {
+    return <ChatIcon />;
+  }
+  return <LlmMark category={String(llm)} />;
+}
 
 function TrashIcon() {
   return (
@@ -50,7 +70,8 @@ export function SessionList({
                 if (id) onSelect(id);
               }}
             >
-              {title}
+              <SessionLlmIcon llm={s.llm} />
+              <span className="home-chat-session-label">{title}</span>
               {flying ? (
                 <span className="home-chat-session-progress" aria-hidden="true">
                   …

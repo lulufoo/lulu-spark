@@ -8,7 +8,8 @@ CREATE TABLE IF NOT EXISTS meta (
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL,
   title TEXT NOT NULL,
-  status TEXT NOT NULL
+  status TEXT NOT NULL,
+  llm TEXT
 );
 CREATE TABLE IF NOT EXISTS messages (
   message_id TEXT PRIMARY KEY,
@@ -51,7 +52,8 @@ CREATE TABLE IF NOT EXISTS sessions (
   session_id TEXT PRIMARY KEY,
   title TEXT NOT NULL,
   updated_at INTEGER NOT NULL,
-  status TEXT NOT NULL
+  status TEXT NOT NULL,
+  llm TEXT
 );
 "#;
 

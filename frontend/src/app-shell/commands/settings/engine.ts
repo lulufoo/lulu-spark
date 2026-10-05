@@ -7,6 +7,7 @@ import {
   engineKeyHints,
   engineModelByCategory,
   setResult,
+  publishEngineCategory,
   store,
 } from '../../state/settings/store.ts';
 
@@ -81,6 +82,7 @@ export function loadAssistantEnginePanel(cfg?: SettingsConfig | Record<string, u
   const apiKeyInput = document.getElementById('settings-llm-api-key') as HTMLInputElement | null;
 
   store.activeEngineCategory = categoryId;
+  publishEngineCategory(categoryId);
   const savedModel = typeof llm.model === 'string' ? llm.model : '';
   engineModelByCategory[categoryId] = savedModel || preset?.fields?.model || '';
   engineBaseUrlByCategory[categoryId] =
@@ -125,6 +127,7 @@ export async function applyEngineCategorySelection(
     engineBaseUrlByCategory[prev] = baseUrlInput.value;
   }
   store.activeEngineCategory = id;
+  publishEngineCategory(id);
 
   if (engineSelect) engineSelect.value = id;
   fillPresetFields(id, {

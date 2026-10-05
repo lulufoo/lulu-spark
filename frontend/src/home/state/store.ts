@@ -6,6 +6,7 @@ export type HubSession = {
   session_id?: string;
   title?: string;
   updated_at?: number;
+  llm?: string;
 };
 
 export type HubMessage = {

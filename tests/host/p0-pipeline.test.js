@@ -29,6 +29,10 @@ describe('P0 Vite + React + TypeScript pipeline', () => {
     expect(conf.build.beforeBuildCommand).toBe('npm run build');
     expect(conf.build.devUrl).toBe('http://localhost:5173');
     expect(conf.build.frontendDist).toBe('../frontend/dist');
+    const win = conf.app.windows[0];
+    expect(win.titleBarStyle).toBe('Overlay');
+    expect(win.hiddenTitle).toBe(true);
+    expect(win.trafficLightPosition).toEqual({ x: 16, y: 18 });
   });
 
   it('index.html enters through src/main.tsx', () => {

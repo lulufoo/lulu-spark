@@ -103,7 +103,8 @@ pub struct LiveExecContext {
 ///
 /// Allocates / holds live `session_id`, business binding, MCP capability, generation,
 /// and cancel flags. Persists turns only through the existing Session cache — never
-/// a parallel turn store. Engine/model config is not session state.
+/// a parallel turn store. Adapter routing stays on Settings. The chat list may
+/// store a display `llm` category on the Session / catalog row.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct AIAssistantSession {
     pub(crate) current_session_id: Option<String>,
@@ -181,6 +182,10 @@ pub struct Session {
     pub turns: Vec<Turn>,
     #[serde(default)]
     pub staged: Vec<StagedEntry>,
+    /// Display LLM category (`openai` / `claude` / `grok` / `host` / `kimi` / `qwen`).
+    /// Empty on sessions created before this field existed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub llm: Option<String>,
 }
 
 impl Session {

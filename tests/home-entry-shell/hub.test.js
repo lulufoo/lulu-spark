@@ -219,6 +219,12 @@ describe('home hub chat sessions', () => {
       'Hello from first',
       'New conversation',
     ]);
+    expect(items.every((el) => el.querySelector('.home-chat-session-icon'))).toBe(true);
+    expect(items.every((el) => el.querySelector('[data-llm]'))).toBe(false);
+    expect(items.map((el) => el.querySelector('.home-chat-session-label')?.textContent)).toEqual([
+      'Hello from first',
+      'New conversation',
+    ]);
     await vi.waitFor(() => {
       expect(
         container
@@ -227,6 +233,19 @@ describe('home hub chat sessions', () => {
           ?.classList.contains('is-active'),
       ).toBe(true);
     });
+  });
+
+  it('uses the session llm mark when recorded and a chat icon when missing', async () => {
+    sessions = [
+      { session_id: 's1', title: 'Hello from first', llm: 'claude' },
+      { session_id: 's2', title: 'New conversation' },
+    ];
+    await mountReady();
+    const marked = container.querySelector('[data-session-id="s1"] [data-llm="claude"]');
+    const unset = container.querySelector('[data-session-id="s2"]');
+    expect(marked).not.toBeNull();
+    expect(unset?.querySelector('[data-llm]')).toBeNull();
+    expect(unset?.querySelector('.home-chat-session-icon')).not.toBeNull();
   });
 
   it('renders assistant replies as markdown and keeps user text escaped', async () => {

@@ -172,6 +172,7 @@ fn load_session_still_reads_legacy_sess_id() {
             session_id: "sess_84dafc26cec6".into(),
             turns: Vec::new(),
             staged: Vec::new(),
+            llm: None,
         };
         session::save_session(&legacy).expect("save legacy");
         let loaded = session::load_session("sess_84dafc26cec6").expect("load legacy");

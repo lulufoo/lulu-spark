@@ -1,4 +1,10 @@
 export const DEFAULT_ENGINE_CATEGORY = 'host';
+export const ENGINE_CHANGED_EVENT = 'spark:engine-changed';
+
+export function publishEngineCategory(categoryId: string) {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new CustomEvent(ENGINE_CHANGED_EVENT, { detail: { categoryId } }));
+}
 
 export const engineKeyHints = {
   has_host_key: false,
