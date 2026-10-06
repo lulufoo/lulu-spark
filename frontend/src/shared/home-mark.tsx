@@ -10,9 +10,20 @@ export function HomeMark({ className = 'header-home-mark' }: { className?: strin
 export function PageBackHome() {
   return (
     <a href="#/home" className="page-back-home" aria-label="Home">
-      <span className="page-back-home-chevron" aria-hidden="true">
-        ←
-      </span>
+      <svg
+        className="page-back-home-icon"
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+        focusable="false"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="m12 19-7-7 7-7" />
+        <path d="M19 12H5" />
+      </svg>
     </a>
   );
 }
