@@ -10,7 +10,7 @@ pub(super) use std::time::Duration;
 
 pub(super) use serde_json::{json, Value};
 
-pub(super) use crate::config::secrets::{self, KEY_LLM_API_KEY};
+pub(super) use crate::config::secrets;
 pub(super) use crate::config::settings;
 pub(super) use crate::agent::llm::LlmConfig;
 pub(super) use crate::agent::r#loop::{self, Terminal, TurnOutcome, EVENT_TURN_COMPLETED};
@@ -236,7 +236,7 @@ pub(super) fn install_llm_cfg(mock: &MockLlm) {
     )
     .expect("upsert host llm");
     settings::save(&s).expect("save");
-    secrets::set_secret(KEY_LLM_API_KEY, "sk-test").expect("key");
+    secrets::set_secret("sk-test").expect("key");
 }
 
 pub(super) fn assistant_text(content: &str) -> (u16, Value) {

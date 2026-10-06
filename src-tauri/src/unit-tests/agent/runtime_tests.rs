@@ -8,7 +8,7 @@ use std::time::Duration;
 
 use serde_json::{json, Value};
 
-use crate::config::secrets::{self, KEY_LLM_API_KEY};
+use crate::config::secrets;
 use crate::config::settings;
 use crate::agent::engine_router;
 use crate::agent::r#loop::{self, ChatTurnResult, EVENT_TURN_COMPLETED};
@@ -149,7 +149,7 @@ fn install_host_llm(mock: &MockLlm) {
     )
     .expect("host entry");
     settings::save(&app_settings).expect("save");
-    secrets::set_secret(KEY_LLM_API_KEY, "sk-host").expect("host key");
+    secrets::set_secret("sk-host").expect("host key");
 }
 
 #[test]

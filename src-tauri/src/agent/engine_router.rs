@@ -6,7 +6,7 @@
 
 use serde::Serialize;
 
-use crate::config::secrets::{self, KEY_LLM_API_KEY};
+use crate::config::secrets;
 use crate::config::settings::{self, AppSettings};
 
 /// Agent Loop path. Every known LLM category maps here.
@@ -85,7 +85,7 @@ pub fn read_engine_runtime_config(
         .and_then(|kind| settings::llm_entry_by_type(&settings.llm, kind))
         .map(|entry| entry.model.clone())
         .unwrap_or_default();
-    let credential = secrets::get_secret(KEY_LLM_API_KEY)
+    let credential = secrets::get_secret()
         .ok()
         .flatten()
         .map(|secret| secret.trim().to_string())

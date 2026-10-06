@@ -1,4 +1,4 @@
-use crate::config::secrets::{self, KEY_LLM_API_KEY};
+use crate::config::secrets;
 use crate::config::settings;
 use crate::test_support::TestSandbox;
 
@@ -35,7 +35,7 @@ fn host_config_persists_glm_model_and_host_credential_without_echoing_secret() {
         assert_eq!(json["has_host_key"], true);
         assert!(json.get("has_cursor_key").is_none());
         assert_eq!(
-            secrets::get_secret(KEY_LLM_API_KEY).expect("get"),
+            secrets::get_secret().expect("get"),
             Some("sk-host".into())
         );
         let text = std::fs::read_to_string(settings::config_file_path().expect("path"))
@@ -61,7 +61,7 @@ fn cursor_payload_is_rejected_without_rewriting_existing_settings() {
 #[test]
 fn rejected_engine_payload_does_not_write_host_credential() {
     with_config(|| {
-        secrets::set_secret(KEY_LLM_API_KEY, "sk-existing").expect("existing key");
+        secrets::set_secret("sk-existing").expect("existing key");
         let result = super::apply_config_payload(&serde_json::json!({
             "assistant_engine": "cursor",
             "api_key_host": "sk-should-not-write"
@@ -69,7 +69,7 @@ fn rejected_engine_payload_does_not_write_host_credential() {
 
         assert!(result.is_err(), "legacy engine payload must be rejected");
         assert_eq!(
-            secrets::get_secret(KEY_LLM_API_KEY).expect("get key"),
+            secrets::get_secret().expect("get key"),
             Some("sk-existing".into())
         );
     });
@@ -83,9 +83,5 @@ fn legacy_cursor_secret_payload_is_ignored() {
         )
         .expect("token");
         assert!(!secrets::has_host_key());
-        assert_eq!(
-            secrets::get_secret("llm_api_key_cursor").expect("legacy lookup"),
-            None
-        );
     });
 }

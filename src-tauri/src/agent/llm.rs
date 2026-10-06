@@ -8,7 +8,7 @@ use reqwest::blocking::Client;
 use serde_json::{json, Value};
 
 use crate::agent::session;
-use crate::config::secrets::{self, KEY_LLM_API_KEY};
+use crate::config::secrets;
 use crate::config::settings;
 
 pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(120);
@@ -53,7 +53,7 @@ pub fn load_llm_config() -> Result<LlmConfig, LlmError> {
     let Some(engine) = settings::normalize_engine_value(&settings.assistant_engine) else {
         return Err(LlmError::MissingConfig);
     };
-    let api_key = secrets::get_secret(KEY_LLM_API_KEY)
+    let api_key = secrets::get_secret()
         .map_err(|_| LlmError::MissingConfig)?
         .unwrap_or_default();
     let entry = settings::llm_entry_by_type(&settings.llm, engine)

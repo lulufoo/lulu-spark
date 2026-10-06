@@ -1,35 +1,20 @@
-//! Host secrets. The on-disk / Keychain shape is the vault tree in `vault.rs`.
-//! `TestSandbox` (and `cfg(test)`) stay in memory. Debug builds persist the
-//! same tree as nested TOML; release builds persist it as one Keychain item.
+//! Host LLM credential. The store is the vault tree.
 
 pub use crate::config::vault::{SecretError, KEY_LLM_API_KEY};
 
 use crate::config::vault;
 
-pub fn get_secret(key: &str) -> Result<Option<String>, SecretError> {
-    if key != KEY_LLM_API_KEY {
-        return Ok(None);
-    }
+pub fn get_secret() -> Result<Option<String>, SecretError> {
     vault::get_llm_api_key()
 }
 
-pub fn set_secret(key: &str, value: &str) -> Result<(), SecretError> {
-    if key != KEY_LLM_API_KEY {
-        return Ok(());
-    }
+pub fn set_secret(value: &str) -> Result<(), SecretError> {
     vault::set_llm_api_key(value)
 }
 
-pub fn delete_secret(key: &str) -> Result<(), SecretError> {
-    if key != KEY_LLM_API_KEY {
-        return Ok(());
-    }
-    vault::delete_llm_api_key()
-}
-
-/// Host credential present (`KEY_LLM_API_KEY`).
+/// Host credential present.
 pub fn has_host_key() -> bool {
-    get_secret(KEY_LLM_API_KEY)
+    get_secret()
         .ok()
         .flatten()
         .map(|s| !s.is_empty())
@@ -39,18 +24,9 @@ pub fn has_host_key() -> bool {
 /// Apply token fields from `set_config` payload.
 pub fn apply_token_payload(payload: &serde_json::Value) -> Result<(), SecretError> {
     // Host key: empty does not clear (UI omits blank credentials).
-    set_secret_if_nonempty(payload, "api_key_host", KEY_LLM_API_KEY)?;
-    Ok(())
-}
-
-fn set_secret_if_nonempty(
-    payload: &serde_json::Value,
-    field: &str,
-    key: &str,
-) -> Result<(), SecretError> {
-    if let Some(v) = payload.get(field).and_then(|x| x.as_str()) {
+    if let Some(v) = payload.get("api_key_host").and_then(|x| x.as_str()) {
         if !v.is_empty() {
-            set_secret(key, v)?;
+            set_secret(v)?;
         }
     }
     Ok(())

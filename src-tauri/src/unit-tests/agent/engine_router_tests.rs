@@ -2,7 +2,7 @@
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use crate::config::secrets::{self, KEY_LLM_API_KEY};
+use crate::config::secrets;
 use crate::config::settings::{self, AppSettings};
 use crate::agent::engine_router::{
     self, AdapterKind, EngineKind, EngineRouteError, EngineRuntimeConfig, TurnInput,
@@ -54,7 +54,7 @@ fn resolve_engine_accepts_known_categories_and_treats_legacy_values_as_unconfigu
 #[test]
 fn read_engine_runtime_config_reads_only_the_glm_host_entry() {
     secrets::test_secrets_clear();
-    secrets::set_secret(KEY_LLM_API_KEY, "sk-host").expect("host key");
+    secrets::set_secret("sk-host").expect("host key");
 
     let settings = host_settings_with_model("glm-4");
     let config = engine_router::read_engine_runtime_config(&settings).expect("runtime config");

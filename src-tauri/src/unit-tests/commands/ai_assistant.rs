@@ -10,7 +10,7 @@ use crate::commands::ai_assistant::{
     select_chat_session_json, set_binding_json, shell_close_json,
     AI_ASSISTANT_WINDOW_LABEL, EVENT_BINDING_CHANGED,
 };
-use crate::config::secrets::{self, KEY_LLM_API_KEY};
+use crate::config::secrets;
 use crate::config::settings;
 use crate::agent::r#loop;
 use crate::agent::session::{self, Turn};
@@ -101,7 +101,7 @@ fn commands_module_exports_match_acl_names() {
     )
     .expect("apply");
     let _ = settings::save(&s);
-    let _ = secrets::set_secret(KEY_LLM_API_KEY, "k");
+    let _ = secrets::set_secret("k");
 }
 
 #[test]

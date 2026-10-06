@@ -1,7 +1,6 @@
 //! Host-local MCP OAuth: per-slot tickets and the bind device ledger, both in the vault.
 
 use std::fmt;
-use std::sync::Mutex;
 
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -94,8 +93,6 @@ pub struct DeviceRecord {
     pub token_hint: Option<String>,
 }
 
-static DEVICE_LEDGER_LOCK: Mutex<()> = Mutex::new(());
-
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OAuthError {
@@ -161,78 +158,67 @@ pub fn issue_for_device(
     if device_id.is_empty() {
         return Err(OAuthError::rejected);
     }
-    let _lock = DEVICE_LEDGER_LOCK
-        .lock()
-        .unwrap_or_else(|e| e.into_inner());
     let handle = new_handle();
     let hash = hash_token(handle.as_str());
     let hint = token_hint(handle.as_str());
-    let mut ledger = load_device_ledger()?;
-    if let Some(row) = ledger
-        .devices
-        .iter_mut()
-        .find(|row| row.device_id == device_id)
-    {
-        row.device_label = device_label.map(str::to_string);
-        row.token_hash = hash;
-        row.token_hint = Some(hint);
-        row.revoked = false;
-    } else {
-        ledger.devices.push(BindDevice {
-            device_id: device_id.to_string(),
-            device_label: device_label.map(str::to_string),
-            token_hash: hash,
-            token_hint: Some(hint),
-            revoked: false,
-        });
-    }
-    save_device_ledger(&ledger)?;
+    map_vault(vault::update_vault(|doc| {
+        let mut devices = doc.devices().to_vec();
+        if let Some(row) = devices
+            .iter_mut()
+            .find(|row| row.device_id == device_id)
+        {
+            row.device_label = device_label.map(str::to_string);
+            row.token_hash = hash;
+            row.token_hint = Some(hint);
+            row.revoked = false;
+        } else {
+            devices.push(BindDevice {
+                device_id: device_id.to_string(),
+                device_label: device_label.map(str::to_string),
+                token_hash: hash,
+                token_hint: Some(hint),
+                revoked: false,
+            });
+        }
+        doc.set_devices(devices);
+    }))?;
     Ok(handle)
 }
 
 pub fn verify_device_token(token: &str) -> Result<String, OAuthError> {
-    let _lock = DEVICE_LEDGER_LOCK
-        .lock()
-        .unwrap_or_else(|e| e.into_inner());
     let hash = hash_token(token);
-    let ledger = load_device_ledger()?;
-    ledger
-        .devices
-        .into_iter()
+    let vault = map_vault(vault::read_vault())?;
+    vault
+        .devices()
+        .iter()
         .find(|row| row.token_hash == hash && !row.revoked)
-        .map(|row| row.device_id)
+        .map(|row| row.device_id.clone())
         .ok_or(OAuthError::rejected)
 }
 
 pub fn revoke_for_device(device_id: &str) -> Result<(), OAuthError> {
-    let _lock = DEVICE_LEDGER_LOCK
-        .lock()
-        .unwrap_or_else(|e| e.into_inner());
-    let mut ledger = load_device_ledger()?;
-    if let Some(row) = ledger
-        .devices
-        .iter_mut()
-        .find(|row| row.device_id == device_id)
-    {
-        row.revoked = true;
-        save_device_ledger(&ledger)?;
-    }
-    Ok(())
+    map_vault(vault::update_vault(|doc| {
+        let mut devices = doc.devices().to_vec();
+        if let Some(row) = devices
+            .iter_mut()
+            .find(|row| row.device_id == device_id)
+        {
+            row.revoked = true;
+            doc.set_devices(devices);
+        }
+    }))
 }
 
 pub fn list_devices() -> Result<Vec<DeviceRecord>, OAuthError> {
-    let _lock = DEVICE_LEDGER_LOCK
-        .lock()
-        .unwrap_or_else(|e| e.into_inner());
-    let ledger = load_device_ledger()?;
-    Ok(ledger
-        .devices
-        .into_iter()
+    let vault = map_vault(vault::read_vault())?;
+    Ok(vault
+        .devices()
+        .iter()
         .map(|row| DeviceRecord {
-            device_id: row.device_id,
-            device_label: row.device_label,
+            device_id: row.device_id.clone(),
+            device_label: row.device_label.clone(),
             revoked: row.revoked,
-            token_hint: row.token_hint,
+            token_hint: row.token_hint.clone(),
         })
         .collect())
 }
@@ -355,29 +341,11 @@ fn read_random_bytes(buf: &mut [u8]) -> bool {
     false
 }
 
-#[derive(Clone, Debug, Default)]
-struct DeviceLedger {
-    devices: Vec<BindDevice>,
-}
-
 fn hash_token(token: &str) -> String {
     Sha256::digest(token.as_bytes())
         .iter()
         .map(|b| format!("{b:02x}"))
         .collect()
-}
-
-fn load_device_ledger() -> Result<DeviceLedger, OAuthError> {
-    let vault = map_vault(vault::read_vault())?;
-    Ok(DeviceLedger {
-        devices: vault.devices().to_vec(),
-    })
-}
-
-fn save_device_ledger(ledger: &DeviceLedger) -> Result<(), OAuthError> {
-    map_vault(vault::update_vault(|doc| {
-        doc.set_devices(ledger.devices.clone());
-    }))
 }
 
 fn fill_weak_random(buf: &mut [u8]) {

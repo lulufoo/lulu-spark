@@ -24,7 +24,7 @@ use std::time::Duration;
 
 use serde_json::{json, Value};
 
-use crate::config::secrets::{self, KEY_LLM_API_KEY};
+use crate::config::secrets;
 use crate::config::settings;
 use crate::agent::diagnostics::{self, DiagnosticEvent, TraceId};
 use crate::agent::llm::{self, LlmConfig, LlmError};
@@ -876,7 +876,7 @@ fn llm_load_config_reads_settings_and_secret() {
         )
         .expect("upsert host llm");
         settings::save(&s).expect("save llm settings");
-        secrets::set_secret(KEY_LLM_API_KEY, "sk-from-secret").expect("set");
+        secrets::set_secret("sk-from-secret").expect("set");
 
         let cfg = llm::load_llm_config().expect("cfg");
         assert_eq!(cfg.api_key, "sk-from-secret");
@@ -900,7 +900,7 @@ fn llm_load_config_rejects_non_glm_host_entry() {
         )
         .expect("upsert legacy host llm");
         settings::save(&s).expect("save llm settings");
-        secrets::set_secret(KEY_LLM_API_KEY, "sk-from-secret").expect("set");
+        secrets::set_secret("sk-from-secret").expect("set");
 
         let err = llm::load_llm_config().expect_err("non-GLM Host config");
         assert!(matches!(err, LlmError::MissingConfig), "{err:?}");
@@ -931,7 +931,7 @@ fn llm_load_config_uses_active_host_entry_not_cursor_residue() {
             model: "cursor-residue-model".into(),
         });
         settings::save(&s).expect("save");
-        secrets::set_secret(KEY_LLM_API_KEY, "sk-host-slot").expect("set host key");
+        secrets::set_secret("sk-host-slot").expect("set host key");
 
         let cfg = llm::load_llm_config().expect("cfg");
         assert_eq!(cfg.model, "host-active-model");
@@ -956,7 +956,7 @@ fn llm_load_config_missing_or_empty_active_entry_is_missing_config_no_cross_type
             model: "cursor-only-model".into(),
         });
         settings::save(&s).expect("save");
-        secrets::set_secret(KEY_LLM_API_KEY, "sk-present").expect("set");
+        secrets::set_secret("sk-present").expect("set");
 
         let err = llm::load_llm_config().expect_err("must not fall back to cursor entry");
         assert!(matches!(err, LlmError::MissingConfig), "{err:?}");
@@ -985,7 +985,7 @@ fn llm_load_config_blank_assistant_engine_is_missing_config() {
             model: "should-not-use".into(),
         });
         settings::save(&s).expect("save");
-        secrets::set_secret(KEY_LLM_API_KEY, "sk-blank-host").expect("set");
+        secrets::set_secret("sk-blank-host").expect("set");
 
         let err = llm::load_llm_config().expect_err("blank engine");
         assert!(matches!(err, LlmError::MissingConfig), "{err:?}");

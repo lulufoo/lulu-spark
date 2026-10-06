@@ -480,4 +480,8 @@ fn device_ticket_sources_do_not_mount_mcp_mobile_or_host_bind_tests() {
             && !oauth.contains("test_force_store_unavailable"),
         "store failure must come from the vault, not an oauth test flag"
     );
+    assert!(
+        !oauth.contains("DeviceLedger") && !oauth.contains("DEVICE_LEDGER_LOCK"),
+        "device rows must go through vault, not a second ledger lock"
+    );
 }
