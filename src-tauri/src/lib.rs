@@ -174,9 +174,6 @@ pub fn run() {
                     config::settings::AppSettings::default()
                 }
             };
-            if let Err(err) = crate::config::secrets::migrate_legacy_secrets() {
-                eprintln!("[secrets] vault migrate failed: {err}");
-            }
             crate::services::app_log::init();
             let http_port = boot_settings.effective_http_port();
             let mcp_port = boot_settings.effective_mcp_port();

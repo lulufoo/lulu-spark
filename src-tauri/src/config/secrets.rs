@@ -2,9 +2,7 @@
 //! `TestSandbox` (and `cfg(test)`) stay in memory. Debug builds persist the
 //! same tree as nested TOML; release builds persist it as one Keychain item.
 
-pub use crate::config::vault::{
-    migrate_legacy_secrets, SecretError, KEY_LLM_API_KEY,
-};
+pub use crate::config::vault::{SecretError, KEY_LLM_API_KEY};
 
 use crate::config::settings;
 use crate::config::vault;

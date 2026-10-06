@@ -1,5 +1,4 @@
 use super::*;
-use crate::test_support::TestSandbox;
 
 pub fn test_clear_scope() {
     let _guard = io_lock();
@@ -7,7 +6,6 @@ pub fn test_clear_scope() {
     vault.set_llm_api_key(None);
     vault.set_devices(Vec::new());
     store_memory_vault(&vault);
-    let _ = take_legacy_row();
 }
 
 pub fn test_clear_llm() {
@@ -20,44 +18,6 @@ pub fn test_clear_llm() {
 pub fn test_vault_json() -> serde_json::Value {
     let vault = read_vault().unwrap_or_default();
     serde_json::to_value(vault).unwrap_or_else(|_| serde_json::json!({}))
-}
-
-fn seed_legacy_llm(value: &str) {
-    let _guard = io_lock();
-    legacy_row(|row| row.llm_api_key = Some(value.to_string()));
-}
-
-fn seed_legacy_mcp_slot(slot: &str, raw: &str) {
-    let _guard = io_lock();
-    legacy_row(|row| {
-        row.slots.insert(slot.to_string(), raw.to_string());
-    });
-}
-
-fn seed_legacy_devices(devices: Vec<BindDevice>) {
-    let _guard = io_lock();
-    legacy_row(|row| row.devices = Some(devices));
-}
-
-fn write_device_file(devices: serde_json::Value) {
-    let path = crate::config::settings::settings_config_dir()
-        .expect("config dir")
-        .join("device-tickets.json");
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).expect("mkdir");
-    }
-    std::fs::write(
-        &path,
-        serde_json::to_string_pretty(&serde_json::json!({ "devices": devices })).expect("json"),
-    )
-    .expect("write device file");
-}
-
-fn device_file_exists() -> bool {
-    crate::config::settings::settings_config_dir()
-        .expect("config dir")
-        .join("device-tickets.json")
-        .is_file()
 }
 
 #[test]
@@ -105,28 +65,24 @@ fn json_and_toml_backends_share_the_same_tree() {
 }
 
 #[test]
-fn migrate_imports_legacy_items_then_deletes_them() {
-    let _sandbox = TestSandbox::new();
+fn read_vault_round_trips_devices_without_raw_token() {
     test_clear_scope();
-    seed_legacy_llm("sk-legacy");
-    seed_legacy_mcp_slot("spark", r#"{"handle":"ab","state":"live"}"#);
-    seed_legacy_mcp_slot("cursor_ide", r#"{"handle":"cd","state":"revoked"}"#);
-    seed_legacy_devices(vec![BindDevice {
-        device_id: "phone-a".into(),
-        device_label: Some("Pixel".into()),
-        token_hash: "ee".repeat(32),
-        token_hint: Some("••••9f3c".into()),
-        revoked: false,
-    }]);
-
-    migrate_legacy_secrets().expect("migrate");
-
+    update_vault(|vault| {
+        vault.set_devices(vec![BindDevice {
+            device_id: "phone-a".into(),
+            device_label: Some("Pixel".into()),
+            token_hash: "ee".repeat(32),
+            token_hint: Some("••••9f3c".into()),
+            revoked: false,
+        }]);
+    })
+    .expect("store");
     let vault = read_vault().expect("vault");
     let phone = vault
         .devices()
         .iter()
         .find(|row| row.device_id == "phone-a")
-        .expect("migrate must import the legacy device row");
+        .expect("device row");
     assert_eq!(phone.token_hash, "ee".repeat(32));
     let encoded = serde_json::to_string(&vault).expect("encode");
     assert!(!encoded.contains("device_mcp_token"));
@@ -134,50 +90,11 @@ fn migrate_imports_legacy_items_then_deletes_them() {
 }
 
 #[test]
-fn confirm_persisted_rejects_mismatch_and_leaves_legacy() {
-    let _sandbox = TestSandbox::new();
-    test_clear_scope();
-    seed_legacy_llm("sk-keep");
-
-    let mut vault = load_raw().expect("load");
-    let legacy = collect_legacy().expect("legacy");
-    assert!(merge_legacy(&mut vault, &legacy));
-    store_raw(&vault).expect("store merged");
-    store_raw(&Vault::default()).expect("corrupt stored tree");
-    assert!(confirm_persisted(&vault).is_err());
-    assert_eq!(
-        peek_legacy_row().llm_api_key.as_deref(),
-        Some("sk-keep"),
-        "fail-closed must not sweep leftover sources"
-    );
-}
-
-#[test]
-fn device_ledger_file_round_trips_without_migrate_hooks() {
-    let _sandbox = TestSandbox::new();
-    write_device_file(serde_json::json!([{
-        "device_id": "phone-file",
-        "device_label": "Pixel",
-        "token_hash": "ff".repeat(32),
-        "token_hint": "••••9f3c",
-        "revoked": false
-    }]));
-    let rows = read_device_ledger_file()
-        .expect("read")
-        .expect("file must parse");
-    assert_eq!(rows[0].device_id, "phone-file");
-    assert_eq!(rows[0].token_hash, "ff".repeat(32));
-    delete_device_ledger_file().expect("delete");
-    assert!(!device_file_exists(), "device-tickets.json must be deleted");
-}
-
-#[test]
-fn flat_dev_secrets_toml_is_legacy_not_vault_llm() {
-    let parsed = parse_dev_secrets("llm_api_key = \"sk-flat\"\n").expect("parse");
-    assert_eq!(parsed.leftover_llm.as_deref(), Some("sk-flat"));
+fn flat_dev_secrets_toml_is_ignored() {
+    let vault = vault_from_toml("llm_api_key = \"sk-flat\"\n").expect("parse");
     assert!(
-        parsed.vault.is_empty(),
-        "flat key must not look like nested llm"
+        vault.is_empty(),
+        "flat leftover key must not become vault.llm"
     );
 }
 
@@ -188,8 +105,9 @@ fn memory_backend_uses_in_memory_keychain_switch() {
     assert!(src.contains("uses_in_memory_keychain"));
     assert!(src.contains("ACCOUNT_VAULT"));
     assert!(!src.contains("lulu-spark-bind"));
+    assert!(!src.contains("lulu-spark-mcp-oauth"));
+    assert!(!src.contains("device-tickets.json"));
+    assert!(!src.contains("migrate_legacy"));
     assert!(!src.contains("thread_local"));
-    assert!(!src.contains("THREAD_MIGRATE"));
-    assert!(!src.contains("THREAD_FORCE"));
     assert!(!src.contains("github"));
 }
