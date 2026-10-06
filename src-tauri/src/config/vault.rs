@@ -15,11 +15,9 @@ pub const ACCOUNT_VAULT: &str = "vault";
 pub const KEY_LLM_API_KEY: &str = "llm_api_key";
 
 const LEGACY_KEYCHAIN_SERVICE_MCP_OAUTH: &str = "lulu-spark-mcp-oauth";
-const LEGACY_KEYCHAIN_SERVICE_BIND: &str = "lulu-spark-bind";
 const ACCOUNT_LLM_LEGACY: &str = "llm_api_key";
 const SLOT_SPARK: &str = "spark";
 const SLOT_CURSOR_IDE: &str = "cursor_ide";
-const LEGACY_BIND_ACCOUNTS: &[&str] = &["signing", "binding"];
 const DEVICE_LEDGER_FILE: &str = "device-tickets.json";
 
 #[derive(Debug)]
@@ -242,7 +240,6 @@ fn io_lock() -> std::sync::MutexGuard<'static, ()> {
 struct LegacyMemory {
     llm_api_key: Option<String>,
     slots: HashMap<String, String>,
-    bind_accounts: HashMap<String, String>,
     devices: Option<Vec<BindDevice>>,
 }
 
@@ -560,18 +557,7 @@ fn confirm_persisted(expected: &Vault) -> Result<(), SecretError> {
     Ok(())
 }
 
-fn delete_leftover_bind_accounts() {
-    legacy_row(|row| row.bind_accounts.clear());
-    if settings::uses_in_memory_keychain() {
-        return;
-    }
-    for account in LEGACY_BIND_ACCOUNTS {
-        let _ = keychain_delete(LEGACY_KEYCHAIN_SERVICE_BIND, account);
-    }
-}
-
 fn delete_legacy_sources() -> Result<(), SecretError> {
-    delete_leftover_bind_accounts();
     if settings::uses_in_memory_keychain() {
         let _ = take_legacy_row();
         return Ok(());
@@ -580,9 +566,6 @@ fn delete_legacy_sources() -> Result<(), SecretError> {
     let _ = keychain_delete(KEYCHAIN_SERVICE, ACCOUNT_LLM_LEGACY);
     let _ = keychain_delete(LEGACY_KEYCHAIN_SERVICE_MCP_OAUTH, SLOT_SPARK);
     let _ = keychain_delete(LEGACY_KEYCHAIN_SERVICE_MCP_OAUTH, SLOT_CURSOR_IDE);
-    for account in LEGACY_BIND_ACCOUNTS {
-        let _ = keychain_delete(LEGACY_KEYCHAIN_SERVICE_BIND, account);
-    }
     delete_device_ledger_file()?;
     Ok(())
 }
@@ -594,11 +577,8 @@ fn migrate_locked() -> Result<(), SecretError> {
         store_raw(&vault)?;
         confirm_persisted(&vault)?;
         delete_legacy_sources()?;
-    } else {
-        delete_leftover_bind_accounts();
-        if !vault.devices().is_empty() && !settings::uses_in_memory_keychain() {
-            delete_device_ledger_file()?;
-        }
+    } else if !vault.devices().is_empty() && !settings::uses_in_memory_keychain() {
+        delete_device_ledger_file()?;
     }
     Ok(())
 }
@@ -643,7 +623,4 @@ pub fn delete_llm_api_key() -> Result<(), SecretError> {
 mod tests;
 
 #[cfg(test)]
-pub use tests::{
-    test_clear_legacy_bind_accounts, test_clear_llm, test_clear_scope, test_legacy_bind_account,
-    test_seed_legacy_bind_account, test_vault_json,
-};
+pub use tests::{test_clear_llm, test_clear_scope, test_vault_json};

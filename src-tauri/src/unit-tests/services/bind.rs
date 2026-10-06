@@ -15,7 +15,6 @@ fn now_secs() -> u64 {
 fn with_bind<F: FnOnce()>(test: F) {
     let _sandbox = TestSandbox::new();
     crate::config::vault::test_clear_scope();
-    test_reset_bind_keychain();
     test_clear_session();
     test();
     test_clear_session();
@@ -70,30 +69,12 @@ fn create_bind_payload_returns_object_with_temp_pub_exp_tls_and_sig() {
             "long-term Keychain signing account must be gone"
         );
         assert!(
-            !bind_src.contains("LEGACY_BIND_ACCOUNTS"),
-            "leftover bind Keychain delete belongs to vault migrate"
+            !bind_src.contains("LEGACY_BIND_ACCOUNTS") && !bind_src.contains("bind_service("),
+            "bind ceremony must not own leftover Keychain delete"
         );
         assert!(
             !bind_src.contains("binding_public_key") && !bind_src.contains("ACCOUNT_BINDING"),
             "long-term binding key must be gone"
-        );
-        test_put_bind_account("signing", &"aa".repeat(32));
-        test_put_bind_account("binding", &"bb".repeat(32));
-        assert!(test_bind_account("signing").is_some());
-        assert!(test_bind_account("binding").is_some());
-        let _ = draw(ip, 7654, "cd".repeat(32).as_str());
-        assert!(
-            test_bind_account("signing").is_some(),
-            "drawing a QR must not open the bind Keychain"
-        );
-        crate::config::vault::migrate_legacy_secrets().expect("migrate leftovers");
-        assert!(
-            test_bind_account("signing").is_none(),
-            "leftover signing item must be deleted on vault migrate"
-        );
-        assert!(
-            test_bind_account("binding").is_none(),
-            "leftover binding item must be deleted on vault migrate"
         );
     });
 }
@@ -195,25 +176,15 @@ fn complete_bind_request_omits_temp_pub_and_requires_v1_device_id() {
 }
 
 #[test]
-fn keychain_bind_service_drops_leftover_binding_and_does_not_write() {
+fn complete_bind_does_not_open_legacy_keychain_services() {
     with_bind(|| {
         let payload = draw(Ipv4Addr::new(10, 0, 0, 6), 7654, "11");
-        test_put_bind_account("binding", &"cc".repeat(32));
-        assert!(test_bind_account("binding").is_some());
         let sealed = seal_bind_request(&payload.temp_pub, "phone-kc", None).expect("seal");
         complete_bind(&sealed).expect("complete");
-        assert!(
-            test_bind_account("binding").is_none(),
-            "complete must delete leftover binding via vault migrate and must not write it back"
-        );
         let src = include_str!(concat!(
             env!("CARGO_MANIFEST_DIR"),
             "/src/services/bind/mod.rs"
         ));
-        assert!(
-            !src.contains("\"lulu-spark-bind\"") && !src.contains("bind_service("),
-            "bind ceremony must not open the leftover bind Keychain service"
-        );
         assert!(
             !src.contains("lulu-spark-mcp-oauth"),
             "bind must not write the oauth keychain service"

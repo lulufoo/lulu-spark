@@ -6,7 +6,7 @@ use serde_json::Value;
 
 use crate::services::bind::{
     bind_session_state, complete_bind, create_bind_payload, seal_bind_request, test_clear_session,
-    test_expire_current_session, test_reset_bind_keychain, BindError, BindSessionState,
+    test_expire_current_session, BindError, BindSessionState,
 };
 use crate::gateway::{start, GatewayConfig, GatewayListen, GatewayState};
 use crate::host::lan_ip::{test_override_nics, NicIpv4};
@@ -32,7 +32,6 @@ fn with_nics(nics: Option<Vec<NicIpv4>>, test: impl FnOnce()) {
 fn with_cmd(test: impl FnOnce()) {
     let _sandbox = TestSandbox::new();
     crate::config::vault::test_clear_scope();
-    test_reset_bind_keychain();
     test_clear_session();
     test_override_nics(None);
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(test));

@@ -10,7 +10,6 @@ use serde_json::{json, Value};
 use super::*;
 use crate::services::bind::{
     complete_bind, create_bind_payload, seal_bind_request, test_clear_session,
-    test_reset_bind_keychain,
 };
 use crate::test_support::TestSandbox;
 
@@ -190,7 +189,6 @@ fn with_server<F: FnOnce(u16)>(repo_root: PathBuf, f: F) {
 #[test]
 fn post_bind_complete_issues_ticket_via_sidecar() {
     let fixture = setup_repo_without_index();
-    test_reset_bind_keychain();
     test_clear_session();
     let repo_root = fixture.repo_root.clone();
     with_server(repo_root, |port| {

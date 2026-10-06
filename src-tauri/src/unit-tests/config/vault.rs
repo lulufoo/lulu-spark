@@ -17,24 +17,6 @@ pub fn test_clear_llm() {
     store_memory_vault(&vault);
 }
 
-pub fn test_seed_legacy_bind_account(account: &str, value: &str) {
-    let _guard = io_lock();
-    legacy_row(|row| {
-        row.bind_accounts
-            .insert(account.to_string(), value.to_string());
-    });
-}
-
-pub fn test_legacy_bind_account(account: &str) -> Option<String> {
-    let _guard = io_lock();
-    peek_legacy_row().bind_accounts.get(account).cloned()
-}
-
-pub fn test_clear_legacy_bind_accounts() {
-    let _guard = io_lock();
-    delete_leftover_bind_accounts();
-}
-
 pub fn test_vault_json() -> serde_json::Value {
     let vault = read_vault().unwrap_or_default();
     serde_json::to_value(vault).unwrap_or_else(|_| serde_json::json!({}))
@@ -129,8 +111,6 @@ fn migrate_imports_legacy_items_then_deletes_them() {
     seed_legacy_llm("sk-legacy");
     seed_legacy_mcp_slot("spark", r#"{"handle":"ab","state":"live"}"#);
     seed_legacy_mcp_slot("cursor_ide", r#"{"handle":"cd","state":"revoked"}"#);
-    test_seed_legacy_bind_account("signing", &"aa".repeat(32));
-    test_seed_legacy_bind_account("binding", &"bb".repeat(32));
     seed_legacy_devices(vec![BindDevice {
         device_id: "phone-a".into(),
         device_label: Some("Pixel".into()),
@@ -148,8 +128,6 @@ fn migrate_imports_legacy_items_then_deletes_them() {
         .find(|row| row.device_id == "phone-a")
         .expect("migrate must import the legacy device row");
     assert_eq!(phone.token_hash, "ee".repeat(32));
-    assert!(test_legacy_bind_account("signing").is_none());
-    assert!(test_legacy_bind_account("binding").is_none());
     let encoded = serde_json::to_string(&vault).expect("encode");
     assert!(!encoded.contains("device_mcp_token"));
     assert!(encoded.contains("token_hash"));
@@ -209,8 +187,7 @@ fn memory_backend_uses_in_memory_keychain_switch() {
     let src = include_str!("../../config/vault.rs");
     assert!(src.contains("uses_in_memory_keychain"));
     assert!(src.contains("ACCOUNT_VAULT"));
-    assert!(src.contains("LEGACY_KEYCHAIN_SERVICE_BIND"));
-    assert!(src.contains("LEGACY_BIND_ACCOUNTS"));
+    assert!(!src.contains("lulu-spark-bind"));
     assert!(!src.contains("thread_local"));
     assert!(!src.contains("THREAD_MIGRATE"));
     assert!(!src.contains("THREAD_FORCE"));

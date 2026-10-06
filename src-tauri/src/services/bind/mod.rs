@@ -14,8 +14,6 @@ use serde_json::Value;
 use sha2::Sha256;
 use x25519_dalek::{PublicKey, StaticSecret};
 
-#[cfg(test)]
-use crate::config::vault;
 use crate::services::mcp_oauth::issue_for_device;
 
 const BIND_TTL_SECS: u64 = 180;
@@ -283,21 +281,6 @@ pub fn test_session_bytes() -> Vec<u8> {
             out
         }
     }
-}
-
-#[cfg(test)]
-pub fn test_reset_bind_keychain() {
-    vault::test_clear_legacy_bind_accounts();
-}
-
-#[cfg(test)]
-pub fn test_put_bind_account(account: &str, value: &str) {
-    vault::test_seed_legacy_bind_account(account, value);
-}
-
-#[cfg(test)]
-pub fn test_bind_account(account: &str) -> Option<String> {
-    vault::test_legacy_bind_account(account)
 }
 
 #[cfg(test)]

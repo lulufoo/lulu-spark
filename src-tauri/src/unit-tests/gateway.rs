@@ -14,7 +14,6 @@ use crate::config::settings::{
 };
 use crate::services::bind::{
     complete_bind, create_bind_payload, seal_bind_request, test_clear_session,
-    test_reset_bind_keychain,
 };
 use crate::host::lan_ip::{test_override_nics, NicIpv4};
 use crate::main_host;
@@ -202,7 +201,6 @@ impl Drop for MockMcp {
 fn with_bind_sandbox(test: impl FnOnce(&Path)) {
     let sandbox = TestSandbox::new();
     crate::config::vault::test_clear_scope();
-    test_reset_bind_keychain();
     test_clear_session();
     let config_dir = sandbox
         .config_file_path()
