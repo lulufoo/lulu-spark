@@ -77,7 +77,6 @@ fn assert_payload_object(value: &Value) -> &serde_json::Map<String, Value> {
         "temp_pub",
         "tls_fingerprint",
         "exp",
-        "sign_pub",
         "sig",
     ] {
         assert!(
@@ -161,9 +160,9 @@ fn issue_bind_succeeds_with_lan_ip_and_running_gateway_handle() {
             assert_eq!(obj["ip"], "10.0.0.4");
             assert_eq!(obj["port"].as_u64(), Some(u64::from(port)));
             assert_eq!(obj["tls_fingerprint"], tls_fingerprint);
-            assert!(obj["temp_pub"].as_str().map(|s| s.len() == 64).unwrap_or(false));
-            assert!(obj["sign_pub"].as_str().map(|s| s.len() == 64).unwrap_or(false));
-            assert!(obj["sig"].as_str().map(|s| s.len() == 128).unwrap_or(false));
+            assert!(obj["temp_pub"].as_str().map(|s| s.len() > 64 && s.len() % 2 == 0).unwrap_or(false));
+            assert!(obj.get("sign_pub").is_none());
+            assert!(obj["sig"].as_str().map(|s| s.len() == 512).unwrap_or(false));
             assert!(obj["exp"].as_u64().is_some());
             assert_eq!(bind_session_state(), BindSessionState::live);
             state.stop();

@@ -13,7 +13,6 @@ const PAYLOAD = {
   temp_pub: 'aa11',
   tls_fingerprint: 'ff22',
   exp: 1_700_000_180,
-  sign_pub: 'cc55',
   sig: 'ss33',
 };
 const PAYLOAD_REFRESH = {
@@ -264,7 +263,6 @@ describe('bind-dialog', () => {
       'temp_pub',
       'tls_fingerprint',
       'exp',
-      'sign_pub',
       'sig',
     ]);
     expect(drawn).toEqual(PAYLOAD);

@@ -9,22 +9,22 @@ class BindOfferTest {
     @Test
     fun parseOfferReadsQrFields() {
         val offer = parseBindOffer(
-            """{"ip":"10.0.0.2","port":7654,"temp_pub":"aa","tls_fingerprint":"ff","exp":1,"sign_pub":"bb","sig":"ss"}""",
+            """{"ip":"10.0.0.2","port":7654,"temp_pub":"aa","tls_fingerprint":"ff","exp":1,"sig":"ss"}""",
         )
         assertEquals("10.0.0.2", offer.ip)
         assertEquals(7654, offer.port)
         assertEquals("ff", offer.tlsFingerprint)
-        assertEquals("bb", offer.signPub)
+        assertEquals("aa", offer.tempPub)
     }
 
     @Test
-    fun verifyAcceptsEphemeralSignature() {
+    fun verifyAcceptsRsaPssSignature() {
         verifyBindOffer(signedBindOffer())
     }
 
     @Test(expected = Exception::class)
     fun verifyRejectsTamperedSignature() {
         val offer = signedBindOffer()
-        verifyBindOffer(offer.copy(sig = "00".repeat(64)))
+        verifyBindOffer(offer.copy(sig = "00".repeat(512)))
     }
 }

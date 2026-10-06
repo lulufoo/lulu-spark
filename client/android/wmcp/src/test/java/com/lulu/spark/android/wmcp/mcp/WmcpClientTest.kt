@@ -41,7 +41,7 @@ class WmcpClientTest {
         val sent = network.requests.single()
         assertEquals("https://10.0.0.2:7654/bind/complete", sent.url)
         assertEquals("ff", sent.tlsFingerprint)
-        assertTrue((sent.body?.size ?: 0) >= 32 + 12 + 16)
+        assertTrue((sent.body?.size ?: 0) >= 256 + 12 + 16)
         assertTrue(wmcp.isBound())
     }
 
@@ -54,7 +54,7 @@ class WmcpClientTest {
     @Test(expected = BindFailedException::class)
     fun completeBindRejectsBadSignature() {
         val wmcp = WmcpClientImpl(MemoryStorage(), RecordingNetwork())
-        wmcp.completeBind(liveOffer().copy(sig = "00".repeat(64)))
+        wmcp.completeBind(liveOffer().copy(sig = "00".repeat(512)))
     }
 
     @Test
