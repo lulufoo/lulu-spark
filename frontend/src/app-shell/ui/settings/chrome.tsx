@@ -4,7 +4,6 @@ import { McpChannelToolsHost } from './mcp-channel-tools.tsx';
 import { McpTicketsHost } from './mcp-tickets.tsx';
 import { NotesSettingsPanel } from './notes-panel.tsx';
 import {
-  onRepoListRefresh,
   onSedimentKbAddSubmit,
   onSedimentKbManageAdd,
   SedimentKbManageList,
@@ -82,17 +81,6 @@ export function SettingsDialogChrome() {
               <div id="sediment-kb-manage-error" className="settings-result" />
             </div>
             <div id="settings-tab-knowledge-list" className="settings-tab-panel" data-tab="list">
-              <div id="repo-list-title-group" className="settings-knowledge-list-head">
-                <button
-                  id="btn-repo-list-refresh"
-                  type="button"
-                  className="btn-settings-save"
-                  title="Refresh"
-                  onClick={() => onRepoListRefresh()}
-                >
-                  Refresh
-                </button>
-              </div>
               <div id="repo-list-content">
                 <SedimentKbRepoList />
               </div>

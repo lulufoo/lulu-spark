@@ -24,7 +24,7 @@ describe('Settings Knowledge UI', () => {
     expect(indexHtml).toContain('id="settings-tab-knowledge-categories"');
     expect(indexHtml).toContain('id="btn-sediment-kb-add-submit"');
     expect(indexHtml).toContain('id="btn-sediment-kb-manage-add"');
-    expect(indexHtml).toContain('id="btn-repo-list-refresh"');
+    expect(indexHtml).not.toContain('id="btn-repo-list-refresh"');
     expect(indexHtml).not.toContain('id="btn-repo-list"');
   });
 
@@ -157,6 +157,14 @@ describe('Settings Data panel', () => {
       nav.indexOf('data-panel="mcp"'),
     );
     expect(nav).not.toMatch(/data-panel="github"/);
+  });
+});
+
+describe('Settings field label spacing', () => {
+  it('keeps a wider gap between a field label and its input', () => {
+    const css = readFileSync(join(repoRoot, 'frontend/app.css'), 'utf8');
+    const label = css.slice(css.indexOf('.settings-field label {'));
+    expect(label.slice(0, 180)).toMatch(/margin-bottom:\s*8px/);
   });
 });
 

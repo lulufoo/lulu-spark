@@ -332,10 +332,6 @@ window.addEventListener('settings-knowledge-tab', (e) => {
   else if (tabId === 'categories') void prepareSedimentKbManage();
 });
 
-export function onRepoListRefresh() {
-  void loadSedimentKbList(true);
-}
-
 export async function onSedimentKbAddSubmit() {
   const nameInput = document.getElementById('sediment-kb-add-name') as HTMLInputElement | null;
   const submitBtn = document.getElementById('btn-sediment-kb-add-submit') as HTMLButtonElement | null;

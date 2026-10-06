@@ -300,7 +300,8 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
 
   it('repo list title uses table B2 knowledge list label', () => {
     expect(indexHtml).toMatch(/data-tab="list"[^>]*>List</);
-    expect(indexHtml).toContain('id="repo-list-title-group"');
+    expect(indexHtml).not.toContain('id="repo-list-title-group"');
+    expect(indexHtml).not.toContain('id="btn-repo-list-refresh"');
     expect(indexHtml).not.toContain('☰ 沉淀知识库列表');
   });
 
