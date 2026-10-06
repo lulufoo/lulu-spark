@@ -36,6 +36,7 @@ describe('mountHomeHub', () => {
     expect(container.querySelector('.home-chat')).not.toBeNull();
     expect(container.querySelector('.home-chat-sidebar')).not.toBeNull();
     expect(container.querySelector('.window-drag-strip[data-tauri-drag-region="deep"]')).not.toBeNull();
+    expect(container.querySelector('.window-fullscreen-brand')).toBeNull();
     expect(container.querySelector('.home-chat-brand')).toBeNull();
     expect(container.querySelector('.home-chat-main-drag[data-tauri-drag-region="deep"]')).not.toBeNull();
     const resizer = container.querySelector('.home-chat-sidebar-resizer.sidebar-resizer');
@@ -45,7 +46,7 @@ describe('mountHomeHub', () => {
     expect(container.querySelector('[data-role="session-list"]')).not.toBeNull();
 
     const shortcuts = container.querySelectorAll('.home-desktop-shortcut');
-    expect(shortcuts).toHaveLength(3);
+    expect(shortcuts).toHaveLength(5);
 
     const sparkEntry = container.querySelector('[data-home-entry="spark"]');
     const readLaterEntry = container.querySelector('[data-home-entry="read-later"]');
@@ -59,7 +60,12 @@ describe('mountHomeHub', () => {
     expect(readLaterEntry.textContent).toMatch(/Read Later/);
     expect(knowledgeEntry.textContent).toMatch(/Knowledge/);
     const labels = [...shortcuts].map((entry) => entry.querySelector('.home-desktop-shortcut-label')?.textContent);
-    expect(labels).toEqual(['Notes', 'Knowledge', 'Read Later']);
+    expect(labels).toEqual(['Notes', 'Knowledge', 'Read Later', 'Bind Device', 'Settings']);
+    expect(container.querySelector('#btn-bind [data-home-icon="bind"]')).not.toBeNull();
+    expect(container.querySelector('#btn-settings [data-home-icon="settings"]')).not.toBeNull();
+    expect(container.querySelector('[data-home-entry="spark"] [data-home-icon="notes"]')).not.toBeNull();
+    expect(container.querySelector('[data-home-entry="knowledge"] [data-home-icon="knowledge"]')).not.toBeNull();
+    expect(container.querySelector('[data-home-entry="read-later"] [data-home-icon="read-later"]')).not.toBeNull();
   });
 
   it('navigates to #/spark when spark entry is clicked', () => {

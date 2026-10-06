@@ -3,6 +3,7 @@ import { attachHomeSidebarResize, detachHomeSidebarResize } from './ui/sidebar-r
 import { createRoot, type Root } from 'react-dom/client';
 import { flushSync } from 'react-dom';
 import { hydrateHomeChatMarkdown, renderHomeChatMarkdown } from './ui/chat-render.ts';
+import { HomeNavIcon } from './ui/nav-icons.tsx';
 import { SessionList } from './ui/session-list.tsx';
 import { SessionMenu } from './ui/session-menu.tsx';
 import { ContextPercent } from './ui/context-percent.tsx';
@@ -227,9 +228,7 @@ export function HomePage({
                   goHomeEntry('spark', navigateFn, openReadLater);
                 }}
               >
-                <span className="home-desktop-shortcut-icon" aria-hidden="true">
-                  📂
-                </span>
+                <HomeNavIcon name="notes" />
                 <span className="home-desktop-shortcut-label">Notes</span>
               </button>
               <button
@@ -261,9 +260,7 @@ export function HomePage({
               data-home-entry="knowledge"
               onClick={() => goHomeEntry('knowledge', navigateFn, openReadLater)}
             >
-              <span className="home-desktop-shortcut-icon" aria-hidden="true">
-                📚
-              </span>
+              <HomeNavIcon name="knowledge" />
               <span className="home-desktop-shortcut-label">Knowledge</span>
             </button>
             <button
@@ -276,9 +273,7 @@ export function HomePage({
                 goHomeEntry('read-later', navigateFn, openReadLater);
               }}
             >
-              <span className="home-desktop-shortcut-icon" aria-hidden="true">
-                📑
-              </span>
+              <HomeNavIcon name="read-later" />
               <span className="home-desktop-shortcut-label">Read Later</span>
             </button>
           </div>
@@ -286,27 +281,23 @@ export function HomePage({
             <div className="home-chat-nav-label">Settings</div>
             <button
               type="button"
-              className="home-chat-nav-item"
+              className="home-chat-nav-item home-desktop-shortcut"
               id="btn-bind"
               onClick={() => openBindDialog()}
             >
-              <span className="home-desktop-shortcut-icon" aria-hidden="true">
-                📲
-              </span>
+              <HomeNavIcon name="bind" />
               <span className="home-desktop-shortcut-label">Bind Device</span>
             </button>
             <button
               type="button"
-              className="home-chat-nav-item"
+              className="home-chat-nav-item home-desktop-shortcut"
               id="btn-settings"
               title="Settings"
               onClick={() => {
                 void openSettingsDialog();
               }}
             >
-              <span className="home-desktop-shortcut-icon" aria-hidden="true">
-                ⚙
-              </span>
+              <HomeNavIcon name="settings" />
               <span className="home-desktop-shortcut-label">Settings</span>
             </button>
           </div>
