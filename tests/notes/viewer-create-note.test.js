@@ -70,12 +70,7 @@ const { elements, makeEl, locationStub, navigateToNoteMock, navigateBackToListMo
 vi.mock('../../frontend/src/host/api.ts', () => ({
   fetchFileContent: vi.fn().mockResolvedValue('# Test'),
   fetchAnnotation: vi.fn().mockResolvedValue({}),
-  fetchDiffStatus: vi.fn().mockResolvedValue({
-    new: [], modified: [], deleted: [], renamed: [], conflicted: [], total: 0, ahead: 0,
-  }),
   saveFile: vi.fn(),
-  commitFiles: vi.fn().mockResolvedValue({ ok: true }),
-  revertFile: vi.fn().mockResolvedValue({ ok: true }),
   createNote: vi.fn().mockResolvedValue({
     ok: true,
     id: 'a'.repeat(32),
@@ -87,7 +82,7 @@ vi.mock('../../frontend/src/host/api.ts', () => ({
 }));
 vi.mock('../../frontend/src/host/state.ts', async () => {
   const actual = await vi.importActual('../../frontend/src/host/state.ts');
-  return { ...actual, loadDiffStatus: vi.fn().mockResolvedValue(undefined) };
+  return actual;
 });
 vi.mock('../../frontend/src/notes/ui/cards.tsx', () => ({
   updateTitlesInDOM: vi.fn(),

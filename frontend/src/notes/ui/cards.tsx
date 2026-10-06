@@ -77,19 +77,12 @@ export function updateCardTagsBadge(_entry: NoteEntry) {
   notifyState();
 }
 
-export function getEntryDiffState(entry: NoteEntry): 'conflict' | 'unreachable' | 'modified' | null {
-  let result: 'unreachable' | 'modified' | null = null;
+export function getEntryDiffState(entry: NoteEntry): 'unreachable' | null {
   for (const layer of LAYERS) {
     if (!entry.layers?.includes(layer)) continue;
-    const s = state.index.diffStatus.get(`${layer}/${entry.common_path}`);
-    if (s === 'conflict') return 'conflict';
-    if (isUnreachable(entry, layer)) {
-      result = 'unreachable';
-    } else if (s === 'modified' && result === null) {
-      result = 'modified';
-    }
+    if (isUnreachable(entry, layer)) return 'unreachable';
   }
-  return result;
+  return null;
 }
 
 const SOURCE_TYPE_LABELS: Record<string, string> = {
@@ -165,13 +158,12 @@ function MoveBadge() {
   );
 }
 
-function DiffDot({ diffState }: { diffState: 'conflict' | 'unreachable' | 'modified' | null }) {
+function DiffDot({ diffState }: { diffState: 'unreachable' | null }) {
   if (!diffState) return null;
-  const label = diffState === 'conflict' ? '● conflict' : diffState === 'unreachable' ? '● unreachable' : '● Pending commit';
   return (
     <>
       {' '}
-      <span className={`diff-dot ${diffState}`}>{label}</span>
+      <span className={`diff-dot ${diffState}`}>● unreachable</span>
     </>
   );
 }

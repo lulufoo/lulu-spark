@@ -42,14 +42,11 @@ export type HostTagsRegistry = {
   keys: Record<string, HostTagMeta>;
 };
 
-export type HostDiffStatus = 'modified' | 'conflict';
-
 export type HostIndex = {
   data: Record<string, HostNoteEntry> | null;
   groupedByDate: HostNoteGroup[];
   filteredGroups: HostNoteGroup[];
   titleCache: Map<string, Map<string, string>>;
-  diffStatus: Map<string, HostDiffStatus>;
   annotations: Record<string, HostIndexAnnotation>;
   tagsRegistry: HostTagsRegistry;
   titleFetchCache: Map<string, string>;

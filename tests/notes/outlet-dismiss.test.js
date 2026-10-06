@@ -13,7 +13,6 @@ const { closeModal } = vi.hoisted(() => ({
 vi.mock('../../frontend/src/host/api.ts', () => ({
   fetchFileContent: vi.fn(),
   fetchAnnotation: vi.fn(),
-  fetchDiffStatus: vi.fn(),
   saveFile: vi.fn(),
   getNoteDraft: vi.fn(),
   saveNoteDraft: vi.fn(),

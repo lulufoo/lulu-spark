@@ -69,12 +69,7 @@ const { elements, makeEl, locationStub, navigateToNoteMock } = vi.hoisted(() => 
 vi.mock('../../frontend/src/host/api.ts', () => ({
   fetchFileContent: vi.fn().mockResolvedValue('# Hello note\n\nbody'),
   fetchAnnotation: vi.fn().mockResolvedValue({}),
-  fetchDiffStatus: vi.fn().mockResolvedValue({
-    new: [], modified: [], deleted: [], renamed: [], conflicted: [], total: 0, ahead: 0,
-  }),
   saveFile: vi.fn().mockResolvedValue({ ok: true }),
-  commitFiles: vi.fn().mockResolvedValue({ ok: true }),
-  revertFile: vi.fn().mockResolvedValue({ ok: true }),
   createNote: vi.fn().mockResolvedValue({
     ok: true,
     id: 'a'.repeat(32),
@@ -86,7 +81,7 @@ vi.mock('../../frontend/src/host/api.ts', () => ({
 }));
 vi.mock('../../frontend/src/host/state.ts', async () => {
   const actual = await vi.importActual('../../frontend/src/host/state.ts');
-  return { ...actual, loadDiffStatus: vi.fn().mockResolvedValue(undefined) };
+  return actual;
 });
 vi.mock('../../frontend/src/notes/ui/cards.tsx', () => ({
   updateTitlesInDOM: vi.fn(),
@@ -163,7 +158,6 @@ function resetDom() {
   state.viewer.entry = null;
   state.viewer.rawText = '';
   state.viewer.createSession = null;
-  state.index.diffStatus = new Map();
   vi.clearAllMocks();
   api.createNote.mockResolvedValue({
     ok: true,

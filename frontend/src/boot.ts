@@ -1,4 +1,4 @@
-import { state, loadDiffStatus, mergeAnnotations, notifyState } from './host/state.ts';
+import { state, mergeAnnotations, notifyState } from './host/state.ts';
 import { LAYERS } from './host/constants.ts';
 import * as api from './host/api.ts';
 import type { HostIndexAnnotation, HostNoteEntry } from './host/snapshot-types.ts';
@@ -46,7 +46,7 @@ async function loadIndex({ managedBtn = false }: { managedBtn?: boolean } = {}) 
     state.ui.activeTagKey = null;
     state.ui.loadError = null;
     applyListFilters();
-    await Promise.all([loadDiffStatus(), loadAnnotationsSummary(), loadTagsRegistry()]);
+    await Promise.all([loadAnnotationsSummary(), loadTagsRegistry()]);
     applyListFilters();
     const savedDate = sessionStorage.getItem('cta_active_date');
     const targetDate = (savedDate && state.index.filteredGroups.find((g) => g.date === savedDate))

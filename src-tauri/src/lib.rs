@@ -3,7 +3,6 @@ pub mod commands;
 pub mod config;
 pub mod gateway;
 pub mod host;
-pub mod integrations;
 pub mod main_host;
 pub mod mcp_host;
 pub mod repositories;
@@ -64,12 +63,8 @@ pub fn run() {
             commands::sync::save_comment_draft,
             commands::sync::save_note_draft,
             commands::sync::clear_note_draft,
-            commands::sync::spark_git_commit,
-            commands::sync::spark_git_pull,
-            commands::sync::spark_git_revert,
             commands::sync::delete_entry,
             commands::sync::move_entry_project,
-            commands::read::get_status,
             commands::read::kb_read,
             commands::read::get_kb_asset,
             commands::read::kb_list,

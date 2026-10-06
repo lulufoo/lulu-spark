@@ -9,13 +9,11 @@ const apiPath = join(repoRoot, 'frontend/src/host/api.ts');
 
 const KEPT_SPARK_EXPORTS = [
   'clearNoteDraft',
-  'commitFiles',
   'createNote',
   'deleteEntry',
   'fetchAnnotation',
   'fetchAnnotationsSummary',
   'fetchConfig',
-  'fetchDiffStatus',
   'fetchDocHighlights',
   'fetchFileContent',
   'fetchIndex',
@@ -27,7 +25,6 @@ const KEPT_SPARK_EXPORTS = [
   'getNoteDraft',
   'moveToProject',
   'reorderComments',
-  'revertFile',
   'saveDraft',
   'saveFile',
   'saveNoteDraft',
@@ -42,6 +39,8 @@ const KEPT_SPARK_EXPORTS = [
   'updateHighlight',
   'updateLinks',
 ];
+
+const REMOVED_SPARK_EXPORTS = ['commitFiles', 'fetchDiffStatus', 'revertFile'];
 
 describe('ghMove removed from host API', () => {
   it('does not export ghMove from spark.ts or re-export it from api.ts', () => {
@@ -73,6 +72,15 @@ describe('ghMove removed from host API', () => {
         ),
       );
       expect(api).toMatch(new RegExp(String.raw`\b${name}\b`));
+    }
+  });
+
+  it('does not keep leftover Spark git host APIs', () => {
+    const spark = readFileSync(sparkApiPath, 'utf8');
+    const api = readFileSync(apiPath, 'utf8');
+    for (const name of REMOVED_SPARK_EXPORTS) {
+      expect(spark).not.toMatch(new RegExp(String.raw`\b${name}\b`));
+      expect(api).not.toMatch(new RegExp(String.raw`\b${name}\b`));
     }
   });
 });

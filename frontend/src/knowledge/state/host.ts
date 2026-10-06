@@ -3,7 +3,6 @@ export {
   notifyState,
   useHostState,
   getEntryId,
-  loadDiffStatus,
   mergeAnnotations,
   subscribeState,
   getStateVersion,

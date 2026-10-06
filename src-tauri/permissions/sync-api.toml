@@ -2,9 +2,6 @@
 identifier = "sync-api"
 description = "P4 sync Tauri invoke commands"
 commands.allow = [
-  "spark_git_commit",
-  "spark_git_pull",
-  "spark_git_revert",
   "delete_entry",
   "move_entry_project",
   "save_comment_draft",

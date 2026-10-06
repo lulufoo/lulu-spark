@@ -1,10 +1,8 @@
 import { useSyncExternalStore } from 'react'
-import * as api from './api.ts'
 import type { HostIndexAnnotation, HostNoteEntry, HostState } from './snapshot-types.ts'
 
 export type {
   HostCreateSession,
-  HostDiffStatus,
   HostIndex,
   HostIndexAnnotation,
   HostNoteEntry,
@@ -50,7 +48,6 @@ export const state: HostState = {
     groupedByDate: [],
     filteredGroups: [],
     titleCache: new Map(),
-    diffStatus: new Map(),
     annotations: {},
     tagsRegistry: { keys: {} },
     titleFetchCache: new Map(),
@@ -112,23 +109,4 @@ export function mergeAnnotations(
 
 export function getEntryId(entry: HostNoteEntry | null | undefined) {
   return entry?._id || null
-}
-
-type DiffStatusPayload = {
-  modified?: string[]
-  conflicted?: string[]
-} | null
-
-export async function loadDiffStatus() {
-  try {
-    const data = (await api.fetchDiffStatus()) as DiffStatusPayload
-    if (!data) return
-    state.index.diffStatus.clear()
-    for (const p of data.modified || []) {
-      state.index.diffStatus.set(p.replace(/^notes\//, ''), 'modified')
-    }
-    for (const p of data.conflicted || []) {
-      state.index.diffStatus.set(p.replace(/^notes\//, ''), 'conflict')
-    }
-  } catch { /* non-critical */ }
 }

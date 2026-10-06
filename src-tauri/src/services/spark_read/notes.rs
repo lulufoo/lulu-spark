@@ -189,3 +189,17 @@ pub fn get_notes_asset(repo_root: &Path, layer: &str, base: &str, href: &str) ->
         Err(e) => json!({ "error": e.to_string(), "_status": 500 }),
     }
 }
+
+pub fn get_draft(_repo_root: &Path, path: &str) -> Value {
+    let decoded = urlencoding::decode(path).unwrap_or_else(|_| path.into());
+    let common_path = decoded.trim();
+    if common_path.is_empty() || common_path.contains("..") {
+        return json!({ "error": "Invalid path" });
+    }
+    let target = match crate::config::paths::draft_path(common_path) {
+        Ok(p) => p,
+        Err(_) => return json!({ "error": "Invalid path" }),
+    };
+    let content = fs::read_to_string(&target).unwrap_or_default();
+    json!({ "content": content })
+}

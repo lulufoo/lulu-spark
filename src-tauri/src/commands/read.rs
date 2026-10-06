@@ -86,14 +86,6 @@ pub fn get_config(_app: AppHandle) -> Result<Value, String> {
 }
 
 #[tauri::command]
-pub async fn get_status(_app: AppHandle) -> Result<Value, String> {
-    let root = repo_root()?;
-    tauri::async_runtime::spawn_blocking(move || spark_read::get_status(&root))
-        .await
-        .map_err(|e| e.to_string())
-}
-
-#[tauri::command]
 pub fn kb_read(_app: AppHandle, repo: String, path: String) -> Result<Value, String> {
     Ok(crate::services::knowledge::kb_read_json(&repo_root()?, &repo, &path))
 }

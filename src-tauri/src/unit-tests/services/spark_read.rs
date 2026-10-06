@@ -7,17 +7,6 @@ use serde_json::json;
 use crate::test_support::TestSandbox;
 
 #[test]
-fn git_status_categories_sample() {
-    let sample = " M raw/a.md\n?? b.txt\nUU c.md\nR  old -> new\n D gone.md\n";
-    let m = categories_from_git_status(sample);
-    assert!(m["modified"].as_array().unwrap().len() >= 1);
-    assert!(m["new"].as_array().unwrap().len() >= 1);
-    assert!(m["conflicted"].as_array().unwrap().len() >= 1);
-    assert!(m["renamed"].as_array().unwrap().len() >= 1);
-    assert!(m["deleted"].as_array().unwrap().len() >= 1);
-}
-
-#[test]
 fn get_config_has_frontend_contract_keys() {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .parent()
@@ -169,43 +158,6 @@ fn get_draft_invalid_path() {
     let dir = tempfile::tempdir().expect("tmp");
     let v = get_draft(dir.path(), "..%2Fsecret");
     assert_eq!(v["error"], "Invalid path");
-}
-
-fn init_repo_with_github_origin(dir: &std::path::Path, origin: &str) {
-    assert!(crate::integrations::git::exec(dir, &["init"])
-        .expect("init")
-        .success);
-    assert!(crate::integrations::git::exec(dir, &["remote", "add", "origin", origin])
-        .expect("remote add")
-        .success);
-}
-
-#[test]
-fn infer_github_user_url_reads_ssh_origin() {
-    let dir = tempfile::tempdir().expect("tmp");
-    init_repo_with_github_origin(
-        dir.path(),
-        "git@github.com:lulufoo/lulu-workbench-knowledge.git",
-    );
-    let v = infer_github_user_url(dir.path().to_str().unwrap());
-    assert_eq!(v["github_user_url"], "https://github.com/lulufoo");
-    assert_eq!(
-        v["spark_github_repo_url"],
-        "https://github.com/lulufoo/lulu-workbench-knowledge"
-    );
-}
-
-#[test]
-fn infer_github_user_url_trims_padded_path() {
-    let dir = tempfile::tempdir().expect("tmp");
-    init_repo_with_github_origin(dir.path(), "git@github.com:lulufoo/notes.git");
-    let padded = format!("  {}  ", dir.path().display());
-    let v = infer_github_user_url(&padded);
-    assert_eq!(v["github_user_url"], "https://github.com/lulufoo");
-    assert_eq!(
-        v["spark_github_repo_url"],
-        "https://github.com/lulufoo/notes"
-    );
 }
 
 #[test]

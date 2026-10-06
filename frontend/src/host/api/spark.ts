@@ -5,10 +5,6 @@ export async function fetchIndex() {
   return readGet('/api/notes-index?_=' + Date.now());
 }
 
-export async function fetchDiffStatus() {
-  return readGet('/api/status?_=' + Date.now());
-}
-
 export async function fetchAnnotationsSummary() {
   try {
     return await readGet('/api/annotations?_=' + Date.now());
@@ -72,17 +68,6 @@ export async function fetchLinkTitle(url: string) {
 
 export async function saveFile(layer: PathArg, commonPath: PathArg, content: string) {
   return writePost('/api/save', { layer, common_path: commonPath, content });
-}
-
-// files 省略时提交全部变更；为数组时仅提交指定文件
-export async function commitFiles(message: string, files?: unknown) {
-  const body: Record<string, unknown> = { message };
-  if (files !== undefined) body.files = files;
-  return writePost('/api/commit', body);
-}
-
-export async function revertFile(path?: string, type?: string) {
-  return writePost('/api/spark-revert', { path: path ?? '', type: type ?? '' });
 }
 
 export async function updateComments(

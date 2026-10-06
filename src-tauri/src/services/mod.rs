@@ -6,7 +6,6 @@ pub mod notes;
 pub mod translation_gate;
 pub mod source_path_allow;
 pub mod id;
-pub mod spark_git;
 pub mod draft;
 pub mod doc_highlights;
 pub mod entry_admin;

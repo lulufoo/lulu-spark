@@ -66,7 +66,6 @@ vi.mock('../../frontend/src/host/api.ts', () => ({
   fetchFileContent: vi.fn().mockResolvedValue('# Test'),
   fetchAnnotation: vi.fn().mockResolvedValue({}),
   saveFile: vi.fn(),
-  commitFiles: vi.fn(),
 }));
 vi.mock('../../frontend/src/host/state.ts', async () => {
   const actual = await vi.importActual('../../frontend/src/host/state.ts');

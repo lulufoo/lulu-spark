@@ -15,18 +15,6 @@ type SyncInvokeEntry = {
 };
 
 export const SYNC_API_INVOKE_MAP: Record<string, SyncInvokeEntry> = {
-  '/api/commit': {
-    cmd: 'spark_git_commit',
-    args: (body) =>
-      syncPayload({
-        message: body.message,
-        files: body.files,
-      }),
-  },
-  '/api/pull': {
-    cmd: 'spark_git_pull',
-    args: () => syncPayload({}),
-  },
   '/api/delete': {
     cmd: 'delete_entry',
     args: (body) => syncPayload({ id: body.id }),
@@ -47,14 +35,10 @@ export const SYNC_API_INVOKE_MAP: Record<string, SyncInvokeEntry> = {
         content: body.content,
       }),
   },
-  '/api/spark-revert': {
-    cmd: 'spark_git_revert',
-    args: (body) => syncPayload({ path: body.path, type: body.type }),
-  },
 };
 
 /**
- * @param path e.g. `/api/commit`
+ * @param path e.g. `/api/delete`
  */
 export function resolveSyncInvoke(
   path: string,

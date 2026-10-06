@@ -110,7 +110,6 @@ describe('T8 behavioral: renderDocList scroll restore', () => {
   beforeEach(() => {
     document.body.innerHTML = '<div id="doc-list" style="height:40px;overflow:auto"></div>';
     state.index.topicDescriptions = {};
-    state.index.diffStatus = new Map();
     state.index.titleCache = new Map();
     state.ui.activeDate = '20260719';
     sessionStorage.clear();

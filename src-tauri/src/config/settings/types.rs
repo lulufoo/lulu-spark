@@ -4,7 +4,6 @@ use serde::{Deserialize, Serialize};
 
 pub const PROD_CONFIG_FILE_NAME: &str = "config.toml";
 
-pub const DEFAULT_GITHUB_USER_URL: &str = "";
 pub const HOST_LLM_PLATFORM: &str = "glm";
 pub const HOST_LLM_BASE_URL: &str = "https://open.bigmodel.cn/api/paas/v4";
 
@@ -100,11 +99,6 @@ pub struct AppSettings {
     pub knowledge_root: PathBuf,
     #[serde(default = "default_cache_dir")]
     pub cache_dir: PathBuf,
-    #[serde(default = "default_github_user_url")]
-    pub github_user_url: String,
-    /// Optional Spark GitHub repository URL (`https://github.com/owner/repo`). Empty = none.
-    #[serde(default)]
-    pub spark_github_repo_url: String,
     /// Assistant engine selection: `host` (Agent Loop + GLM). Default `host`.
     /// Legacy or empty values are retained on disk but treated as unconfigured.
     #[serde(default = "default_assistant_engine")]
@@ -180,10 +174,6 @@ pub fn default_cache_dir() -> PathBuf {
     home_dir().join(".cache").join("lulu-spark")
 }
 
-pub(super) fn default_github_user_url() -> String {
-    DEFAULT_GITHUB_USER_URL.to_string()
-}
-
 pub(super) fn default_assistant_engine() -> String {
     "host".to_string()
 }
@@ -194,8 +184,6 @@ impl Default for AppSettings {
             spark_root: default_spark_root(),
             knowledge_root: default_knowledge_root(),
             cache_dir: default_cache_dir(),
-            github_user_url: default_github_user_url(),
-            spark_github_repo_url: String::new(),
             assistant_engine: default_assistant_engine(),
             llm: Vec::new(),
             http_port: None,

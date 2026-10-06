@@ -85,13 +85,13 @@ test('resolveReadDriver 默认（未设置 VITE_READ_API）为 fetch', () => {
 });
 
 test('tauriDriver getJson 通过 invoke 调用映射命令', async () => {
-  invokeMock.mockResolvedValue({ total: 1, modified: ['raw/a.md'] });
+  invokeMock.mockResolvedValue({ spark_root: '/tmp' });
   const driver = createTauriDriver();
-  const result = await driver.getJson('/api/status?_=' + Date.now());
+  const result = await driver.getJson('/api/config');
 
   expect(invokeMock).toHaveBeenCalledOnce();
-  expect(invokeMock).toHaveBeenCalledWith('get_status', {});
-  expect(result.total).toBe(1);
+  expect(invokeMock).toHaveBeenCalledWith('get_config', {});
+  expect(result.spark_root).toBe('/tmp');
 });
 
 test('tauriDriver 在未配置映射时抛出可读错误', async () => {

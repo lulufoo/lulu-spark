@@ -47,7 +47,6 @@ const INVOKE_MAP_COMMANDS: &[&str] = &[
     "get_draft",
     "get_note_draft",
     "get_config",
-    "get_status",
     "kb_read",
     "get_kb_asset",
     "kb_list",
@@ -191,7 +190,7 @@ fn settings_github_infer_commands_are_not_acl_allowed() {
     let root = manifest_dir();
     let toml = fs::read_to_string(root.join("permissions/read-api.toml")).expect("toml");
     let allow = parse_read_api_toml_allow(&toml);
-    for cmd in ["infer_github_user_url", "check_spark_root"] {
+    for cmd in ["infer_github_user_url", "check_spark_root", "get_status"] {
         assert!(!allow.contains(cmd), "{cmd} must not stay in read-api.toml");
     }
 }

@@ -22,7 +22,3 @@ pub fn knowledge_root_string(_repo_root: &Path) -> String {
         .to_string_lossy()
         .into_owned()
 }
-
-pub fn github_user_url_string(_repo_root: &Path) -> String {
-    settings_or_default().github_user_url
-}

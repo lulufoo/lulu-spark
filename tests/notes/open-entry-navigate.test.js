@@ -112,7 +112,6 @@ describe('T6 behavioral: main-layer open (spark-search hits + card title)', () =
     };
     apiMocks.searchSpark.mockReset();
     state.index.topicDescriptions = {};
-    state.index.diffStatus = new Map();
     state.index.titleCache = new Map();
     state.ui.activeDate = '20260719';
   });

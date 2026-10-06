@@ -6,17 +6,14 @@ import {
 
 /** [path, cmd, payload keys forwarded from HTTP body] */
 const P4_PATHS = [
-  ['/api/commit', 'spark_git_commit', ['message', 'files']],
-  ['/api/pull', 'spark_git_pull', []],
   ['/api/delete', 'delete_entry', ['id']],
   ['/api/move-project', 'move_entry_project', ['id', 'new_project']],
   ['/api/draft', 'save_comment_draft', ['common_path', 'content']],
-  ['/api/spark-revert', 'spark_git_revert', ['path', 'type']],
 ];
 
 describe('syncApiInvokeMap', () => {
   it('covers all P4 POST paths with command names', () => {
-    expect(Object.keys(SYNC_API_INVOKE_MAP)).toHaveLength(6);
+    expect(Object.keys(SYNC_API_INVOKE_MAP)).toHaveLength(3);
     for (const [path, cmd] of P4_PATHS) {
       expect(SYNC_API_INVOKE_MAP[path]?.cmd, path).toBe(cmd);
     }
@@ -28,22 +25,6 @@ describe('syncApiInvokeMap', () => {
       expect(resolved?.args, path).toEqual({ payload: {} });
       expect(Object.keys(resolved?.args ?? {}), path).toEqual(['payload']);
     }
-  });
-
-  it('commit maps body into payload for spark_git_commit', () => {
-    expect(
-      resolveSyncInvoke('/api/commit', { message: 'x', files: ['a.md'] })
-    ).toEqual({
-      cmd: 'spark_git_commit',
-      args: { payload: { message: 'x', files: ['a.md'] } },
-    });
-  });
-
-  it('pull maps empty payload for spark_git_pull', () => {
-    expect(resolveSyncInvoke('/api/pull', {})).toEqual({
-      cmd: 'spark_git_pull',
-      args: { payload: {} },
-    });
   });
 
   it('delete maps body into payload for delete_entry', () => {
@@ -82,22 +63,14 @@ describe('syncApiInvokeMap', () => {
     expect(resolveSyncInvoke('/api/kb/revert', { repo: 'o/r', path: 'a.md', type: 'file' })).toBeNull();
   });
 
+  it('spark git paths are no longer mapped', () => {
+    expect(resolveSyncInvoke('/api/commit', { message: 'x' })).toBeNull();
+    expect(resolveSyncInvoke('/api/pull', {})).toBeNull();
+    expect(resolveSyncInvoke('/api/spark-revert', { path: 'raw/foo.md', type: 'modified' })).toBeNull();
+  });
+
   it('resolveSyncInvoke returns null for unknown path', () => {
     expect(resolveSyncInvoke('/api/nope', {})).toBeNull();
   });
 
-  it('spark-revert maps path+type into payload for spark_git_revert', () => {
-    expect(
-      resolveSyncInvoke('/api/spark-revert', { path: 'raw/foo/bar.md', type: 'modified' })
-    ).toEqual({
-      cmd: 'spark_git_revert',
-      args: { payload: { path: 'raw/foo/bar.md', type: 'modified' } },
-    });
-  });
-
-  it('spark-revert with empty body passes undefined values without crashing', () => {
-    const result = resolveSyncInvoke('/api/spark-revert', {});
-    expect(result?.cmd).toBe('spark_git_revert');
-    expect(result?.args).toEqual({ payload: { path: undefined, type: undefined } });
-  });
 });

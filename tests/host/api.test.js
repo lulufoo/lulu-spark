@@ -6,10 +6,10 @@ import { DEFAULT_DEV_BASE } from '../../frontend/src/host/apiClient.ts'
 import {
   assertReadPayload,
   assertWritePayload,
-  fetchIndex, fetchDiffStatus, fetchAnnotationsSummary, fetchAnnotation,
+  fetchIndex, fetchAnnotationsSummary, fetchAnnotation,
   fetchConfig, fetchFileContent, fetchLinkTitle,
   setConfig,
-  saveFile, commitFiles, revertFile,
+  saveFile,
   updateComments, updateLinks, setImportance, setDone,
   deleteEntry,
   fetchTopics, fetchNotesCategories, createNotesCategory, updateNotesCategory, deleteNotesCategory, moveToProject,
@@ -85,18 +85,6 @@ test('fetchIndex 在 JSON body 含 error 时抛出（Tauri 路径）', async () 
   await expect(fetchIndex()).rejects.toThrow('No such file')
 })
 
-test('fetchDiffStatus 调用 /api/status', async () => {
-  mockFetch({ modified: ['raw/a.md'], conflicted: [] })
-  const result = await fetchDiffStatus()
-  expect(fetch.mock.calls[0][0]).toMatch(new RegExp(`^${API_READ_PREFIX}/status`))
-  expect(result.modified).toEqual(['raw/a.md'])
-})
-
-test('fetchDiffStatus 非 2xx 时抛出错误', async () => {
-  mockFetch({}, false, 503)
-  await expect(fetchDiffStatus()).rejects.toThrow('HTTP 503')
-})
-
 test('fetchAnnotationsSummary 调用 /api/annotations', async () => {
   mockFetch({ 'ai/note.md': { done: true } })
   const result = await fetchAnnotationsSummary()
@@ -160,53 +148,6 @@ test('saveFile 发送正确 body', async () => {
   expect(body.layer).toBe('raw')
   expect(body.common_path).toBe('ai/note.md')
   expect(body.content).toBe('# content')
-})
-
-test('commitFiles 不传 files 时 body 无 files 字段', async () => {
-  mockFetch({ ok: true })
-  await commitFiles('chore: update')
-  const body = JSON.parse(fetch.mock.calls[0][1].body)
-  expect(body.message).toBe('chore: update')
-  expect(body.files).toBeUndefined()
-})
-
-test('commitFiles 传 files 时 body 包含 files', async () => {
-  mockFetch({ ok: true })
-  await commitFiles('fix: note', ['raw/ai/note.md'])
-  const body = JSON.parse(fetch.mock.calls[0][1].body)
-  expect(body.files).toEqual(['raw/ai/note.md'])
-})
-
-test('revertFile 发送 path 和 type 到 /api/spark-revert', async () => {
-  mockFetch({ ok: true })
-  const result = await revertFile('raw/foo/bar.md', 'modified')
-  expect(fetch.mock.calls[0][0]).toBe(`${DEFAULT_DEV_BASE}/api/spark-revert`)
-  expect(fetch.mock.calls[0][1].method).toBe('POST')
-  const body = JSON.parse(fetch.mock.calls[0][1].body)
-  expect(body.path).toBe('raw/foo/bar.md')
-  expect(body.type).toBe('modified')
-  expect(result).toEqual({ ok: true })
-})
-
-test('revertFile 空 path 和 type 执行全量 revert', async () => {
-  mockFetch({ ok: true })
-  await revertFile('', '')
-  const body = JSON.parse(fetch.mock.calls[0][1].body)
-  expect(body.path).toBe('')
-  expect(body.type).toBe('')
-})
-
-test('revertFile undefined 参数保底为空字符串', async () => {
-  mockFetch({ ok: true })
-  await revertFile(undefined, undefined)
-  const body = JSON.parse(fetch.mock.calls[0][1].body)
-  expect(body.path).toBe('')
-  expect(body.type).toBe('')
-})
-
-test('revertFile 后端返回 error 时抛出', async () => {
-  mockFetch({ error: 'revert failed', _status: 500 })
-  await expect(revertFile('raw/foo/bar.md', 'modified')).rejects.toThrow('revert failed')
 })
 
 test('updateComments 发送正确 body', async () => {

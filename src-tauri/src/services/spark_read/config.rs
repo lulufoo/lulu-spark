@@ -29,16 +29,6 @@ pub fn check_spark_root(path: &str) -> Value {
     json!({ "ok": true })
 }
 
-pub fn infer_github_user_url(spark_root: &str) -> Value {
-    let path = settings::expand_user_path(spark_root);
-    let (github_user_url, spark_github_repo_url) =
-        crate::config::settings::infer_spark_github_from_root(&path);
-    serde_json::json!({
-        "github_user_url": github_user_url,
-        "spark_github_repo_url": spark_github_repo_url,
-    })
-}
-
 pub fn get_config(_repo_root: &Path) -> Value {
     let _ = _repo_root;
     let s = settings::load().unwrap_or_default();

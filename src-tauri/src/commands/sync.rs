@@ -2,7 +2,7 @@ use serde_json::Value;
 use tauri::AppHandle;
 
 use crate::services::{
-    draft, entry_admin, spark_git,
+    draft, entry_admin,
 };
 
 #[tauri::command]
@@ -24,27 +24,6 @@ pub fn save_note_draft(
 #[tauri::command]
 pub fn clear_note_draft(_app: AppHandle, temp_id: String) -> Result<Value, String> {
     Ok(draft::clear_note_draft_json(&temp_id))
-}
-
-#[tauri::command]
-pub async fn spark_git_commit(_app: AppHandle, payload: Value) -> Result<Value, String> {
-    tauri::async_runtime::spawn_blocking(move || spark_git::spark_git_commit(&payload))
-        .await
-        .map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-pub async fn spark_git_pull(_app: AppHandle, payload: Value) -> Result<Value, String> {
-    tauri::async_runtime::spawn_blocking(move || spark_git::spark_git_pull(&payload))
-        .await
-        .map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-pub async fn spark_git_revert(_app: AppHandle, payload: Value) -> Result<Value, String> {
-    tauri::async_runtime::spawn_blocking(move || spark_git::spark_git_revert(&payload))
-        .await
-        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]

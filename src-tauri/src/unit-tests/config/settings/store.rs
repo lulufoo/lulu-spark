@@ -182,18 +182,15 @@ fn save_roundtrip_keeps_general_settings() {
     let _env = TestConfigEnv::prod(dir.path());
     let mut settings = AppSettings::default();
     settings.spark_root = Path::new("/tmp/spark").into();
-    settings.github_user_url = "https://github.com/example".into();
     save(&settings).expect("save");
 
     let loaded = load().expect("load");
     assert_eq!(loaded.spark_root, settings.spark_root);
-    assert_eq!(loaded.github_user_url, settings.github_user_url);
 }
 
 #[test]
 fn spark_github_fields_are_ignored_by_set_config() {
     let mut settings = AppSettings::default();
-    let before = settings.github_user_url.clone();
     apply_config_payload(
         &mut settings,
         &serde_json::json!({
@@ -202,8 +199,6 @@ fn spark_github_fields_are_ignored_by_set_config() {
         }),
     )
     .expect("apply");
-    assert_eq!(settings.spark_github_repo_url, "");
-    assert_eq!(settings.github_user_url, before);
     let json = to_config_json(&settings, false);
     assert!(json.get("spark_github_repo_url").is_none());
     assert!(json.get("github_user_url").is_none());

@@ -1,4 +1,4 @@
-import { state, getEntryId, loadDiffStatus, notifyState } from '../../state/host.ts';
+import { state, getEntryId, notifyState } from '../../state/host.ts';
 import { getActivePath } from '../../../knowledge/state/path.ts';
 import { filenameFromPath, slugToTitle, resetEditAreaScroll } from '../../../shared/utils.ts';
 import * as api from '../../../host/api.ts';
@@ -182,7 +182,6 @@ export async function saveDoc() {
     state.index.titleCache.set(date, cache);
     if (entryId) cache.set(entryId, newTitle);
     exitEditMode(true);
-    await loadDiffStatus();
     notifyState();
   } catch (e) {
     alert(`Save failed: ${e instanceof Error ? e.message : String(e)}`);

@@ -28,7 +28,6 @@ beforeEach(() => {
   document.body.appendChild(list);
 
   state.index.topicDescriptions = {};
-  state.index.diffStatus = new Map();
   state.index.titleCache = new Map();
   state.index.groupedByDate = [];
   state.ui.activeDate = '20260518';
@@ -148,7 +147,7 @@ describe('updateTitlesInDOM source_type badge', () => {
   });
 });
 
-describe('getEntryDiffState 三态收敛与 DiffDot 渲染', () => {
+describe('getEntryDiffState 只保留 unreachable', () => {
   const basePath = 'proj/topic/202605181200-note.md';
 
   function makeEntry(overrides = {}) {
@@ -160,18 +159,7 @@ describe('getEntryDiffState 三态收敛与 DiffDot 渲染', () => {
     };
   }
 
-  it('raw 层 conflict 时 .doc-meta 渲染 .diff-dot.conflict 且文案为 ● conflict', () => {
-    state.index.diffStatus.set(`raw/${basePath}`, 'conflict');
-    const entry = makeEntry();
-    const card = buildCard('dd1', entry, 'Title');
-    const dot = card.querySelector('.doc-meta .diff-dot');
-    expect(getEntryDiffState(entry)).toBe('conflict');
-    expect(dot).not.toBeNull();
-    expect(dot.classList.contains('conflict')).toBe(true);
-    expect(dot.textContent).toBe('● conflict');
-  });
-
-  it('_unreachable_raw 且无 conflict 时 .doc-meta 渲染 .diff-dot.unreachable 与 ● unreachable 文案', () => {
+  it('_unreachable_raw 时 .doc-meta 渲染 .diff-dot.unreachable 与 ● unreachable 文案', () => {
     const entry = makeEntry({ _unreachable_raw: true });
     const card = buildCard('dd2', entry, 'Title');
     const dot = card.querySelector('.doc-meta .diff-dot');
@@ -181,28 +169,7 @@ describe('getEntryDiffState 三态收敛与 DiffDot 渲染', () => {
     expect(dot.textContent).toBe('● unreachable');
   });
 
-  it('两层状态并存（raw=conflict、digest=modified）时仅显示最高优先级 conflict 单一状态点', () => {
-    state.index.diffStatus.set(`raw/${basePath}`, 'conflict');
-    state.index.diffStatus.set(`digest/${basePath}`, 'modified');
-    const entry = makeEntry({ layers: ['raw', 'digest'] });
-    const card = buildCard('dd3', entry, 'Title');
-    const dots = card.querySelectorAll('.doc-meta .diff-dot');
-    expect(getEntryDiffState(entry)).toBe('conflict');
-    expect(dots.length).toBe(1);
-    expect(dots[0].classList.contains('conflict')).toBe(true);
-  });
-
-  it('unreachable 优先于 modified：raw 不可达 + digest modified 时仅显示 unreachable', () => {
-    state.index.diffStatus.set(`digest/${basePath}`, 'modified');
-    const entry = makeEntry({ layers: ['raw', 'digest'], _unreachable_raw: true });
-    const card = buildCard('dd4', entry, 'Title');
-    const dots = card.querySelectorAll('.doc-meta .diff-dot');
-    expect(getEntryDiffState(entry)).toBe('unreachable');
-    expect(dots.length).toBe(1);
-    expect(dots[0].classList.contains('unreachable')).toBe(true);
-  });
-
-  it('diffStatus 为空且无 unreachable 标记时 .doc-meta 内无任何 .diff-dot 节点', () => {
+  it('无 unreachable 标记时 .doc-meta 内无任何 .diff-dot 节点', () => {
     const card = buildCard('dd5', makeEntry(), 'Title');
     expect(card.querySelector('.doc-meta')).not.toBeNull();
     expect(card.querySelector('.doc-meta .diff-dot')).toBeNull();
