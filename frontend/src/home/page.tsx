@@ -1,8 +1,10 @@
-import { memo, useEffect, useLayoutEffect, useRef, type FormEvent, type KeyboardEvent } from 'react';
+import { memo, useEffect, useLayoutEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { attachHomeSidebarResize, detachHomeSidebarResize } from './ui/sidebar-resize.ts';
 import { createRoot, type Root } from 'react-dom/client';
 import { flushSync } from 'react-dom';
+import { getAuthUser, signOutAuth, startAuthLogin, type AuthUserView } from '../auth/oauth.ts';
 import { hydrateHomeChatMarkdown, renderHomeChatMarkdown } from './ui/chat-render.ts';
+import { AccountBar } from './ui/account-bar.tsx';
 import { HomeNavIcon } from './ui/nav-icons.tsx';
 import { SessionList } from './ui/session-list.tsx';
 import { SessionMenu } from './ui/session-menu.tsx';
@@ -117,6 +119,7 @@ export function HomePage({
   openReadLater,
 }: HomePageChrome = {}) {
   const state = useHomeState();
+  const [authUser, setAuthUser] = useState<AuthUserView | null>(null);
   const locked = composerLocked(state);
   const inputLocked = composerInputLocked(state);
   const hint = progressHint(state);
@@ -133,6 +136,18 @@ export function HomePage({
   useEffect(() => {
     startHomeHub();
     return () => stopHomeHub();
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void getAuthUser()
+      .then((user) => {
+        if (!cancelled) setAuthUser(user);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -340,6 +355,17 @@ export function HomePage({
             }}
           />
         </div>
+        <AccountBar
+          user={authUser}
+          onLogin={(provider) => {
+            void startAuthLogin(provider).catch(() => {});
+          }}
+          onLogout={() => {
+            void signOutAuth()
+              .then(() => setAuthUser(null))
+              .catch(() => {});
+          }}
+        />
         <div
           className="home-chat-sidebar-resizer sidebar-resizer"
           role="separator"
