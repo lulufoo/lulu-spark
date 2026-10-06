@@ -7,15 +7,15 @@ const SLOT_CURSOR_IDE: &str = "cursor_ide";
 
 #[derive(Debug)]
 pub enum SecretError {
-    Keyring(String),
-    Poisoned,
+    Store(String),
+    Parse(String),
 }
 
 impl std::fmt::Display for SecretError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            SecretError::Keyring(e) => write!(f, "keyring: {e}"),
-            SecretError::Poisoned => write!(f, "lock poisoned"),
+            SecretError::Store(e) => write!(f, "store: {e}"),
+            SecretError::Parse(e) => write!(f, "parse: {e}"),
         }
     }
 }

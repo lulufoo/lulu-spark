@@ -138,8 +138,8 @@ fn assert_uniform_401(status: u16, body: &str, secret: Option<&str>) {
         "401 must not write full Authorization, body={body}"
     );
     assert!(
-        !body.contains("keychain_unavailable"),
-        "401 must not expose keychain_unavailable"
+        !body.contains("store_unavailable"),
+        "401 must not expose store_unavailable"
     );
     assert!(
         !body.contains("\"rejected\""),
@@ -1750,13 +1750,13 @@ fn registered_slot_missing_unknown_mismatch_revoked_are_uniform_401() {
     stop_embedded_mcp_runtime(handle).expect("stop");
 }
 
-/// Exception: both rejected and keychain_unavailable map to 401 with no reason leak.
+/// Exception: both rejected and store_unavailable map to 401 with no reason leak.
 #[test]
-fn rejected_and_keychain_unavailable_both_map_to_401() {
+fn rejected_and_store_unavailable_both_map_to_401() {
     let src = adapter_source();
     assert!(
-        src.contains("keychain_unavailable"),
-        "door must handle verify_for_slot keychain_unavailable as 401"
+        src.contains("store_unavailable"),
+        "door must handle verify_for_slot store_unavailable as 401"
     );
     assert!(
         src.contains("OAuthError::rejected") || src.contains("rejected"),

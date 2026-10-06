@@ -398,16 +398,16 @@ describe('bind-dialog', () => {
   it('identifies issue failures with Bind_Mobile in the browser log', async () => {
     const log = vi.spyOn(console, 'info').mockImplementation(() => {});
     invokeMock.mockImplementation(async (cmd) => {
-      if (cmd === 'issue_bind') throw new Error('keychain_unavailable');
+      if (cmd === 'issue_bind') throw new Error('no_gateway');
       return undefined;
     });
 
     const { openBindDialog } = await import('../../frontend/src/app-shell/commands/bind-dialog.ts');
     await openBindDialog();
 
-    expect(makeEl('bind-status').textContent).toBe('The local Keychain is unavailable.');
+    expect(makeEl('bind-status').textContent).toBe('The local gateway is unavailable.');
     expect(log).toHaveBeenCalledWith(
-      '[bind] business_id=Bind_Mobile event=issue_bind outcome=keychain_unavailable',
+      '[bind] business_id=Bind_Mobile event=issue_bind outcome=no_gateway',
     );
     log.mockRestore();
   });

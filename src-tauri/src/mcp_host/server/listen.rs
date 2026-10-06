@@ -265,7 +265,7 @@ pub(super) fn verify_registered_slot(scene_slot: &str, headers: &HeaderMap) -> R
     };
     match verify_for_slot(slot, TicketHandle::from_secret(secret)) {
         Ok(()) => Ok(()),
-        Err(OAuthError::rejected) | Err(OAuthError::keychain_unavailable) => {
+        Err(OAuthError::rejected) | Err(OAuthError::store_unavailable) => {
             Err(StatusCode::UNAUTHORIZED)
         }
         Err(OAuthError::slot_unknown) => Err(StatusCode::UNAUTHORIZED),

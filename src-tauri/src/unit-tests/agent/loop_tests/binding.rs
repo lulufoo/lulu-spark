@@ -2889,15 +2889,15 @@ fn t5_registry_seed_stays_without_authorization_after_set() {
 }
 
 #[test]
-fn t5_unknown_key_is_not_used_for_keychain_failure() {
+fn t5_unknown_key_is_not_used_for_store_failure() {
     with_sandbox(|| {
         reset_spark_slot();
-        test_force_keychain_unavailable(true);
+        test_force_store_unavailable(true);
         let err = r#loop::try_set_binding_json(&json!({ "key": "spark" }))
-            .expect_err("Keychain failure must fail Set");
+            .expect_err("store failure must fail Set");
         assert_eq!(err.as_code(), "set_invalid");
         assert_ne!(err.as_code(), "unknown_key");
-        test_force_keychain_unavailable(false);
+        test_force_store_unavailable(false);
         let missing = r#loop::try_set_binding_json(&json!({ "key": "no_such_binding_key" }))
             .expect_err("missing key");
         assert_eq!(missing.as_code(), "unknown_key");
@@ -2919,13 +2919,13 @@ fn t5_set_error_codes_remain_set_invalid_and_unknown_key_only() {
 }
 
 #[test]
-fn t5_keychain_write_failure_keeps_unbound_issues_no_ticket_and_skips_on_bound() {
+fn t5_store_write_failure_keeps_unbound_issues_no_ticket_and_skips_on_bound() {
     with_sandbox(|| {
         reset_spark_slot();
         r#loop::clear_lifecycle_events_for_tests();
-        test_force_keychain_unavailable(true);
+        test_force_store_unavailable(true);
         let err = r#loop::try_set_binding_json(&json!({ "key": "spark" }))
-            .expect_err("Keychain write failure must fail Set");
+            .expect_err("store write failure must fail Set");
         assert_eq!(err.as_code(), "set_invalid");
         assert_eq!(r#loop::binding_state(), "unbound");
         assert!(r#loop::loaded_mcp_server().is_none());
@@ -2933,30 +2933,30 @@ fn t5_keychain_write_failure_keeps_unbound_issues_no_ticket_and_skips_on_bound()
         let events = r#loop::drain_lifecycle_events();
         assert!(
             events.iter().all(|e| e.event != "onBound"),
-            "Keychain failure must not emit onBound: {events:?}"
+            "store failure must not emit onBound: {events:?}"
         );
-        test_force_keychain_unavailable(false);
+        test_force_store_unavailable(false);
         let record = ledger_record(Slot::Spark).expect("ledger after failed Set");
         assert!(
             record
                 .as_ref()
                 .map(|row| row.state != TicketState::Live)
                 .unwrap_or(true),
-            "Keychain failure must not leave a Live spark ticket"
+            "store failure must not leave a Live spark ticket"
         );
     });
 }
 
 #[test]
-fn t5_keychain_write_failure_keeps_original_binding() {
+fn t5_store_write_failure_keeps_original_binding() {
     with_sandbox(|| {
         r#loop::set_binding(valid_binding()).expect("original typed Binding");
         let gen = r#loop::query_binding().generation;
         r#loop::clear_lifecycle_events_for_tests();
         reset_spark_slot();
-        test_force_keychain_unavailable(true);
+        test_force_store_unavailable(true);
         let err = r#loop::try_set_binding_json(&json!({ "key": "spark" }))
-            .expect_err("Keychain failure");
+            .expect_err("store failure");
         assert_eq!(err.as_code(), "set_invalid");
         assert_eq!(r#loop::binding_state(), "bound");
         assert_eq!(r#loop::query_binding().generation, gen);
@@ -2967,7 +2967,7 @@ fn t5_keychain_write_failure_keeps_original_binding() {
         assert!(session_authorization_bearer().is_none());
         let events = r#loop::drain_lifecycle_events();
         assert!(events.iter().all(|e| e.event != "onBound"));
-        test_force_keychain_unavailable(false);
+        test_force_store_unavailable(false);
         let record = ledger_record(Slot::Spark).expect("ledger");
         assert!(
             record

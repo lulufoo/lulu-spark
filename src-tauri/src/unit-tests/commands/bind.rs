@@ -358,7 +358,6 @@ fn issue_bind_propagates_bind_error_without_folding_to_no_lan_or_no_gateway() {
         BindError::consumed,
         BindError::decrypt_failed,
         BindError::invalid_request,
-        BindError::keychain_unavailable,
         BindError::rejected,
     ] {
         let mapped = super::bind_error_to_command_error(err);

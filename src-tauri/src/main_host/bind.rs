@@ -1,6 +1,6 @@
 use serde_json::json;
 
-use crate::services::bind::{complete_bind, BindError};
+use crate::services::bind::complete_bind;
 
 use super::respond::respond_json;
 
@@ -19,11 +19,7 @@ pub(super) fn handle_bind_complete(mut request: tiny_http::Request) {
             }),
         ),
         Err(err) => {
-            let status = match err {
-                BindError::keychain_unavailable => 500,
-                _ => 400,
-            };
-            respond_json(request, status, json!({ "error": format!("{err:?}") }));
+            respond_json(request, 400, json!({ "error": format!("{err:?}") }));
         }
     }
 }

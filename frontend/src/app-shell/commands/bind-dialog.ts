@@ -19,7 +19,6 @@ const BIND_STATES = ['loading', 'waiting', 'success', 'expired', 'error'];
 const ISSUE_ERROR_STATUS: Record<string, string> = {
   no_lan: 'No local network is available.',
   no_gateway: 'The local gateway is unavailable.',
-  keychain_unavailable: 'The local Keychain is unavailable.',
 };
 
 type BindPayload = {

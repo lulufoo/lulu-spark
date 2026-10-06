@@ -103,7 +103,7 @@ static DEVICE_LEDGER_LOCK: Mutex<()> = Mutex::new(());
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OAuthError {
-    keychain_unavailable,
+    store_unavailable,
     slot_unknown,
     rejected,
 }
@@ -111,7 +111,7 @@ pub enum OAuthError {
 impl fmt::Display for OAuthError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            OAuthError::keychain_unavailable => "keychain_unavailable",
+            OAuthError::store_unavailable => "store_unavailable",
             OAuthError::slot_unknown => "slot_unknown",
             OAuthError::rejected => "rejected",
         })
@@ -296,24 +296,24 @@ fn mobile_ticket_view() -> Result<Value, OAuthError> {
 }
 
 #[cfg(test)]
-static FORCE_KEYCHAIN_UNAVAILABLE: AtomicBool = AtomicBool::new(false);
+static FORCE_STORE_UNAVAILABLE: AtomicBool = AtomicBool::new(false);
 
 #[cfg(test)]
-pub fn test_force_keychain_unavailable(on: bool) {
-    FORCE_KEYCHAIN_UNAVAILABLE.store(on, Ordering::SeqCst);
+pub fn test_force_store_unavailable(on: bool) {
+    FORCE_STORE_UNAVAILABLE.store(on, Ordering::SeqCst);
 }
 
-fn ensure_keychain_available() -> Result<(), OAuthError> {
+fn ensure_store_available() -> Result<(), OAuthError> {
     let _ = settings::uses_in_memory_keychain();
     #[cfg(test)]
-    if FORCE_KEYCHAIN_UNAVAILABLE.load(Ordering::SeqCst) {
-        return Err(OAuthError::keychain_unavailable);
+    if FORCE_STORE_UNAVAILABLE.load(Ordering::SeqCst) {
+        return Err(OAuthError::store_unavailable);
     }
     Ok(())
 }
 
 fn map_vault<T>(result: Result<T, vault::SecretError>) -> Result<T, OAuthError> {
-    result.map_err(|_| OAuthError::keychain_unavailable)
+    result.map_err(|_| OAuthError::store_unavailable)
 }
 
 fn ticket_from_record(record: &LedgerRecord) -> SlotTicket {
@@ -324,7 +324,7 @@ fn ticket_from_record(record: &LedgerRecord) -> SlotTicket {
 }
 
 fn record_from_ticket(slot: Slot, ticket: &SlotTicket) -> Result<LedgerRecord, OAuthError> {
-    let state = TicketState::parse(&ticket.state).ok_or(OAuthError::keychain_unavailable)?;
+    let state = TicketState::parse(&ticket.state).ok_or(OAuthError::store_unavailable)?;
     Ok(LedgerRecord {
         slot,
         handle: TicketHandle::from_secret(ticket.handle.clone()),
@@ -333,7 +333,7 @@ fn record_from_ticket(slot: Slot, ticket: &SlotTicket) -> Result<LedgerRecord, O
 }
 
 fn read_record(slot: Slot) -> Result<Option<LedgerRecord>, OAuthError> {
-    ensure_keychain_available()?;
+    ensure_store_available()?;
     let vault = map_vault(vault::read_vault())?;
     match vault.mcp_slot(slot.as_str()) {
         Some(ticket) => record_from_ticket(slot, ticket).map(Some),
@@ -352,7 +352,7 @@ fn persist_live(slot: Slot) -> Result<TicketHandle, OAuthError> {
 }
 
 fn write_record(record: &LedgerRecord) -> Result<(), OAuthError> {
-    ensure_keychain_available()?;
+    ensure_store_available()?;
     map_vault(vault::update_vault(|doc| {
         doc.set_mcp_slot(record.slot.as_str(), Some(ticket_from_record(record)));
     }))
@@ -391,7 +391,7 @@ fn hash_token(token: &str) -> String {
 }
 
 fn load_device_ledger() -> Result<DeviceLedger, OAuthError> {
-    ensure_keychain_available()?;
+    ensure_store_available()?;
     let vault = map_vault(vault::read_vault())?;
     Ok(DeviceLedger {
         devices: vault.devices().to_vec(),
@@ -399,7 +399,7 @@ fn load_device_ledger() -> Result<DeviceLedger, OAuthError> {
 }
 
 fn save_device_ledger(ledger: &DeviceLedger) -> Result<(), OAuthError> {
-    ensure_keychain_available()?;
+    ensure_store_available()?;
     map_vault(vault::update_vault(|doc| {
         doc.set_devices(ledger.devices.clone());
     }))

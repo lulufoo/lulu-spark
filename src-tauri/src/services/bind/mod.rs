@@ -35,7 +35,6 @@ pub enum BindError {
     consumed,
     decrypt_failed,
     invalid_request,
-    keychain_unavailable,
     rejected,
 }
 

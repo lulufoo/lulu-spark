@@ -79,10 +79,10 @@ fn persistent_load() -> Result<Vault, SecretError> {
 fn persistent_store(vault: &Vault) -> Result<(), SecretError> {
     let path = settings::prod_config_dir().join("dev-secrets.toml");
     if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).map_err(|e| SecretError::Keyring(e.to_string()))?;
+        std::fs::create_dir_all(parent).map_err(|e| SecretError::Store(e.to_string()))?;
     }
     let content = vault_to_toml(vault)?;
-    std::fs::write(path, content).map_err(|e| SecretError::Keyring(e.to_string()))
+    std::fs::write(path, content).map_err(|e| SecretError::Store(e.to_string()))
 }
 
 #[cfg(not(debug_assertions))]
@@ -101,21 +101,21 @@ fn persistent_store(vault: &Vault) -> Result<(), SecretError> {
 #[cfg(not(debug_assertions))]
 fn keychain_get(service: &str, account: &str) -> Result<Option<String>, SecretError> {
     let entry = keyring::Entry::new(service, account)
-        .map_err(|e| SecretError::Keyring(e.to_string()))?;
+        .map_err(|e| SecretError::Store(e.to_string()))?;
     match entry.get_password() {
         Ok(value) => Ok(Some(value)),
         Err(keyring::Error::NoEntry) => Ok(None),
-        Err(e) => Err(SecretError::Keyring(e.to_string())),
+        Err(e) => Err(SecretError::Store(e.to_string())),
     }
 }
 
 #[cfg(not(debug_assertions))]
 fn keychain_set(service: &str, account: &str, value: &str) -> Result<(), SecretError> {
     let entry = keyring::Entry::new(service, account)
-        .map_err(|e| SecretError::Keyring(e.to_string()))?;
+        .map_err(|e| SecretError::Store(e.to_string()))?;
     entry
         .set_password(value)
-        .map_err(|e| SecretError::Keyring(e.to_string()))
+        .map_err(|e| SecretError::Store(e.to_string()))
 }
 
 pub fn read_vault() -> Result<Vault, SecretError> {
