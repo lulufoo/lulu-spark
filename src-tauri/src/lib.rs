@@ -148,6 +148,9 @@ pub fn run() {
             commands::write::mark_message_channel_read,
             commands::os_notification::show_os_notification,
             commands::app_log::log_app_event,
+            commands::auth_session::get_auth_session,
+            commands::auth_session::set_auth_session,
+            commands::auth_session::delete_auth_session,
         ])
         .setup(|app| {
             let notify_handle = app.handle().clone();
@@ -266,6 +269,7 @@ pub fn run() {
                 tauri::RunEvent::Opened { urls } => {
                     for url in urls {
                         crate::services::os_notify_trace::log_scheme_open(url.as_str());
+                        crate::commands::auth_session::emit_opened_scheme(app_handle, url.as_str());
                     }
                 }
                 tauri::RunEvent::Exit => {
@@ -338,3 +342,7 @@ mod message_center_event_tests;
 #[cfg(test)]
 #[path = "unit-tests/lib/dev_dock_icon.rs"]
 mod dev_dock_icon;
+
+#[cfg(test)]
+#[path = "unit-tests/lib/auth_session_wiring_tests.rs"]
+mod auth_session_wiring_tests;

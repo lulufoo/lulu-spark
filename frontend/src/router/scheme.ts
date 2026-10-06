@@ -1,3 +1,4 @@
+import { completeAuthLogin } from '../auth/oauth.ts';
 import { state } from '../host/state.ts';
 import { openReadLaterDialog } from '../read-later/commands/dialog.ts';
 import { navigateToNote } from './index.ts';
@@ -120,6 +121,7 @@ export function openSparkScheme(scheme: string): boolean {
   }
 
   if (parsed.kind === 'auth-login-callback') {
+    void completeAuthLogin(scheme);
     logNotifyHop('route.to_business', trace, { outcome: 'ok', kind: 'auth-login-callback' });
     return true;
   }
@@ -144,4 +146,33 @@ export function openSparkScheme(scheme: string): boolean {
     note: landing.note,
   });
   return ok;
+}
+
+function getTauriListen() {
+  if (typeof window === 'undefined') return null;
+  const listen = window.__TAURI__?.event?.listen;
+  return typeof listen === 'function' ? listen : null;
+}
+
+let unlistenOpened: (() => void) | null = null;
+
+export function startSparkSchemeOpenedHub(): void {
+  if (typeof unlistenOpened === 'function') {
+    unlistenOpened();
+    unlistenOpened = null;
+  }
+  const listen = getTauriListen();
+  if (!listen) return;
+  void listen('spark-scheme:opened', (event) => {
+    const payload = event?.payload;
+    const scheme =
+      typeof payload === 'string'
+        ? payload
+        : payload && typeof payload === 'object' && 'scheme' in payload
+          ? (payload as { scheme?: unknown }).scheme
+          : null;
+    if (typeof scheme === 'string' && scheme) openSparkScheme(scheme);
+  }).then((fn) => {
+    unlistenOpened = fn;
+  });
 }

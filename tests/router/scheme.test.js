@@ -270,6 +270,26 @@ describe('openSparkScheme', () => {
   });
 });
 
+describe('auth-login callback completion', () => {
+  it('hands auth-login-callback to completeAuthLogin without landing notes', () => {
+    const src = readFileSync(join(repoRoot, 'frontend/src/router/scheme.ts'), 'utf8');
+    expect(src).toMatch(/completeAuthLogin/);
+    expect(src).toMatch(/from ['"].*auth\/oauth\.ts['"]/);
+    expect(src).toMatch(/kind === 'auth-login-callback'/);
+    expect(src).toMatch(/startSparkSchemeOpenedHub/);
+    expect(src).toMatch(/spark-scheme:opened/);
+    expect(src).not.toMatch(/linkIdentity/);
+    expect(src).not.toMatch(/localStorage/);
+  });
+
+  it('boots the opened-scheme hub from boot.ts', () => {
+    const bootSrc = readFileSync(join(repoRoot, 'frontend/src/boot.ts'), 'utf8');
+    expect(bootSrc).toMatch(/startSparkSchemeOpenedHub/);
+    expect(bootSrc).not.toMatch(/spark-scheme:opened/);
+    expect(bootSrc).not.toMatch(/completeAuthLogin/);
+  });
+});
+
 describe('spark URL scheme registration', () => {
   it('registers spark on CFBundleURLSchemes and leaves parseHash hash landing in place', () => {
     const conf = JSON.parse(

@@ -20,7 +20,7 @@ import {
   wrapRouteMount,
 } from './app-shell/routes.ts';
 import type { SettingsConfig } from './app-shell/state/types.ts';
-import type { SparkEnvelope } from './router/scheme.ts';
+import { startSparkSchemeOpenedHub, type SparkEnvelope } from './router/scheme.ts';
 import { startOsNotifyClickHub } from './app-shell/commands/os-notify-click.ts';
 import { handleNotesOsNotifyEnvelope } from './notes/commands/os-notify.ts';
 import { handleReadLaterOsNotifyEnvelope } from './read-later/commands/os-notify.ts';
@@ -248,6 +248,22 @@ function startOsNotifyClickHubWhenReady() {
 }
 
 startOsNotifyClickHubWhenReady();
+
+function startSparkSchemeOpenedHubWhenReady() {
+  const tryStart = () => {
+    const listen = typeof window !== 'undefined' && window.__TAURI__?.event?.listen;
+    if (typeof listen !== 'function') return false;
+    startSparkSchemeOpenedHub();
+    return true;
+  };
+  if (tryStart()) return;
+  let attempts = 0;
+  const timer = setInterval(() => {
+    if (tryStart() || ++attempts >= 40) clearInterval(timer);
+  }, 50);
+}
+
+startSparkSchemeOpenedHubWhenReady();
 
 document.addEventListener('cta:filter-tag', (event) => {
   const detail = (event as CustomEvent<{ key?: string }>).detail;
