@@ -92,13 +92,17 @@
   .window-drag-strip .page-back-home {
     margin: 0;
   }
-  #sidebar .window-drag-strip.is-chrome {
-    padding-right: var(--notes-rail);
-  }
-  #sidebar .window-drag-strip .page-back-home {
-    padding-right: 0;
-    padding-left: 0;
-  }
+#sidebar .window-drag-strip.is-chrome {
+  padding-right: var(--notes-rail);
+}
+#sidebar .window-drag-strip .page-back-home,
+.knowledge-doc-sidebar .window-drag-strip .page-back-home {
+  padding-right: 0;
+  padding-left: 0;
+}
+.knowledge-doc-sidebar .window-drag-strip.is-chrome {
+  padding-right: 16px;
+}
 
   /* ── Header ── */
   header {

@@ -204,7 +204,8 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
     expect(dragStrip).not.toMatch(/Lulu Spark/);
     expect(dragStrip).not.toMatch(/isFullscreen/);
     expect(css).toMatch(/#sidebar \.window-drag-strip\.is-chrome \{[\s\S]*?padding-right: var\(--notes-rail\);/);
-    expect(css).toMatch(/#sidebar \.window-drag-strip \.page-back-home \{[\s\S]*?padding-right: 0;/);
+    expect(css).toMatch(/\.knowledge-doc-sidebar \.window-drag-strip\.is-chrome \{[\s\S]*?padding-right: 16px;/);
+    expect(css).toMatch(/#sidebar \.window-drag-strip \.page-back-home,[\s\S]*?padding-right: 0;/);
     expect(notesSidebar).not.toMatch(/notes-sidebar-label/);
     expect(notesSidebar).not.toMatch(/>Notes</);
     expect(css).toMatch(/#sidebar \{[\s\S]*?--notes-rail: 16px;/);
