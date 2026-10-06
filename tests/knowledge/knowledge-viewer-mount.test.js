@@ -110,7 +110,7 @@ describe('mountKbReader', () => {
     expect(commentBtn?.getAttribute('title')).toBe('Comment');
     expect(commentBtn?.textContent.trim()).toBe('');
     expect(commentBtn?.querySelector('[data-viewer-icon="comment"]')).toBeTruthy();
-    expect(openInChat.nextElementSibling).toBeNull();
+    expect(openInChat.nextElementSibling).toBe(container.querySelector('.kb-reader-header-meta'));
     expect(container.querySelector('.kb-btn-cancel-edit')?.nextElementSibling).toBe(openInChat);
     expect(openInChat.querySelector('.viewer-header-icon.is-filled')).toBeTruthy();
     expect(container.querySelector('.kb-btn-pending')).toBeNull();
@@ -150,7 +150,7 @@ describe('mountKbReader', () => {
     expect(header?.firstElementChild).toBe(actions);
     expect(actions?.nextElementSibling).toBe(search);
     expect(actions?.contains(meta)).toBe(true);
-    expect(actions?.firstElementChild).toBe(meta);
+    expect(actions?.lastElementChild).toBe(meta);
     expect(actions?.querySelector('.kb-btn-add-comment')).toBeTruthy();
     expect(actions?.querySelector('.kb-btn-edit')).toBeTruthy();
     expect(meta?.contains(size)).toBe(true);

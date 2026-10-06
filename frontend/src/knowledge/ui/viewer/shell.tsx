@@ -11,15 +11,15 @@ const FALLBACK_SHELL_HTML = `
     <div class="kb-reader">
       <div class="kb-reader-header viewer-header" data-tauri-drag-region="deep">
         <div class="viewer-header-actions kb-reader-header-actions">
-          <span class="kb-reader-header-meta">
-            <span class="kb-file-size"></span>
-          </span>
           <button type="button" class="md-header-btn kb-btn-copy-path" title="Copy path" aria-label="Copy path" data-tip="">${viewerHeaderIconHtml('copy')}</button>
           <button type="button" class="md-header-btn kb-btn-edit" title="Edit" aria-label="Edit">${viewerHeaderIconHtml('edit')}</button>
           <button type="button" class="md-header-btn kb-btn-add-comment" title="Comment" aria-label="Comment">${viewerHeaderIconHtml('comment')}</button>
           <button type="button" class="md-header-btn kb-btn-save" style="display:none">Save</button>
           <button type="button" class="md-header-btn kb-btn-cancel-edit" style="display:none">Cancel</button>
           <button type="button" class="md-header-btn kb-btn-open-in-chat" title="Open in chat" aria-label="Open in chat">${viewerHeaderIconHtml('chat', true)}</button>
+          <span class="kb-reader-header-meta">
+            <span class="kb-file-size"></span>
+          </span>
         </div>
         <div id="gs-kb-wrap" class="gs-search-wrap" hidden data-kb-search="fallback">
           <input id="gs-kb-input" class="gs-search-input" type="text" placeholder="Search knowledge…" autocomplete="off" spellcheck="false" />
@@ -45,9 +45,6 @@ export function ReaderShell() {
     <div className="kb-reader">
       <div className="kb-reader-header viewer-header" data-tauri-drag-region="deep">
         <div className="viewer-header-actions kb-reader-header-actions">
-          <span className="kb-reader-header-meta">
-            <span className="kb-file-size" />
-          </span>
           <button
             type="button"
             className="md-header-btn kb-btn-copy-path"
@@ -87,6 +84,9 @@ export function ReaderShell() {
           >
             <ViewerHeaderIcon name="chat" filled />
           </button>
+          <span className="kb-reader-header-meta">
+            <span className="kb-file-size" />
+          </span>
         </div>
         <KnowledgeSearch hidden={false} />
       </div>
