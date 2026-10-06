@@ -11,7 +11,7 @@ fn list_categories_includes_uncategorized() {
     sediment_kb::ensure_uncategorized().expect("ensure");
     let v = list_knowledge_categories_value();
     let rows = v.as_array().expect("array");
-    assert!(rows.iter().any(|r| r["id"] == UNCATEGORIZED_ID && r["name"] == "未分类"));
+    assert!(rows.iter().any(|r| r["id"] == UNCATEGORIZED_ID && r["name"] == "Uncategorized"));
 }
 
 #[test]

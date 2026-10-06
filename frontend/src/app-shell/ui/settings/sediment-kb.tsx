@@ -231,7 +231,7 @@ function ManageList({ categories }: { categories: SedimentKbCategory[] }) {
         return (
           <div className="sediment-kb-manage-row" key={c.id}>
             {isProtected
-              ? <span className="sediment-kb-cat-name-readonly">{c.name}</span>
+              ? <span className="sediment-kb-cat-name-readonly">Uncategorized</span>
               : (
                 <input
                   className="sediment-kb-cat-rename-input"

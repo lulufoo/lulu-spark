@@ -39,12 +39,36 @@ fn init_creates_categories_and_repos_with_uncategorized() {
         assert!(
             cats.categories
                 .iter()
-                .any(|c| c.id == UNCATEGORIZED_ID && c.name == "未分类")
+                .any(|c| c.id == UNCATEGORIZED_ID && c.name == UNCATEGORIZED_NAME)
         );
 
         let repos = load_repos().expect("load repos");
         assert_eq!(repos.version, 1);
         assert!(repos.repos.is_empty());
+    });
+}
+
+#[test]
+fn ensure_rewrites_legacy_uncategorized_label() {
+    with_sediment_kb_cache(|_wb| {
+        ensure_uncategorized().expect("ensure");
+        let mut cats = load_categories().expect("load");
+        cats.categories
+            .iter_mut()
+            .find(|c| c.id == UNCATEGORIZED_ID)
+            .expect("row")
+            .name = "未分类".to_string();
+        save_categories(&cats).expect("save");
+        ensure_uncategorized().expect("rewrite");
+        let cats = load_categories().expect("reload");
+        assert_eq!(
+            cats.categories
+                .iter()
+                .find(|c| c.id == UNCATEGORIZED_ID)
+                .expect("row")
+                .name,
+            UNCATEGORIZED_NAME
+        );
     });
 }
 

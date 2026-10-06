@@ -246,7 +246,7 @@ pub fn sediment_kb_repos_json(repo_root: &std::path::Path) -> Result<Value, Stri
                 "category_name": name_by_id
                     .get(r.category_id.as_str())
                     .copied()
-                    .unwrap_or("未分类"),
+                    .unwrap_or(crate::services::sediment_kb::UNCATEGORIZED_NAME),
                 "local_exists": sediment_kb_local_exists(repo_root, &r.full_name),
             })
         })

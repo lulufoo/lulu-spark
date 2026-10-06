@@ -11,6 +11,7 @@ use crate::repositories::atomic_json;
 use super::id::random_hex12;
 
 pub const UNCATEGORIZED_ID: &str = "uncategorized";
+pub const UNCATEGORIZED_NAME: &str = "Uncategorized";
 
 static WRITE_LOCK: Mutex<()> = Mutex::new(());
 
@@ -118,7 +119,7 @@ fn default_categories_file() -> CategoriesFile {
         version: 1,
         categories: vec![Category {
             id: UNCATEGORIZED_ID.to_string(),
-            name: "未分类".to_string(),
+            name: UNCATEGORIZED_NAME.to_string(),
         }],
     }
 }
@@ -210,7 +211,7 @@ pub fn list_repos_for_topics() -> Result<Vec<TopicRow>, SedimentKbError> {
             category_name: name_by_id
                 .get(r.category_id.as_str())
                 .copied()
-                .unwrap_or("未分类")
+                .unwrap_or(UNCATEGORIZED_NAME)
                 .to_string(),
         })
         .collect())
@@ -227,18 +228,23 @@ fn ensure_uncategorized_unlocked() -> Result<(), SedimentKbError> {
         save_categories_unlocked(&default_categories_file())?;
     } else {
         let mut cats = load_categories()?;
-        if !cats
-            .categories
-            .iter()
-            .any(|c| c.id == UNCATEGORIZED_ID)
-        {
+        let mut changed = false;
+        if let Some(cat) = cats.categories.iter_mut().find(|c| c.id == UNCATEGORIZED_ID) {
+            if cat.name == "未分类" {
+                cat.name = UNCATEGORIZED_NAME.to_string();
+                changed = true;
+            }
+        } else {
             cats.categories.insert(
                 0,
                 Category {
                     id: UNCATEGORIZED_ID.to_string(),
-                    name: "未分类".to_string(),
+                    name: UNCATEGORIZED_NAME.to_string(),
                 },
             );
+            changed = true;
+        }
+        if changed {
             save_categories_unlocked(&cats)?;
         }
     }

@@ -94,7 +94,7 @@ fn get_topics_reads_from_sediment_kb_with_category_fields() {
             .expect("sediment-kb repo topic");
         assert_eq!(kb["description"], "");
         assert_eq!(kb["category_id"], UNCATEGORIZED_ID);
-        assert_eq!(kb["category_name"], "未分类");
+        assert_eq!(kb["category_name"], "Uncategorized");
         assert!(
             !topics
                 .iter()
@@ -160,7 +160,7 @@ fn list_repos_for_topics_resolves_uncategorized_name() {
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].repo, "demo");
         assert_eq!(rows[0].category_id, UNCATEGORIZED_ID);
-        assert_eq!(rows[0].category_name, "未分类");
+        assert_eq!(rows[0].category_name, "Uncategorized");
     });
 }
 
