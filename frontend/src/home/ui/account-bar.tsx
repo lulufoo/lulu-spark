@@ -29,6 +29,11 @@ export function AccountBar({
     setOpen(false);
   }
 
+  function chooseProvider(provider: 'google' | 'github') {
+    callSafely(() => onLogin(provider));
+    close();
+  }
+
   return (
     <div
       className="home-account-bar"
@@ -89,10 +94,7 @@ export function AccountBar({
                   type="button"
                   role="menuitem"
                   data-role="account-login-google"
-                  onClick={() => {
-                    callSafely(() => onLogin('google'));
-                    close();
-                  }}
+                  onClick={() => chooseProvider('google')}
                 >
                   Google
                 </button>
@@ -100,10 +102,7 @@ export function AccountBar({
                   type="button"
                   role="menuitem"
                   data-role="account-login-github"
-                  onClick={() => {
-                    callSafely(() => onLogin('github'));
-                    close();
-                  }}
+                  onClick={() => chooseProvider('github')}
                 >
                   GitHub
                 </button>

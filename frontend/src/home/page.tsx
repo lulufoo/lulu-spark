@@ -214,6 +214,16 @@ export function HomePage({
     void sendMessage(text);
   }
 
+  function onAccountLogin(provider: 'google' | 'github') {
+    void startAuthLogin(provider).catch(() => {});
+  }
+
+  function onAccountLogout() {
+    void signOutAuth()
+      .then(() => setAuthUser(null))
+      .catch(() => {});
+  }
+
   function onComposerKey(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key !== 'Enter' || event.shiftKey) return;
     if (imeEnterRef.current.isBlocked(event.nativeEvent)) return;
@@ -355,17 +365,7 @@ export function HomePage({
             }}
           />
         </div>
-        <AccountBar
-          user={authUser}
-          onLogin={(provider) => {
-            void startAuthLogin(provider).catch(() => {});
-          }}
-          onLogout={() => {
-            void signOutAuth()
-              .then(() => setAuthUser(null))
-              .catch(() => {});
-          }}
-        />
+        <AccountBar user={authUser} onLogin={onAccountLogin} onLogout={onAccountLogout} />
         <div
           className="home-chat-sidebar-resizer sidebar-resizer"
           role="separator"
