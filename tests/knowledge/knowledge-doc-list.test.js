@@ -286,7 +286,7 @@ describe('mountKnowledgeDocList', () => {
     const header = container.querySelector('.kb-reader-header');
     expect(header?.querySelector('#gs-kb-wrap')).toBe(header?.firstElementChild);
     expect(header?.querySelector('#gs-kb-wrap')?.nextElementSibling).toBe(
-      container.querySelector('.kb-reader-header-meta'),
+      container.querySelector('.kb-reader-header-actions'),
     );
     unmount();
   });

@@ -190,6 +190,7 @@ function NotesOutletChrome({ routeParams }: { routeParams: Record<string, string
           <span id="md-panel-title" className="viewer-panel-title">
             {panelTitle}
           </span>
+          <div className="viewer-header-actions">
           <div
             id="md-lang-bar"
             className="viewer-chrome-persisted"
@@ -309,6 +310,7 @@ function NotesOutletChrome({ routeParams }: { routeParams: Record<string, string
             Cancel
           </button>
           <OverlayDismissButton id="md-close" title="Close" onClick={() => void closeModal()} />
+          </div>
         </div>
         <NotesLinksBar />
         <NotesTagsBar />

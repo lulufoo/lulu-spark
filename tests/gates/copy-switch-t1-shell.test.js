@@ -97,17 +97,23 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
     expect(css).toMatch(/\.kb-reader-header\.viewer-header \{[\s\S]*?overflow: visible;/);
     expect(css).toMatch(/\.kb-reader \{[\s\S]*?overflow: visible;/);
     expect(css).toMatch(/\.knowledge-doc-reader-pane \{[\s\S]*?overflow: visible;/);
-    expect(css).toMatch(/\.kb-reader-header \.gs-search-wrap \{[\s\S]*?margin-right: auto;/);
-    expect(css).toMatch(/\.kb-reader-header \.gs-search-wrap \{[\s\S]*?width: 373px;/);
+    expect(css).toMatch(/\.viewer-header-actions \{[\s\S]*?flex-shrink: 0;/);
+    expect(css).toMatch(/\.kb-reader-header \.gs-search-wrap \{[\s\S]*?max-width: 373px;/);
+    expect(css).toMatch(/\.kb-reader-header \.gs-search-wrap \{[\s\S]*?min-width: 0;/);
     expect(css).toMatch(/\.kb-reader-header \.gs-search-dropdown \{[\s\S]*?left: 0;/);
     expect(css).toMatch(/\.kb-reader-header\.viewer-header \{[\s\S]*?-webkit-app-region: drag;/);
     expect(css).toMatch(
-      /\.kb-reader-header \.md-header-btn,[\s\S]*?\.kb-reader-header \.gs-search-dropdown \{[\s\S]*?-webkit-app-region: no-drag;/,
+      /\.kb-reader-header-actions,[\s\S]*?\.kb-reader-header \.gs-search-dropdown \{[\s\S]*?-webkit-app-region: no-drag;/,
     );
     const knowledgeShell = readFileSync(join(repoRoot, 'frontend/src/knowledge/ui/viewer/shell.tsx'), 'utf8');
     expect(knowledgeShell).toMatch(/class="kb-reader-header viewer-header" data-tauri-drag-region="deep"/);
     expect(knowledgeShell).toMatch(/className="kb-reader-header viewer-header" data-tauri-drag-region="deep"/);
     expect(knowledgeShell).toMatch(/<KnowledgeSearch hidden=\{false\} \/>/);
+    expect(knowledgeShell).toMatch(/className="viewer-header-actions kb-reader-header-actions"/);
+    expect(knowledgeShell).toMatch(/kb-btn-add-comment/);
+    expect(notesPage).toMatch(/className="viewer-header-actions"/);
+    expect(notesPage).toMatch(/id="btn-add-comment"/);
+    expect(notesPage).toMatch(/💬 Comment/);
     const notesLinks = readFileSync(join(repoRoot, 'frontend/src/notes/ui/links-bar.tsx'), 'utf8');
     const kbLinks = readFileSync(join(repoRoot, 'frontend/src/knowledge/ui/links-bar.tsx'), 'utf8');
     const notesLinkCmd = readFileSync(join(repoRoot, 'frontend/src/notes/commands/links-bar.ts'), 'utf8');
