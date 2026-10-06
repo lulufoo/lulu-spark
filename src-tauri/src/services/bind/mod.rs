@@ -19,8 +19,8 @@ use crate::config::settings;
 use crate::services::mcp_oauth::issue_for_device;
 
 const BIND_TTL_SECS: u64 = 180;
-const ACCOUNT_SIGNING: &str = "signing";
 const ACCOUNT_BINDING: &str = "binding";
+const LEGACY_SIGNING_ACCOUNT: &str = "signing";
 const SEAL_INFO: &[u8] = b"lulu-spark-bind-v1";
 pub const BIND_MOBILE_BUSINESS_ID: &str = "Bind_Mobile";
 
@@ -50,6 +50,7 @@ pub struct BindPayload {
     pub temp_pub: String,
     pub tls_fingerprint: String,
     pub exp: u64,
+    pub sign_pub: String,
     pub sig: String,
 }
 
@@ -110,13 +111,6 @@ fn hex_decode_32(text: &str) -> Result<[u8; 32], BindError> {
 
 fn session_lock() -> std::sync::MutexGuard<'static, Option<Session>> {
     SESSION.lock().unwrap_or_else(|e| e.into_inner())
-}
-
-fn load_signing_key(account: &str) -> Result<SigningKey, BindError> {
-    match kc_get(account)? {
-        Some(raw) => Ok(SigningKey::from_bytes(&hex_decode_32(&raw)?)),
-        None => Err(BindError::keychain_unavailable),
-    }
 }
 
 fn load_or_create_signing_key(account: &str) -> Result<SigningKey, BindError> {
@@ -185,14 +179,31 @@ fn kc_set(account: &str, value: &str) -> Result<(), BindError> {
     result
 }
 
-fn ensure_bind_keys() -> Result<(SigningKey, SigningKey), BindError> {
+fn kc_delete(account: &str) -> Result<(), BindError> {
+    if settings::uses_in_memory_keychain() {
+        let mut guard = memory_kc();
+        if let Some(store) = guard.as_mut() {
+            store.remove(account);
+        }
+        return Ok(());
+    }
+    let entry = match keyring::Entry::new(bind_service(), account) {
+        Ok(entry) => entry,
+        Err(_) => return Ok(()),
+    };
+    match entry.delete_credential() {
+        Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
+        Err(_) => Ok(()),
+    }
+}
+
+fn drop_legacy_signing_account() {
+    let _ = kc_delete(LEGACY_SIGNING_ACCOUNT);
+}
+
+fn ensure_binding_key() -> Result<SigningKey, BindError> {
     log_bind_event("keychain.ensure", "started");
-    let result = (|| {
-        Ok((
-            load_or_create_signing_key(ACCOUNT_SIGNING)?,
-            load_or_create_signing_key(ACCOUNT_BINDING)?,
-        ))
-    })();
+    let result = load_or_create_signing_key(ACCOUNT_BINDING);
     log_bind_event(
         "keychain.ensure",
         if result.is_ok() { "succeeded" } else { "failed" },
@@ -208,7 +219,8 @@ pub fn canonical_bind_string(payload: &BindPayload) -> String {
 }
 
 pub fn verify_bind_signature(payload: &BindPayload) -> Result<(), BindError> {
-    let verifying = load_signing_key(ACCOUNT_SIGNING)?.verifying_key();
+    let verifying = ed25519_dalek::VerifyingKey::from_bytes(&hex_decode_32(&payload.sign_pub)?)
+        .map_err(|_| BindError::rejected)?;
     let sig_bytes: [u8; 64] = hex_decode(&payload.sig)?
         .try_into()
         .map_err(|_| BindError::rejected)?;
@@ -219,9 +231,13 @@ pub fn verify_bind_signature(payload: &BindPayload) -> Result<(), BindError> {
 }
 
 pub fn binding_public_key_hex() -> Result<String, BindError> {
-    Ok(hex_encode(
-        load_signing_key(ACCOUNT_BINDING)?.verifying_key().as_bytes(),
-    ))
+    match kc_get(ACCOUNT_BINDING)? {
+        Some(raw) => {
+            let key = SigningKey::from_bytes(&hex_decode_32(&raw)?);
+            Ok(hex_encode(key.verifying_key().as_bytes()))
+        }
+        None => Err(BindError::keychain_unavailable),
+    }
 }
 
 fn derive_seal_key(shared: &[u8; 32]) -> Result<[u8; 32], BindError> {
@@ -285,25 +301,21 @@ pub fn create_bind_payload(
     tls_fingerprint: &str,
 ) -> Result<BindPayload, BindError> {
     log_bind_event("payload.create", "started");
-    let (signing, _) = match ensure_bind_keys() {
-        Ok(keys) => keys,
-        Err(err) => {
-            log_bind_event("payload.create", "keychain_failed");
-            return Err(err);
-        }
-    };
+    drop_legacy_signing_account();
     let secret = StaticSecret::random_from_rng(OsRng);
     let temp_pub = hex_encode(PublicKey::from(&secret).as_bytes());
     let exp = now_secs() + BIND_TTL_SECS;
+    let ephemeral = SigningKey::generate(&mut OsRng);
     let payload = BindPayload {
         ip,
         port,
         temp_pub,
         tls_fingerprint: tls_fingerprint.to_string(),
         exp,
+        sign_pub: hex_encode(ephemeral.verifying_key().as_bytes()),
         sig: String::new(),
     };
-    let sig = signing.sign(canonical_bind_string(&payload).as_bytes());
+    let sig = ephemeral.sign(canonical_bind_string(&payload).as_bytes());
     let payload = BindPayload {
         sig: hex_encode(&sig.to_bytes()),
         ..payload
@@ -338,6 +350,7 @@ pub fn complete_bind(encrypted_request: &[u8]) -> Result<BindResult, BindError> 
     }
     let device_label = body.get("device_label").and_then(Value::as_str);
     let token = issue_for_device(device_id, device_label).map_err(|_| BindError::rejected)?;
+    ensure_binding_key()?;
     *guard = Some(Session::Consumed);
     Ok(BindResult {
         device_mcp_token: token.as_str().to_string(),
@@ -396,6 +409,16 @@ pub fn test_session_bytes() -> Vec<u8> {
 #[cfg(test)]
 pub fn test_reset_bind_keychain() {
     *memory_kc() = Some(HashMap::new());
+}
+
+#[cfg(test)]
+pub fn test_put_bind_account(account: &str, value: &str) {
+    let _ = kc_set(account, value);
+}
+
+#[cfg(test)]
+pub fn test_bind_account(account: &str) -> Option<String> {
+    kc_get(account).ok().flatten()
 }
 
 #[cfg(test)]

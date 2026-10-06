@@ -14,6 +14,7 @@ import com.lulu.spark.android.wmcp.McpToolResult
 import com.lulu.spark.android.wmcp.WmcpClient
 import com.lulu.spark.android.wmcp.bind.bindOfferExpired
 import com.lulu.spark.android.wmcp.bind.sealBindRequest
+import com.lulu.spark.android.wmcp.verifyBindOffer
 import com.lulu.spark.android.wmcp.shared.jsonString
 import java.util.UUID
 import java.util.concurrent.CopyOnWriteArrayList
@@ -54,6 +55,7 @@ internal class WmcpClientImpl(
             log.w("bind expired")
             throw BindFailedException("bind offer expired")
         }
+        verifyBindOffer(offer)
         val sealed = sealBindRequest(offer.tempPub, deviceId(), deviceLabel)
         val response = network.execute(
             HttpRequest(

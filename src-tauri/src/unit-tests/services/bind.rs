@@ -58,7 +58,27 @@ fn create_bind_payload_returns_object_with_temp_pub_exp_tls_and_sig() {
             !canon.contains(&payload.sig),
             "sig must not enter the canonical string"
         );
-        verify_bind_signature(&payload).expect("Ed25519 signing key must sign the payload");
+        verify_bind_signature(&payload).expect("ephemeral Ed25519 must sign the payload");
+        assert_eq!(payload.sign_pub.len(), 64);
+        let bind_src = include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/src/services/bind/mod.rs"
+        ));
+        assert!(
+            !bind_src.contains("ACCOUNT_SIGNING"),
+            "long-term Keychain signing account must be gone"
+        );
+        assert!(
+            bind_src.contains("LEGACY_SIGNING_ACCOUNT"),
+            "issue must drop the leftover signing item"
+        );
+        test_put_bind_account("signing", &"aa".repeat(32));
+        assert!(test_bind_account("signing").is_some());
+        let _ = draw(ip, 7654, "cd".repeat(32).as_str());
+        assert!(
+            test_bind_account("signing").is_none(),
+            "leftover signing item must be deleted on issue"
+        );
     });
 }
 

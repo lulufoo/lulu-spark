@@ -51,6 +51,12 @@ class WmcpClientTest {
         wmcp.completeBind(liveOffer().copy(exp = 1))
     }
 
+    @Test(expected = BindFailedException::class)
+    fun completeBindRejectsBadSignature() {
+        val wmcp = WmcpClientImpl(MemoryStorage(), RecordingNetwork())
+        wmcp.completeBind(liveOffer().copy(sig = "00".repeat(64)))
+    }
+
     @Test
     fun listToolsAfterBindCompletesHandshake() {
         val network = RecordingNetwork(

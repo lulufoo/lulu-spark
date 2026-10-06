@@ -43,6 +43,7 @@ pub fn issue_bind_with(gateway: &GatewayState) -> Result<Value, String> {
         "temp_pub": payload.temp_pub,
         "tls_fingerprint": tls_fingerprint,
         "exp": payload.exp,
+        "sign_pub": payload.sign_pub,
         "sig": payload.sig,
     }))
 }

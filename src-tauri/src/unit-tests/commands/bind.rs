@@ -71,7 +71,15 @@ fn assert_payload_object(value: &Value) -> &serde_json::Map<String, Value> {
     let obj = value
         .as_object()
         .unwrap_or_else(|| panic!("success body must be a draw object, got {value}"));
-    for key in ["ip", "port", "temp_pub", "tls_fingerprint", "exp", "sig"] {
+    for key in [
+        "ip",
+        "port",
+        "temp_pub",
+        "tls_fingerprint",
+        "exp",
+        "sign_pub",
+        "sig",
+    ] {
         assert!(
             obj.contains_key(key),
             "draw object must include {key}, got {value}"
@@ -159,7 +167,8 @@ fn issue_bind_succeeds_with_lan_ip_and_running_gateway_handle() {
             assert_eq!(obj["port"].as_u64(), Some(u64::from(port)));
             assert_eq!(obj["tls_fingerprint"], tls_fingerprint);
             assert!(obj["temp_pub"].as_str().map(|s| s.len() == 64).unwrap_or(false));
-            assert!(obj["sig"].as_str().map(|s| !s.is_empty()).unwrap_or(false));
+            assert!(obj["sign_pub"].as_str().map(|s| s.len() == 64).unwrap_or(false));
+            assert!(obj["sig"].as_str().map(|s| s.len() == 128).unwrap_or(false));
             assert!(obj["exp"].as_u64().is_some());
             assert_eq!(bind_session_state(), BindSessionState::live);
             state.stop();

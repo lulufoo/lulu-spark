@@ -28,6 +28,7 @@ type BindPayload = {
   temp_pub?: string;
   tls_fingerprint?: string;
   exp?: number;
+  sign_pub?: string;
   sig?: string;
 };
 
@@ -106,6 +107,7 @@ function drawPayload(payload: BindPayload) {
     temp_pub: payload.temp_pub,
     tls_fingerprint: payload.tls_fingerprint,
     exp: payload.exp,
+    sign_pub: payload.sign_pub,
     sig: payload.sig,
   });
   const canvas = document.createElement('canvas');
