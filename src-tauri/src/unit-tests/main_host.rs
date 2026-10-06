@@ -212,6 +212,10 @@ fn post_bind_complete_issues_ticket_via_sidecar() {
         assert_eq!(response.status().as_u16(), 200);
         let body: Value = response.json().expect("json");
         assert_eq!(body["device_mcp_token"].as_str().map(str::len), Some(64));
+        assert!(
+            body.get("binding_public_key").is_none(),
+            "bind complete must not return binding_public_key"
+        );
         assert_eq!(
             complete_bind(&sealed).expect_err("consumed"),
             crate::services::bind::BindError::consumed
@@ -608,7 +612,6 @@ fn frontend_does_not_write_notes_selection_snapshot() {
         "frontend/src/notes/commands/cards.ts",
         "frontend/src/notes/commands/assistant.ts",
         "frontend/src/notes/commands/delete-dialog.ts",
-        "frontend/src/notes/commands/settle-dialog.ts",
         "frontend/src/notes/commands/move-project-dialog.ts",
         "frontend/src/notes/commands/viewer/doc.ts",
         "frontend/src/notes/commands/viewer/create.ts",

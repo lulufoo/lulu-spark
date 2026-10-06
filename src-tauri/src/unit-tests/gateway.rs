@@ -286,9 +286,9 @@ fn post_bind_complete_forwards_ciphertext_to_sidecar() {
                 body["device_mcp_token"].as_str().map(|s| s.len()),
                 Some(64)
             );
-            assert_eq!(
-                body["binding_public_key"].as_str().map(|s| s.len()),
-                Some(64)
+            assert!(
+                body.get("binding_public_key").is_none(),
+                "bind complete must not return binding_public_key"
             );
             assert!(
                 mock.hits().is_empty(),

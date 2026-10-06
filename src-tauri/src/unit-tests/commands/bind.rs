@@ -135,12 +135,7 @@ fn issue_bind_logs_critical_path_with_bind_mobile_business_id() {
         bind_src.contains("BIND_MOBILE_BUSINESS_ID: &str = \"Bind_Mobile\""),
         "Bind logs must carry the Bind_Mobile business ID"
     );
-    for event in [
-        "keychain.read",
-        "keychain.write",
-        "keychain.ensure",
-        "payload.create",
-    ] {
+    for event in ["payload.create"] {
         assert!(
             bind_src.contains(event),
             "Bind service must log critical event {event}"

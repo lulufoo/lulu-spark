@@ -16,7 +16,6 @@ pub(super) fn handle_bind_complete(mut request: tiny_http::Request) {
             200,
             json!({
                 "device_mcp_token": result.device_mcp_token,
-                "binding_public_key": result.binding_public_key,
             }),
         ),
         Err(err) => {

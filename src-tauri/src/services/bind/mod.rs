@@ -19,8 +19,7 @@ use crate::config::settings;
 use crate::services::mcp_oauth::issue_for_device;
 
 const BIND_TTL_SECS: u64 = 180;
-const ACCOUNT_BINDING: &str = "binding";
-const LEGACY_SIGNING_ACCOUNT: &str = "signing";
+const LEGACY_BIND_ACCOUNTS: &[&str] = &["signing", "binding"];
 const SEAL_INFO: &[u8] = b"lulu-spark-bind-v1";
 pub const BIND_MOBILE_BUSINESS_ID: &str = "Bind_Mobile";
 
@@ -57,7 +56,6 @@ pub struct BindPayload {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BindResult {
     pub device_mcp_token: String,
-    pub binding_public_key: String,
 }
 
 #[allow(non_camel_case_types)]
@@ -113,19 +111,11 @@ fn session_lock() -> std::sync::MutexGuard<'static, Option<Session>> {
     SESSION.lock().unwrap_or_else(|e| e.into_inner())
 }
 
-fn load_or_create_signing_key(account: &str) -> Result<SigningKey, BindError> {
-    if let Some(raw) = kc_get(account)? {
-        return Ok(SigningKey::from_bytes(&hex_decode_32(&raw)?));
-    }
-    let key = SigningKey::generate(&mut OsRng);
-    kc_set(account, &hex_encode(&key.to_bytes()))?;
-    Ok(key)
-}
-
 fn memory_kc() -> std::sync::MutexGuard<'static, Option<HashMap<String, String>>> {
     MEMORY_KEYCHAIN.lock().unwrap_or_else(|e| e.into_inner())
 }
 
+#[cfg(test)]
 fn kc_get(account: &str) -> Result<Option<String>, BindError> {
     if settings::uses_in_memory_keychain() {
         let mut guard = memory_kc();
@@ -155,6 +145,7 @@ fn kc_get(account: &str) -> Result<Option<String>, BindError> {
     }
 }
 
+#[cfg(test)]
 fn kc_set(account: &str, value: &str) -> Result<(), BindError> {
     if settings::uses_in_memory_keychain() {
         let mut guard = memory_kc();
@@ -197,18 +188,10 @@ fn kc_delete(account: &str) -> Result<(), BindError> {
     }
 }
 
-fn drop_legacy_signing_account() {
-    let _ = kc_delete(LEGACY_SIGNING_ACCOUNT);
-}
-
-fn ensure_binding_key() -> Result<SigningKey, BindError> {
-    log_bind_event("keychain.ensure", "started");
-    let result = load_or_create_signing_key(ACCOUNT_BINDING);
-    log_bind_event(
-        "keychain.ensure",
-        if result.is_ok() { "succeeded" } else { "failed" },
-    );
-    result
+fn drop_legacy_bind_accounts() {
+    for account in LEGACY_BIND_ACCOUNTS {
+        let _ = kc_delete(account);
+    }
 }
 
 pub fn canonical_bind_string(payload: &BindPayload) -> String {
@@ -228,16 +211,6 @@ pub fn verify_bind_signature(payload: &BindPayload) -> Result<(), BindError> {
     verifying
         .verify(canonical_bind_string(payload).as_bytes(), &sig)
         .map_err(|_| BindError::rejected)
-}
-
-pub fn binding_public_key_hex() -> Result<String, BindError> {
-    match kc_get(ACCOUNT_BINDING)? {
-        Some(raw) => {
-            let key = SigningKey::from_bytes(&hex_decode_32(&raw)?);
-            Ok(hex_encode(key.verifying_key().as_bytes()))
-        }
-        None => Err(BindError::keychain_unavailable),
-    }
 }
 
 fn derive_seal_key(shared: &[u8; 32]) -> Result<[u8; 32], BindError> {
@@ -301,7 +274,7 @@ pub fn create_bind_payload(
     tls_fingerprint: &str,
 ) -> Result<BindPayload, BindError> {
     log_bind_event("payload.create", "started");
-    drop_legacy_signing_account();
+    drop_legacy_bind_accounts();
     let secret = StaticSecret::random_from_rng(OsRng);
     let temp_pub = hex_encode(PublicKey::from(&secret).as_bytes());
     let exp = now_secs() + BIND_TTL_SECS;
@@ -350,11 +323,10 @@ pub fn complete_bind(encrypted_request: &[u8]) -> Result<BindResult, BindError> 
     }
     let device_label = body.get("device_label").and_then(Value::as_str);
     let token = issue_for_device(device_id, device_label).map_err(|_| BindError::rejected)?;
-    ensure_binding_key()?;
+    drop_legacy_bind_accounts();
     *guard = Some(Session::Consumed);
     Ok(BindResult {
         device_mcp_token: token.as_str().to_string(),
-        binding_public_key: binding_public_key_hex()?,
     })
 }
 

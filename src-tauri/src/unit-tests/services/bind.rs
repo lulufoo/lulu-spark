@@ -69,15 +69,25 @@ fn create_bind_payload_returns_object_with_temp_pub_exp_tls_and_sig() {
             "long-term Keychain signing account must be gone"
         );
         assert!(
-            bind_src.contains("LEGACY_SIGNING_ACCOUNT"),
-            "issue must drop the leftover signing item"
+            bind_src.contains("LEGACY_BIND_ACCOUNTS"),
+            "issue must drop leftover bind Keychain accounts"
+        );
+        assert!(
+            !bind_src.contains("binding_public_key") && !bind_src.contains("ACCOUNT_BINDING"),
+            "long-term binding key must be gone"
         );
         test_put_bind_account("signing", &"aa".repeat(32));
+        test_put_bind_account("binding", &"bb".repeat(32));
         assert!(test_bind_account("signing").is_some());
+        assert!(test_bind_account("binding").is_some());
         let _ = draw(ip, 7654, "cd".repeat(32).as_str());
         assert!(
             test_bind_account("signing").is_none(),
             "leftover signing item must be deleted on issue"
+        );
+        assert!(
+            test_bind_account("binding").is_none(),
+            "leftover binding item must be deleted on issue"
         );
     });
 }
@@ -105,7 +115,7 @@ fn create_bind_payload_replaces_in_memory_session() {
 }
 
 #[test]
-fn complete_bind_issues_device_ticket_and_returns_binding_public_key() {
+fn complete_bind_issues_device_ticket() {
     with_bind(|| {
         let payload = draw(Ipv4Addr::new(10, 0, 0, 2), 17654, "ff");
         let sealed =
@@ -115,13 +125,6 @@ fn complete_bind_issues_device_ticket_and_returns_binding_public_key() {
         assert_eq!(
             verify_device_token(&done.device_mcp_token).expect("oauth device ticket"),
             "phone-bind"
-        );
-        assert_eq!(done.binding_public_key, binding_public_key_hex().expect("pk"));
-        assert_eq!(done.binding_public_key.len(), 64);
-        assert_ne!(done.binding_public_key, done.device_mcp_token);
-        assert!(
-            verify_device_token(&done.binding_public_key).is_err(),
-            "binding_public_key must not participate in MCP ticket verify"
         );
         let listed = list_devices().expect("list");
         assert_eq!(listed[0].device_id, "phone-bind");
@@ -186,18 +189,17 @@ fn complete_bind_request_omits_temp_pub_and_requires_v1_device_id() {
 }
 
 #[test]
-fn keychain_bind_service_creates_binding_key_when_missing() {
+fn keychain_bind_service_drops_leftover_binding_and_does_not_write() {
     with_bind(|| {
-        test_reset_bind_keychain();
-        let before = binding_public_key_hex();
-        assert!(
-            before.is_err(),
-            "reset must remove the long-term Binding key"
-        );
         let payload = draw(Ipv4Addr::new(10, 0, 0, 6), 7654, "11");
+        test_put_bind_account("binding", &"cc".repeat(32));
+        assert!(test_bind_account("binding").is_some());
         let sealed = seal_bind_request(&payload.temp_pub, "phone-kc", None).expect("seal");
-        let done = complete_bind(&sealed).expect("complete creates key");
-        assert_eq!(done.binding_public_key, binding_public_key_hex().expect("pk"));
+        complete_bind(&sealed).expect("complete");
+        assert!(
+            test_bind_account("binding").is_none(),
+            "complete must delete leftover binding and must not write it back"
+        );
         let src = include_str!(concat!(
             env!("CARGO_MANIFEST_DIR"),
             "/src/services/bind/mod.rs"
@@ -209,6 +211,10 @@ fn keychain_bind_service_creates_binding_key_when_missing() {
         assert!(
             !src.contains("lulu-spark-mcp-oauth"),
             "bind must not write the oauth keychain service"
+        );
+        assert!(
+            !src.contains("binding_public_key"),
+            "complete response must not include binding_public_key"
         );
     });
 }
