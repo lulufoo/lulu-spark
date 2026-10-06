@@ -6168,34 +6168,25 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   overflow: visible;
   z-index: 6;
 }
+.kb-reader-header .viewer-header-actions {
+  margin-left: 0;
+}
 .kb-reader-header .gs-search-wrap {
-  flex: 1;
+  flex: 0 0 auto;
   width: auto;
   min-width: 0;
   max-width: none;
-}
-.kb-reader-header .viewer-header-rule {
-  flex: 0 0 auto;
-  align-self: center;
-  width: 0;
-  height: auto;
-  padding-right: 14px;
-  margin-right: 4px;
-  border-right: 1px solid #d8dee4;
-  font-size: 14px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  line-height: inherit;
+  margin-left: auto;
 }
 .kb-reader-header .gs-search-input,
 .kb-reader-header .gs-search-input:focus {
-  width: 100%;
+  width: 373px;
   max-width: 373px;
   background: #f6f8fa;
 }
 .kb-reader-header .gs-search-dropdown {
-  left: 0;
-  right: auto;
+  left: auto;
+  right: 0;
 }
 .kb-reader-header-meta {
   display: flex;

@@ -141,16 +141,16 @@ describe('mountKbReader', () => {
 
     const header = container.querySelector('.kb-reader-header');
     const search = container.querySelector('#gs-kb-wrap');
-    const rule = container.querySelector('.viewer-header-rule');
     const actions = container.querySelector('.kb-reader-header-actions');
     const meta = container.querySelector('.kb-reader-header-meta');
     const size = container.querySelector('.kb-file-size');
     expect(container.querySelector('.kb-btn-tree-toggle')).toBeNull();
+    expect(container.querySelector('.viewer-header-rule')).toBeNull();
     expect(header?.getAttribute('data-tauri-drag-region')).toBe('deep');
-    expect(header?.firstElementChild).toBe(search);
-    expect(search?.nextElementSibling).toBe(rule);
-    expect(rule?.nextElementSibling).toBe(actions);
+    expect(header?.firstElementChild).toBe(actions);
+    expect(actions?.nextElementSibling).toBe(search);
     expect(actions?.contains(meta)).toBe(true);
+    expect(actions?.firstElementChild).toBe(meta);
     expect(actions?.querySelector('.kb-btn-add-comment')).toBeTruthy();
     expect(actions?.querySelector('.kb-btn-edit')).toBeTruthy();
     expect(meta?.contains(size)).toBe(true);

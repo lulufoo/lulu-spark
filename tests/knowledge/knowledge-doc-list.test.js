@@ -284,10 +284,11 @@ describe('mountKnowledgeDocList', () => {
     expect(container.querySelector('.kb-btn-tree-toggle')).toBeNull();
     expect(container.querySelector('.knowledge-doc-layout')?.classList.contains('is-tree-collapsed')).toBe(false);
     const header = container.querySelector('.kb-reader-header');
-    expect(header?.querySelector('#gs-kb-wrap')).toBe(header?.firstElementChild);
-    expect(header?.querySelector('#gs-kb-wrap')?.nextElementSibling).toBe(
-      container.querySelector('.viewer-header-rule'),
+    expect(header?.querySelector('.kb-reader-header-actions')).toBe(header?.firstElementChild);
+    expect(header?.querySelector('.kb-reader-header-actions')?.nextElementSibling).toBe(
+      header?.querySelector('#gs-kb-wrap'),
     );
+    expect(header?.querySelector('.viewer-header-rule')).toBeNull();
     unmount();
   });
 

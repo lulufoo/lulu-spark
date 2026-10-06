@@ -129,12 +129,9 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
     expect(settingsDialog).toMatch(/mountSettingsListSelects\(\)/);
     expect(css).toMatch(/\.viewer-panel-title \{[\s\S]*?border-right: 1px solid #d8dee4;/);
     expect(css).toMatch(/\.viewer-panel-title \{[\s\S]*?font-size: 14px;/);
-    expect(css).toMatch(/\.kb-reader-header \.viewer-header-rule \{[\s\S]*?border-right: 1px solid #d8dee4;/);
-    expect(css).toMatch(/\.kb-reader-header \.viewer-header-rule \{[\s\S]*?font-size: 14px;/);
-    expect(css).toMatch(/\.kb-reader-header \.viewer-header-rule \{[\s\S]*?font-weight: 600;/);
-    expect(css).not.toMatch(/\.kb-reader-header \.gs-search-wrap \{[^}]*border-right:/);
-    expect(css).toMatch(/\.kb-reader-header \.gs-search-wrap \{[\s\S]*?min-width: 0;/);
-    expect(css).toMatch(/\.kb-reader-header \.gs-search-dropdown \{[\s\S]*?left: 0;/);
+    expect(css).not.toMatch(/\.kb-reader-header \.viewer-header-rule/);
+    expect(css).toMatch(/\.kb-reader-header \.gs-search-wrap \{[\s\S]*?margin-left: auto;/);
+    expect(css).toMatch(/\.kb-reader-header \.gs-search-dropdown \{[\s\S]*?right: 0;/);
     expect(css).toMatch(/\.kb-reader-header\.viewer-header \{[\s\S]*?-webkit-app-region: drag;/);
     expect(css).toMatch(
       /\.kb-reader-header-actions,[\s\S]*?\.kb-reader-header \.gs-search-dropdown \{[\s\S]*?-webkit-app-region: no-drag;/,
@@ -143,7 +140,8 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
     expect(knowledgeShell).toMatch(/class="kb-reader-header viewer-header" data-tauri-drag-region="deep"/);
     expect(knowledgeShell).toMatch(/className="kb-reader-header viewer-header" data-tauri-drag-region="deep"/);
     expect(knowledgeShell).toMatch(/<KnowledgeSearch hidden=\{false\} \/>/);
-    expect(knowledgeShell).toMatch(/className="viewer-header-rule"/);
+    expect(knowledgeShell).not.toMatch(/viewer-header-rule/);
+    expect(knowledgeShell).toMatch(/kb-reader-header-actions[\s\S]*<KnowledgeSearch hidden=\{false\} \/>/);
     expect(knowledgeShell).toMatch(/className="viewer-header-actions kb-reader-header-actions"/);
     expect(knowledgeShell).toMatch(/kb-btn-add-comment/);
     expect(notesPage).toMatch(/className="viewer-header-actions"/);

@@ -10,11 +10,6 @@ import { ViewerHeaderIcon, viewerHeaderIconHtml } from '../../../shared/viewer-h
 const FALLBACK_SHELL_HTML = `
     <div class="kb-reader">
       <div class="kb-reader-header viewer-header" data-tauri-drag-region="deep">
-        <div id="gs-kb-wrap" class="gs-search-wrap" hidden data-kb-search="fallback">
-          <input id="gs-kb-input" class="gs-search-input" type="text" placeholder="Search knowledge…" autocomplete="off" spellcheck="false" />
-          <div id="gs-kb-dropdown" class="gs-search-dropdown" style="display:none"></div>
-        </div>
-        <span class="viewer-header-rule" aria-hidden="true">&#8203;</span>
         <div class="viewer-header-actions kb-reader-header-actions">
           <span class="kb-reader-header-meta">
             <span class="kb-file-size"></span>
@@ -25,6 +20,10 @@ const FALLBACK_SHELL_HTML = `
           <button type="button" class="md-header-btn kb-btn-save" style="display:none">Save</button>
           <button type="button" class="md-header-btn kb-btn-cancel-edit" style="display:none">Cancel</button>
           <button type="button" class="md-header-btn kb-btn-open-in-chat" title="Open in chat" aria-label="Open in chat">${viewerHeaderIconHtml('chat', true)}</button>
+        </div>
+        <div id="gs-kb-wrap" class="gs-search-wrap" hidden data-kb-search="fallback">
+          <input id="gs-kb-input" class="gs-search-input" type="text" placeholder="Search knowledge…" autocomplete="off" spellcheck="false" />
+          <div id="gs-kb-dropdown" class="gs-search-dropdown" style="display:none"></div>
         </div>
       </div>
       <div id="kb-md-links-bar" class="kb-reader-links-bar" style="display:none;padding:8px 20px;border-bottom:1px solid #d0d7de;"></div>
@@ -45,10 +44,6 @@ export function ReaderShell() {
   return (
     <div className="kb-reader">
       <div className="kb-reader-header viewer-header" data-tauri-drag-region="deep">
-        <KnowledgeSearch hidden={false} />
-        <span className="viewer-header-rule" aria-hidden="true">
-          {'\u200b'}
-        </span>
         <div className="viewer-header-actions kb-reader-header-actions">
           <span className="kb-reader-header-meta">
             <span className="kb-file-size" />
@@ -93,6 +88,7 @@ export function ReaderShell() {
             <ViewerHeaderIcon name="chat" filled />
           </button>
         </div>
+        <KnowledgeSearch hidden={false} />
       </div>
       <KbLinksBar />
       <div className="kb-reader-content-row viewer-content-row">
