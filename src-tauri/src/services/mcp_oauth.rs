@@ -1,18 +1,16 @@
-//! Host-local MCP OAuth: per-slot tickets, Keychain slot ledger, and config-dir device tickets.
+//! Host-local MCP OAuth: per-slot tickets and the bind device ledger, both in the vault.
 
-use std::collections::HashMap;
 use std::fmt;
 use std::sync::Mutex;
 
 #[cfg(test)]
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 
 use crate::config::settings;
-use crate::repositories::atomic_json;
+use crate::config::vault::{self, BindDevice, SlotTicket};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Slot {
@@ -100,7 +98,6 @@ pub struct DeviceRecord {
     pub token_hint: Option<String>,
 }
 
-const DEVICE_LEDGER_FILE: &str = "device-tickets.json";
 static DEVICE_LEDGER_LOCK: Mutex<()> = Mutex::new(());
 
 #[allow(non_camel_case_types)]
@@ -185,7 +182,7 @@ pub fn issue_for_device(
         row.token_hint = Some(hint);
         row.revoked = false;
     } else {
-        ledger.devices.push(DeviceLedgerRow {
+        ledger.devices.push(BindDevice {
             device_id: device_id.to_string(),
             device_label: device_label.map(str::to_string),
             token_hash: hash,
@@ -298,15 +295,8 @@ fn mobile_ticket_view() -> Result<Value, OAuthError> {
     }))
 }
 
-#[cfg_attr(test, allow(dead_code))]
-fn keyring_service() -> &'static str {
-    "lulu-spark-mcp-oauth"
-}
-
 #[cfg(test)]
 static FORCE_KEYCHAIN_UNAVAILABLE: AtomicBool = AtomicBool::new(false);
-
-static MEMORY_SLOT_LEDGER: Mutex<Option<HashMap<String, String>>> = Mutex::new(None);
 
 #[cfg(test)]
 pub fn test_force_keychain_unavailable(on: bool) {
@@ -314,6 +304,7 @@ pub fn test_force_keychain_unavailable(on: bool) {
 }
 
 fn ensure_keychain_available() -> Result<(), OAuthError> {
+    let _ = settings::uses_in_memory_keychain();
     #[cfg(test)]
     if FORCE_KEYCHAIN_UNAVAILABLE.load(Ordering::SeqCst) {
         return Err(OAuthError::keychain_unavailable);
@@ -321,30 +312,32 @@ fn ensure_keychain_available() -> Result<(), OAuthError> {
     Ok(())
 }
 
-fn memory_slot_ledger() -> std::sync::MutexGuard<'static, Option<HashMap<String, String>>> {
-    MEMORY_SLOT_LEDGER.lock().unwrap_or_else(|e| e.into_inner())
+fn map_vault<T>(result: Result<T, vault::SecretError>) -> Result<T, OAuthError> {
+    result.map_err(|_| OAuthError::keychain_unavailable)
 }
 
-fn read_memory_record(slot: Slot) -> Result<Option<LedgerRecord>, OAuthError> {
-    let mut guard = memory_slot_ledger();
-    let store = guard.get_or_insert_with(HashMap::new);
-    match store.get(slot.as_str()) {
-        Some(raw) => parse_record(slot, raw).map(Some),
-        None => Ok(None),
+fn ticket_from_record(record: &LedgerRecord) -> SlotTicket {
+    SlotTicket {
+        handle: record.handle.as_str().to_string(),
+        state: record.state.as_str().to_string(),
     }
+}
+
+fn record_from_ticket(slot: Slot, ticket: &SlotTicket) -> Result<LedgerRecord, OAuthError> {
+    let state = TicketState::parse(&ticket.state).ok_or(OAuthError::keychain_unavailable)?;
+    Ok(LedgerRecord {
+        slot,
+        handle: TicketHandle::from_secret(ticket.handle.clone()),
+        state,
+    })
 }
 
 fn read_record(slot: Slot) -> Result<Option<LedgerRecord>, OAuthError> {
     ensure_keychain_available()?;
-    if settings::uses_in_memory_keychain() {
-        return read_memory_record(slot);
-    }
-    let entry = keyring::Entry::new(keyring_service(), slot.as_str())
-        .map_err(|_| OAuthError::keychain_unavailable)?;
-    match entry.get_password() {
-        Ok(raw) => parse_record(slot, &raw).map(Some),
-        Err(keyring::Error::NoEntry) => Ok(None),
-        Err(_) => Err(OAuthError::keychain_unavailable),
+    let vault = map_vault(vault::read_vault())?;
+    match vault.mcp_slot(slot.as_str()) {
+        Some(ticket) => record_from_ticket(slot, ticket).map(Some),
+        None => Ok(None),
     }
 }
 
@@ -360,43 +353,9 @@ fn persist_live(slot: Slot) -> Result<TicketHandle, OAuthError> {
 
 fn write_record(record: &LedgerRecord) -> Result<(), OAuthError> {
     ensure_keychain_available()?;
-    if settings::uses_in_memory_keychain() {
-        let mut guard = memory_slot_ledger();
-        let store = guard.get_or_insert_with(HashMap::new);
-        store.insert(record.slot.as_str().to_string(), serialize_record(record));
-        return Ok(());
-    }
-    let entry = keyring::Entry::new(keyring_service(), record.slot.as_str())
-        .map_err(|_| OAuthError::keychain_unavailable)?;
-    entry
-        .set_password(&serialize_record(record))
-        .map_err(|_| OAuthError::keychain_unavailable)
-}
-
-fn serialize_record(record: &LedgerRecord) -> String {
-    serde_json::json!({
-        "handle": record.handle.as_str(),
-        "state": record.state.as_str(),
-    })
-    .to_string()
-}
-
-fn parse_record(slot: Slot, raw: &str) -> Result<LedgerRecord, OAuthError> {
-    let value: Value = serde_json::from_str(raw).map_err(|_| OAuthError::keychain_unavailable)?;
-    let handle = value
-        .get("handle")
-        .and_then(Value::as_str)
-        .ok_or(OAuthError::keychain_unavailable)?;
-    let state = value
-        .get("state")
-        .and_then(Value::as_str)
-        .and_then(TicketState::parse)
-        .ok_or(OAuthError::keychain_unavailable)?;
-    Ok(LedgerRecord {
-        slot,
-        handle: TicketHandle::from_secret(handle),
-        state,
-    })
+    map_vault(vault::update_vault(|doc| {
+        doc.set_mcp_slot(record.slot.as_str(), Some(ticket_from_record(record)));
+    }))
 }
 
 fn new_handle() -> TicketHandle {
@@ -419,21 +378,9 @@ fn read_random_bytes(buf: &mut [u8]) -> bool {
     false
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default)]
 struct DeviceLedger {
-    #[serde(default)]
-    devices: Vec<DeviceLedgerRow>,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-struct DeviceLedgerRow {
-    device_id: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    device_label: Option<String>,
-    token_hash: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    token_hint: Option<String>,
-    revoked: bool,
+    devices: Vec<BindDevice>,
 }
 
 fn hash_token(token: &str) -> String {
@@ -443,25 +390,19 @@ fn hash_token(token: &str) -> String {
         .collect()
 }
 
-fn device_ledger_path() -> Result<std::path::PathBuf, OAuthError> {
-    Ok(settings::settings_config_dir()
-        .map_err(|_| OAuthError::rejected)?
-        .join(DEVICE_LEDGER_FILE))
-}
-
 fn load_device_ledger() -> Result<DeviceLedger, OAuthError> {
-    let path = device_ledger_path()?;
-    match std::fs::read_to_string(&path) {
-        Ok(raw) => serde_json::from_str(&raw).map_err(|_| OAuthError::rejected),
-        Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(DeviceLedger::default()),
-        Err(_) => Err(OAuthError::rejected),
-    }
+    ensure_keychain_available()?;
+    let vault = map_vault(vault::read_vault())?;
+    Ok(DeviceLedger {
+        devices: vault.devices().to_vec(),
+    })
 }
 
 fn save_device_ledger(ledger: &DeviceLedger) -> Result<(), OAuthError> {
-    let path = device_ledger_path()?;
-    let value = serde_json::to_value(ledger).map_err(|_| OAuthError::rejected)?;
-    atomic_json::write_json(&path, &value).map_err(|_| OAuthError::rejected)
+    ensure_keychain_available()?;
+    map_vault(vault::update_vault(|doc| {
+        doc.set_devices(ledger.devices.clone());
+    }))
 }
 
 fn fill_weak_random(buf: &mut [u8]) {

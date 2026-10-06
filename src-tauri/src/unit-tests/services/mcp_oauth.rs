@@ -261,6 +261,7 @@ fn keychain_read_failure_is_keychain_unavailable() {
 
 fn with_device_sandbox<F: FnOnce()>(test: F) {
     let _sandbox = crate::test_support::TestSandbox::new();
+    crate::config::vault::test_clear_scope();
     test();
 }
 
@@ -275,12 +276,7 @@ fn assert_hex32_token(token: &str) {
 }
 
 fn device_ledger_text() -> String {
-    let path = crate::config::settings::settings_config_dir()
-        .expect("config dir")
-        .join("device-tickets.json");
-    std::fs::read_to_string(&path).unwrap_or_else(|err| {
-        panic!("device ledger {} must exist: {err}", path.display())
-    })
+    crate::config::vault::test_vault_json().to_string()
 }
 
 #[test]
@@ -469,6 +465,10 @@ fn device_ticket_sources_do_not_mount_mcp_mobile_or_host_bind_tests() {
     assert!(
         !oauth.contains("/mcp/mobile"),
         "T1 must not mount /mcp/mobile"
+    );
+    assert!(
+        !oauth.contains("device-tickets.json") && !oauth.contains("lulu-spark-mcp-oauth"),
+        "device and slot tickets must live in the vault, not a sidecar file or oauth Keychain service"
     );
     assert!(
         !oauth.contains("create_bind_payload") && !oauth.contains("current_lan_ipv4"),

@@ -15,3 +15,4 @@ mod dialog_plugin_contract;
 pub mod paths;
 pub mod secrets;
 pub mod settings;
+pub mod vault;

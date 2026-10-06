@@ -1783,6 +1783,7 @@ const MOBILE_PATH: &str = "mobile";
 
 fn with_device_sandbox<F: FnOnce()>(test: F) {
     let _sandbox = TestSandbox::new();
+    crate::config::vault::test_clear_scope();
     test();
 }
 

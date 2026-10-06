@@ -31,6 +31,7 @@ fn with_nics(nics: Option<Vec<NicIpv4>>, test: impl FnOnce()) {
 
 fn with_cmd(test: impl FnOnce()) {
     let _sandbox = TestSandbox::new();
+    crate::config::vault::test_clear_scope();
     test_reset_bind_keychain();
     test_clear_session();
     test_override_nics(None);

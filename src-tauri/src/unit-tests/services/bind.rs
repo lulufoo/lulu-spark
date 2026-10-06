@@ -14,6 +14,7 @@ fn now_secs() -> u64 {
 
 fn with_bind<F: FnOnce()>(test: F) {
     let _sandbox = TestSandbox::new();
+    crate::config::vault::test_clear_scope();
     test_reset_bind_keychain();
     test_clear_session();
     test();
@@ -69,8 +70,8 @@ fn create_bind_payload_returns_object_with_temp_pub_exp_tls_and_sig() {
             "long-term Keychain signing account must be gone"
         );
         assert!(
-            bind_src.contains("LEGACY_BIND_ACCOUNTS"),
-            "issue must drop leftover bind Keychain accounts"
+            !bind_src.contains("LEGACY_BIND_ACCOUNTS"),
+            "leftover bind Keychain delete belongs to vault migrate"
         );
         assert!(
             !bind_src.contains("binding_public_key") && !bind_src.contains("ACCOUNT_BINDING"),
@@ -82,12 +83,17 @@ fn create_bind_payload_returns_object_with_temp_pub_exp_tls_and_sig() {
         assert!(test_bind_account("binding").is_some());
         let _ = draw(ip, 7654, "cd".repeat(32).as_str());
         assert!(
+            test_bind_account("signing").is_some(),
+            "drawing a QR must not open the bind Keychain"
+        );
+        crate::config::vault::migrate_legacy_secrets().expect("migrate leftovers");
+        assert!(
             test_bind_account("signing").is_none(),
-            "leftover signing item must be deleted on issue"
+            "leftover signing item must be deleted on vault migrate"
         );
         assert!(
             test_bind_account("binding").is_none(),
-            "leftover binding item must be deleted on issue"
+            "leftover binding item must be deleted on vault migrate"
         );
     });
 }
@@ -198,15 +204,15 @@ fn keychain_bind_service_drops_leftover_binding_and_does_not_write() {
         complete_bind(&sealed).expect("complete");
         assert!(
             test_bind_account("binding").is_none(),
-            "complete must delete leftover binding and must not write it back"
+            "complete must delete leftover binding via vault migrate and must not write it back"
         );
         let src = include_str!(concat!(
             env!("CARGO_MANIFEST_DIR"),
             "/src/services/bind/mod.rs"
         ));
         assert!(
-            src.contains("lulu-spark-bind"),
-            "Keychain service must be lulu-spark-bind"
+            !src.contains("\"lulu-spark-bind\"") && !src.contains("bind_service("),
+            "bind ceremony must not open the leftover bind Keychain service"
         );
         assert!(
             !src.contains("lulu-spark-mcp-oauth"),

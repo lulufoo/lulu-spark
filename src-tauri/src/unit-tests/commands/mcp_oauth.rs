@@ -303,6 +303,7 @@ fn command_error_strings_do_not_leak_ticket_secret() {
 #[test]
 fn get_mcp_ticket_view_and_device_revoke_use_shared_oauth() {
     let sandbox = TestSandbox::new();
+    crate::config::vault::test_clear_scope();
     reset_slots();
     let spark = issue_for_slot(Slot::Spark).expect("wb");
     let view = super::get_mcp_ticket_view("spark".into()).expect("view");

@@ -1,183 +1,39 @@
-//! Keychain secrets (macOS). `TestSandbox` (and `cfg(test)`) use an in-memory
-//! store. Debug (dev) builds without a sandbox use a plain-text TOML file to
-//! avoid Keychain prompts on every hot-rebuild; release builds without a
-//! sandbox use the system Keychain.
+//! Host secrets. The on-disk / Keychain shape is the vault tree in `vault.rs`.
+//! `TestSandbox` (and `cfg(test)`) stay in memory. Debug builds persist the
+//! same tree as nested TOML; release builds persist it as one Keychain item.
 
-use std::collections::HashMap;
-use std::sync::{LazyLock, Mutex};
+pub use crate::config::vault::{
+    migrate_legacy_secrets, SecretError, KEY_LLM_API_KEY,
+};
 
 use crate::config::settings;
-
-#[allow(dead_code)]
-fn keyring_service() -> &'static str {
-    "lulu-spark"
-}
-
-/// Host/GLM credential slot.
-pub const KEY_LLM_API_KEY: &str = "llm_api_key";
-
-#[derive(Debug)]
-pub enum SecretError {
-    Keyring(String),
-    Poisoned,
-}
-
-impl std::fmt::Display for SecretError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            SecretError::Keyring(e) => write!(f, "keyring: {e}"),
-            SecretError::Poisoned => write!(f, "lock poisoned"),
-        }
-    }
-}
-
-// ── memory store (`TestSandbox` / `cfg(test)`) ────────────────────────────────
-
-static MEMORY_SECRETS: LazyLock<Mutex<HashMap<String, String>>> =
-    LazyLock::new(|| Mutex::new(HashMap::new()));
+use crate::config::vault;
 
 #[cfg(test)]
 pub fn test_secrets_clear() {
-    if let Ok(mut m) = MEMORY_SECRETS.lock() {
-        m.clear();
-    }
+    vault::test_clear_llm();
 }
-
-fn memory_store() -> Result<std::sync::MutexGuard<'static, HashMap<String, String>>, SecretError> {
-    MEMORY_SECRETS.lock().map_err(|_| SecretError::Poisoned)
-}
-
-// ── dev store (debug builds only) ─────────────────────────────────────────────
-
-#[cfg(all(not(test), debug_assertions))]
-fn dev_secrets_path() -> std::path::PathBuf {
-    settings::prod_config_dir().join("dev-secrets.toml")
-}
-
-#[cfg(all(not(test), debug_assertions))]
-fn read_dev_secrets() -> std::collections::HashMap<String, String> {
-    let path = dev_secrets_path();
-    let Ok(content) = std::fs::read_to_string(&path) else {
-        return std::collections::HashMap::new();
-    };
-    toml::from_str(&content).unwrap_or_default()
-}
-
-#[cfg(all(not(test), debug_assertions))]
-fn write_dev_secrets(
-    map: &std::collections::HashMap<String, String>,
-) -> Result<(), SecretError> {
-    let path = dev_secrets_path();
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)
-            .map_err(|e| SecretError::Keyring(e.to_string()))?;
-    }
-    let content = toml::to_string(map).map_err(|e| SecretError::Keyring(e.to_string()))?;
-    std::fs::write(&path, content).map_err(|e| SecretError::Keyring(e.to_string()))
-}
-
-// ── public API ────────────────────────────────────────────────────────────────
 
 pub fn get_secret(key: &str) -> Result<Option<String>, SecretError> {
-    if settings::uses_in_memory_keychain() {
-        let map = memory_store()?;
-        return Ok(map.get(key).cloned());
+    let _ = settings::uses_in_memory_keychain();
+    if key != KEY_LLM_API_KEY {
+        return Ok(None);
     }
-    #[cfg(not(test))]
-    {
-        return persistent_get_secret(key);
-    }
-    #[cfg(test)]
-    {
-        let map = memory_store()?;
-        Ok(map.get(key).cloned())
-    }
+    vault::get_llm_api_key()
 }
 
 pub fn set_secret(key: &str, value: &str) -> Result<(), SecretError> {
-    if settings::uses_in_memory_keychain() {
-        let mut map = memory_store()?;
-        map.insert(key.to_string(), value.to_string());
+    if key != KEY_LLM_API_KEY {
         return Ok(());
     }
-    #[cfg(not(test))]
-    {
-        return persistent_set_secret(key, value);
-    }
-    #[cfg(test)]
-    {
-        let mut map = memory_store()?;
-        map.insert(key.to_string(), value.to_string());
-        Ok(())
-    }
+    vault::set_llm_api_key(value)
 }
 
 pub fn delete_secret(key: &str) -> Result<(), SecretError> {
-    if settings::uses_in_memory_keychain() {
-        let mut map = memory_store()?;
-        map.remove(key);
+    if key != KEY_LLM_API_KEY {
         return Ok(());
     }
-    #[cfg(not(test))]
-    {
-        return persistent_delete_secret(key);
-    }
-    #[cfg(test)]
-    {
-        let mut map = memory_store()?;
-        map.remove(key);
-        Ok(())
-    }
-}
-
-#[cfg(all(not(test), debug_assertions))]
-fn persistent_get_secret(key: &str) -> Result<Option<String>, SecretError> {
-    let map = read_dev_secrets();
-    Ok(map.get(key).cloned())
-}
-
-#[cfg(all(not(test), debug_assertions))]
-fn persistent_set_secret(key: &str, value: &str) -> Result<(), SecretError> {
-    let mut map = read_dev_secrets();
-    map.insert(key.to_string(), value.to_string());
-    write_dev_secrets(&map)
-}
-
-#[cfg(all(not(test), debug_assertions))]
-fn persistent_delete_secret(key: &str) -> Result<(), SecretError> {
-    let mut map = read_dev_secrets();
-    map.remove(key);
-    write_dev_secrets(&map)
-}
-
-#[cfg(all(not(test), not(debug_assertions)))]
-fn persistent_get_secret(key: &str) -> Result<Option<String>, SecretError> {
-    let entry = keyring::Entry::new(keyring_service(), key)
-        .map_err(|e| SecretError::Keyring(e.to_string()))?;
-    match entry.get_password() {
-        Ok(v) => Ok(Some(v)),
-        Err(keyring::Error::NoEntry) => Ok(None),
-        Err(e) => Err(SecretError::Keyring(e.to_string())),
-    }
-}
-
-#[cfg(all(not(test), not(debug_assertions)))]
-fn persistent_set_secret(key: &str, value: &str) -> Result<(), SecretError> {
-    let entry = keyring::Entry::new(keyring_service(), key)
-        .map_err(|e| SecretError::Keyring(e.to_string()))?;
-    entry
-        .set_password(value)
-        .map_err(|e| SecretError::Keyring(e.to_string()))
-}
-
-#[cfg(all(not(test), not(debug_assertions)))]
-fn persistent_delete_secret(key: &str) -> Result<(), SecretError> {
-    let entry = keyring::Entry::new(keyring_service(), key)
-        .map_err(|e| SecretError::Keyring(e.to_string()))?;
-    match entry.delete_credential() {
-        Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
-        Err(e) => Err(SecretError::Keyring(e.to_string())),
-    }
+    vault::delete_llm_api_key()
 }
 
 /// Host credential present (`KEY_LLM_API_KEY`).

@@ -201,6 +201,7 @@ impl Drop for MockMcp {
 
 fn with_bind_sandbox(test: impl FnOnce(&Path)) {
     let sandbox = TestSandbox::new();
+    crate::config::vault::test_clear_scope();
     test_reset_bind_keychain();
     test_clear_session();
     let config_dir = sandbox

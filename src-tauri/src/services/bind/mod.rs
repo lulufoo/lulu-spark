@@ -1,6 +1,5 @@
 //! In-process bind ceremony: one ephemeral X25519 session, Ed25519 signed payload.
 
-use std::collections::HashMap;
 use std::net::Ipv4Addr;
 use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -15,11 +14,11 @@ use serde_json::Value;
 use sha2::Sha256;
 use x25519_dalek::{PublicKey, StaticSecret};
 
-use crate::config::settings;
+#[cfg(test)]
+use crate::config::vault;
 use crate::services::mcp_oauth::issue_for_device;
 
 const BIND_TTL_SECS: u64 = 180;
-const LEGACY_BIND_ACCOUNTS: &[&str] = &["signing", "binding"];
 const SEAL_INFO: &[u8] = b"lulu-spark-bind-v1";
 pub const BIND_MOBILE_BUSINESS_ID: &str = "Bind_Mobile";
 
@@ -75,13 +74,6 @@ enum Session {
 
 static SESSION: Mutex<Option<Session>> = Mutex::new(None);
 
-static MEMORY_KEYCHAIN: Mutex<Option<HashMap<String, String>>> = Mutex::new(None);
-
-#[cfg_attr(test, allow(dead_code))]
-fn bind_service() -> &'static str {
-    "lulu-spark-bind"
-}
-
 fn now_secs() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -109,89 +101,6 @@ fn hex_decode_32(text: &str) -> Result<[u8; 32], BindError> {
 
 fn session_lock() -> std::sync::MutexGuard<'static, Option<Session>> {
     SESSION.lock().unwrap_or_else(|e| e.into_inner())
-}
-
-fn memory_kc() -> std::sync::MutexGuard<'static, Option<HashMap<String, String>>> {
-    MEMORY_KEYCHAIN.lock().unwrap_or_else(|e| e.into_inner())
-}
-
-#[cfg(test)]
-fn kc_get(account: &str) -> Result<Option<String>, BindError> {
-    if settings::uses_in_memory_keychain() {
-        let mut guard = memory_kc();
-        let store = guard.get_or_insert_with(HashMap::new);
-        return Ok(store.get(account).cloned());
-    }
-    let entry = match keyring::Entry::new(bind_service(), account) {
-        Ok(entry) => entry,
-        Err(_) => {
-            log_bind_event("keychain.read", "entry_failed");
-            return Err(BindError::keychain_unavailable);
-        }
-    };
-    match entry.get_password() {
-        Ok(raw) => {
-            log_bind_event("keychain.read", "existing");
-            Ok(Some(raw))
-        }
-        Err(keyring::Error::NoEntry) => {
-            log_bind_event("keychain.read", "missing");
-            Ok(None)
-        }
-        Err(_) => {
-            log_bind_event("keychain.read", "failed");
-            Err(BindError::keychain_unavailable)
-        }
-    }
-}
-
-#[cfg(test)]
-fn kc_set(account: &str, value: &str) -> Result<(), BindError> {
-    if settings::uses_in_memory_keychain() {
-        let mut guard = memory_kc();
-        let store = guard.get_or_insert_with(HashMap::new);
-        store.insert(account.to_string(), value.to_string());
-        return Ok(());
-    }
-    let entry = match keyring::Entry::new(bind_service(), account) {
-        Ok(entry) => entry,
-        Err(_) => {
-            log_bind_event("keychain.write", "entry_failed");
-            return Err(BindError::keychain_unavailable);
-        }
-    };
-    let result = entry
-        .set_password(value)
-        .map_err(|_| BindError::keychain_unavailable);
-    log_bind_event(
-        "keychain.write",
-        if result.is_ok() { "succeeded" } else { "failed" },
-    );
-    result
-}
-
-fn kc_delete(account: &str) -> Result<(), BindError> {
-    if settings::uses_in_memory_keychain() {
-        let mut guard = memory_kc();
-        if let Some(store) = guard.as_mut() {
-            store.remove(account);
-        }
-        return Ok(());
-    }
-    let entry = match keyring::Entry::new(bind_service(), account) {
-        Ok(entry) => entry,
-        Err(_) => return Ok(()),
-    };
-    match entry.delete_credential() {
-        Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
-        Err(_) => Ok(()),
-    }
-}
-
-fn drop_legacy_bind_accounts() {
-    for account in LEGACY_BIND_ACCOUNTS {
-        let _ = kc_delete(account);
-    }
 }
 
 pub fn canonical_bind_string(payload: &BindPayload) -> String {
@@ -274,7 +183,6 @@ pub fn create_bind_payload(
     tls_fingerprint: &str,
 ) -> Result<BindPayload, BindError> {
     log_bind_event("payload.create", "started");
-    drop_legacy_bind_accounts();
     let secret = StaticSecret::random_from_rng(OsRng);
     let temp_pub = hex_encode(PublicKey::from(&secret).as_bytes());
     let exp = now_secs() + BIND_TTL_SECS;
@@ -323,7 +231,6 @@ pub fn complete_bind(encrypted_request: &[u8]) -> Result<BindResult, BindError> 
     }
     let device_label = body.get("device_label").and_then(Value::as_str);
     let token = issue_for_device(device_id, device_label).map_err(|_| BindError::rejected)?;
-    drop_legacy_bind_accounts();
     *guard = Some(Session::Consumed);
     Ok(BindResult {
         device_mcp_token: token.as_str().to_string(),
@@ -380,17 +287,17 @@ pub fn test_session_bytes() -> Vec<u8> {
 
 #[cfg(test)]
 pub fn test_reset_bind_keychain() {
-    *memory_kc() = Some(HashMap::new());
+    vault::test_clear_legacy_bind_accounts();
 }
 
 #[cfg(test)]
 pub fn test_put_bind_account(account: &str, value: &str) {
-    let _ = kc_set(account, value);
+    vault::test_seed_legacy_bind_account(account, value);
 }
 
 #[cfg(test)]
 pub fn test_bind_account(account: &str) -> Option<String> {
-    kc_get(account).ok().flatten()
+    vault::test_legacy_bind_account(account)
 }
 
 #[cfg(test)]
