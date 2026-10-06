@@ -4442,7 +4442,7 @@
     box-sizing: border-box;
     cursor: text;
   }
-  .comment-editor-box:focus-within { border-color: #0969da; }
+  .comment-editor-box:focus-within { border-color: #eaeef2; }
   .comment-editor-content {
     flex: 1;
     font-size: 13px;
