@@ -8,7 +8,6 @@ const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const indexHtml = [
   readShellHtml(),
   readFileSync(join(repoRoot, 'frontend/src/notes/page.tsx'), 'utf8'),
-  readFileSync(join(repoRoot, 'frontend/src/knowledge/ui/knowledge-search.tsx'), 'utf8'),
 ].join('\n');
 
 /** Extract outermost element with id, balanced for nested same-tag children. */
@@ -58,7 +57,7 @@ describe('T4 note outlet hosts viewer chrome (tech-doc T4 / index.html)', () => 
     expect(indexHtml).toMatch(/id="md-body"/);
     expect(indexHtml).toMatch(/id="md-edit-area"/);
     expect(indexHtml).toMatch(/id="md-header"/);
-    expect(indexHtml).toMatch(/id="knowledge-panel"/);
+    expect(indexHtml).not.toMatch(/id="knowledge-panel"/);
     expect(indexHtml).not.toMatch(/\bid="md-modal"/);
   });
 

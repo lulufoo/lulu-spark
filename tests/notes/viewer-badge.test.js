@@ -92,10 +92,6 @@ vi.mock('../../frontend/src/knowledge/viewer.ts', () => ({
   openKbDoc: vi.fn(),
   saveKbDoc: vi.fn(),
 }));
-vi.mock('../../frontend/src/knowledge/ui/knowledge-search.tsx', () => ({
-  mountKnowledgeSearch: vi.fn(),
-  triggerKnowledgeSearch: vi.fn(),
-}));
 vi.mock('../../frontend/src/host/constants.ts', () => ({
   notesFileRelPath: (layer, path) => `notes/${layer}/${path}`,
 }));

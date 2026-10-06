@@ -14,7 +14,6 @@ const CREATE_CHROME_HIDDEN_IDS = [
   'md-file-size',
   'md-links-bar',
   'md-tags-bar',
-  'knowledge-panel',
   'btn-copy-path',
   'btn-open-in-chat',
   'btn-goto-kb',

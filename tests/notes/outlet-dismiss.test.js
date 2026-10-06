@@ -46,10 +46,6 @@ vi.mock('../../frontend/src/notes/ui/viewer/body.tsx', () => ({
   renderDocBody: vi.fn(),
 }));
 
-vi.mock('../../frontend/src/knowledge/ui/knowledge-search.tsx', () => ({
-  KnowledgeSearchHost: () => null,
-}));
-
 vi.mock('../../frontend/src/notes/ui/comments.tsx', () => ({
   NotesCommentFloatNav: () => null,
   NotesCommentsBar: () => null,

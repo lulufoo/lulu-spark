@@ -110,10 +110,6 @@ vi.mock('../../frontend/src/knowledge/viewer.ts', () => ({
   openKbDoc: vi.fn(),
   saveKbDoc: vi.fn(),
 }));
-vi.mock('../../frontend/src/knowledge/ui/knowledge-search.tsx', () => ({
-  mountKnowledgeSearch: vi.fn(),
-  triggerKnowledgeSearch: vi.fn(),
-}));
 vi.mock('../../frontend/src/host/constants.ts', () => ({
   notesFileRelPath: (layer, path) => `notes/${layer}/${path}`,
 }));
@@ -143,7 +139,6 @@ const CREATE_CHROME_HIDDEN_IDS = [
   'md-file-size',
   'md-links-bar',
   'md-tags-bar',
-  'knowledge-panel',
   'btn-copy-path',
   'btn-open-in-chat',
   'btn-goto-kb',
@@ -155,7 +150,7 @@ function resetViewerDom() {
     'note-outlet', 'md-modal', 'md-body', 'md-edit-area', 'md-panel-title', 'md-close', 'md-backdrop',
     'comment-dialog', 'btn-edit', 'btn-add-comment', 'btn-save',
     'btn-cancel-edit', 'md-lang-bar', 'md-file-size',
-    'md-links-bar', 'md-tags-bar', 'knowledge-panel',
+    'md-links-bar', 'md-tags-bar',
     'btn-copy-path', 'btn-open-in-chat', 'btn-goto-kb',
     'comment-float-nav',
   ]) {

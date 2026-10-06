@@ -43,9 +43,10 @@ describe('global-search cleanup (TAC-7)', () => {
 });
 
 describe('global-search cleanup regression (TAC-5)', () => {
-  it('knowledge search remains mounted from viewer (no global-search import)', () => {
-    const src = readFrontendJs('frontend/src/knowledge/ui/knowledge-search.tsx');
-    expect(src).toMatch(/export function mountKnowledgeSearch/);
+  it('knowledge reader search remains (no notes related-knowledge panel)', () => {
+    const src = readFrontendJs('frontend/src/knowledge/ui/search.tsx');
+    expect(src).toMatch(/export function initKnowledgeSearch/);
     expect(src).not.toMatch(/initGlobalSearch/);
+    expect(existsSync(join(fixtureRoot, 'frontend/src/knowledge/ui/knowledge-search.tsx'))).toBe(false);
   });
 });
