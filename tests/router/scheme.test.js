@@ -119,6 +119,30 @@ describe('parseSparkScheme', () => {
     });
   });
 
+  it('parses auth-login/callback with a code', () => {
+    expect(parseSparkScheme('spark://auth-login/callback?code=abc')).toEqual({
+      kind: 'auth-login-callback',
+      code: 'abc',
+      error: null,
+    });
+  });
+
+  it('parses auth-login/callback with no query as null code and error', () => {
+    expect(parseSparkScheme('spark://auth-login/callback')).toEqual({
+      kind: 'auth-login-callback',
+      code: null,
+      error: null,
+    });
+  });
+
+  it('parses auth-login/callback error without a code', () => {
+    expect(parseSparkScheme('spark://auth-login/callback?error=access_denied')).toEqual({
+      kind: 'auth-login-callback',
+      code: null,
+      error: 'access_denied',
+    });
+  });
+
   it('appends trace on notes/open and still parses id and path', () => {
     const scheme = composeSparkScheme({
       business: 'notes',
@@ -169,6 +193,9 @@ describe('parseSparkScheme', () => {
     'spark://notes/open?id=abc&path=',
     'spark://read-later/open',
     'spark://read-later/list?id=e1',
+    'https://auth-login/callback?code=abc',
+    'spark://auth-login/open',
+    'spark://%',
     '',
   ])('returns null for unrecognized or incomplete scheme %s', (scheme) => {
     expect(parseSparkScheme(scheme)).toBeNull();
@@ -210,6 +237,15 @@ describe('openSparkScheme', () => {
     expect(openSparkScheme('spark://read-later/list')).toBe(true);
     expect(dialogEl()?.classList.contains('open')).toBe(true);
     expect(window.location.hash).toBe('#/home');
+  });
+
+  it('does not land notes or throw for auth-login/callback', () => {
+    expect(() => {
+      expect(openSparkScheme('spark://auth-login/callback?code=abc')).toBe(true);
+    }).not.toThrow();
+    expect(parseHash(window.location.hash)).toEqual({ name: 'home', params: {} });
+    expect(window.location.hash).toBe('#/home');
+    expect(dialogEl()?.classList.contains('open')).toBe(false);
   });
 
   it.each([

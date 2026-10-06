@@ -17,7 +17,8 @@ export type SparkEnvelope = {
 
 export type ParsedSparkScheme =
   | { kind: 'notes-open'; id: string; path: string }
-  | { kind: 'read-later-list' };
+  | { kind: 'read-later-list' }
+  | { kind: 'auth-login-callback'; code: string | null; error: string | null };
 
 export type NotesLanding = { date: string; note: string };
 
@@ -78,6 +79,14 @@ export function parseSparkScheme(scheme: string): ParsedSparkScheme | null {
     return { kind: 'read-later-list' };
   }
 
+  if (url.hostname === 'auth-login' && path === '/callback') {
+    return {
+      kind: 'auth-login-callback',
+      code: url.searchParams.get('code') || null,
+      error: url.searchParams.get('error') || null,
+    };
+  }
+
   return null;
 }
 
@@ -107,6 +116,11 @@ export function openSparkScheme(scheme: string): boolean {
   if (parsed.kind === 'read-later-list') {
     openReadLaterDialog();
     logNotifyHop('route.to_business', trace, { outcome: 'ok', kind: 'read-later-list' });
+    return true;
+  }
+
+  if (parsed.kind === 'auth-login-callback') {
+    logNotifyHop('route.to_business', trace, { outcome: 'ok', kind: 'auth-login-callback' });
     return true;
   }
 
