@@ -71,7 +71,7 @@ function _renderTopicFilter(parent: HTMLElement) {
   const countEl = document.createElement('div');
   countEl.className = 'topic-count';
   if (state.ui.activeTopic) {
-    countEl.textContent = `${topicCounts[state.ui.activeTopic] || 0} / ${total} items`;
+    countEl.textContent = `${topicCounts[state.ui.activeTopic] || 0} / ${total}`;
     countEl.style.display = '';
   } else {
     countEl.style.display = 'none';
@@ -132,7 +132,7 @@ function _renderTagFilter(parent: HTMLElement) {
   const countEl = document.createElement('div');
   countEl.className = 'tag-count';
   if (activeKey) {
-    countEl.textContent = `${tagCounts[activeKey] || 0} / ${total} items`;
+    countEl.textContent = `${tagCounts[activeKey] || 0} / ${total}`;
     countEl.style.display = '';
   } else {
     countEl.style.display = 'none';

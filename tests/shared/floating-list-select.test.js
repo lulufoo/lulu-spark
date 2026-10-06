@@ -29,6 +29,7 @@ describe('floating-list-select', () => {
 
     expect(picker.querySelector('.list-select-trigger')).not.toBeNull();
     expect(picker.querySelector('.list-select-label')?.textContent).toBe('ai (2)');
+    expect(picker.querySelector('.list-select-chevron-icon')).not.toBeNull();
   });
 
   it('opens menu and calls onSelect', () => {

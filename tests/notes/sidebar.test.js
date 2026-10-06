@@ -212,7 +212,7 @@ describe('renderSidebar tag filter', () => {
     renderSidebar();
     const countEl = sidebarEl()?.querySelector('.tag-count');
     expect(countEl).toBeTruthy();
-    expect(countEl.textContent).toBe('2 / 4 items');
+    expect(countEl.textContent).toBe('2 / 4');
     expect(countEl.style.display).not.toBe('none');
   });
 
