@@ -5201,6 +5201,23 @@
   background: #d0d7de;
   border-radius: 4px;
 }
+.settings-field select.settings-native-select {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+  pointer-events: none;
+}
+.settings-list-select {
+  width: 100%;
+}
+.settings-select-menu {
+  z-index: 2100;
+}
 .settings-field input[type="text"],
 .settings-field input[type="password"],
 .settings-field select,

@@ -1,6 +1,7 @@
 import * as api from '../../../host/api.ts';
 import { errMessage, type SettingsConfig } from '../../state/types.ts';
 import { getEnginePreset, listEngineCategories } from '../../state/settings/engine-presets.ts';
+import { syncSettingsListSelect } from '../../ui/settings/list-select.ts';
 import {
   DEFAULT_ENGINE_CATEGORY,
   engineBaseUrlByCategory,
@@ -90,7 +91,10 @@ export function loadAssistantEnginePanel(cfg?: SettingsConfig | Record<string, u
       ? llm.base_url.trim()
       : preset?.fields?.base_url || '';
 
-  if (engineSelect) engineSelect.value = categoryId;
+  if (engineSelect) {
+    engineSelect.value = categoryId;
+    syncSettingsListSelect(engineSelect);
+  }
   fillPresetFields(categoryId, {
     baseUrl: engineBaseUrlByCategory[categoryId],
     forceBaseUrl: true,
@@ -129,7 +133,10 @@ export async function applyEngineCategorySelection(
   store.activeEngineCategory = id;
   publishEngineCategory(id);
 
-  if (engineSelect) engineSelect.value = id;
+  if (engineSelect) {
+    engineSelect.value = id;
+    syncSettingsListSelect(engineSelect);
+  }
   fillPresetFields(id, {
     baseUrl: engineBaseUrlByCategory[id] ?? '',
     forceBaseUrl: true,

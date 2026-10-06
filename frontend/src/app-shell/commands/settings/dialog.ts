@@ -26,6 +26,7 @@ import {
 } from './notes-categories.ts';
 import { loadSettingsSnapshot } from './snapshot.ts';
 import { switchPanel, switchSettingsTab } from '../../ui/settings/tabs.ts';
+import { mountSettingsListSelects } from '../../ui/settings/list-select.ts';
 
 export { settingsOpenStore };
 
@@ -146,4 +147,5 @@ function wireSettingsDialog() {
   document.getElementById('btn-settings-mcp-tools-deselect-all')?.addEventListener('click', () => {
     void deselectAllMcpChannelTools();
   });
+  mountSettingsListSelects();
 }
