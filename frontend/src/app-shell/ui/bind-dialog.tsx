@@ -7,7 +7,13 @@ export { closeBindDialog, openBindDialog } from '../commands/bind-dialog.ts';
 export function BindDialog() {
   const open = useSyncExternalStore(bindOpenStore.subscribe, bindOpenStore.getSnapshot);
   return (
-    <div id="bind-dialog" className={open ? 'open' : undefined}>
+    <div
+      id="bind-dialog"
+      className={open ? 'open' : undefined}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) closeBindDialog();
+      }}
+    >
       <div id="bind-dialog-box">
         <div id="bind-dialog-header">
           <div id="bind-dialog-heading">

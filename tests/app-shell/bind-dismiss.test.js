@@ -58,6 +58,21 @@ describe('Bind header dismiss', () => {
     expect(visibleCopy(button)).not.toContain('Close');
   });
 
+  it('closes Bind when the gray overlay is clicked', () => {
+    const dialog = document.getElementById('bind-dialog');
+    const box = document.getElementById('bind-dialog-box');
+    expect(dialog.classList.contains('open')).toBe(true);
+    act(() => {
+      box.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(dialog.classList.contains('open')).toBe(true);
+    act(() => {
+      dialog.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(dialog.classList.contains('open')).toBe(false);
+    expect(bindOpenStore.getSnapshot()).toBe(false);
+  });
+
   it('keeps Bind close on the header ✕', () => {
     const dialog = document.getElementById('bind-dialog');
     expect(dialog.classList.contains('open')).toBe(true);
@@ -74,6 +89,7 @@ describe('Bind header dismiss', () => {
     const sharedSrc = readRel('frontend/src/shared/overlay-dismiss-button.tsx');
     expect(commandSrc).toMatch(/export function closeBindDialog/);
     expect(dialogSrc).toMatch(/closeBindDialog/);
+    expect(dialogSrc).toMatch(/e\.target === e\.currentTarget/);
     expect(sharedSrc).not.toMatch(/closeBindDialog/);
 
     const header = document.getElementById('bind-dialog-header');
