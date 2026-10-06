@@ -90,3 +90,7 @@ pub fn github_repo_url_from_remote_url(remote: &str) -> Option<String> {
     }
     Some(format!("https://github.com/{owner}/{repo}"))
 }
+
+#[cfg(test)]
+#[path = "../../unit-tests/config/settings/github.rs"]
+mod tests;

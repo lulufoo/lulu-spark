@@ -200,3 +200,7 @@ pub fn apply_config_payload(
     // `cache_dir` is not user-settable via API; use `default_cache_dir()` / manual toml edit.
     Ok(())
 }
+
+#[cfg(test)]
+#[path = "../../unit-tests/config/settings/store.rs"]
+mod tests;

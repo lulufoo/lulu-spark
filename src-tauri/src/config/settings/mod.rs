@@ -12,7 +12,3 @@ pub use llm::*;
 pub use sandbox::*;
 pub use store::*;
 pub use types::*;
-
-#[cfg(test)]
-#[path = "../../unit-tests/config/settings.rs"]
-mod tests;

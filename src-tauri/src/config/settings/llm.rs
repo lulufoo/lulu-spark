@@ -100,3 +100,7 @@ pub(super) fn stamp_host_preset_on_load(settings: &mut AppSettings) {
         stamp_readonly_preset_fields(settings);
     }
 }
+
+#[cfg(test)]
+#[path = "../../unit-tests/config/settings/llm.rs"]
+mod tests;

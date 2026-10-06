@@ -252,3 +252,7 @@ pub fn is_supported_host_llm_entry(entry: &LlmSettingsEntry) -> bool {
     };
     entry.platform.trim().eq_ignore_ascii_case(platform)
 }
+
+#[cfg(test)]
+#[path = "../../unit-tests/config/settings/types.rs"]
+mod tests;
