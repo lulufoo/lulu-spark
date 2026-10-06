@@ -331,7 +331,12 @@ fn uses_in_memory_keychain_is_true_during_lib_tests() {
 #[test]
 fn keychain_memory_switch_is_consulted_by_all_stores() {
     let secrets = include_str!("../../config/secrets.rs");
-    let vault = include_str!("../../config/vault.rs");
+    let vault = concat!(
+        include_str!("../../config/vault/mod.rs"),
+        include_str!("../../config/vault/types.rs"),
+        include_str!("../../config/vault/codec.rs"),
+        include_str!("../../config/vault/store.rs"),
+    );
     let oauth = include_str!("../../services/mcp_oauth.rs");
     for (name, src) in [
         ("secrets.rs", secrets),
