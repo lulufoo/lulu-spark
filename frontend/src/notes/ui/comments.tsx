@@ -88,7 +88,7 @@ export function NotesCommentsBar() {
   return (
     <div id="md-comments-bar" className="md-comments-bar" ref={barRef}>
       <div className="comment-bar-header">
-        <span>{`💬 Comment · ${comments.length}`}</span>
+        <span>{`Comment · ${comments.length}`}</span>
       </div>
       {comments.map((c, i) => (
         <CommentItem
@@ -305,7 +305,7 @@ export async function openCommentDialog(
   if (editComment) {
     _commentEditCtx = { c: editComment, layer, entry, noteIndex };
     _draftKey = null;
-    titleEl.textContent = '💬 Edit comment';
+    titleEl.textContent = 'Edit comment';
     content.innerText = editComment.text;
   } else {
     _commentEditCtx = { noteIndex };
@@ -313,7 +313,7 @@ export async function openCommentDialog(
     if (!target) return;
     const commonPath = target.common_path;
     _draftKey = commonPath;
-    titleEl.textContent = '💬 Add comment';
+    titleEl.textContent = 'Add comment';
     content.innerText = '';
     try {
       const draft = (await api.getDraft(commonPath)) as { content?: string };
@@ -482,7 +482,7 @@ const NoteCommentDialogInner = memo(function NoteCommentDialogInner() {
   return (
     <div id="comment-dialog-box">
       <div id="comment-dialog-header">
-        <h3 id="comment-dialog-title">💬 Add comment</h3>
+        <h3 id="comment-dialog-title">Add comment</h3>
         <div id="comment-dialog-tabs">
           <button
             type="button"
@@ -529,7 +529,7 @@ const NoteCommentDialogInner = memo(function NoteCommentDialogInner() {
         <button
           id="btn-comment-save"
           type="button"
-          className="md-header-btn primary"
+          className="md-header-btn"
           onClick={() => void saveComment()}
         >
           Save

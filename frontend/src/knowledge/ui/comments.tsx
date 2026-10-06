@@ -318,7 +318,7 @@ export function openKbCommentDialog(editComment: KbComment | null = null, _noteI
   const content = document.getElementById('kb-comment-dialog-content');
   if (!dialog || !content) return;
 
-  if (title) title.textContent = editComment ? '💬 Edit comment' : '💬 Add comment';
+  if (title) title.textContent = editComment ? 'Edit comment' : 'Add comment';
   content.textContent = editComment?.text || '';
   openStore.set(true);
   dialog.classList.add('open');
@@ -449,7 +449,7 @@ const KbCommentDialogInner = memo(function KbCommentDialogInner() {
   return (
     <div id="kb-comment-dialog-box">
       <div id="kb-comment-dialog-header">
-        <h3 id="kb-comment-dialog-title">💬 Add comment</h3>
+        <h3 id="kb-comment-dialog-title">Add comment</h3>
         <div id="kb-comment-dialog-tabs">
           <button
             type="button"
@@ -500,7 +500,7 @@ const KbCommentDialogInner = memo(function KbCommentDialogInner() {
         <button
           id="kb-btn-comment-save"
           type="button"
-          className="md-header-btn primary"
+          className="md-header-btn"
           onClick={() => void saveKbComment()}
         >
           Save

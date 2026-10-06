@@ -35,7 +35,7 @@ describe('NoteCommentDialog', () => {
 
   it('keeps English copy and comment-dialog ids', () => {
     expect(document.getElementById('comment-dialog')).toBeTruthy();
-    expect(document.getElementById('comment-dialog-title').textContent).toBe('💬 Add comment');
+    expect(document.getElementById('comment-dialog-title').textContent).toBe('Add comment');
     expect(document.getElementById('comment-dialog-content').getAttribute('contenteditable')).toBe('true');
     expect(document.getElementById('comment-editor-box')).toBeTruthy();
     expect(document.getElementById('comment-preview-pane')).toBeTruthy();

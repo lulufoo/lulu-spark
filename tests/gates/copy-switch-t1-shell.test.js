@@ -127,6 +127,12 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
     expect(css).toMatch(/\.settings-select-menu \{[\s\S]*?z-index: 2100;/);
     const settingsDialog = readFileSync(join(repoRoot, 'frontend/src/app-shell/commands/settings/dialog.ts'), 'utf8');
     expect(settingsDialog).toMatch(/mountSettingsListSelects\(\)/);
+    expect(css).toMatch(/\.comment-item \{[\s\S]*?background: #f6f8fa;/);
+    expect(css).toMatch(/\.comment-float-btn \{[\s\S]*?background: #f6f8fa;/);
+    expect(css).toMatch(/\.comment-editor-box \{[\s\S]*?border: 1px solid #eaeef2;/);
+    expect(css).not.toMatch(/#fefef7/);
+    const notesComments = readFileSync(join(repoRoot, 'frontend/src/notes/ui/comments.tsx'), 'utf8');
+    expect(notesComments).not.toMatch(/💬/);
     expect(css).toMatch(/\.viewer-panel-title \{[\s\S]*?border-right: 1px solid #d8dee4;/);
     expect(css).toMatch(/\.viewer-panel-title \{[\s\S]*?font-size: 14px;/);
     expect(css).not.toMatch(/\.kb-reader-header \.viewer-header-rule/);
