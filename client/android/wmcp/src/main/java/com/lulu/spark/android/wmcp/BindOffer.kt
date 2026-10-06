@@ -1,11 +1,8 @@
 package com.lulu.spark.android.wmcp
 
 import com.lulu.spark.android.wmcp.shared.jsonString
-import org.bouncycastle.crypto.digests.SHA256Digest
-import org.bouncycastle.crypto.engines.RSAEngine
-import org.bouncycastle.crypto.params.RSAKeyParameters
-import org.bouncycastle.crypto.signers.PSSSigner
-import org.bouncycastle.crypto.util.PublicKeyFactory
+import org.bouncycastle.crypto.params.Ed25519PublicKeyParameters
+import org.bouncycastle.crypto.signers.Ed25519Signer
 
 data class BindOffer(
     val ip: String,
@@ -13,6 +10,7 @@ data class BindOffer(
     val tempPub: String,
     val tlsFingerprint: String,
     val exp: Long,
+    val signPub: String,
     val sig: String,
 )
 
@@ -23,6 +21,7 @@ fun parseBindOffer(qrJson: String): BindOffer {
         tempPub = jsonString(qrJson, "temp_pub"),
         tlsFingerprint = jsonString(qrJson, "tls_fingerprint"),
         exp = jsonString(qrJson, "exp").toLong(),
+        signPub = jsonString(qrJson, "sign_pub"),
         sig = jsonString(qrJson, "sig"),
     )
 }
@@ -31,35 +30,18 @@ fun formatBindCanonical(offer: BindOffer): String =
     "v1|${offer.ip}|${offer.port}|${offer.tempPub}|${offer.tlsFingerprint}|${offer.exp}"
 
 fun verifyBindOffer(offer: BindOffer) {
-    val pub = rsaPublic(offer.tempPub)
-    val signature = try {
-        hexDecodeExact(offer.sig, 256, "sig")
-    } catch (_: Exception) {
-        throw BindFailedException("bind offer signature rejected")
-    }
+    val pub = hexDecodeExact(offer.signPub, 32, "sign_pub")
+    val signature = hexDecodeExact(offer.sig, 64, "sig")
     val message = formatBindCanonical(offer).encodeToByteArray()
-    val verifier = PSSSigner(RSAEngine(), SHA256Digest(), 32)
-    verifier.init(false, pub)
+    val verifier = Ed25519Signer()
+    verifier.init(false, Ed25519PublicKeyParameters(pub))
     verifier.update(message, 0, message.size)
     if (!verifier.verifySignature(signature)) {
         throw BindFailedException("bind offer signature rejected")
     }
 }
 
-internal fun rsaPublic(tempPubHex: String): RSAKeyParameters {
-    return try {
-        PublicKeyFactory.createKey(hexDecode(tempPubHex)) as RSAKeyParameters
-    } catch (_: Exception) {
-        throw BindFailedException("bind offer signature rejected")
-    }
-}
-
 private fun hexDecodeExact(text: String, byteLen: Int, field: String): ByteArray {
     require(text.length == byteLen * 2) { "$field must be $byteLen bytes hex" }
-    return hexDecode(text)
-}
-
-private fun hexDecode(text: String): ByteArray {
-    require(text.length % 2 == 0) { "hex length must be even" }
     return text.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
 }

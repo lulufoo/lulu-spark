@@ -32,18 +32,14 @@ fn create_bind_payload_returns_object_with_temp_pub_exp_tls_and_sig() {
         assert_eq!(payload.ip, ip);
         assert_eq!(payload.port, 7654);
         assert_eq!(payload.tls_fingerprint, "ab".repeat(32));
-        assert!(
-            payload.temp_pub.len() > 64 && payload.temp_pub.len() % 2 == 0,
-            "RSA-2048 SPKI must be longer than 32-byte X25519 hex, got {}",
-            payload.temp_pub.len()
-        );
+        assert_eq!(payload.temp_pub.len(), 64);
         assert!(
             payload
                 .temp_pub
                 .bytes()
                 .all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
         );
-        assert_eq!(payload.sig.len(), 512);
+        assert_eq!(payload.sig.len(), 128);
         let now = now_secs();
         assert!(
             payload.exp > now && payload.exp <= now + 180 + 2,
@@ -62,7 +58,8 @@ fn create_bind_payload_returns_object_with_temp_pub_exp_tls_and_sig() {
             !canon.contains(&payload.sig),
             "sig must not enter the canonical string"
         );
-        verify_bind_signature(&payload).expect("RSA-PSS-SHA256 must sign the payload");
+        verify_bind_signature(&payload).expect("ephemeral Ed25519 must sign the payload");
+        assert_eq!(payload.sign_pub.len(), 64);
         let bind_src = include_str!(concat!(
             env!("CARGO_MANIFEST_DIR"),
             "/src/services/bind/mod.rs"
@@ -78,13 +75,6 @@ fn create_bind_payload_returns_object_with_temp_pub_exp_tls_and_sig() {
         assert!(
             !bind_src.contains("binding_public_key") && !bind_src.contains("ACCOUNT_BINDING"),
             "long-term binding key must be gone"
-        );
-        assert!(
-            !bind_src.contains("sign_pub")
-                && !bind_src.contains("x25519_dalek")
-                && !bind_src.contains("ed25519_dalek")
-                && !bind_src.contains("SigningKey::generate"),
-            "bind must use one RSA pair, not X25519 plus ephemeral Ed25519"
         );
     });
 }

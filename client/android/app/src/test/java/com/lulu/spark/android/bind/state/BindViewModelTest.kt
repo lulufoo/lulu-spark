@@ -25,7 +25,7 @@ class BindViewModelTest {
         assertTrue(store.state.value.scanning)
         store.dispatch(
             BindIntent.Scanned(
-                """{"ip":"10.0.0.2","port":7654,"temp_pub":"aa","tls_fingerprint":"ff","exp":9,"sig":"ss"}""",
+                """{"ip":"10.0.0.2","port":7654,"temp_pub":"aa","tls_fingerprint":"ff","exp":9,"sign_pub":"bb","sig":"ss"}""",
             ),
         )
         assertTrue(store.state.value.bound)
