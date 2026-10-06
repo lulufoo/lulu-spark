@@ -54,8 +54,6 @@ const INVOKE_MAP_COMMANDS: &[&str] = &[
     "kb_annotation",
     "get_kb_hide_patterns",
     "get_kb_viewer_state",
-    "get_repo_dirs",
-    "check_file",
     "fetch_link_title",
     "get_tags_registry",
     "get_read_later",

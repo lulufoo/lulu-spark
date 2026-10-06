@@ -3,7 +3,6 @@ use tauri::AppHandle;
 
 use crate::config::paths;
 use crate::config::roots::notes_root_path;
-use crate::integrations::gh_read;
 use crate::services::keyword_index::{
     cache_dir_or_err, search_desktop_knowledge, search_desktop_spark,
 };
@@ -151,22 +150,6 @@ pub fn get_kb_hide_patterns(_app: AppHandle) -> Result<Value, String> {
 #[tauri::command]
 pub fn kb_annotation(_app: AppHandle, repo: String, path: String) -> Result<Value, String> {
     Ok(crate::services::knowledge::kb_annotation_json(&repo_root()?, &repo, &path))
-}
-
-#[tauri::command]
-pub async fn get_repo_dirs(_app: AppHandle, repo: String) -> Result<Value, String> {
-    let root = repo_root()?;
-    tauri::async_runtime::spawn_blocking(move || gh_read::repo_dirs_json(&root, &repo))
-        .await
-        .map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-pub async fn check_file(_app: AppHandle, repo: String, path: String) -> Result<Value, String> {
-    let root = repo_root()?;
-    tauri::async_runtime::spawn_blocking(move || gh_read::check_file_json(&root, &repo, &path))
-        .await
-        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]

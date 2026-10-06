@@ -21,7 +21,6 @@ export {
 
 export {
   createNote,
-  checkFileExists,
   clearNoteDraft,
   commitFiles,
   deleteEntry,
@@ -34,12 +33,10 @@ export {
   fetchFileContent,
   fetchIndex,
   fetchLinkTitle,
-  fetchRepoDirs,
   fetchTagsRegistry,
   fetchTopics,
   getDraft,
   getNoteDraft,
-  ghDelete,
   moveToProject,
   reorderComments,
   revertFile,
@@ -49,7 +46,6 @@ export {
   setConfig,
   setDone,
   setImportance,
-  settleComment,
   tagAttach,
   tagDetach,
   tagUpdateValue,

@@ -2,7 +2,7 @@ use serde_json::Value;
 use tauri::AppHandle;
 
 use crate::services::{
-    draft, entry_admin, github, settle, spark_git,
+    draft, entry_admin, spark_git,
 };
 
 #[tauri::command]
@@ -61,18 +61,4 @@ pub async fn move_entry_project(_app: AppHandle, payload: Value) -> Result<Value
         .map_err(|e| e.to_string())
 }
 
-#[tauri::command]
-pub async fn gh_delete_assets(_app: AppHandle, payload: Value) -> Result<Value, String> {
-    tauri::async_runtime::spawn_blocking(move || github::gh_delete_assets(&payload))
-        .await
-        .map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-pub async fn settle_entry(_app: AppHandle, payload: Value) -> Result<Value, String> {
-    let repo_root = crate::config::paths::repo_root().map_err(|e| format!("{e:?}"))?;
-    tauri::async_runtime::spawn_blocking(move || settle::settle_entry(&repo_root, &payload))
-        .await
-        .map_err(|e| e.to_string())
-}
 

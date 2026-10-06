@@ -7,8 +7,6 @@ commands.allow = [
   "spark_git_revert",
   "delete_entry",
   "move_entry_project",
-  "gh_delete_assets",
-  "settle_entry",
   "save_comment_draft",
   "save_note_draft",
   "clear_note_draft",

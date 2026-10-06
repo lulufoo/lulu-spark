@@ -21,6 +21,10 @@ const deletedProductModules = [
   'frontend/src/app-shell/ui/spark-commit-dialog.tsx',
   'frontend/src/app-shell/commands/spark-commit-dialog.ts',
   'frontend/src/app-shell/state/spark-commit.ts',
+  'frontend/src/notes/ui/settle-dialog.tsx',
+  'frontend/src/notes/commands/settle-dialog.ts',
+  'frontend/src/notes/commands/settle-repos.ts',
+  'frontend/src/notes/state/settle.ts',
 ];
 
 const t6Path = join(repoRoot, 'tests/gates/copy-switch-t6-modals.test.js');
@@ -84,7 +88,7 @@ describe('leftover Convert / qr / move tests rewritten', () => {
     expect(t6).toContain('frontend/src/notes/commands/move-project-dialog.ts');
     expect(t6).not.toContain('frontend/src/app-shell/ui/spark-commit-dialog.tsx');
     expect(t6).toContain('frontend/src/notes/ui/delete-dialog.tsx');
-    expect(t6).toContain('frontend/src/notes/ui/settle-dialog.tsx');
+    expect(t6).not.toContain('frontend/src/notes/ui/settle-dialog.tsx');
   });
 
   it('keeps host api tests and drops ghMove / gh-move cases', () => {
@@ -96,8 +100,8 @@ describe('leftover Convert / qr / move tests rewritten', () => {
     expect(apiTest).not.toMatch(/['"]\/api\/gh-move['"]/);
     expect(syncTest).not.toMatch(/\bghMove\b/);
     expect(syncTest).not.toMatch(/['"]\/api\/gh-move['"]/);
-    expect(apiTest).toMatch(/\bghDelete\b/);
-    expect(syncTest).toMatch(/['"]\/api\/gh-delete['"]/);
+    expect(apiTest).not.toMatch(/\bghDelete\b/);
+    expect(syncTest).not.toMatch(/['"]\/api\/gh-delete['"]/);
   });
 
   it('rewrites the tools-menu copy assertion to Bind', () => {

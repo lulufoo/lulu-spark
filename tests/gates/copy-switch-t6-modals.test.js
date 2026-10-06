@@ -14,13 +14,8 @@ const deleteDialogJs = readFileSync(
   join(repoRoot, 'frontend/src/notes/ui/delete-dialog.tsx'),
   'utf8',
 );
-const settleDialogJs = [
-  readFrontendJs('frontend/src/notes/ui/settle-dialog.tsx'),
-  readFrontendJs('frontend/src/notes/commands/settle-dialog.ts'),
-].join('\n');
 const modalSources = [
   deleteDialogJs,
-  settleDialogJs,
   readFrontendJs('frontend/src/knowledge/ui/tree-delete-dialog.tsx'),
   readFrontendJs('frontend/src/notes/ui/move-project-dialog.tsx'),
   readFrontendJs('frontend/src/notes/commands/move-project-dialog.ts'),
@@ -65,12 +60,6 @@ describe('P2 copy-switch — main.js & modals (tech-doc T6)', () => {
     expect(deleteDialogJs).toContain("'Copy'");
     expect(deleteDialogJs).not.toContain('确认删除');
     expect(deleteDialogJs).not.toContain('删除中');
-  });
-
-  it('settle-dialog.js remains English (t4 baseline)', () => {
-    expect(settleDialogJs).toContain('Push');
-    expect(settleDialogJs).toContain('Loading folders…');
-    expect(settleDialogJs).not.toMatch(/[\u4e00-\u9fff]/);
   });
 
   it('other modals have no user-facing Chinese (excl. comments)', () => {

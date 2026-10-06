@@ -39,23 +39,6 @@ export const SYNC_API_INVOKE_MAP: Record<string, SyncInvokeEntry> = {
         new_project: body.new_project,
       }),
   },
-  '/api/gh-delete': {
-    cmd: 'gh_delete_assets',
-    args: (body) => syncPayload({ url: body.url }),
-  },
-  '/api/settle': {
-    cmd: 'settle_entry',
-    args: (body) =>
-      syncPayload({
-        common_path: body.common_path,
-        comment_id: body.comment_id,
-        layer: body.layer,
-        doc_theme: body.doc_theme,
-        slug: body.slug,
-        content: body.content,
-        repo: body.repo,
-      }),
-  },
   '/api/draft': {
     cmd: 'save_comment_draft',
     args: (body) =>

@@ -19,8 +19,6 @@ commands.allow = [
   "get_kb_hide_patterns",
   "get_kb_viewer_state",
   "kb_annotation",
-  "get_repo_dirs",
-  "check_file",
   "fetch_link_title",
   "get_notes_index",
   "get_notes_file",

@@ -6,10 +6,10 @@ use crate::test_support::TestSandbox;
 fn sandbox_secret_roundtrip_stays_in_memory() {
     let _sandbox = TestSandbox::new();
     test_secrets_clear();
-    set_secret(KEY_GITHUB_TOKEN, "pat-sandbox").expect("set");
+    set_secret(KEY_LLM_API_KEY, "sk-sandbox").expect("set");
     assert_eq!(
-        get_secret(KEY_GITHUB_TOKEN).expect("get"),
-        Some("pat-sandbox".to_string())
+        get_secret(KEY_LLM_API_KEY).expect("get"),
+        Some("sk-sandbox".to_string())
     );
     assert!(crate::config::settings::uses_in_memory_keychain());
     let src = include_str!("../../config/secrets.rs");
@@ -17,21 +17,18 @@ fn sandbox_secret_roundtrip_stays_in_memory() {
 }
 
 #[test]
-fn set_and_get_github_token() {
-    test_secrets_clear();
-    set_secret(KEY_GITHUB_TOKEN, "pat-test").expect("set");
-    assert_eq!(
-        get_secret(KEY_GITHUB_TOKEN).expect("get"),
-        Some("pat-test".to_string())
+fn github_token_slot_is_gone() {
+    let src = include_str!("../../config/secrets.rs");
+    assert!(
+        !src.contains("KEY_GITHUB_TOKEN")
+            && !src.contains("github_token")
+            && !src.contains("has_github_token"),
+        "github_token must not remain in secrets.rs"
     );
-}
-
-#[test]
-fn empty_github_token_deletes_entry() {
     test_secrets_clear();
-    set_secret(KEY_GITHUB_TOKEN, "x").expect("set");
-    delete_secret(KEY_GITHUB_TOKEN).expect("delete");
-    assert_eq!(get_secret(KEY_GITHUB_TOKEN).expect("get"), None);
+    apply_token_payload(&serde_json::json!({ "github_token": "ghp_leftover" }))
+        .expect("apply");
+    assert_eq!(get_secret("github_token").expect("get"), None);
 }
 
 #[test]

@@ -7,7 +7,6 @@ import { KbCommentDialog } from './knowledge/ui/comments.tsx';
 import { NoteCommentDialog } from './notes/ui/comments.tsx';
 import { DeleteDialog } from './notes/ui/delete-dialog.tsx';
 import { MoveProjectDialog } from './notes/ui/move-project-dialog.tsx';
-import { SettleDialog } from './notes/ui/settle-dialog.tsx';
 import { ReadLaterDialog } from './read-later/ui/dialog.tsx';
 import { CommentDeleteDialog } from './shared/comment-delete.tsx';
 
@@ -33,9 +32,6 @@ export function Shell() {
 
       {/* <!-- Move project dialog --> */}
       <MoveProjectDialog />
-
-      {/* <!-- Settle dialog --> */}
-      <SettleDialog />
 
       {/* <!-- Comment delete confirm --> */}
       <CommentDeleteDialog />

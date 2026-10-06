@@ -27,12 +27,12 @@ describe('Move document command functions removed', () => {
     expect(product).not.toMatch(/export\s+\{[^}]*\bdoDeleteDoc\b/);
   });
 
-  it('does not delete ghDelete', () => {
+  it('also deletes PAT-backed ghDelete', () => {
     expect(existsSync(sparkApiPath)).toBe(true);
     expect(existsSync(apiPath)).toBe(true);
     const spark = readFileSync(sparkApiPath, 'utf8');
     const api = readFileSync(apiPath, 'utf8');
-    expect(spark).toMatch(/export async function ghDelete\b/);
-    expect(api).toMatch(/\bghDelete\b/);
+    expect(spark).not.toMatch(/export async function ghDelete\b/);
+    expect(api).not.toMatch(/\bghDelete\b/);
   });
 });

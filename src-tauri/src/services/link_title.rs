@@ -5,8 +5,6 @@ use std::time::Duration;
 use reqwest::blocking::Client;
 use serde_json::{json, Value};
 
-use crate::integrations::github;
-
 pub fn fetch_link_title(url: &str) -> Value {
     let url = url.trim();
     if url.is_empty() {
@@ -19,33 +17,7 @@ pub fn fetch_link_title(url: &str) -> Value {
 }
 
 fn resolve_title(url: &str) -> Result<String, String> {
-    if let Some(title) = github_blob_h1(url) {
-        return Ok(title);
-    }
     Ok(fallback_title(url))
-}
-
-fn github_blob_h1(url: &str) -> Option<String> {
-    let rest = url.strip_prefix("https://github.com/")?;
-    let parts: Vec<&str> = rest.split('/').collect();
-    if parts.len() < 5 || parts[2] != "blob" {
-        return None;
-    }
-    let owner = parts[0];
-    let repo = parts[1];
-    let ref_name = parts[3];
-    let path = parts[4..].join("/");
-    if !is_safe_https_host(url) {
-        return None;
-    }
-    let meta = github::get_contents(owner, repo, &path, Some(ref_name)).ok()?;
-    let content = github::decode_contents_payload(&meta).ok()?;
-    for line in content.lines() {
-        if let Some(h) = line.strip_prefix("# ") {
-            return Some(h.trim().to_string());
-        }
-    }
-    None
 }
 
 fn is_safe_https_host(url: &str) -> bool {

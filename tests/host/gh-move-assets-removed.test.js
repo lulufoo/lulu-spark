@@ -65,12 +65,10 @@ function listFiles(dir, ext, out = []) {
 }
 
 describe('relocate and gh_move_assets removed', () => {
-  it('deletes relocate.rs and does not declare or export that module', () => {
+  it('deletes relocate.rs and the GitHub services module', () => {
     expect(existsSync(relocatePath)).toBe(false);
-    expect(existsSync(githubModPath)).toBe(true);
-    const githubMod = readFileSync(githubModPath, 'utf8');
-    expect(githubMod).not.toMatch(RELOCATE_MOD_RE);
-    expect(githubMod).not.toMatch(/pub\s+use\s+relocate\b/);
+    expect(existsSync(githubModPath)).toBe(false);
+    expect(existsSync(deletePath)).toBe(false);
   });
 
   it('removes the gh_move_assets command and its lib.rs registration', () => {
@@ -101,26 +99,21 @@ describe('relocate and gh_move_assets removed', () => {
     expect(invokeMap).not.toMatch(/\bgh_move_assets\b/);
   });
 
-  it('keeps gh_delete_assets, /api/gh-delete, delete.rs, and the GitHub client', () => {
-    expect(existsSync(deletePath)).toBe(true);
-    expect(existsSync(githubClientPath)).toBe(true);
+  it('removes gh_delete_assets, /api/gh-delete, delete.rs, and the GitHub client', () => {
+    expect(existsSync(deletePath)).toBe(false);
+    expect(existsSync(githubClientPath)).toBe(false);
     expect(existsSync(syncCommandPath)).toBe(true);
     const syncRs = readFileSync(syncCommandPath, 'utf8');
     const libRs = readFileSync(libPath, 'utf8');
-    expect(syncRs).toMatch(GH_DELETE_FN_RE);
-    expect(syncRs).toMatch(
-      /pub async fn gh_delete_assets\(_app: AppHandle, payload: Value\) -> Result<Value, String>/,
-    );
-    expect(libRs).toMatch(/commands::sync::gh_delete_assets\b/);
-    expect(parseSyncApiTomlAllowCommands()).toContain('gh_delete_assets');
-    expect(parseAclManifestSyncApiAllowCommands()).toContain('gh_delete_assets');
-    expect(SYNC_API_INVOKE_MAP['/api/gh-delete']?.cmd).toBe('gh_delete_assets');
+    expect(syncRs).not.toMatch(GH_DELETE_FN_RE);
+    expect(syncRs).not.toMatch(/\bgh_delete_assets\b/);
+    expect(libRs).not.toMatch(/commands::sync::gh_delete_assets\b/);
+    expect(parseSyncApiTomlAllowCommands()).not.toContain('gh_delete_assets');
+    expect(parseAclManifestSyncApiAllowCommands()).not.toContain('gh_delete_assets');
+    expect(SYNC_API_INVOKE_MAP['/api/gh-delete']).toBeUndefined();
     expect(
       resolveSyncInvoke('/api/gh-delete', { url: 'https://github.com/o/r/blob/main/a.md' }),
-    ).toEqual({
-      cmd: 'gh_delete_assets',
-      args: { payload: { url: 'https://github.com/o/r/blob/main/a.md' } },
-    });
+    ).toBeNull();
   });
 
   it('deletes relocate.rs unit tests instead of keeping gh_move_assets tests elsewhere', () => {
@@ -134,14 +127,7 @@ describe('relocate and gh_move_assets removed', () => {
     expect(leftover).toEqual([]);
   });
 
-  it('keeps GitHub client lib tests', () => {
-    expect(existsSync(githubClientTestPath)).toBe(true);
-    const clientTests = readFileSync(githubClientTestPath, 'utf8');
-    expect(clientTests).toMatch(
-      /(?:fn require_token_fails_when_empty|const require_token_fails_when_empty|struct require_token_fails_when_empty|type require_token_fails_when_empty)\b/,
-    );
-    expect(clientTests).toMatch(
-      /(?:fn decode_contents_payload_roundtrip|const decode_contents_payload_roundtrip|struct decode_contents_payload_roundtrip|type decode_contents_payload_roundtrip)\b/,
-    );
+  it('deletes GitHub client lib tests', () => {
+    expect(existsSync(githubClientTestPath)).toBe(false);
   });
 });

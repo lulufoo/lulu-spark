@@ -149,13 +149,13 @@ test('tauriDriver postJson invoke 返回 Invalid common_path 时透传 400', asy
 });
 
 test('tauriDriver postJson /api/config 映射到 set_config', async () => {
-  invokeMock.mockResolvedValue({ has_github_token: true });
+  invokeMock.mockResolvedValue({ has_host_key: true });
   const driver = createTauriDriver();
-  const res = await driver.postJson('/api/config', { github_token: 'ghp_xxx' });
+  const res = await driver.postJson('/api/config', { api_key_host: 'sk_xxx' });
   expect(invokeMock).toHaveBeenCalledWith('set_config', {
-    payload: { github_token: 'ghp_xxx' },
+    payload: { api_key_host: 'sk_xxx' },
   });
-  expect(await res.json()).toEqual({ has_github_token: true });
+  expect(await res.json()).toEqual({ has_host_key: true });
 });
 
 test('tauriDriver postJson 未知 path 抛出可读错误', async () => {

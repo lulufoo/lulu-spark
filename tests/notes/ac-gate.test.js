@@ -79,7 +79,6 @@ describe('Note AC gate (tech-doc VF / T-13)', () => {
       'frontend/src/notes/commands/cards.ts',
       'frontend/src/notes/commands/assistant.ts',
       'frontend/src/notes/commands/delete-dialog.ts',
-      'frontend/src/notes/commands/settle-dialog.ts',
       'frontend/src/notes/commands/move-project-dialog.ts',
       'frontend/src/notes/commands/viewer/doc.ts',
     ]) {

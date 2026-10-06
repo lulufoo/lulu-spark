@@ -5,7 +5,6 @@ import * as api from '../../host/api.ts';
 import { reorderComments } from '../../host/api.ts';
 import { ensureLayerComments, swapAdjacent, validateCommentIdsForReorder } from '../../shared/comment-reorder.ts';
 import { nowTs } from '../../shared/utils.ts';
-import { openSettleDialog } from './settle-dialog.tsx';
 import { confirmDeleteComment, removeNoteComment } from '../../shared/comment-delete.tsx';
 import { pasteIntoCommentEditor, prepareCommentMarkdown, renderCommentMarkdown } from '../../shared/comment-markdown.ts';
 import { renderMermaidBlocks } from '../../shared/mermaid-render.ts';
@@ -142,15 +141,6 @@ function CommentItem({
       )}
       <span className="comment-item-ts">{commentTs(c)}</span>
       <div className="comment-item-actions">
-        <button
-          type="button"
-          className="comment-item-action-btn"
-          title="Promote to knowledge repo"
-          data-action="settle"
-          onClick={() => openSettleDialog(c, layer, entry)}
-        >
-          ⬆ Promote
-        </button>
         <button
           type="button"
           className="comment-item-action-btn"
@@ -464,19 +454,6 @@ function onNoteCommentContentPaste(e: ClipboardEvent) {
 }
 
 let _mouseDownOnOverlay = false;
-
-document.addEventListener('settle:done', (event) => {
-  const { commentId, layer, entry, url } = (event as CustomEvent).detail;
-  const ld = annotation()[layer] || {};
-  ld.comments = (ld.comments || []).filter((x) => x.id !== commentId);
-  if (!ld.comments.length) delete state.viewer.annotation[layer];
-  else state.viewer.annotation[layer] = ld;
-  const ann = annotation();
-  if (!ann.links) ann.links = [];
-  ann.links.push({ url });
-  entry.links = ann.links;
-  notifyState();
-});
 
 const NoteCommentDialogInner = memo(function NoteCommentDialogInner() {
   return (

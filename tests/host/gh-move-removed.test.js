@@ -8,7 +8,6 @@ const sparkApiPath = join(repoRoot, 'frontend/src/host/api/spark.ts');
 const apiPath = join(repoRoot, 'frontend/src/host/api.ts');
 
 const KEPT_SPARK_EXPORTS = [
-  'checkFileExists',
   'clearNoteDraft',
   'commitFiles',
   'createNote',
@@ -22,12 +21,10 @@ const KEPT_SPARK_EXPORTS = [
   'fetchIndex',
   'fetchLinkTitle',
   'fetchNotesAssetAsBlobUrl',
-  'fetchRepoDirs',
   'fetchTagsRegistry',
   'fetchTopics',
   'getDraft',
   'getNoteDraft',
-  'ghDelete',
   'moveToProject',
   'reorderComments',
   'revertFile',
@@ -37,7 +34,6 @@ const KEPT_SPARK_EXPORTS = [
   'setConfig',
   'setDone',
   'setImportance',
-  'settleComment',
   'tagAttach',
   'tagDetach',
   'tagUpdateValue',
@@ -65,7 +61,7 @@ describe('ghMove removed from host API', () => {
     expect(api).not.toMatch(/\bghMove\b/);
   });
 
-  it('keeps the other spark host APIs, including ghDelete', () => {
+  it('keeps the other spark host APIs', () => {
     expect(existsSync(sparkApiPath)).toBe(true);
     expect(existsSync(apiPath)).toBe(true);
     const spark = readFileSync(sparkApiPath, 'utf8');

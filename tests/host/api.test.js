@@ -11,7 +11,7 @@ import {
   setConfig,
   saveFile, commitFiles, revertFile,
   updateComments, updateLinks, setImportance, setDone,
-  deleteEntry, ghDelete,
+  deleteEntry,
   fetchTopics, fetchNotesCategories, createNotesCategory, updateNotesCategory, deleteNotesCategory, moveToProject,
 } from '../../frontend/src/host/api.ts'
 
@@ -118,12 +118,12 @@ test('fetchConfig 调用 /api/config', async () => {
 })
 
 test('setConfig 发送 POST 到 /api/config', async () => {
-  mockFetch({ has_github_token: true })
-  await setConfig({ github_token: 'ghp_test' })
+  mockFetch({ has_host_key: true })
+  await setConfig({ api_key_host: 'sk-test' })
   expect(fetch.mock.calls[0][0]).toBe(`${DEFAULT_DEV_BASE}/api/config`)
   expect(fetch.mock.calls[0][1].method).toBe('POST')
   const body = JSON.parse(fetch.mock.calls[0][1].body)
-  expect(body.github_token).toBe('ghp_test')
+  expect(body.api_key_host).toBe('sk-test')
 })
 
 test('fetchFileContent 调用 /api/notes-file 并返回 content', async () => {
@@ -254,13 +254,6 @@ test('deleteEntry 发送 id', async () => {
   await deleteEntry('abc123')
   const body = JSON.parse(fetch.mock.calls[0][1].body)
   expect(body.id).toBe('abc123')
-})
-
-test('ghDelete 发送 url', async () => {
-  mockFetch({ ok: true })
-  await ghDelete('https://github.com/src')
-  const body = JSON.parse(fetch.mock.calls[0][1].body)
-  expect(body.url).toBe('https://github.com/src')
 })
 
 // ── fetchTopics ────────────────────────────────────────────────────────────

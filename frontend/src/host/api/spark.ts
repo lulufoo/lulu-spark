@@ -145,10 +145,6 @@ export async function deleteEntry(id: PathArg) {
   return writePost('/api/delete', { id });
 }
 
-export async function ghDelete(url: string) {
-  return writePost('/api/gh-delete', { url });
-}
-
 export async function updateHighlight(
   commonPath: string,
   layer: string,
@@ -203,36 +199,6 @@ export async function moveToProject(id: string, newProject: string) {
     throw new Error(String(rec.error));
   }
   return data;
-}
-
-export async function fetchRepoDirs(repo: string) {
-  return readGet(`/api/repo-dirs?repo=${encodeURIComponent(repo)}`);
-}
-
-export async function checkFileExists(repo: string, path: string) {
-  return readGet(
-    `/api/check-file?repo=${encodeURIComponent(repo)}&path=${encodeURIComponent(path)}`
-  );
-}
-
-export async function settleComment(
-  commonPath: PathArg,
-  commentId: PathArg,
-  layer: PathArg,
-  docTheme: unknown,
-  slug: PathArg,
-  content: string,
-  repo: string,
-) {
-  return writePost('/api/settle', {
-    common_path: commonPath,
-    comment_id: commentId,
-    layer,
-    doc_theme: docTheme,
-    slug,
-    content,
-    repo,
-  });
 }
 
 /** Create a note via HTTP/MCP `create_note` parity.

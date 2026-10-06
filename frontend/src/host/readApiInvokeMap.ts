@@ -115,17 +115,6 @@ export const READ_API_INVOKE_MAP: Record<string, ReadInvokeEntry> = {
       path: url.searchParams.get('path') ?? '',
     }),
   },
-  '/api/repo-dirs': {
-    cmd: 'get_repo_dirs',
-    args: (url) => ({ repo: url.searchParams.get('repo') ?? '' }),
-  },
-  '/api/check-file': {
-    cmd: 'check_file',
-    args: (url) => ({
-      repo: url.searchParams.get('repo') ?? '',
-      path: url.searchParams.get('path') ?? '',
-    }),
-  },
   '/api/fetch-title': {
     cmd: 'fetch_link_title',
     args: (url) => ({ url: url.searchParams.get('url') ?? '' }),

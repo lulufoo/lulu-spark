@@ -13,7 +13,6 @@ fn keyring_service() -> &'static str {
     "lulu-spark"
 }
 
-pub const KEY_GITHUB_TOKEN: &str = "github_token";
 /// Host/GLM credential slot.
 pub const KEY_LLM_API_KEY: &str = "llm_api_key";
 
@@ -181,14 +180,6 @@ fn persistent_delete_secret(key: &str) -> Result<(), SecretError> {
     }
 }
 
-pub fn has_github_token() -> bool {
-    get_secret(KEY_GITHUB_TOKEN)
-        .ok()
-        .flatten()
-        .map(|s| !s.is_empty())
-        .unwrap_or(false)
-}
-
 /// Host credential present (`KEY_LLM_API_KEY`).
 pub fn has_host_key() -> bool {
     get_secret(KEY_LLM_API_KEY)
@@ -200,13 +191,6 @@ pub fn has_host_key() -> bool {
 
 /// Apply token fields from `set_config` payload.
 pub fn apply_token_payload(payload: &serde_json::Value) -> Result<(), SecretError> {
-    if let Some(v) = payload.get("github_token").and_then(|x| x.as_str()) {
-        if v.is_empty() {
-            delete_secret(KEY_GITHUB_TOKEN)?;
-        } else {
-            set_secret(KEY_GITHUB_TOKEN, v)?;
-        }
-    }
     // Host key: empty does not clear (UI omits blank credentials).
     set_secret_if_nonempty(payload, "api_key_host", KEY_LLM_API_KEY)?;
     Ok(())

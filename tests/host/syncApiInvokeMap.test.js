@@ -10,19 +10,13 @@ const P4_PATHS = [
   ['/api/pull', 'spark_git_pull', []],
   ['/api/delete', 'delete_entry', ['id']],
   ['/api/move-project', 'move_entry_project', ['id', 'new_project']],
-  ['/api/gh-delete', 'gh_delete_assets', ['url']],
-  [
-    '/api/settle',
-    'settle_entry',
-    ['common_path', 'comment_id', 'layer', 'doc_theme', 'slug', 'content'],
-  ],
   ['/api/draft', 'save_comment_draft', ['common_path', 'content']],
   ['/api/spark-revert', 'spark_git_revert', ['path', 'type']],
 ];
 
 describe('syncApiInvokeMap', () => {
   it('covers all P4 POST paths with command names', () => {
-    expect(Object.keys(SYNC_API_INVOKE_MAP)).toHaveLength(8);
+    expect(Object.keys(SYNC_API_INVOKE_MAP)).toHaveLength(6);
     for (const [path, cmd] of P4_PATHS) {
       expect(SYNC_API_INVOKE_MAP[path]?.cmd, path).toBe(cmd);
     }
@@ -68,37 +62,6 @@ describe('syncApiInvokeMap', () => {
     ).toEqual({
       cmd: 'move_entry_project',
       args: { payload: { id: 'e1', new_project: 'foo' } },
-    });
-  });
-
-  it('gh-delete maps body into payload for gh_delete_assets', () => {
-    expect(
-      resolveSyncInvoke('/api/gh-delete', {
-        url: 'https://github.com/o/r/blob/main/a.md',
-      })
-    ).toEqual({
-      cmd: 'gh_delete_assets',
-      args: {
-        payload: {
-          url: 'https://github.com/o/r/blob/main/a.md',
-        },
-      },
-    });
-  });
-
-  it('settle maps body into payload for settle_entry', () => {
-    const body = {
-      common_path: 'ai/x.md',
-      comment_id: 'c1',
-      layer: 'raw',
-      doc_theme: 't',
-      slug: 's',
-      content: '# hi',
-      repo: 'owner/kb',
-    };
-    expect(resolveSyncInvoke('/api/settle', body)).toEqual({
-      cmd: 'settle_entry',
-      args: { payload: body },
     });
   });
 
