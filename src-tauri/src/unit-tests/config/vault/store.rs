@@ -1,7 +1,25 @@
 use super::{
-    io_lock, memory_fail_map, memory_vault, read_vault, scope_id, store_memory_vault, update_vault,
+    delete_auth_session, get_auth_session, io_lock, memory_fail_map, memory_vault, read_vault,
+    scope_id, set_auth_session, store_memory_vault, update_vault, ACCOUNT_VAULT, KEYCHAIN_SERVICE,
 };
-use crate::config::vault::{BindDevice, SecretError, SlotTicket, Vault};
+use crate::config::vault::{
+    AuthSession, AuthUser, BindDevice, SecretError, SlotTicket, Vault,
+};
+
+fn sample_auth_session() -> AuthSession {
+    AuthSession {
+        access_token: "access-aaa".into(),
+        refresh_token: "refresh-bbb".into(),
+        expires_at: 1_800_000_000,
+        user: AuthUser {
+            id: "user-42".into(),
+            email: Some("ada@example.com".into()),
+            name: Some("Ada".into()),
+            avatar: Some("https://example.com/a.png".into()),
+            provider: Some("google".into()),
+        },
+    }
+}
 
 pub fn test_clear_scope() {
     let _guard = io_lock();
@@ -109,4 +127,56 @@ fn test_clear_scope_wipes_mcp_and_fail_state() {
     test_clear_scope();
     let vault = read_vault().expect("empty vault");
     assert!(vault.is_empty());
+}
+
+#[test]
+fn set_auth_session_round_trips_user_id_and_tokens() {
+    test_clear_scope();
+    let session = sample_auth_session();
+    set_auth_session(&session).expect("store session");
+    let got = get_auth_session()
+        .expect("read session")
+        .expect("session present");
+    assert_eq!(got.user.id, "user-42");
+    assert_eq!(got.access_token, "access-aaa");
+    assert_eq!(got.refresh_token, "refresh-bbb");
+}
+
+#[test]
+fn delete_auth_session_clears_store_and_omits_key() {
+    test_clear_scope();
+    set_auth_session(&sample_auth_session()).expect("store session");
+    delete_auth_session().expect("delete session");
+    assert!(get_auth_session().expect("read after delete").is_none());
+    let encoded = serde_json::to_string(&read_vault().expect("vault")).expect("encode");
+    assert!(!encoded.contains("supabase-auth"));
+}
+
+#[test]
+fn auth_session_toggles_is_empty_and_empty_vault_stays_empty() {
+    test_clear_scope();
+    let empty = read_vault().expect("empty vault");
+    assert!(empty.is_empty());
+    set_auth_session(&sample_auth_session()).expect("store session");
+    assert!(!read_vault().expect("vault with session").is_empty());
+    delete_auth_session().expect("delete session");
+    assert!(read_vault().expect("vault after delete").is_empty());
+}
+
+#[test]
+fn keychain_service_and_account_stay_unchanged() {
+    assert_eq!(KEYCHAIN_SERVICE, "lulu-spark");
+    assert_eq!(ACCOUNT_VAULT, "vault");
+}
+
+#[test]
+fn auth_session_store_fail_is_store_error() {
+    test_clear_scope();
+    test_fail_store();
+    assert!(matches!(get_auth_session(), Err(SecretError::Store(_))));
+    assert!(matches!(
+        set_auth_session(&sample_auth_session()),
+        Err(SecretError::Store(_))
+    ));
+    test_clear_store_fail();
 }

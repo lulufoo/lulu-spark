@@ -30,6 +30,8 @@ pub struct Vault {
     pub mcp_oauth: Option<McpOauthSecrets>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub bind: Option<BindSecrets>,
+    #[serde(default, skip_serializing_if = "Option::is_none", rename = "supabase-auth")]
+    pub supabase_auth: Option<AuthSession>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -69,12 +71,34 @@ pub struct BindDevice {
     pub revoked: bool,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AuthSession {
+    pub access_token: String,
+    pub refresh_token: String,
+    pub expires_at: i64,
+    pub user: AuthUser,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AuthUser {
+    pub id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub email: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub avatar: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provider: Option<String>,
+}
+
 impl Vault {
     pub fn is_empty(&self) -> bool {
         self.llm_api_key().is_none()
             && self.mcp_slot(SLOT_SPARK).is_none()
             && self.mcp_slot(SLOT_CURSOR_IDE).is_none()
             && self.devices().is_empty()
+            && self.auth_session().is_none()
     }
 
     pub fn llm_api_key(&self) -> Option<&str> {
@@ -131,6 +155,14 @@ impl Vault {
         }
     }
 
+    pub fn auth_session(&self) -> Option<&AuthSession> {
+        self.supabase_auth.as_ref()
+    }
+
+    pub fn set_auth_session(&mut self, session: Option<AuthSession>) {
+        self.supabase_auth = session;
+    }
+
     pub(super) fn prune(&mut self) {
         if self.llm_api_key().is_none() {
             self.llm = None;
@@ -142,6 +174,9 @@ impl Vault {
         }
         if self.devices().is_empty() {
             self.bind = None;
+        }
+        if self.auth_session().is_none() {
+            self.supabase_auth = None;
         }
     }
 }

@@ -27,7 +27,7 @@ export function setDocEditMode({
 }) {
   if (!bodyEl || !editAreaEl) return;
   const found = bodyEl.closest?.('.viewer-body');
-  const pane = found instanceof HTMLElement ? found : bodyEl;
+  const pane = found && 'style' in found ? found : bodyEl;
   if (editing) {
     editAreaEl.value = text == null ? '' : String(text);
     pane.style.display = 'none';

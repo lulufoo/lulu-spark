@@ -76,6 +76,7 @@ const MESSAGE_CENTER_READ_COMMANDS: &[&str] = &["get_message_channel_unread"];
 
 const DEFAULT_CAPABILITY_PERMISSIONS: &[&str] = &[
     "core:default",
+    "core:window:allow-start-dragging",
     "read-api",
     "write-api",
     "sync-api",

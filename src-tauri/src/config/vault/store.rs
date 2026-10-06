@@ -7,7 +7,7 @@ use crate::config::settings;
 use super::codec::{vault_from_json, vault_to_json};
 #[cfg(debug_assertions)]
 use super::codec::{vault_from_toml, vault_to_toml};
-use super::types::{SecretError, Vault};
+use super::types::{AuthSession, SecretError, Vault};
 
 pub const KEYCHAIN_SERVICE: &str = "lulu-spark";
 pub const ACCOUNT_VAULT: &str = "vault";
@@ -161,6 +161,18 @@ pub fn set_llm_api_key(value: &str) -> Result<(), SecretError> {
 
 pub fn delete_llm_api_key() -> Result<(), SecretError> {
     update_vault(|vault| vault.set_llm_api_key(None))
+}
+
+pub fn get_auth_session() -> Result<Option<AuthSession>, SecretError> {
+    Ok(read_vault()?.auth_session().cloned())
+}
+
+pub fn set_auth_session(session: &AuthSession) -> Result<(), SecretError> {
+    update_vault(|vault| vault.set_auth_session(Some(session.clone())))
+}
+
+pub fn delete_auth_session() -> Result<(), SecretError> {
+    update_vault(|vault| vault.set_auth_session(None))
 }
 
 #[cfg(test)]
