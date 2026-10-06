@@ -131,6 +131,8 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
     expect(css).toMatch(/\.comment-float-btn \{[\s\S]*?background: #f6f8fa;/);
     expect(css).toMatch(/\.comment-editor-box \{[\s\S]*?border: 1px solid #eaeef2;/);
     expect(css).toMatch(/\.comment-editor-box:focus-within \{ border-color: #eaeef2; \}/);
+    expect(css).toMatch(/\.comment-editor-box \{[\s\S]*?height: 182px;/);
+    expect(css).toMatch(/#comment-preview-pane,[\s\S]*?#kb-comment-preview-pane \{[\s\S]*?height: 182px;/);
     expect(css).not.toMatch(/#fefef7/);
     const notesComments = readFileSync(join(repoRoot, 'frontend/src/notes/ui/comments.tsx'), 'utf8');
     expect(notesComments).not.toMatch(/💬/);
