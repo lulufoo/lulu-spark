@@ -132,7 +132,7 @@ export async function saveKbDoc() {
     alert(`Save failed: ${err instanceof Error ? err.message : String(err)}`);
   } finally {
     btnSave.disabled = false;
-    btnSave.textContent = '💾 Save';
+    btnSave.textContent = 'Save';
   }
 }
 

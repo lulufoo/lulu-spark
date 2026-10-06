@@ -2,11 +2,11 @@ import { useEffect, useLayoutEffect, useRef } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { flushSync } from 'react-dom';
 import { getActivePath } from '../knowledge/state/path.ts';
-import { KnowledgeSearchHost } from '../knowledge/ui/knowledge-search.tsx';
 import { notesFileRelPath } from '../host/constants.ts';
 import { useHostState } from './state/host.ts';
 import { getHomeEntryShell } from '../home-entry-shell/access.ts';
 import { OverlayDismissButton } from '../shared/overlay-dismiss-button.tsx';
+import { ViewerHeaderIcon } from '../shared/viewer-header-icons.tsx';
 import { NotesCommentFloatNav, NotesCommentsBar, NotesDeleteZone, openCommentDialog } from './ui/comments.tsx';
 import { NotesDocList } from './ui/cards.tsx';
 import { NotesLinksBar } from './ui/links-bar.tsx';
@@ -186,7 +186,7 @@ function NotesOutletChrome({ routeParams }: { routeParams: Record<string, string
         {mode === 'safe-empty' ? viewer.outletMessage : ''}
       </div>
       <div id="md-panel" className="viewer-panel" hidden={mode === 'safe-empty'}>
-        <div id="md-header" className="viewer-header">
+        <div id="md-header" className="viewer-header" data-tauri-drag-region="deep">
           <span id="md-panel-title" className="viewer-panel-title">
             {panelTitle}
           </span>
@@ -238,11 +238,57 @@ function NotesOutletChrome({ routeParams }: { routeParams: Record<string, string
             type="button"
             data-tip={fullPath}
             style={{ display: entry && !creating ? undefined : 'none' }}
+            title="Copy path"
+            aria-label="Copy path"
             onClick={() =>
               copyLocalPath(entry, viewer.lang, viewer.layer, host.ui.sparkRoot)
             }
           >
-            📁
+            <ViewerHeaderIcon name="copy" />
+          </button>
+          <button
+            className="md-header-btn viewer-chrome-persisted"
+            id="btn-edit"
+            type="button"
+            style={{ display: creating || editing || loadFailed || !entry ? 'none' : undefined }}
+            onClick={() => {
+              getHomeEntryShell()?.forceRecoverA?.('leave-host');
+              enterEditMode();
+            }}
+          >
+            <ViewerHeaderIcon name="edit" />
+          </button>
+          <button
+            className="md-header-btn viewer-chrome-persisted"
+            id="btn-add-comment"
+            type="button"
+            style={{ display: creating || editing || !entry ? 'none' : undefined }}
+            onClick={() => {
+              const layerData = (viewer.annotation[viewer.layer] || {}) as { comments?: unknown[] };
+              const nextIdx = (layerData.comments || []).length + 1;
+              void openCommentDialog(null, null, null, nextIdx);
+            }}
+          >
+            <ViewerHeaderIcon name="comment" />
+          </button>
+          <button
+            className="md-header-btn viewer-chrome-persisted"
+            id="btn-save"
+            type="button"
+            style={{ display: editing && !creating ? undefined : 'none' }}
+            disabled={viewer.saving}
+            onClick={() => void saveDoc()}
+          >
+            {viewer.saving ? 'Saving…' : 'Save'}
+          </button>
+          <button
+            className="md-header-btn viewer-chrome-persisted"
+            id="btn-cancel-edit"
+            type="button"
+            style={{ display: editing && !creating ? undefined : 'none' }}
+            onClick={() => exitEditMode(false)}
+          >
+            Cancel
           </button>
           <button
             className="md-header-btn viewer-chrome-persisted"
@@ -263,51 +309,7 @@ function NotesOutletChrome({ routeParams }: { routeParams: Record<string, string
               });
             }}
           >
-            🗨️
-          </button>
-          <button
-            className="md-header-btn viewer-chrome-persisted"
-            id="btn-edit"
-            type="button"
-            style={{ display: creating || editing || loadFailed || !entry ? 'none' : undefined }}
-            onClick={() => {
-              getHomeEntryShell()?.forceRecoverA?.('leave-host');
-              enterEditMode();
-            }}
-          >
-            ✏️ Edit
-          </button>
-          <button
-            className="md-header-btn viewer-chrome-persisted"
-            id="btn-add-comment"
-            type="button"
-            style={{ display: creating || editing || !entry ? 'none' : undefined }}
-            onClick={() => {
-              const layerData = (viewer.annotation[viewer.layer] || {}) as { comments?: unknown[] };
-              const nextIdx = (layerData.comments || []).length + 1;
-              void openCommentDialog(null, null, null, nextIdx);
-            }}
-          >
-            💬 Comment
-          </button>
-          <button
-            className="md-header-btn primary viewer-chrome-persisted"
-            id="btn-save"
-            type="button"
-            style={{ display: editing && !creating ? undefined : 'none' }}
-            disabled={viewer.saving}
-            onClick={() => void saveDoc()}
-          >
-            {viewer.saving ? 'Saving…' : '💾 Save'}
-          </button>
-          <button
-            className="md-header-btn viewer-chrome-persisted"
-            id="btn-cancel-edit"
-            type="button"
-            style={{ display: editing && !creating ? undefined : 'none' }}
-            onClick={() => exitEditMode(false)}
-          >
-            Cancel
+            <ViewerHeaderIcon name="chat" filled />
           </button>
           <OverlayDismissButton id="md-close" title="Close" onClick={() => void closeModal()} />
           </div>
@@ -324,7 +326,6 @@ function NotesOutletChrome({ routeParams }: { routeParams: Record<string, string
             defaultValue={viewer.rawText}
             key={`${creating ? 'create' : 'edit'}-${viewer.bodyPaintKey}`}
           />
-          <KnowledgeSearchHost entry={entry} creating={creating} />
           <NotesCommentFloatNav />
         </div>
       </div>

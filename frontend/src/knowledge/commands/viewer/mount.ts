@@ -122,7 +122,7 @@ export async function mountKbReader(
       alert(`Save failed: ${e.message}`);
     } finally {
       ui.btnSave.disabled = false;
-      ui.btnSave.textContent = '💾 Save';
+      ui.btnSave.textContent = 'Save';
     }
   }
 

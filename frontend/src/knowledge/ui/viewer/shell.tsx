@@ -5,6 +5,7 @@ import { renderToHtml } from '../../../island.ts';
 import { KbLinksBar } from '../links-bar.tsx';
 import { KbCommentFloatNav, KbCommentsBar } from '../comments.tsx';
 import { KnowledgeSearch } from '../search.tsx';
+import { ViewerHeaderIcon, viewerHeaderIconHtml } from '../../../shared/viewer-header-icons.tsx';
 
 const FALLBACK_SHELL_HTML = `
     <div class="kb-reader">
@@ -13,16 +14,17 @@ const FALLBACK_SHELL_HTML = `
           <input id="gs-kb-input" class="gs-search-input" type="text" placeholder="Search knowledge…" autocomplete="off" spellcheck="false" />
           <div id="gs-kb-dropdown" class="gs-search-dropdown" style="display:none"></div>
         </div>
+        <span class="viewer-header-rule" aria-hidden="true">&#8203;</span>
         <div class="viewer-header-actions kb-reader-header-actions">
           <span class="kb-reader-header-meta">
             <span class="kb-file-size"></span>
           </span>
-          <button type="button" class="md-header-btn kb-btn-copy-path" data-tip="">&#128194;</button>
-          <button type="button" class="md-header-btn kb-btn-edit" title="Edit" aria-label="Edit">✏️</button>
-          <button type="button" class="md-header-btn kb-btn-add-comment" title="Comment" aria-label="Comment">💬</button>
-          <button type="button" class="md-header-btn kb-btn-open-in-chat" title="Open in chat" aria-label="Open in chat">🗨️</button>
-          <button type="button" class="md-header-btn primary kb-btn-save" style="display:none">💾 Save</button>
+          <button type="button" class="md-header-btn kb-btn-copy-path" title="Copy path" aria-label="Copy path" data-tip="">${viewerHeaderIconHtml('copy')}</button>
+          <button type="button" class="md-header-btn kb-btn-edit" title="Edit" aria-label="Edit">${viewerHeaderIconHtml('edit')}</button>
+          <button type="button" class="md-header-btn kb-btn-add-comment" title="Comment" aria-label="Comment">${viewerHeaderIconHtml('comment')}</button>
+          <button type="button" class="md-header-btn kb-btn-save" style="display:none">Save</button>
           <button type="button" class="md-header-btn kb-btn-cancel-edit" style="display:none">Cancel</button>
+          <button type="button" class="md-header-btn kb-btn-open-in-chat" title="Open in chat" aria-label="Open in chat">${viewerHeaderIconHtml('chat', true)}</button>
         </div>
       </div>
       <div id="kb-md-links-bar" class="kb-reader-links-bar" style="display:none;padding:8px 20px;border-bottom:1px solid #d0d7de;"></div>
@@ -44,12 +46,21 @@ export function ReaderShell() {
     <div className="kb-reader">
       <div className="kb-reader-header viewer-header" data-tauri-drag-region="deep">
         <KnowledgeSearch hidden={false} />
+        <span className="viewer-header-rule" aria-hidden="true">
+          {'\u200b'}
+        </span>
         <div className="viewer-header-actions kb-reader-header-actions">
           <span className="kb-reader-header-meta">
             <span className="kb-file-size" />
           </span>
-          <button type="button" className="md-header-btn kb-btn-copy-path" data-tip="">
-            &#128194;
+          <button
+            type="button"
+            className="md-header-btn kb-btn-copy-path"
+            title="Copy path"
+            aria-label="Copy path"
+            data-tip=""
+          >
+            <ViewerHeaderIcon name="copy" />
           </button>
           <button
             type="button"
@@ -57,7 +68,7 @@ export function ReaderShell() {
             title="Edit"
             aria-label="Edit"
           >
-            ✏️
+            <ViewerHeaderIcon name="edit" />
           </button>
           <button
             type="button"
@@ -65,7 +76,13 @@ export function ReaderShell() {
             title="Comment"
             aria-label="Comment"
           >
-            💬
+            <ViewerHeaderIcon name="comment" />
+          </button>
+          <button type="button" className="md-header-btn kb-btn-save" style={{ display: 'none' }}>
+            Save
+          </button>
+          <button type="button" className="md-header-btn kb-btn-cancel-edit" style={{ display: 'none' }}>
+            Cancel
           </button>
           <button
             type="button"
@@ -73,13 +90,7 @@ export function ReaderShell() {
             title="Open in chat"
             aria-label="Open in chat"
           >
-            🗨️
-          </button>
-          <button type="button" className="md-header-btn primary kb-btn-save" style={{ display: 'none' }}>
-            💾 Save
-          </button>
-          <button type="button" className="md-header-btn kb-btn-cancel-edit" style={{ display: 'none' }}>
-            Cancel
+            <ViewerHeaderIcon name="chat" filled />
           </button>
         </div>
       </div>
