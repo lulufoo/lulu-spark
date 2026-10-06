@@ -15,4 +15,6 @@ pub use store::{
 pub use types::*;
 
 #[cfg(test)]
-pub use store::{test_clear_llm, test_clear_scope, test_vault_json};
+pub use store::{
+    test_clear_llm, test_clear_scope, test_clear_store_fail, test_fail_store, test_vault_json,
+};

@@ -494,6 +494,12 @@ fn collect_rs_files(dir: &Path, out: &mut Vec<PathBuf>) {
     }
 }
 
+/// Full in-memory vault tree plus store-fail state. LLM-only clear stays on
+/// `secrets::test_secrets_clear` so parallel MCP tickets are not wiped.
+pub fn reset_vault() {
+    crate::config::vault::test_clear_scope();
+}
+
 pub fn with_sandbox_notes<F: FnOnce(&Path, &Path)>(prepare_ai_subdir: bool, f: F) {
     let sandbox = TestSandbox::new();
     let notes = sandbox.data_dir().join("notes");

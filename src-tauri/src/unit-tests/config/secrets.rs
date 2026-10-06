@@ -2,6 +2,12 @@ use super::*;
 
 use crate::test_support::TestSandbox;
 
+/// LLM slot only. Parallel lib tests share vault scope `_default`; wiping MCP
+/// tickets here races mcp_host / oauth (HTTP 401).
+pub fn test_secrets_clear() {
+    crate::config::vault::test_clear_llm();
+}
+
 #[test]
 fn sandbox_secret_roundtrip_stays_in_memory() {
     let _sandbox = TestSandbox::new();
@@ -13,7 +19,7 @@ fn sandbox_secret_roundtrip_stays_in_memory() {
     );
     assert!(crate::config::settings::uses_in_memory_keychain());
     let src = include_str!("../../config/secrets.rs");
-    assert!(src.contains("uses_in_memory_keychain"));
+    assert!(!src.contains("uses_in_memory_keychain"));
 }
 
 #[test]

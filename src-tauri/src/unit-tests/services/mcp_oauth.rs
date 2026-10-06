@@ -1,7 +1,7 @@
 use super::*;
 
 fn reset_slots() {
-    test_force_store_unavailable(false);
+    crate::config::vault::test_clear_store_fail();
     revoke_for_slot(Slot::CursorIde).expect("revoke cursor_ide");
     revoke_for_slot(Slot::Spark).expect("revoke spark");
 }
@@ -233,12 +233,12 @@ fn verify_for_slot_rejects_missing_mismatched_and_revoked_the_same_way() {
 #[test]
 fn store_write_failure_issues_no_ticket_and_does_not_fall_back() {
     reset_slots();
-    test_force_store_unavailable(true);
+    crate::config::vault::test_fail_store();
     assert_eq!(
         issue_for_slot(Slot::CursorIde).expect_err("store down"),
         OAuthError::store_unavailable
     );
-    test_force_store_unavailable(false);
+    crate::config::vault::test_clear_store_fail();
     assert_not_live(ledger_record(Slot::CursorIde).expect("ledger after failed issue"));
 }
 
@@ -246,7 +246,7 @@ fn store_write_failure_issues_no_ticket_and_does_not_fall_back() {
 fn store_read_failure_is_store_unavailable() {
     reset_slots();
     let _ = issue_for_slot(Slot::CursorIde).expect("issue");
-    test_force_store_unavailable(true);
+    crate::config::vault::test_fail_store();
     assert_eq!(
         ledger_record(Slot::CursorIde).expect_err("read fail"),
         OAuthError::store_unavailable
@@ -256,12 +256,12 @@ fn store_read_failure_is_store_unavailable() {
             .expect_err("verify read fail"),
         OAuthError::store_unavailable
     );
-    test_force_store_unavailable(false);
+    crate::config::vault::test_clear_store_fail();
 }
 
 fn with_device_sandbox<F: FnOnce()>(test: F) {
     let _sandbox = crate::test_support::TestSandbox::new();
-    crate::config::vault::test_clear_scope();
+    crate::test_support::reset_vault();
     test();
 }
 
@@ -473,5 +473,11 @@ fn device_ticket_sources_do_not_mount_mcp_mobile_or_host_bind_tests() {
     assert!(
         !oauth.contains("create_bind_payload") && !oauth.contains("current_lan_ipv4"),
         "bind / lan_ip behavior must not live in mcp_oauth.rs"
+    );
+    assert!(
+        !oauth.contains("FORCE_STORE")
+            && !oauth.contains("ensure_store_available")
+            && !oauth.contains("test_force_store_unavailable"),
+        "store failure must come from the vault, not an oauth test flag"
     );
 }

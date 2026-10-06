@@ -2892,12 +2892,12 @@ fn t5_registry_seed_stays_without_authorization_after_set() {
 fn t5_unknown_key_is_not_used_for_store_failure() {
     with_sandbox(|| {
         reset_spark_slot();
-        test_force_store_unavailable(true);
+        test_fail_store();
         let err = r#loop::try_set_binding_json(&json!({ "key": "spark" }))
             .expect_err("store failure must fail Set");
         assert_eq!(err.as_code(), "set_invalid");
         assert_ne!(err.as_code(), "unknown_key");
-        test_force_store_unavailable(false);
+        test_clear_store_fail();
         let missing = r#loop::try_set_binding_json(&json!({ "key": "no_such_binding_key" }))
             .expect_err("missing key");
         assert_eq!(missing.as_code(), "unknown_key");
@@ -2923,7 +2923,7 @@ fn t5_store_write_failure_keeps_unbound_issues_no_ticket_and_skips_on_bound() {
     with_sandbox(|| {
         reset_spark_slot();
         r#loop::clear_lifecycle_events_for_tests();
-        test_force_store_unavailable(true);
+        test_fail_store();
         let err = r#loop::try_set_binding_json(&json!({ "key": "spark" }))
             .expect_err("store write failure must fail Set");
         assert_eq!(err.as_code(), "set_invalid");
@@ -2935,7 +2935,7 @@ fn t5_store_write_failure_keeps_unbound_issues_no_ticket_and_skips_on_bound() {
             events.iter().all(|e| e.event != "onBound"),
             "store failure must not emit onBound: {events:?}"
         );
-        test_force_store_unavailable(false);
+        test_clear_store_fail();
         let record = ledger_record(Slot::Spark).expect("ledger after failed Set");
         assert!(
             record
@@ -2954,7 +2954,7 @@ fn t5_store_write_failure_keeps_original_binding() {
         let gen = r#loop::query_binding().generation;
         r#loop::clear_lifecycle_events_for_tests();
         reset_spark_slot();
-        test_force_store_unavailable(true);
+        test_fail_store();
         let err = r#loop::try_set_binding_json(&json!({ "key": "spark" }))
             .expect_err("store failure");
         assert_eq!(err.as_code(), "set_invalid");
@@ -2967,7 +2967,7 @@ fn t5_store_write_failure_keeps_original_binding() {
         assert!(session_authorization_bearer().is_none());
         let events = r#loop::drain_lifecycle_events();
         assert!(events.iter().all(|e| e.event != "onBound"));
-        test_force_store_unavailable(false);
+        test_clear_store_fail();
         let record = ledger_record(Slot::Spark).expect("ledger");
         assert!(
             record

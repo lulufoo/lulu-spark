@@ -3,13 +3,9 @@
 use std::fmt;
 use std::sync::Mutex;
 
-#[cfg(test)]
-use std::sync::atomic::{AtomicBool, Ordering};
-
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 
-use crate::config::settings;
 use crate::config::vault::{self, BindDevice, SlotTicket};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -295,23 +291,6 @@ fn mobile_ticket_view() -> Result<Value, OAuthError> {
     }))
 }
 
-#[cfg(test)]
-static FORCE_STORE_UNAVAILABLE: AtomicBool = AtomicBool::new(false);
-
-#[cfg(test)]
-pub fn test_force_store_unavailable(on: bool) {
-    FORCE_STORE_UNAVAILABLE.store(on, Ordering::SeqCst);
-}
-
-fn ensure_store_available() -> Result<(), OAuthError> {
-    let _ = settings::uses_in_memory_keychain();
-    #[cfg(test)]
-    if FORCE_STORE_UNAVAILABLE.load(Ordering::SeqCst) {
-        return Err(OAuthError::store_unavailable);
-    }
-    Ok(())
-}
-
 fn map_vault<T>(result: Result<T, vault::SecretError>) -> Result<T, OAuthError> {
     result.map_err(|_| OAuthError::store_unavailable)
 }
@@ -333,7 +312,6 @@ fn record_from_ticket(slot: Slot, ticket: &SlotTicket) -> Result<LedgerRecord, O
 }
 
 fn read_record(slot: Slot) -> Result<Option<LedgerRecord>, OAuthError> {
-    ensure_store_available()?;
     let vault = map_vault(vault::read_vault())?;
     match vault.mcp_slot(slot.as_str()) {
         Some(ticket) => record_from_ticket(slot, ticket).map(Some),
@@ -352,7 +330,6 @@ fn persist_live(slot: Slot) -> Result<TicketHandle, OAuthError> {
 }
 
 fn write_record(record: &LedgerRecord) -> Result<(), OAuthError> {
-    ensure_store_available()?;
     map_vault(vault::update_vault(|doc| {
         doc.set_mcp_slot(record.slot.as_str(), Some(ticket_from_record(record)));
     }))
@@ -391,7 +368,6 @@ fn hash_token(token: &str) -> String {
 }
 
 fn load_device_ledger() -> Result<DeviceLedger, OAuthError> {
-    ensure_store_available()?;
     let vault = map_vault(vault::read_vault())?;
     Ok(DeviceLedger {
         devices: vault.devices().to_vec(),
@@ -399,7 +375,6 @@ fn load_device_ledger() -> Result<DeviceLedger, OAuthError> {
 }
 
 fn save_device_ledger(ledger: &DeviceLedger) -> Result<(), OAuthError> {
-    ensure_store_available()?;
     map_vault(vault::update_vault(|doc| {
         doc.set_devices(ledger.devices.clone());
     }))

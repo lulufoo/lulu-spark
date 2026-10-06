@@ -19,7 +19,7 @@ pub(super) fn io_lock() -> std::sync::MutexGuard<'static, ()> {
         .unwrap_or_else(|e| e.into_inner())
 }
 
-fn scope_id() -> String {
+pub(super) fn scope_id() -> String {
     if cfg!(test) {
         return "_default".to_string();
     }
@@ -38,6 +38,17 @@ fn memory_map() -> std::sync::MutexGuard<'static, HashMap<String, Vault>> {
         .unwrap_or_else(|e| e.into_inner())
 }
 
+pub(super) fn memory_fail_map() -> std::sync::MutexGuard<'static, HashMap<String, String>> {
+    static FAIL: OnceLock<Mutex<HashMap<String, String>>> = OnceLock::new();
+    FAIL.get_or_init(|| Mutex::new(HashMap::new()))
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+}
+
+fn memory_fail() -> Option<String> {
+    memory_fail_map().get(&scope_id()).cloned()
+}
+
 pub(super) fn memory_vault() -> Vault {
     memory_map()
         .get(&scope_id())
@@ -51,6 +62,9 @@ pub(super) fn store_memory_vault(vault: &Vault) {
 
 fn load_raw() -> Result<Vault, SecretError> {
     if settings::uses_in_memory_keychain() {
+        if let Some(e) = memory_fail() {
+            return Err(SecretError::Store(e));
+        }
         Ok(memory_vault())
     } else {
         persistent_load()
@@ -59,6 +73,9 @@ fn load_raw() -> Result<Vault, SecretError> {
 
 fn store_raw(vault: &Vault) -> Result<(), SecretError> {
     if settings::uses_in_memory_keychain() {
+        if let Some(e) = memory_fail() {
+            return Err(SecretError::Store(e));
+        }
         store_memory_vault(vault);
         Ok(())
     } else {
@@ -151,4 +168,6 @@ pub fn delete_llm_api_key() -> Result<(), SecretError> {
 mod tests;
 
 #[cfg(test)]
-pub use tests::{test_clear_llm, test_clear_scope, test_vault_json};
+pub use tests::{
+    test_clear_llm, test_clear_scope, test_clear_store_fail, test_fail_store, test_vault_json,
+};

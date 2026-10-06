@@ -16,9 +16,10 @@ pub(super) use crate::agent::llm::LlmConfig;
 pub(super) use crate::agent::r#loop::{self, Terminal, TurnOutcome, EVENT_TURN_COMPLETED};
 pub(super) use crate::agent::session::{self, Turn};
 pub(super) use crate::agent::SPARK_HOST_SYSTEM_PROMPT;
+pub(super) use crate::config::vault::{test_clear_store_fail, test_fail_store};
 pub(super) use crate::services::mcp_oauth::{
-    issue_for_slot, ledger_record, revoke_for_slot, test_force_store_unavailable,
-    verify_for_slot, Slot, TicketHandle, TicketState,
+    issue_for_slot, ledger_record, revoke_for_slot, verify_for_slot, Slot, TicketHandle,
+    TicketState,
 };
 pub(super) use crate::mcp_host::{
     start_embedded_mcp_runtime, stop_embedded_mcp_runtime, McpRuntimeConfig,
@@ -33,7 +34,7 @@ pub(super) fn with_sandbox<F: FnOnce()>(f: F) {
     let _sandbox = TestSandbox::new();
     secrets::test_secrets_clear();
     r#loop::reset_runtime_for_tests();
-    test_force_store_unavailable(false);
+    test_clear_store_fail();
     crate::mcp_host::registry::clear_for_tests();
     crate::mcp_host::registry::seed_defaults();
     f();
@@ -593,7 +594,7 @@ pub(super) fn session_authorization_bearer() -> Option<String> {
 }
 
 pub(super) fn reset_spark_slot() {
-    test_force_store_unavailable(false);
+    test_clear_store_fail();
     revoke_for_slot(Slot::Spark).expect("revoke spark");
 }
 

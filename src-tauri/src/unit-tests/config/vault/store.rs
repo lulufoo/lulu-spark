@@ -1,19 +1,31 @@
-use super::{io_lock, memory_vault, read_vault, store_memory_vault, update_vault};
-use crate::config::vault::BindDevice;
+use super::{
+    io_lock, memory_fail_map, memory_vault, read_vault, scope_id, store_memory_vault, update_vault,
+};
+use crate::config::vault::{BindDevice, SecretError, SlotTicket, Vault};
 
 pub fn test_clear_scope() {
     let _guard = io_lock();
-    let mut vault = memory_vault();
-    vault.set_llm_api_key(None);
-    vault.set_devices(Vec::new());
-    store_memory_vault(&vault);
+    store_memory_vault(&Vault::default());
+    memory_fail_map().remove(&scope_id());
 }
 
+/// LLM slot only. Parallel lib tests share vault scope `_default`; wiping MCP
+/// tickets here races mcp_host / oauth (HTTP 401).
 pub fn test_clear_llm() {
     let _guard = io_lock();
     let mut vault = memory_vault();
     vault.set_llm_api_key(None);
     store_memory_vault(&vault);
+}
+
+pub fn test_fail_store() {
+    let _guard = io_lock();
+    memory_fail_map().insert(scope_id(), "unavailable".into());
+}
+
+pub fn test_clear_store_fail() {
+    let _guard = io_lock();
+    memory_fail_map().remove(&scope_id());
 }
 
 pub fn test_vault_json() -> serde_json::Value {
@@ -63,4 +75,38 @@ fn memory_backend_uses_in_memory_keychain_switch() {
     assert!(!src.contains("migrate_legacy"));
     assert!(!src.contains("thread_local"));
     assert!(!src.contains("github"));
+    assert!(!src.contains("FORCE_STORE"));
+}
+
+#[test]
+fn memory_store_fail_is_store_error_and_clearing_fail_keeps_data() {
+    test_clear_scope();
+    update_vault(|vault| vault.set_llm_api_key(Some("sk-keep".into()))).expect("store");
+    test_fail_store();
+    assert!(matches!(read_vault(), Err(SecretError::Store(_))));
+    test_clear_store_fail();
+    assert_eq!(
+        read_vault().expect("vault after fail off").llm_api_key(),
+        Some("sk-keep")
+    );
+}
+
+#[test]
+fn test_clear_scope_wipes_mcp_and_fail_state() {
+    test_clear_scope();
+    update_vault(|vault| {
+        vault.set_llm_api_key(Some("sk".into()));
+        vault.set_mcp_slot(
+            "spark",
+            Some(SlotTicket {
+                handle: "ticket".into(),
+                state: "live".into(),
+            }),
+        );
+    })
+    .expect("store");
+    test_fail_store();
+    test_clear_scope();
+    let vault = read_vault().expect("empty vault");
+    assert!(vault.is_empty());
 }

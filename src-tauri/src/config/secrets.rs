@@ -4,16 +4,9 @@
 
 pub use crate::config::vault::{SecretError, KEY_LLM_API_KEY};
 
-use crate::config::settings;
 use crate::config::vault;
 
-#[cfg(test)]
-pub fn test_secrets_clear() {
-    vault::test_clear_llm();
-}
-
 pub fn get_secret(key: &str) -> Result<Option<String>, SecretError> {
-    let _ = settings::uses_in_memory_keychain();
     if key != KEY_LLM_API_KEY {
         return Ok(None);
     }
@@ -73,3 +66,6 @@ pub fn secret_error_json(err: &SecretError) -> serde_json::Value {
 #[cfg(test)]
 #[path = "../unit-tests/config/secrets.rs"]
 mod tests;
+
+#[cfg(test)]
+pub use tests::test_secrets_clear;

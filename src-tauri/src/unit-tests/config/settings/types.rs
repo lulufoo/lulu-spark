@@ -59,23 +59,17 @@ fn uses_in_memory_keychain_is_true_during_lib_tests() {
 }
 
 #[test]
-fn keychain_memory_switch_is_consulted_by_all_stores() {
-    let secrets = include_str!("../../../config/secrets.rs");
+fn keychain_memory_switch_is_consulted_by_vault_store() {
     let vault = concat!(
         include_str!("../../../config/vault/mod.rs"),
         include_str!("../../../config/vault/types.rs"),
         include_str!("../../../config/vault/codec.rs"),
         include_str!("../../../config/vault/store.rs"),
     );
-    let oauth = include_str!("../../../services/mcp_oauth.rs");
-    for (name, src) in [
-        ("secrets.rs", secrets),
-        ("vault.rs", vault),
-        ("mcp_oauth.rs", oauth),
-    ] {
-        assert!(
-            src.contains("uses_in_memory_keychain"),
-            "{name} must consult settings::uses_in_memory_keychain"
-        );
-    }
+    assert!(
+        vault.contains("uses_in_memory_keychain"),
+        "vault store must consult settings::uses_in_memory_keychain"
+    );
+    assert!(!include_str!("../../../config/secrets.rs").contains("uses_in_memory_keychain"));
+    assert!(!include_str!("../../../services/mcp_oauth.rs").contains("uses_in_memory_keychain"));
 }

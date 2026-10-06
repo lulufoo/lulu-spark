@@ -14,7 +14,7 @@ fn now_secs() -> u64 {
 
 fn with_bind<F: FnOnce()>(test: F) {
     let _sandbox = TestSandbox::new();
-    crate::config::vault::test_clear_scope();
+    crate::test_support::reset_vault();
     test_clear_session();
     test();
     test_clear_session();
