@@ -110,7 +110,6 @@ h1 {
   text-decoration: none;
 }
 .go:hover { background: #1d1d1f; }
-.hint { color: var(--faint); font-size: 14px; }
 .steps {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -132,15 +131,6 @@ h1 {
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.08em;
-}
-.foot {
-  margin-top: auto;
-}
-.foot-inner {
-  padding: 28px 0 36px;
-  color: var(--faint);
-  font-size: 13px;
-  text-align: center;
 }
 @media (max-width: 720px) {
   .steps { grid-template-columns: 1fr; padding-bottom: 56px; }
@@ -171,7 +161,6 @@ h1 {
 <p class="lead">Opening Lulu Spark. You can close this page afterwards.</p>
 <div class="actions">
 <a class="go" id="go" href="spark://auth-login/callback">Open Lulu Spark</a>
-<p class="hint" id="hint">If the app does not open, use the button above.</p>
 </div>
 </div>
 <section class="wrap steps">
@@ -192,14 +181,10 @@ h1 {
 </div>
 </section>
 </main>
-<footer class="foot">
-<div class="wrap foot-inner">You can close this page after the app opens.</div>
-</footer>
 <script>
 (function () {
   var scheme = "spark://auth-login/callback" + location.search + location.hash;
   var go = document.getElementById("go");
-  var hint = document.getElementById("hint");
   go.setAttribute("href", scheme);
   var frame = document.createElement("iframe");
   frame.hidden = true;
@@ -207,7 +192,6 @@ h1 {
   document.body.appendChild(frame);
   setTimeout(function () {
     window.close();
-    hint.textContent = "Tried to open Lulu Spark. You can close this page.";
   }, 400);
 })();
 </script>

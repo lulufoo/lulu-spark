@@ -35,7 +35,19 @@ fn auth_login_landing_html_shows_intro_success_and_close_hint() {
     assert!(html.contains("Lulu Spark"), "{html}");
     assert!(html.contains("Authorization successful"), "{html}");
     assert!(html.contains("Open Lulu Spark"), "{html}");
-    assert!(html.contains("close this page"), "{html}");
+    assert!(
+        html.contains("Opening Lulu Spark. You can close this page afterwards."),
+        "{html}"
+    );
+    assert!(!html.contains("Tried to open Lulu Spark"), "{html}");
+    assert!(
+        !html.contains("You can close this page after the app opens."),
+        "{html}"
+    );
+    assert!(
+        !html.contains("If the app does not open, use the button above."),
+        "{html}"
+    );
     assert!(!html.contains("个人知识档案与桌面助手"), "{html}");
     assert!(html.contains("window.close"), "{html}");
     assert!(
