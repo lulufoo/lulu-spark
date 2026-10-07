@@ -119,6 +119,7 @@ fn test_clear_scope_wipes_mcp_and_fail_state() {
             Some(SlotTicket {
                 handle: "ticket".into(),
                 state: "live".into(),
+                env_suffix: None,
             }),
         );
     })

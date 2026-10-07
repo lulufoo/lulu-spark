@@ -2,7 +2,9 @@ use super::*;
 
 fn reset_slots() {
     crate::config::vault::test_clear_store_fail();
-    revoke_for_slot(Slot::CursorIde).expect("revoke cursor_ide");
+    revoke_for_slot(Slot::CursorIde).expect("revoke cursor");
+    revoke_for_slot(Slot::Codex).expect("revoke codex");
+    revoke_for_slot(Slot::Claude).expect("revoke claude");
     revoke_for_slot(Slot::Spark).expect("revoke spark");
 }
 
@@ -41,12 +43,27 @@ fn issue_for_empty_cursor_ide_slot_creates_live_ticket() {
     assert_eq!(record.slot, Slot::CursorIde);
     assert_eq!(record.handle, handle);
     assert_eq!(record.state, TicketState::Live);
+    let suffix = record.env_suffix.as_deref().expect("ide suffix");
+    assert_eq!(suffix.len(), 4);
+    assert_eq!(suffix, suffix.to_ascii_uppercase());
+    assert!(suffix.chars().all(|c| c.is_ascii_hexdigit()));
+    let expected = format!("LULU_SPARK_CURSOR_MCP_{suffix}");
+    assert_eq!(record.env_var().as_deref(), Some(expected.as_str()));
+    assert_eq!(
+        expected,
+        expected.to_ascii_uppercase(),
+        "env var name must be all uppercase"
+    );
 }
 
 #[test]
 fn issue_for_slot_reuses_existing_live_handle() {
     reset_slots();
     let first = issue_for_slot(Slot::CursorIde).expect("issue");
+    let suffix = ledger_record(Slot::CursorIde)
+        .expect("ledger")
+        .expect("record")
+        .env_suffix;
     let second = issue_for_slot(Slot::CursorIde).expect("reuse");
     assert_eq!(first, second);
     let record = ledger_record(Slot::CursorIde)
@@ -54,6 +71,7 @@ fn issue_for_slot_reuses_existing_live_handle() {
         .expect("record");
     assert_eq!(record.handle, first);
     assert_eq!(record.state, TicketState::Live);
+    assert_eq!(record.env_suffix, suffix);
 }
 
 #[test]
@@ -97,6 +115,10 @@ fn revoke_for_slot_voids_live_ticket_and_verify_rejects() {
 fn rotate_for_slot_replaces_cursor_ide_live_ticket() {
     reset_slots();
     let old = issue_for_slot(Slot::CursorIde).expect("issue");
+    let old_suffix = ledger_record(Slot::CursorIde)
+        .expect("before")
+        .expect("record")
+        .env_suffix;
     let new_handle = rotate_for_slot(Slot::CursorIde).expect("rotate");
     assert_ne!(old, new_handle);
     assert_eq!(
@@ -109,6 +131,11 @@ fn rotate_for_slot_replaces_cursor_ide_live_ticket() {
         .expect("record");
     assert_eq!(record.handle, new_handle);
     assert_eq!(record.state, TicketState::Live);
+    assert_ne!(record.env_suffix, old_suffix);
+    let suffix = record.env_suffix.as_deref().expect("rotated suffix");
+    assert_eq!(suffix.len(), 4);
+    assert_eq!(suffix, suffix.to_ascii_uppercase());
+    assert!(suffix.chars().all(|c| c.is_ascii_hexdigit()));
 }
 
 #[test]
@@ -203,8 +230,19 @@ fn unknown_slot_name_is_slot_unknown() {
     assert_eq!(Slot::parse("spark"), Ok(Slot::Spark));
     assert_eq!(Slot::parse("cursor_ide"), Ok(Slot::CursorIde));
     assert_eq!(Slot::parse("cursor"), Ok(Slot::CursorIde));
-    assert_eq!(Slot::parse("codex"), Ok(Slot::CursorIde));
-    assert_eq!(Slot::parse("claude"), Ok(Slot::CursorIde));
+    assert_eq!(Slot::parse("codex"), Ok(Slot::Codex));
+    assert_eq!(Slot::parse("claude"), Ok(Slot::Claude));
+    assert_eq!(Slot::CursorIde.as_str(), "cursor");
+    assert_eq!(Slot::Codex.as_str(), "codex");
+    assert_eq!(Slot::Claude.as_str(), "claude");
+    assert_eq!(Slot::CursorIde.env_var_name(), Some("LULU_SPARK_CURSOR_MCP"));
+    assert_eq!(Slot::Codex.env_var_name(), Some("LULU_SPARK_CODEX_MCP"));
+    assert_eq!(Slot::Claude.env_var_name(), Some("LULU_SPARK_CLAUDE_MCP"));
+    assert_eq!(Slot::Spark.env_var_name(), None);
+    assert_eq!(
+        Slot::CursorIde.env_var(Some("ab12")).as_deref(),
+        Some("LULU_SPARK_CURSOR_MCP_AB12")
+    );
 }
 
 #[test]
@@ -371,6 +409,13 @@ fn ticket_view_masks_spark_and_lists_mobile_without_secrets() {
 
         let ide = ticket_view("cursor_ide").expect("ide view");
         assert_eq!(ide["handle"], cursor.as_str());
+        let env_var = ide["env_var"].as_str().expect("ide env_var");
+        assert!(
+            env_var.starts_with("LULU_SPARK_CURSOR_MCP_")
+                && env_var.len() == "LULU_SPARK_CURSOR_MCP_".len() + 4,
+            "ide view env_var, got {env_var}"
+        );
+        assert!(wb.get("env_var").is_none(), "spark view has no IDE env var");
 
         let mobile = ticket_view("mobile").expect("mobile view");
         assert_eq!(mobile["devices"][0]["device_id"], "phone-view");
@@ -378,6 +423,62 @@ fn ticket_view_masks_spark_and_lists_mobile_without_secrets() {
         assert!(!mobile.to_string().contains(phone.as_str()));
         assert_eq!(ticket_view("nope").expect_err("unknown"), OAuthError::slot_unknown);
     });
+}
+
+#[test]
+fn three_ide_slots_hold_independent_tickets() {
+    reset_slots();
+    let cursor = issue_for_slot(Slot::CursorIde).expect("cursor");
+    let codex = issue_for_slot(Slot::Codex).expect("codex");
+    let claude = issue_for_slot(Slot::Claude).expect("claude");
+    assert_ne!(cursor, codex);
+    assert_ne!(cursor, claude);
+    assert_ne!(codex, claude);
+    verify_for_slot(Slot::CursorIde, cursor.clone()).expect("cursor");
+    verify_for_slot(Slot::Codex, codex.clone()).expect("codex");
+    verify_for_slot(Slot::Claude, claude.clone()).expect("claude");
+    assert_eq!(
+        verify_for_slot(Slot::Codex, cursor.clone()).expect_err("cross"),
+        OAuthError::rejected
+    );
+    assert_eq!(
+        verify_for_slot(Slot::Claude, codex.clone()).expect_err("cross"),
+        OAuthError::rejected
+    );
+    assert_eq!(
+        verify_for_slot(Slot::CursorIde, claude).expect_err("cross"),
+        OAuthError::rejected
+    );
+}
+
+#[test]
+fn cursor_slot_reads_legacy_cursor_ide_and_write_migrates() {
+    reset_slots();
+    crate::config::vault::update_vault(|doc| {
+        let mcp = doc.mcp_oauth.get_or_insert_with(Default::default);
+        mcp.cursor = None;
+        mcp.cursor_ide = Some(crate::config::vault::SlotTicket {
+            handle: "legacy-cursor-ide-handle-aaaaaaaaaaaaaaaaaaaaaaaaaaaa".into(),
+            state: "live".into(),
+            env_suffix: None,
+        });
+    })
+    .expect("plant legacy");
+    let record = ledger_record(Slot::CursorIde)
+        .expect("read")
+        .expect("legacy");
+    assert_eq!(
+        record.handle.as_str(),
+        "legacy-cursor-ide-handle-aaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    );
+
+    let rotated = rotate_for_slot(Slot::CursorIde).expect("migrate write");
+    let vault = crate::config::vault::read_vault().expect("vault");
+    assert!(vault.mcp_oauth.as_ref().unwrap().cursor_ide.is_none());
+    assert_eq!(
+        vault.mcp_slot("cursor").map(|t| t.handle.as_str()),
+        Some(rotated.as_str())
+    );
 }
 
 #[test]

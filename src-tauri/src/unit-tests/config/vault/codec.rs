@@ -38,6 +38,7 @@ fn json_and_toml_backends_share_the_same_tree() {
         Some(SlotTicket {
             handle: "aa".repeat(32),
             state: "live".into(),
+            env_suffix: None,
         }),
     );
     vault.set_devices(vec![BindDevice {
@@ -114,4 +115,72 @@ fn auth_session_encodes_as_supabase_auth_without_provider_token() {
     let cleared: serde_json::Value =
         serde_json::from_str(&vault_to_json(&vault).expect("cleared parse")).expect("value");
     assert!(cleared.get("supabase-auth").is_none());
+}
+
+fn live_ticket(handle: &str) -> SlotTicket {
+    SlotTicket {
+        handle: handle.into(),
+        state: "live".into(),
+        env_suffix: None,
+    }
+}
+
+#[test]
+fn cursor_slot_reads_legacy_cursor_ide_and_write_clears_it() {
+    let mut vault = Vault::default();
+    vault.mcp_oauth = Some(crate::config::vault::McpOauthSecrets {
+        cursor_ide: Some(live_ticket("legacy-ide")),
+        ..Default::default()
+    });
+    assert_eq!(vault.mcp_slot("cursor").map(|t| t.handle.as_str()), Some("legacy-ide"));
+    assert_eq!(
+        vault.mcp_slot("cursor_ide").map(|t| t.handle.as_str()),
+        Some("legacy-ide")
+    );
+    vault.set_mcp_slot("cursor", Some(live_ticket("new-cursor")));
+    assert_eq!(vault.mcp_slot("cursor").map(|t| t.handle.as_str()), Some("new-cursor"));
+    assert!(vault.mcp_oauth.as_ref().unwrap().cursor_ide.is_none());
+}
+
+#[test]
+fn three_ide_slots_round_trip_independently() {
+    let mut vault = Vault::default();
+    vault.set_mcp_slot("cursor", Some(live_ticket("c")));
+    vault.set_mcp_slot("codex", Some(live_ticket("x")));
+    vault.set_mcp_slot("claude", Some(live_ticket("l")));
+    assert_eq!(vault.mcp_slot("cursor").map(|t| t.handle.as_str()), Some("c"));
+    assert_eq!(vault.mcp_slot("codex").map(|t| t.handle.as_str()), Some("x"));
+    assert_eq!(vault.mcp_slot("claude").map(|t| t.handle.as_str()), Some("l"));
+    let json = vault_to_json(&vault).expect("json");
+    let parsed = vault_from_json(&json).expect("from json");
+    assert_eq!(parsed, vault);
+}
+
+#[test]
+fn slot_ticket_env_suffix_round_trips_and_legacy_json_defaults_none() {
+    let legacy = vault_from_json(
+        r#"{"mcp-oauth":{"cursor":{"handle":"legacy-handle","state":"live"}}}"#,
+    )
+    .expect("legacy");
+    assert_eq!(
+        legacy.mcp_slot("cursor").and_then(|t| t.env_suffix.as_deref()),
+        None
+    );
+
+    let mut vault = Vault::default();
+    vault.set_mcp_slot(
+        "cursor",
+        Some(SlotTicket {
+            handle: "new-handle".into(),
+            state: "live".into(),
+            env_suffix: Some("AB12".into()),
+        }),
+    );
+    let json = vault_to_json(&vault).expect("json");
+    assert!(json.contains("\"env_suffix\":\"AB12\"") || json.contains("\"env_suffix\": \"AB12\""));
+    let parsed = vault_from_json(&json).expect("from json");
+    assert_eq!(
+        parsed.mcp_slot("cursor").and_then(|t| t.env_suffix.as_deref()),
+        Some("AB12")
+    );
 }

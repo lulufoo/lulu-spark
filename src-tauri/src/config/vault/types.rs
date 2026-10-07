@@ -3,7 +3,10 @@ use serde::{Deserialize, Serialize};
 pub const KEY_LLM_API_KEY: &str = "llm_api_key";
 
 const SLOT_SPARK: &str = "spark";
+const SLOT_CURSOR: &str = "cursor";
 const SLOT_CURSOR_IDE: &str = "cursor_ide";
+const SLOT_CODEX: &str = "codex";
+const SLOT_CLAUDE: &str = "claude";
 
 #[derive(Debug)]
 pub enum SecretError {
@@ -45,13 +48,21 @@ pub struct McpOauthSecrets {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub spark: Option<SlotTicket>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cursor: Option<SlotTicket>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cursor_ide: Option<SlotTicket>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub codex: Option<SlotTicket>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub claude: Option<SlotTicket>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SlotTicket {
     pub handle: String,
     pub state: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub env_suffix: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -96,7 +107,9 @@ impl Vault {
     pub fn is_empty(&self) -> bool {
         self.llm_api_key().is_none()
             && self.mcp_slot(SLOT_SPARK).is_none()
-            && self.mcp_slot(SLOT_CURSOR_IDE).is_none()
+            && self.mcp_slot(SLOT_CURSOR).is_none()
+            && self.mcp_slot(SLOT_CODEX).is_none()
+            && self.mcp_slot(SLOT_CLAUDE).is_none()
             && self.devices().is_empty()
             && self.auth_session().is_none()
     }
@@ -123,7 +136,9 @@ impl Vault {
         let mcp = self.mcp_oauth.as_ref()?;
         match slot {
             SLOT_SPARK => mcp.spark.as_ref(),
-            SLOT_CURSOR_IDE => mcp.cursor_ide.as_ref(),
+            SLOT_CURSOR | SLOT_CURSOR_IDE => mcp.cursor.as_ref().or(mcp.cursor_ide.as_ref()),
+            SLOT_CODEX => mcp.codex.as_ref(),
+            SLOT_CLAUDE => mcp.claude.as_ref(),
             _ => None,
         }
     }
@@ -132,10 +147,15 @@ impl Vault {
         let mcp = self.mcp_oauth.get_or_insert_with(McpOauthSecrets::default);
         match slot {
             SLOT_SPARK => mcp.spark = ticket,
-            SLOT_CURSOR_IDE => mcp.cursor_ide = ticket,
+            SLOT_CURSOR | SLOT_CURSOR_IDE => {
+                mcp.cursor = ticket;
+                mcp.cursor_ide = None;
+            }
+            SLOT_CODEX => mcp.codex = ticket,
+            SLOT_CLAUDE => mcp.claude = ticket,
             _ => {}
         }
-        if mcp.spark.is_none() && mcp.cursor_ide.is_none() {
+        if mcp_oauth_empty(mcp) {
             self.mcp_oauth = None;
         }
     }
@@ -168,7 +188,7 @@ impl Vault {
             self.llm = None;
         }
         if let Some(mcp) = &self.mcp_oauth {
-            if mcp.spark.is_none() && mcp.cursor_ide.is_none() {
+            if mcp_oauth_empty(mcp) {
                 self.mcp_oauth = None;
             }
         }
@@ -179,4 +199,12 @@ impl Vault {
             self.supabase_auth = None;
         }
     }
+}
+
+fn mcp_oauth_empty(mcp: &McpOauthSecrets) -> bool {
+    mcp.spark.is_none()
+        && mcp.cursor.is_none()
+        && mcp.cursor_ide.is_none()
+        && mcp.codex.is_none()
+        && mcp.claude.is_none()
 }
