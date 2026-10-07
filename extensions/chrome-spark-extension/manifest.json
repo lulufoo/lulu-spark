@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Lulu Spark",
   "version": "1.2.0",
-  "description": "Save the current tab to Read Later. On X Home and reply dialog, translate Chinese to English in place.",
+  "description": "Save the current tab to Lulu Spark Read Later.",
   "permissions": ["activeTab"],
   "host_permissions": ["https://localhost:7654/*"],
   "background": {
@@ -21,19 +21,5 @@
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
-  },
-  "content_scripts": [
-    {
-      "matches": ["https://x.com/*", "https://twitter.com/*"],
-      "js": ["x-zh-en/compose-dom.js", "x-zh-en/compose-write.js", "x-zh-en/content.js"],
-      "css": ["x-zh-en/content.css"],
-      "run_at": "document_idle"
-    },
-    {
-      "matches": ["https://x.com/*", "https://twitter.com/*"],
-      "js": ["x-zh-en/compose-translator.js"],
-      "run_at": "document_idle",
-      "world": "MAIN"
-    }
-  ]
+  }
 }

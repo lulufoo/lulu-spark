@@ -177,7 +177,7 @@ describe('badgeFeedbackForResult', () => {
 });
 
 describe('manifest.json', () => {
-  it('unions read-later Gateway permission with X compose content scripts', () => {
+  it('keeps Read Later Gateway permission and has no X compose content scripts', () => {
     const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
     expect(manifest.manifest_version).toBe(3);
     expect(manifest.permissions).toEqual(['activeTab']);
@@ -185,20 +185,8 @@ describe('manifest.json', () => {
     expect(manifest.background?.service_worker).toBe('read-later/background.js');
     expect(manifest.action?.default_icon).toBeTruthy();
     expect(manifest.action?.default_popup).toBeUndefined();
-    expect(manifest.content_scripts).toHaveLength(2);
-    expect(manifest.content_scripts[0].matches).toEqual([
-      'https://x.com/*',
-      'https://twitter.com/*',
-    ]);
-    expect(manifest.content_scripts[1].world).toBe('MAIN');
-  });
-});
-
-describe('x-zh-en control', () => {
-  it('does not set visible 翻译 text on the injected control', () => {
-    const src = readFileSync(resolve(extRoot, 'x-zh-en/content.js'), 'utf8');
-    expect(src).not.toMatch(/textContent\s*=\s*["']翻译/);
-    expect(src).toContain('aria-label');
-    expect(src).toContain('createIcon');
+    expect(manifest.content_scripts).toBeUndefined();
+    expect(manifest.description).toBe('Save the current tab to Lulu Spark Read Later.');
+    expect(manifest.description).not.toMatch(/translat/i);
   });
 });
