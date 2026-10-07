@@ -2,7 +2,10 @@ import { createRoot } from 'react-dom/client';
 import { flushSync } from 'react-dom';
 import { version } from 'react';
 import { App } from './App.tsx';
+import { bootTheme } from './theme.ts';
 import './markdown.ts';
+
+bootTheme();
 
 const host = document.getElementById('root');
 if (!host) {
