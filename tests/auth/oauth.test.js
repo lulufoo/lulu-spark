@@ -28,6 +28,8 @@ vi.mock('@supabase/supabase-js', () => ({
   createClient: (...args) => createClient(...args),
 }));
 
+import * as appLog from '../../frontend/src/host/app-log.ts';
+
 const {
   startAuthLogin,
   completeAuthLogin,
@@ -84,6 +86,7 @@ function seedInvoke(session = null) {
     if (cmd === 'get_auth_session') return session;
     if (cmd === 'set_auth_session') return null;
     if (cmd === 'delete_auth_session') return null;
+    if (cmd === 'log_app_event') return null;
     throw new Error(`unexpected invoke ${cmd}`);
   });
   const openUrl = vi.fn().mockResolvedValue(undefined);
@@ -104,6 +107,7 @@ beforeEach(async () => {
   installLocalStorageMock();
   const { authUserStore } = await import('../../frontend/src/auth/state/user.ts');
   authUserStore.set(null);
+  vi.spyOn(appLog, 'logAppEvent').mockImplementation(() => {});
 });
 
 afterEach(() => {
@@ -122,18 +126,45 @@ describe('startAuthLogin', () => {
 
       await startAuthLogin(provider);
 
+      const { extractPassIdFromScheme } = await import('../../frontend/src/auth/pass.ts');
+      const redirectTo = signInWithOAuth.mock.calls[0][0].options.redirectTo;
+      const id = extractPassIdFromScheme(redirectTo);
       expect(signInWithOAuth).toHaveBeenCalledWith({
         provider,
         options: expect.objectContaining({
           skipBrowserRedirect: true,
-          redirectTo: CALLBACK,
+          redirectTo,
         }),
       });
+      expect(redirectTo.startsWith(`${CALLBACK}?pass=`)).toBe(true);
       expect(openUrl).toHaveBeenCalledWith(url);
+      expect(id).toMatch(/^trace_[0-9a-f]{12}$/);
+      expect(appLog.logAppEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          business: 'login',
+          event: 'auth.start',
+          traceId: id,
+          params: expect.objectContaining({ provider }),
+        }),
+      );
       expect(linkIdentity).not.toHaveBeenCalled();
       expect(invoke).not.toHaveBeenCalledWith('set_auth_session', expect.anything());
     },
   );
+
+  it('writes open_fail when the system browser cannot open', async () => {
+    signInWithOAuth.mockResolvedValue({ data: { url: GOOGLE_URL }, error: null });
+    const { openUrl } = seedInvoke(null);
+    openUrl.mockRejectedValue(new Error('no browser'));
+    await expect(startAuthLogin('google')).rejects.toThrow('no browser');
+    expect(appLog.logAppEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        business: 'login',
+        event: 'auth.start',
+        params: expect.objectContaining({ provider: 'google', outcome: 'open_fail' }),
+      }),
+    );
+  });
 });
 
 describe('completeAuthLogin', () => {
@@ -157,7 +188,7 @@ describe('completeAuthLogin', () => {
       error: null,
     });
 
-    await expect(completeAuthLogin(`${CALLBACK}?code=abc`)).resolves.toBe(true);
+    await expect(completeAuthLogin(`${CALLBACK}?code=abc`)).resolves.toBe('ok');
     expect(exchangeCodeForSession).toHaveBeenCalledWith('abc');
     expect(setSession).not.toHaveBeenCalled();
     expect(invoke).toHaveBeenCalledWith(
@@ -207,7 +238,7 @@ describe('completeAuthLogin', () => {
     const hashUrl =
       `${CALLBACK}#access_token=access-aaa&refresh_token=refresh-bbb` +
       `&expires_at=1800000000&provider_token=must-not-persist`;
-    await expect(completeAuthLogin(hashUrl)).resolves.toBe(true);
+    await expect(completeAuthLogin(hashUrl)).resolves.toBe('ok');
     expect(exchangeCodeForSession).not.toHaveBeenCalled();
     expect(setSession).toHaveBeenCalledWith({
       access_token: 'access-aaa',
@@ -254,7 +285,7 @@ describe('completeAuthLogin', () => {
       error: null,
     });
 
-    await expect(completeAuthLogin(`${CALLBACK}?code=from-github`)).resolves.toBe(true);
+    await expect(completeAuthLogin(`${CALLBACK}?code=from-github`)).resolves.toBe('ok');
     expect(linkIdentity).not.toHaveBeenCalled();
     expect(invoke).toHaveBeenCalledWith(
       'set_auth_session',
@@ -270,14 +301,14 @@ describe('completeAuthLogin', () => {
   });
 
   it.each([
-    [`${CALLBACK}?error=access_denied`, 'error'],
-    [CALLBACK, 'no code'],
-    [`${CALLBACK}?error=access_denied&code=abc`, 'error wins'],
-    [`${CALLBACK}#error=access_denied&access_token=access-aaa&refresh_token=refresh-bbb`, 'hash error'],
-    [`${CALLBACK}#access_token=access-aaa`, 'hash access only'],
-  ])('returns false and writes nothing for %s', async (url) => {
+    [`${CALLBACK}?error=access_denied`, 'fail'],
+    [CALLBACK, 'no_token'],
+    [`${CALLBACK}?error=access_denied&code=abc`, 'fail'],
+    [`${CALLBACK}#error=access_denied&access_token=access-aaa&refresh_token=refresh-bbb`, 'fail'],
+    [`${CALLBACK}#access_token=access-aaa`, 'no_token'],
+  ])('returns %s and writes nothing for %s', async (url, outcome) => {
     const { invoke } = seedInvoke(null);
-    await expect(completeAuthLogin(url)).resolves.toBe(false);
+    await expect(completeAuthLogin(url)).resolves.toBe(outcome);
     expect(exchangeCodeForSession).not.toHaveBeenCalled();
     expect(setSession).not.toHaveBeenCalled();
     expect(invoke).not.toHaveBeenCalledWith('set_auth_session', expect.anything());
@@ -326,7 +357,10 @@ describe('oauth source contract', () => {
     const src = readRel('frontend/src/auth/oauth.ts');
     expect(src).toMatch(/signInWithOAuth/);
     expect(src).toMatch(/skipBrowserRedirect/);
-    expect(src).toContain(CALLBACK);
+    expect(src).toMatch(/AUTH_REDIRECT_TO|spark:\/\/auth-login\/callback/);
+    expect(src).toMatch(/redirectTo = `\$\{AUTH_REDIRECT_TO\}\?/);
+    expect(src).toMatch(/PASS_QUERY/);
+    expect(src).toMatch(/encodePassBag/);
     expect(src).not.toMatch(/linkIdentity/);
     expect(src).not.toMatch(/localStorage/);
     expect(src).not.toMatch(/@tauri-apps\//);

@@ -2,10 +2,12 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import * as appLog from '../../frontend/src/host/app-log.ts';
 import { state } from '../../frontend/src/host/state.ts';
 import { readLaterOpenStore } from '../../frontend/src/read-later/state/dialog-open.ts';
 import { parseHash } from '../../frontend/src/router/index.ts';
+import { rememberNotifyTrace } from '../../frontend/src/router/notify-trace.ts';
 import {
   composeSparkScheme,
   openSparkScheme,
@@ -271,6 +273,55 @@ describe('openSparkScheme', () => {
 });
 
 describe('auth-login callback completion', () => {
+  it('routes login without waiting, then writes exchange on the login business', async () => {
+    const id = 'trace_loginhop01';
+    const { encodePassBag, PASS_QUERY } = await import('../../frontend/src/auth/pass.ts');
+    const scheme = `spark://auth-login/callback?${PASS_QUERY}=${encodePassBag(id)}#access_token=secret`;
+    rememberNotifyTrace('trace_notifyyyyy');
+    const logSpy = vi.spyOn(appLog, 'logAppEvent').mockImplementation(() => {});
+    expect(openSparkScheme(scheme)).toBe(true);
+    expect(logSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        business: 'login',
+        event: 'route.to_business',
+        traceId: id,
+        params: expect.objectContaining({ outcome: 'ok', kind: 'auth-login-callback' }),
+      }),
+    );
+    await vi.waitFor(() => {
+      expect(logSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          business: 'login',
+          event: 'auth.exchange',
+          traceId: id,
+        }),
+      );
+    });
+    expect(
+      logSpy.mock.calls.some(
+        ([input]) => input.business === 'os-notify' && input.event === 'route.to_business',
+      ),
+    ).toBe(false);
+    expect(logSpy.mock.calls.some(([input]) => input.traceId === 'trace_notifyyyyy')).toBe(
+      false,
+    );
+    expect(JSON.stringify(logSpy.mock.calls)).not.toContain('secret');
+    logSpy.mockRestore();
+  });
+
+  it('writes login parse_fail for an auth-login path it does not recognize', () => {
+    const logSpy = vi.spyOn(appLog, 'logAppEvent').mockImplementation(() => {});
+    expect(openSparkScheme('spark://auth-login/open')).toBe(false);
+    expect(logSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        business: 'login',
+        event: 'route.to_business',
+        params: expect.objectContaining({ outcome: 'parse_fail' }),
+      }),
+    );
+    logSpy.mockRestore();
+  });
+
   it('hands auth-login-callback to completeAuthLogin without landing notes', () => {
     const src = readFileSync(join(repoRoot, 'frontend/src/router/scheme.ts'), 'utf8');
     expect(src).toMatch(/completeAuthLogin/);

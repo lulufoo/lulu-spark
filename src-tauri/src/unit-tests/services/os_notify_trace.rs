@@ -55,6 +55,7 @@ fn production_module_declares_tests_without_test_bodies() {
     assert!(prod.contains(NODE_CLICK_NATIVE));
     assert!(prod.contains(NODE_SCHEME_OPEN));
     assert!(prod.contains("app_log::log"));
+    assert!(prod.contains("login_hop::try_log_scheme_open"));
     assert!(!prod.contains("assistant-diagnostic"));
     assert!(!prod.contains("os-notify-trace.jsonl"));
 }

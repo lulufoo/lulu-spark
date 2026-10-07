@@ -1,4 +1,6 @@
+import { LOGIN_EVENT_EXCHANGE, LOGIN_EVENT_ROUTE, logLoginHop } from '../auth/hop.ts';
 import { completeAuthLogin } from '../auth/oauth.ts';
+import { extractPassIdFromScheme } from '../auth/pass.ts';
 import { state } from '../host/state.ts';
 import { openReadLaterDialog } from '../read-later/commands/dialog.ts';
 import { navigateToNote } from './index.ts';
@@ -106,27 +108,60 @@ export function resolveNotesLanding(id: string, path: string): NotesLanding | nu
   return { date: created.slice(0, 8), note };
 }
 
+function loginTraceId(scheme: string): string | null {
+  return extractPassIdFromScheme(scheme);
+}
+
+function isAuthLoginScheme(scheme: string): boolean {
+  try {
+    const parsed = new URL(scheme);
+    return parsed.protocol === 'spark:' && parsed.hostname === 'auth-login';
+  } catch {
+    return false;
+  }
+}
+
 export function openSparkScheme(scheme: string): boolean {
-  const trace = extractTraceFromScheme(scheme);
   const parsed = parseSparkScheme(scheme);
   if (!parsed) {
-    logNotifyHop('route.to_business', trace, { outcome: 'parse_fail', scheme });
+    if (isAuthLoginScheme(scheme)) {
+      logLoginHop(LOGIN_EVENT_ROUTE, loginTraceId(scheme), {
+        outcome: 'parse_fail',
+        kind: 'auth-login-callback',
+      });
+      return false;
+    }
+    logNotifyHop('route.to_business', extractTraceFromScheme(scheme), {
+      outcome: 'parse_fail',
+      scheme,
+    });
     return false;
   }
 
   if (parsed.kind === 'read-later-list') {
     openReadLaterDialog();
-    logNotifyHop('route.to_business', trace, { outcome: 'ok', kind: 'read-later-list' });
+    logNotifyHop('route.to_business', extractTraceFromScheme(scheme), {
+      outcome: 'ok',
+      kind: 'read-later-list',
+    });
     return true;
   }
 
   if (parsed.kind === 'auth-login-callback') {
-    void completeAuthLogin(scheme);
-    logNotifyHop('route.to_business', trace, { outcome: 'ok', kind: 'auth-login-callback' });
+    const id = loginTraceId(scheme);
+    logLoginHop(LOGIN_EVENT_ROUTE, id, { outcome: 'ok', kind: 'auth-login-callback' });
+    void completeAuthLogin(scheme)
+      .then((outcome) => {
+        logLoginHop(LOGIN_EVENT_EXCHANGE, id, { outcome });
+      })
+      .catch(() => {
+        logLoginHop(LOGIN_EVENT_EXCHANGE, id, { outcome: 'fail' });
+      });
     return true;
   }
 
   const landing = resolveNotesLanding(parsed.id, parsed.path);
+  const trace = extractTraceFromScheme(scheme);
   if (!landing) {
     logNotifyHop('route.to_business', trace, {
       outcome: 'landing_miss',

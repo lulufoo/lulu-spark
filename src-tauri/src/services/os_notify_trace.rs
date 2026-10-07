@@ -79,6 +79,9 @@ pub fn log_hop_extra(
 }
 
 pub fn log_scheme_open(scheme: &str) {
+    if crate::services::login_hop::try_log_scheme_open(scheme) {
+        return;
+    }
     let trace = trace_from_scheme(scheme).unwrap_or("trace_missing");
     log_hop_extra(
         NODE_SCHEME_OPEN,

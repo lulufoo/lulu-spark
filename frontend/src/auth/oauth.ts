@@ -1,9 +1,14 @@
+import { LOGIN_EVENT_START, logLoginHop } from './hop.ts';
+import { encodePassBag, newLoginTraceId, PASS_QUERY } from './pass.ts';
 import { authUserStore } from './state/user.ts';
 import {
+  AUTH_REDIRECT_TO,
   getSparkAuthClient,
   toVaultSession,
   type VaultAuthSession,
 } from './session-store.ts';
+
+export type AuthExchangeOutcome = 'ok' | 'fail' | 'no_token';
 
 export type AuthUserView = {
   user_id: string;
@@ -38,21 +43,31 @@ function toUserView(session: VaultAuthSession): AuthUserView {
 }
 
 export async function startAuthLogin(provider: 'google' | 'github'): Promise<void> {
+  const id = newLoginTraceId();
+  const redirectTo = `${AUTH_REDIRECT_TO}?${PASS_QUERY}=${encodePassBag(id)}`;
+  logLoginHop(LOGIN_EVENT_START, id, { provider });
   const { data, error } = await getSparkAuthClient().auth.signInWithOAuth({
     provider,
     options: {
       skipBrowserRedirect: true,
-      redirectTo: 'spark://auth-login/callback',
+      redirectTo,
     },
   });
   if (error || !data.url) {
+    logLoginHop(LOGIN_EVENT_START, id, { provider, outcome: 'open_fail' });
     throw error ?? new Error('signInWithOAuth returned no url');
   }
   const openUrl = getTauriOpener();
   if (!openUrl) {
+    logLoginHop(LOGIN_EVENT_START, id, { provider, outcome: 'open_fail' });
     throw new Error('Tauri opener unavailable');
   }
-  await openUrl(data.url);
+  try {
+    await openUrl(data.url);
+  } catch (err) {
+    logLoginHop(LOGIN_EVENT_START, id, { provider, outcome: 'open_fail' });
+    throw err;
+  }
 }
 
 function parseAuthCallbackUrl(url: string): URL | null {
@@ -100,25 +115,25 @@ async function persistVaultSession(raw: unknown): Promise<boolean> {
   return true;
 }
 
-export async function completeAuthLogin(url: string): Promise<boolean> {
+export async function completeAuthLogin(url: string): Promise<AuthExchangeOutcome> {
   const parsed = parseAuthCallbackUrl(url);
-  if (!parsed || callbackError(parsed)) return false;
+  if (!parsed || callbackError(parsed)) return 'fail';
   const invoke = getTauriInvoke();
-  if (!invoke) return false;
+  if (!invoke) return 'fail';
   try {
     const code = callbackCode(parsed);
     if (code) {
       const { data, error } = await getSparkAuthClient().auth.exchangeCodeForSession(code);
-      if (error) return false;
-      return persistVaultSession(data?.session);
+      if (error) return 'fail';
+      return (await persistVaultSession(data?.session)) ? 'ok' : 'fail';
     }
     const tokens = callbackTokens(parsed);
-    if (!tokens) return false;
+    if (!tokens) return 'no_token';
     const { data, error } = await getSparkAuthClient().auth.setSession(tokens);
-    if (error) return false;
-    return persistVaultSession(data?.session);
+    if (error) return 'fail';
+    return (await persistVaultSession(data?.session)) ? 'ok' : 'fail';
   } catch {
-    return false;
+    return 'fail';
   }
 }
 
