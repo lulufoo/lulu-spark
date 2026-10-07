@@ -265,6 +265,9 @@ pub fn run() {
                     for url in urls {
                         crate::services::os_notify_trace::log_scheme_open(url.as_str());
                         crate::commands::auth_session::emit_opened_scheme(app_handle, url.as_str());
+                        if crate::services::login_hop::is_auth_login_scheme(url.as_str()) {
+                            crate::host::present_main_window(app_handle);
+                        }
                     }
                 }
                 tauri::RunEvent::Exit => {

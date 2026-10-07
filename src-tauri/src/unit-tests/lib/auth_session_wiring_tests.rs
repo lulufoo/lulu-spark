@@ -111,6 +111,10 @@ fn opened_run_event_forwards_scheme_to_frontend_without_exchanging_session() {
         arm.contains("emit_opened_scheme"),
         "RunEvent::Opened must call emit_opened_scheme"
     );
+    assert!(
+        arm.contains("is_auth_login_scheme") && arm.contains("present_main_window"),
+        "auth-login Opened must present the main window: {arm}"
+    );
     for forbidden in [
         "set_auth_session",
         "delete_auth_session",

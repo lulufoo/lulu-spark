@@ -76,3 +76,16 @@ pub(crate) fn create_main_window(app: &tauri::App) -> Result<(), Box<dyn std::er
     });
     Ok(())
 }
+
+pub(crate) fn present_main_window(app: &tauri::AppHandle) {
+    use tauri::Manager;
+    if let Some(win) = app.get_webview_window("main") {
+        let _ = win.unminimize();
+        let _ = win.show();
+        let _ = win.set_focus();
+    }
+}
+
+#[cfg(test)]
+#[path = "../unit-tests/host/window.rs"]
+mod tests;

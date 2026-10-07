@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lulu Spark</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='2' y='2' width='28' height='28' rx='8' fill='%231d1d1f'/%3E%3Cpath d='M8 8h7v9h9v7H8z' fill='%23f5f5f7'/%3E%3Crect x='18' y='8' width='6' height='6' rx='1.5' fill='%230071e3'/%3E%3C/svg%3E">
+<style>
+:root {
+  --ink: #0a0a0a;
+  --muted: #5c6370;
+  --faint: #8b929c;
+  --line: rgba(10, 10, 10, 0.08);
+  --accent: #0071e3;
+  --paper: #f7f8fc;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { min-height: 100%; }
+body {
+  display: flex;
+  flex-direction: column;
+  background: var(--paper);
+  color: var(--ink);
+  font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+.sky {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(70% 46% at 78% 8%, rgba(0, 113, 227, 0.38), transparent 68%),
+    radial-gradient(42% 34% at 92% 36%, rgba(255, 176, 214, 0.28), transparent 70%),
+    radial-gradient(50% 38% at 8% 92%, rgba(142, 197, 255, 0.32), transparent 68%);
+}
+.wrap {
+  position: relative;
+  z-index: 1;
+  width: min(1080px, calc(100% - 56px));
+  margin: 0 auto;
+}
+.top {
+  border-bottom: 1px solid var(--line);
+  background: rgba(247, 248, 252, 0.72);
+  backdrop-filter: saturate(1.2) blur(16px);
+}
+.top-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 68px;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.mark { width: 28px; height: 28px; }
+.wordmark { font-size: 15px; font-weight: 600; letter-spacing: -0.02em; }
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.chip i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #1a7f37;
+  box-shadow: 0 0 0 3px rgba(26, 127, 55, 0.14);
+}
+.hero { padding: 88px 0 72px; }
+.kicker {
+  margin-bottom: 18px;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+h1 {
+  max-width: 12ch;
+  margin-bottom: 18px;
+  font-size: clamp(40px, 6vw, 72px);
+  font-weight: 600;
+  letter-spacing: -0.045em;
+  line-height: 1.02;
+}
+.lead {
+  max-width: 28em;
+  margin-bottom: 36px;
+  color: var(--muted);
+  font-size: 19px;
+  line-height: 1.45;
+}
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: 16px 22px; }
+.go {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 20px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 500;
+  text-decoration: none;
+}
+.go:hover { background: #1d1d1f; }
+.hint { color: var(--faint); font-size: 14px; }
+.steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 40px 32px;
+  padding: 36px 0 88px;
+  border-top: 1px solid var(--line);
+}
+.steps h2 {
+  margin: 0 0 10px;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.steps p { color: var(--muted); font-size: 14px; line-height: 1.55; }
+.idx {
+  display: block;
+  margin-bottom: 14px;
+  color: var(--faint);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+.foot {
+  margin-top: auto;
+  border-top: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.45);
+}
+.foot-inner {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 22px 0 28px;
+  color: var(--faint);
+  font-size: 13px;
+}
+@media (max-width: 720px) {
+  .steps { grid-template-columns: 1fr; padding-bottom: 56px; }
+  .hero { padding-top: 56px; }
+  h1 { max-width: none; }
+}
+</style>
+</head>
+<body>
+<div class="sky" aria-hidden="true"></div>
+<header class="top">
+<div class="wrap top-inner">
+<div class="brand">
+<svg class="mark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" aria-hidden="true">
+<rect x="2" y="2" width="28" height="28" rx="8" fill="#1d1d1f"/>
+<path d="M8 8h7v9h9v7H8z" fill="#f5f5f7"/>
+<rect x="18" y="8" width="6" height="6" rx="1.5" fill="#0071e3"/>
+</svg>
+<p class="wordmark">Lulu Spark</p>
+</div>
+<p class="chip"><i></i>Signed in</p>
+</div>
+</header>
+<main>
+<div class="wrap hero">
+<p class="kicker">Desktop sign-in</p>
+<h1>Authorization successful</h1>
+<p class="lead">Opening Lulu Spark. You can close this page afterwards.</p>
+<div class="actions">
+<a class="go" id="go" href="spark://auth-login/callback">Open Lulu Spark</a>
+<p class="hint" id="hint">If the app does not open, use the button above.</p>
+</div>
+</div>
+<section class="wrap steps">
+<div>
+<span class="idx">01</span>
+<h2>Authorize</h2>
+<p>Your account is confirmed. Spark can now open with this session.</p>
+</div>
+<div>
+<span class="idx">02</span>
+<h2>Open the app</h2>
+<p>We send you to the desktop app. Use the button if it stays here.</p>
+</div>
+<div>
+<span class="idx">03</span>
+<h2>Continue</h2>
+<p>Work continues in Lulu Spark. You can leave this tab when the app is open.</p>
+</div>
+</section>
+</main>
+<footer class="foot">
+<div class="wrap foot-inner">
+<span>Lulu Spark</span>
+<span>Local landing</span>
+</div>
+</footer>
+<script>
+(function () {
+  var scheme = "spark://auth-login/callback" + location.search + location.hash;
+  var go = document.getElementById("go");
+  var hint = document.getElementById("hint");
+  go.setAttribute("href", scheme);
+  var frame = document.createElement("iframe");
+  frame.hidden = true;
+  frame.src = scheme;
+  document.body.appendChild(frame);
+  setTimeout(function () {
+    window.close();
+    hint.textContent = "Tried to open Lulu Spark. You can close this page.";
+  }, 400);
+})();
+</script>
+</body>
+</html>

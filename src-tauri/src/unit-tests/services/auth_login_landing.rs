@@ -30,6 +30,25 @@ fn auth_login_landing_html_empty_search_and_hash_still_opens_scheme() {
 }
 
 #[test]
+fn auth_login_landing_html_shows_intro_success_and_close_hint() {
+    let html = auth_login_landing_html();
+    assert!(html.contains("Lulu Spark"), "{html}");
+    assert!(html.contains("Authorization successful"), "{html}");
+    assert!(html.contains("Open Lulu Spark"), "{html}");
+    assert!(html.contains("close this page"), "{html}");
+    assert!(!html.contains("个人知识档案与桌面助手"), "{html}");
+    assert!(html.contains("window.close"), "{html}");
+    assert!(
+        html.contains("rel=\"icon\"") && html.contains("viewBox='0 0 32 32'"),
+        "tab must use the L mark as favicon: {html}"
+    );
+    assert!(
+        html.contains("iframe") && html.contains("frame.src = scheme"),
+        "keep the visible page; open scheme without replacing it: {html}"
+    );
+}
+
+#[test]
 fn production_module_declares_tests_and_does_not_bind_http() {
     let prod = include_str!("../../services/auth_login_landing.rs");
     assert!(
