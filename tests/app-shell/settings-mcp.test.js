@@ -31,6 +31,19 @@ const HEALTH_MCP = `http://127.0.0.1:${MCP_PORT}/mcp/<scene_slot>`;
 const CURSOR_URL = HEALTH_MCP.replace('<scene_slot>', 'cursor');
 const LIVE_HANDLE = 'ticket-live-reuse';
 const ROTATED_HANDLE = 'ticket-after-rotate';
+const CURSOR_ENV = 'LULU_SPARK_CURSOR_MCP_AB12';
+const CURSOR_ENV_ROTATED = 'LULU_SPARK_CURSOR_MCP_CD34';
+const CODEX_ENV = 'LULU_SPARK_CODEX_MCP_AB12';
+const CLAUDE_ENV = 'LULU_SPARK_CLAUDE_MCP_AB12';
+
+function ideEnvVar(channel, rotated = false) {
+  const bases = {
+    cursor: 'LULU_SPARK_CURSOR_MCP',
+    codex: 'LULU_SPARK_CODEX_MCP',
+    claude: 'LULU_SPARK_CLAUDE_MCP',
+  };
+  return `${bases[channel] || bases.cursor}_${rotated ? 'CD34' : 'AB12'}`;
+}
 const TOOLS_SNAPSHOT = {
   channels: ['spark', 'cursor', 'codex', 'claude', 'mobile'],
   groups: [
@@ -250,7 +263,12 @@ describe('Settings MCP panel actions', () => {
       if (cmd === 'revoke_mcp_device_ticket' || cmd === 'revoke_mcp_slot_ticket') {
         return { ok: true };
       }
-      return { handle: LIVE_HANDLE };
+      const channel = args?.channel || 'cursor';
+      const rotating = cmd === 'rotate_cursor_ide_ticket';
+      return {
+        handle: rotating ? ROTATED_HANDLE : LIVE_HANDLE,
+        env_var: ideEnvVar(channel, rotating),
+      };
     });
     await import('../../frontend/src/app-shell/commands/settings/dialog.ts');
   });
@@ -267,28 +285,32 @@ describe('Settings MCP panel actions', () => {
     expect(primary.dataset.mcpTicketAction).toBe('generate');
     expect(document.getElementById('btn-settings-mcp-copy').disabled).toBe(true);
 
-    api.invoke.mockResolvedValueOnce({ handle: LIVE_HANDLE });
+    api.invoke.mockResolvedValueOnce({ handle: LIVE_HANDLE, env_var: CURSOR_ENV });
     await clickId('btn-settings-mcp-primary');
     expect(invokedNames()).toEqual(['issue_cursor_ide_ticket']);
+    expect(api.invoke).toHaveBeenCalledWith('issue_cursor_ide_ticket', { channel: 'cursor' });
     expect(invokedNames()).not.toContain('rotate_cursor_ide_ticket');
     expect(primary.textContent).toBe('Refresh');
     expect(primary.dataset.mcpTicketAction).toBe('refresh');
     expect(document.getElementById('btn-settings-mcp-copy').disabled).toBe(false);
 
     api.invoke.mockClear();
-    api.invoke.mockResolvedValueOnce({ handle: ROTATED_HANDLE });
+    api.invoke.mockResolvedValueOnce({ handle: ROTATED_HANDLE, env_var: CURSOR_ENV_ROTATED });
     await clickId('btn-settings-mcp-primary');
     expect(invokedNames()).toEqual(['rotate_cursor_ide_ticket']);
+    expect(api.invoke).toHaveBeenCalledWith('rotate_cursor_ide_ticket', { channel: 'cursor' });
     expect(parseServerBlock(serverBlockText()).headers.Authorization).toBe(
-      `Bearer ${ROTATED_HANDLE}`,
+      `Bearer \${env:${CURSOR_ENV_ROTATED}}`,
     );
+    expect(serverBlockText()).not.toContain(CURSOR_ENV);
+    expect(serverBlockText()).not.toContain(ROTATED_HANDLE);
   });
 
   it('live cursor view paints Refresh and primary then rotates', async () => {
     const fallback = api.invoke.getMockImplementation();
     api.invoke.mockImplementation(async (cmd, args) => {
       if (cmd === 'get_mcp_ticket_view' && (args?.channel || 'cursor') === 'cursor') {
-        return { channel: 'cursor', state: 'live', handle: LIVE_HANDLE };
+        return { channel: 'cursor', state: 'live', handle: LIVE_HANDLE, env_var: CURSOR_ENV };
       }
       return fallback(cmd, args);
     });
@@ -297,11 +319,12 @@ describe('Settings MCP panel actions', () => {
     expect(primary.textContent).toBe('Refresh');
     expect(document.getElementById('btn-settings-mcp-copy').disabled).toBe(false);
     expect(parseServerBlock(serverBlockText()).headers.Authorization).toBe(
-      `Bearer ${LIVE_HANDLE}`,
+      `Bearer \${env:${CURSOR_ENV}}`,
     );
+    expect(serverBlockText()).not.toContain(LIVE_HANDLE);
 
     api.invoke.mockClear();
-    api.invoke.mockResolvedValueOnce({ handle: ROTATED_HANDLE });
+    api.invoke.mockResolvedValueOnce({ handle: ROTATED_HANDLE, env_var: CURSOR_ENV_ROTATED });
     await clickId('btn-settings-mcp-primary');
     expect(invokedNames()).toEqual(['rotate_cursor_ide_ticket']);
   });
@@ -313,7 +336,8 @@ describe('Settings MCP panel actions', () => {
     const displayed = parseServerBlock(serverBlockText());
     expect(displayed.url).toBe(CURSOR_URL);
     expect(displayed.url).toBe(`http://127.0.0.1:${MCP_PORT}/mcp/cursor`);
-    expect(displayed.headers.Authorization).toBe(`Bearer ${LIVE_HANDLE}`);
+    expect(displayed.headers.Authorization).toBe(`Bearer \${env:${CURSOR_ENV}}`);
+    expect(serverBlockText()).not.toContain(LIVE_HANDLE);
 
     expect(writeText).toHaveBeenCalled();
     const copied = parseServerBlock(writeText.mock.calls[0][0]);
@@ -329,12 +353,15 @@ describe('Settings MCP panel actions', () => {
       expect(api.invoke).toHaveBeenCalledWith('get_mcp_ticket_view', { channel: 'codex' }),
     );
     api.invoke.mockClear();
-    api.invoke.mockResolvedValueOnce({ handle: LIVE_HANDLE });
+    api.invoke.mockResolvedValueOnce({ handle: LIVE_HANDLE, env_var: CODEX_ENV });
     await clickId('btn-settings-mcp-primary');
+    expect(api.invoke).toHaveBeenCalledWith('issue_cursor_ide_ticket', { channel: 'codex' });
     const toml = serverBlockText();
     expect(toml).toContain('[mcp_servers.lulu-spark]');
     expect(toml).toContain(`url = "http://127.0.0.1:${MCP_PORT}/mcp/codex"`);
-    expect(toml).toContain(`Authorization = "Bearer ${LIVE_HANDLE}"`);
+    expect(toml).toContain(`bearer_token_env_var = "${CODEX_ENV}"`);
+    expect(toml).not.toMatch(/bearer_token\s*=/);
+    expect(toml).not.toContain(LIVE_HANDLE);
 
     select.value = 'claude';
     select.dispatchEvent(new Event('change'));
@@ -342,7 +369,7 @@ describe('Settings MCP panel actions', () => {
       expect(api.invoke).toHaveBeenCalledWith('get_mcp_ticket_view', { channel: 'claude' }),
     );
     api.invoke.mockClear();
-    api.invoke.mockResolvedValueOnce({ handle: LIVE_HANDLE });
+    api.invoke.mockResolvedValueOnce({ handle: LIVE_HANDLE, env_var: CLAUDE_ENV });
     await clickId('btn-settings-mcp-primary');
     const claude = JSON.parse(serverBlockText());
     expect(claude).toEqual({
@@ -350,10 +377,11 @@ describe('Settings MCP panel actions', () => {
         'lulu-spark': {
           type: 'http',
           url: `http://127.0.0.1:${MCP_PORT}/mcp/claude`,
-          headers: { Authorization: `Bearer ${LIVE_HANDLE}` },
+          headers: { Authorization: `Bearer \${${CLAUDE_ENV}}` },
         },
       },
     });
+    expect(serverBlockText()).not.toContain(LIVE_HANDLE);
   });
 
   it('Copy pastes the live block without issuing or rotating', async () => {
@@ -365,7 +393,7 @@ describe('Settings MCP panel actions', () => {
     await vi.waitFor(() => expect(writeText).toHaveBeenCalled());
     expect(invokedNames()).toEqual([]);
     expect(parseServerBlock(writeText.mock.calls[0][0]).headers.Authorization).toBe(
-      `Bearer ${LIVE_HANDLE}`,
+      `Bearer \${env:${CURSOR_ENV}}`,
     );
   });
 
@@ -420,7 +448,7 @@ describe('Settings MCP panel actions', () => {
     await openMcpPanel();
     await clickId('btn-settings-mcp-primary');
     api.invoke.mockClear();
-    api.invoke.mockResolvedValueOnce({ handle: ROTATED_HANDLE });
+    api.invoke.mockResolvedValueOnce({ handle: ROTATED_HANDLE, env_var: CURSOR_ENV_ROTATED });
     await clickId('btn-settings-mcp-primary');
     api.invoke.mockClear();
     document.getElementById('settings-mcp-ticket-channel').value = 'spark';
@@ -441,6 +469,9 @@ describe('Settings MCP panel actions', () => {
       ].includes(cmd),
     )).toBe(true);
     expect(settingsDialogSrc).not.toMatch(/writeFile|createWriteStream/);
+    expect(settingsDialogSrc).not.toMatch(
+      /homeDir|writeTextFile|~\.cursor\/mcp\.json|~\.claude\.json|~\.codex\/config\.toml/,
+    );
     expect(resultText()).not.toMatch(/wrote|written|saved.*mcp\.json/i);
   });
 
@@ -448,8 +479,9 @@ describe('Settings MCP panel actions', () => {
     await openMcpPanel();
     await clickId('btn-settings-mcp-primary');
     const copied = writeText.mock.calls[0][0];
-    expect(copied).toContain(`Bearer ${LIVE_HANDLE}`);
+    expect(copied).toContain(`Bearer \${env:${CURSOR_ENV}}`);
     expect(copied).toContain('Authorization');
+    expect(copied).not.toContain(LIVE_HANDLE);
     expect(logSurfaces()).not.toContain(LIVE_HANDLE);
     expect(logSurfaces()).not.toMatch(/Bearer\s+\S+/);
   });
@@ -472,8 +504,9 @@ describe('Settings MCP panel actions', () => {
     await openMcpPanel();
     await clickId('btn-settings-mcp-primary');
     expect(parseServerBlock(serverBlockText()).headers.Authorization).toBe(
-      `Bearer ${LIVE_HANDLE}`,
+      `Bearer \${env:${CURSOR_ENV}}`,
     );
+    expect(serverBlockText()).not.toContain(LIVE_HANDLE);
     expect(resultText()).toMatch(/Clipboard copy was blocked/i);
     expect(resultText()).not.toMatch(/^Generate failed/i);
     expect(logSurfaces()).not.toContain(LIVE_HANDLE);
@@ -491,7 +524,7 @@ describe('Settings MCP panel actions', () => {
     expect(resultText()).not.toMatch(/mcp\.json/i);
 
     api.invoke.mockClear();
-    api.invoke.mockResolvedValueOnce({ handle: LIVE_HANDLE });
+    api.invoke.mockResolvedValueOnce({ handle: LIVE_HANDLE, env_var: CURSOR_ENV });
     await clickId('btn-settings-mcp-primary');
     expect(invokedNames()).toEqual(['issue_cursor_ide_ticket']);
 
@@ -501,7 +534,7 @@ describe('Settings MCP panel actions', () => {
     await vi.waitFor(() => expect(resultText()).toMatch(/Refresh failed/i));
     expect(invokedNames()).toEqual(['rotate_cursor_ide_ticket']);
     expect(parseServerBlock(serverBlockText()).headers.Authorization).toBe(
-      `Bearer ${LIVE_HANDLE}`,
+      `Bearer \${env:${CURSOR_ENV}}`,
     );
     expect(document.getElementById('btn-settings-mcp-primary').textContent).toBe('Refresh');
     expect(resultText()).not.toMatch(/wrote|written|saved/i);

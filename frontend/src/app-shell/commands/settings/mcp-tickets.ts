@@ -1,12 +1,16 @@
 import * as api from '../../../host/api.ts';
-import { setResult, store } from '../../state/settings/store.ts';
+import { setResult } from '../../state/settings/store.ts';
 import { errMessage } from '../../state/types.ts';
+import { formatIdeServerBlock, ideServerUrl } from './mcp-server-block.ts';
+
+export { formatCursorIdeServerBlock, formatIdeServerBlock, ideServerUrl } from './mcp-server-block.ts';
 
 type TicketView = {
   channel?: string;
   state?: string;
   hint?: string;
   handle?: string;
+  env_var?: string;
   devices?: Array<{
     device_id?: string;
     device_label?: string;
@@ -26,51 +30,8 @@ function isIdeChannel(channel: string) {
   return IDE_CHANNELS.includes(channel as (typeof IDE_CHANNELS)[number]);
 }
 
-export function ideServerUrl(channel: string) {
-  const path = isIdeChannel(channel) ? channel : 'cursor';
-  return `http://127.0.0.1:${store.mcpPort}/mcp/${path}`;
-}
-
-export function formatIdeServerBlock(channel: string, handle: string) {
-  const url = ideServerUrl(channel);
-  if (channel === 'codex') {
-    return [
-      '[mcp_servers.lulu-spark]',
-      `url = "${url}"`,
-      `http_headers = { Authorization = "Bearer ${handle}" }`,
-    ].join('\n');
-  }
-  if (channel === 'claude') {
-    return JSON.stringify(
-      {
-        mcpServers: {
-          'lulu-spark': {
-            type: 'http',
-            url,
-            headers: { Authorization: `Bearer ${handle}` },
-          },
-        },
-      },
-      null,
-      2,
-    );
-  }
-  return JSON.stringify(
-    {
-      url,
-      headers: { Authorization: `Bearer ${handle}` },
-    },
-    null,
-    2,
-  );
-}
-
 export function cursorIdeServerUrl() {
   return ideServerUrl('cursor');
-}
-
-export function formatCursorIdeServerBlock(handle: string) {
-  return formatIdeServerBlock('cursor', handle);
 }
 
 export function setMcpServerBlock(text: string) {
@@ -187,9 +148,9 @@ function paintCursorPrimary() {
 }
 
 function paintCursor(view: TicketView) {
-  cursorLive = view.state === 'live' && Boolean(view.handle);
-  if (cursorLive && view.handle) {
-    setMcpServerBlock(formatIdeServerBlock(ticketChannel(), view.handle));
+  cursorLive = view.state === 'live' && Boolean(view.handle) && Boolean(view.env_var);
+  if (cursorLive && view.env_var) {
+    setMcpServerBlock(formatIdeServerBlock(ticketChannel(), view.env_var));
   } else {
     clearMcpServerBlock();
   }
@@ -212,10 +173,14 @@ export async function loadMcpTicketView() {
 async function issueOrRotateCursorIdeBlock(cmd: string, copiedMessage: string, failLabel: string) {
   setResult('settings-result-mcp', '');
   try {
-    const resp = (await api.invoke(cmd)) as { handle?: string };
+    const resp = (await api.invoke(cmd, { channel: ticketChannel() })) as {
+      handle?: string;
+      env_var?: string;
+    };
     const issued = resp?.handle;
-    if (!issued) throw new Error('Ticket command failed');
-    const text = formatIdeServerBlock(ticketChannel(), issued);
+    const envVar = resp?.env_var;
+    if (!issued || !envVar) throw new Error('Ticket command failed');
+    const text = formatIdeServerBlock(ticketChannel(), envVar);
     setMcpServerBlock(text);
     const copied = await copyServerBlock(text);
     cursorLive = true;
