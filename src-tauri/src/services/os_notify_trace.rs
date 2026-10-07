@@ -5,10 +5,8 @@
 use serde_json::{json, Map, Value};
 
 use crate::services::app_log::{self, Level, Side};
+use crate::services::login_hop::pass_id_from_scheme;
 
-pub const TRACE_QUERY: &str = "trace";
-pub const TRACE_PARAM: &str = "trace_id";
-pub const BUSINESS: &str = "os-notify";
 pub const NODE_MESSAGE_CENTER_RECEIVED: &str = "message_center.received";
 pub const NODE_NOTIFY_SEND: &str = "notify.send";
 pub const NODE_CLICK_NATIVE: &str = "click.native";
@@ -18,12 +16,25 @@ pub use crate::services::app_log::{new_trace_id, parse_trace_id};
 
 const QUERY_KEYS: &[&str] = &["id", "path", "trace", "date", "note", "layer"];
 const SCHEME_MAX: usize = 512;
+const MISSING_HOP_ID: &str = "trace_missing";
 
-pub fn trace_from_scheme(scheme: &str) -> Option<&str> {
-    scheme.split(['?', '&']).find_map(|part| {
-        let raw = part.strip_prefix("trace=")?;
-        parse_trace_id(raw)
-    })
+pub fn business_from_scheme_host(scheme: &str) -> &'static str {
+    if pass_id_from_scheme(scheme).is_none() {
+        return "app";
+    }
+    let Some(rest) = scheme.strip_prefix("spark://") else {
+        return "app";
+    };
+    match rest.split(['/', '?', '#']).next().unwrap_or("") {
+        "notes" => "notes",
+        "read-later" => "read_later",
+        "auth-login" => "login",
+        _ => "app",
+    }
+}
+
+fn hop_id_from_pass(scheme: &str) -> String {
+    pass_id_from_scheme(scheme).unwrap_or_else(|| MISSING_HOP_ID.into())
 }
 
 pub fn scheme_query_fields(scheme: &str) -> Map<String, Value> {
@@ -51,25 +62,26 @@ pub fn scheme_query_fields(scheme: &str) -> Map<String, Value> {
     map
 }
 
-pub fn log_hop(node: &str, trace_id: &str, outcome: &str) {
-    log_hop_extra(node, trace_id, outcome, None, Side::Host);
+pub fn log_hop(business: &str, node: &str, hop_id: &str, outcome: &str) {
+    log_hop_extra(business, node, hop_id, outcome, None, Side::Host);
 }
 
 pub fn log_hop_extra(
+    business: &str,
     node: &str,
-    trace_id: &str,
+    hop_id: &str,
     outcome: &str,
     extra: Option<Value>,
     side: Side,
 ) {
-    let id = parse_trace_id(trace_id).unwrap_or("trace_missing");
+    let id = parse_trace_id(hop_id).unwrap_or(MISSING_HOP_ID);
     let mut params = match extra {
         Some(Value::Object(fields)) => fields,
         _ => Map::new(),
     };
     params.insert("outcome".into(), json!(outcome));
     app_log::log(
-        BUSINESS,
+        business,
         node,
         Some(id),
         Some(Value::Object(params)),
@@ -79,13 +91,15 @@ pub fn log_hop_extra(
 }
 
 pub fn log_scheme_open(scheme: &str) {
-    if crate::services::login_hop::try_log_scheme_open(scheme) {
+    if pass_id_from_scheme(scheme).is_some()
+        && crate::services::login_hop::try_log_scheme_open(scheme)
+    {
         return;
     }
-    let trace = trace_from_scheme(scheme).unwrap_or("trace_missing");
     log_hop_extra(
+        business_from_scheme_host(scheme),
         NODE_SCHEME_OPEN,
-        trace,
+        &hop_id_from_pass(scheme),
         if scheme.is_empty() { "empty" } else { "ok" },
         Some(Value::Object(scheme_query_fields(scheme))),
         Side::Native,
@@ -101,8 +115,9 @@ pub fn log_click_native(scheme: &str, has_app: bool) {
         "ok"
     };
     log_hop_extra(
+        business_from_scheme_host(scheme),
         NODE_CLICK_NATIVE,
-        trace_from_scheme(scheme).unwrap_or("trace_missing"),
+        &hop_id_from_pass(scheme),
         outcome,
         Some(Value::Object(scheme_query_fields(scheme))),
         Side::Native,

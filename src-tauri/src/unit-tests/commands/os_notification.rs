@@ -148,6 +148,28 @@ fn first_authorized_call_requests_permission_and_delivers_user_info() {
 }
 
 #[test]
+fn authorized_send_accepts_notes_pass_scheme() {
+    let probed = AtomicBool::new(true);
+    let native = RecordingNative::new(true, true);
+    let id = "trace_12345678abcd";
+    let bag = urlencoding::encode(&format!(r#"{{"id":"{id}"}}"#)).into_owned();
+    let scheme = format!("spark://notes/open?id=n1&path=raw%2Fa.md&pass={bag}");
+    show_os_notification_with(&probed, &native, "New note", "A note was added", &scheme)
+        .expect("authorized pass scheme");
+    assert_eq!(native.deliver_calls.load(Ordering::SeqCst), 1);
+    let delivered = native
+        .last_deliver
+        .lock()
+        .expect("deliver lock")
+        .clone()
+        .expect("delivered");
+    assert_eq!(
+        delivered.2.get("scheme").and_then(|v| v.as_str()),
+        Some(scheme.as_str())
+    );
+}
+
+#[test]
 fn subsequent_call_only_reads_authorization_status() {
     let probed = AtomicBool::new(true);
     let native = RecordingNative::new(true, true);
@@ -280,7 +302,15 @@ fn command_is_thin_native_and_registered() {
     );
     assert!(
         cmd.contains("NODE_NOTIFY_SEND") && cmd.contains("log_hop"),
-        "deliver path must log notify.send with the scheme trace"
+        "deliver path must log notify.send"
+    );
+    assert!(
+        cmd.contains("pass_id_from_scheme") && cmd.contains("business_from_scheme_host"),
+        "deliver hop must take id from pass and business from host map"
+    );
+    assert!(
+        !cmd.contains("trace_from_scheme"),
+        "must not read hop id from trace query"
     );
     assert!(
         cmd.contains("log_click_native") && !cmd.contains("fn log_os_notify_hop"),

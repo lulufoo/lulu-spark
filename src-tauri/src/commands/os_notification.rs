@@ -7,8 +7,9 @@ use std::sync::Mutex;
 use serde_json::{json, Map, Value};
 use tauri::{AppHandle, Emitter};
 
+use crate::services::login_hop::pass_id_from_scheme;
 use crate::services::os_notify_trace::{
-    log_click_native, log_hop, trace_from_scheme, NODE_NOTIFY_SEND,
+    business_from_scheme_host, log_click_native, log_hop, NODE_NOTIFY_SEND,
 };
 
 pub const OS_NOTIFICATION_CLICKED_EVENT: &str = "os-notification:clicked";
@@ -66,7 +67,8 @@ pub fn show_os_notification_with(
     scheme: &str,
 ) -> Result<(), String> {
     validate_os_notification_scheme(scheme)?;
-    let trace = trace_from_scheme(scheme).unwrap_or("trace_missing");
+    let hop_id = pass_id_from_scheme(scheme).unwrap_or_else(|| "trace_missing".into());
+    let business = business_from_scheme_host(scheme);
     let first = !probed.swap(true, Ordering::SeqCst);
     let authorized = if first {
         native.request_authorization()?
@@ -74,16 +76,16 @@ pub fn show_os_notification_with(
         native.read_authorization_status()?
     };
     if !authorized {
-        log_hop(NODE_NOTIFY_SEND, trace, "unauthorized");
+        log_hop(business, NODE_NOTIFY_SEND, &hop_id, "unauthorized");
         return Err(UNAUTHORIZED.into());
     }
     match native.deliver_notification(title, body, &user_info_with_scheme(scheme)) {
         Ok(()) => {
-            log_hop(NODE_NOTIFY_SEND, trace, "ok");
+            log_hop(business, NODE_NOTIFY_SEND, &hop_id, "ok");
             Ok(())
         }
         Err(err) => {
-            log_hop(NODE_NOTIFY_SEND, trace, "deliver_fail");
+            log_hop(business, NODE_NOTIFY_SEND, &hop_id, "deliver_fail");
             Err(err)
         }
     }
