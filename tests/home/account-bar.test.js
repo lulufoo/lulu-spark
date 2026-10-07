@@ -122,6 +122,10 @@ describe('AccountBar', () => {
     render({ onLogin });
     expect(bars().length).toBe(1);
     expect(trigger()).not.toBeNull();
+    const guest = container.querySelector('[data-role="account-bar-avatar"]');
+    expect(guest).not.toBeNull();
+    expect(guest.getAttribute('data-placeholder')).toBe('true');
+    expect(container.querySelector('.home-account-bar-label').textContent).toBe('Sign in');
     expect(container.querySelector('[data-role="account-login-google"]')).toBeNull();
     expect(container.querySelector('[data-role="account-login-github"]')).toBeNull();
 

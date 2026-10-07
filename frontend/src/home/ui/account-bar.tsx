@@ -49,7 +49,7 @@ export function AccountBar({
         aria-label={signedIn ? label : 'Sign in'}
         onClick={() => setOpen((prev) => !prev)}
       >
-        {signedIn && user ? <SignedInAvatar user={user} /> : null}
+        {signedIn && user ? <SignedInAvatar user={user} /> : <GuestAvatar />}
         {signedIn ? (
           <span className="home-account-bar-name" data-role="account-bar-name">
             {label}
@@ -105,6 +105,25 @@ export function AccountBar({
         </>
       ) : null}
     </div>
+  );
+}
+
+function GuestAvatar() {
+  return (
+    <span
+      className="home-account-bar-avatar home-account-bar-avatar--guest"
+      data-role="account-bar-avatar"
+      data-placeholder="true"
+      aria-hidden="true"
+    >
+      <svg viewBox="0 0 20 20" width="12" height="12" aria-hidden="true">
+        <circle cx="10" cy="7.2" r="3.1" fill="currentColor" />
+        <path
+          d="M4.2 16.2c.9-3.1 2.8-4.4 5.8-4.4s4.9 1.3 5.8 4.4"
+          fill="currentColor"
+        />
+      </svg>
+    </span>
   );
 }
 
