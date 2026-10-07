@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { encodePassBag, PASS_QUERY } from '../../frontend/src/auth/pass.ts';
 import * as api from '../../frontend/src/host/api.ts';
 import * as scheme from '../../frontend/src/router/scheme.ts';
 import { handleReadLaterOsNotifyEnvelope } from '../../frontend/src/read-later/commands/os-notify.ts';
@@ -14,11 +15,13 @@ function readRel(rel) {
   return readFileSync(join(repoRoot, rel), 'utf8');
 }
 
+const HOP_ID = 'trace_12345678';
 const READ_LATER_CREATE = {
   business: 'read_later',
   action: 'create',
-  params: { id: 'e1' },
+  params: { id: HOP_ID, entry_id: 'e1' },
 };
+const READ_LATER_LIST = `spark://read-later/list?${PASS_QUERY}=${encodePassBag(HOP_ID)}`;
 
 describe('handleReadLaterOsNotifyEnvelope', () => {
   /** @type {import('vitest').MockInstance} */
@@ -50,7 +53,7 @@ describe('handleReadLaterOsNotifyEnvelope', () => {
     expect(notifySpy).toHaveBeenCalledWith({
       title: 'Read Later',
       body: 'A link was saved',
-      scheme: 'spark://read-later/list',
+      scheme: READ_LATER_LIST,
     });
   });
 

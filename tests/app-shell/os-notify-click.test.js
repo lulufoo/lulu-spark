@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { encodePassBag, PASS_QUERY } from '../../frontend/src/auth/pass.ts';
 import * as api from '../../frontend/src/host/api.ts';
 import { state } from '../../frontend/src/host/state.ts';
 import { readLaterOpenStore } from '../../frontend/src/read-later/state/dialog-open.ts';
@@ -17,8 +18,10 @@ const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const NOTE_ID = 'abc';
 const NOTE_PATH = 'inbox/x.md';
 const NOTE_DATE = '20260719';
-const NOTES_OPEN = `spark://notes/open?id=${NOTE_ID}&path=${encodeURIComponent(NOTE_PATH)}`;
-const READ_LATER_LIST = 'spark://read-later/list';
+const HOP_ID = 'trace_12345678';
+const PASS = encodePassBag(HOP_ID);
+const NOTES_OPEN = `spark://notes/open?id=${NOTE_ID}&path=${encodeURIComponent(NOTE_PATH)}&${PASS_QUERY}=${PASS}`;
+const READ_LATER_LIST = `spark://read-later/list?${PASS_QUERY}=${PASS}`;
 
 function readRel(rel) {
   return readFileSync(join(repoRoot, rel), 'utf8');

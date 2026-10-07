@@ -3,6 +3,12 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  decodePassBag,
+  encodePassBag,
+  extractPassIdFromScheme,
+  PASS_QUERY,
+} from '../../frontend/src/auth/pass.ts';
 import * as appLog from '../../frontend/src/host/app-log.ts';
 import { state } from '../../frontend/src/host/state.ts';
 import { readLaterOpenStore } from '../../frontend/src/read-later/state/dialog-open.ts';
@@ -19,7 +25,14 @@ const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const NOTE_ID = 'abc';
 const NOTE_PATH = 'inbox/x.md';
 const NOTE_DATE = '20260719';
-const NOTES_OPEN = `spark://notes/open?id=${NOTE_ID}&path=${encodeURIComponent(NOTE_PATH)}`;
+const HOP_ID = 'trace_12345678';
+const PASS = encodePassBag(HOP_ID);
+const NOTES_OPEN = `spark://notes/open?id=${NOTE_ID}&path=${encodeURIComponent(NOTE_PATH)}&${PASS_QUERY}=${PASS}`;
+const READ_LATER_LIST = `spark://read-later/list?${PASS_QUERY}=${PASS}`;
+const NOTES_OPEN_NO_PASS = `spark://notes/open?id=${NOTE_ID}&path=${encodeURIComponent(NOTE_PATH)}`;
+const NOTES_OPEN_TRACE_ONLY = `${NOTES_OPEN_NO_PASS}&trace=trace_12345678`;
+const NOTES_OPEN_BAD_PASS = `${NOTES_OPEN_NO_PASS}&${PASS_QUERY}=not-json`;
+const READ_LATER_TRACE_ONLY = 'spark://read-later/list?trace=trace_12345678';
 
 function collectBundleUrlSchemes(node, found = []) {
   if (Array.isArray(node)) {
@@ -47,6 +60,24 @@ function dialogEl() {
   return document.getElementById('read-later-dialog');
 }
 
+function notesEnvelope(action = 'create', params = {}) {
+  return {
+    business: 'notes',
+    action,
+    params: { id: HOP_ID, archive_id: NOTE_ID, common_path: NOTE_PATH, ...params },
+  };
+}
+
+function queryKeys(scheme) {
+  return [...new URL(scheme).searchParams.keys()];
+}
+
+function passBagKeys(scheme) {
+  const raw = new URL(scheme).searchParams.get(PASS_QUERY);
+  const parsed = JSON.parse(decodeURIComponent(raw ?? ''));
+  return Object.keys(parsed);
+}
+
 beforeEach(() => {
   window.location.hash = '#/home';
   document.body.innerHTML = '<div id="read-later-dialog"></div>';
@@ -62,52 +93,68 @@ afterEach(() => {
 });
 
 describe('composeSparkScheme', () => {
-  it('encodes notes create as notes/open with id and path, without a date', () => {
-    const scheme = composeSparkScheme({
-      business: 'notes',
-      action: 'create',
-      params: { id: NOTE_ID, common_path: NOTE_PATH },
-    });
+  it('encodes notes create as notes/open with id, path, and a pass bag from hop id', () => {
+    const scheme = composeSparkScheme(notesEnvelope('create'));
     expect(scheme).toBe(NOTES_OPEN);
+    expect(queryKeys(scheme)).toEqual(['id', 'path', 'pass']);
+    expect(scheme).not.toMatch(/trace=/);
+    expect(scheme).not.toMatch(/archive_id=/);
     expect(scheme).not.toMatch(/date=/);
     expect(scheme).not.toMatch(NOTE_DATE);
+    expect(extractPassIdFromScheme(scheme)).toBe(HOP_ID);
+    expect(passBagKeys(scheme)).toEqual(['id']);
+    expect(decodePassBag(new URL(scheme).searchParams.get(PASS_QUERY))).toBe(HOP_ID);
   });
 
   it('encodes notes update as the same notes/open form', () => {
-    expect(
-      composeSparkScheme({
-        business: 'notes',
-        action: 'update',
-        params: { id: NOTE_ID, common_path: NOTE_PATH },
-      }),
-    ).toBe(NOTES_OPEN);
+    expect(composeSparkScheme(notesEnvelope('update'))).toBe(NOTES_OPEN);
   });
 
-  it('encodes read_later create as the list scheme', () => {
-    expect(
-      composeSparkScheme({
-        business: 'read_later',
-        action: 'create',
-        params: { id: 'e1' },
-      }),
-    ).toBe('spark://read-later/list');
+  it('encodes read_later create as the list scheme with only a pass bag', () => {
+    const scheme = composeSparkScheme({
+      business: 'read_later',
+      action: 'create',
+      params: { id: HOP_ID, entry_id: 'e1' },
+    });
+    expect(scheme).toBe(READ_LATER_LIST);
+    expect(queryKeys(scheme)).toEqual(['pass']);
+    expect(scheme).not.toMatch(/trace=/);
+    expect(extractPassIdFromScheme(scheme)).toBe(HOP_ID);
+    expect(passBagKeys(scheme)).toEqual(['id']);
+  });
+
+  it('does not write a trace query when the envelope still carries trace_id', () => {
+    const notes = composeSparkScheme(notesEnvelope('create', { trace_id: 'trace_12345678' }));
+    expect(notes).toBe(NOTES_OPEN);
+    expect(notes).not.toMatch(/trace=/);
+    const later = composeSparkScheme({
+      business: 'read_later',
+      action: 'create',
+      params: { id: HOP_ID, trace_id: 'trace_12345678' },
+    });
+    expect(later).toBe(READ_LATER_LIST);
+    expect(later).not.toMatch(/trace=/);
   });
 
   it.each([
-    [{ business: 'todos', action: 'create', params: { id: 't1' } }],
-    [{ business: 'notes', action: 'changed', params: { id: NOTE_ID, common_path: NOTE_PATH } }],
-    [{ business: 'notes', action: 'create', params: { common_path: NOTE_PATH } }],
-    [{ business: 'notes', action: 'create', params: { id: NOTE_ID } }],
-    [{ business: 'notes', action: 'create', params: { id: '', common_path: NOTE_PATH } }],
-    [{ business: 'notes', action: 'create', params: { id: NOTE_ID, common_path: '' } }],
-    [{ business: 'read_later', action: 'update', params: { id: 'e1' } }],
+    [{ business: 'todos', action: 'create', params: { id: HOP_ID } }],
+    [{ business: 'notes', action: 'changed', params: { id: HOP_ID, archive_id: NOTE_ID, common_path: NOTE_PATH } }],
+    [{ business: 'notes', action: 'create', params: { archive_id: NOTE_ID, common_path: NOTE_PATH } }],
+    [{ business: 'notes', action: 'create', params: { id: HOP_ID, common_path: NOTE_PATH } }],
+    [{ business: 'notes', action: 'create', params: { id: HOP_ID, archive_id: NOTE_ID } }],
+    [{ business: 'notes', action: 'create', params: { id: '', archive_id: NOTE_ID, common_path: NOTE_PATH } }],
+    [{ business: 'notes', action: 'create', params: { id: HOP_ID, archive_id: '', common_path: NOTE_PATH } }],
+    [{ business: 'notes', action: 'create', params: { id: HOP_ID, archive_id: NOTE_ID, common_path: '' } }],
+    [{ business: 'notes', action: 'create', params: { id: NOTE_ID, common_path: NOTE_PATH } }],
+    [{ business: 'read_later', action: 'update', params: { id: HOP_ID } }],
+    [{ business: 'read_later', action: 'create', params: {} }],
   ])('returns null for rejected envelope %j', (envelope) => {
     expect(composeSparkScheme(envelope)).toBeNull();
   });
 });
 
 describe('parseSparkScheme', () => {
-  it('parses notes/open id and path', () => {
+  it('parses notes/open id and path when pass is valid', () => {
     expect(parseSparkScheme(NOTES_OPEN)).toEqual({
       kind: 'notes-open',
       id: NOTE_ID,
@@ -115,8 +162,8 @@ describe('parseSparkScheme', () => {
     });
   });
 
-  it('parses read-later/list', () => {
-    expect(parseSparkScheme('spark://read-later/list')).toEqual({
+  it('parses read-later/list when pass is valid', () => {
+    expect(parseSparkScheme(READ_LATER_LIST)).toEqual({
       kind: 'read-later-list',
     });
   });
@@ -145,38 +192,15 @@ describe('parseSparkScheme', () => {
     });
   });
 
-  it('appends trace on notes/open and still parses id and path', () => {
-    const scheme = composeSparkScheme({
-      business: 'notes',
-      action: 'create',
-      params: { id: NOTE_ID, common_path: NOTE_PATH, trace_id: 'trace_12345678' },
-    });
-    expect(scheme).toBe(`${NOTES_OPEN}&trace=trace_12345678`);
-    expect(parseSparkScheme(scheme)).toEqual({
-      kind: 'notes-open',
-      id: NOTE_ID,
-      path: NOTE_PATH,
-    });
-  });
-
-  it('parses read-later/list with only a trace query', () => {
-    expect(parseSparkScheme('spark://read-later/list?trace=trace_12345678')).toEqual({
-      kind: 'read-later-list',
-    });
-  });
-
   it('round-trips a path that contains spaces and non-ASCII', () => {
     const path = 'inbox/my 笔记.md';
-    const scheme = composeSparkScheme({
-      business: 'notes',
-      action: 'create',
-      params: { id: NOTE_ID, common_path: path },
-    });
+    const scheme = composeSparkScheme(notesEnvelope('create', { common_path: path }));
     expect(scheme).toBe(
-      `spark://notes/open?id=${NOTE_ID}&path=${encodeURIComponent(path)}`,
+      `spark://notes/open?id=${NOTE_ID}&path=${encodeURIComponent(path)}&${PASS_QUERY}=${PASS}`,
     );
     expect(scheme).not.toMatch(/ /);
     expect(scheme).not.toMatch(/笔记/);
+    expect(scheme).not.toMatch(/trace=/);
     expect(parseSparkScheme(scheme)).toEqual({
       kind: 'notes-open',
       id: NOTE_ID,
@@ -199,7 +223,14 @@ describe('parseSparkScheme', () => {
     'spark://auth-login/open',
     'spark://%',
     '',
-  ])('returns null for unrecognized or incomplete scheme %s', (scheme) => {
+    NOTES_OPEN_NO_PASS,
+    NOTES_OPEN_TRACE_ONLY,
+    NOTES_OPEN_BAD_PASS,
+    `${NOTES_OPEN}&trace=trace_99999999zzzz`,
+    'spark://read-later/list',
+    READ_LATER_TRACE_ONLY,
+    `${READ_LATER_LIST}&trace=trace_99999999zzzz`,
+  ])('returns null for unrecognized, leftover, or incomplete scheme %s', (scheme) => {
     expect(parseSparkScheme(scheme)).toBeNull();
   });
 });
@@ -226,19 +257,41 @@ describe('resolveNotesLanding', () => {
 });
 
 describe('openSparkScheme', () => {
-  it('lands notes/open on #/spark with resolved date and common_path', () => {
+  it('lands notes/open on #/spark and logs notes route.to_business from pass', () => {
+    const logSpy = vi.spyOn(appLog, 'logAppEvent').mockImplementation(() => {});
     expect(openSparkScheme(NOTES_OPEN)).toBe(true);
     expect(parseHash(window.location.hash)).toEqual({
       name: 'spark',
       params: { date: NOTE_DATE, note: NOTE_PATH },
     });
     expect(dialogEl()?.classList.contains('open')).toBe(false);
+    expect(logSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        business: 'notes',
+        event: 'route.to_business',
+        traceId: HOP_ID,
+        params: expect.objectContaining({ outcome: 'ok', kind: 'notes-open' }),
+      }),
+    );
+    expect(logSpy.mock.calls.some(([input]) => input.business === 'os-notify')).toBe(false);
+    logSpy.mockRestore();
   });
 
-  it('opens the Read Later dialog for read-later/list', () => {
-    expect(openSparkScheme('spark://read-later/list')).toBe(true);
+  it('opens the Read Later dialog and logs read_later route.to_business from pass', () => {
+    const logSpy = vi.spyOn(appLog, 'logAppEvent').mockImplementation(() => {});
+    expect(openSparkScheme(READ_LATER_LIST)).toBe(true);
     expect(dialogEl()?.classList.contains('open')).toBe(true);
     expect(window.location.hash).toBe('#/home');
+    expect(logSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        business: 'read_later',
+        event: 'route.to_business',
+        traceId: HOP_ID,
+        params: expect.objectContaining({ outcome: 'ok', kind: 'read-later-list' }),
+      }),
+    );
+    expect(logSpy.mock.calls.some(([input]) => input.business === 'os-notify')).toBe(false);
+    logSpy.mockRestore();
   });
 
   it('does not land notes or throw for auth-login/callback', () => {
@@ -257,11 +310,40 @@ describe('openSparkScheme', () => {
     'spark://notes/open?path=inbox/x.md',
     'spark://read-later/open',
     'notes/open?id=abc&path=inbox/x.md',
-  ])('ignores %s without changing hash or opening Read Later', (scheme) => {
+    NOTES_OPEN_NO_PASS,
+    NOTES_OPEN_TRACE_ONLY,
+    NOTES_OPEN_BAD_PASS,
+    'spark://read-later/list',
+    READ_LATER_TRACE_ONLY,
+  ])('ignores leftover or incomplete %s without opening notes or Read Later', (scheme) => {
+    const logSpy = vi.spyOn(appLog, 'logAppEvent').mockImplementation(() => {});
     expect(parseSparkScheme(scheme)).toBeNull();
     expect(openSparkScheme(scheme)).toBe(false);
     expect(window.location.hash).toBe('#/home');
     expect(dialogEl()?.classList.contains('open')).toBe(false);
+    expect(logSpy.mock.calls.some(([input]) => input.business === 'os-notify')).toBe(false);
+    expect(
+      logSpy.mock.calls.some(
+        ([input]) => input.business === 'notes' || input.business === 'read_later',
+      ),
+    ).toBe(false);
+    logSpy.mockRestore();
+  });
+
+  it('records leftover hops as app / missing and does not read ?trace=', () => {
+    const logSpy = vi.spyOn(appLog, 'logAppEvent').mockImplementation(() => {});
+    expect(openSparkScheme(NOTES_OPEN_TRACE_ONLY)).toBe(false);
+    expect(openSparkScheme(READ_LATER_TRACE_ONLY)).toBe(false);
+    expect(logSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        business: 'app',
+        event: 'route.to_business',
+        traceId: 'trace_missing',
+      }),
+    );
+    expect(logSpy.mock.calls.some(([input]) => input.traceId === 'trace_12345678')).toBe(false);
+    expect(logSpy.mock.calls.some(([input]) => input.business === 'os-notify')).toBe(false);
+    logSpy.mockRestore();
   });
 
   it('ignores a well-formed notes/open that the index cannot land', () => {
@@ -275,7 +357,6 @@ describe('openSparkScheme', () => {
 describe('auth-login callback completion', () => {
   it('routes login without waiting, then writes exchange on the login business', async () => {
     const id = 'trace_loginhop01';
-    const { encodePassBag, PASS_QUERY } = await import('../../frontend/src/auth/pass.ts');
     const scheme = `spark://auth-login/callback?${PASS_QUERY}=${encodePassBag(id)}#access_token=secret`;
     rememberNotifyTrace('trace_notifyyyyy');
     const logSpy = vi.spyOn(appLog, 'logAppEvent').mockImplementation(() => {});

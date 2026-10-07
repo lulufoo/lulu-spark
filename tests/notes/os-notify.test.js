@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { encodePassBag, PASS_QUERY } from '../../frontend/src/auth/pass.ts';
 import * as api from '../../frontend/src/host/api.ts';
 import * as scheme from '../../frontend/src/router/scheme.ts';
 import { handleNotesOsNotifyEnvelope } from '../../frontend/src/notes/commands/os-notify.ts';
@@ -29,11 +30,13 @@ function extractFunctionBody(source, name) {
   return '';
 }
 
+const HOP_ID = 'trace_12345678';
 const NOTE_CREATE = {
   business: 'notes',
   action: 'create',
-  params: { id: 'abc', common_path: 'inbox/x.md' },
+  params: { id: HOP_ID, archive_id: 'abc', common_path: 'inbox/x.md' },
 };
+const NOTES_OPEN = `spark://notes/open?id=abc&path=inbox%2Fx.md&${PASS_QUERY}=${encodePassBag(HOP_ID)}`;
 
 describe('handleNotesOsNotifyEnvelope', () => {
   /** @type {import('vitest').MockInstance} */
@@ -73,7 +76,7 @@ describe('handleNotesOsNotifyEnvelope', () => {
     expect(notifySpy).toHaveBeenCalledWith({
       title: 'New note',
       body: 'A note was added',
-      scheme: 'spark://notes/open?id=abc&path=inbox%2Fx.md',
+      scheme: NOTES_OPEN,
     });
   });
 
@@ -81,7 +84,7 @@ describe('handleNotesOsNotifyEnvelope', () => {
     await handleNotesOsNotifyEnvelope({
       business: 'notes',
       action: 'update',
-      params: { id: 'abc', common_path: 'inbox/x.md' },
+      params: { id: HOP_ID, archive_id: 'abc', common_path: 'inbox/x.md' },
     });
     expect(fetchSpy).toHaveBeenCalled();
     expect(composeSpy).not.toHaveBeenCalled();
@@ -103,7 +106,7 @@ describe('handleNotesOsNotifyEnvelope', () => {
     await handleNotesOsNotifyEnvelope({
       business: 'notes',
       action: 'create',
-      params: { id: 'abc' },
+      params: { id: HOP_ID },
     });
     expect(composeSpy).toHaveBeenCalled();
     expect(composeSpy.mock.results[0]?.value).toBeNull();

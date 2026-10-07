@@ -1,14 +1,12 @@
 import { LOGIN_EVENT_EXCHANGE, LOGIN_EVENT_ROUTE, logLoginHop } from '../auth/hop.ts';
 import { completeAuthLogin } from '../auth/oauth.ts';
-import { extractPassIdFromScheme } from '../auth/pass.ts';
+import { encodePassBag, extractPassIdFromScheme, PASS_QUERY } from '../auth/pass.ts';
 import { state } from '../host/state.ts';
 import { openReadLaterDialog } from '../read-later/commands/dialog.ts';
 import { navigateToNote } from './index.ts';
 import {
-  extractTraceFromScheme,
   logNotifyHop,
   parseTraceId,
-  TRACE_PARAM,
   TRACE_QUERY,
 } from './notify-trace.ts';
 
@@ -30,26 +28,29 @@ function stringParam(params: Record<string, unknown>, key: string): string {
   return typeof value === 'string' ? value : '';
 }
 
+function hopId(params: Record<string, unknown>): string | null {
+  return parseTraceId(stringParam(params, 'id'));
+}
+
 export function composeSparkScheme(
   envelope: SparkEnvelope,
 ): string | null {
   const params = envelope.params;
   if (!params || typeof params !== 'object') return null;
 
-  const trace = parseTraceId(stringParam(params, TRACE_PARAM));
-  const traceQuery = trace ? `&${TRACE_QUERY}=${encodeURIComponent(trace)}` : '';
+  const hop = hopId(params);
+  if (!hop) return null;
+  const passQuery = `${PASS_QUERY}=${encodePassBag(hop)}`;
 
   if (envelope.business === 'notes' && (envelope.action === 'create' || envelope.action === 'update')) {
-    const id = stringParam(params, 'id');
+    const id = stringParam(params, 'archive_id');
     const path = stringParam(params, 'common_path');
     if (!id || !path) return null;
-    return `spark://notes/open?id=${encodeURIComponent(id)}&path=${encodeURIComponent(path)}${traceQuery}`;
+    return `spark://notes/open?id=${encodeURIComponent(id)}&path=${encodeURIComponent(path)}&${passQuery}`;
   }
 
   if (envelope.business === 'read_later' && envelope.action === 'create') {
-    return trace
-      ? `spark://read-later/list?${TRACE_QUERY}=${encodeURIComponent(trace)}`
-      : 'spark://read-later/list';
+    return `spark://read-later/list?${passQuery}`;
   }
 
   return null;
@@ -69,6 +70,7 @@ export function parseSparkScheme(scheme: string): ParsedSparkScheme | null {
   const path = url.pathname.replace(/\/+$/, '');
 
   if (url.hostname === 'notes' && path === '/open') {
+    if (url.searchParams.has(TRACE_QUERY) || !extractPassIdFromScheme(scheme)) return null;
     const id = url.searchParams.get('id') ?? '';
     const notePath = url.searchParams.get('path') ?? '';
     if (!id || !notePath) return null;
@@ -77,8 +79,9 @@ export function parseSparkScheme(scheme: string): ParsedSparkScheme | null {
 
   if (url.hostname === 'read-later' && path === '/list') {
     for (const key of url.searchParams.keys()) {
-      if (key !== TRACE_QUERY) return null;
+      if (key !== PASS_QUERY) return null;
     }
+    if (!extractPassIdFromScheme(scheme)) return null;
     return { kind: 'read-later-list' };
   }
 
@@ -131,19 +134,19 @@ export function openSparkScheme(scheme: string): boolean {
       });
       return false;
     }
-    logNotifyHop('route.to_business', extractTraceFromScheme(scheme), {
+    logNotifyHop('route.to_business', extractPassIdFromScheme(scheme), {
       outcome: 'parse_fail',
       scheme,
-    });
+    }, 'app');
     return false;
   }
 
   if (parsed.kind === 'read-later-list') {
     openReadLaterDialog();
-    logNotifyHop('route.to_business', extractTraceFromScheme(scheme), {
+    logNotifyHop('route.to_business', extractPassIdFromScheme(scheme), {
       outcome: 'ok',
       kind: 'read-later-list',
-    });
+    }, 'read_later');
     return true;
   }
 
@@ -161,25 +164,25 @@ export function openSparkScheme(scheme: string): boolean {
   }
 
   const landing = resolveNotesLanding(parsed.id, parsed.path);
-  const trace = extractTraceFromScheme(scheme);
+  const hop = extractPassIdFromScheme(scheme);
   if (!landing) {
-    logNotifyHop('route.to_business', trace, {
+    logNotifyHop('route.to_business', hop, {
       outcome: 'landing_miss',
       kind: 'notes-open',
       id: parsed.id,
       path: parsed.path,
-    });
+    }, 'notes');
     return false;
   }
   const ok = navigateToNote({ date: landing.date, note: landing.note });
-  logNotifyHop('route.to_business', trace, {
+  logNotifyHop('route.to_business', hop, {
     outcome: ok ? 'ok' : 'nav_fail',
     kind: 'notes-open',
     id: parsed.id,
     path: parsed.path,
     date: landing.date,
     note: landing.note,
-  });
+  }, 'notes');
   return ok;
 }
 

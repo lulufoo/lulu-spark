@@ -31,4 +31,13 @@ describe('pass bag', () => {
     ).toBeNull();
     expect(decodePassBag('{"id":"short"}')).toBeNull();
   });
+
+  it('reads and writes only the hop id field', () => {
+    const id = 'trace_12345678abcd';
+    const raw = decodeURIComponent(encodePassBag(id));
+    expect(JSON.parse(raw)).toEqual({ id });
+    expect(Object.keys(JSON.parse(raw))).toEqual(['id']);
+    expect(decodePassBag(raw)).toBe(id);
+    expect(decodePassBag(JSON.stringify({ id, extra: 'nope' }))).toBe(id);
+  });
 });
