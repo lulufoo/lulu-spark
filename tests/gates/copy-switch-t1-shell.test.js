@@ -40,7 +40,7 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
     expect(css).toMatch(/\.home-chat-sidebar \{[\s\S]*?--home-rail: 16px;/);
     expect(css).toMatch(/\.home-chat-sidebar \{[\s\S]*?--home-chat-row-inset: 8px;/);
     expect(css).toMatch(/\.home-chat-nav \{[\s\S]*?padding: 8px var\(--home-chat-row-inset\) 12px;/);
-    expect(css).toMatch(/\.home-chat-nav-label \{[\s\S]*?padding: 6px 8px 8px;/);
+    expect(css).toMatch(/\.home-chat-nav-label \{[\s\S]*?font-size: 11px;[\s\S]*?padding: 6px 8px 16px;/);
     expect(css).toMatch(/\.home-chat-nav-item \{[\s\S]*?padding: 7px 8px;/);
     expect(css).toMatch(
       /\.home-chat-sessions-head \{[\s\S]*?padding: 14px var\(--home-chat-row-inset\) 8px var\(--home-rail\);/,
