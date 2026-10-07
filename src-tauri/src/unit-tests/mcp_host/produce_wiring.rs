@@ -79,8 +79,11 @@ fn assert_note_ok(value: &Value) {
 }
 fn notes_identity_params(result: &Value) -> Value {
     let mut params = serde_json::Map::new();
-    for key in ["id", "common_path"] {
-        if let Some(value) = result.get(key) { params.insert(key.to_string(), value.clone()); }
+    if let Some(value) = result.get("id") {
+        params.insert("archive_id".to_string(), value.clone());
+    }
+    if let Some(value) = result.get("common_path") {
+        params.insert("common_path".to_string(), value.clone());
     }
     Value::Object(params)
 }
@@ -90,16 +93,20 @@ fn assert_produced_envelope(business: &str, action: &str, params: Value) {
     assert_eq!(e.business.as_str(), business);
     assert_eq!(e.action.as_str(), action);
     let mut got = e.params.clone();
-    let tid = got
+    let hop_id = got
         .as_object_mut()
         .expect("params object")
-        .remove("trace_id")
+        .remove("id")
         .and_then(|v| v.as_str().map(str::to_string))
-        .expect("trace_id");
+        .expect("hop id");
     assert!(
-        crate::services::os_notify_trace::parse_trace_id(&tid).is_some(),
-        "{tid}"
+        crate::services::os_notify_trace::parse_trace_id(&hop_id).is_some(),
+        "{hop_id}"
     );
+    if let Some(archive_id) = params.get("archive_id").and_then(|v| v.as_str()) {
+        assert_ne!(hop_id, archive_id);
+    }
+    assert!(e.params.get("trace_id").is_none(), "{e:?}");
     assert_eq!(&got, &params);
     assert!(e.params.get("scheme").is_none(), "{e:?}");
 }
@@ -107,7 +114,19 @@ fn assert_produced_envelope(business: &str, action: &str, params: Value) {
 fn assert_notes_produced(action: &str, result: &Value, before: usize) {
     assert_note_ok(result);
     let params = notes_identity_params(result);
-    assert!(params.get("id").is_some() && params.get("common_path").is_some(), "{result}");
+    assert!(
+        params.get("archive_id").is_some() && params.get("common_path").is_some(),
+        "{result}"
+    );
+    let note_id = result.get("id").and_then(|v| v.as_str()).expect("note id");
+    let hop_id = last_changed_envelope()
+        .expect("envelope")
+        .params
+        .get("id")
+        .and_then(|v| v.as_str())
+        .expect("hop id")
+        .to_string();
+    assert_ne!(hop_id, note_id);
     assert_eq!(channel_record_count("notes"), before + 1);
     assert_produced_envelope("notes", action, params);
 }
@@ -277,9 +296,9 @@ fn produce_notes_if_ok_keeps_timing_when_identity_fields_missing() {
         let before = channel_record_count("notes");
         let cases = [
             (produce_create_note_if_ok as fn(&Value), json!({"ok": true}), "create", json!({})),
-            (produce_create_note_if_ok, json!({"ok": true, "id": "only-id"}), "create", json!({"id": "only-id"})),
+            (produce_create_note_if_ok, json!({"ok": true, "id": "only-id"}), "create", json!({"archive_id": "only-id"})),
             (produce_create_note_if_ok, json!({"ok": true, "common_path": "only/path.md"}), "create", json!({"common_path": "only/path.md"})),
-            (produce_update_note_if_ok, json!({"ok": true, "id": "u1"}), "update", json!({"id": "u1"})),
+            (produce_update_note_if_ok, json!({"ok": true, "id": "u1"}), "update", json!({"archive_id": "u1"})),
         ];
         let produced = cases.len();
         for (produce_if_ok, result, action, params) in cases {

@@ -78,7 +78,7 @@ fn post_read_later(port: u16, url: &str, title: &str) -> (u16, Value) {
 
 fn read_later_identity_params(body: &Value) -> Value {
     match body.get("entry").and_then(|entry| entry.get("id")) {
-        Some(id) => json!({ "id": id }),
+        Some(id) => json!({ "entry_id": id }),
         None => json!({}),
     }
 }
@@ -88,16 +88,20 @@ fn assert_produced_envelope(business: &str, action: &str, params: Value) {
     assert_eq!(e.business.as_str(), business);
     assert_eq!(e.action.as_str(), action);
     let mut got = e.params.clone();
-    let tid = got
+    let hop_id = got
         .as_object_mut()
         .expect("params object")
-        .remove("trace_id")
+        .remove("id")
         .and_then(|v| v.as_str().map(str::to_string))
-        .expect("trace_id");
+        .expect("hop id");
     assert!(
-        crate::services::os_notify_trace::parse_trace_id(&tid).is_some(),
-        "{tid}"
+        crate::services::os_notify_trace::parse_trace_id(&hop_id).is_some(),
+        "{hop_id}"
     );
+    if let Some(entry_id) = params.get("entry_id").and_then(|v| v.as_str()) {
+        assert_ne!(hop_id, entry_id);
+    }
+    assert!(e.params.get("trace_id").is_none(), "{e:?}");
     assert_eq!(&got, &params);
     assert!(e.params.get("scheme").is_none(), "{e:?}");
 }
@@ -275,7 +279,7 @@ fn produce_read_later_if_created_keeps_timing_when_entry_id_missing() {
         json!({"_status": 201, "entry": {}}),
         json!({"_status": 201, "entry": {"id": "e1"}}),
     ];
-    let params = [json!({}), json!({}), json!({"id": "e1"})];
+    let params = [json!({}), json!({}), json!({"entry_id": "e1"})];
     for (value, expected) in ok.into_iter().zip(params) {
         produce(&value);
         assert_produced_envelope("read_later", "create", expected);

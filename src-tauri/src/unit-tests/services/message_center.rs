@@ -43,25 +43,33 @@ fn notes_create_envelope() -> Envelope {
     envelope(
         "notes",
         "create",
-        json!({ "id": "a", "common_path": "p.md" }),
+        json!({ "archive_id": "a", "common_path": "p.md" }),
     )
 }
 
-fn assert_last_envelope_matches_with_trace(expected: &Envelope) {
+fn take_hop_id(params: &mut Value) -> String {
+    params
+        .as_object_mut()
+        .expect("params object")
+        .remove("id")
+        .and_then(|v| v.as_str().map(str::to_string))
+        .expect("hop id")
+}
+
+fn assert_last_envelope_matches_with_hop(expected: &Envelope) {
     let got = last_changed_envelope().expect("envelope");
     assert_eq!(got.business, expected.business);
     assert_eq!(got.action, expected.action);
     let mut params = got.params.clone();
-    let tid = params
-        .as_object_mut()
-        .expect("params object")
-        .remove("trace_id")
-        .and_then(|v| v.as_str().map(str::to_string))
-        .expect("trace_id");
+    let hop_id = take_hop_id(&mut params);
     assert!(
-        crate::services::os_notify_trace::parse_trace_id(&tid).is_some(),
-        "{tid}"
+        crate::services::os_notify_trace::parse_trace_id(&hop_id).is_some(),
+        "{hop_id}"
     );
+    if let Some(archive_id) = expected.params.get("archive_id").and_then(|v| v.as_str()) {
+        assert_ne!(hop_id, archive_id);
+    }
+    assert!(got.params.get("trace_id").is_none(), "{got:?}");
     assert_eq!(params, expected.params);
 }
 
@@ -109,22 +117,28 @@ fn install_notify_counter() -> Arc<AtomicUsize> {
 }
 
 #[test]
-fn produce_keeps_valid_trace_id() {
+fn produce_keeps_valid_hop_id() {
     with_message_center_sandbox(|| {
         let incoming = envelope(
             "notes",
             "create",
-            json!({ "id": "a", "common_path": "p.md", "trace_id": "trace_12345678" }),
+            json!({
+                "archive_id": "a",
+                "common_path": "p.md",
+                "id": "trace_12345678"
+            }),
         );
         produce(incoming).expect("produce");
+        let got = last_changed_envelope().expect("envelope");
         assert_eq!(
-            last_changed_envelope()
-                .expect("envelope")
-                .params
-                .get("trace_id")
-                .and_then(|v| v.as_str()),
+            got.params.get("id").and_then(|v| v.as_str()),
             Some("trace_12345678")
         );
+        assert_eq!(
+            got.params.get("archive_id").and_then(|v| v.as_str()),
+            Some("a")
+        );
+        assert!(got.params.get("trace_id").is_none(), "{got:?}");
     });
 }
 
@@ -146,7 +160,7 @@ fn produce_notifies_once_after_persist() {
         let incoming = notes_create_envelope();
         produce(incoming.clone()).expect("produce notes");
         assert_eq!(hits.load(Ordering::SeqCst), 1);
-        assert_last_envelope_matches_with_trace(&incoming);
+        assert_last_envelope_matches_with_hop(&incoming);
         assert!(persist_exists());
     });
 }
@@ -179,7 +193,7 @@ fn only_notes_read_later_todos_channels_and_unread_is_independent() {
             let incoming = envelope(business, "create", json!({}));
             assert_eq!(produce(incoming.clone()).expect(business).channel, business);
             assert!(channel_unread(business));
-            assert_last_envelope_matches_with_trace(&incoming);
+            assert_last_envelope_matches_with_hop(&incoming);
         }
 
         mark_channel_read("notes").expect("mark notes read");
@@ -189,7 +203,7 @@ fn only_notes_read_later_todos_channels_and_unread_is_independent() {
         produce(envelope(
             "notes",
             "update",
-            json!({ "id": "a", "common_path": "p.md", "extra": true }),
+            json!({ "archive_id": "a", "common_path": "p.md", "extra": true }),
         ))
         .expect("params keys are not inspected");
     });
@@ -204,7 +218,7 @@ fn one_produce_one_record_with_only_min_fields() {
         assert!(first.unread && second.unread);
         assert!(is_iso8601(&first.created_at));
         assert!(is_iso8601(&second.created_at));
-        assert_last_envelope_matches_with_trace(&notes_create_envelope());
+        assert_last_envelope_matches_with_hop(&notes_create_envelope());
 
         for record in [&first, &second] {
             let value = serde_json::to_value(record).expect("serialize record");
@@ -295,6 +309,19 @@ fn production_module_declares_tests_without_test_bodies() {
             && prod.contains("fn notify_changed()")
             && prod.contains("Fn()"),
         "notify_changed stays parameterless; envelope is a public type"
+    );
+    assert!(
+        prod.contains("fn ensure_hop_id")
+            && prod.contains("app_log::log")
+            && prod.contains("&envelope.business"),
+        "produce must mint params.id and log inbound hop with envelope.business"
+    );
+    assert!(
+        !prod.contains("ensure_trace_id")
+            && !prod.contains("TRACE_PARAM")
+            && !prod.contains("log_hop(")
+            && !prod.contains("os-notify"),
+        "inbound hop must not use trace_id or hardcoded os-notify"
     );
     assert!(
         !prod.contains("tauri_plugin_notification") && !prod.contains("UserNotifications"),

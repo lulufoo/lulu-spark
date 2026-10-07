@@ -9,7 +9,7 @@ pub(crate) fn produce_read_later_if_created(value: &Value) {
     if value.get("error").is_none() && value.get("_status") == Some(&json!(201)) {
         let mut params = serde_json::Map::new();
         if let Some(id) = value.get("entry").and_then(|entry| entry.get("id")) {
-            params.insert("id".to_string(), id.clone());
+            params.insert("entry_id".to_string(), id.clone());
         }
         let _ = message_center::produce(message_center::Envelope {
             business: "read_later".to_string(),

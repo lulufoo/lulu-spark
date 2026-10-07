@@ -14,7 +14,7 @@ pub(crate) fn produce_notes_if_ok(result: &Value) {
     if result.get("error").is_none() && result.get("ok") == Some(&json!(true)) {
         let mut params = serde_json::Map::new();
         if let Some(id) = result.get("id") {
-            params.insert("id".to_string(), id.clone());
+            params.insert("archive_id".to_string(), id.clone());
         }
         if let Some(path) = result.get("common_path") {
             params.insert("common_path".to_string(), path.clone());
