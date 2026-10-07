@@ -1,5 +1,6 @@
 /* Spark Light theme tokens. Load before app.css. */
 :root {
+  color-scheme: light;
   /* bg */
   --bg-accent: #0969da;
   --bg-accent-emphasis: #0550ae;
