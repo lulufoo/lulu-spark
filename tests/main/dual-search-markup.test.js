@@ -50,9 +50,9 @@ describe('dual search CSS (app.css)', () => {
     expect(appCss).not.toMatch(/#gs-mode-pill\b/);
     expect(appCss).toMatch(/\.gs-search-wrap\b/);
     expect(appCss).toMatch(/\.gs-search-input\b/);
-    expect(appCss).toMatch(/\.gs-search-input \{[\s\S]*?background: #fff;/);
-    expect(appCss).toMatch(/\.page-toolbar \.gs-search-input \{[\s\S]*?background: #fff;/);
-    expect(appCss).toMatch(/\.kb-reader-header \.gs-search-input[\s\S]*?background: #f6f8fa;/);
+    expect(appCss).toMatch(/\.gs-search-input \{[\s\S]*?background: var\(--bg-surface\);/);
+    expect(appCss).toMatch(/\.page-toolbar \.gs-search-input \{[\s\S]*?background: var\(--bg-surface\);/);
+    expect(appCss).toMatch(/\.kb-reader-header \.gs-search-input[\s\S]*?background: var\(--bg-canvas\);/);
     expect(appCss).toMatch(/\.gs-search-input \{[\s\S]*?min-height: 36px;/);
     expect(appCss).toMatch(/\.gs-search-dropdown\b/);
   });
