@@ -173,6 +173,7 @@ pub fn run() {
                 }
             };
             crate::services::app_log::init();
+            crate::commands::mcp_ide_env::apply_live_ide_ticket_envs();
             let http_port = boot_settings.effective_http_port();
             let mcp_port = boot_settings.effective_mcp_port();
             if let Ok(repo_root) = crate::config::paths::repo_root() {
