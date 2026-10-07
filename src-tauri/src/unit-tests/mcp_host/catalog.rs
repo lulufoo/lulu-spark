@@ -11,8 +11,6 @@ use crate::services::settings::mcp_catalog::GroupedEnabledCatalog;
 
 const NOTES_APIS: &[&str] = &[
     "get_all_notes_catalog",
-    "get_latest_digest_per_catalog",
-    "get_notes_by_catalog",
     "get_note_digest_by_id",
     "get_note_content",
     "create_note",
@@ -26,7 +24,6 @@ const NOTES_APIS: &[&str] = &[
 
 const KNOWLEDGE_APIS: &[&str] = &[
     "list_knowledge_categories",
-    "list_knowledge_repos",
     "get_knowledge_content",
 ];
 
@@ -291,3 +288,6 @@ mod todo_commands_removed;
 
 #[path = "todo_service_removed.rs"]
 mod todo_service_removed;
+
+#[path = "retired_catalog.rs"]
+mod retired_catalog;

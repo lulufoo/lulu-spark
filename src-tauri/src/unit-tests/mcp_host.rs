@@ -150,8 +150,6 @@ fn assert_uniform_401(status: u16, body: &str, secret: Option<&str>) {
 /// Notes tools from Node `buildServer()` when `includeNotes` is true.
 const NOTES_TOOLS: &[&str] = &[
     "get_all_notes_catalog",
-    "get_latest_digest_per_catalog",
-    "get_notes_by_catalog",
     "get_note_digest_by_id",
     "get_note_content",
     "create_note",
@@ -166,8 +164,6 @@ const NOTES_TOOLS: &[&str] = &[
 /// Notes tools exposed on `/mcp/cursor_ide` and `/mcp/mobile` (channel hard-gate).
 const NOTES_TOOLS_NON_SPARK: &[&str] = &[
     "get_all_notes_catalog",
-    "get_latest_digest_per_catalog",
-    "get_notes_by_catalog",
     "get_note_digest_by_id",
     "get_note_content",
     "create_note",
@@ -180,7 +176,6 @@ const NOTES_TOOLS_NON_SPARK: &[&str] = &[
 
 const KNOWLEDGE_TOOLS: &[&str] = &[
     "list_knowledge_categories",
-    "list_knowledge_repos",
     "get_knowledge_content",
 ];
 

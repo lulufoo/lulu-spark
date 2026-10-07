@@ -6,10 +6,8 @@ mod delete_note;
 mod update_note;
 mod delete_notes_category;
 mod get_all_notes_catalog;
-mod get_latest_digest_per_catalog;
 mod get_note_content;
 mod get_note_digest_by_id;
-mod get_notes_by_catalog;
 mod list_notes_categories;
 mod schema;
 mod update_notes_category;
@@ -40,11 +38,6 @@ type BuildFn = fn(&str) -> Option<ToolRoute>;
 
 const REGISTRY: &[(&str, BuildFn)] = &[
     ("get_all_notes_catalog", get_all_notes_catalog::build as BuildFn),
-    (
-        "get_latest_digest_per_catalog",
-        get_latest_digest_per_catalog::build as BuildFn,
-    ),
-    ("get_notes_by_catalog", get_notes_by_catalog::build as BuildFn),
     ("get_note_digest_by_id", get_note_digest_by_id::build as BuildFn),
     ("get_note_content", get_note_content::build as BuildFn),
     ("create_note", create_note::build as BuildFn),

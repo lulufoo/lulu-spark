@@ -2,7 +2,6 @@
 
 mod get_knowledge_content;
 mod list_knowledge_categories;
-mod list_knowledge_repos;
 
 use crate::mcp_host::ToolRoute;
 
@@ -17,7 +16,6 @@ const REGISTRY: &[(&str, BuildFn)] = &[
         "list_knowledge_categories",
         list_knowledge_categories::build as BuildFn,
     ),
-    ("list_knowledge_repos", list_knowledge_repos::build as BuildFn),
     ("get_knowledge_content", get_knowledge_content::build as BuildFn),
 ];
 
