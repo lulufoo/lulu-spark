@@ -9,6 +9,7 @@ import {
   THEME_IDS,
   THEME_SHEET_ID,
   themeFileFor,
+  windowThemeFor,
 } from '../../frontend/src/theme.ts';
 
 function mountSheet() {
@@ -51,6 +52,12 @@ describe('theme loader', () => {
   it('bootTheme applies Light when no theme query is present', () => {
     expect(bootTheme()).toBe(PHASE1_THEME_ID);
     expect(document.documentElement.dataset.theme).toBe('light');
+  });
+
+  it('pairs Light / Dark window chrome and leaves system to the OS', () => {
+    expect(windowThemeFor('light')).toBe('light');
+    expect(windowThemeFor('dark')).toBe('dark');
+    expect(windowThemeFor('system')).toBeNull();
   });
 
   it('reads a Dark query as a dev entry, not as Settings', () => {

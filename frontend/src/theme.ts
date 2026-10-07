@@ -24,6 +24,23 @@ export function readRequestedTheme(
   return value === 'dark' || value === 'light' ? value : null;
 }
 
+export type WindowTheme = 'light' | 'dark' | null;
+
+export function windowThemeFor(id: ThemeId): WindowTheme {
+  if (id === 'system') return null;
+  return id === 'dark' ? 'dark' : 'light';
+}
+
+export async function syncWindowTheme(id: ThemeId): Promise<void> {
+  const theme = windowThemeFor(id);
+  try {
+    const { getCurrentWindow } = await import('@tauri-apps/api/window');
+    await getCurrentWindow().setTheme(theme);
+  } catch {
+    // Browser / tests have no Tauri window.
+  }
+}
+
 export function applyTheme(id: ThemeId): ThemeId {
   const applied = resolveThemeId(id);
   const sheet = document.getElementById(THEME_SHEET_ID);
@@ -32,6 +49,7 @@ export function applyTheme(id: ThemeId): ThemeId {
     sheet.dataset.themeId = applied;
   }
   document.documentElement.dataset.theme = applied;
+  void syncWindowTheme(id);
   return applied;
 }
 
