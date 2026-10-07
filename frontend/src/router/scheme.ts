@@ -5,6 +5,7 @@ import { state } from '../host/state.ts';
 import { openReadLaterDialog } from '../read-later/commands/dialog.ts';
 import { navigateToNote } from './index.ts';
 import {
+  businessFromSparkHost,
   logNotifyHop,
   parseTraceId,
   TRACE_QUERY,
@@ -111,10 +112,6 @@ export function resolveNotesLanding(id: string, path: string): NotesLanding | nu
   return { date: created.slice(0, 8), note };
 }
 
-function loginTraceId(scheme: string): string | null {
-  return extractPassIdFromScheme(scheme);
-}
-
 function isAuthLoginScheme(scheme: string): boolean {
   try {
     const parsed = new URL(scheme);
@@ -125,53 +122,53 @@ function isAuthLoginScheme(scheme: string): boolean {
 }
 
 export function openSparkScheme(scheme: string): boolean {
+  const hop = extractPassIdFromScheme(scheme);
   const parsed = parseSparkScheme(scheme);
   if (!parsed) {
     if (isAuthLoginScheme(scheme)) {
-      logLoginHop(LOGIN_EVENT_ROUTE, loginTraceId(scheme), {
+      logLoginHop(LOGIN_EVENT_ROUTE, hop, {
         outcome: 'parse_fail',
         kind: 'auth-login-callback',
       });
       return false;
     }
-    logNotifyHop('route.to_business', extractPassIdFromScheme(scheme), {
+    logNotifyHop('route.to_business', hop, {
       outcome: 'parse_fail',
       scheme,
-    }, 'app');
+    }, businessFromSparkHost(scheme));
     return false;
   }
 
   if (parsed.kind === 'read-later-list') {
     openReadLaterDialog();
-    logNotifyHop('route.to_business', extractPassIdFromScheme(scheme), {
+    logNotifyHop('route.to_business', hop, {
       outcome: 'ok',
       kind: 'read-later-list',
-    }, 'read_later');
+    }, businessFromSparkHost(scheme));
     return true;
   }
 
   if (parsed.kind === 'auth-login-callback') {
-    const id = loginTraceId(scheme);
-    logLoginHop(LOGIN_EVENT_ROUTE, id, { outcome: 'ok', kind: 'auth-login-callback' });
+    logLoginHop(LOGIN_EVENT_ROUTE, hop, { outcome: 'ok', kind: 'auth-login-callback' });
     void completeAuthLogin(scheme)
       .then((outcome) => {
-        logLoginHop(LOGIN_EVENT_EXCHANGE, id, { outcome });
+        logLoginHop(LOGIN_EVENT_EXCHANGE, hop, { outcome });
       })
       .catch(() => {
-        logLoginHop(LOGIN_EVENT_EXCHANGE, id, { outcome: 'fail' });
+        logLoginHop(LOGIN_EVENT_EXCHANGE, hop, { outcome: 'fail' });
       });
     return true;
   }
 
   const landing = resolveNotesLanding(parsed.id, parsed.path);
-  const hop = extractPassIdFromScheme(scheme);
+  const business = businessFromSparkHost(scheme);
   if (!landing) {
     logNotifyHop('route.to_business', hop, {
       outcome: 'landing_miss',
       kind: 'notes-open',
       id: parsed.id,
       path: parsed.path,
-    }, 'notes');
+    }, business);
     return false;
   }
   const ok = navigateToNote({ date: landing.date, note: landing.note });
@@ -182,7 +179,7 @@ export function openSparkScheme(scheme: string): boolean {
     path: parsed.path,
     date: landing.date,
     note: landing.note,
-  }, 'notes');
+  }, business);
   return ok;
 }
 
