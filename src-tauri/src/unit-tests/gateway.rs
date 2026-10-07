@@ -198,6 +198,78 @@ impl Drop for MockMcp {
     }
 }
 
+struct MockSidecar {
+    port: u16,
+    hits: Arc<Mutex<Vec<(String, String)>>>,
+    server: Arc<tiny_http::Server>,
+    join: Option<thread::JoinHandle<()>>,
+}
+
+impl MockSidecar {
+    fn start() -> Self {
+        let port = ephemeral_loopback_port();
+        let server = Arc::new(
+            tiny_http::Server::http(format!("127.0.0.1:{port}")).expect("mock sidecar listen"),
+        );
+        let hits = Arc::new(Mutex::new(Vec::new()));
+        let server_thread = Arc::clone(&server);
+        let hits_thread = Arc::clone(&hits);
+        let join = thread::spawn(move || {
+            for request in server_thread.incoming_requests() {
+                let method = request.method().to_string();
+                let url = request.url().to_string();
+                hits_thread
+                    .lock()
+                    .expect("hits")
+                    .push((method, url.clone()));
+                let path = url.split('?').next().unwrap_or("");
+                let (status, payload) = if path == "/api/auth-login/landing" {
+                    (
+                        200,
+                        serde_json::json!({
+                            "forwarded": true,
+                            "path": url,
+                            "via": "main"
+                        })
+                        .to_string(),
+                    )
+                } else {
+                    (599, serde_json::json!({ "leaked": url }).to_string())
+                };
+                let response = tiny_http::Response::from_string(payload)
+                    .with_status_code(tiny_http::StatusCode(status))
+                    .with_header(
+                        tiny_http::Header::from_bytes(
+                            &b"Content-Type"[..],
+                            &b"application/json"[..],
+                        )
+                        .expect("header"),
+                    );
+                let _ = request.respond(response);
+            }
+        });
+        Self {
+            port,
+            hits,
+            server,
+            join: Some(join),
+        }
+    }
+
+    fn hits(&self) -> Vec<(String, String)> {
+        self.hits.lock().expect("hits").clone()
+    }
+}
+
+impl Drop for MockSidecar {
+    fn drop(&mut self) {
+        self.server.unblock();
+        if let Some(join) = self.join.take() {
+            let _ = join.join();
+        }
+    }
+}
+
 fn with_bind_sandbox(test: impl FnOnce(&Path)) {
     let sandbox = TestSandbox::new();
     crate::test_support::reset_vault();
@@ -580,4 +652,97 @@ fn gateway_ports_stay_off_http_and_mcp_defaults() {
     assert_ne!(DEFAULT_PROD_GATEWAY_PORT, DEFAULT_PROD_MCP_PORT);
     assert_ne!(DEFAULT_SANDBOX_GATEWAY_PORT, DEFAULT_SANDBOX_HTTP_PORT);
     assert_ne!(DEFAULT_SANDBOX_GATEWAY_PORT, DEFAULT_SANDBOX_MCP_PORT);
+}
+
+#[test]
+fn get_auth_login_landing_forwards_to_main_not_mcp() {
+    let dir = tempfile::tempdir().expect("tmp");
+    let mock_mcp = MockMcp::start();
+    let sidecar = MockSidecar::start();
+    let handle = start_gw_with_sidecar(mock_mcp.port, sidecar.port, dir.path());
+    let listen_port = handle.local_addr().port();
+    let response = https_client()
+        .get(gw_url(&handle, "/auth-login/landing"))
+        .send()
+        .expect("landing");
+    assert_eq!(response.status().as_u16(), 200);
+    let body: serde_json::Value = response.json().expect("json");
+    assert_eq!(body["forwarded"], true);
+    assert_eq!(body["via"], "main");
+    assert_eq!(body["path"], "/api/auth-login/landing");
+    let hits = sidecar.hits();
+    assert_eq!(hits.len(), 1);
+    assert_eq!(hits[0].0, "GET");
+    assert_eq!(hits[0].1, "/api/auth-login/landing");
+    assert!(
+        mock_mcp.hits().is_empty(),
+        "auth-login landing must not hit MCP"
+    );
+    assert_eq!(
+        handle.local_addr().port(),
+        listen_port,
+        "landing must use the existing Gateway listen, not a new port"
+    );
+    stop(handle);
+}
+
+#[test]
+fn get_auth_login_landing_preserves_pass_query() {
+    let dir = tempfile::tempdir().expect("tmp");
+    let mock_mcp = MockMcp::start();
+    let sidecar = MockSidecar::start();
+    let handle = start_gw_with_sidecar(mock_mcp.port, sidecar.port, dir.path());
+    let response = https_client()
+        .get(gw_url(&handle, "/auth-login/landing?pass=inflight-bag"))
+        .send()
+        .expect("landing query");
+    assert_eq!(response.status().as_u16(), 200);
+    let body: serde_json::Value = response.json().expect("json");
+    assert_eq!(body["path"], "/api/auth-login/landing?pass=inflight-bag");
+    let hits = sidecar.hits();
+    assert_eq!(hits.len(), 1);
+    assert_eq!(hits[0].0, "GET");
+    assert_eq!(hits[0].1, "/api/auth-login/landing?pass=inflight-bag");
+    assert!(
+        mock_mcp.hits().is_empty(),
+        "landing query must not hit MCP"
+    );
+    stop(handle);
+}
+
+#[test]
+fn post_auth_login_landing_is_unnamed_404() {
+    let dir = tempfile::tempdir().expect("tmp");
+    let mock_mcp = MockMcp::start();
+    let sidecar = MockSidecar::start();
+    let handle = start_gw_with_sidecar(mock_mcp.port, sidecar.port, dir.path());
+    let response = https_client()
+        .post(gw_url(&handle, "/auth-login/landing"))
+        .send()
+        .expect("post landing");
+    assert_eq!(response.status().as_u16(), 404);
+    let body: serde_json::Value = response.json().expect("json");
+    assert_eq!(body["error"], "not_found");
+    assert!(sidecar.hits().is_empty(), "non-GET must not forward to Main");
+    assert!(mock_mcp.hits().is_empty(), "non-GET must not hit MCP");
+    stop(handle);
+}
+
+#[test]
+fn unnamed_path_still_404_and_does_not_enter_mcp_via_landing() {
+    let dir = tempfile::tempdir().expect("tmp");
+    let mock_mcp = MockMcp::start();
+    let sidecar = MockSidecar::start();
+    let handle = start_gw_with_sidecar(mock_mcp.port, sidecar.port, dir.path());
+    let response = https_client()
+        .get(gw_url(&handle, "/foo"))
+        .send()
+        .expect("foo");
+    assert_eq!(response.status().as_u16(), 404);
+    assert!(
+        mock_mcp.hits().is_empty(),
+        "/foo must stay unnamed and must not enter MCP"
+    );
+    assert!(sidecar.hits().is_empty(), "/foo must not forward to Main");
+    stop(handle);
 }

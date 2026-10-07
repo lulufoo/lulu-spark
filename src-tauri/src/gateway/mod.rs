@@ -266,6 +266,7 @@ fn build_router(mcp_port: u16, sidecar_port: u16) -> Router {
         .route("/mcp/mobile", any(forward_named))
         .route("/health", get(forward_named))
         .route("/read-later", any(read_later_named))
+        .route("/auth-login/landing", any(auth_login_landing_named))
         .fallback(reject_unnamed)
         .with_state(GwState {
             mcp_port,
@@ -282,6 +283,29 @@ async fn bind_complete_named(State(state): State<GwState>, request: Request) -> 
         Method::POST,
         "/api/bind-complete".to_string(),
         BIND_FORWARD_HEADERS,
+        request,
+    )
+    .await
+}
+
+async fn auth_login_landing_named(
+    ConnectInfo(_peer): ConnectInfo<SocketAddr>,
+    State(state): State<GwState>,
+    request: Request,
+) -> Response {
+    if request.method() != Method::GET {
+        return reject_unnamed().await;
+    }
+    let query = request
+        .uri()
+        .query()
+        .map(|q| format!("?{q}"))
+        .unwrap_or_default();
+    forward_to_loopback(
+        state.sidecar_port,
+        Method::GET,
+        format!("/api/auth-login/landing{query}"),
+        &[],
         request,
     )
     .await
