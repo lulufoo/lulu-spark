@@ -1,3 +1,4 @@
+import { authUserStore } from './state/user.ts';
 import {
   getSparkAuthClient,
   toVaultSession,
@@ -54,7 +55,7 @@ export async function startAuthLogin(provider: 'google' | 'github'): Promise<voi
   await openUrl(data.url);
 }
 
-function readAuthCallback(url: string): { code: string } | null {
+function parseAuthCallbackUrl(url: string): URL | null {
   let parsed: URL;
   try {
     parsed = new URL(url);
@@ -65,25 +66,57 @@ function readAuthCallback(url: string): { code: string } | null {
   if (parsed.protocol !== 'spark:' || parsed.hostname !== 'auth-login' || path !== '/callback') {
     return null;
   }
-  const error = parsed.searchParams.get('error');
-  const code = parsed.searchParams.get('code');
-  if (error || !code) return null;
-  return { code };
+  return parsed;
+}
+
+function hashParams(parsed: URL): URLSearchParams {
+  const raw = parsed.hash.startsWith('#') ? parsed.hash.slice(1) : parsed.hash;
+  return new URLSearchParams(raw);
+}
+
+function callbackError(parsed: URL): string | null {
+  return parsed.searchParams.get('error') || hashParams(parsed).get('error');
+}
+
+function callbackCode(parsed: URL): string | null {
+  return parsed.searchParams.get('code');
+}
+
+function callbackTokens(parsed: URL): { access_token: string; refresh_token: string } | null {
+  const hash = hashParams(parsed);
+  const access = hash.get('access_token');
+  const refresh = hash.get('refresh_token');
+  if (!access || !refresh) return null;
+  return { access_token: access, refresh_token: refresh };
+}
+
+async function persistVaultSession(raw: unknown): Promise<boolean> {
+  const session = toVaultSession(raw);
+  if (!session) return false;
+  const invoke = getTauriInvoke();
+  if (!invoke) return false;
+  await invoke('set_auth_session', { session });
+  authUserStore.set(toUserView(session));
+  return true;
 }
 
 export async function completeAuthLogin(url: string): Promise<boolean> {
-  const parsed = readAuthCallback(url);
-  if (!parsed) return false;
+  const parsed = parseAuthCallbackUrl(url);
+  if (!parsed || callbackError(parsed)) return false;
   const invoke = getTauriInvoke();
   if (!invoke) return false;
   try {
-    const { data, error } = await getSparkAuthClient().auth.exchangeCodeForSession(
-      parsed.code,
-    );
-    const session = toVaultSession(data?.session);
-    if (error || !session) return false;
-    await invoke('set_auth_session', { session });
-    return true;
+    const code = callbackCode(parsed);
+    if (code) {
+      const { data, error } = await getSparkAuthClient().auth.exchangeCodeForSession(code);
+      if (error) return false;
+      return persistVaultSession(data?.session);
+    }
+    const tokens = callbackTokens(parsed);
+    if (!tokens) return false;
+    const { data, error } = await getSparkAuthClient().auth.setSession(tokens);
+    if (error) return false;
+    return persistVaultSession(data?.session);
   } catch {
     return false;
   }
@@ -93,6 +126,7 @@ export async function signOutAuth(): Promise<void> {
   await getSparkAuthClient().auth.signOut();
   const invoke = getTauriInvoke();
   if (invoke) await invoke('delete_auth_session');
+  authUserStore.set(null);
 }
 
 export async function getAuthUser(): Promise<AuthUserView | null> {

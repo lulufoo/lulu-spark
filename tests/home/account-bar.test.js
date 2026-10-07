@@ -226,7 +226,7 @@ describe('account bar · home rail', () => {
   let container;
   let cleanup;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     container = document.createElement('div');
     document.body.appendChild(container);
     cleanup = null;
@@ -235,7 +235,12 @@ describe('account bar · home rail', () => {
     signOutAuthMock.mockReset();
     getAuthUserMock.mockResolvedValue(null);
     startAuthLoginMock.mockResolvedValue(undefined);
-    signOutAuthMock.mockResolvedValue(undefined);
+    signOutAuthMock.mockImplementation(async () => {
+      const { authUserStore } = await import('../../frontend/src/auth/state/user.ts');
+      authUserStore.set(null);
+    });
+    const { authUserStore } = await import('../../frontend/src/auth/state/user.ts');
+    authUserStore.set(null);
     window.__TAURI__ = {
       event: {
         listen: vi.fn(async () => vi.fn()),
@@ -348,5 +353,17 @@ describe('account bar · home rail', () => {
       expect(signOutAuthMock).toHaveBeenCalledTimes(1);
     });
     expect(container.querySelector('[data-role="account-bar"]')).not.toBeNull();
+  });
+
+  it('repaints the rail when the auth user store updates after mount', async () => {
+    await mountHome();
+    expect(container.querySelector('[data-role="account-bar-name"]')).toBeNull();
+    const { authUserStore } = await import('../../frontend/src/auth/state/user.ts');
+    act(() => {
+      authUserStore.set(signedUser());
+    });
+    await vi.waitFor(() => {
+      expect(container.querySelector('[data-role="account-bar-name"]')?.textContent).toBe('Ada');
+    });
   });
 });

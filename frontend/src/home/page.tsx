@@ -1,8 +1,9 @@
-import { memo, useEffect, useLayoutEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
+import { memo, useEffect, useLayoutEffect, useRef, useSyncExternalStore, type FormEvent, type KeyboardEvent } from 'react';
 import { attachHomeSidebarResize, detachHomeSidebarResize } from './ui/sidebar-resize.ts';
 import { createRoot, type Root } from 'react-dom/client';
 import { flushSync } from 'react-dom';
-import { getAuthUser, signOutAuth, startAuthLogin, type AuthUserView } from '../auth/oauth.ts';
+import { getAuthUser, signOutAuth, startAuthLogin } from '../auth/oauth.ts';
+import { authUserStore } from '../auth/state/user.ts';
 import { hydrateHomeChatMarkdown, renderHomeChatMarkdown } from './ui/chat-render.ts';
 import { AccountBar } from './ui/account-bar.tsx';
 import { HomeNavIcon } from './ui/nav-icons.tsx';
@@ -119,7 +120,7 @@ export function HomePage({
   openReadLater,
 }: HomePageChrome = {}) {
   const state = useHomeState();
-  const [authUser, setAuthUser] = useState<AuthUserView | null>(null);
+  const authUser = useSyncExternalStore(authUserStore.subscribe, authUserStore.getSnapshot);
   const locked = composerLocked(state);
   const inputLocked = composerInputLocked(state);
   const hint = progressHint(state);
@@ -142,7 +143,7 @@ export function HomePage({
     let cancelled = false;
     void getAuthUser()
       .then((user) => {
-        if (!cancelled) setAuthUser(user);
+        if (!cancelled) authUserStore.set(user);
       })
       .catch(() => {});
     return () => {
@@ -219,9 +220,7 @@ export function HomePage({
   }
 
   function onAccountLogout() {
-    void signOutAuth()
-      .then(() => setAuthUser(null))
-      .catch(() => {});
+    void signOutAuth().catch(() => {});
   }
 
   function onComposerKey(event: KeyboardEvent<HTMLTextAreaElement>) {

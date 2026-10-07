@@ -11,12 +11,14 @@ const GITHUB_URL = 'https://github.com/login/oauth/authorize?client=github';
 
 const signInWithOAuth = vi.fn();
 const exchangeCodeForSession = vi.fn();
+const setSession = vi.fn();
 const signOut = vi.fn();
 const linkIdentity = vi.fn();
 const createClient = vi.fn(() => ({
   auth: {
     signInWithOAuth,
     exchangeCodeForSession,
+    setSession,
     signOut,
     linkIdentity,
   },
@@ -92,13 +94,16 @@ function seedInvoke(session = null) {
   return { invoke, openUrl };
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   signInWithOAuth.mockReset();
   exchangeCodeForSession.mockReset();
+  setSession.mockReset();
   signOut.mockReset();
   linkIdentity.mockReset();
   createClient.mockClear();
   installLocalStorageMock();
+  const { authUserStore } = await import('../../frontend/src/auth/state/user.ts');
+  authUserStore.set(null);
 });
 
 afterEach(() => {
@@ -154,6 +159,7 @@ describe('completeAuthLogin', () => {
 
     await expect(completeAuthLogin(`${CALLBACK}?code=abc`)).resolves.toBe(true);
     expect(exchangeCodeForSession).toHaveBeenCalledWith('abc');
+    expect(setSession).not.toHaveBeenCalled();
     expect(invoke).toHaveBeenCalledWith(
       'set_auth_session',
       expect.objectContaining({
@@ -174,6 +180,59 @@ describe('completeAuthLogin', () => {
     expect(payload).not.toContain('must-not-persist');
     expect(linkIdentity).not.toHaveBeenCalled();
     expect(window.localStorage.length).toBe(0);
+    const { authUserStore } = await import('../../frontend/src/auth/state/user.ts');
+    expect(authUserStore.getSnapshot()?.user_id).toBe('user-42');
+  });
+
+  it('applies a hash token callback through setSession and writes the Session', async () => {
+    const { invoke } = seedInvoke(null);
+    setSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: 'access-aaa',
+          refresh_token: 'refresh-bbb',
+          expires_at: 1_800_000_000,
+          provider_token: 'must-not-persist',
+          user: {
+            id: 'user-42',
+            email: 'ada@example.com',
+            user_metadata: { name: 'Ada', avatar_url: 'https://example.com/a.png' },
+            app_metadata: { provider: 'google' },
+          },
+        },
+      },
+      error: null,
+    });
+
+    const hashUrl =
+      `${CALLBACK}#access_token=access-aaa&refresh_token=refresh-bbb` +
+      `&expires_at=1800000000&provider_token=must-not-persist`;
+    await expect(completeAuthLogin(hashUrl)).resolves.toBe(true);
+    expect(exchangeCodeForSession).not.toHaveBeenCalled();
+    expect(setSession).toHaveBeenCalledWith({
+      access_token: 'access-aaa',
+      refresh_token: 'refresh-bbb',
+    });
+    expect(invoke).toHaveBeenCalledWith(
+      'set_auth_session',
+      expect.objectContaining({
+        session: expect.objectContaining({
+          access_token: 'access-aaa',
+          refresh_token: 'refresh-bbb',
+          user: expect.objectContaining({
+            id: 'user-42',
+            name: 'Ada',
+          }),
+        }),
+      }),
+    );
+    const payload = JSON.stringify(
+      invoke.mock.calls.find((call) => call[0] === 'set_auth_session')[1],
+    );
+    expect(payload).not.toContain('provider_token');
+    expect(payload).not.toContain('must-not-persist');
+    const { authUserStore } = await import('../../frontend/src/auth/state/user.ts');
+    expect(authUserStore.getSnapshot()?.display_name).toBe('Ada');
   });
 
   it('does not call linkIdentity when the same email signs in with another provider', async () => {
@@ -214,10 +273,13 @@ describe('completeAuthLogin', () => {
     [`${CALLBACK}?error=access_denied`, 'error'],
     [CALLBACK, 'no code'],
     [`${CALLBACK}?error=access_denied&code=abc`, 'error wins'],
+    [`${CALLBACK}#error=access_denied&access_token=access-aaa&refresh_token=refresh-bbb`, 'hash error'],
+    [`${CALLBACK}#access_token=access-aaa`, 'hash access only'],
   ])('returns false and writes nothing for %s', async (url) => {
     const { invoke } = seedInvoke(null);
     await expect(completeAuthLogin(url)).resolves.toBe(false);
     expect(exchangeCodeForSession).not.toHaveBeenCalled();
+    expect(setSession).not.toHaveBeenCalled();
     expect(invoke).not.toHaveBeenCalledWith('set_auth_session', expect.anything());
     expect(window.localStorage.length).toBe(0);
   });
@@ -227,10 +289,19 @@ describe('signOutAuth and getAuthUser', () => {
   it('clears the vault Session on sign-out', async () => {
     signOut.mockResolvedValue({ error: null });
     const { invoke } = seedInvoke(vaultSession());
+    const { authUserStore } = await import('../../frontend/src/auth/state/user.ts');
+    authUserStore.set({
+      user_id: 'user-42',
+      email: 'ada@example.com',
+      display_name: 'Ada',
+      avatar_url: 'https://example.com/a.png',
+      provider: 'google',
+    });
     await signOutAuth();
     expect(signOut).toHaveBeenCalled();
     expect(invoke).toHaveBeenCalledWith('delete_auth_session');
     expect(linkIdentity).not.toHaveBeenCalled();
+    expect(authUserStore.getSnapshot()).toBeNull();
   });
 
   it('returns null when no Session is stored', async () => {
