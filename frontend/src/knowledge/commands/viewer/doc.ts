@@ -24,7 +24,7 @@ function viewer(): KbViewer {
 }
 
 export async function openKbDoc(kbHit: { repo: string; path: string; url?: string }) {
-  const { repo, path, url } = kbHit;
+  const { repo, path } = kbHit;
   const v = viewer();
 
   v.entry = null;
