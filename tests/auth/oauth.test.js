@@ -29,6 +29,11 @@ vi.mock('@supabase/supabase-js', () => ({
 }));
 
 import * as appLog from '../../frontend/src/host/app-log.ts';
+import {
+  beginAuthLoginWait,
+  consumeMatchingAuthLoginPass,
+} from '../../frontend/src/auth/login-wait.ts';
+import { encodePassBag, extractPassIdFromScheme, PASS_QUERY } from '../../frontend/src/auth/pass.ts';
 
 const {
   startAuthLogin,
@@ -97,6 +102,52 @@ function seedInvoke(session = null) {
   return { invoke, openUrl };
 }
 
+function clearAuthLoginWait() {
+  beginAuthLoginWait('trace_clearwait01');
+  consumeMatchingAuthLoginPass('trace_clearwait01');
+}
+
+function passQuery(id) {
+  return `${PASS_QUERY}=${encodePassBag(id)}`;
+}
+
+function codeCallback(id, code = 'abc') {
+  return `${CALLBACK}?${passQuery(id)}&code=${code}`;
+}
+
+function tokenCallback(id) {
+  return `${CALLBACK}?${passQuery(id)}#access_token=access-aaa&refresh_token=refresh-bbb`;
+}
+
+async function startLogin(provider = 'google') {
+  const url = provider === 'google' ? GOOGLE_URL : GITHUB_URL;
+  signInWithOAuth.mockResolvedValue({ data: { url }, error: null });
+  const seeded = seedInvoke(null);
+  await startAuthLogin(provider);
+  const redirectTo = signInWithOAuth.mock.calls.at(-1)[0].options.redirectTo;
+  return { id: extractPassIdFromScheme(redirectTo), redirectTo, ...seeded };
+}
+
+function mockVaultSession(provider = 'google') {
+  return {
+    data: {
+      session: {
+        access_token: 'access-aaa',
+        refresh_token: 'refresh-bbb',
+        expires_at: 1_800_000_000,
+        provider_token: 'must-not-persist',
+        user: {
+          id: 'user-42',
+          email: 'ada@example.com',
+          user_metadata: { name: 'Ada', avatar_url: 'https://example.com/a.png' },
+          app_metadata: { provider },
+        },
+      },
+    },
+    error: null,
+  };
+}
+
 beforeEach(async () => {
   signInWithOAuth.mockReset();
   exchangeCodeForSession.mockReset();
@@ -105,6 +156,7 @@ beforeEach(async () => {
   linkIdentity.mockReset();
   createClient.mockClear();
   installLocalStorageMock();
+  clearAuthLoginWait();
   const { authUserStore } = await import('../../frontend/src/auth/state/user.ts');
   authUserStore.set(null);
   vi.spyOn(appLog, 'logAppEvent').mockImplementation(() => {});
@@ -126,7 +178,6 @@ describe('startAuthLogin', () => {
 
       await startAuthLogin(provider);
 
-      const { extractPassIdFromScheme } = await import('../../frontend/src/auth/pass.ts');
       const redirectTo = signInWithOAuth.mock.calls[0][0].options.redirectTo;
       const id = extractPassIdFromScheme(redirectTo);
       expect(signInWithOAuth).toHaveBeenCalledWith({
@@ -147,6 +198,7 @@ describe('startAuthLogin', () => {
           params: expect.objectContaining({ provider }),
         }),
       );
+      expect(consumeMatchingAuthLoginPass(id)).toBe(true);
       expect(linkIdentity).not.toHaveBeenCalled();
       expect(invoke).not.toHaveBeenCalledWith('set_auth_session', expect.anything());
     },
@@ -169,26 +221,10 @@ describe('startAuthLogin', () => {
 
 describe('completeAuthLogin', () => {
   it('exchanges a code callback and writes the Session through the vault command', async () => {
-    const { invoke } = seedInvoke(null);
-    exchangeCodeForSession.mockResolvedValue({
-      data: {
-        session: {
-          access_token: 'access-aaa',
-          refresh_token: 'refresh-bbb',
-          expires_at: 1_800_000_000,
-          provider_token: 'must-not-persist',
-          user: {
-            id: 'user-42',
-            email: 'ada@example.com',
-            user_metadata: { name: 'Ada', avatar_url: 'https://example.com/a.png' },
-            app_metadata: { provider: 'google' },
-          },
-        },
-      },
-      error: null,
-    });
+    const { invoke, id } = await startLogin();
+    exchangeCodeForSession.mockResolvedValue(mockVaultSession());
 
-    await expect(completeAuthLogin(`${CALLBACK}?code=abc`)).resolves.toBe('ok');
+    await expect(completeAuthLogin(codeCallback(id))).resolves.toBe('ok');
     expect(exchangeCodeForSession).toHaveBeenCalledWith('abc');
     expect(setSession).not.toHaveBeenCalled();
     expect(invoke).toHaveBeenCalledWith(
@@ -216,27 +252,11 @@ describe('completeAuthLogin', () => {
   });
 
   it('applies a hash token callback through setSession and writes the Session', async () => {
-    const { invoke } = seedInvoke(null);
-    setSession.mockResolvedValue({
-      data: {
-        session: {
-          access_token: 'access-aaa',
-          refresh_token: 'refresh-bbb',
-          expires_at: 1_800_000_000,
-          provider_token: 'must-not-persist',
-          user: {
-            id: 'user-42',
-            email: 'ada@example.com',
-            user_metadata: { name: 'Ada', avatar_url: 'https://example.com/a.png' },
-            app_metadata: { provider: 'google' },
-          },
-        },
-      },
-      error: null,
-    });
+    const { invoke, id } = await startLogin();
+    setSession.mockResolvedValue(mockVaultSession());
 
     const hashUrl =
-      `${CALLBACK}#access_token=access-aaa&refresh_token=refresh-bbb` +
+      `${CALLBACK}?${passQuery(id)}#access_token=access-aaa&refresh_token=refresh-bbb` +
       `&expires_at=1800000000&provider_token=must-not-persist`;
     await expect(completeAuthLogin(hashUrl)).resolves.toBe('ok');
     expect(exchangeCodeForSession).not.toHaveBeenCalled();
@@ -267,7 +287,7 @@ describe('completeAuthLogin', () => {
   });
 
   it('does not call linkIdentity when the same email signs in with another provider', async () => {
-    const { invoke } = seedInvoke(null);
+    const { invoke, id } = await startLogin();
     exchangeCodeForSession.mockResolvedValue({
       data: {
         session: {
@@ -285,7 +305,7 @@ describe('completeAuthLogin', () => {
       error: null,
     });
 
-    await expect(completeAuthLogin(`${CALLBACK}?code=from-github`)).resolves.toBe('ok');
+    await expect(completeAuthLogin(codeCallback(id, 'from-github'))).resolves.toBe('ok');
     expect(linkIdentity).not.toHaveBeenCalled();
     expect(invoke).toHaveBeenCalledWith(
       'set_auth_session',
@@ -302,10 +322,8 @@ describe('completeAuthLogin', () => {
 
   it.each([
     [`${CALLBACK}?error=access_denied`, 'fail'],
-    [CALLBACK, 'no_token'],
     [`${CALLBACK}?error=access_denied&code=abc`, 'fail'],
     [`${CALLBACK}#error=access_denied&access_token=access-aaa&refresh_token=refresh-bbb`, 'fail'],
-    [`${CALLBACK}#access_token=access-aaa`, 'no_token'],
   ])('returns %s and writes nothing for %s', async (url, outcome) => {
     const { invoke } = seedInvoke(null);
     await expect(completeAuthLogin(url)).resolves.toBe(outcome);
@@ -313,6 +331,69 @@ describe('completeAuthLogin', () => {
     expect(setSession).not.toHaveBeenCalled();
     expect(invoke).not.toHaveBeenCalledWith('set_auth_session', expect.anything());
     expect(window.localStorage.length).toBe(0);
+  });
+
+  it('returns no_token when the paired callback has no ticket', async () => {
+    const { id, invoke } = await startLogin();
+    await expect(completeAuthLogin(`${CALLBACK}?${passQuery(id)}`)).resolves.toBe('no_token');
+    expect(exchangeCodeForSession).not.toHaveBeenCalled();
+    expect(setSession).not.toHaveBeenCalled();
+    expect(invoke).not.toHaveBeenCalledWith('set_auth_session', expect.anything());
+  });
+});
+
+describe('completeAuthLogin pass pairing', () => {
+  it('returns ok and writes the vault session when the callback pass matches this start', async () => {
+    const { id, invoke } = await startLogin('google');
+    setSession.mockResolvedValue(mockVaultSession());
+    await expect(completeAuthLogin(tokenCallback(id))).resolves.toBe('ok');
+    expect(setSession).toHaveBeenCalledWith({
+      access_token: 'access-aaa',
+      refresh_token: 'refresh-bbb',
+    });
+    expect(invoke).toHaveBeenCalledWith('set_auth_session', expect.anything());
+  });
+
+  it('rejects a second complete with the same pass after a successful consume', async () => {
+    const { id, invoke } = await startLogin();
+    setSession.mockResolvedValue(mockVaultSession());
+    await expect(completeAuthLogin(tokenCallback(id))).resolves.toBe('ok');
+    setSession.mockClear();
+    invoke.mockClear();
+    await expect(completeAuthLogin(tokenCallback(id))).resolves.not.toBe('ok');
+    expect(setSession).not.toHaveBeenCalled();
+    expect(invoke).not.toHaveBeenCalledWith('set_auth_session', expect.anything());
+  });
+
+  it('rejects the first pass after a second start replaces the wait', async () => {
+    const first = await startLogin();
+    const second = await startLogin();
+    setSession.mockResolvedValue(mockVaultSession());
+    await expect(completeAuthLogin(tokenCallback(first.id))).resolves.not.toBe('ok');
+    expect(setSession).not.toHaveBeenCalled();
+    expect(second.invoke).not.toHaveBeenCalledWith('set_auth_session', expect.anything());
+    await expect(completeAuthLogin(tokenCallback(second.id))).resolves.toBe('ok');
+  });
+
+  it('rejects a valid ticket when startAuthLogin was never called', async () => {
+    const { invoke } = seedInvoke(null);
+    setSession.mockResolvedValue(mockVaultSession());
+    exchangeCodeForSession.mockResolvedValue(mockVaultSession());
+    await expect(completeAuthLogin(tokenCallback('trace_neverstarted'))).resolves.not.toBe('ok');
+    expect(setSession).not.toHaveBeenCalled();
+    expect(exchangeCodeForSession).not.toHaveBeenCalled();
+    expect(invoke).not.toHaveBeenCalledWith('set_auth_session', expect.anything());
+  });
+
+  it('does not consume in-flight when the callback pass mismatches', async () => {
+    const { id, invoke } = await startLogin();
+    setSession.mockResolvedValue(mockVaultSession());
+    await expect(completeAuthLogin(tokenCallback('trace_otherpass01'))).resolves.not.toBe('ok');
+    expect(setSession).not.toHaveBeenCalled();
+    expect(exchangeCodeForSession).not.toHaveBeenCalled();
+    expect(invoke).not.toHaveBeenCalledWith('set_auth_session', expect.anything());
+    await expect(completeAuthLogin(tokenCallback(id))).resolves.toBe('ok');
+    expect(setSession).toHaveBeenCalled();
   });
 });
 
@@ -361,6 +442,8 @@ describe('oauth source contract', () => {
     expect(src).toMatch(/redirectTo = `\$\{AUTH_REDIRECT_TO\}\?/);
     expect(src).toMatch(/PASS_QUERY/);
     expect(src).toMatch(/encodePassBag/);
+    expect(src).toMatch(/beginAuthLoginWait/);
+    expect(src).toMatch(/consumeMatchingAuthLoginPass/);
     expect(src).not.toMatch(/linkIdentity/);
     expect(src).not.toMatch(/localStorage/);
     expect(src).not.toMatch(/@tauri-apps\//);

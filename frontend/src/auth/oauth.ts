@@ -1,5 +1,6 @@
 import { LOGIN_EVENT_START, logLoginHop } from './hop.ts';
-import { encodePassBag, newLoginTraceId, PASS_QUERY } from './pass.ts';
+import { beginAuthLoginWait, consumeMatchingAuthLoginPass } from './login-wait.ts';
+import { encodePassBag, extractPassIdFromScheme, newLoginTraceId, PASS_QUERY } from './pass.ts';
 import { authUserStore } from './state/user.ts';
 import {
   AUTH_REDIRECT_TO,
@@ -44,6 +45,7 @@ function toUserView(session: VaultAuthSession): AuthUserView {
 
 export async function startAuthLogin(provider: 'google' | 'github'): Promise<void> {
   const id = newLoginTraceId();
+  beginAuthLoginWait(id);
   const redirectTo = `${AUTH_REDIRECT_TO}?${PASS_QUERY}=${encodePassBag(id)}`;
   logLoginHop(LOGIN_EVENT_START, id, { provider });
   const { data, error } = await getSparkAuthClient().auth.signInWithOAuth({
@@ -118,6 +120,7 @@ async function persistVaultSession(raw: unknown): Promise<boolean> {
 export async function completeAuthLogin(url: string): Promise<AuthExchangeOutcome> {
   const parsed = parseAuthCallbackUrl(url);
   if (!parsed || callbackError(parsed)) return 'fail';
+  if (!consumeMatchingAuthLoginPass(extractPassIdFromScheme(url))) return 'fail';
   const invoke = getTauriInvoke();
   if (!invoke) return 'fail';
   try {
