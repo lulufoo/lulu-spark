@@ -7,6 +7,7 @@ pub mod kb_entry;
 pub mod kb_hide_patterns;
 pub mod kb_viewer_state;
 pub mod mcp_oauth;
+pub mod mcp_ide_env;
 pub mod mcp_channel_tools;
 pub mod notes_categories;
 pub mod os_notification;

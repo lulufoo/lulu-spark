@@ -10,7 +10,9 @@ use crate::services::mcp_oauth::{
 use crate::test_support::TestSandbox;
 
 fn reset_slots() {
-    revoke_for_slot(Slot::CursorIde).expect("revoke cursor_ide");
+    revoke_for_slot(Slot::CursorIde).expect("revoke cursor");
+    revoke_for_slot(Slot::Codex).expect("revoke codex");
+    revoke_for_slot(Slot::Claude).expect("revoke claude");
     revoke_for_slot(Slot::Spark).expect("revoke spark");
 }
 
@@ -30,22 +32,39 @@ fn source(rel: &str) -> String {
 fn handle_from(value: &Value) -> String {
     value["handle"]
         .as_str()
-        .unwrap_or_else(|| panic!("success body must be {{ handle }}, got {value}"))
+        .unwrap_or_else(|| panic!("success body must include handle, got {value}"))
         .to_string()
 }
 
-fn assert_handle_only(value: &Value) -> String {
+fn assert_ticket_body(value: &Value) -> String {
     let obj = value
         .as_object()
         .unwrap_or_else(|| panic!("success body must be an object, got {value}"));
     assert_eq!(
         obj.len(),
-        1,
-        "Authorization Bearer uses only the handle string; no url / server block: {value}"
+        2,
+        "success body must be {{ handle, env_var }}; no url / server block: {value}"
     );
     assert!(
         obj.contains_key("handle"),
-        "success body must be {{ handle }}, got {value}"
+        "success body must include handle, got {value}"
+    );
+    let env_var = value["env_var"]
+        .as_str()
+        .unwrap_or_else(|| panic!("success body must include env_var, got {value}"));
+    assert!(
+        env_var.starts_with("LULU_SPARK_")
+            && env_var.contains("_MCP_")
+            && env_var == env_var.to_ascii_uppercase()
+            && env_var
+                .rsplit('_')
+                .next()
+                .is_some_and(|suffix| {
+                    suffix.len() == 4
+                        && suffix == suffix.to_ascii_uppercase()
+                        && suffix.chars().all(|c| c.is_ascii_hexdigit())
+                }),
+        "env_var must be uppercase base + 4 hex suffix, got {env_var}"
     );
     let secret = handle_from(value);
     assert!(!secret.is_empty(), "handle must be non-empty");
@@ -116,10 +135,10 @@ fn assert_not_live(record: Option<crate::services::mcp_oauth::LedgerRecord>) {
 }
 
 #[test]
-fn issue_cursor_ide_ticket_opens_new_or_reuses_live_and_returns_handle_only() {
+fn issue_cursor_ide_ticket_opens_new_or_reuses_live_and_returns_handle_and_env_var() {
     with_cmd(|| {
-        let first = super::issue_cursor_ide_ticket().expect("issue");
-        let secret = assert_handle_only(&first);
+        let first = super::issue_cursor_ide_ticket("cursor".into()).expect("issue");
+        let secret = assert_ticket_body(&first);
         let record = ledger_record(Slot::CursorIde)
             .expect("ledger")
             .expect("record");
@@ -129,8 +148,8 @@ fn issue_cursor_ide_ticket_opens_new_or_reuses_live_and_returns_handle_only() {
         verify_for_slot(Slot::CursorIde, TicketHandle::from_secret(secret.clone()))
             .expect("verify issued");
 
-        let reused = super::issue_cursor_ide_ticket().expect("reuse");
-        assert_eq!(assert_handle_only(&reused), secret);
+        let reused = super::issue_cursor_ide_ticket("cursor".into()).expect("reuse");
+        assert_eq!(assert_ticket_body(&reused), secret);
         verify_for_slot(Slot::CursorIde, TicketHandle::from_secret(secret))
             .expect("reuse is not rotate");
     });
@@ -139,11 +158,14 @@ fn issue_cursor_ide_ticket_opens_new_or_reuses_live_and_returns_handle_only() {
 #[test]
 fn rotate_cursor_ide_ticket_voids_old_and_returns_new_handle_only() {
     with_cmd(|| {
-        let old = super::issue_cursor_ide_ticket().expect("seed");
-        let old_secret = assert_handle_only(&old);
-        let rotated = super::rotate_cursor_ide_ticket().expect("rotate");
-        let new_secret = assert_handle_only(&rotated);
+        let old = super::issue_cursor_ide_ticket("cursor".into()).expect("seed");
+        let old_secret = assert_ticket_body(&old);
+        let old_env = old["env_var"].as_str().expect("old env").to_string();
+        let rotated = super::rotate_cursor_ide_ticket("cursor".into()).expect("rotate");
+        let new_secret = assert_ticket_body(&rotated);
+        let new_env = rotated["env_var"].as_str().expect("new env");
         assert_ne!(old_secret, new_secret);
+        assert_ne!(old_env, new_env, "refresh must change the env var name");
         assert_eq!(
             verify_for_slot(Slot::CursorIde, TicketHandle::from_secret(old_secret))
                 .expect_err("old"),
@@ -194,8 +216,8 @@ fn commands_share_mcp_oauth_entrypoints_not_test_or_ui_forks() {
     let _: fn(Slot) -> Result<TicketHandle, OAuthError> = issue_for_slot;
     let _: fn(Slot) -> Result<TicketHandle, OAuthError> = rotate_for_slot;
     let _: fn(Slot) -> Result<(), OAuthError> = revoke_for_slot;
-    let _: fn() -> Result<Value, String> = super::issue_cursor_ide_ticket;
-    let _: fn() -> Result<Value, String> = super::rotate_cursor_ide_ticket;
+    let _: fn(String) -> Result<Value, String> = super::issue_cursor_ide_ticket;
+    let _: fn(String) -> Result<Value, String> = super::rotate_cursor_ide_ticket;
     let _: fn(String) -> Result<Value, String> = super::revoke_mcp_slot_ticket;
 
     let src = source("src/commands/mcp_oauth.rs");
@@ -247,8 +269,8 @@ fn commands_are_declared_and_registered_in_generate_handler() {
 fn reuse_existing_cursor_ide_live_ticket_does_not_rotate() {
     with_cmd(|| {
         let first = issue_for_slot(Slot::CursorIde).expect("seed");
-        let issued = super::issue_cursor_ide_ticket().expect("reuse via command");
-        assert_eq!(assert_handle_only(&issued), first.as_str());
+        let issued = super::issue_cursor_ide_ticket("cursor".into()).expect("reuse via command");
+        assert_eq!(assert_ticket_body(&issued), first.as_str());
         verify_for_slot(Slot::CursorIde, first).expect("same live ticket");
     });
 }
@@ -259,8 +281,8 @@ fn success_and_failure_never_write_user_mcp_json() {
     reset_slots();
     let planted = plant_mcp_json(sandbox.config_dir());
 
-    super::issue_cursor_ide_ticket().expect("issue");
-    super::rotate_cursor_ide_ticket().expect("rotate");
+    super::issue_cursor_ide_ticket("cursor".into()).expect("issue");
+    super::rotate_cursor_ide_ticket("cursor".into()).expect("rotate");
     super::revoke_mcp_slot_ticket("cursor_ide".to_string()).expect("revoke cursor");
     super::revoke_mcp_slot_ticket("spark".to_string()).expect("revoke spark");
     super::revoke_mcp_slot_ticket("mobile".to_string()).expect_err("unknown slot");
@@ -290,8 +312,8 @@ fn oauth_error_maps_to_command_failure_without_rewriting_mcp_json_or_ledger() {
 #[test]
 fn command_error_strings_do_not_leak_ticket_secret() {
     with_cmd(|| {
-        let issued = super::issue_cursor_ide_ticket().expect("issue");
-        let secret = assert_handle_only(&issued);
+        let issued = super::issue_cursor_ide_ticket("cursor".into()).expect("issue");
+        let secret = assert_ticket_body(&issued);
         let err = super::revoke_mcp_slot_ticket("Spark".to_string())
             .expect_err("wrong-case slot");
         assert_eq!(err, OAuthError::slot_unknown.to_string());
@@ -321,6 +343,32 @@ fn get_mcp_ticket_view_and_device_revoke_use_shared_oauth() {
     let after = super::get_mcp_ticket_view("mobile".into()).expect("after");
     assert_eq!(after["devices"][0]["revoked"], true);
     let _ = sandbox;
+}
+
+#[test]
+fn issue_and_rotate_take_channel_and_keep_slots_independent() {
+    with_cmd(|| {
+        let cursor = super::issue_cursor_ide_ticket("cursor".into()).expect("cursor");
+        let codex = super::issue_cursor_ide_ticket("codex".into()).expect("codex");
+        let claude = super::issue_cursor_ide_ticket("claude".into()).expect("claude");
+        let cursor_h = assert_ticket_body(&cursor);
+        let codex_h = assert_ticket_body(&codex);
+        let claude_h = assert_ticket_body(&claude);
+        assert_ne!(cursor_h, codex_h);
+        assert_ne!(cursor_h, claude_h);
+        verify_for_slot(Slot::CursorIde, TicketHandle::from_secret(cursor_h)).expect("cursor");
+        verify_for_slot(Slot::Codex, TicketHandle::from_secret(codex_h)).expect("codex");
+        verify_for_slot(Slot::Claude, TicketHandle::from_secret(claude_h)).expect("claude");
+
+        assert_eq!(
+            super::issue_cursor_ide_ticket("spark".into()).expect_err("spark"),
+            OAuthError::rejected.to_string()
+        );
+        assert_eq!(
+            super::issue_cursor_ide_ticket("nope".into()).expect_err("unknown"),
+            OAuthError::slot_unknown.to_string()
+        );
+    });
 }
 
 #[test]
