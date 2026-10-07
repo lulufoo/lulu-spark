@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const CALLBACK = 'spark://auth-login/callback';
+const LANDING = 'https://localhost:7654/auth-login/landing';
 const GOOGLE_URL = 'https://accounts.google.com/o/oauth2/v2/auth?client=google';
 const GITHUB_URL = 'https://github.com/login/oauth/authorize?client=github';
 
@@ -180,6 +181,8 @@ describe('startAuthLogin', () => {
 
       const redirectTo = signInWithOAuth.mock.calls[0][0].options.redirectTo;
       const id = extractPassIdFromScheme(redirectTo);
+      const landing = new URL(redirectTo);
+      const bag = JSON.parse(landing.searchParams.get(PASS_QUERY));
       expect(signInWithOAuth).toHaveBeenCalledWith({
         provider,
         options: expect.objectContaining({
@@ -187,7 +190,10 @@ describe('startAuthLogin', () => {
           redirectTo,
         }),
       });
-      expect(redirectTo.startsWith(`${CALLBACK}?pass=`)).toBe(true);
+      expect(`${landing.origin}${landing.pathname}`).toBe(LANDING);
+      expect(landing.search.startsWith(`?${PASS_QUERY}=`)).toBe(true);
+      expect(bag).toEqual({ id });
+      expect(redirectTo.includes(CALLBACK)).toBe(false);
       expect(openUrl).toHaveBeenCalledWith(url);
       expect(id).toMatch(/^trace_[0-9a-f]{12}$/);
       expect(appLog.logAppEvent).toHaveBeenCalledWith(
@@ -206,9 +212,10 @@ describe('startAuthLogin', () => {
 
   it('writes open_fail when the system browser cannot open', async () => {
     signInWithOAuth.mockResolvedValue({ data: { url: GOOGLE_URL }, error: null });
-    const { openUrl } = seedInvoke(null);
+    const { openUrl, invoke } = seedInvoke(null);
     openUrl.mockRejectedValue(new Error('no browser'));
     await expect(startAuthLogin('google')).rejects.toThrow('no browser');
+    expect(invoke).not.toHaveBeenCalledWith('set_auth_session', expect.anything());
     expect(appLog.logAppEvent).toHaveBeenCalledWith(
       expect.objectContaining({
         business: 'login',

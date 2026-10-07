@@ -16,7 +16,7 @@ vi.mock('@supabase/supabase-js', () => ({
   createClient: (...args) => createClient(...args),
 }));
 
-const { createSparkAuthClient, vaultAuthStorage } = await import(
+const { AUTH_REDIRECT_TO, createSparkAuthClient, vaultAuthStorage } = await import(
   '../../frontend/src/auth/session-store.ts'
 );
 
@@ -166,6 +166,13 @@ describe('vaultAuthStorage', () => {
 });
 
 describe('session-store source contract', () => {
+  it('points AUTH_REDIRECT_TO at the Gateway landing URL', () => {
+    expect(AUTH_REDIRECT_TO).toBe('https://localhost:7654/auth-login/landing');
+    const src = readRel('frontend/src/auth/session-store.ts');
+    expect(src).toContain("export const AUTH_REDIRECT_TO = 'https://localhost:7654/auth-login/landing'");
+    expect(src).not.toMatch(/spark:\/\/auth-login\/callback/);
+  });
+
   it('does not call linkIdentity or keep provider tokens', () => {
     const src = readRel('frontend/src/auth/session-store.ts');
     expect(src).toMatch(/createClient/);

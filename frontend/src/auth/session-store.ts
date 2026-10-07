@@ -3,7 +3,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 export const SPARK_AUTH_URL = 'https://ysvsmsvfyzahevkximog.supabase.co';
 export const SPARK_AUTH_ANON_KEY =
   'sb_publishable_XnDXtdkVsQxVKW8pov_-JQ_9HDRWJUT';
-export const AUTH_REDIRECT_TO = 'spark://auth-login/callback';
+export const AUTH_REDIRECT_TO = 'https://localhost:7654/auth-login/landing';
 export const AUTH_SCHEME_OPENED_EVENT = 'spark-scheme:opened';
 
 export type VaultAuthUser = {
