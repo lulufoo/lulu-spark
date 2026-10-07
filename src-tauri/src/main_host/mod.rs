@@ -11,6 +11,7 @@ use dispatch::handle_request;
 
 pub const DEFAULT_HTTP_PORT: u16 = crate::config::settings::DEFAULT_PROD_HTTP_PORT;
 
+mod auth_login;
 mod bind;
 mod dispatch;
 mod read_later;

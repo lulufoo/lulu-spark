@@ -18,6 +18,7 @@ pub mod read_later;
 pub mod app_log;
 pub mod message_center;
 pub mod login_hop;
+pub mod auth_login_landing;
 pub mod os_notify_trace;
 pub mod reindex;
 pub mod knowledge_layout;

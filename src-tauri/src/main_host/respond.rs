@@ -63,3 +63,11 @@ pub(super) fn respond_raw(request: tiny_http::Request, status: u16, body: String
     }
     let _ = request.respond(response);
 }
+
+pub(super) fn respond_html(request: tiny_http::Request, status: u16, body: String) {
+    let mut response = Response::from_string(body).with_status_code(StatusCode(status));
+    if let Ok(header) = Header::from_bytes(&b"Content-Type"[..], &b"text/html; charset=utf-8"[..]) {
+        response = response.with_header(header);
+    }
+    let _ = request.respond(response);
+}

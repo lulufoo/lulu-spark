@@ -665,3 +665,6 @@ mod produce_wiring;
 
 #[path = "main_host/ac1.rs"]
 mod ac1;
+
+#[path = "main_host/auth_login.rs"]
+mod auth_login;
