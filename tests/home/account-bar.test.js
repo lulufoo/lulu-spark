@@ -177,7 +177,10 @@ describe('AccountBar', () => {
     expect(container.querySelector('[data-role="account-bar-name"]').textContent).toBe(
       'ada@example.com',
     );
-    expect(container.querySelector('[data-role="account-bar-avatar"]')).toBeNull();
+    const placeholder = container.querySelector('[data-role="account-bar-avatar"]');
+    expect(placeholder).not.toBeNull();
+    expect(placeholder.getAttribute('data-placeholder')).toBe('true');
+    expect(placeholder.textContent).toBe('A');
 
     render({
       user: signedUser({ display_name: '', email: null, avatar_url: null }),
@@ -185,6 +188,21 @@ describe('AccountBar', () => {
     expect(container.querySelector('[data-role="account-bar-name"]').textContent).toBe(
       'Signed in',
     );
+    const fallback = container.querySelector('[data-role="account-bar-avatar"]');
+    expect(fallback.getAttribute('data-placeholder')).toBe('true');
+    expect(fallback.textContent).toBe('L');
+  });
+
+  it('falls back to a local placeholder when the avatar image fails', () => {
+    render({ user: signedUser() });
+    const avatar = container.querySelector('[data-role="account-bar-avatar"]');
+    expect(avatar.tagName).toBe('IMG');
+    act(() => {
+      avatar.dispatchEvent(new Event('error'));
+    });
+    const placeholder = container.querySelector('[data-role="account-bar-avatar"]');
+    expect(placeholder.getAttribute('data-placeholder')).toBe('true');
+    expect(placeholder.textContent).toBe('A');
   });
 
   it('stays usable when login or logout callbacks throw', () => {

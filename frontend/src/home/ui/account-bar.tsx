@@ -49,14 +49,7 @@ export function AccountBar({
         aria-label={signedIn ? label : 'Sign in'}
         onClick={() => setOpen((prev) => !prev)}
       >
-        {signedIn && user?.avatar_url ? (
-          <img
-            className="home-account-bar-avatar"
-            data-role="account-bar-avatar"
-            src={user.avatar_url}
-            alt=""
-          />
-        ) : null}
+        {signedIn && user ? <SignedInAvatar user={user} /> : null}
         {signedIn ? (
           <span className="home-account-bar-name" data-role="account-bar-name">
             {label}
@@ -115,9 +108,46 @@ export function AccountBar({
   );
 }
 
+function SignedInAvatar({ user }: { user: AccountBarUser }) {
+  const url = user.avatar_url?.trim() ?? '';
+  const [broken, setBroken] = useState(false);
+
+  useEffect(() => {
+    setBroken(false);
+  }, [url, user.user_id]);
+
+  if (url && !broken) {
+    return (
+      <img
+        className="home-account-bar-avatar"
+        data-role="account-bar-avatar"
+        src={url}
+        alt=""
+        onError={() => setBroken(true)}
+      />
+    );
+  }
+
+  return (
+    <span
+      className="home-account-bar-avatar home-account-bar-avatar--placeholder"
+      data-role="account-bar-avatar"
+      data-placeholder="true"
+      aria-hidden="true"
+    >
+      {avatarInitial(user)}
+    </span>
+  );
+}
+
 function signedInLabel(user: AccountBarUser | null): string {
   if (!user?.user_id) return 'Sign in';
   return user.display_name?.trim() || user.email?.trim() || 'Signed in';
+}
+
+function avatarInitial(user: AccountBarUser): string {
+  const source = user.display_name?.trim() || user.email?.trim() || 'L';
+  return Array.from(source)[0]?.toUpperCase() || 'L';
 }
 
 function callSafely(fn: () => void) {
