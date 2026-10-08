@@ -133,6 +133,16 @@ describe('FilePopup chrome', () => {
     expect(viewStore.getSnapshot().open).toBe(true);
   });
 
+  it('lifts the Stage file popup off the canvas with the shared modal stack', () => {
+    const css = readRel('frontend/app.css');
+    expect(css).toMatch(/#file-popup\s*\{[^}]*background:\s*var\(--bg-rgba-000000-55\)/);
+    expect(css).toMatch(
+      /#file-popup\s+\.file-popup-box\s*\{[^}]*box-shadow:\s*0 16px 48px var\(--shadow-rgba-000000-30\)/,
+    );
+    expect(css).not.toMatch(/#file-popup\s*\{[^}]*--bg-rgba-1f2328-45/);
+    expect(css).not.toMatch(/#file-popup\s+\.file-popup-box\s*\{[^}]*--shadow-rgba-1f2328-18/);
+  });
+
   it('keeps File popup close in commands and not inside the shared control', () => {
     const popupSrc = readRel('frontend/src/file-popup/ui/popup.tsx');
     const commandSrc = readRel('frontend/src/file-popup/commands/popup.ts');
