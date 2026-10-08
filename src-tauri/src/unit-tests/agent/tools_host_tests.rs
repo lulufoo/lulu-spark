@@ -3,10 +3,26 @@ use std::path::PathBuf;
 
 use serde_json::json;
 
-use crate::agent::tools::catalog::SESSION_SCRATCH_PLACEHOLDER;
 use crate::agent::tools::host;
 use crate::agent::tools::ToolCatalog;
 use crate::services::path_fence::PathFence;
+
+fn tool_param_description(catalog: &ToolCatalog, name: &str, field: &str) -> String {
+    catalog
+        .definitions
+        .iter()
+        .find_map(|def| {
+            let found = def.pointer("/function/name")?.as_str()?;
+            if found == name {
+                def.pointer(&format!("/function/parameters/properties/{field}/description"))?
+                    .as_str()
+                    .map(str::to_string)
+            } else {
+                None
+            }
+        })
+        .unwrap_or_else(|| panic!("missing {name}.{field}"))
+}
 
 fn tool_description(catalog: &ToolCatalog, name: &str) -> String {
     catalog
@@ -77,13 +93,25 @@ fn catalog_exposes_the_five_host_file_tools() {
 }
 
 #[test]
-fn write_str_replace_and_copy_keep_scratch_placeholder_without_staged_rule() {
+fn host_file_tool_descriptions_use_dir_names_not_absolute_paths() {
     let catalog = host::catalog();
-    for name in ["write", "str_replace", "copy"] {
+    for name in ["grep", "read", "write", "str_replace", "copy"] {
         let desc = tool_description(&catalog, name);
         assert!(
-            desc.contains(SESSION_SCRATCH_PLACEHOLDER),
-            "{name} must keep the scratch placeholder"
+            desc.contains("SESSION_SCRATCH_DIR"),
+            "{name} must name SESSION_SCRATCH_DIR"
+        );
+        assert!(
+            desc.contains("SPARK_DATA_DIR"),
+            "{name} must name SPARK_DATA_DIR"
+        );
+        assert!(
+            !desc.contains("{session_scratch"),
+            "{name} must not inject a scratch placeholder"
+        );
+        assert!(
+            !desc.contains("/agent-scratch/"),
+            "{name} static text must not bake a scratch path"
         );
         assert!(
             !desc.contains("staged"),
@@ -93,59 +121,62 @@ fn write_str_replace_and_copy_keep_scratch_placeholder_without_staged_rule() {
             !desc.contains("list_staged"),
             "{name} must not point at list_staged"
         );
-        assert!(
-            !desc.contains("/agent-scratch/"),
-            "{name} static text must not bake a scratch path"
-        );
     }
-    for name in ["write", "str_replace"] {
-        let desc = tool_description(&catalog, name);
-        assert!(
-            desc.contains("copy it here first"),
-            "{name} must tell the model to copy into scratch before editing"
-        );
-    }
-    let copy_desc = tool_description(&catalog, "copy");
-    assert!(
-        !copy_desc.contains("Use this before write or str_replace"),
-        "copy must not restate the edit workflow"
-    );
-    assert!(
-        copy_desc.contains("not the scratch root"),
-        "copy must keep the scratch-root dest rule"
-    );
-    assert!(!tool_description(&catalog, "read").contains(SESSION_SCRATCH_PLACEHOLDER));
     let grep_desc = tool_description(&catalog, "grep");
-    assert!(!grep_desc.contains(SESSION_SCRATCH_PLACEHOLDER));
-    assert!(
-        grep_desc.contains("absolute file or directory"),
-        "grep must say path can be a file"
-    );
+    assert!(grep_desc.contains("Readable paths:"));
+    assert!(grep_desc.starts_with("Search text."));
+    let read_desc = tool_description(&catalog, "read");
+    assert!(read_desc.contains("Readable paths:"));
+    let write_desc = tool_description(&catalog, "write");
+    assert!(write_desc.contains("Writable paths:"));
+    assert!(write_desc.contains("MCP tool"));
+    let replace_desc = tool_description(&catalog, "str_replace");
+    assert!(replace_desc.contains("Writable paths:"));
+    assert!(replace_desc.contains("replace_all"));
+    let copy_desc = tool_description(&catalog, "copy");
+    assert!(copy_desc.contains("Source paths:"));
+    assert!(copy_desc.contains("Destination paths:"));
+    assert!(copy_desc.contains("not a directory"));
 }
 
 #[test]
-fn fill_session_scratch_replaces_placeholder_and_does_not_list_staged() {
-    let mut catalog = host::catalog();
-    let scratch = unique_dir("filled-scratch");
-    catalog.fill_session_scratch(&scratch);
-    let scratch_text = scratch.to_string_lossy();
-    for name in ["write", "str_replace", "copy"] {
-        let desc = tool_description(&catalog, name);
-        assert!(
-            desc.contains(scratch_text.as_ref()),
-            "{name} must include the session scratch path"
-        );
-        assert!(
-            !desc.contains(SESSION_SCRATCH_PLACEHOLDER),
-            "{name} must not leave the placeholder"
-        );
-        assert!(
-            !desc.contains("note.md"),
-            "{name} must not list staged file names"
+fn host_file_tool_params_do_not_repeat_dir_names() {
+    let catalog = host::catalog();
+    assert_eq!(
+        tool_param_description(&catalog, "grep", "path"),
+        "Optional absolute file or directory."
+    );
+    for name in ["read", "write", "str_replace"] {
+        assert_eq!(
+            tool_param_description(&catalog, name, "path"),
+            "Absolute file path."
         );
     }
-    assert!(!tool_description(&catalog, "read").contains(scratch_text.as_ref()));
-    assert!(!tool_description(&catalog, "grep").contains(scratch_text.as_ref()));
+    assert_eq!(
+        tool_param_description(&catalog, "copy", "source_path"),
+        "Absolute readable file."
+    );
+    assert_eq!(
+        tool_param_description(&catalog, "copy", "dest_path"),
+        "Absolute file path."
+    );
+    for name in ["grep", "read", "write", "str_replace", "copy"] {
+        let blob = catalog
+            .definitions
+            .iter()
+            .find(|def| def.pointer("/function/name").and_then(|v| v.as_str()) == Some(name))
+            .and_then(|def| def.pointer("/function/parameters"))
+            .map(|v| v.to_string())
+            .expect("parameters");
+        assert!(
+            !blob.contains("SESSION_SCRATCH_DIR"),
+            "{name} params must not name SESSION_SCRATCH_DIR"
+        );
+        assert!(
+            !blob.contains("SPARK_DATA_DIR"),
+            "{name} params must not name SPARK_DATA_DIR"
+        );
+    }
 }
 
 #[test]

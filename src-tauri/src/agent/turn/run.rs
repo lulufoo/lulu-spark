@@ -118,7 +118,7 @@ pub(crate) fn run_loop_with_progress(
 
     let mut turn_fence = turn_fence_for_session(session);
     let mcp_config = session_capability_mcp_config();
-    let mut turn_tools = match tools::discover_and_merge(mcp_config.as_ref(), turn_fence.is_some()) {
+    let turn_tools = match tools::discover_and_merge(mcp_config.as_ref(), turn_fence.is_some()) {
         Ok(tools) => tools,
         Err(PrepareError::EmptyMcpTools) => {
             let reply = "当前场景的 MCP 服务未暴露任何工具，无法继续。".to_string();
@@ -153,9 +153,17 @@ pub(crate) fn run_loop_with_progress(
             };
         }
     };
-    if let Some(fence) = turn_fence.as_ref() {
-        tools::fill_turn_scratch(&mut turn_tools, fence, &session.session_id);
-    }
+    let scratch = turn_fence.as_ref().and_then(|fence| {
+        fence
+            .session_scratch_root(&session.session_id)
+            .ok()
+            .flatten()
+    });
+    let system_prompt = crate::agent::fill_host_file_dirs(
+        &system_prompt,
+        scratch.as_deref(),
+        &crate::config::paths::runtime_data_dir(),
+    );
     if chat_turn_interrupted(&session.session_id, generation) {
         return cancelled_turn_outcome(session, turns_checkpoint);
     }

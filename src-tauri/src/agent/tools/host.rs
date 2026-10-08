@@ -11,12 +11,12 @@ pub fn catalog() -> ToolCatalog {
     ToolCatalog::from_local_tools(vec![
         local_tool(
             "grep",
-            "Search file contents under the read-allowed roots. path is optional: an absolute file or directory; omit to search all read roots. Pattern is a Rust regex.",
+            "Search text.\n\nReadable paths: SPARK_DATA_DIR, SESSION_SCRATCH_DIR.\npath is optional; omit path to search both directories.",
             json!({
                 "type": "object",
                 "properties": {
                     "pattern": { "type": "string", "description": "Regex to search for." },
-                    "path": { "type": "string", "description": "Optional absolute file or directory under a read root." }
+                    "path": { "type": "string", "description": "Optional absolute file or directory." }
                 },
                 "required": ["pattern"],
                 "additionalProperties": false
@@ -25,7 +25,7 @@ pub fn catalog() -> ToolCatalog {
         ),
         local_tool(
             "read",
-            "Read a text file under a read-allowed root. path must be absolute. Optional 1-based offset and limit (default 50 lines). Success is JSON: offset, limit, remaining_lines, and line-numbered content.",
+            "Read a text file.\nOptional offset (1-based start line) and limit (max lines, default 50).\n\nReadable paths: SPARK_DATA_DIR, SESSION_SCRATCH_DIR.\npath must be absolute.",
             json!({
                 "type": "object",
                 "properties": {
@@ -40,11 +40,11 @@ pub fn catalog() -> ToolCatalog {
         ),
         local_tool(
             "write",
-            "Create or overwrite a text file. path must be absolute and under the session scratch directory {session_scratch}. To edit a file outside this directory, copy it here first, then write or str_replace that copy.",
+            "Create or overwrite a text file.\n\nWritable paths: SESSION_SCRATCH_DIR.\nDo not write files in SPARK_DATA_DIR with this tool. Copy them to SESSION_SCRATCH_DIR to edit; use an MCP tool to update SPARK_DATA_DIR files.",
             json!({
                 "type": "object",
                 "properties": {
-                    "path": { "type": "string", "description": "Absolute file path under the session scratch directory." },
+                    "path": { "type": "string", "description": "Absolute file path." },
                     "content": { "type": "string", "description": "Full file contents." }
                 },
                 "required": ["path", "content"],
@@ -54,11 +54,11 @@ pub fn catalog() -> ToolCatalog {
         ),
         local_tool(
             "str_replace",
-            "Replace exact text in an existing file under the session scratch directory {session_scratch}. To edit a file outside this directory, copy it here first, then edit the copy. old_string must match exactly once unless replace_all is true.",
+            "Replace exact text in an existing text file.\nold_string must match exactly once unless replace_all is true.\n\nWritable paths: SESSION_SCRATCH_DIR.\nDo not modify files in SPARK_DATA_DIR with this tool. Copy them to SESSION_SCRATCH_DIR to edit; use an MCP tool to update SPARK_DATA_DIR files.",
             json!({
                 "type": "object",
                 "properties": {
-                    "path": { "type": "string", "description": "Absolute file path under the session scratch directory." },
+                    "path": { "type": "string", "description": "Absolute file path." },
                     "old_string": { "type": "string", "description": "The text to replace." },
                     "new_string": { "type": "string", "description": "The text to replace it with." },
                     "replace_all": {
@@ -73,12 +73,12 @@ pub fn catalog() -> ToolCatalog {
         ),
         local_tool(
             "copy",
-            "Copy a readable regular file into the session scratch directory {session_scratch}. dest_path must be a file under that directory, not the scratch root. The Host copies bytes and never sends file text. Overwrites dest_path if it already exists.",
+            "Copy a regular file.\nDoes not modify the source. Overwrites dest_path if it already exists.\n\nSource paths: SPARK_DATA_DIR, SESSION_SCRATCH_DIR.\nDestination paths: SESSION_SCRATCH_DIR.\nsource_path must be absolute. dest_path must be a file path in SESSION_SCRATCH_DIR, not a directory.",
             json!({
                 "type": "object",
                 "properties": {
-                    "source_path": { "type": "string", "description": "Absolute readable regular file." },
-                    "dest_path": { "type": "string", "description": "Absolute file path under the session scratch directory." }
+                    "source_path": { "type": "string", "description": "Absolute readable file." },
+                    "dest_path": { "type": "string", "description": "Absolute file path." }
                 },
                 "required": ["source_path", "dest_path"],
                 "additionalProperties": false

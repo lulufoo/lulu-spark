@@ -1,5 +1,7 @@
 //! Host MVP Agent: Session / Tools / LLM / Binding / Shell / Turn.
 
+use std::path::Path;
+
 pub mod binding;
 pub mod context;
 pub mod diagnostics;
@@ -40,7 +42,40 @@ pub const SPARK_HOST_SYSTEM_PROMPT: &str = r#"你是 Lulu Spark 的 Host 对话�
 ## 回复风格
 - 简洁中文。
 - 每次只问还缺的关键信息。
-- 信息不足：澄清提问；已完成或不支持：给出最终说明，等待用户下一句。"#;
+- 信息不足：澄清提问；已完成或不支持：给出最终说明，等待用户下一句。
+
+## Host file directories
+
+SESSION_SCRATCH_DIR (this chat's working directory):
+{session_scratch_dir}
+
+SPARK_DATA_DIR (Spark business data directory):
+{spark_data_dir}
+
+NOTES_DIR (notes archive):
+{spark_data_dir}/notes
+
+KNOWLEDGE_DIR (knowledge documents):
+{spark_data_dir}/knowledge
+
+READ_LATER_DIR (read-later items):
+{spark_data_dir}/read_later"#;
+
+pub const SESSION_SCRATCH_DIR_PLACEHOLDER: &str = "{session_scratch_dir}";
+pub const SPARK_DATA_DIR_PLACEHOLDER: &str = "{spark_data_dir}";
+
+/// Fill Host file-directory placeholders for one turn. Data is always filled;
+/// scratch stays a placeholder when this turn has no session scratch.
+pub fn fill_host_file_dirs(prompt: &str, scratch: Option<&Path>, data: &Path) -> String {
+    let mut out = prompt.replace(SPARK_DATA_DIR_PLACEHOLDER, data.to_string_lossy().as_ref());
+    if let Some(scratch) = scratch {
+        out = out.replace(
+            SESSION_SCRATCH_DIR_PLACEHOLDER,
+            scratch.to_string_lossy().as_ref(),
+        );
+    }
+    out
+}
 
 #[cfg(test)]
 #[path = "../unit-tests/agent/mod.rs"]

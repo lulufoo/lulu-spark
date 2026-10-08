@@ -383,16 +383,34 @@ fn run_loop_offers_host_file_tools_and_keeps_scratch_writes_inside_cache() {
         })
         .expect("write description");
     assert!(
-        write_desc.contains("agent-scratch") && write_desc.contains(&session.session_id),
-        "sent write description must include this session scratch path"
+        write_desc.contains("SESSION_SCRATCH_DIR") && write_desc.contains("SPARK_DATA_DIR"),
+        "sent write description must name the directory variables"
     );
     assert!(
-        !write_desc.contains("{session_scratch}"),
-        "sent write description must not keep the placeholder"
+        !write_desc.contains("{session_scratch"),
+        "sent write description must not keep a scratch placeholder"
+    );
+    assert!(
+        !write_desc.contains(&session.session_id),
+        "sent write description must not bake this session scratch path"
     );
     assert!(
         !write_desc.contains(readable.to_string_lossy().as_ref()),
         "sent write description must not list staged or other file paths"
+    );
+    let system = hits[0]["messages"]
+        .as_array()
+        .and_then(|messages| messages.first())
+        .and_then(|message| message.get("content"))
+        .and_then(|v| v.as_str())
+        .expect("system prompt");
+    assert!(
+        system.contains("agent-scratch") && system.contains(&session.session_id),
+        "sent system prompt must include this session scratch path"
+    );
+    assert!(
+        system.contains("NOTES_DIR") && system.contains("/notes"),
+        "sent system prompt must include notes under SPARK_DATA_DIR"
     );
     let tool_turns: Vec<_> = session
         .turns
