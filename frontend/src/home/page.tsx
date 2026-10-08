@@ -8,6 +8,7 @@ import { loadPackageDebug } from './commands/package-debug.ts';
 import { packageDebugStore } from './state/package-debug.ts';
 import { hydrateHomeChatMarkdown, renderHomeChatMarkdown } from './ui/chat-render.ts';
 import { AccountBar } from './ui/account-bar.tsx';
+import { HelpMenu } from './ui/help-menu.tsx';
 import { HomeNavIcon } from './ui/nav-icons.tsx';
 import { SessionList } from './ui/session-list.tsx';
 import { SessionMenu } from './ui/session-menu.tsx';
@@ -374,12 +375,15 @@ export function HomePage({
             }}
           />
         </div>
-        <AccountBar
-          user={authUser}
-          isDebug={isDebug}
-          onLogin={onAccountLogin}
-          onLogout={onAccountLogout}
-        />
+        <div className="home-account-row" data-role="account-row">
+          <AccountBar
+            user={authUser}
+            isDebug={isDebug}
+            onLogin={onAccountLogin}
+            onLogout={onAccountLogout}
+          />
+          <HelpMenu />
+        </div>
         <div
           className="home-chat-sidebar-resizer sidebar-resizer"
           role="separator"
