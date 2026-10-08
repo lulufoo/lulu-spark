@@ -40,4 +40,25 @@ describe('OTH-211 Dark theme tokens', () => {
   it('does not leave the Light muted chevron hex in app.css', () => {
     expect(appCss).not.toMatch(/stroke='%2357606a'/);
   });
+
+  it('lifts Dark Send above the composer dock without remapping --bg-emphasis-2', () => {
+    expect(appCss).toMatch(
+      /\[data-theme="dark"\]\s+\.home-chat-send\s*\{[^}]*background:\s*var\(--bg-dark\)/,
+    );
+    expect(appCss).toMatch(
+      /\[data-theme="dark"\]\s+\.home-chat-send:hover\s*\{[^}]*background:\s*var\(--border-emphasis-2\)/,
+    );
+    expect(appCss).toMatch(
+      /\[data-theme="dark"\]\s+\.home-chat-send:disabled\s*\{[^}]*background:\s*var\(--bg-muted\)/,
+    );
+    expect(darkCss).toMatch(/--bg-dark:\s*#4c4851;/);
+    expect(darkCss).toMatch(/--bg-emphasis-2:\s*#19181b;/);
+  });
+
+  it('lifts Dark account placeholder avatar off the sidebar surface', () => {
+    expect(appCss).toMatch(
+      /\[data-theme="dark"\]\s+\.home-account-bar-avatar--placeholder\s*\{[^}]*background:\s*var\(--bg-dark\)/,
+    );
+    expect(darkCss).toMatch(/--bg-hex-1d1d1f:\s*#212023;/);
+  });
 });
