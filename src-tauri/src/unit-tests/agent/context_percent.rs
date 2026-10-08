@@ -4,14 +4,15 @@ use serde_json::{json, Value};
 
 use super::count::{count_spans, count_tokens};
 use super::render::{render_marked, render_request};
-use super::window::{round_percent, window_tokens};
+use super::window::{round_percent, window_tokens, DEFAULT_WINDOW_TOKENS};
 
 const HELPFUL: &str = "[gMASK]<sop><|system|>Reasoning Effort: Max<|system|>You are helpful.<|assistant|><think>";
 
 #[test]
 fn glm_window_is_the_documented_size() {
-    assert_eq!(window_tokens("glm-5.2"), Some(1_048_576));
-    assert_eq!(window_tokens("other-model"), None);
+    assert_eq!(window_tokens("glm-5.2"), 1_048_576);
+    assert_eq!(window_tokens("other-model"), DEFAULT_WINDOW_TOKENS);
+    assert_eq!(DEFAULT_WINDOW_TOKENS, 255_000);
 }
 
 #[test]

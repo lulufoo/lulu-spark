@@ -64,9 +64,7 @@ pub fn maybe_compress(session: &mut Session, config: &LlmConfig) {
     let Ok(Some(tokens)) = session::load_last_prompt_tokens(&session.session_id) else {
         return;
     };
-    let Some(window) = window_tokens(&config.model) else {
-        return;
-    };
+    let window = window_tokens(&config.model);
     if !should_compress(tokens, window) || session.turns.is_empty() {
         return;
     }

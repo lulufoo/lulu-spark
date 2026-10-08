@@ -80,7 +80,8 @@ fn pack_tokens(turns: &[Turn]) -> u64 {
 
 #[test]
 fn trigger_is_70_percent_of_the_glm_window() {
-    assert_eq!(window_tokens("glm-5.2"), Some(GLM_WINDOW));
+    assert_eq!(window_tokens("glm-5.2"), GLM_WINDOW);
+    assert_eq!(window_tokens("other-model"), 255_000);
     assert_eq!(round_percent(TOKENS_AT_69 as u64, GLM_WINDOW), Some(69));
     assert_eq!(round_percent(TOKENS_AT_70 as u64, GLM_WINDOW), Some(70));
     assert!(!should_compress(TOKENS_AT_69, GLM_WINDOW));

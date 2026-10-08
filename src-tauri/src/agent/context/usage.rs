@@ -54,8 +54,8 @@ pub fn record_sent_prompt(
 }
 
 /// Percentage for the last model prompt sent in the current session.
-/// `None` when there is no session, the host is unbound, no prompt has been
-/// sent, or the model has no window row.
+/// `None` when there is no session, the host is unbound, or no prompt has been
+/// sent.
 pub fn current_context_percent() -> Option<i64> {
     current_context_usage().map(|usage| usage.percent)
 }
@@ -72,7 +72,7 @@ pub fn current_context_usage() -> Option<ContextUsage> {
         return None;
     }
     let model = llm::load_llm_config().ok()?.model;
-    let window = window_tokens(&model)?;
+    let window = window_tokens(&model);
     let percent = round_percent(tokens as u64, window)?;
     let categories = session::load_last_prompt_breakdown(&session_id)
         .ok()
