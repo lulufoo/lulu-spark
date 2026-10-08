@@ -67,6 +67,9 @@ describe('account bar · source', () => {
     expect(src).toMatch(/display_name/);
     expect(src).not.toMatch(/linkIdentity/);
     expect(src).not.toMatch(/startAuthLogin|signOutAuth|getAuthUser/);
+    expect(src).toMatch(/isDebug/);
+    expect(src).toMatch(/data-debug/);
+    expect(src).not.toMatch(/getPackageSnapshot/);
   });
 
   it('styles a single bottom account slot, not two side-by-side provider buttons', () => {
@@ -74,6 +77,16 @@ describe('account bar · source', () => {
     expect(css).toMatch(/\.home-account-bar\b/);
     expect(css).toMatch(/\.home-account-bar-trigger\b/);
     expect(css).not.toMatch(/\.home-account-bar-providers\s*\{[^}]*flex-direction:\s*row/);
+  });
+
+  it('paints only the avatar background when data-debug is true', () => {
+    const css = readRel('frontend/app.css');
+    expect(css).toMatch(
+      /\.home-account-bar\[data-debug="true"\][^{]*\{[^}]*background:\s*var\(--bg-danger\)/,
+    );
+    expect(css).not.toMatch(
+      /\.home-account-bar\[data-debug="true"\][^{]*\{[^}]*(box-shadow|outline|border):/,
+    );
   });
 });
 
@@ -125,6 +138,7 @@ describe('AccountBar', () => {
     const guest = container.querySelector('[data-role="account-bar-avatar"]');
     expect(guest).not.toBeNull();
     expect(guest.getAttribute('data-placeholder')).toBe('true');
+    expect(bars()[0].getAttribute('data-debug')).toBe('false');
     expect(container.querySelector('.home-account-bar-label').textContent).toBe('Sign in');
     expect(container.querySelector('[data-role="account-login-google"]')).toBeNull();
     expect(container.querySelector('[data-role="account-login-github"]')).toBeNull();
@@ -150,6 +164,11 @@ describe('AccountBar', () => {
       container.querySelector('[data-role="account-login-github"]').click();
     });
     expect(onLogin).toHaveBeenCalledWith('github');
+  });
+
+  it('marks the bar data-debug when isDebug is true', () => {
+    render({ isDebug: true });
+    expect(bars()[0].getAttribute('data-debug')).toBe('true');
   });
 
   it('shows name and avatar when signed in, then name + sign out on click', () => {

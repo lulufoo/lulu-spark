@@ -4,6 +4,8 @@ import { createRoot, type Root } from 'react-dom/client';
 import { flushSync } from 'react-dom';
 import { getAuthUser, signOutAuth, startAuthLogin } from '../auth/oauth.ts';
 import { authUserStore } from '../auth/state/user.ts';
+import { loadPackageDebug } from './commands/package-debug.ts';
+import { packageDebugStore } from './state/package-debug.ts';
 import { hydrateHomeChatMarkdown, renderHomeChatMarkdown } from './ui/chat-render.ts';
 import { AccountBar } from './ui/account-bar.tsx';
 import { HomeNavIcon } from './ui/nav-icons.tsx';
@@ -121,6 +123,10 @@ export function HomePage({
 }: HomePageChrome = {}) {
   const state = useHomeState();
   const authUser = useSyncExternalStore(authUserStore.subscribe, authUserStore.getSnapshot);
+  const isDebug = useSyncExternalStore(
+    packageDebugStore.subscribe,
+    packageDebugStore.getSnapshot,
+  );
   const locked = composerLocked(state);
   const inputLocked = composerInputLocked(state);
   const hint = progressHint(state);
@@ -149,6 +155,10 @@ export function HomePage({
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  useEffect(() => {
+    void loadPackageDebug();
   }, []);
 
   useEffect(() => {
@@ -364,7 +374,12 @@ export function HomePage({
             }}
           />
         </div>
-        <AccountBar user={authUser} onLogin={onAccountLogin} onLogout={onAccountLogout} />
+        <AccountBar
+          user={authUser}
+          isDebug={isDebug}
+          onLogin={onAccountLogin}
+          onLogout={onAccountLogout}
+        />
         <div
           className="home-chat-sidebar-resizer sidebar-resizer"
           role="separator"

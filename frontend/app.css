@@ -6651,6 +6651,14 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   background: var(--bg-hex-e8ecf0);
   color: var(--fg-muted);
 }
+.home-account-bar[data-debug="true"] .home-account-bar-avatar,
+.home-account-bar[data-debug="true"] .home-account-bar-avatar--placeholder,
+.home-account-bar[data-debug="true"] .home-account-bar-avatar--guest {
+  background: var(--bg-danger);
+}
+[data-theme="dark"] .home-account-bar[data-debug="true"] .home-account-bar-avatar--placeholder {
+  background: var(--bg-danger);
+}
 .home-account-bar[data-signed-in="false"] .home-account-bar-label {
   color: var(--fg-muted);
 }

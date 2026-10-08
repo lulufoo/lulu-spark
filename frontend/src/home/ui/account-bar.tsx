@@ -12,10 +12,12 @@ export function AccountBar({
   user,
   onLogin,
   onLogout,
+  isDebug = false,
 }: {
   user: AccountBarUser | null;
   onLogin: (provider: 'google' | 'github') => void;
   onLogout: () => void;
+  isDebug?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const signedIn = Boolean(user?.user_id);
@@ -39,6 +41,7 @@ export function AccountBar({
       className="home-account-bar"
       data-role="account-bar"
       data-signed-in={signedIn ? 'true' : 'false'}
+      data-debug={isDebug ? 'true' : 'false'}
     >
       <button
         type="button"
