@@ -102,4 +102,14 @@ describe('OTH-211 Dark theme tokens', () => {
     expect(appCss).not.toMatch(/\.settings-field input:focus \{ border-color: var\(--border-accent\)/);
     expect(appCss).not.toMatch(/\.gs-search-input:focus\s*\{[^}]*--border-accent/);
   });
+
+  it('lifts the Dark context ring off the composer surface', () => {
+    expect(appCss).toMatch(
+      /\[data-theme="dark"\]\s+\.home-chat-context-ring-track\s*\{[^}]*stroke:\s*var\(--fg-subtle\)/,
+    );
+    expect(appCss).toMatch(
+      /\[data-theme="dark"\]\s+\.home-chat-context-ring-progress\s*\{[^}]*stroke:\s*var\(--fg-muted\)/,
+    );
+    expect(darkCss).toMatch(/--fg-rgba-1f2328-08:\s*rgba\(31, 35, 40, 0\.14\);/);
+  });
 });

@@ -7247,6 +7247,12 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
 .home-chat-context-ring-progress {
   stroke: var(--fg-rgba-1f2328-66);
 }
+[data-theme="dark"] .home-chat-context-ring-track {
+  stroke: var(--fg-subtle);
+}
+[data-theme="dark"] .home-chat-context-ring-progress {
+  stroke: var(--fg-muted);
+}
 .home-chat-context-usage {
   position: absolute;
   right: 0;
