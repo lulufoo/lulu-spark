@@ -6622,21 +6622,32 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
   padding: 0;
-  border: 1px solid var(--border-default);
+  border: none;
   border-radius: 50%;
   background: transparent;
-  color: var(--fg-muted);
-  font-size: 12px;
-  line-height: 1;
+  color: var(--fg-subtle);
   cursor: pointer;
+}
+.home-help-menu-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0 0 1px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  font-size: 10px;
+  font-weight: 400;
+  line-height: 1;
 }
 .home-help-menu-trigger:hover,
 .home-help-menu-trigger:focus-visible {
   background: var(--bg-hex-e7ebef);
-  color: var(--fg-default);
+  color: var(--fg-muted);
 }
 .home-help-menu-backdrop {
   position: fixed;

@@ -25,9 +25,10 @@ export function HelpMenu({ onAbout }: { onAbout?: () => void }) {
         aria-haspopup="menu"
         aria-expanded={open ? 'true' : 'false'}
         aria-label="Help"
+        title="Help"
         onClick={() => setOpen((prev) => !prev)}
       >
-        <span aria-hidden="true">?</span>
+        <span className="home-help-menu-mark" aria-hidden="true">?</span>
       </button>
       {open ? (
         <>
