@@ -23,7 +23,7 @@ import {
   startHomeHub,
   stopHomeHub,
 } from './commands/hub.ts';
-import { consumeComposerFocus } from './commands/composer-focus.ts';
+import { consumeComposerFocus, focusComposerFromDock } from './commands/composer-focus.ts';
 import { openStagedFile, unstageStaged } from './commands/staged.ts';
 import { createImeEnterGuard } from './ime-enter.ts';
 import {
@@ -192,8 +192,8 @@ export function HomePage({
     const form = formRef.current;
     const messagesEl = messagesRef.current;
     if (!input || !form) return;
-    input.style.height = '20px';
-    const next = Math.min(Math.max(input.scrollHeight, 20), 120);
+    input.style.height = '48px';
+    const next = Math.min(Math.max(input.scrollHeight, 48), 148);
     input.style.height = `${next}px`;
     const composerH = form.offsetHeight;
     if (composerH > 0 && messagesEl) {
@@ -396,7 +396,14 @@ export function HomePage({
               void unstageStaged(id);
             }}
           />
-          <div className="home-chat-composer-dock">
+          <div
+            className="home-chat-composer-dock"
+            onMouseDown={(e) => {
+              if (focusComposerFromDock(inputRef.current, e.target, inputLocked)) {
+                e.preventDefault();
+              }
+            }}
+          >
             <textarea
               ref={inputRef}
               className="home-chat-input"

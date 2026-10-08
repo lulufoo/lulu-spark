@@ -82,4 +82,24 @@ describe('OTH-211 Dark theme tokens', () => {
     );
     expect(darkCss).toMatch(/--bg-accent:\s*#3b73ff;/);
   });
+
+  it('paints form focus from --border-focus instead of --border-accent', () => {
+    expect(lightCss).toMatch(/--border-focus:\s*#afb8c1;/);
+    expect(darkCss).toMatch(/--border-focus:\s*#98959d;/);
+    expect(darkCss).toMatch(/--border-accent:\s*#3b73ff;/);
+    expect(lightCss).toMatch(/--border-accent:\s*#0969da;/);
+    expect(appCss).toMatch(/\.gs-search-input:focus\s*\{[^}]*border-color:\s*var\(--border-focus\)/);
+    expect(appCss).toMatch(/\.settings-field input:focus[\s\S]*?border-color:\s*var\(--border-focus\)/);
+    expect(appCss).toMatch(
+      /\.home-chat-composer-dock:focus-within\s*\{[^}]*border-color:\s*var\(--border-focus\)/,
+    );
+    expect(appCss).not.toMatch(
+      /\.home-chat-composer-dock:focus-within\s*\{[^}]*shadow-rgba-0969da/,
+    );
+    expect(appCss).toMatch(
+      /\[data-theme="light"\]\s+\.home-chat-composer-dock:focus-within\s*\{[^}]*shadow-rgba-1f2328-06/,
+    );
+    expect(appCss).not.toMatch(/\.settings-field input:focus \{ border-color: var\(--border-accent\)/);
+    expect(appCss).not.toMatch(/\.gs-search-input:focus\s*\{[^}]*--border-accent/);
+  });
 });
