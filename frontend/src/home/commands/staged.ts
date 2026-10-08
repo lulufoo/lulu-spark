@@ -16,7 +16,7 @@ export function openStagedFile(item: HubStagedEntry) {
   openFilePopup({
     path,
     title: item.title,
-    identityKey: stagedIdentityKey(item.kind, path),
+    identityKey: stagedIdentityKey(item.source?.kind, path),
   });
 }
 

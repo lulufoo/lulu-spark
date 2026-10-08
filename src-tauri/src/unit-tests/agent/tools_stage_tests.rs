@@ -101,7 +101,7 @@ fn stage_into_appends_default_title_without_body() {
         assert!(!result.is_error && !result.content.contains(SECRET_BODY), "{}", result.content);
         assert_eq!(sess.staged.len(), 1);
         assert_eq!(sess.staged[0].id, "F1");
-        assert!(sess.staged[0].kind.is_none());
+        assert!(sess.staged[0].source.is_none());
         let stored_path = stored(&path);
         assert_path_only(&serde_json::to_value(&sess.staged[0]).unwrap(), &stored_path, "my-note");
         assert_path_only(&as_json(&result.content), &stored_path, "my-note");

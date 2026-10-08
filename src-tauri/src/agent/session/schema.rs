@@ -43,7 +43,8 @@ CREATE TABLE IF NOT EXISTS staged (
   staged_id TEXT PRIMARY KEY,
   path TEXT NOT NULL,
   title TEXT NOT NULL,
-  kind TEXT
+  source_kind TEXT,
+  source_id TEXT
 );
 "#;
 

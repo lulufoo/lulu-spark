@@ -37,6 +37,10 @@ fn kb_doc_count_registered_in_lib_rs() {
         lib.contains("commands::kb_entry::kb_delete"),
         "lib.rs invoke handler must register commands::kb_entry::kb_delete"
     );
+    assert!(
+        lib.contains("commands::kb_entry::remember_knowledge_doc"),
+        "lib.rs invoke handler must register commands::kb_entry::remember_knowledge_doc"
+    );
 }
 
 #[test]

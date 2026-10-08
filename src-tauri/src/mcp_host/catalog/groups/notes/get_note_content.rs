@@ -36,7 +36,7 @@ pub fn build(channel: &str) -> Option<ToolRoute> {
     if channel == "spark" {
         return Some(route(
             "get_note_content",
-            "Stage one note onto this Chat and return the staged document id (F1, F2, …). Input id comes from search_document (category notes). Does not return file path or body. The user reads the file from the Stage list. Use get_note_digest_by_id for a digest.",
+            "Stage one note onto this Chat and return a Stage item (no path, no body). item.source.kind is notes. item.source.id is the notes business index id. Input id comes from search_document (category notes). The user reads the file from the Stage list. Use get_note_digest_by_id for a digest.",
             id_schema,
             true,
             false,

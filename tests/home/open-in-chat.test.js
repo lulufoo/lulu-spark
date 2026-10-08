@@ -27,7 +27,14 @@ describe('openPathInChat', () => {
         return {
           session_id: 's1',
           id: 'F1',
-          staged: [{ id: 'F1', path: args.path, title: 'note' }],
+          staged: [
+            {
+              id: 'F1',
+              path: args.path,
+              title: 'note',
+              source: { kind: args.sourceKind, id: args.sourceId },
+            },
+          ],
         };
       }
       return {};
@@ -44,24 +51,44 @@ describe('openPathInChat', () => {
   });
 
   it('stages the exact file, goes home, and does not send a message', async () => {
-    await openPathInChat('/tmp/notes/raw/note.md');
+    await openPathInChat('/tmp/notes/raw/note.md', {
+      kind: 'notes',
+      id: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    });
 
     expect(invokeSpy).toHaveBeenCalledWith('create_chat_session');
     expect(invokeSpy).toHaveBeenCalledWith('stage_chat_document', {
       sessionId: 's1',
       path: '/tmp/notes/raw/note.md',
+      sourceKind: 'notes',
+      sourceId: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
     });
     expect(invokeSpy.mock.calls.some(([cmd]) => cmd === 'agent_chat_turn')).toBe(false);
     expect(navigateSpy).toHaveBeenCalledWith('#/home');
     expect(consumeComposerFocus()).toBe(true);
     expect(getHomeState().currentSessionId).toBe('s1');
     expect(getHomeState().staged).toEqual([
-      { id: 'F1', path: '/tmp/notes/raw/note.md', title: 'note' },
+      {
+        id: 'F1',
+        path: '/tmp/notes/raw/note.md',
+        title: 'note',
+        source: { kind: 'notes', id: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' },
+      },
     ]);
   });
 
   it('rejects an empty path before invoke', async () => {
-    await expect(openPathInChat('   ')).rejects.toThrow('Missing file path');
+    await expect(
+      openPathInChat('   ', { kind: 'notes', id: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' }),
+    ).rejects.toThrow('Missing file path');
+    expect(invokeSpy).not.toHaveBeenCalled();
+    expect(navigateSpy).not.toHaveBeenCalled();
+  });
+
+  it('rejects a missing source id before invoke', async () => {
+    await expect(openPathInChat('/tmp/notes/raw/note.md', { kind: 'notes', id: '' })).rejects.toThrow(
+      'Missing source',
+    );
     expect(invokeSpy).not.toHaveBeenCalled();
     expect(navigateSpy).not.toHaveBeenCalled();
   });

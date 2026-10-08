@@ -165,6 +165,30 @@ impl AIAssistantSession {
     }
 }
 
+/// Business origin of a Stage item. Absent when the file has no index id.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct StagedSource {
+    pub kind: String,
+    pub id: String,
+}
+
+impl StagedSource {
+    pub fn parse(kind: Option<&str>, id: Option<&str>) -> Result<Self, String> {
+        let kind = kind.map(str::trim).unwrap_or("");
+        let id = id.map(str::trim).unwrap_or("");
+        if kind.is_empty() || id.is_empty() {
+            return Err("missing source".to_string());
+        }
+        if kind != "notes" && kind != "knowledge" {
+            return Err("source.kind must be notes or knowledge".to_string());
+        }
+        Ok(Self {
+            kind: kind.to_string(),
+            id: id.to_string(),
+        })
+    }
+}
+
 /// Chat-scoped Stage registration. Path metadata only — never file body.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct StagedEntry {
@@ -172,7 +196,7 @@ pub struct StagedEntry {
     pub path: String,
     pub title: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub kind: Option<String>,
+    pub source: Option<StagedSource>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -194,7 +218,7 @@ impl Session {
         &mut self,
         path: &str,
         title: Option<&str>,
-        kind: Option<&str>,
+        source: Option<StagedSource>,
     ) -> Result<StagedEntry, String> {
         let path = path.trim();
         if path.is_empty() {
@@ -213,15 +237,11 @@ impl Session {
             .filter(|s| !s.is_empty())
             .map(|s| s.to_string())
             .unwrap_or_else(|| default_staged_title(path));
-        let kind = kind
-            .map(str::trim)
-            .filter(|s| !s.is_empty())
-            .map(|s| s.to_string());
         let entry = StagedEntry {
             id: next_staged_handle(&self.staged),
             path: path.to_string(),
             title,
-            kind,
+            source,
         };
         self.staged.push(entry.clone());
         Ok(entry)

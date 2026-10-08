@@ -166,7 +166,12 @@ pub fn unstage_chat_staged_core(session_id: &str, staged_id: &str) -> Result<Val
 }
 
 /// UI-only: validate and Stage one exact file. Rejects in-flight turns. Not an agent tool.
-pub fn stage_chat_document_core(session_id: &str, path: &str) -> Result<Value, String> {
+pub fn stage_chat_document_core(
+    session_id: &str,
+    path: &str,
+    source_kind: &str,
+    source_id: &str,
+) -> Result<Value, String> {
     let sid = session_id.trim();
     if sid.is_empty() {
         return Err("Missing session_id".into());
@@ -180,9 +185,10 @@ pub fn stage_chat_document_core(session_id: &str, path: &str) -> Result<Value, S
     let fence = crate::agent::binding::loaded_path_fence().ok_or_else(|| {
         "Host tool has no path fence for this binding.".to_string()
     })?;
+    let source = session::StagedSource::parse(Some(source_kind), Some(source_id))?;
     let mut session = session::load_session(sid)?;
     let canon = crate::services::path_fence::validate_stage_file(path, &fence)?;
-    let entry = session.register_staged(&canon.to_string_lossy(), None, None)?;
+    let entry = session.register_staged(&canon.to_string_lossy(), None, Some(source))?;
     session::save_session(&session)?;
     Ok(json!({
         "session_id": session.session_id,

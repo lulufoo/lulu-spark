@@ -2,7 +2,7 @@
 
 use serde_json::{json, Value};
 
-use crate::agent::session::{Session, StagedEntry};
+use crate::agent::session::{Session, StagedEntry, StagedSource};
 use crate::services::path_fence::{validate_stage_file, PathFence};
 
 use super::catalog::{LocalTool, ToolCatalog, ToolResult};
@@ -29,7 +29,7 @@ pub fn catalog() -> ToolCatalog {
         ),
         local_tool(
             "list_staged",
-            "List this Chat's Stage registrations (id, path, title). Does not return file bodies.",
+            "List this Chat's Stage items (id, path, title, optional source). Does not return file bodies.",
             json!({
                 "type": "object",
                 "properties": {},
@@ -39,7 +39,7 @@ pub fn catalog() -> ToolCatalog {
         ),
         local_tool(
             "get_staged",
-            "Return one Stage registration by staged document id (F1, F2, …). Returns id, path, and title. Does not return file body.",
+            "Return one Stage item by staged document id (F1, F2, …). Returns id, path, title, and optional source. Does not return file body.",
             json!({
                 "type": "object",
                 "properties": {
@@ -99,6 +99,20 @@ fn entry_json(entry: &StagedEntry) -> Result<String, String> {
     serde_json::to_string(entry).map_err(|e| e.to_string())
 }
 
+fn stage_item_for_model(entry: &StagedEntry) -> Value {
+    let mut item = json!({
+        "id": entry.id,
+        "title": entry.title,
+    });
+    if let Some(source) = &entry.source {
+        item["source"] = json!({
+            "kind": source.kind,
+            "id": source.id,
+        });
+    }
+    item
+}
+
 fn stage(
     arguments: &Value,
     session: &mut Session,
@@ -110,11 +124,7 @@ fn stage(
     let path = fs::arg_str(arguments, "path")?;
     let title = arguments.get("title").and_then(Value::as_str);
     let canon = validate_stage_file(&path, fence)?;
-    entry_json(&session.register_staged(
-        &canon.to_string_lossy(),
-        title,
-        None,
-    )?)
+    entry_json(&session.register_staged(&canon.to_string_lossy(), title, None)?)
 }
 
 fn list_staged(session: &Session) -> Result<String, String> {
@@ -135,9 +145,9 @@ pub fn overlay_note_content(
     result: ToolResult,
     session: &mut Session,
 ) -> (ToolResult, bool) {
-    let (source_key, kind) = match name {
-        NOTE_CONTENT_TOOL => ("note_id", "notes"),
-        KNOWLEDGE_CONTENT_TOOL => ("knowledge_id", "knowledge"),
+    let kind = match name {
+        NOTE_CONTENT_TOOL => "notes",
+        KNOWLEDGE_CONTENT_TOOL => "knowledge",
         _ => return (result, false),
     };
     if result.is_error {
@@ -164,16 +174,16 @@ pub fn overlay_note_content(
         );
     };
     let source_id = value.get("id").and_then(Value::as_str).unwrap_or("");
-    match session.register_staged(path, None, Some(kind)) {
+    let source = match StagedSource::parse(Some(kind), Some(source_id)) {
+        Ok(source) => source,
+        Err(content) => return (ToolResult { content, is_error: true }, false),
+    };
+    match session.register_staged(path, None, Some(source)) {
         Ok(entry) => {
-            let mut body = json!({
+            let body = json!({
                 "ok": true,
-                "id": entry.id,
-                "title": entry.title,
+                "item": stage_item_for_model(&entry),
             });
-            if let Some(obj) = body.as_object_mut() {
-                obj.insert(source_key.to_string(), json!(source_id));
-            }
             (
                 ToolResult {
                     content: body.to_string(),

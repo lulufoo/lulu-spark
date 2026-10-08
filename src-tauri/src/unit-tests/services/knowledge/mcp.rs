@@ -37,6 +37,22 @@ fn search_missing_q_is_400() {
 }
 
 #[test]
+fn remember_knowledge_doc_issues_id() {
+    let sandbox = TestSandbox::new();
+    let file = sandbox.cache_dir().join("open.md");
+    fs::write(&file, "body").expect("write");
+    let first = remember_knowledge_doc_value(&file.to_string_lossy());
+    assert_eq!(first["ok"], true);
+    let id = first["id"].as_str().expect("id");
+    assert_eq!(id.len(), 12);
+    let second = remember_knowledge_doc_value(&file.to_string_lossy());
+    assert_eq!(second["id"], id);
+    let empty = remember_knowledge_doc_value("  ");
+    assert_eq!(empty["error"], "Missing path");
+    assert_eq!(empty["_status"], 400);
+}
+
+#[test]
 fn get_unknown_id_fails() {
     let _sandbox = TestSandbox::new();
     let v = get_knowledge_path_by_id("not-issued");

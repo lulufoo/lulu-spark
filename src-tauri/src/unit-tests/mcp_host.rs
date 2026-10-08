@@ -2258,8 +2258,8 @@ fn spark_channel_get_note_content_hits_note_path() {
         "spark get_note_content must invoke note_path"
     );
     assert!(
-        tool.description.contains("staged document id") && tool.description.contains("F1"),
-        "spark description must say the return is a Stage document id, got {}",
+        tool.description.contains("Stage item") && tool.description.contains("source.id"),
+        "spark description must say the return is a Stage item, got {}",
         tool.description
     );
     assert!(

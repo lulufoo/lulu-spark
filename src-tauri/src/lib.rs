@@ -122,6 +122,7 @@ pub fn run() {
             commands::write::kb_rename,
             commands::kb_entry::kb_create,
             commands::kb_entry::kb_delete,
+            commands::kb_entry::remember_knowledge_doc,
             commands::write::kb_update_comments,
             commands::write::kb_reorder_comments,
             commands::write::kb_update_highlights,

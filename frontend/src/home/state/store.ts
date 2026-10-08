@@ -15,11 +15,16 @@ export type HubMessage = {
   error?: boolean;
 };
 
+export type HubStagedSource = {
+  kind: string;
+  id: string;
+};
+
 export type HubStagedEntry = {
   id: string;
   path: string;
   title: string;
-  kind?: string;
+  source?: HubStagedSource;
 };
 
 export type ChannelUnread = {
@@ -141,12 +146,16 @@ export function hydrateStaged(raw: unknown): HubStagedEntry[] {
     const path = String((row as { path?: unknown }).path ?? '').trim();
     if (!path) continue;
     const title = String((row as { title?: unknown }).title ?? '').trim();
-    const kind = String((row as { kind?: unknown }).kind ?? '').trim();
+    const rawSource = (row as { source?: { kind?: unknown; id?: unknown } }).source;
+    const sourceKind = String(rawSource?.kind ?? '').trim();
+    const sourceId = String(rawSource?.id ?? '').trim();
+    const source =
+      sourceKind && sourceId ? { kind: sourceKind, id: sourceId } : undefined;
     out.push({
       id: String((row as { id?: unknown }).id ?? ''),
       path,
       title: title || path.split('/').pop() || path,
-      ...(kind ? { kind } : {}),
+      ...(source ? { source } : {}),
     });
   }
   return out;

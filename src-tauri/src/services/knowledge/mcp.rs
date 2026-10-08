@@ -83,6 +83,18 @@ pub fn search_knowledge_mcp(repo_root: &Path, q: &str, limit: Option<u32>) -> Va
     json!({ "items": items })
 }
 
+/// Issue or reuse the search-facing id for an absolute knowledge file.
+pub fn remember_knowledge_doc_value(path: &str) -> Value {
+    let path = path.trim();
+    if path.is_empty() {
+        return json!({ "error": "Missing path", "_status": 400 });
+    }
+    match doc_map::remember_path(std::path::Path::new(path)) {
+        Ok(id) => json!({ "ok": true, "id": id }),
+        Err(e) => json!({ "error": e, "_status": 500 }),
+    }
+}
+
 /// Resolve a search-issued id to a local file path. Does not return file body.
 pub fn get_knowledge_path_by_id(id: &str) -> Value {
     let id = id.trim();

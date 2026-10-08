@@ -15,6 +15,7 @@ commands.allow = [
   "kb_rename",
   "kb_create",
   "kb_delete",
+  "remember_knowledge_doc",
   "kb_update_comments",
   "kb_reorder_comments",
   "kb_update_highlights",

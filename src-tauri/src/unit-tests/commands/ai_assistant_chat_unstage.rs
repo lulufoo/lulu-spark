@@ -24,7 +24,7 @@ fn seed_staged(sid: &str, entries: &[(&str, &str, &str)]) {
             id: (*id).into(),
             path: (*path).into(),
             title: (*title).into(),
-            kind: None,
+            source: None,
         })
         .collect();
     session::save_session(&sess).expect("save");

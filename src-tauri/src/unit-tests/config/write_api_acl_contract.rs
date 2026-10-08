@@ -51,7 +51,7 @@ const KB_VIEWER_STATE_WRITE_COMMANDS: &[&str] = &["set_kb_viewer_state"];
 
 const KB_RENAME_WRITE_COMMANDS: &[&str] = &["kb_rename"];
 
-const KB_ENTRY_WRITE_COMMANDS: &[&str] = &["kb_create", "kb_delete"];
+const KB_ENTRY_WRITE_COMMANDS: &[&str] = &["kb_create", "kb_delete", "remember_knowledge_doc"];
 
 const TODO_TASK_WRITE_COMMANDS: &[&str] = &[
     "create_todo_task",

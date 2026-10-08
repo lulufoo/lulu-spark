@@ -38,21 +38,30 @@ fn success_stages_and_returns_f_id_without_path() {
         assert!(staged && !out.is_error, "{}", out.content);
         let body: Value = serde_json::from_str(&out.content).expect("json");
         assert_eq!(body["ok"], true);
-        assert_eq!(body["id"], "F1");
-        assert_eq!(body["title"], "note-stage-overlay");
-        assert_eq!(body["note_id"], "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
-        assert!(body.get("path").is_none(), "model must not see path: {body}");
+        assert_eq!(body["item"]["id"], "F1");
+        assert_eq!(body["item"]["title"], "note-stage-overlay");
+        assert_eq!(body["item"]["source"]["kind"], "notes");
+        assert_eq!(body["item"]["source"]["id"], "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+        assert!(body["item"].get("path").is_none(), "model must not see path: {body}");
+        assert!(body.get("note_id").is_none());
         assert!(!out.content.contains(path));
         assert_eq!(sess.staged.len(), 1);
         assert_eq!(sess.staged[0].id, "F1");
         assert_eq!(sess.staged[0].path, path);
-        assert_eq!(sess.staged[0].kind.as_deref(), Some("notes"));
+        assert_eq!(sess.staged[0].source.as_ref().map(|s| s.kind.as_str()), Some("notes"));
+        assert_eq!(
+            sess.staged[0].source.as_ref().map(|s| s.id.as_str()),
+            Some("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+        );
         session::save_session(&sess).expect("persist");
         let loaded = session::load_session(sid).expect("reload");
         assert_eq!(loaded.staged.len(), 1);
         assert_eq!(loaded.staged[0].id, "F1");
         assert_eq!(loaded.staged[0].path, path);
-        assert_eq!(loaded.staged[0].kind.as_deref(), Some("notes"));
+        assert_eq!(
+            loaded.staged[0].source.as_ref().map(|s| s.kind.as_str()),
+            Some("notes")
+        );
     });
 }
 
@@ -63,7 +72,7 @@ fn second_note_gets_f2() {
         let first = overlay_note_content(NOTE_CONTENT_TOOL, path_ok("/tmp/a.md", "aa"), &mut sess);
         let second = overlay_note_content(NOTE_CONTENT_TOOL, path_ok("/tmp/b.md", "bb"), &mut sess);
         assert!(!first.0.is_error && !second.0.is_error);
-        let id = serde_json::from_str::<Value>(&second.0.content).unwrap()["id"].clone();
+        let id = serde_json::from_str::<Value>(&second.0.content).unwrap()["item"]["id"].clone();
         assert_eq!(id, "F2");
         assert_eq!(sess.staged.len(), 2);
     });
@@ -137,12 +146,17 @@ fn knowledge_content_stages_and_hides_path() {
         assert!(staged && !out.is_error, "{}", out.content);
         let body: Value = serde_json::from_str(&out.content).expect("json");
         assert_eq!(body["ok"], true);
-        assert_eq!(body["id"], "F1");
-        assert_eq!(body["knowledge_id"], "kbdocid12ab");
-        assert!(body.get("path").is_none(), "model must not see path: {body}");
+        assert_eq!(body["item"]["id"], "F1");
+        assert_eq!(body["item"]["source"]["kind"], "knowledge");
+        assert_eq!(body["item"]["source"]["id"], "kbdocid12ab");
+        assert!(body.get("knowledge_id").is_none());
+        assert!(body["item"].get("path").is_none(), "model must not see path: {body}");
         assert!(!out.content.contains(path));
         assert_eq!(sess.staged[0].path, path);
-        assert_eq!(sess.staged[0].kind.as_deref(), Some("knowledge"));
+        assert_eq!(
+            sess.staged[0].source.as_ref().map(|s| s.kind.as_str()),
+            Some("knowledge")
+        );
     });
 }
 
@@ -162,4 +176,22 @@ fn other_tools_pass_through() {
     assert!(!staged);
     assert_eq!(out, result);
     assert!(sess.staged.is_empty());
+}
+
+#[test]
+fn missing_source_id_does_not_stage() {
+    live_chat(|sid| {
+        let mut sess = session::load_session(sid).expect("load");
+        let (out, staged) = overlay_note_content(
+            NOTE_CONTENT_TOOL,
+            ToolResult {
+                content: json!({ "id": "", "ok": true, "path": "/tmp/empty-id.md" }).to_string(),
+                is_error: false,
+            },
+            &mut sess,
+        );
+        assert!(!staged && out.is_error);
+        assert_eq!(out.content, "missing source");
+        assert!(sess.staged.is_empty());
+    });
 }

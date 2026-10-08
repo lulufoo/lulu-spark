@@ -80,8 +80,13 @@ pub fn unstage_chat_staged_json(session_id: &str, staged_id: &str) -> Result<Val
     r#loop::unstage_chat_staged_core(session_id, staged_id)
 }
 
-pub fn stage_chat_document_json(session_id: &str, path: &str) -> Result<Value, String> {
-    r#loop::stage_chat_document_core(session_id, path)
+pub fn stage_chat_document_json(
+    session_id: &str,
+    path: &str,
+    source_kind: &str,
+    source_id: &str,
+) -> Result<Value, String> {
+    r#loop::stage_chat_document_core(session_id, path, source_kind, source_id)
 }
 
 /// Binding Contract Set entry (key-only). Looks up Host MCP registry; rejects legacy
@@ -353,10 +358,17 @@ pub async fn unstage_chat_staged(session_id: String, id: String) -> Result<Value
 }
 
 #[tauri::command]
-pub async fn stage_chat_document(session_id: String, path: String) -> Result<Value, String> {
-    tauri::async_runtime::spawn_blocking(move || stage_chat_document_json(&session_id, &path))
-        .await
-        .map_err(|e| e.to_string())?
+pub async fn stage_chat_document(
+    session_id: String,
+    path: String,
+    source_kind: String,
+    source_id: String,
+) -> Result<Value, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        stage_chat_document_json(&session_id, &path, &source_kind, &source_id)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
