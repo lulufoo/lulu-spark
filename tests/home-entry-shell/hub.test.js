@@ -635,7 +635,7 @@ describe('home hub chat sessions', () => {
     cleanup = mountHomeHub(container, { navigate: vi.fn() });
     expect(container.querySelector('.home-chat-sessions-title')?.textContent).toBe('Chats');
     expect(container.querySelector('.home-chat-composer-dock')).not.toBeNull();
-    expect(container.querySelector('[data-role="input"]')?.placeholder).toBe('Message…');
+    expect(container.querySelector('[data-role="input"]')?.placeholder).toBe('Ask Lulu Spark…');
     expect(container.querySelector('[data-role="send"]')?.textContent.trim()).toBe('Send');
     expect(container.textContent).not.toMatch(/会话|发送|待办/);
   });

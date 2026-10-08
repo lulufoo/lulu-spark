@@ -434,7 +434,7 @@ export function HomePage({
               className="home-chat-input"
               data-role="input"
               rows={1}
-              placeholder="Message…"
+              placeholder="Ask Lulu Spark…"
               disabled={inputLocked}
               onKeyDown={onComposerKey}
               onCompositionStart={() => imeEnterRef.current.onCompositionStart()}
