@@ -157,7 +157,19 @@ describe('Settings MCP panel markup', () => {
     expect(indexHtml).toMatch(/id="settings-panels"/);
     const appCss = readFileSync(join(root, 'frontend/app.css'), 'utf8');
     expect(appCss).toMatch(
+      /#settings-panels\s*\{[^}]*overflow:\s*hidden/,
+    );
+    expect(appCss).not.toMatch(
+      /#settings-panels\s*\{[^}]*padding:\s*16px 20px/,
+    );
+    expect(appCss).toMatch(
+      /\.settings-panel\.active\s*\{[^}]*overflow-x:\s*hidden/,
+    );
+    expect(appCss).toMatch(
       /\.settings-panel\.active\s*\{[^}]*overflow-y:\s*auto/,
+    );
+    expect(appCss).not.toMatch(
+      /\.settings-tabs\s*\{[^}]*margin:\s*-16px/,
     );
     expect(indexHtml).toMatch(/id="settings-panel-mcp"/);
     expect(indexHtml).not.toMatch(/id="settings-panel-spark"/);
