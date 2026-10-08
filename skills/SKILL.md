@@ -1,8 +1,9 @@
 ---
 name: lulu-spark-skills
 description: >-
-  Lulu Spark 归档技能包安装。克隆到平台 skills 目录（Cursor / Copilot / Claude / Codex）；归档经 Lulu Spark App MCP 落盘。
-  Use when: 安装 Lulu Spark skills、安装 spark skills、dialogue-summary dialogue-archive theme-line theme-transcribe note-task
+  Lulu Spark 技能包安装。克隆到平台 skills 目录（Cursor / Copilot / Claude / Codex）。
+  Use when: 安装 Lulu Spark skills、安装 spark skills、dialogue-summary
+  dialogue-archive theme-line theme-transcribe note-task
 ---
 
 # lulu-spark-skills — 安装
@@ -42,20 +43,22 @@ git -C "$SRC" pull --rebase
 
 ## 前置条件
 
-归档 skill 执行前 **Lulu Spark App 必须运行**（MCP `spark-knowledge` 可用，`http://127.0.0.1:9876/mcp/cursor_ide`）。notes 根目录由 Lulu Spark 管理，**无需**本地配置文件。槽位名是 `spark`。
+`note-task` 执行前 **Lulu Spark App 必须运行**（MCP `spark-knowledge` 可用，`http://127.0.0.1:9876/mcp/cursor_ide`）。notes 根目录由 Lulu Spark 管理，**无需**本地配置文件。槽位名是 `spark`。
+
+四个文稿 skill 写入 workspace `.cache`，不依赖 Spark App。
 
 ## 子 skill
 
 | 指令 | 目录 | 说明 |
 |------|------|------|
-| `dialogue-summary` | [dialogue-summary/](dialogue-summary/) | 自包含总结：覆盖面随对话、单元丰富度固定、忠实整合不灌水 + `〔User〕` → 加载 note-task 归档 |
-| `dialogue-archive` | [dialogue-archive/](dialogue-archive/) | 节点切片脚本 + **note-task** 原文归档；`sink=local-md` 仅 `.cache` |
-| `theme-line` | [theme-line/](theme-line/) | 直接采集字幕/已有稿 → 完整对话组稿 → **note-task** |
-| `theme-transcribe` | [theme-transcribe/](theme-transcribe/) | 下载媒体 + Whisper → 完整逐字稿 → **note-task**；无现成字幕时用 |
+| `dialogue-summary` | [dialogue-summary/](dialogue-summary/) | 过程总结 → `{workspace}/.cache/dialogue-summary/` |
+| `dialogue-archive` | [dialogue-archive/](dialogue-archive/) | 原文切片 → `{workspace}/.cache/dialogue-archive/` |
+| `theme-line` | [theme-line/](theme-line/) | 字幕/已有稿组对话 → `{workspace}/.cache/theme-line/` |
+| `theme-transcribe` | [theme-transcribe/](theme-transcribe/) | 下载 + Whisper 逐字稿 → `{workspace}/.cache/theme-transcribe/` |
 | `note-task` | [note-task/](note-task/) | 笔记 MCP 地图：`create_note` / catalog / files |
 
 ## 验收
 
-触发任一子 skill 时，首步确认 Lulu Spark MCP 可用；归档成功后 MCP 返回 `id` / `common_path` / `raw_path`（或 digest 路径）。
+四个文稿 skill：完成句给出 `.cache` 绝对路径。`note-task`：MCP 返回 `id` / `common_path` / `raw_path`（或 digest 路径）。
 
 路径公式与 digest 写法由 note-task 自己的 references 说明（随 `create_note` 的 `digest_body`）。

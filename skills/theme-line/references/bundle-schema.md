@@ -191,5 +191,5 @@ assets:
 
 - 所有 adapter Map 输出 MUST conform 本 schema
 - Compose MUST 在 `utterances.length > 0` 时走 `complete-dialogue`；`utterances` 空则 fail-fast
-- Archive 只读 `bundle.meta`（不读 adapter 字段）
+- Write 只读 `bundle.meta`（不读 adapter 字段）
 - 本文件不含平台 fetch 命令（见 `adapters/{platform}.md`）

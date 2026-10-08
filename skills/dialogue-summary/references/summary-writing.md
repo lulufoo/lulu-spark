@@ -12,9 +12,8 @@ Compose from the bound writing state.
 | `$FEEDSTOCK` | Same evidence used for topic confirmation |
 | `$CONFIRM` | Confirmed scope, reader, mode, and spine |
 | `$CORE_TOPICS` | Internal emphasis only |
-| `$SINK` | `archive` or `local` |
 | `$DRAFT` | Absolute cache output path |
-| Header values | Required for archive sink only |
+| Header values | Title, 创建时间, 来源 |
 | Owning document | Optional; used by `design-pointer` |
 
 The confirmed spine fixes topic selection and order. A structural defect stops
@@ -26,8 +25,7 @@ Set the reader-facing title, header, and opening.
 
 1. Title: user-given as given. Otherwise name the process subject and its
    distinctive focus — not the chat, the source, or a chapter list.
-2. For archive output, write the header below. For local output,
-   start with H1 and omit the archive metadata lines.
+2. Write the header below.
 3. Start with the first substantive topic. Supply only the context later topics
    need; do not add a mandatory `0. 读前说明`.
 
@@ -75,7 +73,7 @@ Return the path, not the full body, to the parent.
 
 The writing gate passes only when:
 
-1. title and header match `$SINK`;
+1. title and header are present;
 2. body structure and emphasis match the confirmed state;
 3. important judgments, reasons, rejects, and boundaries remain reconstructable
    without the original dialogue; and

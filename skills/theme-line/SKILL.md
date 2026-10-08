@@ -2,9 +2,9 @@
 name: theme-line
 description: >-
   Acquire existing captions or transcripts (YouTube, InfoQ, plain text) and
-  compose a complete chronological dialogue. No media download, no Whisper.
-  Hands off to note-task. Use for theme-line, 完整对话整理, YouTube/InfoQ
-  字幕采集, Host/guest 对话展开.
+  compose a complete chronological dialogue under workspace .cache.
+  No media download, no Whisper.
+  Use for theme-line, 完整对话整理, YouTube/InfoQ 字幕采集, Host/guest 对话展开.
 ---
 
 # ThemeLine
@@ -13,11 +13,11 @@ description: >-
 > 0. Resolve Source
 > 1. Acquire → TranscriptBundle
 > 2. Compose complete dialogue
-> 3. Save to Archive
+> 3. Write `.cache` markdown
 >
-> Read this file in full before executing. Phase 3 hands off to **note-task** (Create).
+> Read this file in full before executing.
 
-Produce a complete chronological dialogue from captions or an existing transcript. Time and source chapters are navigation only.
+Produce a complete chronological dialogue from captions or an existing transcript. Time and source chapters are navigation only. DONE when the primary markdown path exists.
 
 ## Boundary
 
@@ -25,9 +25,8 @@ Produce a complete chronological dialogue from captions or an existing transcrip
 |-------|------|
 | **theme-line** | Direct captions / API / local or pasted transcript → complete dialogue. **No** media download. **No** Whisper. |
 | `theme-transcribe` | Download media → Whisper → verbatim draft |
-| `note-task` | Persist the note via MCP `create_note` |
 
-Digest may summarize. **raw must keep the full dialogue.**
+The written markdown must keep the full dialogue.
 
 ## Phase 0 · Resolve Source
 
@@ -56,7 +55,7 @@ Read [references/compose-strategies.md](references/compose-strategies.md) — st
 | Strategy | Condition |
 |----------|-----------|
 | `complete-dialogue` | `utterances.length > 0` |
-| fail-fast | `utterances.length == 0` → stop, do not Archive |
+| fail-fast | `utterances.length == 0` → stop, do not write |
 
 `segments` never substitute for missing utterances. Do not emit `summary-only` or paraphrase outlines.
 
@@ -70,21 +69,18 @@ Acquire must fill `meta.speakers` with proper names when title or in-text labels
 
 ### Transcript Fidelity
 
-Light clean only: merge caption fragments, drop consecutive duplicates, apply `fidelity.corrections`. Keep source wording and coverage. **No** paraphrase, summary, or dropped turns. Persist the bundle and run `scripts/check_dialogue_coverage.py` before Archive (see [archive-steps.md](references/archive-steps.md)).
+Light clean only: merge caption fragments, drop consecutive duplicates, apply `fidelity.corrections`. Keep source wording and coverage. **No** paraphrase, summary, or dropped turns. Persist the bundle and run `scripts/check_dialogue_coverage.py` before write (see [archive-steps.md](references/archive-steps.md)).
 
 Output patterns: [references/output-templates.md](references/output-templates.md)
 
-## Phase 3 · Save to Archive
+## Phase 3 · Write
 
 Load and execute [references/archive-steps.md](references/archive-steps.md) from Step 1.
-
-Do not call Host HTTP. Load note-task for Create.
 
 ## Title Handling
 
 - Video URL → use source title from `bundle.meta.title`
 - User custom title → prefer user's title
-- If a `-zh.md` is produced, use a concise Chinese title (`{Speaker}：{Event} | {Outlet}` when known)
 
 ## Ask Only When Necessary
 
@@ -98,5 +94,5 @@ Defaults: source title · chronological complete dialogue · source-chapter nav 
 | [adapters/](references/adapters/) | Platform Acquire docs |
 | [compose-strategies.md](references/compose-strategies.md) | Compose rules |
 | [speaker-roster.md](references/speaker-roster.md) | Name roster + turn labels |
-| [archive-steps.md](references/archive-steps.md) | Build primary → handoff note-task |
+| [archive-steps.md](references/archive-steps.md) | Build primary markdown |
 | [output-templates.md](references/output-templates.md) | Output patterns |

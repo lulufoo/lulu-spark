@@ -2,6 +2,6 @@
   "name": "lulu-spark-skills",
   "private": true,
   "scripts": {
-    "test": "node --test tests/todo-task-removed.test.mjs tests/theme-fetch-removed.test.mjs"
+    "test": "node --test tests/todo-task-removed.test.mjs tests/theme-fetch-removed.test.mjs tests/producers-no-note-task.test.mjs"
   }
 }

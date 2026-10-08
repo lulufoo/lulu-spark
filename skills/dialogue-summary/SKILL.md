@@ -1,24 +1,24 @@
 ---
 name: dialogue-summary
 description: >-
-  将当前或指定 Cursor 对话整理为可独立阅读的过程总结，并按需归档。
+  将当前或指定 Cursor 对话整理为可独立阅读的过程总结，并写入 workspace .cache。
   Use when: 对话总结、总结当前对话、总结这个 session、dialogue summary、
   将讨论整理成文档。
-argument-hint: '[Turn X～Y | topic filter] [--no-archive]'
+argument-hint: '[Turn X～Y | topic filter]'
 ---
 
 # dialogue-summary
 
 Produce a standalone account of how a dialogue reached its important
-judgments. DONE means the user-confirmed spine has become a validated draft and
-the requested local or archive handoff has succeeded.
+judgments. DONE means the user-confirmed spine has become a validated draft at
+`$DRAFT`.
 
 ## Boundary
 
-This entry owns phase order, user gates, and handoffs.
+This entry owns phase order and user gates.
 
 1. Topic selection and writing rules live in the two local references.
-2. Transcript cleaning, naming, and archiving remain with their owning modules.
+2. Transcript cleaning remains with its owning module.
 3. The summary records reasoning and convergence; it is neither a transcript
    nor a replacement implementation document.
 
@@ -35,7 +35,6 @@ This entry owns phase order, user gates, and handoffs.
 | `$FEEDSTOCK` | Clean dialogue input used by both authoring phases |
 | `$CONFIRM` | User-facing confirmed scope and spine |
 | `$CORE_TOPICS` | Internal emphasis marks |
-| `$SINK` | `archive` (default) or `local` |
 | `$DRAFT` | Validated summary Markdown path |
 
 ## Phase 0 — Bind input
@@ -64,25 +63,16 @@ Establish the document spine before prose exists.
 
 Compose only from confirmed state.
 
-1. Bind `$SINK=local` for `--no-archive`; otherwise bind `$SINK=archive`.
-2. For archive output, write title / 创建时间 / 来源 in the draft header.
-   Do not invent a notes path. Local output: H1 only.
+1. Bind `$DRAFT` to `{workspace}/.cache/dialogue-summary/<ts>-<slug>.md`.
+2. Write title / 创建时间 / 来源 in the draft header.
 3. Load [`references/summary-writing.md`](references/summary-writing.md).
-4. Write to an absolute cache path and bind it as `$DRAFT`, using `$FEEDSTOCK`,
-   `$CONFIRM`, `$CORE_TOPICS`, `$SINK`, any owning-document pointer, and the
-   archive header values when applicable.
+4. Write the draft from `$FEEDSTOCK`, `$CONFIRM`, `$CORE_TOPICS`, any
+   owning-document pointer, and the header values.
 5. A failed writing gate stops the run. A structural defect returns to Phase 1.
 
 ## Phase 3 — Deliver
 
-Finish through the selected sink.
-
-1. **Local:** return `$DRAFT`.
-2. **Archive:** load note-task and route Create with `$DRAFT`,
-   `source_type=summary`, and the constraint that digest must not reconstruct
-   omitted dialogue or implementation detail.
-3. Archive failure reports the owning phase and stops; do not call archive MCP
-   tools directly as a fallback.
+Return `$DRAFT`. The file must exist.
 
 ## Completion
 
@@ -93,5 +83,4 @@ Report only observable results:
 > 🧭 scope：<confirmed scope>
 > 🧱 topics：<count>
 > 📄 draft：<absolute path>
-> 🗂 archive：<note-task result | skipped>
 ```

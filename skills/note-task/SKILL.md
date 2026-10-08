@@ -64,7 +64,7 @@ Do not invent norms not listed here.
 1. **Listed tools only** — Agent must use `note-task` and the note tools listed in this SKILL only.
 2. **Verify after write** — After create, confirm `id` / `common_path` / `raw_path`; `digest_path` when a digest was written; `extra_paths` when a zh companion was written; `asset_paths` when companion images were sent.
 3. **HTTP errors** — 4xx/5xx surface as MCP tool errors (`isError: true`); do not treat error payloads as success.
-4. **Producers load this map** — theme-line, theme-transcribe, dialogue-summary, and dialogue-archive (`sink=spark`) route Create here. They do not call Host HTTP. `dialogue-archive` `sink=local-md` is out of scope.
+4. **Path or paste** — a lone markdown path or pasted body uses [path-or-paste.md](references/path-or-paste.md). Do not call Host HTTP.
 
 ## MCP Note Tools
 

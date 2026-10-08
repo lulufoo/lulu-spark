@@ -1,26 +1,20 @@
-# Handoff → note-task
+# Write local draft
 
-Load after `$TRANSCRIBE_CTL route`. Load note-task and route Create.
+Load after `$TRANSCRIBE_CTL route`.
 
 ## When
 
-- Default: after `route` stdout `ok` is true.
-- Skip: user says 不归档 / skip archive / local only.
+After `route` stdout `ok` is true.
 
 ## Payload
 
 | Field | Source |
 |-------|--------|
-| Primary | `route` stdout `primary` (add archive header if missing) |
-| `source_type` | `route` stdout `source_type` (`dialogue` or `transcript`) |
-| Chinese companion | note-task Create |
+| Primary | `route` stdout `primary` (add document header if missing) |
 
-`content_constraint` is required in `digest_body` when `source_type` is `dialogue`.
+DONE when that file exists.
 
-## Digest
-
-`digest` / `digest_body` are `create_note` fields. Theme-transcribe does not call a digest-only tool.
-
-## Revisions
-
-New archive needs a new staging `ts` / path. `create_note` does not overwrite `raw/`.
+```text
+> ✅ theme-transcribe complete
+> 📄 local：<absolute primary path>
+```

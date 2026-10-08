@@ -1,6 +1,6 @@
 # Compose Strategies
 
-> 输入：[TranscriptBundle](bundle-schema.md)（内存）→ 输出：ThemeLine markdown body（无 archive header）
+> 输入：[TranscriptBundle](bundle-schema.md)（内存）→ 输出：ThemeLine markdown body（无 document header）
 
 ---
 
@@ -11,7 +11,7 @@
 | `complete-dialogue` | `utterances.length > 0` |
 | **fail-fast** | `utterances.length == 0` |
 
-**fail-fast：** 立即中止 Compose，报告无字幕/转写可整理，**不进入 Archive**。`segments` 有值也不能改走摘要。
+**fail-fast：** 立即中止 Compose，报告无字幕/转写可整理，**不进入 Write**。`segments` 有值也不能改走摘要。
 
 ---
 
@@ -46,7 +46,7 @@ Keep utterance order. Navigation only:
 
 ### C4 · Assign utterances
 
-Walk utterances by `start_sec`. Each utterance appears **exactly once** after C6 merge/dedupe. Coverage < 100% of non-empty source text → fix before Archive. Before handoff, run `theme-line/scripts/check_dialogue_coverage.py` (see [archive-steps.md](archive-steps.md)).
+Walk utterances by `start_sec`. Each utterance appears **exactly once** after C6 merge/dedupe. Coverage < 100% of non-empty source text → fix before write. Before write, run `theme-line/scripts/check_dialogue_coverage.py` (see [archive-steps.md](archive-steps.md)).
 
 ### C5 · Speaker turns
 
@@ -96,9 +96,9 @@ Forbidden:
 
 ## Output
 
-ThemeLine body only（title / metadata / navigation 由 Phase 3 Archive 处理，见 [output-templates.md](output-templates.md)）。
+ThemeLine body only（title / metadata / navigation 由 Phase 3 Write 处理，见 [output-templates.md](output-templates.md)）。
 
-可选 provenance（Archive header）：
+可选 provenance（document header）：
 
 ```markdown
 > 采集：{platform} · complete-dialogue · 嘉宾：{guest} · 说话人：标题与问答推断
