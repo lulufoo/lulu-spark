@@ -87,15 +87,15 @@
   --bg-surface: #212023;
 
   /* fg */
-  --fg-accent: #7ca0ff;
-  --fg-accent-emphasis: #99b4ff;
+  --fg-accent: #c4c1c7;
+  --fg-accent-emphasis: #d2d0d6;
   --fg-danger: #ef6252;
   --fg-default: #b7b4bb;
   --fg-emphasis: #c4c1c7;
   --fg-hex-116329: #2eb856;
   --fg-hex-166534: #2eb862;
   --fg-hex-1d1d1f: #b7b4bb;
-  --fg-hex-1e40af: #2e4eb8;
+  --fg-hex-1e40af: #c4c1c7;
   --fg-hex-2a7a45: #3fb868;
   --fg-hex-374151: #98959d;
   --fg-hex-424a53: #a8a4ac;
@@ -109,7 +109,7 @@
   --fg-hex-8250df: #8250df;
   --fg-hex-92400e: #b8622e;
   --fg-hex-9386f2: #9386f2;
-  --fg-hex-96c6f8: #96c6f8;
+  --fg-hex-96c6f8: #c4c1c7;
   --fg-hex-9a6700: #b88a2e;
   --fg-hex-b0b8c1: #c4c1c7;
   --fg-hex-b1bac4: #c4c1c7;

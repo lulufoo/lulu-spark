@@ -19,6 +19,8 @@ const lightCss = read('frontend/theme-light.css');
 const darkCss = read('frontend/theme-dark.css');
 const themeSrc = read('frontend/src/theme.ts');
 const appCss = read('frontend/app.css');
+const notesLinks = read('frontend/src/notes/ui/links-bar.tsx');
+const knowledgeLinks = read('frontend/src/knowledge/ui/links-bar.tsx');
 
 describe('OTH-211 Dark theme tokens', () => {
   it('defines the same token names as Light on a dark canvas', () => {
@@ -26,6 +28,8 @@ describe('OTH-211 Dark theme tokens', () => {
     expect(darkCss).toMatch(/color-scheme:\s*dark;/);
     expect(darkCss).toMatch(/--bg-canvas:\s*#1c1d1f;/);
     expect(darkCss).toMatch(/--fg-default:\s*#b7b4bb;/);
+    expect(darkCss).toMatch(/--fg-accent:\s*#c4c1c7;/);
+    expect(darkCss).toMatch(/--fg-accent-emphasis:\s*#d2d0d6;/);
     expect(darkCss).toMatch(/--bg-surface:\s*#212023;/);
     expect(darkCss).toMatch(/--bg-hex-e7ebef:\s*#2a2b2e;/);
     expect(tokenNames(darkCss)).toEqual(tokenNames(lightCss));
@@ -60,5 +64,12 @@ describe('OTH-211 Dark theme tokens', () => {
       /\[data-theme="dark"\]\s+\.home-account-bar-avatar--placeholder\s*\{[^}]*background:\s*var\(--bg-dark\)/,
     );
     expect(darkCss).toMatch(/--bg-hex-1d1d1f:\s*#212023;/);
+  });
+
+  it('does not hardcode Light link blue on notes or knowledge link bars', () => {
+    expect(notesLinks).not.toMatch(/#0969da/);
+    expect(knowledgeLinks).not.toMatch(/#0969da/);
+    expect(notesLinks).toMatch(/color:\s*'var\(--fg-accent\)'/);
+    expect(knowledgeLinks).toMatch(/color:\s*'var\(--fg-accent\)'/);
   });
 });

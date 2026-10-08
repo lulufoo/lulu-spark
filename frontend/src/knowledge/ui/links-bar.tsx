@@ -53,7 +53,7 @@ export function KbLinksBar() {
             data-link-index={i}
             style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginRight: 12, flexShrink: 0 }}
           >
-            <a href={link.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: '#0969da', textDecoration: 'none' }}>
+            <a href={link.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: 'var(--fg-accent)', textDecoration: 'none' }}>
               {title ? `🔗 ${title} ↗` : '🔗 Loading…'}
             </a>
             {confirmIndex === i ? (
