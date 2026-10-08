@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react';
+import { OverlayDismissButton } from '../../shared/overlay-dismiss-button.tsx';
 import { closeAbout } from '../commands/about.ts';
 import { aboutStore } from '../state/about.ts';
 
@@ -16,14 +17,12 @@ export function AboutDialog() {
       }}
     >
       <div id="about-dialog-box" role="dialog" aria-modal="true" aria-labelledby="about-dialog-title">
-        <h3 id="about-dialog-title">About</h3>
+        <div id="about-dialog-header">
+          <h3 id="about-dialog-title">About</h3>
+          <OverlayDismissButton id="btn-about-close" title="Close" onClick={() => closeAbout()} />
+        </div>
         <p data-role="about-product-name">{about.product_name}</p>
         <p data-role="about-version">{about.version}</p>
-        <div id="about-dialog-actions">
-          <button type="button" data-role="about-close" onClick={() => closeAbout()}>
-            Close
-          </button>
-        </div>
       </div>
     </div>
   );

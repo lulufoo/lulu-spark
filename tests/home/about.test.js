@@ -50,6 +50,16 @@ describe('about · source', () => {
     expect(src).not.toMatch(/is_debug|isDebug/);
     expect(src).not.toMatch(/getPackageSnapshot|ApiInvokeMap/);
   });
+
+  it('paints About header dismiss as OverlayDismissButton with no Close copy', () => {
+    const src = readRel('frontend/src/home/ui/about-dialog.tsx');
+    expect(src).toMatch(/<OverlayDismissButton[\s\S]*?\bid=["']btn-about-close["']/);
+    expect(src).not.toMatch(/about-dialog-actions/);
+    expect(src).not.toMatch(/>\s*Close\s*</);
+    const css = readRel('frontend/app.css');
+    expect(css).toMatch(/#about-dialog-header\s*\{/);
+    expect(css).not.toMatch(/#about-dialog-actions/);
+  });
 });
 
 describe('openAbout', () => {
@@ -135,11 +145,27 @@ describe('About dialog + help menu', () => {
     );
     expect(container.querySelector('[data-role="about-version"]').textContent).toBe('Beta v0.1');
 
+    const closeBtn = container.querySelector('#btn-about-close');
+    expect(closeBtn).not.toBeNull();
+    expect(closeBtn.classList.contains('overlay-dismiss-button')).toBe(true);
+    expect(String(closeBtn.textContent ?? '').trim()).toBe('✕');
+    expect(String(closeBtn.textContent ?? '')).not.toContain('Close');
+    expect(container.querySelector('#about-dialog-header button')).toBe(closeBtn);
+
     act(() => {
-      container.querySelector('[data-role="about-close"]').click();
+      closeBtn.click();
     });
     expect(container.querySelector('[data-role="about-dialog"]').getAttribute('data-open')).toBe(
       'false',
     );
+  });
+
+  it('keeps About close in commands and not inside the shared control', async () => {
+    const dialogSrc = readRel('frontend/src/home/ui/about-dialog.tsx');
+    const commandSrc = readRel('frontend/src/home/commands/about.ts');
+    const sharedSrc = readRel('frontend/src/shared/overlay-dismiss-button.tsx');
+    expect(commandSrc).toMatch(/export function closeAbout/);
+    expect(dialogSrc).toMatch(/closeAbout/);
+    expect(sharedSrc).not.toMatch(/closeAbout/);
   });
 });
