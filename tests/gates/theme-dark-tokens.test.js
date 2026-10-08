@@ -72,4 +72,14 @@ describe('OTH-211 Dark theme tokens', () => {
     expect(notesLinks).toMatch(/color:\s*'var\(--fg-accent\)'/);
     expect(knowledgeLinks).toMatch(/color:\s*'var\(--fg-accent\)'/);
   });
+
+  it('lifts Dark settings save buttons off --bg-accent', () => {
+    expect(appCss).toMatch(
+      /\[data-theme="dark"\]\s+\.btn-settings-save\s*\{[^}]*background:\s*var\(--bg-dark\)/,
+    );
+    expect(appCss).toMatch(
+      /\[data-theme="dark"\]\s+\.btn-settings-save:hover:not\(:disabled\)\s*\{[^}]*background:\s*var\(--border-emphasis-2\)/,
+    );
+    expect(darkCss).toMatch(/--bg-accent:\s*#3b73ff;/);
+  });
 });

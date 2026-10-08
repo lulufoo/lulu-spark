@@ -5253,6 +5253,12 @@
 }
 .btn-settings-save:hover:not(:disabled) { background: var(--bg-hex-0757b8); }
 .btn-settings-save:disabled { opacity: .6; cursor: default; }
+[data-theme="dark"] .btn-settings-save {
+  background: var(--bg-dark);
+}
+[data-theme="dark"] .btn-settings-save:hover:not(:disabled) {
+  background: var(--border-emphasis-2);
+}
 .btn-settings-ghost {
   background: var(--bg-surface);
   color: var(--fg-default);
