@@ -163,7 +163,10 @@ pub fn init() {
         BUSINESS_APP,
         EVENT_PROCESS_START,
         None,
-        None,
+        Some(
+            serde_json::to_value(crate::host::snapshot())
+                .expect("package snapshot serializes"),
+        ),
         Side::Host,
         Level::Info,
     );

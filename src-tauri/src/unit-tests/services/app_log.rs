@@ -77,3 +77,44 @@ fn production_module_stays_off_agent_and_old_notify_file() {
     assert!(!prod.contains("os-notify-trace.jsonl"));
     assert!(!prod.contains("business.jsonl"));
 }
+
+#[test]
+fn process_start_params_include_package_snapshot() {
+    let sandbox = TestSandbox::new();
+    let params = serde_json::to_value(crate::host::snapshot()).expect("json");
+    persist_for_test(
+        BUSINESS_APP,
+        EVENT_PROCESS_START,
+        None,
+        Some(params.clone()),
+        Side::Host,
+        Level::Info,
+    )
+    .expect("persist");
+
+    let line = fs::read_to_string(log_path().expect("path"))
+        .expect("read log")
+        .lines()
+        .last()
+        .expect("line")
+        .to_string();
+    let value: Value = serde_json::from_str(&line).expect("jsonl");
+    assert_eq!(value["event"], EVENT_PROCESS_START);
+    assert_eq!(value["params"]["is_debug"], params["is_debug"]);
+    assert_eq!(value["params"]["version"], params["version"]);
+    assert_eq!(value["params"]["product_name"], params["product_name"]);
+    assert!(value.get("schema_version").is_some());
+    assert!(value["params"].get("schema_version").is_none());
+    assert!(value["params"].get("event").is_none());
+    assert_eq!(
+        sandbox.cache_dir().join(DIR_NAME),
+        log_path().expect("path").parent().unwrap().to_path_buf()
+    );
+}
+
+#[test]
+fn process_start_init_wires_host_snapshot() {
+    let prod = include_str!("../../services/app_log.rs");
+    assert!(prod.contains("EVENT_PROCESS_START"));
+    assert!(prod.contains("crate::host::snapshot"));
+}
