@@ -6670,6 +6670,55 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
 .home-help-menu-panel button:hover {
   background: var(--bg-canvas);
 }
+#about-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-rgba-000000-55);
+}
+#about-dialog.open { display: flex; }
+#about-dialog-box {
+  background: var(--bg-surface);
+  border-radius: 10px;
+  padding: 28px 28px 24px;
+  width: min(360px, 90vw);
+  box-shadow: 0 8px 40px var(--shadow-rgba-000000-30);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+#about-dialog-box h3 {
+  font-size: 16px;
+  color: var(--fg-default);
+  margin: 0;
+  font-weight: 600;
+}
+#about-dialog-box p {
+  font-size: 13px;
+  color: var(--fg-default);
+  margin: 0;
+  line-height: 1.5;
+}
+#about-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+#about-dialog-actions button {
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  padding: 6px 14px;
+  background: var(--bg-surface);
+  color: var(--fg-default);
+  font-size: 13px;
+  cursor: pointer;
+}
+#about-dialog-actions button:hover {
+  background: var(--bg-canvas);
+}
 .home-account-bar-trigger {
   display: flex;
   align-items: center;

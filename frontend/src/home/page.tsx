@@ -4,9 +4,11 @@ import { createRoot, type Root } from 'react-dom/client';
 import { flushSync } from 'react-dom';
 import { getAuthUser, signOutAuth, startAuthLogin } from '../auth/oauth.ts';
 import { authUserStore } from '../auth/state/user.ts';
+import { openAbout } from './commands/about.ts';
 import { loadPackageDebug } from './commands/package-debug.ts';
 import { packageDebugStore } from './state/package-debug.ts';
 import { hydrateHomeChatMarkdown, renderHomeChatMarkdown } from './ui/chat-render.ts';
+import { AboutDialog } from './ui/about-dialog.tsx';
 import { AccountBar } from './ui/account-bar.tsx';
 import { HelpMenu } from './ui/help-menu.tsx';
 import { HomeNavIcon } from './ui/nav-icons.tsx';
@@ -382,7 +384,11 @@ export function HomePage({
             onLogin={onAccountLogin}
             onLogout={onAccountLogout}
           />
-          <HelpMenu />
+          <HelpMenu
+            onAbout={() => {
+              void openAbout();
+            }}
+          />
         </div>
         <div
           className="home-chat-sidebar-resizer sidebar-resizer"
@@ -454,6 +460,7 @@ export function HomePage({
           </div>
         </form>
       </section>
+      <AboutDialog />
     </div>
   );
 }
