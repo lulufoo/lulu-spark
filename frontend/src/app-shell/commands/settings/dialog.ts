@@ -25,6 +25,7 @@ import {
   loadNotesCategories,
 } from './notes-categories.ts';
 import { loadSettingsSnapshot } from './snapshot.ts';
+import { saveThemeSelection } from './theme.ts';
 import { switchPanel, switchSettingsTab } from '../../ui/settings/tabs.ts';
 import { mountSettingsListSelects } from '../../ui/settings/list-select.ts';
 
@@ -109,6 +110,10 @@ function wireSettingsDialog() {
   document.getElementById('settings-dialog')?.addEventListener('click', (e) => {
     if (e.target === document.getElementById('settings-dialog')) closeSettingsDialog();
   });
+  document.getElementById('settings-theme')?.addEventListener('change', (e) => {
+    void saveThemeSelection((e.target as HTMLSelectElement).value);
+  });
+
   document.getElementById('settings-llm-engine')?.addEventListener('change', (e) => {
     void applyEngineCategorySelection((e.target as HTMLSelectElement).value, { clearCredential: true });
   });

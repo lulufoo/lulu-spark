@@ -9,8 +9,25 @@ const THEME_FILE = {
   dark: 'theme-dark.css',
 } as const;
 
+let preferredTheme: ThemeId = PHASE1_THEME_ID;
+
+export function preferredThemeId(): ThemeId {
+  return preferredTheme;
+}
+
+export function prefersDarkScheme(): boolean {
+  return typeof matchMedia === 'function'
+    && matchMedia('(prefers-color-scheme: dark)').matches;
+}
+
 export function resolveThemeId(id: ThemeId): ThemeId {
-  return id === 'dark' ? 'dark' : 'light';
+  if (id === 'dark') return 'dark';
+  if (id === 'system') return prefersDarkScheme() ? 'dark' : 'light';
+  return 'light';
+}
+
+export function parseThemeId(value: unknown): ThemeId | null {
+  return THEME_IDS.includes(value as ThemeId) ? (value as ThemeId) : null;
 }
 
 export function themeFileFor(id: ThemeId): string {
@@ -42,6 +59,7 @@ export async function syncWindowTheme(id: ThemeId): Promise<void> {
 }
 
 export function applyTheme(id: ThemeId): ThemeId {
+  preferredTheme = id;
   const applied = resolveThemeId(id);
   const sheet = document.getElementById(THEME_SHEET_ID);
   if (sheet instanceof HTMLLinkElement) {
@@ -53,6 +71,16 @@ export function applyTheme(id: ThemeId): ThemeId {
   return applied;
 }
 
-export function bootTheme(): ThemeId {
-  return applyTheme(readRequestedTheme() ?? PHASE1_THEME_ID);
+export function watchSystemTheme(): () => void {
+  if (typeof matchMedia !== 'function') return () => {};
+  const media = matchMedia('(prefers-color-scheme: dark)');
+  const onChange = () => {
+    if (preferredTheme === 'system') applyTheme('system');
+  };
+  media.addEventListener('change', onChange);
+  return () => media.removeEventListener('change', onChange);
+}
+
+export function bootTheme(preferred?: ThemeId): ThemeId {
+  return applyTheme(readRequestedTheme() ?? preferred ?? PHASE1_THEME_ID);
 }

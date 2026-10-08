@@ -9,6 +9,7 @@ export type SettingsConfig = {
   notes_root?: string;
   mcp_port?: number;
   assistant_engine?: string;
+  theme?: string;
   has_host_key?: boolean;
   llm?: { model?: string; base_url?: string };
 };

@@ -1,7 +1,12 @@
 import { createFloatingListSelect } from '../../../shared/floating-list-select.ts';
 import type { FloatingListSelectSync } from '../../../shared/types.ts';
 
-const SELECT_IDS = ['settings-llm-engine', 'settings-mcp-channel', 'settings-mcp-ticket-channel'];
+const SELECT_IDS = [
+  'settings-llm-engine',
+  'settings-mcp-channel',
+  'settings-mcp-ticket-channel',
+  'settings-theme',
+];
 
 type Mirror = {
   sync: (next: FloatingListSelectSync) => void;

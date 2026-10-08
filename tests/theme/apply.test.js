@@ -33,12 +33,16 @@ describe('theme loader', () => {
     expect(THEME_IDS).toEqual(['light', 'dark', 'system']);
   });
 
-  it('resolves dark to the Dark file and leaves system on Light', () => {
+  it('resolves dark to the Dark file and follows the OS for system', () => {
     expect(resolveThemeId('light')).toBe('light');
     expect(resolveThemeId('dark')).toBe('dark');
-    expect(resolveThemeId('system')).toBe('light');
     expect(themeFileFor('dark')).toBe('theme-dark.css');
+    window.matchMedia = () => ({ matches: false });
+    expect(resolveThemeId('system')).toBe('light');
     expect(themeFileFor('system')).toBe('theme-light.css');
+    window.matchMedia = () => ({ matches: true });
+    expect(resolveThemeId('system')).toBe('dark');
+    expect(themeFileFor('system')).toBe('theme-dark.css');
   });
 
   it('applyTheme loads Dark without changing structure sheets', () => {

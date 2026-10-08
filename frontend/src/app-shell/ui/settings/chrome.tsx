@@ -23,6 +23,7 @@ export function SettingsDialogChrome() {
           <button type="button" className="settings-nav-item" data-panel="knowledge">Knowledge</button>
           <button type="button" className="settings-nav-item" data-panel="llm">Agent</button>
           <button type="button" className="settings-nav-item" data-panel="mcp">MCP</button>
+          <button type="button" className="settings-nav-item" data-panel="theme">Theme</button>
         </nav>
         <div id="settings-panels">
           <NotesSettingsPanel />
@@ -190,6 +191,20 @@ export function SettingsDialogChrome() {
             </div>
             <div id="settings-tab-mcp-tools" className="settings-tab-panel" data-tab="tools">
               <McpChannelToolsHost />
+            </div>
+          </div>
+          <div id="settings-panel-theme" className="settings-panel">
+            <div className="settings-field">
+              <label htmlFor="settings-theme">Theme</label>
+              <select id="settings-theme" aria-label="Theme">
+                <option value="system">Follow system</option>
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+              </select>
+              <span className="settings-field-hint">
+                Follow system uses this Mac&apos;s appearance. The window chrome
+                changes with the page.
+              </span>
             </div>
           </div>
         </div>

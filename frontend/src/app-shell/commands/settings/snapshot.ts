@@ -2,6 +2,7 @@ import * as api from '../../../host/api.ts';
 import type { SettingsConfig } from '../../state/types.ts';
 import { state } from '../../../host/state.ts';
 import { loadAssistantEnginePanel } from './engine.ts';
+import { loadThemePanel } from './theme.ts';
 import { store } from '../../state/settings/store.ts';
 
 export async function loadSettingsSnapshot() {
@@ -28,6 +29,7 @@ export async function loadSettingsSnapshot() {
     }
 
     loadAssistantEnginePanel(cfg ?? {});
+    loadThemePanel(cfg?.theme);
     if (typeof cfg?.mcp_port === 'number' && cfg.mcp_port > 0) {
       store.mcpPort = cfg.mcp_port;
     }
@@ -35,5 +37,6 @@ export async function loadSettingsSnapshot() {
     const llmHint = document.getElementById('settings-llm-key-hint');
     if (llmHint) llmHint.textContent = 'Could not load settings; you can type and save.';
     loadAssistantEnginePanel({});
+    loadThemePanel();
   }
 }

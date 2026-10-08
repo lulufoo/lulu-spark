@@ -19,6 +19,7 @@ fn get_config_has_frontend_contract_keys() {
     assert!(v.get("github_user_url").is_none());
     assert!(v.get("spark_github_repo_url").is_none());
     assert!(v.get("assistant_engine").is_some());
+    assert!(v.get("theme").is_some());
     assert!(v.get("cache_dir").is_some());
     assert!(v.get("has_github_token").is_none());
     assert!(v.get("has_host_key").is_some());

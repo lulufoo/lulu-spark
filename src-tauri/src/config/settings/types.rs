@@ -103,6 +103,9 @@ pub struct AppSettings {
     /// Legacy or empty values are retained on disk but treated as unconfigured.
     #[serde(default = "default_assistant_engine")]
     pub assistant_engine: String,
+    /// Appearance: `system` | `light` | `dark`. Default `system`.
+    #[serde(default = "default_theme")]
+    pub theme: String,
     /// Per-engine LLM settings list (`[[llm]]` in toml). Entries may be absent.
     /// T5_FOLLOW_ON_MIGRATION: legacy single-slot→list is an out-of-band local script; main code must not dual-read.
     #[serde(default)]
@@ -178,6 +181,19 @@ pub(super) fn default_assistant_engine() -> String {
     "host".to_string()
 }
 
+pub(super) fn default_theme() -> String {
+    "system".to_string()
+}
+
+pub fn normalize_theme_value(value: &str) -> Option<&'static str> {
+    match value.trim() {
+        "light" => Some("light"),
+        "dark" => Some("dark"),
+        "system" => Some("system"),
+        _ => None,
+    }
+}
+
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
@@ -185,6 +201,7 @@ impl Default for AppSettings {
             knowledge_root: default_knowledge_root(),
             cache_dir: default_cache_dir(),
             assistant_engine: default_assistant_engine(),
+            theme: default_theme(),
             llm: Vec::new(),
             http_port: None,
             mcp_port: None,

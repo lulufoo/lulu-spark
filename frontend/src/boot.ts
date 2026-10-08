@@ -20,6 +20,7 @@ import {
   wrapRouteMount,
 } from './app-shell/routes.ts';
 import type { SettingsConfig } from './app-shell/state/types.ts';
+import { applyTheme, parseThemeId, watchSystemTheme } from './theme.ts';
 import { startSparkSchemeOpenedHub, type SparkEnvelope } from './router/scheme.ts';
 import { startOsNotifyClickHub } from './app-shell/commands/os-notify-click.ts';
 import { handleNotesOsNotifyEnvelope } from './notes/commands/os-notify.ts';
@@ -93,10 +94,13 @@ document.addEventListener('cta:reload', () => loadIndex());
 
 // ── Init ───────────────────────────────────────────────────────────────────
 
+watchSystemTheme();
 api.fetchConfig().then((d) => {
   const cfg = d as SettingsConfig;
   state.ui.sparkRoot = cfg.spark_root || '';
   state.ui.knowledgeRoot = cfg.knowledge_root || '';
+  const theme = parseThemeId(cfg.theme);
+  if (theme) applyTheme(theme);
 }).catch(() => {});
 api.fetchNotesCategories().then((data) => {
   const payload = data as NotesCategoriesPayload;

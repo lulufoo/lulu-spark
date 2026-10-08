@@ -136,6 +136,7 @@ pub fn to_config_json(
         "notes_root": default_cache_dir().join("data").join("notes").to_string_lossy(),
         "cache_dir": settings.cache_dir.to_string_lossy(),
         "assistant_engine": settings.assistant_engine,
+        "theme": settings.theme,
         "http_port": settings.effective_http_port(),
         "mcp_port": settings.effective_mcp_port(),
         "gateway_port": settings.effective_gateway_port(),
@@ -169,6 +170,14 @@ pub fn apply_config_payload(
         };
         settings.assistant_engine = normalized.to_string();
         engine_touched = true;
+    }
+    if let Some(v) = payload.get("theme").and_then(|x| x.as_str()) {
+        let Some(normalized) = super::types::normalize_theme_value(v) else {
+            return Err(SettingsError::ConfigGuard(format!(
+                "invalid theme value: {v}"
+            )));
+        };
+        settings.theme = normalized.to_string();
     }
     if let Some(v) = payload.get("spark_root").and_then(|x| x.as_str()) {
         settings.spark_root = std::path::PathBuf::from(v);

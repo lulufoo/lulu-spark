@@ -241,3 +241,20 @@ fn to_config_json_exposes_fixed_notes_root() {
     let after = to_config_json(&next, false);
     assert_eq!(after["notes_root"], json["notes_root"]);
 }
+
+#[test]
+fn theme_payload_accepts_stable_ids_and_rejects_unknown() {
+    let mut settings = AppSettings::default();
+    assert_eq!(settings.theme, "system");
+    assert_eq!(to_config_json(&settings, false)["theme"], "system");
+    apply_config_payload(&mut settings, &serde_json::json!({ "theme": "dark" }))
+        .expect("apply dark");
+    assert_eq!(settings.theme, "dark");
+    let err = apply_config_payload(
+        &mut settings,
+        &serde_json::json!({ "theme": "solarized" }),
+    )
+    .expect_err("reject");
+    assert!(err.to_string().contains("theme"));
+    assert_eq!(settings.theme, "dark");
+}
