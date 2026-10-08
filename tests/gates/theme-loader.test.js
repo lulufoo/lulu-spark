@@ -31,4 +31,11 @@ describe('OTH-210 theme loader gates', () => {
     expect(themeSrc).toMatch(/'light',\s*'dark',\s*'system'/);
     expect(themeSrc).not.toMatch(/localStorage/);
   });
+
+  it('copies standalone theme sheets through the Vite build', () => {
+    const vite = read('vite.config.js');
+    expect(vite).toMatch(/keep-theme-sheets/);
+    expect(vite).toMatch(/theme-dark\.css/);
+    expect(vite).toMatch(/restore-theme-sheet/);
+  });
 });

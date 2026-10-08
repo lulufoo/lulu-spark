@@ -4,6 +4,8 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 const host = process.env.TAURI_DEV_HOST;
+const THEME_SHEET_LINK =
+  '<link rel="stylesheet" id="theme-sheet" href="./theme-light.css" data-theme-id="light">';
 
 function copyStaticVendor() {
   return {
@@ -18,10 +20,49 @@ function copyStaticVendor() {
   };
 }
 
+function keepThemeSheets() {
+  const files = ['theme-light.css', 'theme-dark.css'];
+  return {
+    name: 'keep-theme-sheets',
+    apply: 'build',
+    transformIndexHtml: {
+      order: 'pre',
+      handler(html) {
+        return html.replace(
+          /<link rel="stylesheet" id="theme-sheet"[^>]*>\s*/u,
+          '',
+        );
+      },
+    },
+    closeBundle() {
+      for (const file of files) {
+        cpSync(resolve('frontend', file), resolve('frontend/dist', file));
+      }
+    },
+  };
+}
+
+function restoreThemeSheet() {
+  return {
+    name: 'restore-theme-sheet',
+    apply: 'build',
+    transformIndexHtml: {
+      order: 'post',
+      handler(html) {
+        if (html.includes('id="theme-sheet"')) return html;
+        return html.replace(
+          /<link rel="stylesheet" crossorigin href="\.\/assets\/[^"]+\.css">/u,
+          `${THEME_SHEET_LINK}\n  $&`,
+        );
+      },
+    },
+  };
+}
+
 export default defineConfig({
   root: 'frontend',
   base: './',
-  plugins: [react(), copyStaticVendor()],
+  plugins: [react(), copyStaticVendor(), keepThemeSheets(), restoreThemeSheet()],
   clearScreen: false,
   envPrefix: ['VITE_', 'TAURI_ENV_*'],
   server: {
