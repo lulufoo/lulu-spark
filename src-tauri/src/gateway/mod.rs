@@ -289,10 +289,13 @@ async fn bind_complete_named(State(state): State<GwState>, request: Request) -> 
 }
 
 async fn auth_login_landing_named(
-    ConnectInfo(_peer): ConnectInfo<SocketAddr>,
+    ConnectInfo(peer): ConnectInfo<SocketAddr>,
     State(state): State<GwState>,
     request: Request,
 ) -> Response {
+    if !peer.ip().is_loopback() {
+        return json_status(StatusCode::FORBIDDEN, r#"{"error":"loopback_only"}"#);
+    }
     if request.method() != Method::GET {
         return reject_unnamed().await;
     }

@@ -711,6 +711,68 @@ fn get_auth_login_landing_preserves_pass_query() {
 }
 
 #[test]
+fn auth_login_landing_rejects_non_loopback_like_read_later() {
+    let src = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/src/gateway/mod.rs"
+    ));
+    let landing = src
+        .split("async fn auth_login_landing_named")
+        .nth(1)
+        .and_then(|rest| rest.split("async fn read_later_named").next())
+        .expect("landing handler");
+    let read_later = src
+        .split("async fn read_later_named")
+        .nth(1)
+        .and_then(|rest| rest.split("async fn forward_named").next())
+        .expect("read-later handler");
+    assert!(
+        landing.contains("peer.ip().is_loopback()")
+            && landing.contains(r#""loopback_only""#),
+        "landing must reject non-loopback before forward: {landing}"
+    );
+    assert!(
+        landing.find("is_loopback").expect("loopback check")
+            < landing.find("forward_to_loopback").expect("forward"),
+        "landing must not forward before the loopback check"
+    );
+    assert!(
+        read_later.contains("peer.ip().is_loopback()")
+            && read_later.contains(r#""loopback_only""#),
+        "read-later remains the loopback_only precedent"
+    );
+}
+
+#[test]
+fn get_auth_login_landing_from_lan_ip_is_loopback_only_and_does_not_forward() {
+    let Some(lan) = crate::host::lan_ip::current_lan_ipv4() else {
+        return;
+    };
+    let dir = tempfile::tempdir().expect("tmp");
+    let mock_mcp = MockMcp::start();
+    let sidecar = MockSidecar::start();
+    let handle = start_gw_with_sidecar(mock_mcp.port, sidecar.port, dir.path());
+    let url = format!(
+        "https://{}:{}/auth-login/landing",
+        lan,
+        handle.local_addr().port()
+    );
+    let response = https_client().get(&url).send().expect("lan landing");
+    assert_eq!(response.status().as_u16(), 403);
+    let body: serde_json::Value = response.json().expect("json");
+    assert_eq!(body["error"], "loopback_only");
+    assert!(
+        sidecar.hits().is_empty(),
+        "non-loopback landing must not forward to Main"
+    );
+    assert!(
+        mock_mcp.hits().is_empty(),
+        "non-loopback landing must not hit MCP"
+    );
+    stop(handle);
+}
+
+#[test]
 fn post_auth_login_landing_is_unnamed_404() {
     let dir = tempfile::tempdir().expect("tmp");
     let mock_mcp = MockMcp::start();
