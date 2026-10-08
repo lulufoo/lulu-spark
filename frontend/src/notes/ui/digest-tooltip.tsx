@@ -3,7 +3,6 @@ import { fetchFileContent } from '../../host/api.ts';
 const HOVER_DELAY_MS = 300;
 const PREVIEW_MAX_CHARS = 400;
 const DIGEST_HEADER_RE = /^#\s+[^\n]+\n+>\s*创建时间：[^\n]+\n+(?:---\s*\n+)?/;
-const TOOLTIP_MAX_WIDTH = '360px';
 const TOOLTIP_GAP_PX = 6;
 const INTERACTIVE_SEL = 'button, [data-action], [data-tag-key], .badge-links';
 
@@ -28,17 +27,6 @@ function buildTooltip(text: string): HTMLDivElement {
   const tip = document.createElement('div');
   tip.className = 'digest-tooltip';
   tip.style.position = 'fixed';
-  tip.style.maxWidth = TOOLTIP_MAX_WIDTH;
-  tip.style.whiteSpace = 'pre-wrap';
-  tip.style.zIndex = '1000';
-  tip.style.padding = '6px 10px';
-  tip.style.borderRadius = '6px';
-  tip.style.background = '#fff';
-  tip.style.color = '#24292f';
-  tip.style.border = '1px solid #d0d7de';
-  tip.style.fontSize = '12px';
-  tip.style.lineHeight = '1.5';
-  tip.style.boxShadow = '0 8px 24px rgba(27, 31, 36, 0.12)';
   tip.textContent = text;
   return tip;
 }

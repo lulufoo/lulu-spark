@@ -3563,6 +3563,20 @@
     width: 100%;
   }
   .doc-title-btn:hover { text-decoration: underline; }
+
+  .digest-tooltip {
+    z-index: 1000;
+    max-width: 360px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    background: var(--bg-surface);
+    color: var(--fg-default);
+    border: 1px solid var(--border-default);
+    font-size: 12px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    box-shadow: 0 8px 24px var(--shadow-rgba-1b1f24-14);
+  }
   .doc-card.done .doc-title-btn {
     color: var(--fg-subtle);
     font-weight: 400;

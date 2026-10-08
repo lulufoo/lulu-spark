@@ -1,7 +1,15 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { digestPreviewText, attachDigestTooltip, digestCache } from '../../frontend/src/notes/ui/digest-tooltip.tsx';
 import * as api from '../../frontend/src/host/api.ts';
+
+const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
+function readRel(rel) {
+  return readFileSync(join(repoRoot, rel), 'utf8');
+}
 
 vi.mock('../../frontend/src/host/api.ts', () => ({
   fetchFileContent: vi.fn(),
@@ -68,24 +76,6 @@ function tooltipEl() {
   return document.querySelector('.digest-tooltip');
 }
 
-function cssColor(value) {
-  const probe = document.createElement('div');
-  probe.style.color = value;
-  return probe.style.color;
-}
-
-function cssBackground(value) {
-  const probe = document.createElement('div');
-  probe.style.background = value;
-  return probe.style.background;
-}
-
-function cssBorder(value) {
-  const probe = document.createElement('div');
-  probe.style.border = value;
-  return probe.style.border;
-}
-
 beforeEach(() => {
   vi.useFakeTimers();
   api.fetchFileContent.mockReset();
@@ -140,6 +130,19 @@ describe('digestPreviewText', () => {
   });
 });
 
+describe('digest-tooltip paint', () => {
+  it('paints the tooltip from theme tokens, not Light hex', () => {
+    const src = readRel('frontend/src/notes/ui/digest-tooltip.tsx');
+    const css = readRel('frontend/app.css');
+    expect(src).not.toMatch(/#fff|#24292f|#d0d7de/);
+    expect(css).toMatch(
+      /\.digest-tooltip\s*\{[^}]*background:\s*var\(--bg-surface\)/,
+    );
+    expect(css).toMatch(/\.digest-tooltip\s*\{[^}]*color:\s*var\(--fg-default\)/);
+    expect(css).toMatch(/\.digest-tooltip\s*\{[^}]*max-width:\s*360px/);
+  });
+});
+
 describe('attachDigestTooltip 正常分支：digest 存在', () => {
   it('mouseenter 300ms 后显示纯文本预览：markdown 剥离、样式与锚点下方左对齐', async () => {
     Object.defineProperty(window, 'innerHeight', { value: 768, configurable: true });
@@ -167,14 +170,9 @@ describe('attachDigestTooltip 正常分支：digest 存在', () => {
     expect(document.getElementById('_tip')).toBeNull();
     expect(tip.className).toBe('digest-tooltip');
     expect(tip.textContent).toBe('Default digest');
-    expect(tip.style.maxWidth).toBe('360px');
-    expect(tip.style.whiteSpace).toBe('pre-wrap');
-    expect(tip.style.background).toBe(cssBackground('#fff'));
-    expect(tip.style.color).toBe(cssColor('#24292f'));
-    expect(tip.style.border).toBe(cssBorder('1px solid #d0d7de'));
-    expect(tip.style.boxShadow).toBe('0 8px 24px rgba(27, 31, 36, 0.12)');
-    expect(tip.style.background).not.toMatch(/--bg-tooltip|#2a2a2e/);
-    expect(tip.style.color).not.toMatch(/--text-tooltip|#f0f0f0/);
+    expect(tip.style.background).toBe('');
+    expect(tip.style.color).toBe('');
+    expect(tip.style.border).toBe('');
     // 锚点下方左对齐
     expect(parseFloat(tip.style.left)).toBe(100);
     expect(parseFloat(tip.style.top)).toBeGreaterThanOrEqual(120);
@@ -221,7 +219,7 @@ describe('attachDigestTooltip 边界分支：徽章行可点子控件不触发',
     expect(api.fetchFileContent).not.toHaveBeenCalled();
   });
 
-  it('锚点为徽章行且目标不是可点控件：300ms 后浅色独立浮层', async () => {
+  it('锚点为徽章行且目标不是可点控件：300ms 后显示 token 浮层', async () => {
     const parts = badgeRow();
     attachDigestTooltip(parts.row, CP);
     hoverFrom(parts.row, parts.source);
@@ -232,9 +230,9 @@ describe('attachDigestTooltip 边界分支：徽章行可点子控件不触发',
     expect(tip).not.toBeNull();
     expect(tip.className).toBe('digest-tooltip');
     expect(document.getElementById('_tip')).toBeNull();
-    expect(tip.style.background).toBe(cssBackground('#fff'));
-    expect(tip.style.color).toBe(cssColor('#24292f'));
-    expect(tip.style.border).toBe(cssBorder('1px solid #d0d7de'));
+    expect(tip.style.background).toBe('');
+    expect(tip.style.color).toBe('');
+    expect(tip.style.border).toBe('');
     expect(api.fetchFileContent).toHaveBeenCalledWith('digest', CP);
   });
 
