@@ -155,6 +155,10 @@ describe('Settings MCP panel markup', () => {
     expect(nav).not.toMatch(/data-panel="github"/);
     expect(nav).toMatch(/data-panel="mcp"[^>]*>\s*MCP/);
     expect(indexHtml).toMatch(/id="settings-panels"/);
+    const appCss = readFileSync(join(root, 'frontend/app.css'), 'utf8');
+    expect(appCss).toMatch(
+      /\.settings-panel\.active\s*\{[^}]*overflow-y:\s*auto/,
+    );
     expect(indexHtml).toMatch(/id="settings-panel-mcp"/);
     expect(indexHtml).not.toMatch(/id="settings-panel-spark"/);
     expect(indexHtml).toMatch(/id="settings-panel-notes"/);

@@ -4976,7 +4976,7 @@
   flex-direction: column;
 }
 .settings-panel { display: none; flex-direction: column; gap: 14px; }
-.settings-panel.active { display: flex; flex: 1; min-height: 0; }
+.settings-panel.active { display: flex; flex: 1; min-height: 0; overflow-y: auto; }
 #settings-panel-notes .settings-tabs { flex-shrink: 0; }
 .settings-tabs {
   display: flex;
