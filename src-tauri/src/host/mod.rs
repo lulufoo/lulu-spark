@@ -1,10 +1,12 @@
-//! Crate-root host process helpers (ports, window, MCP runtime, live NIC).
+//! Crate-root host process helpers (ports, window, MCP runtime, live NIC, package snapshot).
 
+mod package;
 mod port;
 mod runtime;
 mod window;
 pub mod lan_ip;
 
+pub use package::{snapshot, PackageSnapshot};
 pub use port::{decide_spawn, wait_for_port, SpawnDecision};
 pub use runtime::EmbeddedMcpRuntime;
 
