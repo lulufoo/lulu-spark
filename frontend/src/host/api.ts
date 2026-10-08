@@ -12,6 +12,9 @@ export {
 
 export { showOsNotification } from './api/os-notification.ts';
 
+export { getPackageSnapshot } from './api/package-snapshot.ts';
+export type { PackageSnapshot } from './api/package-snapshot.ts';
+
 export {
   createNotesCategory,
   deleteNotesCategory,

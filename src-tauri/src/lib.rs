@@ -144,6 +144,7 @@ pub fn run() {
             commands::os_notification::show_os_notification,
             commands::app_log::log_app_event,
             commands::auth_session::get_auth_session,
+            commands::package::get_package_snapshot,
             commands::auth_session::set_auth_session,
             commands::auth_session::delete_auth_session,
         ])

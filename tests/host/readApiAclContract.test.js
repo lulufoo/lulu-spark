@@ -96,6 +96,11 @@ describe('read-api ACL 与前端 invoke 映射一致', () => {
     expect(aclAllow).toContain('get_message_channel_unread')
   })
 
+  it('package snapshot read command 已加入 read-api ACL', () => {
+    expect(tomlAllow).toContain('get_package_snapshot')
+    expect(aclAllow).toContain('get_package_snapshot')
+  })
+
   it('resolveInvokeFromPath 将 snake_case channel 查询映射为 camelCase invoke 参数', () => {
     expect(
       resolveInvokeFromPath('/api/message-channel-unread?channel=notes'),
