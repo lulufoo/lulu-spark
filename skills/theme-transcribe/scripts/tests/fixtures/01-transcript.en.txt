@@ -1,6 +1,0 @@
-[00:00:00 --> 00:00:03] One area that you and the team push is core of vitals.
-[00:00:03 --> 00:00:08] If I'm on a page that has a bunch of ads I should not jump.
-[00:00:12 --> 00:00:16] Then we talk about Anticisis and cloud code.
-[00:00:16 --> 00:00:20] Speedometer came from To Do MVC.
-[00:00:50 --> 00:00:54] Later Addie joined Chrome.
-[00:00:54 --> 00:00:58] The team shipped ES build later on.

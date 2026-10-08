@@ -1,4 +1,0 @@
-resemblyzer
-scikit-learn
-soundfile
-setuptools<81

@@ -37,8 +37,6 @@ describe("theme-fetch skill removal", () => {
   it("README and sibling skills omit theme-fetch", () => {
     const files = [
       readme,
-      path.join(root, "theme-line/SKILL.md"),
-      path.join(root, "theme-transcribe/SKILL.md"),
       path.join(root, "note-task/SKILL.md"),
     ];
     for (const file of files) {

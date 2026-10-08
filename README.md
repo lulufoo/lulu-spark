@@ -8,4 +8,4 @@ Personal knowledge archive and agent desktop app.
 | `extensions/` | Chrome extension |
 | `client/android/` | Android client |
 | `client/ios/` | iOS client (not started) |
-| `skills/` | Agent skills; install from [`skills/SKILL.md`](skills/SKILL.md) |
+| `skills/` | Spark agent skills (`note-task`); install from [`skills/SKILL.md`](skills/SKILL.md) |
