@@ -24,9 +24,9 @@ describe('OTH-211 Dark theme tokens', () => {
   it('defines the same token names as Light on a dark canvas', () => {
     expect(darkCss).toMatch(/:root\s*\{/);
     expect(darkCss).toMatch(/color-scheme:\s*dark;/);
-    expect(darkCss).toMatch(/--bg-canvas:\s*#0d1117;/);
-    expect(darkCss).toMatch(/--fg-default:\s*#e6edf3;/);
-    expect(darkCss).toMatch(/--bg-surface:\s*#161b22;/);
+    expect(darkCss).toMatch(/--bg-canvas:\s*#1c1d1f;/);
+    expect(darkCss).toMatch(/--fg-default:\s*#b7b4bb;/);
+    expect(darkCss).toMatch(/--bg-surface:\s*#212023;/);
     expect(tokenNames(darkCss)).toEqual(tokenNames(lightCss));
   });
 
