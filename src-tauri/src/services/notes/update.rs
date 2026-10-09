@@ -6,7 +6,7 @@ use std::path::Path;
 use serde_json::{json, Value};
 
 use crate::config::roots::notes_root_path;
-use crate::services::keyword_index;
+use crate::services::search_index;
 use crate::services::translation_gate;
 
 use super::digest::{
@@ -172,7 +172,7 @@ fn update_note_from_body(repo_root: &Path, payload: &Value, source: &str) -> Val
     if digest_rel.is_some() {
         synced.push(("digest", common_path.as_str()));
     }
-    keyword_index::sync_note_files_best_effort(repo_root, &synced);
+    search_index::sync_note_files_best_effort(repo_root, &synced);
 
     let mut response = json!({
         "ok": true,

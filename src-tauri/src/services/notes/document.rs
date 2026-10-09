@@ -4,7 +4,7 @@ use serde_json::{json, Map, Value};
 
 use crate::config::roots::notes_root_path;
 use crate::services::id::random_entry_id;
-use crate::services::keyword_index;
+use crate::services::search_index;
 use crate::services::translation_gate;
 
 use super::assets::{copy_assets, reject_unsupported_asset_paths, resolve_create_assets};
@@ -230,7 +230,7 @@ fn write_note(
     if digest_rel.is_some() {
         synced.push(("digest", meta.common_path.as_str()));
     }
-    keyword_index::sync_note_files_best_effort(repo_root, &synced);
+    search_index::sync_note_files_best_effort(repo_root, &synced);
 
     let extra_rel_paths: Vec<String> = translations.iter().map(|t| t.rel.clone()).collect();
     let mut response = json!({

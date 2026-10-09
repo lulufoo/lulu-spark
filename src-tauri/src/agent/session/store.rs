@@ -15,14 +15,14 @@ use super::types::{Session, Step};
 pub fn agent_dir() -> Result<PathBuf, String> {
     Ok(paths::cache_dir()
         .map_err(|e| format!("{e:?}"))?
-        .join("agent"))
+        .join("agent-exec"))
 }
 
 pub fn agent_log_dir() -> Result<PathBuf, String> {
     agent_dir()
 }
 
-/// Conversation files live under `{cache_dir}/agent/sessions`.
+/// Conversation files live under `{cache_dir}/agent-exec/sessions/{session_id}/`.
 /// Tests must use `TestSandbox` so they cannot read or write the user's store.
 pub fn sessions_dir() -> Result<PathBuf, String> {
     let dir = agent_dir()?.join("sessions");
@@ -33,7 +33,7 @@ pub fn sessions_dir() -> Result<PathBuf, String> {
     Ok(dir)
 }
 
-/// `sessions/{session_id}/`: whatever belongs to a session besides its database.
+/// `sessions/{session_id}/`: the session database, llm-calls, and anything else of that session.
 fn session_dir(session_id: &str) -> Result<PathBuf, String> {
     let id = checked_session_id(session_id)?;
     // `.` would resolve to the sessions directory itself.
@@ -43,7 +43,7 @@ fn session_dir(session_id: &str) -> Result<PathBuf, String> {
     Ok(sessions_dir()?.join(id))
 }
 
-/// Per-request LLM call records of one session. Not under `agent-scratch` (model-writable).
+/// Per-request LLM call records of one session. Not under `agent-workspace` (model-writable).
 pub fn session_llm_calls_dir(session_id: &str) -> Result<PathBuf, String> {
     Ok(session_dir(session_id)?.join("llm-calls"))
 }
@@ -70,8 +70,7 @@ fn reject_unisolated_sessions_dir(dir: &PathBuf) -> Result<(), String> {
 }
 
 pub fn session_file_path(session_id: &str) -> Result<PathBuf, String> {
-    let id = checked_session_id(session_id)?;
-    Ok(sessions_dir()?.join(format!("{id}.sqlite")))
+    Ok(session_dir(session_id)?.join("session.sqlite"))
 }
 
 fn current_session_llm() -> Option<String> {

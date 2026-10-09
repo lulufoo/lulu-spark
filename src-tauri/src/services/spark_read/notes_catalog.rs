@@ -5,7 +5,7 @@ use serde_json::{json, Map, Value};
 
 use crate::config::paths;
 use crate::config::roots::notes_root_path;
-use crate::services::keyword_index::{index_exists, search_in_cache, SearchFilter};
+use crate::services::search_index::{index_exists, search_in_cache, SearchFilter};
 
 use super::notes::{get_notes_file, load_notes_index_entries};
 
@@ -406,7 +406,7 @@ pub(crate) fn project_raw_search_hits(
     items
 }
 
-/// Search notes in the keyword index. Raw layer only; no digest bodies.
+/// Search notes in the search index. Raw layer only; no digest bodies.
 pub fn search_notes(
     repo_root: &Path,
     q: &str,

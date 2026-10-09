@@ -4,7 +4,7 @@
 //! `{cache_dir}/app-log/{process_session_id}.jsonl`
 //!
 //! Not the Assistant diagnostic file. Agent stays in
-//! `{cache_dir}/agent/assistant-diagnostic.jsonl`.
+//! `{cache_dir}/agent-exec/assistant-diagnostic.jsonl`.
 
 use std::fs;
 use std::io::Write;

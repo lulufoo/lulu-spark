@@ -3,7 +3,7 @@
 use std::path::Path;
 
 use crate::agent::{
-    fill_host_file_dirs, SESSION_SCRATCH_DIR_PLACEHOLDER, SPARK_DATA_DIR_PLACEHOLDER,
+    fill_host_file_dirs, SESSION_WORKSPACE_DIR_PLACEHOLDER, SPARK_DATA_DIR_PLACEHOLDER,
 };
 
 use super::support::*;
@@ -16,12 +16,12 @@ fn spark_host_system_prompt_is_nonempty_code_constant() {
     assert!(SPARK_HOST_SYSTEM_PROMPT.contains("MCP"));
     assert!(SPARK_HOST_SYSTEM_PROMPT.contains("PathFence"));
     assert!(SPARK_HOST_SYSTEM_PROMPT.contains("API Key"));
-    assert!(SPARK_HOST_SYSTEM_PROMPT.contains("SESSION_SCRATCH_DIR"));
+    assert!(SPARK_HOST_SYSTEM_PROMPT.contains("SESSION_WORKSPACE_DIR"));
     assert!(SPARK_HOST_SYSTEM_PROMPT.contains("SPARK_DATA_DIR"));
     assert!(SPARK_HOST_SYSTEM_PROMPT.contains("NOTES_DIR"));
     assert!(SPARK_HOST_SYSTEM_PROMPT.contains("KNOWLEDGE_DIR"));
     assert!(SPARK_HOST_SYSTEM_PROMPT.contains("READ_LATER_DIR"));
-    assert!(SPARK_HOST_SYSTEM_PROMPT.contains(SESSION_SCRATCH_DIR_PLACEHOLDER));
+    assert!(SPARK_HOST_SYSTEM_PROMPT.contains(SESSION_WORKSPACE_DIR_PLACEHOLDER));
     assert!(SPARK_HOST_SYSTEM_PROMPT.contains(SPARK_DATA_DIR_PLACEHOLDER));
 }
 
@@ -35,10 +35,10 @@ fn fill_host_file_dirs_replaces_placeholders_without_rules() {
     assert!(filled.contains("/tmp/spark-data/notes"));
     assert!(filled.contains("/tmp/spark-data/knowledge"));
     assert!(filled.contains("/tmp/spark-data/read_later"));
-    assert!(!filled.contains(SESSION_SCRATCH_DIR_PLACEHOLDER));
+    assert!(!filled.contains(SESSION_WORKSPACE_DIR_PLACEHOLDER));
     assert!(!filled.contains(SPARK_DATA_DIR_PLACEHOLDER));
     let data_only = fill_host_file_dirs(SPARK_HOST_SYSTEM_PROMPT, None, data);
-    assert!(data_only.contains(SESSION_SCRATCH_DIR_PLACEHOLDER));
+    assert!(data_only.contains(SESSION_WORKSPACE_DIR_PLACEHOLDER));
     assert!(data_only.contains("/tmp/spark-data/notes"));
 }
 

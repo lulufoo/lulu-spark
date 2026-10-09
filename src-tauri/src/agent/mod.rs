@@ -46,8 +46,8 @@ pub const SPARK_HOST_SYSTEM_PROMPT: &str = r#"你是 Lulu Spark 的 Host 对话�
 
 ## Host file directories
 
-SESSION_SCRATCH_DIR (this chat's working directory):
-{session_scratch_dir}
+SESSION_WORKSPACE_DIR (this chat's working directory):
+{session_workspace_dir}
 
 SPARK_DATA_DIR (Spark business data directory):
 {spark_data_dir}
@@ -61,7 +61,7 @@ KNOWLEDGE_DIR (knowledge documents):
 READ_LATER_DIR (read-later items):
 {spark_data_dir}/read_later"#;
 
-pub const SESSION_SCRATCH_DIR_PLACEHOLDER: &str = "{session_scratch_dir}";
+pub const SESSION_WORKSPACE_DIR_PLACEHOLDER: &str = "{session_workspace_dir}";
 pub const SPARK_DATA_DIR_PLACEHOLDER: &str = "{spark_data_dir}";
 
 /// Fill Host file-directory placeholders for one turn. Data is always filled;
@@ -70,7 +70,7 @@ pub fn fill_host_file_dirs(prompt: &str, scratch: Option<&Path>, data: &Path) ->
     let mut out = prompt.replace(SPARK_DATA_DIR_PLACEHOLDER, data.to_string_lossy().as_ref());
     if let Some(scratch) = scratch {
         out = out.replace(
-            SESSION_SCRATCH_DIR_PLACEHOLDER,
+            SESSION_WORKSPACE_DIR_PLACEHOLDER,
             scratch.to_string_lossy().as_ref(),
         );
     }

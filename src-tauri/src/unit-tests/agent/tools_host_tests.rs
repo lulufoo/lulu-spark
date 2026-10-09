@@ -98,19 +98,19 @@ fn host_file_tool_descriptions_use_dir_names_not_absolute_paths() {
     for name in ["grep", "read", "write", "str_replace", "copy"] {
         let desc = tool_description(&catalog, name);
         assert!(
-            desc.contains("SESSION_SCRATCH_DIR"),
-            "{name} must name SESSION_SCRATCH_DIR"
+            desc.contains("SESSION_WORKSPACE_DIR"),
+            "{name} must name SESSION_WORKSPACE_DIR"
         );
         assert!(
             desc.contains("SPARK_DATA_DIR"),
             "{name} must name SPARK_DATA_DIR"
         );
         assert!(
-            !desc.contains("{session_scratch"),
+            !desc.contains("{session_workspace"),
             "{name} must not inject a scratch placeholder"
         );
         assert!(
-            !desc.contains("/agent-scratch/"),
+            !desc.contains("/agent-workspace/"),
             "{name} static text must not bake a scratch path"
         );
         assert!(
@@ -169,8 +169,8 @@ fn host_file_tool_params_do_not_repeat_dir_names() {
             .map(|v| v.to_string())
             .expect("parameters");
         assert!(
-            !blob.contains("SESSION_SCRATCH_DIR"),
-            "{name} params must not name SESSION_SCRATCH_DIR"
+            !blob.contains("SESSION_WORKSPACE_DIR"),
+            "{name} params must not name SESSION_WORKSPACE_DIR"
         );
         assert!(
             !blob.contains("SPARK_DATA_DIR"),

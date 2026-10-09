@@ -42,12 +42,13 @@ fn create_session_writes_sqlite_not_json() {
     with_sandbox(|sandbox| {
         let sess = session::create_session().expect("create");
         let path = session::session_file_path(&sess.session_id).expect("path");
-        assert_eq!(path.extension().and_then(|e| e.to_str()), Some("sqlite"));
+        assert_eq!(path.file_name().and_then(|n| n.to_str()), Some("session.sqlite"));
+        assert_eq!(path.parent().and_then(|p| p.file_name()).and_then(|n| n.to_str()), Some(sess.session_id.as_str()));
         assert!(path.is_file());
         assert!(!path.with_extension("json").is_file());
         let catalog = sandbox
             .cache_dir()
-            .join("agent")
+            .join("agent-exec")
             .join("sessions-catalog.sqlite");
         assert!(catalog.is_file());
         sandbox
@@ -158,21 +159,12 @@ fn delete_removes_the_session_dir_with_its_llm_calls_and_only_that_one() {
 }
 
 #[test]
-fn delete_works_for_a_session_that_never_had_a_session_dir() {
-    with_sandbox(|_| {
-        let sess = session::create_session().expect("create");
-        session::delete_session(&sess.session_id).expect("delete");
-        assert!(session::load_session(&sess.session_id).is_err());
-    });
-}
-
-#[test]
 fn delete_refuses_ids_that_would_resolve_to_the_sessions_dir() {
     with_sandbox(|_| {
         let kept = session::create_session().expect("kept");
         let kept_calls = plant_llm_call(&kept.session_id);
-        // `.` passes the separator check; `sessions/..sqlite` is the file it would map to.
-        let decoy = session::sessions_dir().expect("dir").join("..sqlite");
+        // `.` passes the separator check; session_dir rejects it before anything is removed.
+        let decoy = session::sessions_dir().expect("dir").join("decoy");
         std::fs::write(&decoy, b"decoy").expect("decoy");
 
         assert!(session::delete_session(".").is_err());

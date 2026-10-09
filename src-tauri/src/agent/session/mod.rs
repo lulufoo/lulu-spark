@@ -1,4 +1,4 @@
-//! Session persistence under `{cache_dir}/agent/sessions/`.
+//! Session persistence under `{cache_dir}/agent-exec/sessions/{session_id}/`.
 
 mod binding;
 mod catalog;

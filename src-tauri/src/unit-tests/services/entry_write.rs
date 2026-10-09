@@ -21,11 +21,11 @@ fn save_entry_updates_file() {
     assert_eq!(fs::read_to_string(&md).expect("read"), "new content");
 }
 
-/// W6-5: App-internal save refreshes the keyword index for that one file, and a
+/// W6-5: App-internal save refreshes the search index for that one file, and a
 /// vanished file drops its rows — without a full rebuild.
 #[test]
-fn save_entry_syncs_keyword_index_for_touched_file() {
-    use crate::services::keyword_index::{open, search, search_desktop_spark, SearchFilter};
+fn save_entry_syncs_search_index_for_touched_file() {
+    use crate::services::search_index::{open, search, search_desktop_spark, SearchFilter};
 
     let sandbox = TestSandbox::new();
     let notes = sandbox.data_dir().join("notes");
@@ -48,7 +48,7 @@ fn save_entry_syncs_keyword_index_for_touched_file() {
     assert_eq!(hits[0]["common_path"], "proj/sync.md");
 
     fs::remove_file(&md).expect("rm");
-    crate::services::keyword_index::sync_note_files(sandbox.config_dir(), &[("raw", "proj/sync.md")])
+    crate::services::search_index::sync_note_files(sandbox.config_dir(), &[("raw", "proj/sync.md")])
         .expect("sync delete");
     let conn = open(&sandbox.cache_dir()).expect("open");
     let filter = SearchFilter {

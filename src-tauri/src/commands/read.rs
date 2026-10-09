@@ -3,7 +3,7 @@ use tauri::AppHandle;
 
 use crate::config::paths;
 use crate::config::roots::notes_root_path;
-use crate::services::keyword_index::{
+use crate::services::search_index::{
     cache_dir_or_err, search_desktop_knowledge, search_desktop_spark,
 };
 use crate::services::sediment_kb;

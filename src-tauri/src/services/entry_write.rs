@@ -6,7 +6,7 @@ use std::path::Path;
 use serde_json::{json, Value};
 
 use crate::config::roots::notes_root_path;
-use crate::services::keyword_index;
+use crate::services::search_index;
 
 const EDITABLE_LAYERS: &[&str] = &["raw", "digest"];
 
@@ -54,7 +54,7 @@ pub fn save_entry(
     if let Err(e) = fs::write(&target_canon, content) {
         return json!({ "error": e.to_string(), "_status": 500 });
     }
-    keyword_index::sync_note_files_best_effort(repo_root, &[(layer, common_path)]);
+    search_index::sync_note_files_best_effort(repo_root, &[(layer, common_path)]);
     json!({ "ok": true })
 }
 
