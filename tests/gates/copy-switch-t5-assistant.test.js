@@ -32,7 +32,7 @@ describe('P2 copy-switch — Assistant pages (tech-doc T5)', () => {
   it('Home chat uses English Assistant copy', () => {
     expect(existsSync(join(repoRoot, 'frontend/src/ai-assistant.js'))).toBe(false);
     expect(homeHubJs).toContain('Chats');
-    expect(homeHubJs).toContain('Message…');
+    expect(homeHubJs).toContain('Ask Lulu Spark…');
     expect(homeHubJs).toContain('Send');
     expect(homeHubJs).toContain('query_binding');
     expect(homeHubJs).toContain('Busy — try again later');

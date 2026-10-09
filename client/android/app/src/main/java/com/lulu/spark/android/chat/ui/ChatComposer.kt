@@ -127,7 +127,7 @@ internal fun ChatComposer(
                             decorationBox = { inner ->
                                 if (draft.isEmpty()) {
                                     Text(
-                                        "Message…",
+                                        "Ask Lulu Spark…",
                                         style = MaterialTheme.typography.bodyLarge,
                                         color = colors.onSurfaceVariant,
                                     )
