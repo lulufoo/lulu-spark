@@ -862,7 +862,7 @@ fn proxy_dispatches_search_document_on_blocking_worker() {
             serde_json::json!({ "q": "regression" }),
         ))
         .expect("blocking worker must return a mapped tool result");
-    // Sandbox has no keyword-index.sqlite → Services answer 503 not_indexed,
+    // Sandbox has no search-index.sqlite → Services answer 503 not_indexed,
     // which must surface as a mapped tool error, not an MCP worker panic.
     match result {
         Ok(_) => {}

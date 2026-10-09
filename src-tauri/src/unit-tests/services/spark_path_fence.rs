@@ -70,7 +70,7 @@ fn expand_spark_includes_knowledge_root_and_listed_clone() {
         let scratch_parent = fence.scratch_parent.as_ref().expect("scratch_parent");
         assert_eq!(
             scratch_parent.file_name().and_then(|n| n.to_str()),
-            Some("agent-scratch")
+            Some("agent-workspace")
         );
         assert!(
             scratch_parent

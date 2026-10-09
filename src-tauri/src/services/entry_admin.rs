@@ -9,7 +9,7 @@ use serde_json::{json, Map, Value};
 use crate::config::paths;
 use crate::repositories::annotation_paths::annotation_json_path;
 use crate::services::annotation::read_annotation_object;
-use crate::services::keyword_index;
+use crate::services::search_index;
 use crate::services::tags_registry::{adjust_refs, read_registry, save_registry};
 const LAYERS: &[&str] = &["raw", "digest"];
 
@@ -121,7 +121,7 @@ fn sync_index_for(common_paths: &[&str]) {
         .iter()
         .flat_map(|layer| common_paths.iter().map(move |cp| (*layer, *cp)))
         .collect();
-    keyword_index::sync_note_files_best_effort(&repo_root, &items);
+    search_index::sync_note_files_best_effort(&repo_root, &items);
 }
 
 pub fn move_entry_project(payload: &Value) -> Value {

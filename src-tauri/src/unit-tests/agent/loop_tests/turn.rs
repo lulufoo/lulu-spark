@@ -302,7 +302,7 @@ fn run_loop_offers_host_file_tools_and_keeps_scratch_writes_inside_cache() {
     let mut session = session::create_session().expect("session");
     let scratch = sandbox
         .cache_dir()
-        .join("agent-scratch")
+        .join("agent-workspace")
         .join(&session.session_id)
         .join("pad.md");
     let mock = spawn_scripted_llm(vec![
@@ -383,12 +383,12 @@ fn run_loop_offers_host_file_tools_and_keeps_scratch_writes_inside_cache() {
         })
         .expect("write description");
     assert!(
-        write_desc.contains("SESSION_SCRATCH_DIR") && write_desc.contains("SPARK_DATA_DIR"),
+        write_desc.contains("SESSION_WORKSPACE_DIR") && write_desc.contains("SPARK_DATA_DIR"),
         "sent write description must name the directory variables"
     );
     assert!(
-        !write_desc.contains("{session_scratch"),
-        "sent write description must not keep a scratch placeholder"
+        !write_desc.contains("{session_workspace"),
+        "sent write description must not keep a workspace placeholder"
     );
     assert!(
         !write_desc.contains(&session.session_id),
@@ -405,7 +405,7 @@ fn run_loop_offers_host_file_tools_and_keeps_scratch_writes_inside_cache() {
         .and_then(|v| v.as_str())
         .expect("system prompt");
     assert!(
-        system.contains("agent-scratch") && system.contains(&session.session_id),
+        system.contains("agent-workspace") && system.contains(&session.session_id),
         "sent system prompt must include this session scratch path"
     );
     assert!(

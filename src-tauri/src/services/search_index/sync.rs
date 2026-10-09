@@ -29,6 +29,6 @@ pub fn sync_note_files(repo_root: &Path, items: &[(&str, &str)]) -> Result<usize
 /// Same as [`sync_note_files`] but never fails the caller's write response.
 pub fn sync_note_files_best_effort(repo_root: &Path, items: &[(&str, &str)]) {
     if let Err(e) = sync_note_files(repo_root, items) {
-        eprintln!("keyword index sync skipped: {e}");
+        eprintln!("search index sync skipped: {e}");
     }
 }

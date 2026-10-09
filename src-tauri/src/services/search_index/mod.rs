@@ -1,4 +1,4 @@
-//! In-process keyword index: SQLite FTS5 trigram + CJK bigram.
+//! In-process search index: SQLite FTS5 trigram + CJK bigram.
 
 mod bigram;
 mod chunk;
@@ -29,5 +29,5 @@ pub use store::{
 pub use sync::{sync_note_files, sync_note_files_best_effort};
 
 #[cfg(test)]
-#[path = "../../unit-tests/services/keyword_index.rs"]
+#[path = "../../unit-tests/services/search_index.rs"]
 mod tests;

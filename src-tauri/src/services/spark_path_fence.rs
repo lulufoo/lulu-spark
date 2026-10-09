@@ -41,7 +41,7 @@ pub fn expand_for_business_key(key: &str) -> Option<PathFence> {
         read_deny,
         write_allow: vec![],
         write_deny: vec![],
-        scratch_parent: Some(cache.join("agent-scratch")),
+        scratch_parent: Some(cache.join("agent-workspace")),
     })
 }
 

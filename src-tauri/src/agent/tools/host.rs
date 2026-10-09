@@ -11,7 +11,7 @@ pub fn catalog() -> ToolCatalog {
     ToolCatalog::from_local_tools(vec![
         local_tool(
             "grep",
-            "Search text.\n\nReadable paths: SPARK_DATA_DIR, SESSION_SCRATCH_DIR.\npath is optional; omit path to search both directories.",
+            "Search text.\n\nReadable paths: SPARK_DATA_DIR, SESSION_WORKSPACE_DIR.\npath is optional; omit path to search both directories.",
             json!({
                 "type": "object",
                 "properties": {
@@ -25,7 +25,7 @@ pub fn catalog() -> ToolCatalog {
         ),
         local_tool(
             "read",
-            "Read a text file.\nOptional offset (1-based start line) and limit (max lines, default 50).\n\nReadable paths: SPARK_DATA_DIR, SESSION_SCRATCH_DIR.\npath must be absolute.",
+            "Read a text file.\nOptional offset (1-based start line) and limit (max lines, default 50).\n\nReadable paths: SPARK_DATA_DIR, SESSION_WORKSPACE_DIR.\npath must be absolute.",
             json!({
                 "type": "object",
                 "properties": {
@@ -40,7 +40,7 @@ pub fn catalog() -> ToolCatalog {
         ),
         local_tool(
             "write",
-            "Create or overwrite a text file.\n\nWritable paths: SESSION_SCRATCH_DIR.\nDo not write files in SPARK_DATA_DIR with this tool. Copy them to SESSION_SCRATCH_DIR to edit; use an MCP tool to update SPARK_DATA_DIR files.",
+            "Create or overwrite a text file.\n\nWritable paths: SESSION_WORKSPACE_DIR.\nDo not write files in SPARK_DATA_DIR with this tool. Copy them to SESSION_WORKSPACE_DIR to edit; use an MCP tool to update SPARK_DATA_DIR files.",
             json!({
                 "type": "object",
                 "properties": {
@@ -54,7 +54,7 @@ pub fn catalog() -> ToolCatalog {
         ),
         local_tool(
             "str_replace",
-            "Replace exact text in an existing text file.\nold_string must match exactly once unless replace_all is true.\n\nWritable paths: SESSION_SCRATCH_DIR.\nDo not modify files in SPARK_DATA_DIR with this tool. Copy them to SESSION_SCRATCH_DIR to edit; use an MCP tool to update SPARK_DATA_DIR files.",
+            "Replace exact text in an existing text file.\nold_string must match exactly once unless replace_all is true.\n\nWritable paths: SESSION_WORKSPACE_DIR.\nDo not modify files in SPARK_DATA_DIR with this tool. Copy them to SESSION_WORKSPACE_DIR to edit; use an MCP tool to update SPARK_DATA_DIR files.",
             json!({
                 "type": "object",
                 "properties": {
@@ -73,7 +73,7 @@ pub fn catalog() -> ToolCatalog {
         ),
         local_tool(
             "copy",
-            "Copy a regular file.\nDoes not modify the source. Overwrites dest_path if it already exists.\n\nSource paths: SPARK_DATA_DIR, SESSION_SCRATCH_DIR.\nDestination paths: SESSION_SCRATCH_DIR.\nsource_path must be absolute. dest_path must be a file path in SESSION_SCRATCH_DIR, not a directory.",
+            "Copy a regular file.\nDoes not modify the source. Overwrites dest_path if it already exists.\n\nSource paths: SPARK_DATA_DIR, SESSION_WORKSPACE_DIR.\nDestination paths: SESSION_WORKSPACE_DIR.\nsource_path must be absolute. dest_path must be a file path in SESSION_WORKSPACE_DIR, not a directory.",
             json!({
                 "type": "object",
                 "properties": {

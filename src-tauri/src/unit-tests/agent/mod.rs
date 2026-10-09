@@ -104,7 +104,7 @@ fn assistant_conversation_dir_requires_sandbox_and_misses_prod_cache() {
 
     with_agent_sandbox(|sandbox| {
         let dir = session::sessions_dir().expect("isolated sessions_dir");
-        let expected = sandbox.cache_dir().join("agent").join("sessions");
+        let expected = sandbox.cache_dir().join("agent-exec").join("sessions");
         assert_eq!(dir, expected);
         sandbox
             .assert_not_prod_path(&dir)
@@ -127,11 +127,12 @@ fn session_save_load_roundtrip_under_cache_agent_sessions() {
 
         let path = session::session_file_path(&sess.session_id).expect("path");
         assert_under_cache_not_knowledge_root(&path, sandbox);
-        let expected_dir = sandbox.cache_dir().join("agent").join("sessions");
-        assert!(
-            path.starts_with(&expected_dir),
-            "expected under {expected_dir:?}, got {path:?}"
-        );
+        let expected_dir = sandbox
+            .cache_dir()
+            .join("agent-exec")
+            .join("sessions")
+            .join(&sess.session_id);
+        assert_eq!(path, expected_dir.join("session.sqlite"));
         assert!(path.is_file());
 
         session::append_step(
@@ -201,8 +202,8 @@ fn agent_error_log_writes_under_cache_agent_without_secrets() {
         let log_dir = session::agent_log_dir().expect("log dir");
         assert_under_cache_not_knowledge_root(&log_dir, sandbox);
         assert!(
-            log_dir.ends_with("agent") || log_dir.file_name().and_then(|n| n.to_str()) == Some("agent"),
-            "log dir should be cache/agent, got {log_dir:?}"
+            log_dir.file_name().and_then(|n| n.to_str()) == Some("agent-exec"),
+            "log dir should be cache/agent-exec, got {log_dir:?}"
         );
 
         let mut found = false;

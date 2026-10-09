@@ -57,7 +57,7 @@ fn each_request_of_a_tool_turn_is_recorded_with_its_round() {
     assert!(sent.iter().any(|m| m["role"] == "tool"));
     assert!(sent.iter().any(|m| m["role"] == "assistant" && m["tool_calls"].is_array()));
     // Never inside the directory the model can write to.
-    let scratch = sandbox.cache_dir().join("agent-scratch");
+    let scratch = sandbox.cache_dir().join("agent-workspace");
     assert!(!session::session_llm_calls_dir(&session.session_id).unwrap().starts_with(scratch));
 
     stop_embedded_mcp_runtime(mcp).expect("stop MCP");

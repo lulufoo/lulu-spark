@@ -9,7 +9,7 @@ pub mod id;
 pub mod draft;
 pub mod doc_highlights;
 pub mod entry_admin;
-pub mod keyword_index;
+pub mod search_index;
 pub mod knowledge;
 pub mod index_build;
 pub mod link_title;

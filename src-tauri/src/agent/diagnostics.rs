@@ -1,12 +1,12 @@
 //! Versioned, privacy-safe diagnostic events for Assistant execution timing.
 //!
 //! Events are emitted as one JSON object per line to stderr and to
-//! `{cache_dir}/agent/assistant-diagnostic.jsonl`. Field names are static.
+//! `{cache_dir}/agent-exec/assistant-diagnostic.jsonl`. Field names are static.
 //! Prompt/reply bodies are still forbidden. Bounded, newline-stripped error
 //! classification text is allowed so SDK failures can be distinguished.
 //!
 //! That ban covers this file only. Per-request records under
-//! `{cache_dir}/agent/sessions/{session_id}/llm-calls/` (`llm/record.rs`) are a separate,
+//! `{cache_dir}/agent-exec/sessions/{session_id}/llm-calls/` (`llm/record.rs`) are a separate,
 //! deliberate exception: they hold the full request and response, are redacted, are not
 //! readable by the model, and are deleted with the session. Do not "fix" them to match.
 

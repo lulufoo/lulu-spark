@@ -7,7 +7,7 @@ use regex::Regex;
 use serde_json::{json, Value};
 
 use crate::config::paths;
-use crate::services::keyword_index::{prefilter_or_none, should_scan_file, GrepPrefilter};
+use crate::services::search_index::{prefilter_or_none, should_scan_file, GrepPrefilter};
 use crate::services::path_fence::{require_absolute, stored_path, validate_stage_file, PathFence};
 
 const READ_DEFAULT_LIMIT: usize = 50;

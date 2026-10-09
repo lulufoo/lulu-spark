@@ -32,7 +32,7 @@ pub fn should_skip_md(name: &str) -> bool {
         return true;
     }
     // Translation variants: …-{lang}.md where lang is ISO 639-1 (two lowercase letters).
-    // Indexed via entry.translations, not as standalone keyword-index docs.
+    // Indexed via entry.translations, not as standalone search-index docs.
     name.strip_suffix(".md").is_some_and(|stem| {
         stem.rsplit_once('-')
             .is_some_and(|(_, lang)| lang.len() == 2 && lang.chars().all(|c| c.is_ascii_lowercase()))

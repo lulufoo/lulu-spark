@@ -35,7 +35,7 @@ fn persists_one_process_file_with_base_and_body_fields() {
         .and_then(|n| n.to_str())
         .unwrap_or("")
         .starts_with("psess_"));
-    assert!(!path.starts_with(sandbox.cache_dir().join("agent")));
+    assert!(!path.starts_with(sandbox.cache_dir().join("agent-exec")));
 
     let current: Value =
         serde_json::from_str(&fs::read_to_string(current_path().expect("current")).expect("read"))

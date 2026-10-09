@@ -8,7 +8,7 @@ use rusqlite::{params, Connection, OptionalExtension};
 use super::bigram::cjk_bigram_text;
 use super::collect::SourceChunk;
 
-pub const INDEX_FILE: &str = "keyword-index.sqlite";
+pub const INDEX_FILE: &str = "search-index.sqlite";
 
 /// Bump when table columns change; mismatched files are dropped and rebuilt.
 pub const SCHEMA_VERSION: i32 = 2;

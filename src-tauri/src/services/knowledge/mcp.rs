@@ -7,7 +7,7 @@ use serde_json::{json, Value};
 use crate::config::paths;
 use crate::config::roots::knowledge_root_string;
 use crate::repositories::knowledge::kb_safe_path;
-use crate::services::keyword_index::{index_exists, search_in_cache, SearchFilter};
+use crate::services::search_index::{index_exists, search_in_cache, SearchFilter};
 use crate::services::sediment_kb;
 
 use super::doc_map;
