@@ -147,6 +147,7 @@ fn t4_session_cache_remains_only_persistence_backend_no_parallel_store() {
             model: None,
             usage: None,
             reasoning_content: None,
+            clock: Default::default(),
         });
         session::save_session(&cached).expect("cache save");
 

@@ -35,6 +35,10 @@ fn open(path: &PathBuf) -> Result<Connection, String> {
     for column in ["finish_reason", "model", "usage", "reasoning_content"] {
         ensure_column(&conn, "model_steps", column, "TEXT")?;
     }
+    // Wall-clock ms; NULL on rows written before these columns existed.
+    for column in ["create_ts", "start_ts", "end_ts"] {
+        ensure_column(&conn, "model_steps", column, "INTEGER")?;
+    }
     ensure_column(&conn, "model_turns", "thinking_ms", "INTEGER")?;
     Ok(conn)
 }
@@ -297,6 +301,10 @@ fn attach_turn_thinking(conn: &Connection, items: &mut [Value]) -> Result<(), St
                     model: row.get(7)?,
                     usage: row.get(8)?,
                     reasoning_content: row.get(9)?,
+                    // Only the thinking text is read here; the clock is not shown in the UI.
+                    create_ts: None,
+                    start_ts: None,
+                    end_ts: None,
                 },
             ))
         })

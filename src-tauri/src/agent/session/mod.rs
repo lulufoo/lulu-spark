@@ -6,6 +6,7 @@ mod live;
 mod redact;
 mod schema;
 mod session_db;
+mod step_clock;
 mod step_codec;
 mod store;
 mod turn_store;
@@ -14,6 +15,7 @@ mod types;
 pub use binding::*;
 pub use live::*;
 pub use redact::*;
+pub use step_clock::*;
 pub use store::*;
 pub use types::*;
 
@@ -24,3 +26,7 @@ mod session_store_sqlite_tests;
 #[cfg(test)]
 #[path = "../../unit-tests/agent/step_response_tests.rs"]
 mod step_response_tests;
+
+#[cfg(test)]
+#[path = "../../unit-tests/agent/step_clock_tests.rs"]
+mod step_clock_tests;

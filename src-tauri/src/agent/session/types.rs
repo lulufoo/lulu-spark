@@ -4,6 +4,8 @@ use serde_json::Value;
 use crate::services::path_fence::PathFence;
 use crate::mcp_host::registry::McpServerConfig;
 
+use super::step_clock::StepClock;
+
 /// Session lifecycle entry (`create_session` / persist) does not expose an
 /// assistant-channel selection API or store it on the session record.
 pub const SESSION_LIFECYCLE_ENGINE_OPAQUE: bool = true;
@@ -52,6 +54,9 @@ pub struct Step {
     /// Thinking of the response this `Step` carries; a field, not a `Step` (stays 1:1 with messages).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reasoning_content: Option<String>,
+    /// Wall-clock marks (ms). Fixed at push; see `StepClock`.
+    #[serde(default, skip_serializing_if = "StepClock::is_empty")]
+    pub clock: StepClock,
 }
 
 /// Binding Contract surface.

@@ -22,6 +22,7 @@ fn step(role: &str, content: &str, thinking: Option<&str>) -> Step {
         model: None,
         usage: None,
         reasoning_content: thinking.map(str::to_string),
+        clock: Default::default(),
     }
 }
 
