@@ -31,6 +31,9 @@ fn open(path: &PathBuf) -> Result<Connection, String> {
     ensure_column(&conn, "meta", "llm", "TEXT")?;
     ensure_column(&conn, "staged", "source_kind", "TEXT")?;
     ensure_column(&conn, "staged", "source_id", "TEXT")?;
+    for column in ["finish_reason", "model", "usage", "reasoning_content"] {
+        ensure_column(&conn, "model_steps", column, "TEXT")?;
+    }
     Ok(conn)
 }
 

@@ -16,6 +16,10 @@ fn user_step(text: &str) -> Step {
         tool_call_id: None,
         tool_calls: None,
         name: None,
+        finish_reason: None,
+        model: None,
+        usage: None,
+        reasoning_content: None,
     }
 }
 
@@ -26,6 +30,10 @@ fn assistant_step(text: &str) -> Step {
         tool_call_id: None,
         tool_calls: None,
         name: None,
+        finish_reason: None,
+        model: None,
+        usage: None,
+        reasoning_content: None,
     }
 }
 
@@ -67,6 +75,10 @@ fn save_roundtrip_keeps_user_assistant_and_tool_turns() {
                 "function": { "name": "read", "arguments": "{}" }
             }])),
             name: None,
+            finish_reason: None,
+            model: None,
+            usage: None,
+            reasoning_content: None,
         });
         loaded.steps.push(Step {
             role: "tool".into(),
@@ -74,6 +86,10 @@ fn save_roundtrip_keeps_user_assistant_and_tool_turns() {
             tool_call_id: Some("call_1".into()),
             tool_calls: None,
             name: Some("read".into()),
+            finish_reason: None,
+            model: None,
+            usage: None,
+            reasoning_content: None,
         });
         loaded.steps.push(assistant_step("done"));
         session::save_session(&loaded).expect("save");

@@ -139,6 +139,10 @@ fn session_save_load_roundtrip_under_cache_agent_sessions() {
                 tool_call_id: None,
                 tool_calls: None,
                 name: None,
+                finish_reason: None,
+                model: None,
+                usage: None,
+                reasoning_content: None,
             },
         )
         .expect("append");

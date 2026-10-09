@@ -41,6 +41,17 @@ pub struct Step {
     pub tool_calls: Option<Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
+    /// Response-level fields live on the last `Step` of one LLM response.
+    /// `finish_reason` is the raw upstream string; unknown values are kept as-is.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub finish_reason: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub usage: Option<Value>,
+    /// Thinking of the response this `Step` carries; a field, not a `Step` (stays 1:1 with messages).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reasoning_content: Option<String>,
 }
 
 /// Binding Contract surface.

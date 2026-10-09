@@ -31,6 +31,10 @@ fn user_step(text: &str) -> Step {
         tool_call_id: None,
         tool_calls: None,
         name: None,
+        finish_reason: None,
+        model: None,
+        usage: None,
+        reasoning_content: None,
     }
 }
 
@@ -41,6 +45,10 @@ fn assistant_step(text: &str) -> Step {
         tool_call_id: None,
         tool_calls: None,
         name: None,
+        finish_reason: None,
+        model: None,
+        usage: None,
+        reasoning_content: None,
     }
 }
 
@@ -51,6 +59,10 @@ fn tool_step(name: &str, content: &str) -> Step {
         tool_call_id: Some("call_1".into()),
         tool_calls: None,
         name: Some(name.into()),
+        finish_reason: None,
+        model: None,
+        usage: None,
+        reasoning_content: None,
     }
 }
 
@@ -67,6 +79,10 @@ fn transcript_with_tool(result: &str) -> Vec<Step> {
                 "function": { "name": "lookup", "arguments": "{}" }
             }])),
             name: None,
+            finish_reason: None,
+            model: None,
+            usage: None,
+            reasoning_content: None,
         },
         tool_step("lookup", result),
         assistant_step("done"),

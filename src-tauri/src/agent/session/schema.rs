@@ -30,7 +30,11 @@ CREATE TABLE IF NOT EXISTS model_steps (
   kind TEXT NOT NULL,
   content TEXT NOT NULL,
   tool_call_id TEXT,
-  tool_name TEXT
+  tool_name TEXT,
+  finish_reason TEXT,
+  model TEXT,
+  usage TEXT,
+  reasoning_content TEXT
 );
 CREATE TABLE IF NOT EXISTS summaries (
   summary_id TEXT PRIMARY KEY,

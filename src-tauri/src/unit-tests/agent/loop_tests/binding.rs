@@ -983,6 +983,10 @@ fn t2_reset_old_session_not_reused_by_ensure_for_executable() {
             tool_call_id: None,
             tool_calls: None,
             name: None,
+            finish_reason: None,
+            model: None,
+            usage: None,
+            reasoning_content: None,
         });
         session::save_session(&old).unwrap();
 
@@ -1121,6 +1125,10 @@ fn t2_unbound_ensure_session_not_auto_promoted_on_set() {
             tool_call_id: None,
             tool_calls: None,
             name: None,
+            finish_reason: None,
+            model: None,
+            usage: None,
+            reasoning_content: None,
         });
         session::save_session(&seeded).unwrap();
 
@@ -1155,6 +1163,10 @@ fn t2_cut_does_not_wipe_turns_as_primary_means() {
             tool_call_id: None,
             tool_calls: None,
             name: None,
+            finish_reason: None,
+            model: None,
+            usage: None,
+            reasoning_content: None,
         });
         session::save_session(&sess).unwrap();
         let turns_before = sess.steps.len();

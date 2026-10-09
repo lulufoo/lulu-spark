@@ -301,6 +301,10 @@ fn sk3_t5_binding_returns_live_session_turns() {
                 tool_call_id: None,
                 tool_calls: None,
                 name: None,
+                finish_reason: None,
+                model: None,
+                usage: None,
+                reasoning_content: None,
             },
         )
         .expect("append user");
@@ -312,6 +316,10 @@ fn sk3_t5_binding_returns_live_session_turns() {
                 tool_call_id: None,
                 tool_calls: None,
                 name: None,
+                finish_reason: None,
+                model: None,
+                usage: None,
+                reasoning_content: None,
             },
         )
         .expect("append assistant");
@@ -348,6 +356,10 @@ fn sk3_t5_binding_turns_empty_without_live_or_after_reset() {
                 tool_call_id: None,
                 tool_calls: None,
                 name: None,
+                finish_reason: None,
+                model: None,
+                usage: None,
+                reasoning_content: None,
             },
         )
         .expect("append");
@@ -378,6 +390,10 @@ fn sk3_t5_binding_turns_empty_without_live_or_after_reset() {
                 tool_call_id: None,
                 tool_calls: None,
                 name: None,
+                finish_reason: None,
+                model: None,
+                usage: None,
+                reasoning_content: None,
             },
         )
         .expect("append2");
@@ -404,6 +420,10 @@ fn sk3_t5_shell_close_preserves_live_turns_for_reopen_hydrate() {
                 tool_call_id: None,
                 tool_calls: None,
                 name: None,
+                finish_reason: None,
+                model: None,
+                usage: None,
+                reasoning_content: None,
             },
         )
         .expect("append");
@@ -575,6 +595,10 @@ fn list_select_create_chat_sessions_for_home_history() {
                 tool_call_id: None,
                 tool_calls: None,
                 name: None,
+                finish_reason: None,
+                model: None,
+                usage: None,
+                reasoning_content: None,
             },
         )
         .expect("append");
@@ -611,6 +635,10 @@ fn list_select_create_chat_sessions_for_home_history() {
                 tool_call_id: Some("call_1".into()),
                 tool_calls: None,
                 name: Some("list_todo_tasks".into()),
+                finish_reason: None,
+                model: None,
+                usage: None,
+                reasoning_content: None,
             },
         )
         .expect("append tool dump");

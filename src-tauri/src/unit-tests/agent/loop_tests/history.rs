@@ -78,6 +78,10 @@ fn history_truncation_keeps_system_and_dual_hard_caps() {
                 tool_call_id: None,
                 tool_calls: None,
                 name: None,
+                finish_reason: None,
+                model: None,
+                usage: None,
+                reasoning_content: None,
             });
             steps.push(Step {
                 role: "assistant".into(),
@@ -85,6 +89,10 @@ fn history_truncation_keeps_system_and_dual_hard_caps() {
                 tool_call_id: None,
                 tool_calls: None,
                 name: None,
+                finish_reason: None,
+                model: None,
+                usage: None,
+                reasoning_content: None,
             });
         }
         let messages = r#loop::build_llm_messages_from_steps(&steps, SPARK_HOST_SYSTEM_PROMPT);

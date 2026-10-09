@@ -143,6 +143,10 @@ fn t4_session_cache_remains_only_persistence_backend_no_parallel_store() {
             tool_call_id: None,
             tool_calls: None,
             name: None,
+            finish_reason: None,
+            model: None,
+            usage: None,
+            reasoning_content: None,
         });
         session::save_session(&cached).expect("cache save");
 

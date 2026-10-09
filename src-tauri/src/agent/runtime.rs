@@ -33,6 +33,10 @@ fn append_user_assistant(session: &mut session::Session, user: &str, assistant: 
         tool_call_id: None,
         tool_calls: None,
         name: None,
+        finish_reason: None,
+        model: None,
+        usage: None,
+        reasoning_content: None,
     });
     session.steps.push(Step {
         role: "assistant".into(),
@@ -40,6 +44,10 @@ fn append_user_assistant(session: &mut session::Session, user: &str, assistant: 
         tool_call_id: None,
         tool_calls: None,
         name: None,
+        finish_reason: None,
+        model: None,
+        usage: None,
+        reasoning_content: None,
     });
     r#loop::persist(session);
 }

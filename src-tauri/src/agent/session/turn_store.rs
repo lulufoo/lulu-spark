@@ -1,8 +1,7 @@
 use rusqlite::{params, Connection, OptionalExtension, Transaction};
-use serde_json::{json, Value};
-
 use crate::services::id::random_entry_id;
 
+use super::step_codec::{decode_step, encode_step, StepRow};
 use super::types::Step;
 
 pub(crate) struct StoredStep {
@@ -13,7 +12,8 @@ pub(crate) struct StoredStep {
 pub(crate) fn load_stored_steps(conn: &Connection) -> Result<Vec<StoredStep>, String> {
     let mut stmt = conn
         .prepare(
-            "SELECT s.step_id, s.kind, s.content, s.tool_call_id, s.tool_name
+            "SELECT s.step_id, s.kind, s.content, s.tool_call_id, s.tool_name,
+                    s.finish_reason, s.model, s.usage, s.reasoning_content
              FROM model_steps s
              JOIN model_turns t ON t.turn_id = s.turn_id
              ORDER BY t.seq ASC, s.seq ASC",
@@ -23,19 +23,25 @@ pub(crate) fn load_stored_steps(conn: &Connection) -> Result<Vec<StoredStep>, St
         .query_map([], |row| {
             Ok((
                 row.get::<_, String>(0)?,
-                row.get::<_, String>(1)?,
-                row.get::<_, String>(2)?,
-                row.get::<_, Option<String>>(3)?,
-                row.get::<_, Option<String>>(4)?,
+                StepRow {
+                    kind: row.get(1)?,
+                    content: row.get(2)?,
+                    tool_call_id: row.get(3)?,
+                    tool_name: row.get(4)?,
+                    finish_reason: row.get(5)?,
+                    model: row.get(6)?,
+                    usage: row.get(7)?,
+                    reasoning_content: row.get(8)?,
+                },
             ))
         })
         .map_err(|e| e.to_string())?;
     let mut steps = Vec::new();
     for row in rows {
-        let (step_id, kind, content, tool_call_id, tool_name) = row.map_err(|e| e.to_string())?;
+        let (step_id, step_row) = row.map_err(|e| e.to_string())?;
         steps.push(StoredStep {
             step_id,
-            step: decode_step(&kind, &content, tool_call_id, tool_name),
+            step: decode_step(step_row),
         });
     }
     Ok(steps)
@@ -134,18 +140,23 @@ fn append_steps(tx: &Transaction<'_>, steps: &[Step], now: i64) -> Result<(), St
         }
         let turn_id = &turn_state.as_ref().expect("turn state").0;
         step_seq += 1;
-        let (kind, content, tool_call_id, tool_name) = encode_step(step);
+        let row = encode_step(step);
         tx.execute(
-            "INSERT INTO model_steps (step_id, turn_id, seq, kind, content, tool_call_id, tool_name)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            "INSERT INTO model_steps (step_id, turn_id, seq, kind, content, tool_call_id, tool_name,
+                                      finish_reason, model, usage, reasoning_content)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
             params![
                 format!("step_{}", random_entry_id()),
                 turn_id,
                 step_seq,
-                kind,
-                content,
-                tool_call_id,
-                tool_name
+                row.kind,
+                row.content,
+                row.tool_call_id,
+                row.tool_name,
+                row.finish_reason,
+                row.model,
+                row.usage,
+                row.reasoning_content
             ],
         )
         .map_err(|e| e.to_string())?;
@@ -187,77 +198,4 @@ fn is_ui_message(step: &Step) -> bool {
             .as_deref()
             .map(|text| !text.is_empty())
             .unwrap_or(false)
-}
-
-fn encode_step(step: &Step) -> (String, String, Option<String>, Option<String>) {
-    if step.role == "tool" {
-        return (
-            "tool_result".into(),
-            step.content.clone().unwrap_or_default(),
-            step.tool_call_id.clone(),
-            step.name.clone(),
-        );
-    }
-    if step.role == "user" {
-        return (
-            "user".into(),
-            step.content.clone().unwrap_or_default(),
-            None,
-            None,
-        );
-    }
-    if step.tool_calls.is_some() {
-        return (
-            "tool_call".into(),
-            json!({
-                "content": step.content,
-                "tool_calls": step.tool_calls,
-            })
-            .to_string(),
-            step.tool_call_id.clone(),
-            step.name.clone(),
-        );
-    }
-    (
-        "assistant".into(),
-        step.content.clone().unwrap_or_default(),
-        step.tool_call_id.clone(),
-        step.name.clone(),
-    )
-}
-
-fn decode_step(
-    kind: &str,
-    content: &str,
-    tool_call_id: Option<String>,
-    tool_name: Option<String>,
-) -> Step {
-    if kind == "tool_call" {
-        if let Ok(Value::Object(map)) = serde_json::from_str::<Value>(content) {
-            let text = match map.get("content") {
-                Some(Value::String(s)) => Some(s.clone()),
-                Some(Value::Null) | None => None,
-                Some(other) => Some(other.to_string()),
-            };
-            return Step {
-                role: "assistant".into(),
-                content: text,
-                tool_call_id,
-                tool_calls: map.get("tool_calls").cloned(),
-                name: tool_name,
-            };
-        }
-    }
-    Step {
-        role: match kind {
-            "user" => "user",
-            "tool_result" => "tool",
-            _ => "assistant",
-        }
-        .into(),
-        content: (!content.is_empty()).then(|| content.to_string()),
-        tool_call_id,
-        tool_calls: None,
-        name: tool_name,
-    }
 }

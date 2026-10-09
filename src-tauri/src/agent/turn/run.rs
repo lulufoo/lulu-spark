@@ -50,6 +50,10 @@ pub(crate) fn run_loop_with_progress(
             tool_call_id: None,
             tool_calls: None,
             name: None,
+            finish_reason: None,
+            model: None,
+            usage: None,
+            reasoning_content: None,
         });
         // Distinguish never/fully unbound from a corrupted bound-without-generation slot.
         if current_binding_snapshot().is_none() {
@@ -61,6 +65,10 @@ pub(crate) fn run_loop_with_progress(
                 tool_call_id: None,
                 tool_calls: None,
                 name: None,
+                finish_reason: None,
+                model: None,
+                usage: None,
+                reasoning_content: None,
             });
             persist(session);
             return TurnOutcome {
@@ -80,6 +88,10 @@ pub(crate) fn run_loop_with_progress(
             tool_call_id: None,
             tool_calls: None,
             name: None,
+            finish_reason: None,
+            model: None,
+            usage: None,
+            reasoning_content: None,
         });
         let reply = "Binding prompt is empty; cannot run chat.".to_string();
         session.steps.push(Step {
@@ -88,6 +100,10 @@ pub(crate) fn run_loop_with_progress(
             tool_call_id: None,
             tool_calls: None,
             name: None,
+            finish_reason: None,
+            model: None,
+            usage: None,
+            reasoning_content: None,
         });
         persist(session);
         return TurnOutcome {
@@ -106,6 +122,10 @@ pub(crate) fn run_loop_with_progress(
         tool_call_id: None,
         tool_calls: None,
         name: None,
+        finish_reason: None,
+        model: None,
+        usage: None,
+        reasoning_content: None,
     });
     persist(session);
 
@@ -128,6 +148,10 @@ pub(crate) fn run_loop_with_progress(
                 tool_call_id: None,
                 tool_calls: None,
                 name: None,
+                finish_reason: None,
+                model: None,
+                usage: None,
+                reasoning_content: None,
             });
             persist(session);
             return TurnOutcome {
@@ -144,6 +168,10 @@ pub(crate) fn run_loop_with_progress(
                 tool_call_id: None,
                 tool_calls: None,
                 name: None,
+                finish_reason: None,
+                model: None,
+                usage: None,
+                reasoning_content: None,
             });
             persist(session);
             return TurnOutcome {
@@ -219,6 +247,10 @@ pub(crate) fn run_loop_with_progress(
                     tool_call_id: None,
                     tool_calls: None,
                     name: None,
+                    finish_reason: None,
+                    model: None,
+                    usage: None,
+                    reasoning_content: None,
                 });
                 persist(session);
                 return out;
@@ -244,6 +276,10 @@ pub(crate) fn run_loop_with_progress(
                 tool_call_id: None,
                 tool_calls: None,
                 name: None,
+                finish_reason: None,
+                model: None,
+                usage: None,
+                reasoning_content: None,
             });
             persist(session);
             return TurnOutcome {
@@ -263,6 +299,10 @@ pub(crate) fn run_loop_with_progress(
                 tool_call_id: None,
                 tool_calls: None,
                 name: None,
+                finish_reason: None,
+                model: None,
+                usage: None,
+                reasoning_content: None,
             });
             persist(session);
             return TurnOutcome {
@@ -295,6 +335,10 @@ pub(crate) fn run_loop_with_progress(
             tool_call_id: None,
             tool_calls: Some(tool_calls),
             name: None,
+            finish_reason: None,
+            model: None,
+            usage: None,
+            reasoning_content: None,
         });
         persist(session);
 
@@ -333,6 +377,10 @@ pub(crate) fn run_loop_with_progress(
                         tool_call_id: None,
                         tool_calls: None,
                         name: None,
+                        finish_reason: None,
+                        model: None,
+                        usage: None,
+                        reasoning_content: None,
                     });
                     persist(session);
                     return TurnOutcome {
@@ -386,6 +434,10 @@ pub(crate) fn run_loop_with_progress(
                 tool_call_id: Some(call.id),
                 tool_calls: None,
                 name: Some(call.name),
+                finish_reason: None,
+                model: None,
+                usage: None,
+                reasoning_content: None,
             });
         }
         persist(session);
@@ -400,6 +452,10 @@ pub(crate) fn run_loop_with_progress(
             tool_call_id: None,
             tool_calls: None,
             name: None,
+            finish_reason: None,
+            model: None,
+            usage: None,
+            reasoning_content: None,
         });
         persist(session);
         return TurnOutcome {
@@ -424,6 +480,10 @@ pub(crate) fn run_loop_with_progress(
                 tool_call_id: None,
                 tool_calls: None,
                 name: None,
+                finish_reason: None,
+                model: None,
+                usage: None,
+                reasoning_content: None,
             });
             persist(session);
             return TurnOutcome {
@@ -440,6 +500,10 @@ pub(crate) fn run_loop_with_progress(
             tool_call_id: None,
             tool_calls: None,
             name: None,
+            finish_reason: None,
+            model: None,
+            usage: None,
+            reasoning_content: None,
         });
         persist(session);
         return TurnOutcome {
@@ -456,6 +520,10 @@ pub(crate) fn run_loop_with_progress(
             tool_call_id: None,
             tool_calls: None,
             name: None,
+            finish_reason: None,
+            model: None,
+            usage: None,
+            reasoning_content: None,
         });
         persist(session);
         return TurnOutcome {
@@ -471,6 +539,10 @@ pub(crate) fn run_loop_with_progress(
         tool_call_id: None,
         tool_calls: None,
         name: None,
+        finish_reason: None,
+        model: None,
+        usage: None,
+        reasoning_content: None,
     });
     persist(session);
     TurnOutcome {
