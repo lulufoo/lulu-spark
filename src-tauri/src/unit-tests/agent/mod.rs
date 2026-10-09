@@ -759,7 +759,7 @@ fn llm_on_delta_receives_assembled_hints() {
         });
         let hints = Arc::new(Mutex::new(Vec::new()));
         let slot = hints.clone();
-        let mut on_delta = |hint: &str| slot.lock().unwrap().push(hint.to_string());
+        let mut on_delta = |hint: &str, _reasoning: &str| slot.lock().unwrap().push(hint.to_string());
         let msg = llm::chat_completions_with_timeout(
             &[json!({"role":"user","content":"x"})],
             &[],

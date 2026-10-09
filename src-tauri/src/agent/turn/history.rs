@@ -135,7 +135,14 @@ pub fn map_llm_error(err: &LlmError) -> TurnOutcome {
 }
 
 pub fn persist(session: &Session) {
+    persist_thinking(session, None);
+}
+
+pub fn persist_thinking(session: &Session, thinking_ms: Option<u64>) {
     let _ = session::save_session(session);
+    if let Some(ms) = thinking_ms {
+        let _ = session::store_turn_thinking_ms(&session.session_id, ms);
+    }
 }
 
 pub fn turn_completed_emit(session_id: &str, wrote: bool, terminal: &str) -> Value {

@@ -12,9 +12,12 @@ import {
   hydrateStaged,
   hydrateTurns,
   neighborSessionId,
+  nowUnixSecs,
   sessionIdOf,
   setHomeState,
+  type HubMessage,
   type HubSession,
+  type LiveThinking,
 } from '../state/store.ts';
 
 export const BINDING_CHANGED_EVENT = 'ai-assistant:binding-changed';
@@ -139,6 +142,11 @@ export async function deleteSession(sessionId: string) {
   }
 }
 
+function attachThinking(message: HubMessage, live?: LiveThinking): HubMessage {
+  if (!live?.text) return message;
+  return { ...message, thinking: live.text, thinkingMs: live.ms };
+}
+
 export function showActionError(err: { message?: string } | undefined) {
   setHomeState((prev) => ({
     ...prev,
@@ -148,6 +156,7 @@ export function showActionError(err: { message?: string } | undefined) {
         role: 'assistant',
         text: err?.message ? String(err.message) : 'Unable to start a conversation.',
         error: true,
+        createdAt: nowUnixSecs(),
       },
     ],
   }));
@@ -181,6 +190,7 @@ export async function applyBindingState() {
       contextPercent: null,
       contextUsage: null,
       progressByChat: Object.create(null) as Record<string, string>,
+      thinkingByChat: Object.create(null) as Record<string, LiveThinking>,
       inFlightIds: [],
     }));
     console.info('[DEBUG-assistant] home: unbound, skip list');
@@ -212,7 +222,7 @@ export async function sendMessage(text: string) {
         ...prev,
         messages: [
           ...prev.messages,
-          { role: 'assistant', text: 'Chat requires a workspace Binding.', error: true },
+          { role: 'assistant', text: 'Chat requires a workspace Binding.', error: true, createdAt: nowUnixSecs() },
         ],
       }));
       return;
@@ -225,7 +235,7 @@ export async function sendMessage(text: string) {
         ...prev,
         messages: [
           ...prev.messages,
-          { role: 'assistant', text: 'Unable to start a conversation.', error: true },
+          { role: 'assistant', text: 'Unable to start a conversation.', error: true, createdAt: nowUnixSecs() },
         ],
       }));
       return;
@@ -234,33 +244,49 @@ export async function sendMessage(text: string) {
     setHomeState((prev) => ({
       ...prev,
       inFlightIds: prev.inFlightIds.includes(sid) ? prev.inFlightIds : [...prev.inFlightIds, sid],
-      messages: [...prev.messages, { role: 'user', text }],
+      messages: [...prev.messages, { role: 'user', text, createdAt: nowUnixSecs() }],
     }));
-    const channel = await api.createChannel((payload: { desc?: unknown } | string) => {
-      const desc =
-        payload && typeof payload === 'object'
-          ? String(payload.desc ?? '')
-          : String(payload ?? '');
-      setHomeState((prev) => ({
-        ...prev,
-        progressByChat: { ...prev.progressByChat, [sid]: desc },
-      }));
-    });
+    const channel = await api.createChannel(
+      (payload: { desc?: unknown; thinking?: unknown; thinking_ms?: unknown } | string) => {
+        const desc =
+          payload && typeof payload === 'object'
+            ? String(payload.desc ?? '')
+            : String(payload ?? '');
+        const thinkingText =
+          payload && typeof payload === 'object' ? String(payload.thinking ?? '') : '';
+        const thinkingMs =
+          payload && typeof payload === 'object' && typeof payload.thinking_ms === 'number'
+            ? payload.thinking_ms
+            : undefined;
+        setHomeState((prev) => ({
+          ...prev,
+          progressByChat: { ...prev.progressByChat, [sid]: desc },
+          thinkingByChat: thinkingText
+            ? { ...prev.thinkingByChat, [sid]: { text: thinkingText, ms: thinkingMs } }
+            : prev.thinkingByChat,
+        }));
+      },
+    );
     const result = (await api.invoke('agent_chat_turn', {
       sessionId: sid,
       message: text,
       progress: channel,
     })) as { busy?: boolean; reply_text?: string; terminal?: string };
     if (getHomeState().currentSessionId === sid) {
+      const live = getHomeState().thinkingByChat[sid];
       if (result?.busy) {
         setHomeState((prev) => ({
           ...prev,
           messages: [
             ...prev.messages,
-            {
-              role: 'assistant',
-              text: String(result.reply_text || 'Busy — try again later'),
-            },
+            attachThinking(
+              {
+                role: 'assistant',
+                text: String(result.reply_text || 'Busy — try again later'),
+                createdAt: nowUnixSecs(),
+              },
+              live,
+            ),
           ],
         }));
       } else {
@@ -270,11 +296,15 @@ export async function sendMessage(text: string) {
             ...prev,
             messages: [
               ...prev.messages,
-              {
-                role: 'assistant',
-                text: reply,
-                error: result?.terminal === 'error',
-              },
+              attachThinking(
+                {
+                  role: 'assistant',
+                  text: reply,
+                  error: result?.terminal === 'error',
+                  createdAt: nowUnixSecs(),
+                },
+                live,
+              ),
             ],
           }));
         }
@@ -292,6 +322,7 @@ export async function sendMessage(text: string) {
             role: 'assistant',
             text: err instanceof Error && err.message ? err.message : 'Failed to send',
             error: true,
+            createdAt: nowUnixSecs(),
           },
         ],
       }));
@@ -300,11 +331,14 @@ export async function sendMessage(text: string) {
     if (sid) {
       setHomeState((prev) => {
         const progressByChat = { ...prev.progressByChat };
+        const thinkingByChat = { ...prev.thinkingByChat };
         delete progressByChat[sid];
+        delete thinkingByChat[sid];
         return {
           ...prev,
           inFlightIds: prev.inFlightIds.filter((id) => id !== sid),
           progressByChat,
+          thinkingByChat,
         };
       });
     }

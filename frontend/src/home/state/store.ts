@@ -13,6 +13,14 @@ export type HubMessage = {
   role: string;
   text: string;
   error?: boolean;
+  thinking?: string;
+  thinkingMs?: number;
+  createdAt?: number;
+};
+
+export type LiveThinking = {
+  text: string;
+  ms?: number;
 };
 
 export type HubStagedSource = {
@@ -52,6 +60,7 @@ export type HomeState = {
   contextPercent: number | null;
   contextUsage: ContextUsage | null;
   progressByChat: Record<string, string>;
+  thinkingByChat: Record<string, LiveThinking>;
   inFlightIds: string[];
   channelUnread: ChannelUnread;
 };
@@ -70,6 +79,7 @@ function emptyState(): HomeState {
     contextPercent: null,
     contextUsage: null,
     progressByChat: Object.create(null) as Record<string, string>,
+    thinkingByChat: Object.create(null) as Record<string, LiveThinking>,
     inFlightIds: [],
     channelUnread: emptyUnread(),
   };
@@ -115,8 +125,26 @@ export function messagePaintKey(state: HomeState) {
   return [
     state.hostBound ? '1' : '0',
     state.currentSessionId,
-    ...state.messages.map((m) => `${m.role}\0${m.text}\0${m.error ? '1' : '0'}`),
+    ...state.messages.map(
+      (m) => `${m.role}\0${m.text}\0${m.error ? '1' : '0'}\0${m.thinking || ''}\0${m.thinkingMs ?? ''}`,
+    ),
   ].join('\n');
+}
+
+export function nowUnixSecs() {
+  return Math.floor(Date.now() / 1000);
+}
+
+export function formatMessageWhen(createdAt: unknown) {
+  const ts = Number(createdAt);
+  if (!Number.isFinite(ts) || ts <= 0) return '';
+  const date = new Date(ts * 1000);
+  if (Number.isNaN(date.getTime())) return '';
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+  const hour = String(date.getHours()).padStart(2, '0');
+  const minute = String(date.getMinutes()).padStart(2, '0');
+  return `${month}/${day}, ${hour}:${minute}`;
 }
 
 export function formatSessionWhen(updatedAt: unknown) {
@@ -172,10 +200,42 @@ export function hydrateTurns(turns: unknown): HubMessage[] {
         (t as { content?: unknown }).content != null &&
         String((t as { content?: unknown }).content).length > 0,
     )
-    .map((t) => ({
-      role: (t as HubMessage).role,
-      text: String((t as { content: unknown }).content),
-    }));
+    .map((t) => {
+      const row = t as { role: string; content: unknown; thinking?: unknown; thinking_ms?: unknown };
+      const thinking = String(row.thinking ?? '').trim();
+      const thinkingMs =
+        typeof row.thinking_ms === 'number' && Number.isFinite(row.thinking_ms)
+          ? row.thinking_ms
+          : undefined;
+      const createdAt = createdAtOf(t);
+      return {
+        role: row.role,
+        text: String(row.content),
+        ...(thinking ? { thinking } : {}),
+        ...(thinkingMs != null ? { thinkingMs } : {}),
+        ...(createdAt != null ? { createdAt } : {}),
+      };
+    });
+}
+
+export function liveThinkingOf(state: HomeState) {
+  const id = state.currentSessionId;
+  if (!id) return null;
+  const live = state.thinkingByChat[id];
+  return live && live.text ? live : null;
+}
+
+export function thinkingTitle(ms?: number, live?: boolean) {
+  const underOne = ms == null || ms < 1000;
+  if (live) return underOne ? 'Thinking' : `Thinking · ${Math.round(ms / 1000)}s`;
+  return underOne ? 'Thought briefly' : `Thought for ${Math.round(ms / 1000)}s`;
+}
+
+function createdAtOf(turn: unknown) {
+  if (!turn || typeof turn !== 'object') return undefined;
+  const raw = (turn as { created_at?: unknown }).created_at;
+  if (typeof raw !== 'number' || !Number.isFinite(raw) || raw <= 0) return undefined;
+  return Math.trunc(raw);
 }
 
 export function contextUsageFrom(payload: object | null): ContextUsage | null {

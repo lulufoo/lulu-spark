@@ -164,3 +164,32 @@ fn empty_response_fallback_step_carries_thinking_and_response_fields() {
         assert_eq!(last.model.as_deref(), Some("glm-reply"));
     });
 }
+
+#[test]
+fn run_loop_emits_thinking_on_progress_and_ui_turns() {
+    with_sandbox(|| {
+        let mock = spawn_scripted_llm(vec![thinking(assistant_text("答复"), "先想一步")]);
+        let master = create_bound_plan("主计划");
+        let mut session = session::create_session().expect("session");
+        arm_plan_binding(&master);
+        let collected = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        let slot = collected.clone();
+        let sink: crate::agent::progress::ProgressSink =
+            std::sync::Arc::new(move |desc| slot.lock().unwrap().push(desc));
+        r#loop::run_loop_with_progress(
+            &mut session,
+            "你好",
+            &cfg_for(&mock),
+            &crate::agent::diagnostics::TraceId::new(),
+            Some(&sink),
+        );
+        let descs = collected.lock().unwrap();
+        assert!(
+            descs.iter().any(|desc| desc.thinking.as_deref() == Some("先想一步")),
+            "progress must carry turn thinking, got {descs:?}"
+        );
+        let ui = session::load_turns_value(&session.session_id);
+        assert_eq!(ui[1]["content"], "答复");
+        assert_eq!(ui[1]["thinking"], "先想一步");
+    });
+}

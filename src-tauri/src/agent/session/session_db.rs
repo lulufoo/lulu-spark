@@ -4,6 +4,7 @@ use rusqlite::{params, Connection, OptionalExtension, Transaction};
 use serde_json::{json, Value};
 
 use super::schema::{SESSION_SCHEMA, SESSION_STATUS_IDLE};
+use super::step_codec::{decode_step, StepRow};
 use super::turn_store;
 use super::types::{Session, StagedEntry, StagedSource};
 
@@ -38,6 +39,7 @@ fn open(path: &PathBuf) -> Result<Connection, String> {
     for column in ["create_ts", "start_ts", "end_ts"] {
         ensure_column(&conn, "model_steps", column, "INTEGER")?;
     }
+    ensure_column(&conn, "model_turns", "thinking_ms", "INTEGER")?;
     Ok(conn)
 }
 
@@ -245,13 +247,14 @@ pub fn load_ui_messages(path: &PathBuf) -> Result<Vec<Value>, String> {
     }
     let conn = open(path)?;
     let mut stmt = conn
-        .prepare("SELECT role, content FROM messages ORDER BY seq ASC")
+        .prepare("SELECT role, content, created_at FROM messages ORDER BY seq ASC")
         .map_err(|e| e.to_string())?;
     let rows = stmt
         .query_map([], |row| {
             Ok(json!({
                 "role": row.get::<_, String>(0)?,
                 "content": row.get::<_, String>(1)?,
+                "created_at": row.get::<_, i64>(2)?,
             }))
         })
         .map_err(|e| e.to_string())?;
@@ -259,7 +262,105 @@ pub fn load_ui_messages(path: &PathBuf) -> Result<Vec<Value>, String> {
     for row in rows {
         items.push(row.map_err(|e| e.to_string())?);
     }
+    attach_turn_thinking(&conn, &mut items)?;
     Ok(items)
+}
+
+pub fn store_turn_thinking_ms(path: &PathBuf, ms: u64) -> Result<(), String> {
+    let conn = open(path)?;
+    conn.execute(
+        "UPDATE model_turns SET thinking_ms = ?1
+         WHERE seq = (SELECT MAX(seq) FROM model_turns)",
+        params![ms as i64],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+fn attach_turn_thinking(conn: &Connection, items: &mut [Value]) -> Result<(), String> {
+    let mut stmt = conn
+        .prepare(
+            "SELECT t.turn_id, t.thinking_ms, s.kind, s.content, s.tool_call_id, s.tool_name,
+                    s.finish_reason, s.model, s.usage, s.reasoning_content
+             FROM model_steps s
+             JOIN model_turns t ON t.turn_id = s.turn_id
+             ORDER BY t.seq ASC, s.seq ASC",
+        )
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, Option<i64>>(1)?,
+                StepRow {
+                    kind: row.get(2)?,
+                    content: row.get(3)?,
+                    tool_call_id: row.get(4)?,
+                    tool_name: row.get(5)?,
+                    finish_reason: row.get(6)?,
+                    model: row.get(7)?,
+                    usage: row.get(8)?,
+                    reasoning_content: row.get(9)?,
+                    // Only the thinking text is read here; the clock is not shown in the UI.
+                    create_ts: None,
+                    start_ts: None,
+                    end_ts: None,
+                },
+            ))
+        })
+        .map_err(|e| e.to_string())?;
+
+    let mut current_turn = String::new();
+    let mut thinking = String::new();
+    let mut thinking_ms: Option<i64> = None;
+    let mut last_assistant: Option<usize> = None;
+    let mut msg_idx = 0usize;
+
+    let flush = |items: &mut [Value],
+                 thinking: &str,
+                 thinking_ms: Option<i64>,
+                 last_assistant: Option<usize>| {
+        let Some(index) = last_assistant else {
+            return;
+        };
+        if thinking.is_empty() || index >= items.len() {
+            return;
+        }
+        items[index]["thinking"] = json!(thinking);
+        if let Some(ms) = thinking_ms {
+            items[index]["thinking_ms"] = json!(ms);
+        }
+    };
+
+    for row in rows {
+        let (turn_id, ms, step_row) = row.map_err(|e| e.to_string())?;
+        if turn_id != current_turn {
+            flush(items, &thinking, thinking_ms, last_assistant);
+            current_turn = turn_id;
+            thinking.clear();
+            thinking_ms = ms;
+            last_assistant = None;
+        }
+        if let Some(piece) = step_row
+            .reasoning_content
+            .as_deref()
+            .filter(|text| !text.is_empty())
+        {
+            if !thinking.is_empty() {
+                thinking.push_str("\n\n");
+            }
+            thinking.push_str(piece);
+        }
+        let step = decode_step(step_row);
+        if turn_store::is_ui_message(&step) {
+            if step.role == "assistant" {
+                last_assistant = Some(msg_idx);
+            }
+            msg_idx += 1;
+        }
+    }
+    flush(items, &thinking, thinking_ms, last_assistant);
+    Ok(())
 }
 
 fn sync_staged(

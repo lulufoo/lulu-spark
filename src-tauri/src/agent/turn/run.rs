@@ -16,7 +16,7 @@ use crate::agent::binding::{
 };
 use super::flights::{chat_turn_interrupted, runtime};
 use super::history::{
-    build_llm_messages, cancelled_turn_outcome, is_clarify_text, map_llm_error, persist,
+    build_llm_messages, cancelled_turn_outcome, is_clarify_text, map_llm_error,     persist_thinking,
     prompt_text_from_binding,
 };
 use super::response::{empty_reply_text, with_response};
@@ -42,6 +42,7 @@ pub(crate) fn run_loop_with_progress(
     trace_id: &TraceId,
     sink: Option<&ProgressSink>,
 ) -> TurnOutcome {
+    let mut thinking = progress::TurnThinking::default();
     let mut steps_checkpoint = session.steps.len();
     // Executable turns require Binding Contract bound.
     let Some((binding, generation)) = current_binding_generation_snapshot() else {
@@ -73,7 +74,7 @@ pub(crate) fn run_loop_with_progress(
                 reasoning_content: None,
                 clock: StepClock::stamp_now(),
             });
-            persist(session);
+            persist_thinking(session, thinking.persist_ms());
             return TurnOutcome {
                 reply_text: reply,
                 terminal: Terminal::Business,
@@ -110,7 +111,7 @@ pub(crate) fn run_loop_with_progress(
             reasoning_content: None,
             clock: StepClock::stamp_now(),
         });
-        persist(session);
+        persist_thinking(session, thinking.persist_ms());
         return TurnOutcome {
             reply_text: reply,
             terminal: Terminal::Error,
@@ -133,7 +134,7 @@ pub(crate) fn run_loop_with_progress(
         reasoning_content: None,
         clock: StepClock::stamp_now(),
     });
-    persist(session);
+    persist_thinking(session, thinking.persist_ms());
 
     // A key-only Binding resolves this connection at Set time. Typed/internal
     // bindings retain their historical text-only behavior when they carry no
@@ -160,7 +161,7 @@ pub(crate) fn run_loop_with_progress(
                 reasoning_content: None,
                 clock: StepClock::stamp_now(),
             });
-            persist(session);
+            persist_thinking(session, thinking.persist_ms());
             return TurnOutcome {
                 reply_text: reply,
                 terminal: Terminal::Error,
@@ -181,7 +182,7 @@ pub(crate) fn run_loop_with_progress(
                 reasoning_content: None,
                 clock: StepClock::stamp_now(),
             });
-            persist(session);
+            persist_thinking(session, thinking.persist_ms());
             return TurnOutcome {
                 reply_text: reply,
                 terminal: Terminal::Error,
@@ -219,11 +220,14 @@ pub(crate) fn run_loop_with_progress(
             .as_ref()
             .map(|catalog| catalog.definitions.as_slice())
             .unwrap_or(&[]);
-        progress::emit_progress(
+        let (thinking_text, thinking_ms) = thinking.view(None);
+        progress::emit_progress_state(
             sink,
             &session.session_id,
             trace_id,
             "Requesting…",
+            thinking_text,
+            thinking_ms,
         );
         crate::agent::context::record_sent_prompt(
             &session.session_id,
@@ -232,8 +236,9 @@ pub(crate) fn run_loop_with_progress(
             &tools::mcp_names(&turn_tools),
         );
         let session_id = session.session_id.clone();
-        let mut on_delta = |hint: &str| {
-            progress::emit_progress(sink, &session_id, trace_id, hint);
+        let mut on_delta = |hint: &str, reasoning: &str| {
+            let (text, ms) = thinking.tick(reasoning);
+            progress::emit_progress_state(sink, &session_id, trace_id, hint, text, ms);
         };
         let ctx = llm::CallContext {
             session_id: session.session_id.clone(),
@@ -255,6 +260,7 @@ pub(crate) fn run_loop_with_progress(
         // Kept even when the call is rejected: the thinking and `finish_reason` that
         // did arrive go onto the error Step below.
         let arrived = call.snapshot.clone();
+        thinking.finish_call(arrived.as_ref().and_then(|message| message.reasoning_content.as_deref()));
         let msg = match call.into_result() {
             Ok(message) => message,
             Err(error) => {
@@ -280,7 +286,7 @@ pub(crate) fn run_loop_with_progress(
                     Some(message) => with_response(step, message),
                     None => step,
                 });
-                persist(session);
+                persist_thinking(session, thinking.persist_ms());
                 return out;
             }
         };
@@ -310,7 +316,7 @@ pub(crate) fn run_loop_with_progress(
                 reasoning_content: None,
                 clock: StepClock::stamp_now(),
             });
-            persist(session);
+            persist_thinking(session, thinking.persist_ms());
             return TurnOutcome {
                 reply_text: reply,
                 terminal: Terminal::Error,
@@ -334,7 +340,7 @@ pub(crate) fn run_loop_with_progress(
                 reasoning_content: None,
                 clock: StepClock::stamp_now(),
             });
-            persist(session);
+            persist_thinking(session, thinking.persist_ms());
             return TurnOutcome {
                 reply_text: reply,
                 terminal: Terminal::Error,
@@ -371,17 +377,20 @@ pub(crate) fn run_loop_with_progress(
             reasoning_content: None,
             clock: StepClock::stamp_span(llm_start, llm_end),
         }, &msg));
-        persist(session);
+        persist_thinking(session, thinking.persist_ms());
 
         for call in msg.tool_calls {
             if chat_turn_interrupted(&session.session_id, generation) {
                 return cancelled_turn_outcome(session, steps_checkpoint);
             }
-            progress::emit_progress(
+            let (thinking_text, thinking_ms) = thinking.view(None);
+            progress::emit_progress_state(
                 sink,
                 &session.session_id,
                 trace_id,
                 format!("Calling {}…", call.name),
+                thinking_text,
+                thinking_ms,
             );
 
             let tool_started = Instant::now();
@@ -415,7 +424,7 @@ pub(crate) fn run_loop_with_progress(
                         reasoning_content: None,
                         clock: StepClock::stamp_now(),
                     });
-                    persist(session);
+                    persist_thinking(session, thinking.persist_ms());
                     return TurnOutcome {
                         reply_text: reply,
                         terminal: Terminal::Error,
@@ -475,7 +484,7 @@ pub(crate) fn run_loop_with_progress(
                 clock: StepClock::stamp_span(tool_start_ts, tool_end_ts),
             });
         }
-        persist(session);
+        persist_thinking(session, thinking.persist_ms());
     };
 
     let content = msg.content.clone().unwrap_or_default();
@@ -493,7 +502,7 @@ pub(crate) fn run_loop_with_progress(
             reasoning_content: None,
             clock: StepClock::stamp_span(llm_start, llm_end),
         }, &msg));
-        persist(session);
+        persist_thinking(session, thinking.persist_ms());
         return TurnOutcome {
             reply_text: reply,
             terminal: Terminal::Error,
@@ -522,7 +531,7 @@ pub(crate) fn run_loop_with_progress(
                 reasoning_content: None,
                 clock: StepClock::stamp_now(),
             });
-            persist(session);
+            persist_thinking(session, thinking.persist_ms());
             return TurnOutcome {
                 reply_text: reply,
                 terminal: Terminal::Error,
@@ -543,7 +552,7 @@ pub(crate) fn run_loop_with_progress(
             reasoning_content: None,
             clock: StepClock::stamp_span(llm_start, llm_end),
         }, &msg));
-        persist(session);
+        persist_thinking(session, thinking.persist_ms());
         return TurnOutcome {
             reply_text: content,
             terminal: Terminal::None,
@@ -564,7 +573,7 @@ pub(crate) fn run_loop_with_progress(
             reasoning_content: None,
             clock: StepClock::stamp_span(llm_start, llm_end),
         }, &msg));
-        persist(session);
+        persist_thinking(session, thinking.persist_ms());
         return TurnOutcome {
             reply_text: content,
             terminal: Terminal::Business,
@@ -584,7 +593,7 @@ pub(crate) fn run_loop_with_progress(
         reasoning_content: None,
         clock: StepClock::stamp_span(llm_start, llm_end),
     }, &msg));
-    persist(session);
+    persist_thinking(session, thinking.persist_ms());
     TurnOutcome {
         reply_text: content,
         terminal: Terminal::None,

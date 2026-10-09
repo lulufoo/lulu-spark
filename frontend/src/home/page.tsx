@@ -8,6 +8,7 @@ import { openAbout } from './commands/about.ts';
 import { loadPackageDebug } from './commands/package-debug.ts';
 import { packageDebugStore } from './state/package-debug.ts';
 import { hydrateHomeChatMarkdown, renderHomeChatMarkdown } from './ui/chat-render.ts';
+import { ChatTurn } from './ui/chat-turn.tsx';
 import { AboutDialog } from './ui/about-dialog.tsx';
 import { AccountBar } from './ui/account-bar.tsx';
 import { HelpMenu } from './ui/help-menu.tsx';
@@ -16,6 +17,7 @@ import { SessionList } from './ui/session-list.tsx';
 import { SessionMenu } from './ui/session-menu.tsx';
 import { ContextPercent } from './ui/context-percent.tsx';
 import { StagedList } from './ui/staged-list.tsx';
+import { copyMessageText } from './commands/copy-message.ts';
 import { copyCurrentSessionId } from './commands/copy-session-id.ts';
 import {
   createSession,
@@ -35,11 +37,14 @@ import {
   composerInputLocked,
   composerLocked,
   messagePaintKey,
+  liveThinkingOf,
   progressHint,
   resetHomeState,
   useHomeState,
   type HubMessage,
+  type LiveThinking,
 } from './state/store.ts';
+import { ThinkingFold } from './ui/thinking.tsx';
 import { openCreateNote } from '../notes/commands/viewer/create.ts';
 import { openBindDialog } from '../app-shell/ui/bind-dialog.tsx';
 import { openSettingsDialog } from '../app-shell/ui/settings/dialog.tsx';
@@ -54,10 +59,12 @@ const MessageThread = memo(function MessageThread({
   hostBound,
   currentSessionId,
   messages,
+  liveThinking,
 }: {
   hostBound: boolean;
   currentSessionId: string;
   messages: HubMessage[];
+  liveThinking: LiveThinking | null;
 }) {
   if (!hostBound) {
     return (
@@ -85,20 +92,33 @@ const MessageThread = memo(function MessageThread({
       {messages.map((m, i) => {
         const kind = m.role === 'user' ? 'user' : m.error ? 'error' : 'assistant';
         return (
-          <div key={i} className={`home-chat-turn home-chat-turn--${kind}`}>
-            <div className={`home-chat-bubble home-chat-bubble--${kind}`}>
-              {kind === 'assistant' ? (
-                <div
-                  className="home-chat-md"
-                  dangerouslySetInnerHTML={{ __html: renderHomeChatMarkdown(m.text) }}
-                />
-              ) : (
-                m.text
-              )}
-            </div>
-          </div>
+          <ChatTurn
+            key={i}
+            kind={kind}
+            createdAt={m.createdAt}
+            onCopy={() => copyMessageText(m.text)}
+            fold={
+              kind !== 'user' && m.thinking ? (
+                <ThinkingFold text={m.thinking} ms={m.thinkingMs} />
+              ) : null
+            }
+          >
+            {kind === 'assistant' ? (
+              <div
+                className="home-chat-md"
+                dangerouslySetInnerHTML={{ __html: renderHomeChatMarkdown(m.text) }}
+              />
+            ) : (
+              m.text
+            )}
+          </ChatTurn>
         );
       })}
+      {liveThinking && messages[messages.length - 1]?.role === 'user' ? (
+        <div className="home-chat-turn home-chat-turn--assistant home-chat-turn--thinking-live">
+          <ThinkingFold text={liveThinking.text} ms={liveThinking.ms} live />
+        </div>
+      ) : null}
     </div>
   );
 });
@@ -133,7 +153,9 @@ export function HomePage({
   const locked = composerLocked(state);
   const inputLocked = composerInputLocked(state);
   const hint = progressHint(state);
-  const showProgress = Boolean(hint) || (state.hostBound && locked);
+  const liveThinking = liveThinkingOf(state);
+  const showProgress =
+    (Boolean(hint) && hint !== 'Thinking…') || (state.hostBound && locked && !hint && !liveThinking);
   const messagesRef = useRef<HTMLDivElement | null>(null);
   const formRef = useRef<HTMLFormElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
@@ -407,6 +429,7 @@ export function HomePage({
             hostBound={state.hostBound}
             currentSessionId={state.currentSessionId}
             messages={state.messages}
+            liveThinking={liveThinking}
           />
           <p className="home-chat-progress" data-role="progress-hint" hidden={!showProgress}>
             {hint ? <span className="home-chat-progress-text">{hint}</span> : '\u00a0'}
