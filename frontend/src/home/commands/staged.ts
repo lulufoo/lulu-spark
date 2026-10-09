@@ -6,6 +6,7 @@ import {
   contextUsageFrom,
   getHomeState,
   hydrateStaged,
+  nowUnixSecs,
   setHomeState,
   type HubStagedEntry,
 } from '../state/store.ts';
@@ -61,7 +62,7 @@ export async function unstageStaged(id: string) {
           : 'Failed to remove from Stage';
     setHomeState((prev) => ({
       ...prev,
-      messages: [...prev.messages, { role: 'assistant', text, error: true }],
+      messages: [...prev.messages, { role: 'assistant', text, error: true, createdAt: nowUnixSecs() }],
     }));
   }
 }

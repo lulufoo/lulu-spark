@@ -109,6 +109,8 @@ fn save_roundtrip_keeps_user_assistant_and_tool_turns() {
         assert_eq!(items[0]["role"], "user");
         assert_eq!(items[1]["role"], "assistant");
         assert_eq!(items[1]["content"], "done");
+        assert!(items[0]["created_at"].as_i64().expect("user created_at") > 0);
+        assert!(items[1]["created_at"].as_i64().expect("assistant created_at") > 0);
     });
 }
 
@@ -238,9 +240,12 @@ fn save_truncates_only_the_removed_turn_suffix() {
         let reloaded = session::load_session(&sess.session_id).expect("reload");
         assert_eq!(reloaded.steps.len(), 1);
         assert_eq!(reloaded.steps[0].role, "user");
-        assert_eq!(session::load_turns_value(&sess.session_id), json!([
-            {"role": "user", "content": "first"}
-        ]));
+        let ui = session::load_turns_value(&sess.session_id);
+        let items = ui.as_array().expect("ui array");
+        assert_eq!(items.len(), 1);
+        assert_eq!(items[0]["role"], "user");
+        assert_eq!(items[0]["content"], "first");
+        assert!(items[0]["created_at"].as_i64().expect("created_at") > 0);
     });
 }
 

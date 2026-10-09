@@ -15,6 +15,7 @@ export type HubMessage = {
   error?: boolean;
   thinking?: string;
   thinkingMs?: number;
+  createdAt?: number;
 };
 
 export type LiveThinking = {
@@ -130,6 +131,22 @@ export function messagePaintKey(state: HomeState) {
   ].join('\n');
 }
 
+export function nowUnixSecs() {
+  return Math.floor(Date.now() / 1000);
+}
+
+export function formatMessageWhen(createdAt: unknown) {
+  const ts = Number(createdAt);
+  if (!Number.isFinite(ts) || ts <= 0) return '';
+  const date = new Date(ts * 1000);
+  if (Number.isNaN(date.getTime())) return '';
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+  const hour = String(date.getHours()).padStart(2, '0');
+  const minute = String(date.getMinutes()).padStart(2, '0');
+  return `${month}/${day}, ${hour}:${minute}`;
+}
+
 export function formatSessionWhen(updatedAt: unknown) {
   const ts = Number(updatedAt);
   if (!Number.isFinite(ts) || ts <= 0) return '';
@@ -190,11 +207,13 @@ export function hydrateTurns(turns: unknown): HubMessage[] {
         typeof row.thinking_ms === 'number' && Number.isFinite(row.thinking_ms)
           ? row.thinking_ms
           : undefined;
+      const createdAt = createdAtOf(t);
       return {
         role: row.role,
         text: String(row.content),
         ...(thinking ? { thinking } : {}),
         ...(thinkingMs != null ? { thinkingMs } : {}),
+        ...(createdAt != null ? { createdAt } : {}),
       };
     });
 }
@@ -210,6 +229,13 @@ export function thinkingTitle(ms?: number, live?: boolean) {
   const underOne = ms == null || ms < 1000;
   if (live) return underOne ? 'Thinking' : `Thinking · ${Math.round(ms / 1000)}s`;
   return underOne ? 'Thought briefly' : `Thought for ${Math.round(ms / 1000)}s`;
+}
+
+function createdAtOf(turn: unknown) {
+  if (!turn || typeof turn !== 'object') return undefined;
+  const raw = (turn as { created_at?: unknown }).created_at;
+  if (typeof raw !== 'number' || !Number.isFinite(raw) || raw <= 0) return undefined;
+  return Math.trunc(raw);
 }
 
 export function contextUsageFrom(payload: object | null): ContextUsage | null {

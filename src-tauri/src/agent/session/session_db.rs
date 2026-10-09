@@ -243,13 +243,14 @@ pub fn load_ui_messages(path: &PathBuf) -> Result<Vec<Value>, String> {
     }
     let conn = open(path)?;
     let mut stmt = conn
-        .prepare("SELECT role, content FROM messages ORDER BY seq ASC")
+        .prepare("SELECT role, content, created_at FROM messages ORDER BY seq ASC")
         .map_err(|e| e.to_string())?;
     let rows = stmt
         .query_map([], |row| {
             Ok(json!({
                 "role": row.get::<_, String>(0)?,
                 "content": row.get::<_, String>(1)?,
+                "created_at": row.get::<_, i64>(2)?,
             }))
         })
         .map_err(|e| e.to_string())?;

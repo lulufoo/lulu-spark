@@ -12,6 +12,7 @@ import {
   hydrateStaged,
   hydrateTurns,
   neighborSessionId,
+  nowUnixSecs,
   sessionIdOf,
   setHomeState,
   type HubMessage,
@@ -155,6 +156,7 @@ export function showActionError(err: { message?: string } | undefined) {
         role: 'assistant',
         text: err?.message ? String(err.message) : 'Unable to start a conversation.',
         error: true,
+        createdAt: nowUnixSecs(),
       },
     ],
   }));
@@ -220,7 +222,7 @@ export async function sendMessage(text: string) {
         ...prev,
         messages: [
           ...prev.messages,
-          { role: 'assistant', text: 'Chat requires a workspace Binding.', error: true },
+          { role: 'assistant', text: 'Chat requires a workspace Binding.', error: true, createdAt: nowUnixSecs() },
         ],
       }));
       return;
@@ -233,7 +235,7 @@ export async function sendMessage(text: string) {
         ...prev,
         messages: [
           ...prev.messages,
-          { role: 'assistant', text: 'Unable to start a conversation.', error: true },
+          { role: 'assistant', text: 'Unable to start a conversation.', error: true, createdAt: nowUnixSecs() },
         ],
       }));
       return;
@@ -242,7 +244,7 @@ export async function sendMessage(text: string) {
     setHomeState((prev) => ({
       ...prev,
       inFlightIds: prev.inFlightIds.includes(sid) ? prev.inFlightIds : [...prev.inFlightIds, sid],
-      messages: [...prev.messages, { role: 'user', text }],
+      messages: [...prev.messages, { role: 'user', text, createdAt: nowUnixSecs() }],
     }));
     const channel = await api.createChannel(
       (payload: { desc?: unknown; thinking?: unknown; thinking_ms?: unknown } | string) => {
@@ -281,6 +283,7 @@ export async function sendMessage(text: string) {
               {
                 role: 'assistant',
                 text: String(result.reply_text || 'Busy — try again later'),
+                createdAt: nowUnixSecs(),
               },
               live,
             ),
@@ -298,6 +301,7 @@ export async function sendMessage(text: string) {
                   role: 'assistant',
                   text: reply,
                   error: result?.terminal === 'error',
+                  createdAt: nowUnixSecs(),
                 },
                 live,
               ),
@@ -318,6 +322,7 @@ export async function sendMessage(text: string) {
             role: 'assistant',
             text: err instanceof Error && err.message ? err.message : 'Failed to send',
             error: true,
+            createdAt: nowUnixSecs(),
           },
         ],
       }));
