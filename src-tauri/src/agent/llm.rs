@@ -160,7 +160,7 @@ pub fn chat_completions_with_timeout(
     tools: &[Value],
     config: &LlmConfig,
     timeout: Duration,
-    on_delta: Option<&mut dyn FnMut(&str)>,
+    on_delta: Option<&mut dyn FnMut(&str, &str)>,
 ) -> Result<AssistantMessage, LlmError> {
     chat_completions_traced(messages, tools, config, timeout, on_delta).into_result()
 }
@@ -172,7 +172,7 @@ pub fn chat_completions_traced(
     tools: &[Value],
     config: &LlmConfig,
     timeout: Duration,
-    on_delta: Option<&mut dyn FnMut(&str)>,
+    on_delta: Option<&mut dyn FnMut(&str, &str)>,
 ) -> LlmCallOutcome {
     chat_completions_recorded(messages, tools, config, timeout, on_delta, None)
 }
@@ -184,7 +184,7 @@ pub fn chat_completions_recorded(
     tools: &[Value],
     config: &LlmConfig,
     timeout: Duration,
-    mut on_delta: Option<&mut dyn FnMut(&str)>,
+    mut on_delta: Option<&mut dyn FnMut(&str, &str)>,
     ctx: Option<&CallContext>,
 ) -> LlmCallOutcome {
     if let Err(error) = validate_config(config) {
@@ -216,7 +216,7 @@ fn send_request(
     body: &Value,
     config: &LlmConfig,
     timeout: Duration,
-    on_delta: &mut Option<&mut dyn FnMut(&str)>,
+    on_delta: &mut Option<&mut dyn FnMut(&str, &str)>,
     trace: &mut CallTrace,
 ) -> LlmCallOutcome {
     // Blocking reqwest applies this duration to connect/TTFB and to each body

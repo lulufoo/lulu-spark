@@ -181,7 +181,7 @@ fn saving_unchanged_steps_twice_does_not_rewrite_rows() {
 }
 
 #[test]
-fn reasoning_content_never_reaches_the_ui_messages_table() {
+fn reasoning_content_is_a_ui_field_and_stays_out_of_content() {
     with_sandbox(|_| {
         let id = session::create_session().expect("create").session_id;
         save_steps(
@@ -191,10 +191,45 @@ fn reasoning_content_never_reaches_the_ui_messages_table() {
                 with_thinking(with_response(plain("assistant", "done"), "stop"), "secret thoughts"),
             ],
         );
+        session::store_turn_thinking_ms(&id, 1400).expect("thinking_ms");
         let ui = session::load_turns_value(&id);
         let items = ui.as_array().expect("ui array");
         assert_eq!(items.len(), 2);
-        assert!(!ui.to_string().contains("secret thoughts"));
+        assert_eq!(items[1]["content"], "done");
+        assert_eq!(items[1]["thinking"], "secret thoughts");
+        assert_eq!(items[1]["thinking_ms"], 1400);
+        assert_ne!(items[1]["content"], "secret thoughts");
+    });
+}
+
+#[test]
+fn one_turn_joins_thinking_pieces_on_the_final_assistant_ui_message() {
+    with_sandbox(|_| {
+        let id = session::create_session().expect("create").session_id;
+        save_steps(
+            &id,
+            vec![
+                plain("user", "hi"),
+                with_thinking(with_response(tool_call_step(1), "tool_calls"), "先看"),
+                Step {
+                    role: "tool".into(),
+                    content: Some("ok".into()),
+                    tool_call_id: Some("call_0".into()),
+                    tool_calls: None,
+                    name: Some("read".into()),
+                    finish_reason: None,
+                    model: None,
+                    usage: None,
+                    reasoning_content: None,
+                },
+                with_thinking(with_response(plain("assistant", "done"), "stop"), "再想"),
+            ],
+        );
+        let ui = session::load_turns_value(&id);
+        let items = ui.as_array().expect("ui array");
+        assert_eq!(items.len(), 2);
+        assert_eq!(items[1]["content"], "done");
+        assert_eq!(items[1]["thinking"], "先看\n\n再想");
     });
 }
 

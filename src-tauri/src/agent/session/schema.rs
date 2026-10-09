@@ -21,7 +21,8 @@ CREATE TABLE IF NOT EXISTS messages (
 CREATE TABLE IF NOT EXISTS model_turns (
   turn_id TEXT PRIMARY KEY,
   seq INTEGER NOT NULL,
-  created_at INTEGER NOT NULL
+  created_at INTEGER NOT NULL,
+  thinking_ms INTEGER
 );
 CREATE TABLE IF NOT EXISTS model_steps (
   step_id TEXT PRIMARY KEY,

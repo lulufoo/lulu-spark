@@ -428,6 +428,98 @@ describe('home hub chat sessions', () => {
     });
   });
 
+  it('renders a collapsed thinking fold from hydrated turns', async () => {
+    invokeSpy.mockImplementation(async (cmd, args) => {
+      if (cmd === 'query_binding') return { state: 'bound' };
+      if (cmd === 'list_chat_sessions') {
+        return { sessions, current_session_id: currentId };
+      }
+      if (cmd === 'select_chat_session') {
+        currentId = String(args?.sessionId || '');
+        return {
+          session_id: currentId,
+          turns: [
+            { role: 'user', content: 'q' },
+            {
+              role: 'assistant',
+              content: 'a',
+              thinking: 'let me think',
+              thinking_ms: 1100,
+            },
+          ],
+        };
+      }
+      if (cmd === 'get_ai_assistant_binding') {
+        return { session_id: currentId, turns: [] };
+      }
+      return {};
+    });
+    await mountReady();
+    container.querySelector('[data-session-id="s1"]').click();
+    await vi.waitFor(() => {
+      const fold = container.querySelector('[data-role="thinking"]');
+      expect(fold).not.toBeNull();
+      expect(fold.open).toBe(false);
+      expect(fold.querySelector('.home-chat-thinking-summary')?.textContent).toBe(
+        'Thought for 1s',
+      );
+      expect(fold.querySelector('.home-chat-thinking-body')?.textContent).toBe('let me think');
+    });
+  });
+
+  it('shows a live thinking fold while the turn is in flight', async () => {
+    let onProgress;
+    createChannelSpy.mockImplementation(async (fn) => {
+      onProgress = fn;
+      return { onmessage: fn };
+    });
+    let releaseTurn;
+    const turnGate = new Promise((resolve) => {
+      releaseTurn = resolve;
+    });
+    invokeSpy.mockImplementation(async (cmd) => {
+      if (cmd === 'query_binding') return { state: 'bound' };
+      if (cmd === 'list_chat_sessions') {
+        return { sessions, current_session_id: currentId };
+      }
+      if (cmd === 'get_ai_assistant_binding') {
+        return { session_id: currentId, turns: [] };
+      }
+      if (cmd === 'agent_chat_turn') {
+        onProgress?.({
+          session_id: 's2',
+          request_id: 'trace_1',
+          desc: 'Thinking…',
+          thinking: 'partial',
+          thinking_ms: 800,
+        });
+        await turnGate;
+        return { reply_text: 'Hi back', terminal: 'ok' };
+      }
+      return {};
+    });
+    await mountReady();
+    const input = container.querySelector('[data-role="input"]');
+    const form = container.querySelector('[data-role="form"]');
+    input.value = 'Hello there';
+    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    await vi.waitFor(() => {
+      const fold = container.querySelector('[data-role="thinking"]');
+      expect(fold?.querySelector('.home-chat-thinking-summary')?.textContent).toBe(
+        'Thinking',
+      );
+      expect(fold?.querySelector('.home-chat-thinking-body')?.textContent).toBe('partial');
+      expect(container.querySelector('[data-role="progress-hint"]')?.hidden).toBe(true);
+    });
+    releaseTurn();
+    await vi.waitFor(() => {
+      expect(container.textContent).toMatch(/Hi back/);
+      expect(container.querySelector('[data-role="thinking"] .home-chat-thinking-summary')?.textContent).toBe(
+        'Thought briefly',
+      );
+    });
+  });
+
   it('sends a bound turn and shows the reply', async () => {
     await mountReady();
     const input = container.querySelector('[data-role="input"]');

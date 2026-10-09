@@ -11,7 +11,7 @@ use super::{AssistantMessage, LlmCallOutcome, LlmError, ToolCall};
 
 pub(super) fn assemble_sse(
     resp: impl Read,
-    on_delta: &mut Option<&mut dyn FnMut(&str)>,
+    on_delta: &mut Option<&mut dyn FnMut(&str, &str)>,
     trace: &mut CallTrace,
 ) -> LlmCallOutcome {
     let mut reader = BufReader::new(resp);
@@ -73,14 +73,14 @@ pub(super) fn assemble_sse(
 fn emit_if_noteworthy(
     assembler: &mut StreamAssembler,
     payload: &str,
-    on_delta: &mut Option<&mut dyn FnMut(&str)>,
+    on_delta: &mut Option<&mut dyn FnMut(&str, &str)>,
     trace: &mut CallTrace,
 ) -> Result<(), LlmError> {
     let noteworthy = apply_sse_payload(assembler, payload)?;
     trace.observe(!assembler.reasoning.is_empty(), !assembler.content.is_empty());
     if noteworthy {
         if let Some(callback) = on_delta.as_mut() {
-            callback(&assembler.hint());
+            callback(&assembler.hint(), &assembler.reasoning);
         }
     }
     Ok(())

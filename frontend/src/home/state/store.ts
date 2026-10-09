@@ -13,6 +13,13 @@ export type HubMessage = {
   role: string;
   text: string;
   error?: boolean;
+  thinking?: string;
+  thinkingMs?: number;
+};
+
+export type LiveThinking = {
+  text: string;
+  ms?: number;
 };
 
 export type HubStagedSource = {
@@ -52,6 +59,7 @@ export type HomeState = {
   contextPercent: number | null;
   contextUsage: ContextUsage | null;
   progressByChat: Record<string, string>;
+  thinkingByChat: Record<string, LiveThinking>;
   inFlightIds: string[];
   channelUnread: ChannelUnread;
 };
@@ -70,6 +78,7 @@ function emptyState(): HomeState {
     contextPercent: null,
     contextUsage: null,
     progressByChat: Object.create(null) as Record<string, string>,
+    thinkingByChat: Object.create(null) as Record<string, LiveThinking>,
     inFlightIds: [],
     channelUnread: emptyUnread(),
   };
@@ -115,7 +124,9 @@ export function messagePaintKey(state: HomeState) {
   return [
     state.hostBound ? '1' : '0',
     state.currentSessionId,
-    ...state.messages.map((m) => `${m.role}\0${m.text}\0${m.error ? '1' : '0'}`),
+    ...state.messages.map(
+      (m) => `${m.role}\0${m.text}\0${m.error ? '1' : '0'}\0${m.thinking || ''}\0${m.thinkingMs ?? ''}`,
+    ),
   ].join('\n');
 }
 
@@ -172,10 +183,33 @@ export function hydrateTurns(turns: unknown): HubMessage[] {
         (t as { content?: unknown }).content != null &&
         String((t as { content?: unknown }).content).length > 0,
     )
-    .map((t) => ({
-      role: (t as HubMessage).role,
-      text: String((t as { content: unknown }).content),
-    }));
+    .map((t) => {
+      const row = t as { role: string; content: unknown; thinking?: unknown; thinking_ms?: unknown };
+      const thinking = String(row.thinking ?? '').trim();
+      const thinkingMs =
+        typeof row.thinking_ms === 'number' && Number.isFinite(row.thinking_ms)
+          ? row.thinking_ms
+          : undefined;
+      return {
+        role: row.role,
+        text: String(row.content),
+        ...(thinking ? { thinking } : {}),
+        ...(thinkingMs != null ? { thinkingMs } : {}),
+      };
+    });
+}
+
+export function liveThinkingOf(state: HomeState) {
+  const id = state.currentSessionId;
+  if (!id) return null;
+  const live = state.thinkingByChat[id];
+  return live && live.text ? live : null;
+}
+
+export function thinkingTitle(ms?: number, live?: boolean) {
+  const underOne = ms == null || ms < 1000;
+  if (live) return underOne ? 'Thinking' : `Thinking · ${Math.round(ms / 1000)}s`;
+  return underOne ? 'Thought briefly' : `Thought for ${Math.round(ms / 1000)}s`;
 }
 
 export function contextUsageFrom(payload: object | null): ContextUsage | null {
