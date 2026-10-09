@@ -216,6 +216,10 @@ pub fn load_turns_value(session_id: &str) -> Value {
     }
 }
 
+pub fn store_turn_thinking_ms(session_id: &str, ms: u64) -> Result<(), String> {
+    session_db::store_turn_thinking_ms(&session_file_path(session_id)?, ms)
+}
+
 /// Read-only staged registrations for Home / binding hydrate. Empty when no live session / load fails.
 pub fn load_staged_value(session_id: &str) -> Value {
     let id = session_id.trim();

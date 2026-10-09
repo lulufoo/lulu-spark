@@ -191,7 +191,7 @@ fn next_model_turn_seq(tx: &Transaction<'_>) -> Result<i64, String> {
     Ok(turn_max.into_iter().chain(summary_max).max().unwrap_or(0) + 1)
 }
 
-fn is_ui_message(step: &Step) -> bool {
+pub(crate) fn is_ui_message(step: &Step) -> bool {
     (step.role == "user" || step.role == "assistant")
         && step
             .content

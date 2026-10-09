@@ -18,7 +18,7 @@ fn delta_chunk(delta: Value, finish: Value) -> Value {
     json!({ "choices": [{ "index": 0, "delta": delta, "finish_reason": finish }] })
 }
 
-fn call_traced(mock: &MockLlm, hints: Option<&mut dyn FnMut(&str)>) -> llm::LlmCallOutcome {
+fn call_traced(mock: &MockLlm, hints: Option<&mut dyn FnMut(&str, &str)>) -> llm::LlmCallOutcome {
     llm::chat_completions_traced(
         &[json!({"role":"user","content":"x"})],
         &sample_openai_tool_defs(),
@@ -43,7 +43,9 @@ fn llm_carries_reasoning_model_and_usage_when_present() {
         ]);
         let hints = Arc::new(Mutex::new(Vec::new()));
         let slot = hints.clone();
-        let mut on_delta = |hint: &str| slot.lock().unwrap().push(hint.to_string());
+        let mut on_delta = |hint: &str, reasoning: &str| {
+            slot.lock().unwrap().push((hint.to_string(), reasoning.to_string()));
+        };
         let msg = call_traced(&mock, Some(&mut on_delta))
             .into_result()
             .expect("ok");
@@ -53,7 +55,13 @@ fn llm_carries_reasoning_model_and_usage_when_present() {
         assert_eq!(msg.finish_reason.as_deref(), Some("stop"));
         assert_eq!(msg.usage.as_ref().unwrap()["total_tokens"], 5);
         let hints = hints.lock().unwrap();
-        assert_eq!(hints.first().map(String::as_str), Some("Thinking…"));
+        assert_eq!(
+            hints.first().map(|(hint, reasoning)| (hint.as_str(), reasoning.as_str())),
+            Some(("Thinking…", "想"))
+        );
+        assert!(hints.iter().any(|(hint, reasoning)| {
+            hint == "Thinking…" && reasoning == "想一下"
+        }));
     });
 }
 

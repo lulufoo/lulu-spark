@@ -35,11 +35,14 @@ import {
   composerInputLocked,
   composerLocked,
   messagePaintKey,
+  liveThinkingOf,
   progressHint,
   resetHomeState,
   useHomeState,
   type HubMessage,
+  type LiveThinking,
 } from './state/store.ts';
+import { ThinkingFold } from './ui/thinking.tsx';
 import { openCreateNote } from '../notes/commands/viewer/create.ts';
 import { openBindDialog } from '../app-shell/ui/bind-dialog.tsx';
 import { openSettingsDialog } from '../app-shell/ui/settings/dialog.tsx';
@@ -54,10 +57,12 @@ const MessageThread = memo(function MessageThread({
   hostBound,
   currentSessionId,
   messages,
+  liveThinking,
 }: {
   hostBound: boolean;
   currentSessionId: string;
   messages: HubMessage[];
+  liveThinking: LiveThinking | null;
 }) {
   if (!hostBound) {
     return (
@@ -86,6 +91,9 @@ const MessageThread = memo(function MessageThread({
         const kind = m.role === 'user' ? 'user' : m.error ? 'error' : 'assistant';
         return (
           <div key={i} className={`home-chat-turn home-chat-turn--${kind}`}>
+            {kind !== 'user' && m.thinking ? (
+              <ThinkingFold text={m.thinking} ms={m.thinkingMs} />
+            ) : null}
             <div className={`home-chat-bubble home-chat-bubble--${kind}`}>
               {kind === 'assistant' ? (
                 <div
@@ -99,6 +107,11 @@ const MessageThread = memo(function MessageThread({
           </div>
         );
       })}
+      {liveThinking && messages[messages.length - 1]?.role === 'user' ? (
+        <div className="home-chat-turn home-chat-turn--assistant home-chat-turn--thinking-live">
+          <ThinkingFold text={liveThinking.text} ms={liveThinking.ms} live />
+        </div>
+      ) : null}
     </div>
   );
 });
@@ -133,7 +146,9 @@ export function HomePage({
   const locked = composerLocked(state);
   const inputLocked = composerInputLocked(state);
   const hint = progressHint(state);
-  const showProgress = Boolean(hint) || (state.hostBound && locked);
+  const liveThinking = liveThinkingOf(state);
+  const showProgress =
+    (Boolean(hint) && hint !== 'Thinking…') || (state.hostBound && locked && !hint && !liveThinking);
   const messagesRef = useRef<HTMLDivElement | null>(null);
   const formRef = useRef<HTMLFormElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
@@ -407,6 +422,7 @@ export function HomePage({
             hostBound={state.hostBound}
             currentSessionId={state.currentSessionId}
             messages={state.messages}
+            liveThinking={liveThinking}
           />
           <p className="home-chat-progress" data-role="progress-hint" hidden={!showProgress}>
             {hint ? <span className="home-chat-progress-text">{hint}</span> : '\u00a0'}
