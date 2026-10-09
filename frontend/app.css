@@ -7197,6 +7197,73 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   width: 100%;
   color: var(--fg-danger);
 }
+.home-chat-turn-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 2px 0;
+  min-height: 20px;
+  color: var(--fg-muted);
+  font-size: 12px;
+  line-height: 1;
+}
+.home-chat-turn-time {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.home-chat-turn-copy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--fg-muted);
+  cursor: pointer;
+}
+.home-chat-turn-copy:hover,
+.home-chat-turn-copy:focus-visible {
+  color: var(--fg-default);
+  background: var(--bg-muted);
+}
+.home-chat-turn-copy .viewer-header-icon {
+  width: 14px;
+  height: 14px;
+  display: block;
+}
+.home-chat-turn--user .home-chat-turn-time,
+.home-chat-turn--user .home-chat-turn-copy {
+  opacity: 0;
+}
+.home-chat-turn--user .home-chat-turn-copy {
+  pointer-events: none;
+}
+.home-chat-turn--user:hover .home-chat-turn-time,
+.home-chat-turn--user:hover .home-chat-turn-copy,
+.home-chat-turn--user:focus-within .home-chat-turn-time,
+.home-chat-turn--user:focus-within .home-chat-turn-copy {
+  opacity: 1;
+}
+.home-chat-turn--user:hover .home-chat-turn-copy,
+.home-chat-turn--user:focus-within .home-chat-turn-copy {
+  pointer-events: auto;
+}
+.home-chat-turn--assistant .home-chat-turn-time,
+.home-chat-turn--error .home-chat-turn-time {
+  opacity: 0;
+  max-width: 0;
+  overflow: hidden;
+}
+.home-chat-turn--assistant:hover .home-chat-turn-time,
+.home-chat-turn--assistant:focus-within .home-chat-turn-time,
+.home-chat-turn--error:hover .home-chat-turn-time,
+.home-chat-turn--error:focus-within .home-chat-turn-time {
+  opacity: 1;
+  max-width: 12em;
+}
 .home-chat-composer {
   position: absolute;
   left: 0;
