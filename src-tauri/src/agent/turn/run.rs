@@ -7,7 +7,7 @@ use serde_json::{json, Value};
 use crate::agent::diagnostics::{self, DiagnosticEvent, TraceId};
 use crate::agent::llm::{self, LlmConfig};
 use crate::agent::progress::{self, ProgressSink};
-use crate::agent::session::{self, Session, Step};
+use crate::agent::session::{self, read_unix_millis, Session, Step, StepClock};
 use crate::agent::tools::{self, InvokeOutcome, PrepareError};
 
 use crate::agent::binding::{
@@ -55,6 +55,7 @@ pub(crate) fn run_loop_with_progress(
             model: None,
             usage: None,
             reasoning_content: None,
+            clock: StepClock::stamp_now(),
         });
         // Distinguish never/fully unbound from a corrupted bound-without-generation slot.
         if current_binding_snapshot().is_none() {
@@ -70,6 +71,7 @@ pub(crate) fn run_loop_with_progress(
                 model: None,
                 usage: None,
                 reasoning_content: None,
+                clock: StepClock::stamp_now(),
             });
             persist(session);
             return TurnOutcome {
@@ -93,6 +95,7 @@ pub(crate) fn run_loop_with_progress(
             model: None,
             usage: None,
             reasoning_content: None,
+            clock: StepClock::stamp_now(),
         });
         let reply = "Binding prompt is empty; cannot run chat.".to_string();
         session.steps.push(Step {
@@ -105,6 +108,7 @@ pub(crate) fn run_loop_with_progress(
             model: None,
             usage: None,
             reasoning_content: None,
+            clock: StepClock::stamp_now(),
         });
         persist(session);
         return TurnOutcome {
@@ -127,6 +131,7 @@ pub(crate) fn run_loop_with_progress(
         model: None,
         usage: None,
         reasoning_content: None,
+        clock: StepClock::stamp_now(),
     });
     persist(session);
 
@@ -153,6 +158,7 @@ pub(crate) fn run_loop_with_progress(
                 model: None,
                 usage: None,
                 reasoning_content: None,
+                clock: StepClock::stamp_now(),
             });
             persist(session);
             return TurnOutcome {
@@ -173,6 +179,7 @@ pub(crate) fn run_loop_with_progress(
                 model: None,
                 usage: None,
                 reasoning_content: None,
+                clock: StepClock::stamp_now(),
             });
             persist(session);
             return TurnOutcome {
@@ -200,7 +207,7 @@ pub(crate) fn run_loop_with_progress(
     let mut wrote = false;
     let mut tool_rounds = 0usize;
     let mut tool_call_count = 0usize;
-    let msg = loop {
+    let (msg, llm_start, llm_end) = loop {
         if chat_turn_interrupted(&session.session_id, generation) {
             return cancelled_turn_outcome(session, steps_checkpoint);
         }
@@ -235,6 +242,7 @@ pub(crate) fn run_loop_with_progress(
             round: tool_rounds + 1,
             step_index: session.steps.len(),
         };
+        let llm_start = read_unix_millis();
         let call = llm::chat_completions_recorded(
             &messages,
             tool_defs,
@@ -243,6 +251,7 @@ pub(crate) fn run_loop_with_progress(
             Some(&mut on_delta),
             Some(&ctx),
         );
+        let llm_end = read_unix_millis();
         // Kept even when the call is rejected: the thinking and `finish_reason` that
         // did arrive go onto the error Step below.
         let arrived = call.snapshot.clone();
@@ -265,6 +274,7 @@ pub(crate) fn run_loop_with_progress(
                     model: None,
                     usage: None,
                     reasoning_content: None,
+                    clock: StepClock::stamp_span(llm_start, llm_end),
                 };
                 session.steps.push(match &arrived {
                     Some(message) => with_response(step, message),
@@ -281,7 +291,7 @@ pub(crate) fn run_loop_with_progress(
         }
 
         if msg.tool_calls.is_empty() {
-            break msg;
+            break (msg, llm_start, llm_end);
         }
 
         if turn_tools.catalog.is_none() {
@@ -298,6 +308,7 @@ pub(crate) fn run_loop_with_progress(
                 model: None,
                 usage: None,
                 reasoning_content: None,
+                clock: StepClock::stamp_now(),
             });
             persist(session);
             return TurnOutcome {
@@ -321,6 +332,7 @@ pub(crate) fn run_loop_with_progress(
                 model: None,
                 usage: None,
                 reasoning_content: None,
+                clock: StepClock::stamp_now(),
             });
             persist(session);
             return TurnOutcome {
@@ -357,6 +369,7 @@ pub(crate) fn run_loop_with_progress(
             model: None,
             usage: None,
             reasoning_content: None,
+            clock: StepClock::stamp_span(llm_start, llm_end),
         }, &msg));
         persist(session);
 
@@ -372,6 +385,7 @@ pub(crate) fn run_loop_with_progress(
             );
 
             let tool_started = Instant::now();
+            let tool_start_ts = read_unix_millis();
             if chat_turn_interrupted(&session.session_id, generation) {
                 return cancelled_turn_outcome(session, steps_checkpoint);
             }
@@ -399,6 +413,7 @@ pub(crate) fn run_loop_with_progress(
                         model: None,
                         usage: None,
                         reasoning_content: None,
+                        clock: StepClock::stamp_now(),
                     });
                     persist(session);
                     return TurnOutcome {
@@ -408,6 +423,7 @@ pub(crate) fn run_loop_with_progress(
                     };
                 }
             };
+            let tool_end_ts = read_unix_millis();
 
             if chat_turn_interrupted(&session.session_id, generation) {
                 return cancelled_turn_outcome(session, steps_checkpoint);
@@ -456,6 +472,7 @@ pub(crate) fn run_loop_with_progress(
                 model: None,
                 usage: None,
                 reasoning_content: None,
+                clock: StepClock::stamp_span(tool_start_ts, tool_end_ts),
             });
         }
         persist(session);
@@ -474,6 +491,7 @@ pub(crate) fn run_loop_with_progress(
             model: None,
             usage: None,
             reasoning_content: None,
+            clock: StepClock::stamp_span(llm_start, llm_end),
         }, &msg));
         persist(session);
         return TurnOutcome {
@@ -502,6 +520,7 @@ pub(crate) fn run_loop_with_progress(
                 model: None,
                 usage: None,
                 reasoning_content: None,
+                clock: StepClock::stamp_now(),
             });
             persist(session);
             return TurnOutcome {
@@ -522,6 +541,7 @@ pub(crate) fn run_loop_with_progress(
             model: None,
             usage: None,
             reasoning_content: None,
+            clock: StepClock::stamp_span(llm_start, llm_end),
         }, &msg));
         persist(session);
         return TurnOutcome {
@@ -542,6 +562,7 @@ pub(crate) fn run_loop_with_progress(
             model: None,
             usage: None,
             reasoning_content: None,
+            clock: StepClock::stamp_span(llm_start, llm_end),
         }, &msg));
         persist(session);
         return TurnOutcome {
@@ -561,6 +582,7 @@ pub(crate) fn run_loop_with_progress(
         model: None,
         usage: None,
         reasoning_content: None,
+        clock: StepClock::stamp_span(llm_start, llm_end),
     }, &msg));
     persist(session);
     TurnOutcome {

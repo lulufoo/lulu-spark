@@ -2,6 +2,7 @@
 
 use serde_json::{json, Value};
 
+use super::step_clock::StepClock;
 use super::types::Step;
 
 /// The columns of one `model_steps` row.
@@ -15,6 +16,10 @@ pub(super) struct StepRow {
     /// JSON text of the upstream `usage` object.
     pub usage: Option<String>,
     pub reasoning_content: Option<String>,
+    /// Unix milliseconds; see `StepClock`.
+    pub create_ts: Option<i64>,
+    pub start_ts: Option<i64>,
+    pub end_ts: Option<i64>,
 }
 
 pub(super) fn encode_step(step: &Step) -> StepRow {
@@ -28,6 +33,9 @@ pub(super) fn encode_step(step: &Step) -> StepRow {
         model: step.model.clone(),
         usage: step.usage.as_ref().map(Value::to_string),
         reasoning_content: step.reasoning_content.clone(),
+        create_ts: step.clock.create_ts,
+        start_ts: step.clock.start_ts,
+        end_ts: step.clock.end_ts,
     }
 }
 
@@ -52,6 +60,11 @@ pub(super) fn decode_step(row: StepRow) -> Step {
     step.model = row.model;
     step.usage = row.usage.and_then(|text| serde_json::from_str(&text).ok());
     step.reasoning_content = row.reasoning_content;
+    step.clock = StepClock {
+        create_ts: row.create_ts,
+        start_ts: row.start_ts,
+        end_ts: row.end_ts,
+    };
     step
 }
 
@@ -78,6 +91,7 @@ fn decode_base(
                 model: None,
                 usage: None,
                 reasoning_content: None,
+                clock: StepClock::default(),
             };
         }
     }
@@ -96,5 +110,6 @@ fn decode_base(
         model: None,
         usage: None,
         reasoning_content: None,
+        clock: StepClock::default(),
     }
 }

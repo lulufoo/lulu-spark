@@ -22,6 +22,7 @@ fn plain(role: &str, text: &str) -> Step {
         model: None,
         usage: None,
         reasoning_content: None,
+        clock: Default::default(),
     }
 }
 
@@ -57,6 +58,7 @@ fn tool_call_step(call_count: usize) -> Step {
         model: None,
         usage: None,
         reasoning_content: None,
+        clock: Default::default(),
     }
 }
 

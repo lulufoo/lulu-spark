@@ -9,4 +9,5 @@ mod history;
 mod llm_calls;
 mod reasoning;
 mod shell;
+mod step_clock;
 mod turn;

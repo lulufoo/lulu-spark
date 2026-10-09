@@ -13,7 +13,8 @@ pub(crate) fn load_stored_steps(conn: &Connection) -> Result<Vec<StoredStep>, St
     let mut stmt = conn
         .prepare(
             "SELECT s.step_id, s.kind, s.content, s.tool_call_id, s.tool_name,
-                    s.finish_reason, s.model, s.usage, s.reasoning_content
+                    s.finish_reason, s.model, s.usage, s.reasoning_content,
+                    s.create_ts, s.start_ts, s.end_ts
              FROM model_steps s
              JOIN model_turns t ON t.turn_id = s.turn_id
              ORDER BY t.seq ASC, s.seq ASC",
@@ -32,6 +33,9 @@ pub(crate) fn load_stored_steps(conn: &Connection) -> Result<Vec<StoredStep>, St
                     model: row.get(6)?,
                     usage: row.get(7)?,
                     reasoning_content: row.get(8)?,
+                    create_ts: row.get(9)?,
+                    start_ts: row.get(10)?,
+                    end_ts: row.get(11)?,
                 },
             ))
         })
@@ -143,8 +147,9 @@ fn append_steps(tx: &Transaction<'_>, steps: &[Step], now: i64) -> Result<(), St
         let row = encode_step(step);
         tx.execute(
             "INSERT INTO model_steps (step_id, turn_id, seq, kind, content, tool_call_id, tool_name,
-                                      finish_reason, model, usage, reasoning_content)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+                                      finish_reason, model, usage, reasoning_content,
+                                      create_ts, start_ts, end_ts)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
             params![
                 format!("step_{}", random_entry_id()),
                 turn_id,
@@ -156,7 +161,10 @@ fn append_steps(tx: &Transaction<'_>, steps: &[Step], now: i64) -> Result<(), St
                 row.finish_reason,
                 row.model,
                 row.usage,
-                row.reasoning_content
+                row.reasoning_content,
+                row.create_ts,
+                row.start_ts,
+                row.end_ts
             ],
         )
         .map_err(|e| e.to_string())?;

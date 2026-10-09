@@ -34,6 +34,10 @@ fn open(path: &PathBuf) -> Result<Connection, String> {
     for column in ["finish_reason", "model", "usage", "reasoning_content"] {
         ensure_column(&conn, "model_steps", column, "TEXT")?;
     }
+    // Wall-clock ms; NULL on rows written before these columns existed.
+    for column in ["create_ts", "start_ts", "end_ts"] {
+        ensure_column(&conn, "model_steps", column, "INTEGER")?;
+    }
     Ok(conn)
 }
 

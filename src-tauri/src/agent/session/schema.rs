@@ -34,7 +34,10 @@ CREATE TABLE IF NOT EXISTS model_steps (
   finish_reason TEXT,
   model TEXT,
   usage TEXT,
-  reasoning_content TEXT
+  reasoning_content TEXT,
+  create_ts INTEGER,
+  start_ts INTEGER,
+  end_ts INTEGER
 );
 CREATE TABLE IF NOT EXISTS summaries (
   summary_id TEXT PRIMARY KEY,
