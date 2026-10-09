@@ -135,6 +135,52 @@ fn catalog_lists_title_and_delete_removes_row() {
     });
 }
 
+fn plant_llm_call(session_id: &str) -> std::path::PathBuf {
+    let dir = session::session_llm_calls_dir(session_id).expect("dir");
+    std::fs::create_dir_all(&dir).expect("mkdir");
+    std::fs::write(dir.join("0001.json"), b"{}").expect("record");
+    dir
+}
+
+#[test]
+fn delete_removes_the_session_dir_with_its_llm_calls_and_only_that_one() {
+    with_sandbox(|_| {
+        let gone = session::create_session().expect("gone");
+        let kept = session::create_session().expect("kept");
+        let gone_calls = plant_llm_call(&gone.session_id);
+        let kept_calls = plant_llm_call(&kept.session_id);
+
+        session::delete_session(&gone.session_id).expect("delete");
+        assert!(!gone_calls.exists());
+        assert!(!gone_calls.parent().unwrap().exists(), "the whole session dir goes");
+        assert!(kept_calls.join("0001.json").is_file());
+    });
+}
+
+#[test]
+fn delete_works_for_a_session_that_never_had_a_session_dir() {
+    with_sandbox(|_| {
+        let sess = session::create_session().expect("create");
+        session::delete_session(&sess.session_id).expect("delete");
+        assert!(session::load_session(&sess.session_id).is_err());
+    });
+}
+
+#[test]
+fn delete_refuses_ids_that_would_resolve_to_the_sessions_dir() {
+    with_sandbox(|_| {
+        let kept = session::create_session().expect("kept");
+        let kept_calls = plant_llm_call(&kept.session_id);
+        // `.` passes the separator check; `sessions/..sqlite` is the file it would map to.
+        let decoy = session::sessions_dir().expect("dir").join("..sqlite");
+        std::fs::write(&decoy, b"decoy").expect("decoy");
+
+        assert!(session::delete_session(".").is_err());
+        assert!(decoy.is_file(), "nothing is deleted before the id is validated");
+        assert!(kept_calls.join("0001.json").is_file());
+    });
+}
+
 #[test]
 fn session_sqlite_keeps_summaries_table_empty() {
     with_sandbox(|_| {

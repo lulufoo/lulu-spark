@@ -33,10 +33,19 @@ pub fn sessions_dir() -> Result<PathBuf, String> {
     Ok(dir)
 }
 
+/// `sessions/{session_id}/`: whatever belongs to a session besides its database.
+fn session_dir(session_id: &str) -> Result<PathBuf, String> {
+    let id = checked_session_id(session_id)?;
+    // `.` would resolve to the sessions directory itself.
+    if std::path::Path::new(id).file_name().map_or(true, |name| name != id) {
+        return Err("Invalid session_id".into());
+    }
+    Ok(sessions_dir()?.join(id))
+}
+
 /// Per-request LLM call records of one session. Not under `agent-scratch` (model-writable).
 pub fn session_llm_calls_dir(session_id: &str) -> Result<PathBuf, String> {
-    let id = checked_session_id(session_id)?;
-    Ok(sessions_dir()?.join(id).join("llm-calls"))
+    Ok(session_dir(session_id)?.join("llm-calls"))
 }
 
 fn catalog_file_path() -> Result<PathBuf, String> {
@@ -135,6 +144,8 @@ pub fn replace_turns_with_summary(
 
 pub fn delete_session(session_id: &str) -> Result<(), String> {
     let path = session_file_path(session_id)?;
+    // Validate before deleting anything.
+    let dir = session_dir(session_id)?;
     if !path.is_file() {
         return Err("Session not found".into());
     }
@@ -142,6 +153,14 @@ pub fn delete_session(session_id: &str) -> Result<(), String> {
     for sidecar in session_db::sidecar_paths(&path) {
         if sidecar.is_file() {
             let _ = fs::remove_file(&sidecar);
+        }
+    }
+    // The records hold full prompts and replies; a failed cleanup must not pass silently.
+    match fs::remove_dir_all(&dir) {
+        Ok(()) => {}
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+        Err(e) => {
+            let _ = super::log_agent_error(&format!("session dir not removed for {session_id}: {e}"));
         }
     }
     catalog::remove(&catalog_file_path()?, checked_session_id(session_id)?)?;
