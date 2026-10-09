@@ -74,13 +74,22 @@ pub fn maybe_compress(session: &mut Session, config: &LlmConfig) {
     let Some(messages) = fit_summary_messages(&session.steps, window) else {
         return;
     };
-    let Ok(reply) = llm::chat_completions_with_timeout(
+    let ctx = llm::CallContext {
+        session_id: session.session_id.clone(),
+        trace_id: None,
+        purpose: "summary",
+        round: 0,
+        step_index: session.steps.len(),
+    };
+    let Ok(reply) = llm::chat_completions_recorded(
         &messages,
         &[],
         config,
         llm::DEFAULT_TIMEOUT,
         None,
-    ) else {
+        Some(&ctx),
+    )
+    .into_result() else {
         return;
     };
     let Some(body) = reply

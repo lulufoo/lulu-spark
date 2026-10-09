@@ -256,6 +256,15 @@ fn maybe_compress_at_70_writes_summary_and_leaves_the_snapshot() {
     assert!(hits[0].body.get("tools").is_none());
     let sent = hits[0].body["messages"].as_array().expect("messages");
     assert_eq!(sent[0]["content"], SUMMARY_SYSTEM_PROMPT);
+    // The summary request is an LLM call like any other: recorded, but not as a Turn round.
+    let file = session::session_llm_calls_dir(&session.session_id)
+        .expect("dir")
+        .join("0001.json");
+    let record: Value = serde_json::from_str(&std::fs::read_to_string(file).expect("record")).unwrap();
+    assert_eq!(record["purpose"], "summary");
+    assert_eq!(record["round"], 0);
+    assert!(record["trace_id"].is_null());
+    assert_eq!(record["response"]["message"]["content"], "one-line summary");
 }
 
 #[test]

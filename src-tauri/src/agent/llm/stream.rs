@@ -1,17 +1,18 @@
 //! SSE assembly for OpenAI-compatible chat/completions streams.
 
-use std::error::Error as StdError;
 use std::io::{BufRead, BufReader, Read};
 
 use serde_json::Value;
 
 use super::classify::{classify_finish, Shape};
+use super::read_error::map_read_error;
+use super::record::CallTrace;
 use super::{AssistantMessage, LlmCallOutcome, LlmError, ToolCall};
-use crate::agent::session;
 
 pub(super) fn assemble_sse(
     resp: impl Read,
     on_delta: &mut Option<&mut dyn FnMut(&str)>,
+    trace: &mut CallTrace,
 ) -> LlmCallOutcome {
     let mut reader = BufReader::new(resp);
     let mut assembler = StreamAssembler::default();
@@ -36,7 +37,7 @@ pub(super) fn assemble_sse(
             if payload.trim() == "[DONE]" {
                 break;
             }
-            if let Err(error) = emit_if_noteworthy(&mut assembler, &payload, on_delta) {
+            if let Err(error) = emit_if_noteworthy(&mut assembler, &payload, on_delta, trace) {
                 failure = Some(error);
                 break;
             }
@@ -57,7 +58,7 @@ pub(super) fn assemble_sse(
         }
     }
     if failure.is_none() && !data_buf.is_empty() && data_buf.trim() != "[DONE]" {
-        if let Err(error) = emit_if_noteworthy(&mut assembler, &data_buf, on_delta) {
+        if let Err(error) = emit_if_noteworthy(&mut assembler, &data_buf, on_delta, trace) {
             failure = Some(error);
         }
     }
@@ -73,8 +74,11 @@ fn emit_if_noteworthy(
     assembler: &mut StreamAssembler,
     payload: &str,
     on_delta: &mut Option<&mut dyn FnMut(&str)>,
+    trace: &mut CallTrace,
 ) -> Result<(), LlmError> {
-    if apply_sse_payload(assembler, payload)? {
+    let noteworthy = apply_sse_payload(assembler, payload)?;
+    trace.observe(!assembler.reasoning.is_empty(), !assembler.content.is_empty());
+    if noteworthy {
         if let Some(callback) = on_delta.as_mut() {
             callback(&assembler.hint());
         }
@@ -104,30 +108,6 @@ fn apply_sse_payload(assembler: &mut StreamAssembler, payload: &str) -> Result<b
         return Ok(false);
     };
     Ok(assembler.apply_delta(delta))
-}
-
-fn map_read_error(error: std::io::Error) -> LlmError {
-    if io_error_is_timeout(&error) {
-        let _ = session::log_agent_error("LLM timeout reading stream");
-        return LlmError::Timeout;
-    }
-    let _ = session::log_agent_error(&format!("LLM stream read error: {error}"));
-    LlmError::Network(error.to_string())
-}
-
-fn io_error_is_timeout(error: &std::io::Error) -> bool {
-    if error.kind() == std::io::ErrorKind::TimedOut {
-        return true;
-    }
-    let mut current: Option<&dyn StdError> = Some(error);
-    while let Some(err) = current {
-        let lower = err.to_string().to_ascii_lowercase();
-        if lower.contains("timed out") || lower.contains("timeout") {
-            return true;
-        }
-        current = err.source();
-    }
-    false
 }
 
 #[derive(Default)]

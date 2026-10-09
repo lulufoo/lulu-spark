@@ -11,6 +11,9 @@ mod engine_router_tests;
 #[path = "runtime_tests.rs"]
 mod runtime_tests;
 
+#[path = "llm_record_tests.rs"]
+mod llm_record_tests;
+
 #[path = "llm_stream_tests.rs"]
 mod llm_stream_tests;
 

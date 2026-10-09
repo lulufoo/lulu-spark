@@ -33,6 +33,12 @@ pub fn sessions_dir() -> Result<PathBuf, String> {
     Ok(dir)
 }
 
+/// Per-request LLM call records of one session. Not under `agent-scratch` (model-writable).
+pub fn session_llm_calls_dir(session_id: &str) -> Result<PathBuf, String> {
+    let id = checked_session_id(session_id)?;
+    Ok(sessions_dir()?.join(id).join("llm-calls"))
+}
+
 fn catalog_file_path() -> Result<PathBuf, String> {
     let _ = sessions_dir()?;
     Ok(catalog::catalog_path(agent_dir()?))

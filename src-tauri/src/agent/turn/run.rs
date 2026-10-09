@@ -228,12 +228,20 @@ pub(crate) fn run_loop_with_progress(
         let mut on_delta = |hint: &str| {
             progress::emit_progress(sink, &session_id, trace_id, hint);
         };
-        let call = llm::chat_completions_traced(
+        let ctx = llm::CallContext {
+            session_id: session.session_id.clone(),
+            trace_id: Some(trace_id.as_str().to_string()),
+            purpose: "turn",
+            round: tool_rounds + 1,
+            step_index: session.steps.len(),
+        };
+        let call = llm::chat_completions_recorded(
             &messages,
             tool_defs,
             config,
             llm::DEFAULT_TIMEOUT,
             Some(&mut on_delta),
+            Some(&ctx),
         );
         // Kept even when the call is rejected: the thinking and `finish_reason` that
         // did arrive go onto the error Step below.

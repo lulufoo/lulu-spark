@@ -1,6 +1,8 @@
 //! OpenAI-compatible streaming chat/completions client.
 
 mod classify;
+mod read_error;
+mod record;
 mod stream;
 
 use std::time::Duration;
@@ -11,6 +13,9 @@ use serde_json::{json, Value};
 use crate::agent::session;
 use crate::config::secrets;
 use crate::config::settings;
+
+pub use record::CallContext;
+use record::CallTrace;
 
 pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(120);
 
@@ -167,7 +172,20 @@ pub fn chat_completions_traced(
     tools: &[Value],
     config: &LlmConfig,
     timeout: Duration,
+    on_delta: Option<&mut dyn FnMut(&str)>,
+) -> LlmCallOutcome {
+    chat_completions_recorded(messages, tools, config, timeout, on_delta, None)
+}
+
+/// Same as [`chat_completions_traced`]; with `ctx` it also writes one `llm-calls/NNNN.json`
+/// record for the request, whether it succeeded or failed. Recording never changes the result.
+pub fn chat_completions_recorded(
+    messages: &[Value],
+    tools: &[Value],
+    config: &LlmConfig,
+    timeout: Duration,
     mut on_delta: Option<&mut dyn FnMut(&str)>,
+    ctx: Option<&CallContext>,
 ) -> LlmCallOutcome {
     if let Err(error) = validate_config(config) {
         return LlmCallOutcome::failed(error);
@@ -185,6 +203,22 @@ pub fn chat_completions_traced(
         body["tool_choice"] = json!("auto");
     }
 
+    let mut trace = CallTrace::start();
+    let outcome = send_request(&url, &body, config, timeout, &mut on_delta, &mut trace);
+    if let Some(ctx) = ctx {
+        record::write(ctx, &url, &body, &trace, &outcome);
+    }
+    outcome
+}
+
+fn send_request(
+    url: &str,
+    body: &Value,
+    config: &LlmConfig,
+    timeout: Duration,
+    on_delta: &mut Option<&mut dyn FnMut(&str)>,
+    trace: &mut CallTrace,
+) -> LlmCallOutcome {
     // Blocking reqwest applies this duration to connect/TTFB and to each body
     // read, resetting after a successful read — idle timeout for SSE chunks.
     let client = match Client::builder()
@@ -197,10 +231,10 @@ pub fn chat_completions_traced(
     };
 
     let resp = client
-        .post(&url)
+        .post(url)
         .header("Authorization", format!("Bearer {}", config.api_key.trim()))
         .header("Content-Type", "application/json")
-        .json(&body)
+        .json(body)
         .send();
 
     let resp = match resp {
@@ -216,12 +250,14 @@ pub fn chat_completions_traced(
     };
 
     let status = resp.status().as_u16();
+    trace.mark_headers(status);
     if !(200..300).contains(&status) {
         let text = resp.text().unwrap_or_default();
+        trace.set_error_body(&text);
         return LlmCallOutcome::failed(map_error_status(status, &text));
     }
 
-    stream::assemble_sse(resp, &mut on_delta)
+    stream::assemble_sse(resp, on_delta, trace)
 }
 
 fn map_error_status(status: u16, text: &str) -> LlmError {
