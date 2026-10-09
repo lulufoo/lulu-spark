@@ -12,8 +12,13 @@ pub(super) fn is_clarify_text(content: &str) -> bool {
     t.contains('？') || t.contains('?')
 }
 
-fn step_to_message(step: &Step) -> Value {
+/// `echo_reasoning` is true only for Steps after the last `user` Step: the same
+/// Turn's tool loop. Older Turns are sent without their thinking.
+fn step_to_message(step: &Step, echo_reasoning: bool) -> Value {
     let mut m = json!({ "role": step.role });
+    if let (true, Some(thinking)) = (echo_reasoning, &step.reasoning_content) {
+        m["reasoning_content"] = json!(thinking);
+    }
     if let Some(c) = &step.content {
         m["content"] = json!(c);
     } else if step.tool_calls.is_none() {
@@ -74,8 +79,11 @@ pub fn build_llm_messages(steps: &[Step], system_prompt: &str, summaries: &[Stri
             "content": body,
         }));
     }
-    for step in truncate_steps(steps) {
-        messages.push(step_to_message(&step));
+    let kept = truncate_steps(steps);
+    let last_user = kept.iter().rposition(|step| step.role == "user");
+    for (index, step) in kept.iter().enumerate() {
+        let echo_reasoning = last_user.map_or(true, |user| index > user);
+        messages.push(step_to_message(step, echo_reasoning));
     }
     messages
 }

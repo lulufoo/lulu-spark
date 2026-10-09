@@ -200,3 +200,24 @@ fn stored_breakdown_survives_a_later_save() {
         Some(raw)
     );
 }
+
+#[test]
+fn assistant_thinking_is_rendered_only_after_the_last_user_message() {
+    let messages = vec![
+        json!({ "role": "system", "content": "S" }),
+        json!({ "role": "user", "content": "q1" }),
+        json!({ "role": "assistant", "content": "a1", "reasoning_content": "old" }),
+        json!({ "role": "user", "content": "q2" }),
+        json!({ "role": "assistant", "content": "a2", "reasoning_content": "new" }),
+    ];
+    let text = render_request(&messages, &[]);
+    assert!(text.contains("<|assistant|><think></think>a1"), "{text}");
+    assert!(text.contains("<|assistant|><think>new</think>a2"), "{text}");
+    assert!(!text.contains("old"));
+
+    let plain = vec![
+        json!({ "role": "user", "content": "q" }),
+        json!({ "role": "assistant", "content": "a" }),
+    ];
+    assert!(render_request(&plain, &[]).contains("<|assistant|><think></think>a"));
+}

@@ -189,13 +189,21 @@ fn completion_json_to_sse(resp: &Value) -> String {
     if let Some(calls) = message.get("tool_calls") {
         delta.insert("tool_calls".into(), calls.clone());
     }
-    let chunk = json!({
+    if let Some(thinking) = message.get("reasoning_content") {
+        delta.insert("reasoning_content".into(), thinking.clone());
+    }
+    let mut chunk = json!({
         "choices": [{
             "index": 0,
             "delta": delta,
             "finish_reason": choice.get("finish_reason").cloned().unwrap_or(Value::Null)
         }]
     });
+    for key in ["model", "usage"] {
+        if let Some(value) = resp.get(key) {
+            chunk[key] = value.clone();
+        }
+    }
     format!("data: {chunk}\n\ndata: [DONE]\n\n")
 }
 

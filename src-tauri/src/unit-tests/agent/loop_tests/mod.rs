@@ -5,5 +5,6 @@ mod support;
 mod binding;
 mod flights;
 mod history;
+mod reasoning;
 mod shell;
 mod turn;

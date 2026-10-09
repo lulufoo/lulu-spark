@@ -19,6 +19,7 @@ use super::history::{
     build_llm_messages, cancelled_turn_outcome, is_clarify_text, map_llm_error, persist,
     prompt_text_from_binding,
 };
+use super::response::with_response;
 use super::types::{Terminal, TurnOutcome, MAX_CLARIFY_ROUNDS, MAX_MCP_TOOL_CALLS, MAX_MCP_TOOL_ROUNDS};
 
 pub fn run_loop(session: &mut Session, user_message: &str, config: &LlmConfig) -> TurnOutcome {
@@ -329,7 +330,7 @@ pub(crate) fn run_loop_with_progress(
                 })
                 .collect(),
         );
-        session.steps.push(Step {
+        session.steps.push(with_response(Step {
             role: "assistant".into(),
             content: msg.content.clone(),
             tool_call_id: None,
@@ -339,7 +340,7 @@ pub(crate) fn run_loop_with_progress(
             model: None,
             usage: None,
             reasoning_content: None,
-        });
+        }, &msg));
         persist(session);
 
         for call in msg.tool_calls {
@@ -446,7 +447,7 @@ pub(crate) fn run_loop_with_progress(
     let content = msg.content.clone().unwrap_or_default();
     if content.trim().is_empty() {
         let reply = "模型响应为空，未执行任何写入。".to_string();
-        session.steps.push(Step {
+        session.steps.push(with_response(Step {
             role: "assistant".into(),
             content: Some(reply.clone()),
             tool_call_id: None,
@@ -456,7 +457,7 @@ pub(crate) fn run_loop_with_progress(
             model: None,
             usage: None,
             reasoning_content: None,
-        });
+        }, &msg));
         persist(session);
         return TurnOutcome {
             reply_text: reply,
@@ -494,7 +495,7 @@ pub(crate) fn run_loop_with_progress(
         }
         *count += 1;
         drop(rt);
-        session.steps.push(Step {
+        session.steps.push(with_response(Step {
             role: "assistant".into(),
             content: Some(content.clone()),
             tool_call_id: None,
@@ -504,7 +505,7 @@ pub(crate) fn run_loop_with_progress(
             model: None,
             usage: None,
             reasoning_content: None,
-        });
+        }, &msg));
         persist(session);
         return TurnOutcome {
             reply_text: content,
@@ -514,7 +515,7 @@ pub(crate) fn run_loop_with_progress(
     }
 
     if content.contains("目前不支持") {
-        session.steps.push(Step {
+        session.steps.push(with_response(Step {
             role: "assistant".into(),
             content: Some(content.clone()),
             tool_call_id: None,
@@ -524,7 +525,7 @@ pub(crate) fn run_loop_with_progress(
             model: None,
             usage: None,
             reasoning_content: None,
-        });
+        }, &msg));
         persist(session);
         return TurnOutcome {
             reply_text: content,
@@ -533,7 +534,7 @@ pub(crate) fn run_loop_with_progress(
         };
     }
 
-    session.steps.push(Step {
+    session.steps.push(with_response(Step {
         role: "assistant".into(),
         content: Some(content.clone()),
         tool_call_id: None,
@@ -543,7 +544,7 @@ pub(crate) fn run_loop_with_progress(
         model: None,
         usage: None,
         reasoning_content: None,
-    });
+    }, &msg));
     persist(session);
     TurnOutcome {
         reply_text: content,
