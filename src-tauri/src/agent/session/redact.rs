@@ -15,14 +15,17 @@ pub fn redact_secrets(message: &str) -> String {
         out.replace_range(idx..idx + end, replacement);
     }
     // Bearer tokens elsewhere
-    while let Some(idx) = out.to_ascii_lowercase().find("bearer ") {
-        let start = idx;
+    // Resume after each replacement: the replacement itself contains "bearer ".
+    let mut from = 0;
+    while let Some(rel) = out[from..].to_ascii_lowercase().find("bearer ") {
+        let start = from + rel;
         let rest = &out[start + "bearer ".len()..];
         let end_rel = rest
             .find(|c: char| c.is_whitespace() || c == '"' || c == '\'' || c == ',' || c == '}')
             .unwrap_or(rest.len());
         let end = start + "bearer ".len() + end_rel;
         out.replace_range(start..end, "Bearer [REDACTED]");
+        from = start + "Bearer [REDACTED]".len();
     }
     // api_key=… / "api_key":"…"
     let patterns = ["api_key=", "\"api_key\":\""];

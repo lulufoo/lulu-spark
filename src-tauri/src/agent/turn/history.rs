@@ -3,7 +3,7 @@
 use serde_json::{json, Value};
 
 use crate::agent::llm::LlmError;
-use crate::agent::session::{self, Session, Turn};
+use crate::agent::session::{self, Session, Step};
 
 use super::types::{Terminal, TurnOutcome, EVENT_TURN_COMPLETED, MAX_HISTORY_MESSAGES, MAX_USER_TURNS};
 
@@ -12,28 +12,33 @@ pub(super) fn is_clarify_text(content: &str) -> bool {
     t.contains('？') || t.contains('?')
 }
 
-fn turn_to_message(turn: &Turn) -> Value {
-    let mut m = json!({ "role": turn.role });
-    if let Some(c) = &turn.content {
+/// `echo_reasoning` is true only for Steps after the last `user` Step: the same
+/// Turn's tool loop. Older Turns are sent without their thinking.
+fn step_to_message(step: &Step, echo_reasoning: bool) -> Value {
+    let mut m = json!({ "role": step.role });
+    if let (true, Some(thinking)) = (echo_reasoning, &step.reasoning_content) {
+        m["reasoning_content"] = json!(thinking);
+    }
+    if let Some(c) = &step.content {
         m["content"] = json!(c);
-    } else if turn.tool_calls.is_none() {
+    } else if step.tool_calls.is_none() {
         m["content"] = json!("");
     }
-    if let Some(id) = &turn.tool_call_id {
+    if let Some(id) = &step.tool_call_id {
         m["tool_call_id"] = json!(id);
     }
-    if let Some(name) = &turn.name {
+    if let Some(name) = &step.name {
         m["name"] = json!(name);
     }
-    if let Some(tc) = &turn.tool_calls {
+    if let Some(tc) = &step.tool_calls {
         m["tool_calls"] = tc.clone();
     }
     m
 }
 
 /// Drop oldest complete user rounds until dual hard caps hold.
-pub fn truncate_turns(turns: &[Turn]) -> Vec<Turn> {
-    let mut kept = turns.to_vec();
+pub fn truncate_steps(steps: &[Step]) -> Vec<Step> {
+    let mut kept = steps.to_vec();
     loop {
         let user_count = kept.iter().filter(|t| t.role == "user").count();
         if kept.len() <= MAX_HISTORY_MESSAGES && user_count <= MAX_USER_TURNS {
@@ -56,11 +61,11 @@ pub fn truncate_turns(turns: &[Turn]) -> Vec<Turn> {
     kept
 }
 
-pub fn build_llm_messages_from_turns(turns: &[Turn], system_prompt: &str) -> Vec<Value> {
-    build_llm_messages(turns, system_prompt, &[])
+pub fn build_llm_messages_from_steps(steps: &[Step], system_prompt: &str) -> Vec<Value> {
+    build_llm_messages(steps, system_prompt, &[])
 }
 
-pub fn build_llm_messages(turns: &[Turn], system_prompt: &str, summaries: &[String]) -> Vec<Value> {
+pub fn build_llm_messages(steps: &[Step], system_prompt: &str, summaries: &[String]) -> Vec<Value> {
     let mut messages = vec![json!({
         "role": "system",
         "content": system_prompt,
@@ -74,8 +79,11 @@ pub fn build_llm_messages(turns: &[Turn], system_prompt: &str, summaries: &[Stri
             "content": body,
         }));
     }
-    for turn in truncate_turns(turns) {
-        messages.push(turn_to_message(&turn));
+    let kept = truncate_steps(steps);
+    let last_user = kept.iter().rposition(|step| step.role == "user");
+    for (index, step) in kept.iter().enumerate() {
+        let echo_reasoning = last_user.map_or(true, |user| index > user);
+        messages.push(step_to_message(step, echo_reasoning));
     }
     messages
 }
@@ -103,6 +111,17 @@ pub fn map_llm_error(err: &LlmError) -> TurnOutcome {
         }
         LlmError::Timeout => "调用超时，请稍后重试。".into(),
         LlmError::Truncated => "回复被截断，请重试或缩短请求。".into(),
+        LlmError::ThinkingExhausted => {
+            "模型的思考占满了输出预算，没有给出回复，请缩短请求或稍后重试。".into()
+        }
+        LlmError::ContentFiltered => "回复被上游的安全审核拦截，请调整请求后重试。".into(),
+        LlmError::InferenceFailed => "模型推理出现异常，请稍后重试。".into(),
+        LlmError::ContextExceeded => {
+            "对话内容超出了模型的上下文窗口，请缩短请求或开启新会话。".into()
+        }
+        LlmError::UnknownFinish(reason) => {
+            format!("模型以未知原因（{reason}）结束，没有给出回复，未执行任何写入。")
+        }
         LlmError::UnsupportedToolCalls => {
             "当前上游不支持工具调用（tool_calls），无法继续。".into()
         }
@@ -125,9 +144,9 @@ pub fn turn_completed_emit(session_id: &str, wrote: bool, terminal: &str) -> Val
 
 /// Executable reject after cut/cancel: return notice in the response only.
 /// Do not append/persist business turns on the (possibly cut) session.
-pub(crate) fn cancelled_turn_outcome(session: &mut Session, turns_checkpoint: usize) -> TurnOutcome {
-    if session.turns.len() != turns_checkpoint {
-        session.turns.truncate(turns_checkpoint);
+pub(crate) fn cancelled_turn_outcome(session: &mut Session, steps_checkpoint: usize) -> TurnOutcome {
+    if session.steps.len() != steps_checkpoint {
+        session.steps.truncate(steps_checkpoint);
         persist(session);
     }
     TurnOutcome {

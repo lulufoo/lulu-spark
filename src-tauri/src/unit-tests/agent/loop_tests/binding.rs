@@ -977,12 +977,16 @@ fn t2_reset_old_session_not_reused_by_ensure_for_executable() {
         let old_sid = open["session_id"].as_str().unwrap().to_string();
         // Seed turns on the old session so reuse would be observable.
         let mut old = session::load_session(&old_sid).unwrap();
-        old.turns.push(Turn {
+        old.steps.push(Step {
             role: "user".into(),
             content: Some("old-turn".into()),
             tool_call_id: None,
             tool_calls: None,
             name: None,
+            finish_reason: None,
+            model: None,
+            usage: None,
+            reasoning_content: None,
         });
         session::save_session(&old).unwrap();
 
@@ -1000,7 +1004,7 @@ fn t2_reset_old_session_not_reused_by_ensure_for_executable() {
         assert_eq!(live_session_id().as_deref(), Some(new_sid.as_str()));
         let fresh = session::load_session(&new_sid).unwrap();
         assert!(
-            fresh.turns.is_empty(),
+            fresh.steps.is_empty(),
             "new executable session must not carry old turns"
         );
     });
@@ -1080,7 +1084,7 @@ fn t2_re_set_executable_chat_lands_on_new_session_without_old_turns() {
         let old_sid = open["session_id"].as_str().unwrap().to_string();
         let first = r#loop::agent_chat_turn_core(&old_sid, "你好", Some(&master_a)).unwrap();
         assert_eq!(first.body["terminal"], "none");
-        let old_turns_len = session::load_session(&old_sid).unwrap().turns.len();
+        let old_turns_len = session::load_session(&old_sid).unwrap().steps.len();
         assert!(old_turns_len >= 2, "old session should have turns");
 
         arm_plan_binding(&master_b); // replace Set → session cut
@@ -1098,14 +1102,14 @@ fn t2_re_set_executable_chat_lands_on_new_session_without_old_turns() {
                 .contains("新绑定回复")
         );
         let new_sess = session::load_session(&new_sid).unwrap();
-        let blob = serde_json::to_string(&new_sess.turns).unwrap();
+        let blob = serde_json::to_string(&new_sess.steps).unwrap();
         assert!(
             !blob.contains("旧绑定回复") && !blob.contains("你好"),
             "new binding executable session must not carry old turns: {blob}"
         );
         // Old session file may still exist with its turns (cut ≠ delete).
         let old_still = session::load_session(&old_sid).unwrap();
-        assert_eq!(old_still.turns.len(), old_turns_len);
+        assert_eq!(old_still.steps.len(), old_turns_len);
     });
 }
 
@@ -1115,12 +1119,16 @@ fn t2_unbound_ensure_session_not_auto_promoted_on_set() {
         let pre = r#loop::ensure_chat_session_core().expect("unbound ensure");
         let pre_sid = pre["session_id"].as_str().unwrap().to_string();
         let mut seeded = session::load_session(&pre_sid).unwrap();
-        seeded.turns.push(Turn {
+        seeded.steps.push(Step {
             role: "user".into(),
             content: Some("unbound-era".into()),
             tool_call_id: None,
             tool_calls: None,
             name: None,
+            finish_reason: None,
+            model: None,
+            usage: None,
+            reasoning_content: None,
         });
         session::save_session(&seeded).unwrap();
 
@@ -1133,7 +1141,7 @@ fn t2_unbound_ensure_session_not_auto_promoted_on_set() {
         let after_sess = session::load_session(&after_sid).unwrap();
         assert!(
             after_sess
-                .turns
+                .steps
                 .iter()
                 .all(|t| t.content.as_deref() != Some("unbound-era")),
             "unbound-ensure session must not auto-promote into new binding context"
@@ -1149,15 +1157,19 @@ fn t2_cut_does_not_wipe_turns_as_primary_means() {
         let open = r#loop::ensure_chat_session_core().unwrap();
         let old_sid = open["session_id"].as_str().unwrap().to_string();
         let mut sess = session::load_session(&old_sid).unwrap();
-        sess.turns.push(Turn {
+        sess.steps.push(Step {
             role: "user".into(),
             content: Some("preserve-me".into()),
             tool_call_id: None,
             tool_calls: None,
             name: None,
+            finish_reason: None,
+            model: None,
+            usage: None,
+            reasoning_content: None,
         });
         session::save_session(&sess).unwrap();
-        let turns_before = sess.turns.len();
+        let turns_before = sess.steps.len();
 
         r#loop::reset_binding().expect("Reset");
         assert_eq!(live_session_id(), None);
@@ -1165,13 +1177,13 @@ fn t2_cut_does_not_wipe_turns_as_primary_means() {
         // Primary cut means clearing the live id — not wiping turns on the same id.
         let still = session::load_session(&old_sid).expect("disk json may remain");
         assert_eq!(
-            still.turns.len(),
+            still.steps.len(),
             turns_before,
             "cut must not use same-id turn wipe as the primary means"
         );
         assert!(
             still
-                .turns
+                .steps
                 .iter()
                 .any(|t| t.content.as_deref() == Some("preserve-me"))
         );

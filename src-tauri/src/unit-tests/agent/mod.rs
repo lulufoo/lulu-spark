@@ -11,6 +11,12 @@ mod engine_router_tests;
 #[path = "runtime_tests.rs"]
 mod runtime_tests;
 
+#[path = "llm_record_tests.rs"]
+mod llm_record_tests;
+
+#[path = "llm_stream_tests.rs"]
+mod llm_stream_tests;
+
 #[path = "ai_assistant_session_tests.rs"]
 mod ai_assistant_session_tests;
 
@@ -28,7 +34,7 @@ use crate::config::secrets;
 use crate::config::settings;
 use crate::agent::diagnostics::{self, DiagnosticEvent, TraceId};
 use crate::agent::llm::{self, LlmConfig, LlmError};
-use crate::agent::session::{self, Session, Turn};
+use crate::agent::session::{self, Session, Step};
 use crate::agent::SPARK_HOST_SYSTEM_PROMPT;
 use crate::test_support::{with_config_test_serial, TestSandbox};
 
@@ -117,7 +123,7 @@ fn session_save_load_roundtrip_under_cache_agent_sessions() {
     with_agent_sandbox(|sandbox| {
         let sess = session::create_session().expect("create");
         assert!(!sess.session_id.is_empty());
-        assert_eq!(sess.turns.len(), 0);
+        assert_eq!(sess.steps.len(), 0);
 
         let path = session::session_file_path(&sess.session_id).expect("path");
         assert_under_cache_not_knowledge_root(&path, sandbox);
@@ -128,22 +134,26 @@ fn session_save_load_roundtrip_under_cache_agent_sessions() {
         );
         assert!(path.is_file());
 
-        session::append_turn(
+        session::append_step(
             &sess.session_id,
-            Turn {
+            Step {
                 role: "user".into(),
                 content: Some("hello".into()),
                 tool_call_id: None,
                 tool_calls: None,
                 name: None,
+                finish_reason: None,
+                model: None,
+                usage: None,
+                reasoning_content: None,
             },
         )
         .expect("append");
 
         let loaded = session::load_session(&sess.session_id).expect("load");
-        assert_eq!(loaded.turns.len(), 1);
-        assert_eq!(loaded.turns[0].role, "user");
-        assert_eq!(loaded.turns[0].content.as_deref(), Some("hello"));
+        assert_eq!(loaded.steps.len(), 1);
+        assert_eq!(loaded.steps[0].role, "user");
+        assert_eq!(loaded.steps[0].content.as_deref(), Some("hello"));
     });
 }
 
@@ -170,7 +180,7 @@ fn load_session_still_reads_legacy_sess_id() {
     with_agent_sandbox(|_| {
         let legacy = Session {
             session_id: "sess_84dafc26cec6".into(),
-            turns: Vec::new(),
+            steps: Vec::new(),
             staged: Vec::new(),
             llm: None,
         };

@@ -3,7 +3,10 @@
 mod support;
 
 mod binding;
+mod finish_reason;
 mod flights;
 mod history;
+mod llm_calls;
+mod reasoning;
 mod shell;
 mod turn;

@@ -31,6 +31,9 @@ fn open(path: &PathBuf) -> Result<Connection, String> {
     ensure_column(&conn, "meta", "llm", "TEXT")?;
     ensure_column(&conn, "staged", "source_kind", "TEXT")?;
     ensure_column(&conn, "staged", "source_id", "TEXT")?;
+    for column in ["finish_reason", "model", "usage", "reasoning_content"] {
+        ensure_column(&conn, "model_steps", column, "TEXT")?;
+    }
     Ok(conn)
 }
 
@@ -182,7 +185,7 @@ pub fn load_last_prompt_tokens(path: &PathBuf) -> Result<Option<i64>, String> {
 
 pub fn save(path: &PathBuf, session: &Session, title: &str, now: i64) -> Result<(), String> {
     let mut conn = open(path)?;
-    let stored_steps = turn_store::load_steps(&conn)?;
+    let stored_steps = turn_store::load_stored_steps(&conn)?;
     let stored_staged = load_staged(&conn)?;
     let created_at = conn
         .query_row("SELECT created_at FROM meta LIMIT 1", [], |row| row.get(0))
@@ -191,7 +194,7 @@ pub fn save(path: &PathBuf, session: &Session, title: &str, now: i64) -> Result<
         .unwrap_or(now);
 
     let tx = conn.transaction().map_err(|e| e.to_string())?;
-    turn_store::sync(&tx, &stored_steps, &session.turns, now)?;
+    turn_store::sync(&tx, &stored_steps, &session.steps, now)?;
     sync_staged(&tx, &stored_staged, &session.staged)?;
     let llm = session.llm.as_deref().unwrap_or("");
     tx.execute(
@@ -226,7 +229,7 @@ pub fn load(path: &PathBuf) -> Result<Session, String> {
         .filter(|s| !s.is_empty());
     Ok(Session {
         session_id,
-        turns: turn_store::load_turns(&conn)?,
+        steps: turn_store::load_steps(&conn)?,
         staged: load_staged(&conn)?,
         llm,
     })

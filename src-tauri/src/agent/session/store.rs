@@ -10,7 +10,7 @@ use crate::services::id::random_entry_id;
 use super::catalog;
 use super::schema::{checked_session_id, unix_secs};
 use super::session_db;
-use super::types::{Session, Turn};
+use super::types::{Session, Step};
 
 pub fn agent_dir() -> Result<PathBuf, String> {
     Ok(paths::cache_dir()
@@ -31,6 +31,21 @@ pub fn sessions_dir() -> Result<PathBuf, String> {
         reject_unisolated_sessions_dir(&dir)?;
     }
     Ok(dir)
+}
+
+/// `sessions/{session_id}/`: whatever belongs to a session besides its database.
+fn session_dir(session_id: &str) -> Result<PathBuf, String> {
+    let id = checked_session_id(session_id)?;
+    // `.` would resolve to the sessions directory itself.
+    if std::path::Path::new(id).file_name().map_or(true, |name| name != id) {
+        return Err("Invalid session_id".into());
+    }
+    Ok(sessions_dir()?.join(id))
+}
+
+/// Per-request LLM call records of one session. Not under `agent-scratch` (model-writable).
+pub fn session_llm_calls_dir(session_id: &str) -> Result<PathBuf, String> {
+    Ok(session_dir(session_id)?.join("llm-calls"))
 }
 
 fn catalog_file_path() -> Result<PathBuf, String> {
@@ -71,7 +86,7 @@ fn current_session_llm() -> Option<String> {
 pub fn create_session() -> Result<Session, String> {
     let session = Session {
         session_id: format!("spark_chat_{}", random_entry_id()),
-        turns: Vec::new(),
+        steps: Vec::new(),
         staged: Vec::new(),
         llm: current_session_llm(),
     };
@@ -129,6 +144,8 @@ pub fn replace_turns_with_summary(
 
 pub fn delete_session(session_id: &str) -> Result<(), String> {
     let path = session_file_path(session_id)?;
+    // Validate before deleting anything.
+    let dir = session_dir(session_id)?;
     if !path.is_file() {
         return Err("Session not found".into());
     }
@@ -136,6 +153,14 @@ pub fn delete_session(session_id: &str) -> Result<(), String> {
     for sidecar in session_db::sidecar_paths(&path) {
         if sidecar.is_file() {
             let _ = fs::remove_file(&sidecar);
+        }
+    }
+    // The records hold full prompts and replies; a failed cleanup must not pass silently.
+    match fs::remove_dir_all(&dir) {
+        Ok(()) => {}
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+        Err(e) => {
+            let _ = super::log_agent_error(&format!("session dir not removed for {session_id}: {e}"));
         }
     }
     catalog::remove(&catalog_file_path()?, checked_session_id(session_id)?)?;
@@ -155,10 +180,10 @@ fn format_session_when(updated_at: i64) -> String {
 
 fn session_list_title(session: &Session, updated_at: i64) -> String {
     session
-        .turns
+        .steps
         .iter()
-        .find(|turn| turn.role == "user")
-        .and_then(|turn| turn.content.as_deref())
+        .find(|step| step.role == "user")
+        .and_then(|step| step.content.as_deref())
         .map(str::trim)
         .filter(|s| !s.is_empty())
         .map(|text| {
@@ -224,9 +249,9 @@ pub fn unstage_entry(session_id: &str, staged_id: &str) -> Result<Session, Strin
     Ok(session)
 }
 
-pub fn append_turn(session_id: &str, turn: Turn) -> Result<Session, String> {
+pub fn append_step(session_id: &str, step: Step) -> Result<Session, String> {
     let mut session = load_session(session_id)?;
-    session.turns.push(turn);
+    session.steps.push(step);
     save_session(&session)?;
     Ok(session)
 }

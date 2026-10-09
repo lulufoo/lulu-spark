@@ -14,7 +14,7 @@ use crate::agent::engine_router::{self, AdapterKind, EngineRouteError, TurnInput
 use crate::agent::llm;
 use crate::agent::progress::{self, ProgressSink};
 use crate::agent::r#loop::{self, ChatTurnResult, Terminal, TurnOutcome};
-use crate::agent::session::{self, Turn};
+use crate::agent::session::{self, Step};
 
 /// Reset the current Binding. Agent Loop owns all live context cleanup.
 pub fn reset_binding() -> Result<(), String> {
@@ -27,19 +27,27 @@ pub fn cancel_from_binding() -> Result<(), String> {
 }
 
 fn append_user_assistant(session: &mut session::Session, user: &str, assistant: &str) {
-    session.turns.push(Turn {
+    session.steps.push(Step {
         role: "user".into(),
         content: Some(user.to_string()),
         tool_call_id: None,
         tool_calls: None,
         name: None,
+        finish_reason: None,
+        model: None,
+        usage: None,
+        reasoning_content: None,
     });
-    session.turns.push(Turn {
+    session.steps.push(Step {
         role: "assistant".into(),
         content: Some(assistant.to_string()),
         tool_call_id: None,
         tool_calls: None,
         name: None,
+        finish_reason: None,
+        model: None,
+        usage: None,
+        reasoning_content: None,
     });
     r#loop::persist(session);
 }

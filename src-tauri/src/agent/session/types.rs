@@ -31,7 +31,7 @@ pub fn value_exposes_engine_selection(v: &Value) -> bool {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct Turn {
+pub struct Step {
     pub role: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub content: Option<String>,
@@ -41,6 +41,17 @@ pub struct Turn {
     pub tool_calls: Option<Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
+    /// Response-level fields live on the last `Step` of one LLM response.
+    /// `finish_reason` is the raw upstream string; unknown values are kept as-is.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub finish_reason: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub usage: Option<Value>,
+    /// Thinking of the response this `Step` carries; a field, not a `Step` (stays 1:1 with messages).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reasoning_content: Option<String>,
 }
 
 /// Binding Contract surface.
@@ -203,7 +214,7 @@ pub struct StagedEntry {
 pub struct Session {
     pub session_id: String,
     #[serde(default)]
-    pub turns: Vec<Turn>,
+    pub steps: Vec<Step>,
     #[serde(default)]
     pub staged: Vec<StagedEntry>,
     /// Display LLM category (`openai` / `claude` / `grok` / `host` / `kimi` / `qwen`).

@@ -131,14 +131,27 @@ fn render_message(out: &mut String, messages: &[Value], index: usize, message: &
             out.push_str("<|user|>");
             out.push_str(&text_content(message));
         }
-        "assistant" => render_assistant(out, message),
+        "assistant" => render_assistant(out, messages, index, message),
         "tool" => render_tool(out, messages, index, message),
         _ => {}
     }
 }
 
-fn render_assistant(out: &mut String, message: &Value) {
-    out.push_str("<|assistant|><think></think>");
+fn render_assistant(out: &mut String, messages: &[Value], index: usize, message: &Value) {
+    out.push_str("<|assistant|>");
+    // The template keeps thinking only after the last user message.
+    let after_last_user = messages
+        .iter()
+        .rposition(|m| m.get("role").and_then(Value::as_str) == Some("user"))
+        .map_or(true, |user| index > user);
+    match message.get("reasoning_content").and_then(Value::as_str) {
+        Some(thinking) if after_last_user => {
+            out.push_str("<think>");
+            out.push_str(thinking);
+            out.push_str("</think>");
+        }
+        _ => out.push_str("<think></think>"),
+    }
     let content = text_content(message);
     let trimmed = content.trim();
     if !trimmed.is_empty() {
