@@ -1,7 +1,7 @@
 //! OpenAI-compatible streaming chat/completions client.
 
-use std::error::Error as StdError;
-use std::io::{BufRead, BufReader, Read};
+mod stream;
+
 use std::time::Duration;
 
 use reqwest::blocking::Client;
@@ -41,11 +41,54 @@ pub struct ToolCall {
     pub arguments: String,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct AssistantMessage {
     pub content: Option<String>,
     pub tool_calls: Vec<ToolCall>,
+    /// Raw upstream string; unknown values are kept as-is (vendors add their own).
     pub finish_reason: Option<String>,
+    /// Model's reasoning (`delta.reasoning_content`); `None` when upstream sends none.
+    pub reasoning_content: Option<String>,
+    /// Response-level `model` as reported by upstream (may differ from the requested one).
+    pub model: Option<String>,
+    /// Response-level `usage` object, kept verbatim; `None` when upstream sends none.
+    pub usage: Option<Value>,
+}
+
+/// Result of one streamed call, split into "what arrived" and "was it acceptable".
+///
+/// `snapshot` is whatever the stream delivered, even when the call is classified as an
+/// error (truncated, malformed tool_calls, read failure mid-stream). It is `None` only
+/// when no response body was ever read (config / connect / HTTP status errors).
+#[derive(Debug, Clone)]
+pub struct LlmCallOutcome {
+    pub snapshot: Option<AssistantMessage>,
+    pub error: Option<LlmError>,
+}
+
+impl LlmCallOutcome {
+    fn failed(error: LlmError) -> Self {
+        Self {
+            snapshot: None,
+            error: Some(error),
+        }
+    }
+
+    /// Legacy view: the error decision wins; on success empty tool arguments become `{}`.
+    pub fn into_result(self) -> Result<AssistantMessage, LlmError> {
+        if let Some(error) = self.error {
+            return Err(error);
+        }
+        let mut message = self
+            .snapshot
+            .ok_or_else(|| LlmError::InvalidResponse("missing response".into()))?;
+        for call in &mut message.tool_calls {
+            if call.arguments.is_empty() {
+                call.arguments = "{}".into();
+            }
+        }
+        Ok(message)
+    }
 }
 
 pub fn load_llm_config() -> Result<LlmConfig, LlmError> {
@@ -100,9 +143,23 @@ pub fn chat_completions_with_timeout(
     tools: &[Value],
     config: &LlmConfig,
     timeout: Duration,
-    mut on_delta: Option<&mut dyn FnMut(&str)>,
+    on_delta: Option<&mut dyn FnMut(&str)>,
 ) -> Result<AssistantMessage, LlmError> {
-    validate_config(config)?;
+    chat_completions_traced(messages, tools, config, timeout, on_delta).into_result()
+}
+
+/// Same call as [`chat_completions_with_timeout`], but keeps the partial response
+/// available when the call is classified as an error.
+pub fn chat_completions_traced(
+    messages: &[Value],
+    tools: &[Value],
+    config: &LlmConfig,
+    timeout: Duration,
+    mut on_delta: Option<&mut dyn FnMut(&str)>,
+) -> LlmCallOutcome {
+    if let Err(error) = validate_config(config) {
+        return LlmCallOutcome::failed(error);
+    }
 
     let url = chat_url(&config.base_url);
     let mut body = json!({
@@ -118,11 +175,14 @@ pub fn chat_completions_with_timeout(
 
     // Blocking reqwest applies this duration to connect/TTFB and to each body
     // read, resetting after a successful read — idle timeout for SSE chunks.
-    let client = Client::builder()
+    let client = match Client::builder()
         .timeout(timeout)
         .connect_timeout(timeout)
         .build()
-        .map_err(|e| LlmError::Network(e.to_string()))?;
+    {
+        Ok(client) => client,
+        Err(e) => return LlmCallOutcome::failed(LlmError::Network(e.to_string())),
+    };
 
     let resp = client
         .post(&url)
@@ -136,31 +196,31 @@ pub fn chat_completions_with_timeout(
         Err(e) => {
             if e.is_timeout() {
                 let _ = session::log_agent_error(&format!("LLM timeout calling {url}"));
-                return Err(LlmError::Timeout);
+                return LlmCallOutcome::failed(LlmError::Timeout);
             }
             let _ = session::log_agent_error(&format!("LLM network error: {e}"));
-            return Err(LlmError::Network(e.to_string()));
+            return LlmCallOutcome::failed(LlmError::Network(e.to_string()));
         }
     };
 
     let status = resp.status().as_u16();
     if !(200..300).contains(&status) {
         let text = resp.text().unwrap_or_default();
-        return map_error_status(status, &text);
+        return LlmCallOutcome::failed(map_error_status(status, &text));
     }
 
-    assemble_sse(resp, &mut on_delta)
+    stream::assemble_sse(resp, &mut on_delta)
 }
 
-fn map_error_status(status: u16, text: &str) -> Result<AssistantMessage, LlmError> {
+fn map_error_status(status: u16, text: &str) -> LlmError {
     let parsed: Value = serde_json::from_str(text).unwrap_or(json!({}));
     if status == 401 || status == 403 {
         let _ = session::log_agent_error(&format!("LLM auth failed status={status}"));
-        return Err(LlmError::Unauthorized);
+        return LlmError::Unauthorized;
     }
     if status == 429 {
         let _ = session::log_agent_error("LLM rate limited (429)");
-        return Err(LlmError::RateLimited);
+        return LlmError::RateLimited;
     }
     if status == 400 {
         let msg = parsed
@@ -174,262 +234,15 @@ fn map_error_status(status: u16, text: &str) -> Result<AssistantMessage, LlmErro
             || (lower.contains("tool") && lower.contains("not supported"))
         {
             let _ = session::log_agent_error("LLM upstream does not support tool_calls");
-            return Err(LlmError::UnsupportedToolCalls);
+            return LlmError::UnsupportedToolCalls;
         }
         let _ = session::log_agent_error(&format!("LLM bad request: {msg}"));
-        return Err(LlmError::BadRequest(msg.to_string()));
+        return LlmError::BadRequest(msg.to_string());
     }
     if (500..600).contains(&status) {
         let _ = session::log_agent_error(&format!("LLM server error status={status}"));
-        return Err(LlmError::Server(status));
+        return LlmError::Server(status);
     }
     let _ = session::log_agent_error(&format!("LLM unexpected status={status}"));
-    Err(LlmError::InvalidResponse(format!("status {status}")))
-}
-
-fn assemble_sse(
-    resp: impl Read,
-    on_delta: &mut Option<&mut dyn FnMut(&str)>,
-) -> Result<AssistantMessage, LlmError> {
-    let mut reader = BufReader::new(resp);
-    let mut assembler = StreamAssembler::default();
-    let mut data_buf = String::new();
-    loop {
-        let mut line = String::new();
-        match reader.read_line(&mut line) {
-            Ok(0) => break,
-            Ok(_) => {}
-            Err(error) => return Err(map_read_error(error)),
-        }
-        let line = line.trim_end_matches(['\r', '\n']);
-        if line.is_empty() {
-            if data_buf.is_empty() {
-                continue;
-            }
-            let payload = std::mem::take(&mut data_buf);
-            if payload.trim() == "[DONE]" {
-                break;
-            }
-            emit_if_noteworthy(&mut assembler, &payload, on_delta)?;
-            continue;
-        }
-        if line.starts_with(':') {
-            continue;
-        }
-        if let Some(rest) = line.strip_prefix("data:") {
-            let piece = rest.strip_prefix(' ').unwrap_or(rest);
-            if piece.trim() == "[DONE]" {
-                break;
-            }
-            if !data_buf.is_empty() {
-                data_buf.push('\n');
-            }
-            data_buf.push_str(piece);
-        }
-    }
-    if !data_buf.is_empty() && data_buf.trim() != "[DONE]" {
-        emit_if_noteworthy(&mut assembler, &data_buf, on_delta)?;
-    }
-    assembler.finish()
-}
-
-fn emit_if_noteworthy(
-    assembler: &mut StreamAssembler,
-    payload: &str,
-    on_delta: &mut Option<&mut dyn FnMut(&str)>,
-) -> Result<(), LlmError> {
-    if apply_sse_payload(assembler, payload)? {
-        if let Some(callback) = on_delta.as_mut() {
-            callback(&assembler.hint());
-        }
-    }
-    Ok(())
-}
-
-fn apply_sse_payload(assembler: &mut StreamAssembler, payload: &str) -> Result<bool, LlmError> {
-    let parsed: Value = serde_json::from_str(payload)
-        .map_err(|error| LlmError::InvalidResponse(format!("sse json: {error}")))?;
-    if let Some(error) = parsed.get("error") {
-        let msg = error
-            .get("message")
-            .and_then(|v| v.as_str())
-            .unwrap_or("sse error");
-        return Err(LlmError::InvalidResponse(msg.to_string()));
-    }
-    let Some(choice) = parsed.pointer("/choices/0") else {
-        return Ok(false);
-    };
-    if let Some(reason) = choice.get("finish_reason").and_then(|v| v.as_str()) {
-        assembler.finish_reason = Some(reason.to_string());
-    }
-    let Some(delta) = choice.get("delta").or_else(|| choice.get("message")) else {
-        return Ok(false);
-    };
-    Ok(assembler.apply_delta(delta))
-}
-
-fn map_read_error(error: std::io::Error) -> LlmError {
-    if io_error_is_timeout(&error) {
-        let _ = session::log_agent_error("LLM timeout reading stream");
-        return LlmError::Timeout;
-    }
-    let _ = session::log_agent_error(&format!("LLM stream read error: {error}"));
-    LlmError::Network(error.to_string())
-}
-
-fn io_error_is_timeout(error: &std::io::Error) -> bool {
-    if error.kind() == std::io::ErrorKind::TimedOut {
-        return true;
-    }
-    let mut current: Option<&dyn StdError> = Some(error);
-    while let Some(err) = current {
-        let lower = err.to_string().to_ascii_lowercase();
-        if lower.contains("timed out") || lower.contains("timeout") {
-            return true;
-        }
-        current = err.source();
-    }
-    false
-}
-
-#[derive(Default)]
-struct PartialToolCall {
-    id: String,
-    name: String,
-    arguments: String,
-}
-
-#[derive(Default)]
-struct StreamAssembler {
-    content: String,
-    reasoning: String,
-    tool_calls: Vec<PartialToolCall>,
-    finish_reason: Option<String>,
-}
-
-impl StreamAssembler {
-    fn apply_delta(&mut self, delta: &Value) -> bool {
-        let mut noteworthy = false;
-        if let Some(piece) = delta.get("content").and_then(|v| v.as_str()) {
-            if !piece.is_empty() {
-                self.content.push_str(piece);
-                noteworthy = true;
-            }
-        }
-        if let Some(piece) = delta.get("reasoning_content").and_then(|v| v.as_str()) {
-            if !piece.is_empty() {
-                self.reasoning.push_str(piece);
-                noteworthy = true;
-            }
-        }
-        if let Some(calls) = delta.get("tool_calls").and_then(|v| v.as_array()) {
-            for call in calls {
-                self.apply_tool_delta(call);
-            }
-            noteworthy = true;
-        }
-        noteworthy
-    }
-
-    fn apply_tool_delta(&mut self, call: &Value) {
-        let slot = if let Some(index) = call.get("index").and_then(|v| v.as_u64()) {
-            let index = index as usize;
-            if self.tool_calls.len() <= index {
-                self.tool_calls
-                    .resize_with(index + 1, PartialToolCall::default);
-            }
-            &mut self.tool_calls[index]
-        } else {
-            self.tool_calls.push(PartialToolCall::default());
-            self.tool_calls.last_mut().expect("just pushed")
-        };
-        if let Some(id) = call.get("id").and_then(|v| v.as_str()) {
-            if !id.is_empty() {
-                slot.id = id.to_string();
-            }
-        }
-        if let Some(name) = call.pointer("/function/name").and_then(|v| v.as_str()) {
-            if !name.is_empty() {
-                slot.name = name.to_string();
-            }
-        }
-        match call.pointer("/function/arguments") {
-            Some(Value::String(piece)) => slot.arguments.push_str(piece),
-            Some(obj) if obj.is_object() => slot.arguments.push_str(&obj.to_string()),
-            _ => {}
-        }
-    }
-
-    fn hint(&self) -> String {
-        if let Some(slot) = self
-            .tool_calls
-            .iter()
-            .rev()
-            .find(|slot| !slot.name.is_empty())
-        {
-            return format!("Preparing {}…", slot.name);
-        }
-        if self
-            .tool_calls
-            .iter()
-            .any(|slot| !slot.id.is_empty() || !slot.arguments.is_empty())
-        {
-            return "Preparing…".into();
-        }
-        if !self.content.is_empty() {
-            return format!("Receiving… {}", preview_tail(&self.content, 40));
-        }
-        if !self.reasoning.is_empty() {
-            return "Thinking…".into();
-        }
-        "Receiving…".into()
-    }
-
-    fn finish(self) -> Result<AssistantMessage, LlmError> {
-        if self.finish_reason.as_deref() == Some("length") {
-            let _ = session::log_agent_error("LLM finish_reason=length (truncated)");
-            return Err(LlmError::Truncated);
-        }
-        let mut tool_calls = Vec::new();
-        for slot in self.tool_calls {
-            if slot.id.is_empty() && slot.name.is_empty() && slot.arguments.is_empty() {
-                continue;
-            }
-            if slot.id.is_empty() || slot.name.is_empty() {
-                return Err(LlmError::InvalidResponse("malformed tool_calls".into()));
-            }
-            tool_calls.push(ToolCall {
-                id: slot.id,
-                name: slot.name,
-                arguments: if slot.arguments.is_empty() {
-                    "{}".into()
-                } else {
-                    slot.arguments
-                },
-            });
-        }
-        if self.content.is_empty() && tool_calls.is_empty() && self.finish_reason.is_none() {
-            return Err(LlmError::InvalidResponse("missing choices".into()));
-        }
-        Ok(AssistantMessage {
-            content: if self.content.is_empty() {
-                None
-            } else {
-                Some(self.content)
-            },
-            tool_calls,
-            finish_reason: self.finish_reason,
-        })
-    }
-}
-
-fn preview_tail(text: &str, max_chars: usize) -> String {
-    let count = text.chars().count();
-    if count <= max_chars {
-        return text.to_string();
-    }
-    format!(
-        "…{}",
-        text.chars().skip(count - max_chars).collect::<String>()
-    )
+    LlmError::InvalidResponse(format!("status {status}"))
 }
