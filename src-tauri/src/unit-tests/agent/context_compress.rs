@@ -11,7 +11,7 @@ use crate::agent::context::count::count_tokens;
 use crate::agent::context::render::render_request;
 use crate::agent::context::window::{round_percent, window_tokens};
 use crate::agent::llm::LlmConfig;
-use crate::agent::session::{self, Turn};
+use crate::agent::session::{self, Step};
 use crate::agent::turn::{build_llm_messages, cancelled_turn_outcome};
 use crate::test_support::TestSandbox;
 
@@ -24,8 +24,8 @@ const GLM_WINDOW: u64 = 1_048_576;
 const TOKENS_AT_69: i64 = 728_760;
 const TOKENS_AT_70: i64 = 728_761;
 
-fn user_turn(text: &str) -> Turn {
-    Turn {
+fn user_step(text: &str) -> Step {
+    Step {
         role: "user".into(),
         content: Some(text.into()),
         tool_call_id: None,
@@ -34,8 +34,8 @@ fn user_turn(text: &str) -> Turn {
     }
 }
 
-fn assistant_turn(text: &str) -> Turn {
-    Turn {
+fn assistant_step(text: &str) -> Step {
+    Step {
         role: "assistant".into(),
         content: Some(text.into()),
         tool_call_id: None,
@@ -44,8 +44,8 @@ fn assistant_turn(text: &str) -> Turn {
     }
 }
 
-fn tool_turn(name: &str, content: &str) -> Turn {
-    Turn {
+fn tool_step(name: &str, content: &str) -> Step {
+    Step {
         role: "tool".into(),
         content: Some(content.into()),
         tool_call_id: Some("call_1".into()),
@@ -54,10 +54,10 @@ fn tool_turn(name: &str, content: &str) -> Turn {
     }
 }
 
-fn transcript_with_tool(result: &str) -> Vec<Turn> {
+fn transcript_with_tool(result: &str) -> Vec<Step> {
     vec![
-        user_turn("hello"),
-        Turn {
+        user_step("hello"),
+        Step {
             role: "assistant".into(),
             content: None,
             tool_call_id: None,
@@ -68,13 +68,13 @@ fn transcript_with_tool(result: &str) -> Vec<Turn> {
             }])),
             name: None,
         },
-        tool_turn("lookup", result),
-        assistant_turn("done"),
+        tool_step("lookup", result),
+        assistant_step("done"),
     ]
 }
 
-fn pack_tokens(turns: &[Turn]) -> u64 {
-    let messages = pack_summary_messages(turns);
+fn pack_tokens(steps: &[Step]) -> u64 {
+    let messages = pack_summary_messages(steps);
     count_tokens(&render_request(&messages, &[])).expect("count") as u64
 }
 
@@ -105,18 +105,18 @@ fn summary_pack_keeps_user_assistant_and_tool_text() {
 
 #[test]
 fn fit_leaves_tool_result_when_already_under_the_window() {
-    let turns = transcript_with_tool("short-result");
-    let tokens = pack_tokens(&turns);
-    let fitted = fit_summary_messages(&turns, tokens + 1).expect("fits");
+    let steps = transcript_with_tool("short-result");
+    let tokens = pack_tokens(&steps);
+    let fitted = fit_summary_messages(&steps, tokens + 1).expect("fits");
     assert!(fitted[1]["content"].as_str().expect("pack").contains("short-result"));
 }
 
 #[test]
 fn fit_truncates_the_longest_tool_result_when_at_the_window() {
     let long = "R".repeat(8_000);
-    let turns = transcript_with_tool(&long);
-    let tokens = pack_tokens(&turns);
-    let fitted = fit_summary_messages(&turns, tokens).expect("fits after cut");
+    let steps = transcript_with_tool(&long);
+    let tokens = pack_tokens(&steps);
+    let fitted = fit_summary_messages(&steps, tokens).expect("fits after cut");
     let pack = fitted[1]["content"].as_str().expect("pack");
     assert!(pack.contains("hello"));
     assert!(pack.contains("done"));
@@ -128,17 +128,17 @@ fn fit_truncates_the_longest_tool_result_when_at_the_window() {
 
 #[test]
 fn fit_keeps_shrinking_user_text_when_tools_are_gone() {
-    let turns = vec![user_turn("hello"), assistant_turn("done")];
-    let tokens = pack_tokens(&turns);
-    let fitted = fit_summary_messages(&turns, tokens).expect("still fits");
+    let steps = vec![user_step("hello"), assistant_step("done")];
+    let tokens = pack_tokens(&steps);
+    let fitted = fit_summary_messages(&steps, tokens).expect("still fits");
     assert!(count_tokens(&render_request(&fitted, &[])).expect("count") as u64 + 1 <= tokens);
     assert_eq!(fitted[0]["content"], SUMMARY_SYSTEM_PROMPT);
 }
 
 #[test]
 fn fit_gives_up_only_when_the_empty_pack_still_fills_the_window() {
-    let turns = vec![user_turn("hello"), assistant_turn("done")];
-    assert!(fit_summary_messages(&turns, 1).is_none());
+    let steps = vec![user_step("hello"), assistant_step("done")];
+    assert!(fit_summary_messages(&steps, 1).is_none());
 }
 
 #[test]
@@ -146,7 +146,7 @@ fn replace_turns_keeps_messages_steps_and_last_prompt() {
     let _sandbox = TestSandbox::new();
     let session = session::create_session().expect("create");
     let mut loaded = session::load_session(&session.session_id).expect("load");
-    loaded.turns = transcript_with_tool("raw-result");
+    loaded.steps = transcript_with_tool("raw-result");
     session::save_session(&loaded).expect("save");
     session::store_last_prompt(&session.session_id, 100, "[]").expect("snapshot");
     let ui_before = session::load_turns_value(&session.session_id);
@@ -173,18 +173,18 @@ fn replace_turns_keeps_messages_steps_and_last_prompt() {
         None
     );
     let reloaded = session::load_session(&session.session_id).expect("reload");
-    assert!(reloaded.turns.is_empty());
+    assert!(reloaded.steps.is_empty());
     let conn = Connection::open(&path).expect("open");
-    let turns: i64 = conn
+    let steps: i64 = conn
         .query_row("SELECT COUNT(*) FROM model_turns", [], |row| row.get(0))
         .expect("turns");
-    assert_eq!(turns, 0);
+    assert_eq!(steps, 0);
 }
 
 #[test]
 fn main_request_puts_summary_bodies_before_remaining_turns() {
     let messages = build_llm_messages(
-        &[user_turn("later")],
+        &[user_step("later")],
         "system-prompt",
         &["early summary".into()],
     );
@@ -201,9 +201,9 @@ fn main_request_puts_summary_bodies_before_remaining_turns() {
 fn next_turn_seq_continues_past_the_replaced_range() {
     let _sandbox = TestSandbox::new();
     let session = session::create_session().expect("create");
-    session::append_turn(&session.session_id, user_turn("first")).expect("append");
+    session::append_step(&session.session_id, user_step("first")).expect("append");
     session::replace_turns_with_summary(&session.session_id, 1, 1, "body").expect("replace");
-    session::append_turn(&session.session_id, user_turn("next")).expect("append next");
+    session::append_step(&session.session_id, user_step("next")).expect("append next");
     let path = session::session_file_path(&session.session_id).expect("path");
     let conn = Connection::open(&path).expect("open");
     let seq: i64 = conn
@@ -216,7 +216,7 @@ fn next_turn_seq_continues_past_the_replaced_range() {
 fn maybe_compress_at_70_writes_summary_and_leaves_the_snapshot() {
     let _sandbox = TestSandbox::new();
     let mut session = session::create_session().expect("create");
-    session.turns = transcript_with_tool("raw-result");
+    session.steps = transcript_with_tool("raw-result");
     session::save_session(&session).expect("save");
     session::store_last_prompt(&session.session_id, TOKENS_AT_70, "[]").expect("snapshot");
     let mock = spawn_summary_llm(json!({
@@ -226,7 +226,7 @@ fn maybe_compress_at_70_writes_summary_and_leaves_the_snapshot() {
         }]
     }));
     maybe_compress(&mut session, &summary_cfg(&mock));
-    assert!(session.turns.is_empty());
+    assert!(session.steps.is_empty());
     assert_eq!(
         session::load_summary_bodies(&session.session_id).expect("bodies"),
         vec!["one-line summary".to_string()]
@@ -246,7 +246,7 @@ fn maybe_compress_at_70_writes_summary_and_leaves_the_snapshot() {
 fn maybe_compress_at_69_does_not_call_the_model() {
     let _sandbox = TestSandbox::new();
     let mut session = session::create_session().expect("create");
-    session.turns = vec![user_turn("hello"), assistant_turn("done")];
+    session.steps = vec![user_step("hello"), assistant_step("done")];
     session::save_session(&session).expect("save");
     session::store_last_prompt(&session.session_id, TOKENS_AT_69, "[]").expect("snapshot");
     maybe_compress(
@@ -257,7 +257,7 @@ fn maybe_compress_at_69_does_not_call_the_model() {
             model: "glm-5.2".into(),
         },
     );
-    assert_eq!(session.turns.len(), 2);
+    assert_eq!(session.steps.len(), 2);
     assert!(session::load_summary_bodies(&session.session_id)
         .expect("bodies")
         .is_empty());
@@ -267,7 +267,7 @@ fn maybe_compress_at_69_does_not_call_the_model() {
 fn cancel_after_compress_drops_the_new_user_at_the_refreshed_checkpoint() {
     let _sandbox = TestSandbox::new();
     let mut session = session::create_session().expect("create");
-    session.turns = vec![user_turn("hello"), assistant_turn("done")];
+    session.steps = vec![user_step("hello"), assistant_step("done")];
     session::save_session(&session).expect("save");
     session::store_last_prompt(&session.session_id, TOKENS_AT_70, "[]").expect("snapshot");
     let mock = spawn_summary_llm(json!({
@@ -277,12 +277,12 @@ fn cancel_after_compress_drops_the_new_user_at_the_refreshed_checkpoint() {
         }]
     }));
     maybe_compress(&mut session, &summary_cfg(&mock));
-    let turns_checkpoint = session.turns.len();
-    session.turns.push(user_turn("later"));
-    cancelled_turn_outcome(&mut session, turns_checkpoint);
-    assert!(session.turns.is_empty());
+    let steps_checkpoint = session.steps.len();
+    session.steps.push(user_step("later"));
+    cancelled_turn_outcome(&mut session, steps_checkpoint);
+    assert!(session.steps.is_empty());
     let reloaded = session::load_session(&session.session_id).expect("reload");
-    assert!(reloaded.turns.is_empty());
+    assert!(reloaded.steps.is_empty());
     assert_eq!(
         session::load_summary_bodies(&session.session_id).expect("bodies"),
         vec!["one-line summary".to_string()]
@@ -293,12 +293,12 @@ fn cancel_after_compress_drops_the_new_user_at_the_refreshed_checkpoint() {
 fn maybe_compress_failure_leaves_turns() {
     let _sandbox = TestSandbox::new();
     let mut session = session::create_session().expect("create");
-    session.turns = vec![user_turn("hello"), assistant_turn("done")];
+    session.steps = vec![user_step("hello"), assistant_step("done")];
     session::save_session(&session).expect("save");
     session::store_last_prompt(&session.session_id, TOKENS_AT_70, "[]").expect("snapshot");
     let mock = spawn_summary_llm(json!({"error": {"message": "no"}}));
     maybe_compress(&mut session, &summary_cfg(&mock));
-    assert_eq!(session.turns.len(), 2);
+    assert_eq!(session.steps.len(), 2);
     assert!(session::load_summary_bodies(&session.session_id)
         .expect("bodies")
         .is_empty());

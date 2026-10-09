@@ -69,17 +69,17 @@ fn key_only_set_applies_spark_host_system_prompt_not_registry_capability() {
 #[test]
 fn history_truncation_keeps_system_and_dual_hard_caps() {
     with_sandbox(|| {
-        let mut turns = Vec::new();
+        let mut steps = Vec::new();
         let overflow = r#loop::MAX_USER_TURNS + 1;
         for i in 0..overflow {
-            turns.push(Turn {
+            steps.push(Step {
                 role: "user".into(),
                 content: Some(format!("u{i}")),
                 tool_call_id: None,
                 tool_calls: None,
                 name: None,
             });
-            turns.push(Turn {
+            steps.push(Step {
                 role: "assistant".into(),
                 content: Some(format!("a{i}")),
                 tool_call_id: None,
@@ -87,7 +87,7 @@ fn history_truncation_keeps_system_and_dual_hard_caps() {
                 name: None,
             });
         }
-        let messages = r#loop::build_llm_messages_from_turns(&turns, SPARK_HOST_SYSTEM_PROMPT);
+        let messages = r#loop::build_llm_messages_from_steps(&steps, SPARK_HOST_SYSTEM_PROMPT);
         assert_eq!(messages[0]["role"], "system");
         assert_eq!(
             messages[0]["content"].as_str().unwrap(),

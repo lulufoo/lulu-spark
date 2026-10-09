@@ -40,13 +40,13 @@ fn agent_chat_turn_busy_rejects_without_emit_or_user_turn() {
         let open = r#loop::ensure_chat_session_core().unwrap();
         let sid = open["session_id"].as_str().unwrap().to_string();
         let before = session::load_session(&sid).unwrap();
-        let before_len = before.turns.len();
+        let before_len = before.steps.len();
         r#loop::set_busy_for_tests(true);
         let result = r#loop::agent_chat_turn_core(&sid, "第二路", Some(&master)).unwrap();
         assert_eq!(result.body["busy"], true);
         assert!(result.emit_turn_completed.is_none());
         let after = session::load_session(&sid).unwrap();
-        assert_eq!(after.turns.len(), before_len, "user must not enter session");
+        assert_eq!(after.steps.len(), before_len, "user must not enter session");
     });
 }
 

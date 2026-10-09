@@ -1,7 +1,7 @@
 use rusqlite::Connection;
 use serde_json::json;
 
-use crate::agent::session::{self, Turn};
+use crate::agent::session::{self, Step};
 use crate::test_support::TestSandbox;
 
 fn with_sandbox<F: FnOnce(&TestSandbox)>(f: F) {
@@ -9,8 +9,8 @@ fn with_sandbox<F: FnOnce(&TestSandbox)>(f: F) {
     f(&sandbox);
 }
 
-fn user_turn(text: &str) -> Turn {
-    Turn {
+fn user_step(text: &str) -> Step {
+    Step {
         role: "user".into(),
         content: Some(text.into()),
         tool_call_id: None,
@@ -19,8 +19,8 @@ fn user_turn(text: &str) -> Turn {
     }
 }
 
-fn assistant_turn(text: &str) -> Turn {
-    Turn {
+fn assistant_step(text: &str) -> Step {
+    Step {
         role: "assistant".into(),
         content: Some(text.into()),
         tool_call_id: None,
@@ -56,8 +56,8 @@ fn save_roundtrip_keeps_user_assistant_and_tool_turns() {
     with_sandbox(|_| {
         let sess = session::create_session().expect("create");
         let mut loaded = session::load_session(&sess.session_id).expect("load");
-        loaded.turns.push(user_turn("hello"));
-        loaded.turns.push(Turn {
+        loaded.steps.push(user_step("hello"));
+        loaded.steps.push(Step {
             role: "assistant".into(),
             content: None,
             tool_call_id: None,
@@ -68,23 +68,23 @@ fn save_roundtrip_keeps_user_assistant_and_tool_turns() {
             }])),
             name: None,
         });
-        loaded.turns.push(Turn {
+        loaded.steps.push(Step {
             role: "tool".into(),
             content: Some("ok".into()),
             tool_call_id: Some("call_1".into()),
             tool_calls: None,
             name: Some("read".into()),
         });
-        loaded.turns.push(assistant_turn("done"));
+        loaded.steps.push(assistant_step("done"));
         session::save_session(&loaded).expect("save");
 
         let again = session::load_session(&sess.session_id).expect("reload");
-        assert_eq!(again.turns.len(), 4);
-        assert_eq!(again.turns[0].content.as_deref(), Some("hello"));
-        assert!(again.turns[1].tool_calls.is_some());
-        assert_eq!(again.turns[2].role, "tool");
-        assert_eq!(again.turns[2].name.as_deref(), Some("read"));
-        assert_eq!(again.turns[3].content.as_deref(), Some("done"));
+        assert_eq!(again.steps.len(), 4);
+        assert_eq!(again.steps[0].content.as_deref(), Some("hello"));
+        assert!(again.steps[1].tool_calls.is_some());
+        assert_eq!(again.steps[2].role, "tool");
+        assert_eq!(again.steps[2].name.as_deref(), Some("read"));
+        assert_eq!(again.steps[3].content.as_deref(), Some("done"));
 
         let ui = session::load_turns_value(&sess.session_id);
         let items = ui.as_array().expect("ui array");
@@ -99,9 +99,9 @@ fn save_roundtrip_keeps_user_assistant_and_tool_turns() {
 fn catalog_lists_title_and_delete_removes_row() {
     with_sandbox(|_| {
         let first = session::create_session().expect("first");
-        session::append_turn(&first.session_id, user_turn("first title here")).expect("append");
+        session::append_step(&first.session_id, user_step("first title here")).expect("append");
         let second = session::create_session().expect("second");
-        session::append_turn(&second.session_id, user_turn("second")).expect("append");
+        session::append_step(&second.session_id, user_step("second")).expect("append");
 
         let listed = session::list_session_summaries().expect("list");
         assert_eq!(listed.len(), 2);
@@ -123,7 +123,7 @@ fn catalog_lists_title_and_delete_removes_row() {
 fn session_sqlite_keeps_summaries_table_empty() {
     with_sandbox(|_| {
         let sess = session::create_session().expect("create");
-        session::append_turn(&sess.session_id, user_turn("x")).expect("append");
+        session::append_step(&sess.session_id, user_step("x")).expect("append");
         let path = session::session_file_path(&sess.session_id).expect("path");
         let conn = Connection::open(&path).expect("open");
         let count: i64 = conn
@@ -134,10 +134,10 @@ fn session_sqlite_keeps_summaries_table_empty() {
             .query_row("SELECT COUNT(*) FROM messages", [], |row| row.get(0))
             .expect("messages");
         assert_eq!(messages, 1);
-        let turns: i64 = conn
+        let steps: i64 = conn
             .query_row("SELECT COUNT(*) FROM model_turns", [], |row| row.get(0))
             .expect("turns");
-        assert_eq!(turns, 1);
+        assert_eq!(steps, 1);
     });
 }
 
@@ -145,7 +145,7 @@ fn session_sqlite_keeps_summaries_table_empty() {
 fn save_appends_new_turns_without_deleting_detached_steps() {
     with_sandbox(|_| {
         let sess = session::create_session().expect("create");
-        session::append_turn(&sess.session_id, user_turn("first")).expect("append user");
+        session::append_step(&sess.session_id, user_step("first")).expect("append user");
         let path = session::session_file_path(&sess.session_id).expect("path");
         let conn = Connection::open(&path).expect("open");
         conn.execute(
@@ -156,7 +156,7 @@ fn save_appends_new_turns_without_deleting_detached_steps() {
         .expect("insert detached step");
         drop(conn);
 
-        session::append_turn(&sess.session_id, assistant_turn("reply")).expect("append assistant");
+        session::append_step(&sess.session_id, assistant_step("reply")).expect("append assistant");
 
         let conn = Connection::open(&path).expect("reopen");
         let retained: String = conn
@@ -174,16 +174,16 @@ fn save_appends_new_turns_without_deleting_detached_steps() {
 fn save_truncates_only_the_removed_turn_suffix() {
     with_sandbox(|_| {
         let sess = session::create_session().expect("create");
-        session::append_turn(&sess.session_id, user_turn("first")).expect("append user");
-        session::append_turn(&sess.session_id, assistant_turn("reply")).expect("append assistant");
+        session::append_step(&sess.session_id, user_step("first")).expect("append user");
+        session::append_step(&sess.session_id, assistant_step("reply")).expect("append assistant");
 
         let mut loaded = session::load_session(&sess.session_id).expect("load");
-        loaded.turns.truncate(1);
+        loaded.steps.truncate(1);
         session::save_session(&loaded).expect("save truncation");
 
         let reloaded = session::load_session(&sess.session_id).expect("reload");
-        assert_eq!(reloaded.turns.len(), 1);
-        assert_eq!(reloaded.turns[0].role, "user");
+        assert_eq!(reloaded.steps.len(), 1);
+        assert_eq!(reloaded.steps[0].role, "user");
         assert_eq!(session::load_turns_value(&sess.session_id), json!([
             {"role": "user", "content": "first"}
         ]));
@@ -261,7 +261,7 @@ fn catalog_stamps_create_llm_and_keeps_empty_unset() {
 
         let bare = session::Session {
             session_id: "spark_chat_legacy_llm".into(),
-            turns: Vec::new(),
+            steps: Vec::new(),
             staged: Vec::new(),
             llm: None,
         };

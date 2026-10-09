@@ -14,7 +14,7 @@ pub(super) use crate::config::secrets;
 pub(super) use crate::config::settings;
 pub(super) use crate::agent::llm::LlmConfig;
 pub(super) use crate::agent::r#loop::{self, Terminal, TurnOutcome, EVENT_TURN_COMPLETED};
-pub(super) use crate::agent::session::{self, Turn};
+pub(super) use crate::agent::session::{self, Step};
 pub(super) use crate::agent::SPARK_HOST_SYSTEM_PROMPT;
 pub(super) use crate::config::vault::{test_clear_store_fail, test_fail_store};
 pub(super) use crate::services::mcp_oauth::{
@@ -482,7 +482,7 @@ pub(super) fn live_session_id() -> Option<String> {
 pub(super) fn session_turn_contents(sid: &str) -> Vec<Option<String>> {
     session::load_session(sid)
         .unwrap()
-        .turns
+        .steps
         .iter()
         .map(|t| t.content.clone())
         .collect()

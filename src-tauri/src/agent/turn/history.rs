@@ -3,7 +3,7 @@
 use serde_json::{json, Value};
 
 use crate::agent::llm::LlmError;
-use crate::agent::session::{self, Session, Turn};
+use crate::agent::session::{self, Session, Step};
 
 use super::types::{Terminal, TurnOutcome, EVENT_TURN_COMPLETED, MAX_HISTORY_MESSAGES, MAX_USER_TURNS};
 
@@ -12,28 +12,28 @@ pub(super) fn is_clarify_text(content: &str) -> bool {
     t.contains('？') || t.contains('?')
 }
 
-fn turn_to_message(turn: &Turn) -> Value {
-    let mut m = json!({ "role": turn.role });
-    if let Some(c) = &turn.content {
+fn step_to_message(step: &Step) -> Value {
+    let mut m = json!({ "role": step.role });
+    if let Some(c) = &step.content {
         m["content"] = json!(c);
-    } else if turn.tool_calls.is_none() {
+    } else if step.tool_calls.is_none() {
         m["content"] = json!("");
     }
-    if let Some(id) = &turn.tool_call_id {
+    if let Some(id) = &step.tool_call_id {
         m["tool_call_id"] = json!(id);
     }
-    if let Some(name) = &turn.name {
+    if let Some(name) = &step.name {
         m["name"] = json!(name);
     }
-    if let Some(tc) = &turn.tool_calls {
+    if let Some(tc) = &step.tool_calls {
         m["tool_calls"] = tc.clone();
     }
     m
 }
 
 /// Drop oldest complete user rounds until dual hard caps hold.
-pub fn truncate_turns(turns: &[Turn]) -> Vec<Turn> {
-    let mut kept = turns.to_vec();
+pub fn truncate_steps(steps: &[Step]) -> Vec<Step> {
+    let mut kept = steps.to_vec();
     loop {
         let user_count = kept.iter().filter(|t| t.role == "user").count();
         if kept.len() <= MAX_HISTORY_MESSAGES && user_count <= MAX_USER_TURNS {
@@ -56,11 +56,11 @@ pub fn truncate_turns(turns: &[Turn]) -> Vec<Turn> {
     kept
 }
 
-pub fn build_llm_messages_from_turns(turns: &[Turn], system_prompt: &str) -> Vec<Value> {
-    build_llm_messages(turns, system_prompt, &[])
+pub fn build_llm_messages_from_steps(steps: &[Step], system_prompt: &str) -> Vec<Value> {
+    build_llm_messages(steps, system_prompt, &[])
 }
 
-pub fn build_llm_messages(turns: &[Turn], system_prompt: &str, summaries: &[String]) -> Vec<Value> {
+pub fn build_llm_messages(steps: &[Step], system_prompt: &str, summaries: &[String]) -> Vec<Value> {
     let mut messages = vec![json!({
         "role": "system",
         "content": system_prompt,
@@ -74,8 +74,8 @@ pub fn build_llm_messages(turns: &[Turn], system_prompt: &str, summaries: &[Stri
             "content": body,
         }));
     }
-    for turn in truncate_turns(turns) {
-        messages.push(turn_to_message(&turn));
+    for step in truncate_steps(steps) {
+        messages.push(step_to_message(&step));
     }
     messages
 }
@@ -125,9 +125,9 @@ pub fn turn_completed_emit(session_id: &str, wrote: bool, terminal: &str) -> Val
 
 /// Executable reject after cut/cancel: return notice in the response only.
 /// Do not append/persist business turns on the (possibly cut) session.
-pub(crate) fn cancelled_turn_outcome(session: &mut Session, turns_checkpoint: usize) -> TurnOutcome {
-    if session.turns.len() != turns_checkpoint {
-        session.turns.truncate(turns_checkpoint);
+pub(crate) fn cancelled_turn_outcome(session: &mut Session, steps_checkpoint: usize) -> TurnOutcome {
+    if session.steps.len() != steps_checkpoint {
+        session.steps.truncate(steps_checkpoint);
         persist(session);
     }
     TurnOutcome {

@@ -3,7 +3,7 @@
 use serde_json::{json, Value};
 
 use crate::agent::llm::{self, LlmConfig};
-use crate::agent::session::{self, Session, Turn};
+use crate::agent::session::{self, Session, Step};
 
 use super::count::count_tokens;
 use super::render::render_request;
@@ -24,7 +24,7 @@ pub fn should_compress(tokens: i64, window: u64) -> bool {
 }
 
 /// System prompt plus one user message that holds the packed transcript.
-pub fn pack_summary_messages(turns: &[Turn]) -> Vec<Value> {
+pub fn pack_summary_messages(steps: &[Step]) -> Vec<Value> {
     vec![
         json!({
             "role": "system",
@@ -32,7 +32,7 @@ pub fn pack_summary_messages(turns: &[Turn]) -> Vec<Value> {
         }),
         json!({
             "role": "user",
-            "content": format_transcript(turns),
+            "content": format_transcript(steps),
         }),
     ]
 }
@@ -40,19 +40,19 @@ pub fn pack_summary_messages(turns: &[Turn]) -> Vec<Value> {
 /// Shrink the summary pack until it is below the window.
 /// Tool results go first, then other step text. `None` only when even an
 /// emptied pack still reaches the window.
-pub fn fit_summary_messages(turns: &[Turn], window: u64) -> Option<Vec<Value>> {
+pub fn fit_summary_messages(steps: &[Step], window: u64) -> Option<Vec<Value>> {
     if window == 0 {
         return None;
     }
-    let mut turns = turns.to_vec();
+    let mut steps = steps.to_vec();
     loop {
-        let messages = pack_summary_messages(&turns);
+        let messages = pack_summary_messages(&steps);
         let text = render_request(&messages, &[]);
         let tokens = count_tokens(&text).ok()? as u64;
         if tokens < window {
             return Some(messages);
         }
-        if !shrink_longest_pack_field(&mut turns) {
+        if !shrink_longest_pack_field(&mut steps) {
             return None;
         }
     }
@@ -65,13 +65,13 @@ pub fn maybe_compress(session: &mut Session, config: &LlmConfig) {
         return;
     };
     let window = window_tokens(&config.model);
-    if !should_compress(tokens, window) || session.turns.is_empty() {
+    if !should_compress(tokens, window) || session.steps.is_empty() {
         return;
     }
     let Ok(Some((from_seq, to_seq))) = session::active_turn_seq_range(&session.session_id) else {
         return;
     };
-    let Some(messages) = fit_summary_messages(&session.turns, window) else {
+    let Some(messages) = fit_summary_messages(&session.steps, window) else {
         return;
     };
     let Ok(reply) = llm::chat_completions_with_timeout(
@@ -96,72 +96,72 @@ pub fn maybe_compress(session: &mut Session, config: &LlmConfig) {
     {
         return;
     }
-    session.turns = session::load_session(&session.session_id)
-        .map(|reloaded| reloaded.turns)
+    session.steps = session::load_session(&session.session_id)
+        .map(|reloaded| reloaded.steps)
         .unwrap_or_default();
 }
 
-fn format_transcript(turns: &[Turn]) -> String {
+fn format_transcript(steps: &[Step]) -> String {
     let mut out = String::new();
-    for turn in turns {
+    for step in steps {
         if !out.is_empty() {
             out.push('\n');
         }
-        match turn.role.as_str() {
+        match step.role.as_str() {
             "tool" => {
                 out.push_str("tool");
-                if let Some(name) = &turn.name {
+                if let Some(name) = &step.name {
                     out.push(' ');
                     out.push_str(name);
                 }
                 out.push('\n');
-                out.push_str(turn.content.as_deref().unwrap_or(""));
+                out.push_str(step.content.as_deref().unwrap_or(""));
             }
-            _ if turn.tool_calls.is_some() => {
+            _ if step.tool_calls.is_some() => {
                 out.push_str("assistant\n");
-                if let Some(content) = &turn.content {
+                if let Some(content) = &step.content {
                     if !content.is_empty() {
                         out.push_str(content);
                         out.push('\n');
                     }
                 }
-                if let Some(calls) = &turn.tool_calls {
+                if let Some(calls) = &step.tool_calls {
                     out.push_str(&calls.to_string());
                 }
             }
             _ => {
-                out.push_str(&turn.role);
+                out.push_str(&step.role);
                 out.push('\n');
-                out.push_str(turn.content.as_deref().unwrap_or(""));
+                out.push_str(step.content.as_deref().unwrap_or(""));
             }
         }
     }
     out
 }
 
-fn shrink_longest_pack_field(turns: &mut [Turn]) -> bool {
-    if shrink_longest_where(turns, |turn| turn.role == "tool") {
+fn shrink_longest_pack_field(steps: &mut [Step]) -> bool {
+    if shrink_longest_where(steps, |step| step.role == "tool") {
         return true;
     }
-    shrink_longest_where(turns, |_| true)
+    shrink_longest_where(steps, |_| true)
 }
 
-fn shrink_longest_where(turns: &mut [Turn], keep: impl Fn(&Turn) -> bool) -> bool {
-    let Some(index) = turns
+fn shrink_longest_where(steps: &mut [Step], keep: impl Fn(&Step) -> bool) -> bool {
+    let Some(index) = steps
         .iter()
         .enumerate()
-        .filter(|(_, turn)| keep(turn) && shrinkable_len(turn) > 0)
-        .max_by_key(|(_, turn)| shrinkable_len(turn))
+        .filter(|(_, step)| keep(step) && shrinkable_len(step) > 0)
+        .max_by_key(|(_, step)| shrinkable_len(step))
         .map(|(index, _)| index)
     else {
         return false;
     };
-    shrink_turn(&mut turns[index])
+    shrink_step(&mut steps[index])
 }
 
-fn shrinkable_len(turn: &Turn) -> usize {
-    let content = turn.content.as_deref().map(str::len).unwrap_or(0);
-    let calls = turn
+fn shrinkable_len(step: &Step) -> usize {
+    let content = step.content.as_deref().map(str::len).unwrap_or(0);
+    let calls = step
         .tool_calls
         .as_ref()
         .map(|calls| match calls {
@@ -172,15 +172,15 @@ fn shrinkable_len(turn: &Turn) -> usize {
     content + calls
 }
 
-fn shrink_turn(turn: &mut Turn) -> bool {
-    if let Some(content) = turn.content.as_mut() {
+fn shrink_step(step: &mut Step) -> bool {
+    if let Some(content) = step.content.as_mut() {
         if !content.is_empty() {
             let keep = content.chars().count() / 2;
             *content = content.chars().take(keep).collect();
             return true;
         }
     }
-    let Some(calls) = turn.tool_calls.take() else {
+    let Some(calls) = step.tool_calls.take() else {
         return false;
     };
     let text = match calls {
@@ -191,6 +191,6 @@ fn shrink_turn(turn: &mut Turn) -> bool {
         return false;
     }
     let keep = text.chars().count() / 2;
-    turn.tool_calls = Some(Value::String(text.chars().take(keep).collect()));
+    step.tool_calls = Some(Value::String(text.chars().take(keep).collect()));
     true
 }

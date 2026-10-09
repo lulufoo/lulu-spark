@@ -7,7 +7,7 @@ use serde_json::{json, Value};
 use crate::agent::diagnostics::{self, DiagnosticEvent, TraceId};
 use crate::agent::llm::{self, LlmConfig};
 use crate::agent::progress::{self, ProgressSink};
-use crate::agent::session::{self, Session, Turn};
+use crate::agent::session::{self, Session, Step};
 use crate::agent::tools::{self, InvokeOutcome, PrepareError};
 
 use crate::agent::binding::{
@@ -41,10 +41,10 @@ pub(crate) fn run_loop_with_progress(
     trace_id: &TraceId,
     sink: Option<&ProgressSink>,
 ) -> TurnOutcome {
-    let mut turns_checkpoint = session.turns.len();
+    let mut steps_checkpoint = session.steps.len();
     // Executable turns require Binding Contract bound.
     let Some((binding, generation)) = current_binding_generation_snapshot() else {
-        session.turns.push(Turn {
+        session.steps.push(Step {
             role: "user".into(),
             content: Some(user_message.to_string()),
             tool_call_id: None,
@@ -55,7 +55,7 @@ pub(crate) fn run_loop_with_progress(
         if current_binding_snapshot().is_none() {
             let reply =
                 "Unbound — no active Binding Contract; chat cannot run.".to_string();
-            session.turns.push(Turn {
+            session.steps.push(Step {
                 role: "assistant".into(),
                 content: Some(reply.clone()),
                 tool_call_id: None,
@@ -69,12 +69,12 @@ pub(crate) fn run_loop_with_progress(
                 wrote: false,
             };
         }
-        return cancelled_turn_outcome(session, turns_checkpoint);
+        return cancelled_turn_outcome(session, steps_checkpoint);
     };
 
     let system_prompt = prompt_text_from_binding(&binding.prompt);
     if system_prompt.trim().is_empty() {
-        session.turns.push(Turn {
+        session.steps.push(Step {
             role: "user".into(),
             content: Some(user_message.to_string()),
             tool_call_id: None,
@@ -82,7 +82,7 @@ pub(crate) fn run_loop_with_progress(
             name: None,
         });
         let reply = "Binding prompt is empty; cannot run chat.".to_string();
-        session.turns.push(Turn {
+        session.steps.push(Step {
             role: "assistant".into(),
             content: Some(reply.clone()),
             tool_call_id: None,
@@ -98,9 +98,9 @@ pub(crate) fn run_loop_with_progress(
     }
 
     crate::agent::context::maybe_compress(session, config);
-    turns_checkpoint = session.turns.len();
+    steps_checkpoint = session.steps.len();
 
-    session.turns.push(Turn {
+    session.steps.push(Step {
         role: "user".into(),
         content: Some(user_message.to_string()),
         tool_call_id: None,
@@ -113,7 +113,7 @@ pub(crate) fn run_loop_with_progress(
     // bindings retain their historical text-only behavior when they carry no
     // MCP capability config.
     if chat_turn_interrupted(&session.session_id, generation) {
-        return cancelled_turn_outcome(session, turns_checkpoint);
+        return cancelled_turn_outcome(session, steps_checkpoint);
     }
 
     let mut turn_fence = turn_fence_for_session(session);
@@ -122,7 +122,7 @@ pub(crate) fn run_loop_with_progress(
         Ok(tools) => tools,
         Err(PrepareError::EmptyMcpTools) => {
             let reply = "当前场景的 MCP 服务未暴露任何工具，无法继续。".to_string();
-            session.turns.push(Turn {
+            session.steps.push(Step {
                 role: "assistant".into(),
                 content: Some(reply.clone()),
                 tool_call_id: None,
@@ -138,7 +138,7 @@ pub(crate) fn run_loop_with_progress(
         }
         Err(PrepareError::Mcp(error)) => {
             let reply = format!("当前场景的 MCP 服务不可用：{error}");
-            session.turns.push(Turn {
+            session.steps.push(Step {
                 role: "assistant".into(),
                 content: Some(reply.clone()),
                 tool_call_id: None,
@@ -165,7 +165,7 @@ pub(crate) fn run_loop_with_progress(
         &crate::config::paths::runtime_data_dir(),
     );
     if chat_turn_interrupted(&session.session_id, generation) {
-        return cancelled_turn_outcome(session, turns_checkpoint);
+        return cancelled_turn_outcome(session, steps_checkpoint);
     }
 
     let mut wrote = false;
@@ -173,11 +173,11 @@ pub(crate) fn run_loop_with_progress(
     let mut tool_call_count = 0usize;
     let msg = loop {
         if chat_turn_interrupted(&session.session_id, generation) {
-            return cancelled_turn_outcome(session, turns_checkpoint);
+            return cancelled_turn_outcome(session, steps_checkpoint);
         }
         let summaries =
             session::load_summary_bodies(&session.session_id).unwrap_or_default();
-        let messages = build_llm_messages(&session.turns, &system_prompt, &summaries);
+        let messages = build_llm_messages(&session.steps, &system_prompt, &summaries);
         let tool_defs = turn_tools
             .catalog
             .as_ref()
@@ -209,11 +209,11 @@ pub(crate) fn run_loop_with_progress(
             Ok(message) => message,
             Err(error) => {
                 if chat_turn_interrupted(&session.session_id, generation) {
-                    return cancelled_turn_outcome(session, turns_checkpoint);
+                    return cancelled_turn_outcome(session, steps_checkpoint);
                 }
                 let mut out = map_llm_error(&error);
                 out.wrote = wrote;
-                session.turns.push(Turn {
+                session.steps.push(Step {
                     role: "assistant".into(),
                     content: Some(out.reply_text.clone()),
                     tool_call_id: None,
@@ -227,7 +227,7 @@ pub(crate) fn run_loop_with_progress(
 
         // Round-trip gate: cancel / generation may have been raised during LLM.
         if chat_turn_interrupted(&session.session_id, generation) {
-            return cancelled_turn_outcome(session, turns_checkpoint);
+            return cancelled_turn_outcome(session, steps_checkpoint);
         }
 
         if msg.tool_calls.is_empty() {
@@ -238,7 +238,7 @@ pub(crate) fn run_loop_with_progress(
             // Typed/internal Binding without an MCP server keeps the old
             // text-only contract and never dispatches in-process tools.
             let reply = "模型响应异常或请求了不支持的工具，未执行任何写入。".to_string();
-            session.turns.push(Turn {
+            session.steps.push(Step {
                 role: "assistant".into(),
                 content: Some(reply.clone()),
                 tool_call_id: None,
@@ -257,7 +257,7 @@ pub(crate) fn run_loop_with_progress(
             || tool_call_count.saturating_add(msg.tool_calls.len()) > MAX_MCP_TOOL_CALLS
         {
             let reply = "工具调用次数已达上限，未继续执行。".to_string();
-            session.turns.push(Turn {
+            session.steps.push(Step {
                 role: "assistant".into(),
                 content: Some(reply.clone()),
                 tool_call_id: None,
@@ -289,7 +289,7 @@ pub(crate) fn run_loop_with_progress(
                 })
                 .collect(),
         );
-        session.turns.push(Turn {
+        session.steps.push(Step {
             role: "assistant".into(),
             content: msg.content.clone(),
             tool_call_id: None,
@@ -300,7 +300,7 @@ pub(crate) fn run_loop_with_progress(
 
         for call in msg.tool_calls {
             if chat_turn_interrupted(&session.session_id, generation) {
-                return cancelled_turn_outcome(session, turns_checkpoint);
+                return cancelled_turn_outcome(session, steps_checkpoint);
             }
             progress::emit_progress(
                 sink,
@@ -311,7 +311,7 @@ pub(crate) fn run_loop_with_progress(
 
             let tool_started = Instant::now();
             if chat_turn_interrupted(&session.session_id, generation) {
-                return cancelled_turn_outcome(session, turns_checkpoint);
+                return cancelled_turn_outcome(session, steps_checkpoint);
             }
             let (result, use_host, staged_note) = match tools::invoke(
                 &turn_tools,
@@ -327,7 +327,7 @@ pub(crate) fn run_loop_with_progress(
                     staged_note,
                 } => (result, host, staged_note),
                 InvokeOutcome::Abort(reply) => {
-                    session.turns.push(Turn {
+                    session.steps.push(Step {
                         role: "assistant".into(),
                         content: Some(reply.clone()),
                         tool_call_id: None,
@@ -344,7 +344,7 @@ pub(crate) fn run_loop_with_progress(
             };
 
             if chat_turn_interrupted(&session.session_id, generation) {
-                return cancelled_turn_outcome(session, turns_checkpoint);
+                return cancelled_turn_outcome(session, steps_checkpoint);
             }
             let catalog = turn_tools.catalog.as_ref().expect("catalog present");
             if !result.is_error && (catalog.is_mutating(&call.name) || staged_note) {
@@ -376,7 +376,7 @@ pub(crate) fn run_loop_with_progress(
             } else {
                 "MCP tool completed without text output."
             };
-            session.turns.push(Turn {
+            session.steps.push(Step {
                 role: "tool".into(),
                 content: Some(if result.content.trim().is_empty() {
                     empty_copy.into()
@@ -394,7 +394,7 @@ pub(crate) fn run_loop_with_progress(
     let content = msg.content.clone().unwrap_or_default();
     if content.trim().is_empty() {
         let reply = "模型响应为空，未执行任何写入。".to_string();
-        session.turns.push(Turn {
+        session.steps.push(Step {
             role: "assistant".into(),
             content: Some(reply.clone()),
             tool_call_id: None,
@@ -418,7 +418,7 @@ pub(crate) fn run_loop_with_progress(
         if *count >= MAX_CLARIFY_ROUNDS {
             drop(rt);
             let reply = "澄清次数已达上限，请换种方式说明需求或稍后重试。".to_string();
-            session.turns.push(Turn {
+            session.steps.push(Step {
                 role: "assistant".into(),
                 content: Some(reply.clone()),
                 tool_call_id: None,
@@ -434,7 +434,7 @@ pub(crate) fn run_loop_with_progress(
         }
         *count += 1;
         drop(rt);
-        session.turns.push(Turn {
+        session.steps.push(Step {
             role: "assistant".into(),
             content: Some(content.clone()),
             tool_call_id: None,
@@ -450,7 +450,7 @@ pub(crate) fn run_loop_with_progress(
     }
 
     if content.contains("目前不支持") {
-        session.turns.push(Turn {
+        session.steps.push(Step {
             role: "assistant".into(),
             content: Some(content.clone()),
             tool_call_id: None,
@@ -465,7 +465,7 @@ pub(crate) fn run_loop_with_progress(
         };
     }
 
-    session.turns.push(Turn {
+    session.steps.push(Step {
         role: "assistant".into(),
         content: Some(content.clone()),
         tool_call_id: None,

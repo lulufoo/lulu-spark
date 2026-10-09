@@ -13,7 +13,7 @@ use crate::commands::ai_assistant::{
 use crate::config::secrets;
 use crate::config::settings;
 use crate::agent::r#loop;
-use crate::agent::session::{self, Turn};
+use crate::agent::session::{self, Step};
 use crate::test_support::TestSandbox;
 
 fn is_session_when_label(title: &str) -> bool {
@@ -293,9 +293,9 @@ fn sk3_t5_binding_returns_live_session_turns() {
     with_cmd_sandbox(|| {
         let ensured = ensure_ai_assistant_session_json().expect("ensure");
         let sid = ensured["session_id"].as_str().unwrap().to_string();
-        session::append_turn(
+        session::append_step(
             &sid,
-            Turn {
+            Step {
                 role: "user".into(),
                 content: Some("hello hydrate".into()),
                 tool_call_id: None,
@@ -304,9 +304,9 @@ fn sk3_t5_binding_returns_live_session_turns() {
             },
         )
         .expect("append user");
-        session::append_turn(
+        session::append_step(
             &sid,
-            Turn {
+            Step {
                 role: "assistant".into(),
                 content: Some("world hydrate".into()),
                 tool_call_id: None,
@@ -326,8 +326,8 @@ fn sk3_t5_binding_returns_live_session_turns() {
         assert_eq!(turns[1]["content"], "world hydrate");
         // Disk read must reuse session::load_session (same content as file).
         let disk = session::load_session(&sid).expect("disk");
-        assert_eq!(disk.turns.len(), 2);
-        assert_eq!(disk.turns[0].content.as_deref(), Some("hello hydrate"));
+        assert_eq!(disk.steps.len(), 2);
+        assert_eq!(disk.steps[0].content.as_deref(), Some("hello hydrate"));
     });
 }
 
@@ -340,9 +340,9 @@ fn sk3_t5_binding_turns_empty_without_live_or_after_reset() {
 
         let ensured = ensure_ai_assistant_session_json().expect("ensure");
         let sid = ensured["session_id"].as_str().unwrap().to_string();
-        session::append_turn(
+        session::append_step(
             &sid,
-            Turn {
+            Step {
                 role: "user".into(),
                 content: Some("will cut".into()),
                 tool_call_id: None,
@@ -370,9 +370,9 @@ fn sk3_t5_binding_turns_empty_without_live_or_after_reset() {
 
         let ensured2 = ensure_ai_assistant_session_json().expect("ensure2");
         let sid2 = ensured2["session_id"].as_str().unwrap().to_string();
-        session::append_turn(
+        session::append_step(
             &sid2,
-            Turn {
+            Step {
                 role: "user".into(),
                 content: Some("live2".into()),
                 tool_call_id: None,
@@ -396,9 +396,9 @@ fn sk3_t5_shell_close_preserves_live_turns_for_reopen_hydrate() {
     with_cmd_sandbox(|| {
         let ensured = ensure_ai_assistant_session_json().expect("ensure");
         let sid = ensured["session_id"].as_str().unwrap().to_string();
-        session::append_turn(
+        session::append_step(
             &sid,
-            Turn {
+            Step {
                 role: "user".into(),
                 content: Some("keep across close".into()),
                 tool_call_id: None,
@@ -567,9 +567,9 @@ fn list_select_create_chat_sessions_for_home_history() {
 
         let first = create_chat_session_json().expect("create first");
         let first_id = first["session_id"].as_str().expect("first id").to_string();
-        session::append_turn(
+        session::append_step(
             &first_id,
-            Turn {
+            Step {
                 role: "user".into(),
                 content: Some("Hello from first".into()),
                 tool_call_id: None,
@@ -603,9 +603,9 @@ fn list_select_create_chat_sessions_for_home_history() {
         assert_eq!(turns.len(), 1);
         assert_eq!(turns[0]["content"], "Hello from first");
 
-        session::append_turn(
+        session::append_step(
             &first_id,
-            Turn {
+            Step {
                 role: "tool".into(),
                 content: Some("x".repeat(2048)),
                 tool_call_id: Some("call_1".into()),

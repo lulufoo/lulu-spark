@@ -13,8 +13,8 @@ fn run_loop_final_reply_none_terminal_and_wrote_false() {
         let out = r#loop::run_loop(&mut sess, "你好", &cfg_for(&mock));
         assert_outcome(&out, "none", false);
         assert!(out.reply_text.contains("计划助手"));
-        assert_eq!(sess.turns[0].role, "user");
-        assert_eq!(sess.turns[1].role, "assistant");
+        assert_eq!(sess.steps[0].role, "user");
+        assert_eq!(sess.steps[1].role, "assistant");
         assert_host_llm_tools_empty(&mock.hits.lock().unwrap()[0]);
     });
 }
@@ -71,7 +71,7 @@ fn run_loop_uses_mcp_tools_and_feeds_tool_result_back_to_model() {
     assert_outcome(&outcome, "none", false);
     assert_eq!(
         session
-            .turns
+            .steps
             .iter()
             .filter(|turn| turn.role == "tool")
             .count(),
@@ -206,7 +206,7 @@ fn run_loop_returns_argument_and_allowlist_failures_to_the_model_as_tool_turns()
 
     assert_outcome(&outcome, "none", false);
     let tool_turns: Vec<_> = session
-        .turns
+        .steps
         .iter()
         .filter(|turn| turn.role == "tool")
         .collect();
@@ -269,7 +269,7 @@ fn run_loop_stops_after_bounded_mcp_tool_rounds() {
     assert!(outcome.reply_text.contains("调用次数已达上限"));
     assert_eq!(
         session
-            .turns
+            .steps
             .iter()
             .filter(|turn| turn.role == "tool")
             .count(),
@@ -413,7 +413,7 @@ fn run_loop_offers_host_file_tools_and_keeps_scratch_writes_inside_cache() {
         "sent system prompt must include notes under SPARK_DATA_DIR"
     );
     let tool_turns: Vec<_> = session
-        .turns
+        .steps
         .iter()
         .filter(|turn| turn.role == "tool")
         .collect();
@@ -478,7 +478,7 @@ fn run_loop_does_not_call_mcp_after_reset_invalidates_its_generation() {
     assert_outcome(&outcome, "error", false);
     assert!(outcome.reply_text.contains("cancelled"));
     assert!(
-        session.turns.is_empty(),
+        session.steps.is_empty(),
         "cut cancellation must truncate the old generation's user and tool turns"
     );
     assert_eq!(
@@ -513,7 +513,7 @@ fn run_loop_host_empty_tools_rejects_tool_calls_without_dispatch() {
         let out = r#loop::run_loop(&mut sess, "把主标题改成写后标题", &cfg_for(&mock));
         assert_outcome(&out, "error", false);
         assert!(
-            sess.turns.iter().all(|t| t.role != "tool"),
+            sess.steps.iter().all(|t| t.role != "tool"),
             "Host empty-tools path must not append tool turns"
         );
         let hits = mock.hits.lock().unwrap();
@@ -569,7 +569,7 @@ fn parallel_tool_calls_are_rejected_without_process_dispatch() {
         arm_plan_binding(&master);
         let out = r#loop::run_loop(&mut sess, "改不存在的子项并加一个", &cfg_for(&mock));
         assert_outcome(&out, "error", false);
-        assert!(sess.turns.iter().all(|t| t.role != "tool"));
+        assert!(sess.steps.iter().all(|t| t.role != "tool"));
         assert_eq!(mock.hits.lock().unwrap().len(), 1);
         assert_host_llm_tools_empty(&mock.hits.lock().unwrap()[0]);
     });
@@ -637,7 +637,7 @@ fn unknown_tool_name_is_error_terminal_and_does_not_write() {
         arm_plan_binding(&master);
         let out = r#loop::run_loop(&mut sess, "删掉计划", &cfg_for(&mock));
         assert_outcome(&out, "error", false);
-        assert!(sess.turns.iter().all(|t| t.role != "tool"));
+        assert!(sess.steps.iter().all(|t| t.role != "tool"));
         assert_host_llm_tools_empty(&mock.hits.lock().unwrap()[0]);
     });
 }
@@ -838,7 +838,7 @@ fn tool_rounds_hard_cap_eight_errors() {
         arm_plan_binding(&master);
         let out = r#loop::run_loop(&mut sess, "一直读", &cfg_for(&mock));
         assert_outcome(&out, "error", false);
-        let tool_rounds = sess.turns.iter().filter(|t| t.role == "tool").count();
+        let tool_rounds = sess.steps.iter().filter(|t| t.role == "tool").count();
         assert_eq!(tool_rounds, 0, "Host empty-tools must not enter tool rounds");
         assert_eq!(mock.hits.lock().unwrap().len(), 1);
         assert_host_llm_tools_empty(&mock.hits.lock().unwrap()[0]);
@@ -1149,7 +1149,7 @@ fn t3_host_unexpected_tool_calls_never_call_process_dispatch() {
         assert_eq!(result.body["wrote"], false);
         assert_eq!(result.body["terminal"], "error");
         let sess = session::load_session(sid).unwrap();
-        assert!(sess.turns.iter().all(|t| t.role != "tool"));
+        assert!(sess.steps.iter().all(|t| t.role != "tool"));
         assert_host_llm_tools_empty(&mock.hits.lock().unwrap()[0]);
     });
 }
@@ -1220,7 +1220,7 @@ fn t3_nonempty_tools_binding_tool_calls_never_mutate_todo_task() {
         let out = r#loop::run_loop(&mut sess, "改标题", &cfg_for(&mock));
         assert_eq!(out.wrote, false);
         assert!(
-            !sess.turns.iter().any(|t| t.role == "tool"),
+            !sess.steps.iter().any(|t| t.role == "tool"),
             "no tool-role turns from removed dispatch path"
         );
         assert_eq!(out.terminal, Terminal::Error);
@@ -1258,7 +1258,7 @@ fn t2_key_only_set_loads_mcp_and_rejects_unreachable_endpoint() {
         assert_outcome(&out, "error", false);
         assert_eq!(out.wrote, false);
         assert!(
-            !sess.turns.iter().any(|t| t.role == "tool"),
+            !sess.steps.iter().any(|t| t.role == "tool"),
             "key-only business path must not dispatch in-process tools"
         );
         assert!(

@@ -137,7 +137,7 @@ fn t4_session_cache_remains_only_persistence_backend_no_parallel_store() {
 
         // Persist a turn through the existing Session cache API.
         let mut cached = session::load_session(&sid).expect("cache load");
-        cached.turns.push(session::Turn {
+        cached.steps.push(session::Step {
             role: "user".into(),
             content: Some("hello from cache".into()),
             tool_call_id: None,
@@ -157,9 +157,9 @@ fn t4_session_cache_remains_only_persistence_backend_no_parallel_store() {
         );
 
         let reloaded = session::load_session(&sid).expect("reload");
-        assert_eq!(reloaded.turns.len(), 1);
+        assert_eq!(reloaded.steps.len(), 1);
         assert_eq!(
-            reloaded.turns[0].content.as_deref(),
+            reloaded.steps[0].content.as_deref(),
             Some("hello from cache")
         );
         // Engine-opaque cache schema: no engine selection on Session record.
@@ -375,7 +375,7 @@ fn t1_new_session_json_has_empty_staged_and_no_body() {
         assert_eq!(path.extension().and_then(|e| e.to_str()), Some("sqlite"));
         assert!(!path.with_extension("json").is_file());
         assert!(sess.staged.is_empty(), "new session staged must be empty");
-        assert!(sess.turns.is_empty());
+        assert!(sess.steps.is_empty());
     });
 }
 
@@ -390,13 +390,13 @@ fn t1_save_staged_roundtrip_does_not_enter_turns() {
         let loaded = session::load_session(&sess.session_id).expect("load");
         assert_eq!(loaded.staged, vec![entry]);
         assert!(
-            loaded.turns.is_empty(),
+            loaded.steps.is_empty(),
             "staged must not be written into turns"
         );
 
         assert_eq!(loaded.staged.len(), 1);
         assert_path_only_staged(&loaded.staged[0]);
-        assert!(loaded.turns.is_empty());
+        assert!(loaded.steps.is_empty());
     });
 }
 

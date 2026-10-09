@@ -164,7 +164,7 @@ fn knowledge_content_stages_and_hides_path() {
 fn other_tools_pass_through() {
     let mut sess = session::Session {
         session_id: "sess_passthrough".into(),
-        turns: Vec::new(),
+        steps: Vec::new(),
         staged: Vec::new(),
         llm: None,
     };

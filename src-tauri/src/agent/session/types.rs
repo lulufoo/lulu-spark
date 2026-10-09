@@ -31,7 +31,7 @@ pub fn value_exposes_engine_selection(v: &Value) -> bool {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct Turn {
+pub struct Step {
     pub role: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub content: Option<String>,
@@ -203,7 +203,7 @@ pub struct StagedEntry {
 pub struct Session {
     pub session_id: String,
     #[serde(default)]
-    pub turns: Vec<Turn>,
+    pub steps: Vec<Step>,
     #[serde(default)]
     pub staged: Vec<StagedEntry>,
     /// Display LLM category (`openai` / `claude` / `grok` / `host` / `kimi` / `qwen`).
