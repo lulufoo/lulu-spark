@@ -3,6 +3,7 @@
 mod support;
 
 mod binding;
+mod finish_reason;
 mod flights;
 mod history;
 mod reasoning;

@@ -111,6 +111,17 @@ pub fn map_llm_error(err: &LlmError) -> TurnOutcome {
         }
         LlmError::Timeout => "调用超时，请稍后重试。".into(),
         LlmError::Truncated => "回复被截断，请重试或缩短请求。".into(),
+        LlmError::ThinkingExhausted => {
+            "模型的思考占满了输出预算，没有给出回复，请缩短请求或稍后重试。".into()
+        }
+        LlmError::ContentFiltered => "回复被上游的安全审核拦截，请调整请求后重试。".into(),
+        LlmError::InferenceFailed => "模型推理出现异常，请稍后重试。".into(),
+        LlmError::ContextExceeded => {
+            "对话内容超出了模型的上下文窗口，请缩短请求或开启新会话。".into()
+        }
+        LlmError::UnknownFinish(reason) => {
+            format!("模型以未知原因（{reason}）结束，没有给出回复，未执行任何写入。")
+        }
         LlmError::UnsupportedToolCalls => {
             "当前上游不支持工具调用（tool_calls），无法继续。".into()
         }

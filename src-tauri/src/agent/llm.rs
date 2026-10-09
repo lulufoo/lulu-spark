@@ -1,5 +1,6 @@
 //! OpenAI-compatible streaming chat/completions client.
 
+mod classify;
 mod stream;
 
 use std::time::Duration;
@@ -28,7 +29,18 @@ pub enum LlmError {
     RateLimited,
     Server(u16),
     Timeout,
+    /// `finish_reason=length` after a cut-off answer or cut-off tool arguments.
     Truncated,
+    /// `finish_reason=length` with only thinking: it used up the output budget.
+    ThinkingExhausted,
+    /// `finish_reason=sensitive`: blocked by the upstream's safety review.
+    ContentFiltered,
+    /// `finish_reason=network_error`: the model's inference failed upstream.
+    InferenceFailed,
+    /// `finish_reason=model_context_window_exceeded`.
+    ContextExceeded,
+    /// An unrecognised `finish_reason` with no usable output; carries the raw value.
+    UnknownFinish(String),
     UnsupportedToolCalls,
     Network(String),
     InvalidResponse(String),
@@ -246,3 +258,7 @@ fn map_error_status(status: u16, text: &str) -> LlmError {
     let _ = session::log_agent_error(&format!("LLM unexpected status={status}"));
     LlmError::InvalidResponse(format!("status {status}"))
 }
+
+#[cfg(test)]
+#[path = "../unit-tests/agent/llm_classify_tests.rs"]
+mod classify_tests;

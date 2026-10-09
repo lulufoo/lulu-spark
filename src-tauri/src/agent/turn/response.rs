@@ -15,3 +15,18 @@ pub(super) fn with_response(mut step: Step, msg: &AssistantMessage) -> Step {
     step.reasoning_content = msg.reasoning_content.clone().filter(|text| !text.is_empty());
     step
 }
+
+/// Reply for a response that ended with no text and no tool calls.
+///
+/// `wrote` is true once a mutating tool succeeded in this Turn; `tool_rounds` counts
+/// the tool rounds already run. A model that stops silently after writing must not be
+/// reported as "nothing was written".
+pub(super) fn empty_reply_text(wrote: bool, tool_rounds: usize) -> &'static str {
+    if wrote {
+        "已执行写入，但模型没有给出最终回复。"
+    } else if tool_rounds > 0 {
+        "已执行工具，未写入，但模型没有给出最终回复。"
+    } else {
+        "模型响应为空，未执行任何写入。"
+    }
+}

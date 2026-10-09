@@ -124,9 +124,9 @@ fn llm_malformed_tool_call_keeps_snapshot_and_reports_error() {
 #[test]
 fn llm_keeps_unknown_finish_reason_verbatim() {
     with_agent_sandbox(|_| {
-        let mock = serve_sse(vec![delta_chunk(json!({ "content": "x" }), json!("sensitive"))]);
+        let mock = serve_sse(vec![delta_chunk(json!({ "content": "x" }), json!("vendor_special"))]);
         let msg = call_traced(&mock, None).into_result().expect("ok");
-        assert_eq!(msg.finish_reason.as_deref(), Some("sensitive"));
+        assert_eq!(msg.finish_reason.as_deref(), Some("vendor_special"));
     });
 }
 

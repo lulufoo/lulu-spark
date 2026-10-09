@@ -19,7 +19,7 @@ use super::history::{
     build_llm_messages, cancelled_turn_outcome, is_clarify_text, map_llm_error, persist,
     prompt_text_from_binding,
 };
-use super::response::with_response;
+use super::response::{empty_reply_text, with_response};
 use super::types::{Terminal, TurnOutcome, MAX_CLARIFY_ROUNDS, MAX_MCP_TOOL_CALLS, MAX_MCP_TOOL_ROUNDS};
 
 pub fn run_loop(session: &mut Session, user_message: &str, config: &LlmConfig) -> TurnOutcome {
@@ -228,13 +228,17 @@ pub(crate) fn run_loop_with_progress(
         let mut on_delta = |hint: &str| {
             progress::emit_progress(sink, &session_id, trace_id, hint);
         };
-        let msg = match llm::chat_completions_with_timeout(
+        let call = llm::chat_completions_traced(
             &messages,
             tool_defs,
             config,
             llm::DEFAULT_TIMEOUT,
             Some(&mut on_delta),
-        ) {
+        );
+        // Kept even when the call is rejected: the thinking and `finish_reason` that
+        // did arrive go onto the error Step below.
+        let arrived = call.snapshot.clone();
+        let msg = match call.into_result() {
             Ok(message) => message,
             Err(error) => {
                 if chat_turn_interrupted(&session.session_id, generation) {
@@ -242,7 +246,8 @@ pub(crate) fn run_loop_with_progress(
                 }
                 let mut out = map_llm_error(&error);
                 out.wrote = wrote;
-                session.steps.push(Step {
+                // The text is our error copy, not model output; the fields are the model's.
+                let step = Step {
                     role: "assistant".into(),
                     content: Some(out.reply_text.clone()),
                     tool_call_id: None,
@@ -252,6 +257,10 @@ pub(crate) fn run_loop_with_progress(
                     model: None,
                     usage: None,
                     reasoning_content: None,
+                };
+                session.steps.push(match &arrived {
+                    Some(message) => with_response(step, message),
+                    None => step,
                 });
                 persist(session);
                 return out;
@@ -446,7 +455,7 @@ pub(crate) fn run_loop_with_progress(
 
     let content = msg.content.clone().unwrap_or_default();
     if content.trim().is_empty() {
-        let reply = "模型响应为空，未执行任何写入。".to_string();
+        let reply = empty_reply_text(wrote, tool_rounds).to_string();
         session.steps.push(with_response(Step {
             role: "assistant".into(),
             content: Some(reply.clone()),

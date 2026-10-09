@@ -5,6 +5,7 @@ use std::io::{BufRead, BufReader, Read};
 
 use serde_json::Value;
 
+use super::classify::{classify_finish, Shape};
 use super::{AssistantMessage, LlmCallOutcome, LlmError, ToolCall};
 use crate::agent::session;
 
@@ -265,21 +266,14 @@ impl StreamAssembler {
 
     /// Decides whether what arrived is acceptable. Only this step may reject a response.
     fn classify_error(&self) -> Option<LlmError> {
-        if self.finish_reason.as_deref() == Some("length") {
-            let _ = session::log_agent_error("LLM finish_reason=length (truncated)");
-            return Some(LlmError::Truncated);
-        }
-        let mut has_tool_call = false;
-        for slot in self.tool_calls.iter().filter(|slot| !slot.is_blank()) {
-            if slot.id.is_empty() || slot.name.is_empty() {
-                return Some(LlmError::InvalidResponse("malformed tool_calls".into()));
-            }
-            has_tool_call = true;
-        }
-        if self.content.is_empty() && !has_tool_call && self.finish_reason.is_none() {
-            return Some(LlmError::InvalidResponse("missing choices".into()));
-        }
-        None
+        let slots = || self.tool_calls.iter().filter(|slot| !slot.is_blank());
+        classify_finish(&Shape {
+            has_content: !self.content.is_empty(),
+            has_tool_call: slots().next().is_some(),
+            has_reasoning: !self.reasoning.is_empty(),
+            malformed_tool_calls: slots().any(|slot| slot.id.is_empty() || slot.name.is_empty()),
+            finish_reason: self.finish_reason.as_deref(),
+        })
     }
 }
 
