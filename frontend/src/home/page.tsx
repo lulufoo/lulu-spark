@@ -20,6 +20,7 @@ import { ComposerFileLists } from './ui/composer-file-lists.tsx';
 import { ComposerInput, type ComposerInputHandle } from './ui/composer-input.tsx';
 import { UserMessageText } from './ui/user-message-text.tsx';
 import { copyMessageText } from './commands/copy-message.ts';
+import { loadComposerText, saveComposerText } from './commands/composer-keep.ts';
 import { copyCurrentSessionId } from './commands/copy-session-id.ts';
 import {
   createSession,
@@ -194,10 +195,17 @@ export function HomePage({
     void loadPackageDebug();
   }, []);
 
+  // Leaving #/home unmounts this page; put back what was typed. Runs before the draft effect below.
+  useLayoutEffect(() => {
+    const kept = loadComposerText();
+    if (kept) inputRef.current?.setText(kept);
+  }, []);
+
   useEffect(() => {
     if (!consumeComposerFocus()) return;
     inputRef.current?.focus();
     applyComposerDraft(inputRef.current);
+    saveComposerText(inputRef.current?.getText() ?? '');
   }, [state.currentSessionId, state.staged]);
 
   useEffect(() => {
@@ -251,6 +259,7 @@ export function HomePage({
     const text = input ? input.getText().trim() : '';
     if (!text || state.inFlightIds.includes(state.currentSessionId)) return;
     input?.clear();
+    saveComposerText('');
     syncComposerHeight();
     void sendMessage(text);
   }
@@ -261,6 +270,11 @@ export function HomePage({
 
   function onAccountLogout() {
     void signOutAuth().catch(() => {});
+  }
+
+  function onComposerInput() {
+    saveComposerText(inputRef.current?.getText() ?? '');
+    syncComposerHeight();
   }
 
   function onComposerKey(event: KeyboardEvent<HTMLDivElement>) {
@@ -469,7 +483,7 @@ export function HomePage({
               onKeyDown={onComposerKey}
               onCompositionStart={() => imeEnterRef.current.onCompositionStart()}
               onCompositionEnd={() => imeEnterRef.current.onCompositionEnd()}
-              onInput={syncComposerHeight}
+              onInput={onComposerInput}
             />
             <div className="home-chat-composer-corner">
               <ContextPercent percent={state.contextPercent} usage={state.contextUsage} />
