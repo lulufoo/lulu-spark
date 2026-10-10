@@ -1,7 +1,8 @@
-import { useLayoutEffect, useState, useSyncExternalStore, type MouseEvent } from 'react';
+import { useLayoutEffect, useSyncExternalStore, type MouseEvent } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { flushSync } from 'react-dom';
 import { OverlayDismissButton } from '../../shared/overlay-dismiss-button.tsx';
+import { ViewerHeaderIcon } from '../../shared/viewer-header-icons.tsx';
 import {
   cancelFilePopupEdit,
   closeFilePopup,
@@ -11,9 +12,6 @@ import {
 } from '../commands/popup.ts';
 import { viewStore } from '../state/store.ts';
 import { paintFilePopupDoc } from './paint.ts';
-
-const COPY_LABEL = 'Copy';
-const COPY_FLASH_MS = 1200;
 
 let hostRoot: Root | null = null;
 
@@ -34,7 +32,6 @@ export function ensureFilePopupHost() {
 
 export function FilePopup() {
   const view = useSyncExternalStore(viewStore.subscribe, viewStore.getSnapshot);
-  const [copyLabel, setCopyLabel] = useState(COPY_LABEL);
 
   useLayoutEffect(() => {
     if (!view.open) return;
@@ -54,10 +51,6 @@ export function FilePopup() {
     return () => document.removeEventListener('keydown', onKey);
   }, [view.open]);
 
-  useLayoutEffect(() => {
-    setCopyLabel(COPY_LABEL);
-  }, [view.path, view.open]);
-
   if (!view.open) return null;
 
   function onOverlayClick(event: MouseEvent<HTMLDivElement>) {
@@ -69,11 +62,7 @@ export function FilePopup() {
   const canCopy = Boolean(view.path);
 
   function onCopyPath() {
-    void copyFilePopupPath().then((ok) => {
-      if (!ok) return;
-      setCopyLabel('✓');
-      setTimeout(() => setCopyLabel(COPY_LABEL), COPY_FLASH_MS);
-    });
+    void copyFilePopupPath();
   }
 
   return (
@@ -83,15 +72,20 @@ export function FilePopup() {
           <h3 id="file-popup-title" className="viewer-panel-title">
             {view.title}
           </h3>
-          <div className="file-popup-actions">
+          <div className="viewer-header-actions">
             {canEdit && view.editing ? (
               <>
-                <button type="button" className="md-header-btn" disabled={busy} onClick={() => cancelFilePopupEdit()}>
+                <button
+                  type="button"
+                  className="md-header-btn viewer-chrome-persisted"
+                  disabled={busy}
+                  onClick={() => cancelFilePopupEdit()}
+                >
                   Cancel
                 </button>
                 <button
                   type="button"
-                  className="md-header-btn primary"
+                  className="md-header-btn viewer-chrome-persisted"
                   disabled={busy}
                   onClick={() => {
                     void saveFilePopup();
@@ -101,21 +95,25 @@ export function FilePopup() {
                 </button>
               </>
             ) : canEdit ? (
-              <button type="button" className="md-header-btn primary" disabled={busy || Boolean(view.error)} onClick={() => enterFilePopupEdit()}>
-                Edit
+              <button
+                type="button"
+                className="md-header-btn viewer-chrome-persisted"
+                disabled={busy || Boolean(view.error)}
+                onClick={() => enterFilePopupEdit()}
+              >
+                <ViewerHeaderIcon name="edit" />
               </button>
             ) : null}
             <button
               type="button"
-              className="md-header-btn"
+              className="md-header-btn viewer-chrome-persisted"
               data-role="copy-file-path"
-              title="Copy"
-              data-tip={view.path || undefined}
+              title={view.path || undefined}
               aria-label="Copy absolute path"
               disabled={!canCopy}
               onClick={onCopyPath}
             >
-              {copyLabel}
+              <ViewerHeaderIcon name="copy" />
             </button>
             <OverlayDismissButton disabled={view.saving} onClick={() => closeFilePopup()} />
           </div>
