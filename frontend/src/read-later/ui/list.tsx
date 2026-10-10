@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type MouseEvent } from 'react';
 import { flushSync } from 'react-dom';
 import { createRoot, type Root } from 'react-dom/client';
+import { ViewerHeaderIcon } from '../../shared/viewer-header-icons.tsx';
 import { openReadLaterInChat } from '../commands/open-in-chat.ts';
 import {
   bindFocusRefresh,
@@ -70,18 +71,20 @@ function LinkEntry({ entry }: { entry: ReadLaterEntry }) {
         <span className="read-later-link-title">{title}</span>
         {savedAt ? <span className="read-later-link-meta">{savedAt}</span> : null}
       </a>
-      <button
-        type="button"
-        className="read-later-open-in-chat"
-        data-id={entry.id}
-        aria-label="Open in chat"
-        title="Open in chat"
-      >
-        Chat
-      </button>
-      <button type="button" className="read-later-delete" data-id={entry.id} aria-label="Delete">
-        ×
-      </button>
+      <div className="read-later-item-actions">
+        <button
+          type="button"
+          className="read-later-open-in-chat"
+          data-id={entry.id}
+          aria-label="Open in chat"
+          title="Open in chat"
+        >
+          <ViewerHeaderIcon name="chat" filled />
+        </button>
+        <button type="button" className="read-later-delete" data-id={entry.id} aria-label="Delete">
+          ×
+        </button>
+      </div>
     </li>
   );
 }

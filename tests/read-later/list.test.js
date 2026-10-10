@@ -551,6 +551,8 @@ describe('mountReadLaterList', () => {
     await vi.waitFor(() => {
       expect(container.querySelector('.read-later-open-in-chat')).not.toBeNull();
     });
+    expect(container.querySelector('.read-later-open-in-chat')?.textContent?.trim()).toBe('');
+    expect(container.querySelector('.read-later-open-in-chat [data-viewer-icon="chat"]')).not.toBeNull();
     container.querySelector('.read-later-open-in-chat').click();
     await vi.waitFor(() => {
       expect(openReadLaterInChat).toHaveBeenCalledWith(

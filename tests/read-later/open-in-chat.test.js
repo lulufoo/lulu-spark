@@ -6,7 +6,12 @@ import {
   readLaterReferenceDraft,
 } from '../../frontend/src/read-later/commands/open-in-chat.ts';
 import * as homeOpen from '../../frontend/src/home/commands/open-in-chat.ts';
+import { closeReadLaterDialog } from '../../frontend/src/read-later/commands/dialog.ts';
 import { parseReferences } from '../../frontend/src/home/references/index.ts';
+
+vi.mock('../../frontend/src/read-later/commands/dialog.ts', () => ({
+  closeReadLaterDialog: vi.fn(),
+}));
 
 const ID = 'cccccccccccccccccccccccccccccccc';
 
@@ -43,15 +48,28 @@ describe('openReadLaterInChat', () => {
 
   beforeEach(() => {
     draftSpy = vi.spyOn(homeOpen, 'openDraftInChat').mockResolvedValue();
+    vi.mocked(closeReadLaterDialog).mockClear();
   });
 
   afterEach(() => {
     draftSpy.mockRestore();
   });
 
-  it('opens a new chat prefilled with the read-later reference, not a url', async () => {
+  it('closes the list dialog before opening the new chat', async () => {
     await openReadLaterInChat({ id: ID, url: 'https://example.com/a', title: 'Saved' });
+    expect(closeReadLaterDialog).toHaveBeenCalledOnce();
     expect(draftSpy).toHaveBeenCalledWith(`[Saved](read-later:${ID}) `);
+    expect(closeReadLaterDialog.mock.invocationCallOrder[0]).toBeLessThan(
+      draftSpy.mock.invocationCallOrder[0],
+    );
+  });
+
+  it('does not close the dialog when the entry has no id', async () => {
+    await expect(openReadLaterInChat({ id: '', url: 'https://example.com/a' })).rejects.toThrow(
+      'Missing source',
+    );
+    expect(closeReadLaterDialog).not.toHaveBeenCalled();
+    expect(draftSpy).not.toHaveBeenCalled();
   });
 
   it('re-enables the button after opening, and after a failure', async () => {
@@ -64,12 +82,5 @@ describe('openReadLaterInChat', () => {
       openReadLaterInChat({ id: ID, url: 'https://example.com/a', title: 'A' }, button),
     ).rejects.toThrow('boom');
     expect(button.disabled).toBe(false);
-  });
-
-  it('rejects a missing id', async () => {
-    await expect(openReadLaterInChat({ id: '', url: 'https://example.com/a' })).rejects.toThrow(
-      'Missing source',
-    );
-    expect(draftSpy).not.toHaveBeenCalled();
   });
 });

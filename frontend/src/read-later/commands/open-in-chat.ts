@@ -1,6 +1,7 @@
 import { openDraftInChat } from '../../home/commands/open-in-chat.ts';
 import { serializeReference } from '../../home/references/index.ts';
 import type { ReadLaterEntry } from '../state/types.ts';
+import { closeReadLaterDialog } from './dialog.ts';
 
 /** `[title](read-later:<id>) ` — shown as a chip in the composer; the space keeps typing after it. */
 export function readLaterReferenceDraft(entry: ReadLaterEntry) {
@@ -17,6 +18,7 @@ export async function openReadLaterInChat(
   const draft = readLaterReferenceDraft(entry);
   if (button) button.disabled = true;
   try {
+    closeReadLaterDialog();
     await openDraftInChat(draft);
   } finally {
     if (button) button.disabled = false;
