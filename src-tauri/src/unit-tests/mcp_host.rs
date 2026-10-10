@@ -179,6 +179,7 @@ const NOTES_TOOLS_NON_SPARK: &[&str] = &[
 const KNOWLEDGE_TOOLS: &[&str] = &[
     "list_knowledge_categories",
     "get_knowledge_content",
+    "get_knowledge_file",
 ];
 
 const GLOBAL_TOOLS: &[&str] = &["search_document"];
@@ -200,10 +201,11 @@ fn cursor_ide_expected_tool_names() -> BTreeSet<&'static str> {
     names
 }
 
-/// Mobile = cursor_ide set minus desktop-only `get_note_file`; it keeps `get_note_content`.
+/// Mobile = cursor_ide set minus desktop-only `get_*_file`; it keeps `get_*_content`.
 fn mobile_expected_tool_names() -> BTreeSet<&'static str> {
     let mut names = cursor_ide_expected_tool_names();
     names.remove("get_note_file");
+    names.remove("get_knowledge_file");
     names
 }
 

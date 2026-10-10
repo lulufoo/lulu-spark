@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use serde_json::{json, Value};
 
-use crate::services::file_export::copy_into_dir_versioned;
+use crate::services::file_export::{copy_into_dir_versioned, copy_result};
 use crate::services::spark_read::get_note_path_by_id;
 
 /// Copy the raw layer of note `id` into `dest_dir`. Success is `{id, ok, path}` only.
@@ -19,14 +19,8 @@ pub fn get_note_file(repo_root: &Path, id: &str, dest_dir: &str) -> Value {
     ) else {
         return json!({ "id": id.trim(), "ok": false, "error": "Missing path" });
     };
-    match copy_into_dir_versioned(&PathBuf::from(source), dest_dir, note_id, "md") {
-        Ok(path) => json!({ "id": note_id, "ok": true, "path": path.to_string_lossy() }),
-        Err(mut err) => {
-            err["id"] = json!(note_id);
-            err["ok"] = json!(false);
-            err
-        }
-    }
+    let outcome = copy_into_dir_versioned(&PathBuf::from(source), dest_dir, note_id, "md");
+    copy_result(note_id, outcome)
 }
 
 #[cfg(test)]

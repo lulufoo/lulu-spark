@@ -70,15 +70,28 @@ fn is_safe_stem(stem: &str) -> bool {
 }
 
 fn target_name(stem: &str, ext: &str, version: u32) -> String {
+    let suffix = if ext.is_empty() { String::new() } else { format!(".{ext}") };
     if version == 0 {
-        format!("{stem}.{ext}")
+        format!("{stem}{suffix}")
     } else {
-        format!("{stem}-v{version}.{ext}")
+        format!("{stem}-v{version}{suffix}")
+    }
+}
+
+/// Shape a copy outcome as the tool result: `{id, ok, path}` or `{id, ok:false, error, _status}`.
+pub fn copy_result(id: &str, outcome: Result<PathBuf, Value>) -> Value {
+    match outcome {
+        Ok(path) => json!({ "id": id, "ok": true, "path": path.to_string_lossy() }),
+        Err(mut err) => {
+            err["id"] = json!(id);
+            err["ok"] = json!(false);
+            err
+        }
     }
 }
 
 /// Copy `src` into `dest_dir` as `<stem>.<ext>`, or `<stem>-v1.<ext>`, `-v2`… when taken.
-/// Returns the full path written.
+/// An empty `ext` drops the dot. Returns the full path written.
 pub fn copy_into_dir_versioned(
     src: &Path,
     dest_dir: &str,

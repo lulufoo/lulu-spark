@@ -29,6 +29,18 @@ fn copy_writes_id_named_file_and_creates_missing_dir() {
 }
 
 #[test]
+fn copy_with_empty_ext_drops_the_dot() {
+    let sandbox = TestSandbox::new();
+    let src = source_file(&sandbox, "x");
+    let dest = dest_under_cache(&sandbox, "ws/bare");
+    let dest = dest.to_str().unwrap();
+    let first = copy_into_dir_versioned(&src, dest, "doc", "").expect("v0");
+    let second = copy_into_dir_versioned(&src, dest, "doc", "").expect("v1");
+    assert_eq!(first.file_name().unwrap().to_str().unwrap(), "doc");
+    assert_eq!(second.file_name().unwrap().to_str().unwrap(), "doc-v1");
+}
+
+#[test]
 fn copy_never_overwrites_and_bumps_version() {
     let sandbox = TestSandbox::new();
     let src = source_file(&sandbox, "first");

@@ -1,7 +1,7 @@
 use crate::mcp_host::build_channel_tool_table;
 use crate::mcp_host::invoke_eq;
 use crate::mcp_host::catalog::groups::global;
-use crate::mcp_host::catalog::groups::knowledge;
+use crate::mcp_host::catalog::groups::knowledge::{self, knowledge_file_invoke};
 use crate::mcp_host::catalog::groups::notes::{
     self, create_note_from_content, create_note_from_source, note_file_invoke, note_path_invoke,
     update_note_from_content, update_note_from_source,
@@ -26,6 +26,7 @@ const NOTES_APIS: &[&str] = &[
 const KNOWLEDGE_APIS: &[&str] = &[
     "list_knowledge_categories",
     "get_knowledge_content",
+    "get_knowledge_file",
 ];
 
 const GLOBAL_APIS: &[&str] = &["search_document"];
@@ -269,6 +270,16 @@ fn get_note_file_is_desktop_only_and_requires_dest_dir() {
             .contains("read and write"));
     }
     assert!(build("notes", "get_note_file", "mobile").is_none());
+}
+
+#[test]
+fn get_knowledge_file_is_desktop_only_and_requires_dest_dir() {
+    for channel in ["spark", "cursor", "cursor_ide", "codex", "claude"] {
+        let route = build("knowledge", "get_knowledge_file", channel).expect(channel);
+        assert!(invoke_eq(route.invoke, knowledge_file_invoke), "{channel}");
+        assert_eq!(route.input_schema["required"], serde_json::json!(["id", "dest_dir"]));
+    }
+    assert!(build("knowledge", "get_knowledge_file", "mobile").is_none());
 }
 
 #[test]

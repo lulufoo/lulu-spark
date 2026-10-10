@@ -1,9 +1,13 @@
 //! Knowledge business group — API registry.
 
 mod get_knowledge_content;
+mod get_knowledge_file;
 mod list_knowledge_categories;
 
 use crate::mcp_host::ToolRoute;
+
+#[cfg(test)]
+pub(crate) use get_knowledge_file::invoke as knowledge_file_invoke;
 
 pub const GROUP_ID: &str = "knowledge";
 
@@ -17,6 +21,7 @@ const REGISTRY: &[(&str, BuildFn)] = &[
         list_knowledge_categories::build as BuildFn,
     ),
     ("get_knowledge_content", get_knowledge_content::build as BuildFn),
+    ("get_knowledge_file", get_knowledge_file::build as BuildFn),
 ];
 
 pub fn contains(api: &str) -> bool {

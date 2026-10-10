@@ -8,6 +8,7 @@ mod write;
 mod rename;
 mod entry;
 mod doc_map;
+mod export_file;
 mod hide_patterns;
 mod viewer_state;
 mod mcp;
@@ -18,6 +19,7 @@ pub use read::*;
 pub use write::*;
 pub use rename::*;
 pub use entry::*;
+pub use export_file::get_knowledge_file;
 pub use mcp::*;
 pub use search_document::*;
 pub use hide_patterns::{
