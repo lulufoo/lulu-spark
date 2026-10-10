@@ -16,8 +16,11 @@ pub fn expand_for_business_key(key: &str) -> Option<PathFence> {
     let cache = stored_path(paths::cache_dir().ok()?);
     let knowledge = stored_path(paths::knowledge_root().ok()?);
 
-    let read_allow = vec![data];
-    let mut read_deny = vec![wb.join(".git")];
+    // SPARK_DATA_DIR is closed to the LLM: it reaches notes and knowledge only
+    // through `get_note_file` / `get_knowledge_file` copies. Deny wins over any
+    // allow or staged grant, so this also closes write.
+    let read_allow = vec![data.clone()];
+    let mut read_deny = vec![data, wb.join(".git")];
 
     let repos_file = paths::sediment_kb_repos_path().ok();
     if repos_file.as_ref().is_some_and(|path| path.is_file()) {

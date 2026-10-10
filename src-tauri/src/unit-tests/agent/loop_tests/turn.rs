@@ -422,8 +422,10 @@ fn run_loop_offers_host_file_tools_and_keeps_scratch_writes_inside_cache() {
         tool_turns[0]
             .content
             .as_deref()
-            .is_some_and(|content| content.contains("needle-line")),
-        "Host read must return the SPARK_DATA_DIR file"
+            .is_some_and(|content| {
+                content.contains("outside the read fence") && !content.contains("needle-line")
+            }),
+        "Host read must be denied for a SPARK_DATA_DIR file"
     );
     assert!(
         tool_turns[1]
