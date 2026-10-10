@@ -123,6 +123,7 @@ const AI_ASSISTANT_WRITE_COMMANDS: &[&str] = &[
     "create_chat_session",
     "delete_chat_session",
     "unstage_chat_staged",
+    "delete_chat_workspace_file",
     "stage_chat_document",
     "agent_chat_turn",
 ];

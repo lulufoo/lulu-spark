@@ -166,6 +166,32 @@ pub fn list_chat_workspace_core(session_id: &str) -> Result<Value, String> {
     }))
 }
 
+/// UI-only: delete one regular file in this Chat's SESSION_WORKSPACE_DIR. Not an agent tool.
+pub fn delete_chat_workspace_file_core(session_id: &str, path: &str) -> Result<Value, String> {
+    let sid = session_id.trim();
+    if sid.is_empty() {
+        return Err("Missing session_id".into());
+    }
+    {
+        let rt = runtime().lock().unwrap();
+        if rt.flights.contains_key(sid) {
+            return Err("Conversation is running".into());
+        }
+    }
+    let _ = session::load_session(sid)?;
+    let base = crate::agent::binding::loaded_path_fence().ok_or_else(|| {
+        "Host tool has no path fence for this binding.".to_string()
+    })?;
+    let files = crate::services::chat_workspace::delete_session_workspace_file(sid, path, &base)?;
+    Ok(json!({
+        "session_id": sid,
+        "files": files
+            .iter()
+            .map(|file| json!({ "path": file.path, "title": file.title }))
+            .collect::<Vec<_>>(),
+    }))
+}
+
 /// UI-only: remove one Stage entry by F-handle. Rejects in-flight turns. Not an agent/MCP tool.
 pub fn unstage_chat_staged_core(session_id: &str, staged_id: &str) -> Result<Value, String> {
     let sid = session_id.trim();

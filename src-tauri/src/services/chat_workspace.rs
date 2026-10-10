@@ -1,9 +1,9 @@
-//! List regular files under one Chat session scratch (SESSION_WORKSPACE_DIR).
+//! List and delete regular files under one Chat session scratch (SESSION_WORKSPACE_DIR).
 
 use std::fs;
 use std::path::Path;
 
-use crate::services::path_fence::{stored_path, PathFence};
+use crate::services::path_fence::{require_absolute, stored_path, PathFence};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WorkspaceFile {
@@ -62,6 +62,36 @@ fn collect_regular_files(
         });
     }
     Ok(())
+}
+
+/// Delete one regular file under this session scratch. Does not delete directories.
+pub fn delete_session_workspace_file(
+    session_id: &str,
+    path: &str,
+    fence: &PathFence,
+) -> Result<Vec<WorkspaceFile>, String> {
+    let Some(root) = fence.session_scratch_root(session_id)? else {
+        return Err("path must be in SESSION_WORKSPACE_DIR".into());
+    };
+    let live = fence
+        .clone()
+        .with_session_scratch(session_id)
+        .unwrap_or_else(|_| fence.clone());
+    let abs = require_absolute(path)?;
+    let meta = fs::symlink_metadata(&abs).map_err(|_| "path does not exist".to_string())?;
+    if meta.file_type().is_symlink() || !meta.is_file() {
+        return Err("path must be a regular file".into());
+    }
+    let canon = stored_path(abs);
+    if !live.is_session_workspace(&canon) {
+        return Err("path must be in SESSION_WORKSPACE_DIR".into());
+    }
+    let root = stored_path(root);
+    if !canon.starts_with(&root) {
+        return Err("path must be in SESSION_WORKSPACE_DIR".into());
+    }
+    fs::remove_file(&canon).map_err(|e| e.to_string())?;
+    list_session_workspace_files(session_id, fence)
 }
 
 fn relative_title(root: &Path, path: &Path) -> String {

@@ -1,6 +1,8 @@
 use std::fs;
 
-use crate::services::chat_workspace::list_session_workspace_files;
+use crate::services::chat_workspace::{
+    delete_session_workspace_file, list_session_workspace_files,
+};
 use crate::services::path_fence::{stored_path, PathFence};
 
 fn fence_with_parent(parent: &std::path::Path) -> PathFence {
@@ -45,4 +47,23 @@ fn session_roots_are_isolated() {
     let b = list_session_workspace_files("sess_b", &fence).expect("b");
     assert_eq!(a.iter().map(|f| f.title.as_str()).collect::<Vec<_>>(), vec!["only-a.md"]);
     assert_eq!(b.iter().map(|f| f.title.as_str()).collect::<Vec<_>>(), vec!["only-b.md"]);
+}
+
+#[test]
+fn delete_removes_only_that_session_file() {
+    let tmp = tempfile::tempdir().expect("tmp");
+    fs::create_dir_all(tmp.path().join("sess_a")).expect("a");
+    fs::create_dir_all(tmp.path().join("sess_b")).expect("b");
+    let a = tmp.path().join("sess_a").join("pad.md");
+    let b = tmp.path().join("sess_b").join("pad.md");
+    fs::write(&a, "a").expect("write a");
+    fs::write(&b, "b").expect("write b");
+    let fence = fence_with_parent(tmp.path());
+    let left = delete_session_workspace_file("sess_a", &a.to_string_lossy(), &fence).expect("del");
+    assert!(left.is_empty());
+    assert!(!a.exists());
+    assert_eq!(fs::read_to_string(&b).expect("b"), "b");
+    let err = delete_session_workspace_file("sess_a", &b.to_string_lossy(), &fence)
+        .expect_err("other session");
+    assert!(err.contains("SESSION_WORKSPACE_DIR"), "{err}");
 }

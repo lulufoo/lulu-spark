@@ -1,20 +1,24 @@
-import { useState } from 'react';
+import { useState, type Ref } from 'react';
 import type { HubStagedEntry } from '../state/store.ts';
-import { useDismissibleDetails } from './use-dismissible-details.ts';
 
 export function StagedList({
   items,
   canRemove,
   onOpen,
   onRemove,
+  open,
+  rootRef,
+  onToggle,
 }: {
   items: HubStagedEntry[];
   canRemove: boolean;
   onOpen: (item: HubStagedEntry) => void;
   onRemove: (id: string) => void;
+  open: boolean;
+  rootRef: Ref<HTMLDetailsElement>;
+  onToggle: (event: { currentTarget: HTMLDetailsElement }) => void;
 }) {
   const [pendingId, setPendingId] = useState('');
-  const { open, rootRef, onToggle } = useDismissibleDetails();
   if (!items.length) return null;
   const pending = items.find((item) => item.id === pendingId) || null;
   return (
@@ -23,6 +27,7 @@ export function StagedList({
         ref={rootRef}
         className="home-chat-staged"
         data-role="staged-list"
+        data-open={open ? 'true' : 'false'}
         open={open}
         onToggle={onToggle}
       >

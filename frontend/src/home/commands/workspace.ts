@@ -1,6 +1,6 @@
 import { openFilePopup } from '../../file-popup/index.ts';
 import * as api from '../../host/api.ts';
-import { getHomeState, setHomeState, type HubWorkspaceFile } from '../state/store.ts';
+import { getHomeState, nowUnixSecs, setHomeState, type HubWorkspaceFile } from '../state/store.ts';
 
 export type { HubWorkspaceFile };
 
@@ -27,6 +27,35 @@ export function openWorkspaceFile(item: HubWorkspaceFile) {
     path,
     title: item.title,
   });
+}
+
+/** UI-only: delete one file from this Chat's SESSION_WORKSPACE_DIR. */
+export async function deleteWorkspaceFile(path: string) {
+  const abs = String(path || '').trim();
+  const sid = getHomeState().currentSessionId;
+  if (!abs || !sid) return;
+  try {
+    const result = (await api.invoke('delete_chat_workspace_file', {
+      sessionId: sid,
+      path: abs,
+    })) as { files?: unknown };
+    if (getHomeState().currentSessionId !== sid) return;
+    setHomeState((prev) => ({ ...prev, workspace: hydrateWorkspace(result?.files) }));
+  } catch (err) {
+    const text =
+      err instanceof Error && err.message
+        ? err.message
+        : typeof err === 'object' && err && 'message' in err
+          ? String((err as { message?: unknown }).message || 'Failed to delete workspace file')
+          : 'Failed to delete workspace file';
+    setHomeState((prev) => ({
+      ...prev,
+      messages: [
+        ...prev.messages,
+        { role: 'assistant', text, error: true, createdAt: nowUnixSecs() },
+      ],
+    }));
+  }
 }
 
 export async function refreshWorkspace(

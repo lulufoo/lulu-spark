@@ -57,6 +57,10 @@ pub fn list_chat_workspace_json(session_id: &str) -> Result<Value, String> {
     r#loop::list_chat_workspace_core(session_id)
 }
 
+pub fn delete_chat_workspace_file_json(session_id: &str, path: &str) -> Result<Value, String> {
+    r#loop::delete_chat_workspace_file_core(session_id, path)
+}
+
 pub fn list_chat_sessions_json() -> Result<Value, String> {
     let value = r#loop::list_chat_sessions_core()?;
     let count = value
@@ -336,6 +340,13 @@ pub async fn list_chat_sessions() -> Result<Value, String> {
 #[tauri::command]
 pub async fn list_chat_workspace(session_id: String) -> Result<Value, String> {
     tauri::async_runtime::spawn_blocking(move || list_chat_workspace_json(&session_id))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn delete_chat_workspace_file(session_id: String, path: String) -> Result<Value, String> {
+    tauri::async_runtime::spawn_blocking(move || delete_chat_workspace_file_json(&session_id, &path))
         .await
         .map_err(|e| e.to_string())?
 }

@@ -74,6 +74,7 @@ commands.allow = [
   "create_chat_session",
   "delete_chat_session",
   "unstage_chat_staged",
+  "delete_chat_workspace_file",
   "stage_chat_document",
   "set_binding",
   "reset_binding",

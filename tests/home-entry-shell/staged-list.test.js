@@ -21,7 +21,16 @@ describe('StagedList', () => {
     document.body.appendChild(container);
     root = createRoot(container);
     act(() => {
-      root.render(createElement(StagedList, { items, onOpen }));
+      root.render(
+        createElement(StagedList, {
+          items,
+          onOpen,
+          canRemove: false,
+          open: true,
+          rootRef: { current: null },
+          onToggle: vi.fn(),
+        }),
+      );
     });
   }
 
