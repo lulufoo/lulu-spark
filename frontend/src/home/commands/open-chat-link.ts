@@ -1,5 +1,6 @@
 import { onKnowledgeLinkClick } from './open-knowledge-link.ts';
 import { onNoteLinkClick } from './open-note-link.ts';
+import { onReadLaterLinkClick } from './open-read-later-link.ts';
 
 type LinkClickEvent = { target: EventTarget | null; preventDefault(): void };
 
@@ -7,4 +8,5 @@ type LinkClickEvent = { target: EventTarget | null; preventDefault(): void };
 export function onChatLinkClick(event: LinkClickEvent): void {
   onNoteLinkClick(event);
   onKnowledgeLinkClick(event);
+  onReadLaterLinkClick(event);
 }

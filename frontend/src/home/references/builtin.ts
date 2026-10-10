@@ -1,5 +1,6 @@
 import { openKnowledgeById } from '../commands/open-knowledge-link.ts';
 import { openNoteById } from '../commands/open-note-link.ts';
+import { openReadLaterById } from '../commands/open-read-later-link.ts';
 import { registerReferenceKind } from './registry.ts';
 
 registerReferenceKind({
@@ -17,4 +18,12 @@ registerReferenceKind({
   label: 'knowledge',
   idPattern: /^[0-9a-f]+$/,
   open: openKnowledgeById,
+});
+
+registerReferenceKind({
+  kind: 'read-later',
+  scheme: 'read-later',
+  label: 'read-later',
+  idPattern: /^[0-9a-f]{32}$/,
+  open: openReadLaterById,
 });
