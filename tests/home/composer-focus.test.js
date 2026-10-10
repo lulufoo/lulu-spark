@@ -93,6 +93,12 @@ describe('home composer dock hit area', () => {
     expect(appCss).toMatch(
       /\.home-chat-context-percent:hover \.home-chat-context-ring-progress/,
     );
+    expect(appCss).toMatch(
+      /\.home-chat-context-percent:hover \.home-chat-context-ring-track,\s*\.home-chat-context-percent:hover \.home-chat-context-ring-progress[\s\S]*?stroke-width:\s*2\.75/,
+    );
+    expect(appCss).not.toMatch(
+      /\.home-chat-context-percent:hover[^{]*\{[^}]*stroke:\s*var\(--fg-default\)/,
+    );
     expect(appCss).not.toMatch(
       /\.home-chat-context-percent:hover\s*\{[^}]*background:/,
     );
