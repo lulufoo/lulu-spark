@@ -30,6 +30,7 @@ import {
   startHomeHub,
   stopHomeHub,
 } from './commands/hub.ts';
+import { applyComposerDraft } from './commands/composer-draft.ts';
 import { consumeComposerFocus, focusComposerFromDock } from './commands/composer-focus.ts';
 import { onNoteLinkClick } from './commands/open-note-link.ts';
 import { openStagedFile, unstageStaged } from './commands/staged.ts';
@@ -192,6 +193,7 @@ export function HomePage({
   useEffect(() => {
     if (!consumeComposerFocus()) return;
     inputRef.current?.focus();
+    applyComposerDraft(inputRef.current);
   }, [state.currentSessionId, state.staged]);
 
   useEffect(() => {

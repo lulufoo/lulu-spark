@@ -1,38 +1,67 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { openNoteInChat } from '../../frontend/src/notes/commands/open-in-chat.ts';
+import {
+  noteReferenceDraft,
+  openNoteInChat,
+} from '../../frontend/src/notes/commands/open-in-chat.ts';
 import * as homeOpen from '../../frontend/src/home/commands/open-in-chat.ts';
+
+const ID = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+
+describe('noteReferenceDraft', () => {
+  it('links the title to the note id', () => {
+    expect(noteReferenceDraft({ _id: ID, common_path: 'inbox/x.md', title: 'My note' }, ID)).toBe(
+      `[My note](note:${ID})`,
+    );
+  });
+
+  it('falls back to a title derived from the path', () => {
+    expect(noteReferenceDraft({ _id: ID, common_path: 'inbox/my-note.md' }, ID)).toMatch(
+      new RegExp(`^\\[.+\\]\\(note:${ID}\\)$`),
+    );
+  });
+
+  it('escapes brackets and flattens whitespace so the link stays one link', () => {
+    expect(
+      noteReferenceDraft({ _id: ID, common_path: 'a.md', title: 'A [draft]\n  v2' }, ID),
+    ).toBe(`[A \\[draft\\] v2](note:${ID})`);
+  });
+});
 
 describe('openNoteInChat', () => {
   /** @type {import('vitest').MockInstance} */
-  let openSpy;
+  let draftSpy;
 
   beforeEach(() => {
-    openSpy = vi.spyOn(homeOpen, 'openPathInChat').mockResolvedValue();
+    draftSpy = vi.spyOn(homeOpen, 'openDraftInChat').mockResolvedValue();
   });
 
   afterEach(() => {
-    openSpy.mockRestore();
+    draftSpy.mockRestore();
   });
 
-  it('submits notes source from entry id', async () => {
-    await openNoteInChat(
-      { _id: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', common_path: 'inbox/note.md' },
-      'en',
-      'raw',
-      '/spark',
-    );
-    expect(openSpy).toHaveBeenCalledWith('/spark/notes/raw/inbox/note.md', {
-      kind: 'notes',
-      id: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-    });
+  it('opens a new chat prefilled with the note reference, not a staged file', async () => {
+    await openNoteInChat({ _id: ID, common_path: 'inbox/note.md', title: 'Note' });
+    expect(draftSpy).toHaveBeenCalledWith(`[Note](note:${ID})`);
+  });
+
+  it('re-enables the button after opening, and after a failure', async () => {
+    const button = document.createElement('button');
+    await openNoteInChat({ _id: ID, common_path: 'a.md', title: 'A' }, button);
+    expect(button.disabled).toBe(false);
+
+    draftSpy.mockRejectedValueOnce(new Error('boom'));
+    await expect(
+      openNoteInChat({ _id: ID, common_path: 'a.md', title: 'A' }, button),
+    ).rejects.toThrow('boom');
+    expect(button.disabled).toBe(false);
   });
 
   it('rejects a missing notes archive id', async () => {
-    await expect(
-      openNoteInChat({ common_path: 'inbox/note.md' }, 'en', 'raw', '/spark'),
-    ).rejects.toThrow('Missing source');
-    expect(openSpy).not.toHaveBeenCalled();
+    await expect(openNoteInChat({ common_path: 'inbox/note.md' })).rejects.toThrow(
+      'Missing source',
+    );
+    expect(draftSpy).not.toHaveBeenCalled();
   });
 });

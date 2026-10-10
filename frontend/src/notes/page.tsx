@@ -298,13 +298,7 @@ function NotesOutletChrome({ routeParams }: { routeParams: Record<string, string
             aria-label="Open in chat"
             style={{ display: entry && !creating ? undefined : 'none' }}
             onClick={(event) => {
-              void openNoteInChat(
-                entry,
-                viewer.lang,
-                viewer.layer,
-                host.ui.sparkRoot,
-                event.currentTarget,
-              ).catch((err) => {
+              void openNoteInChat(entry, event.currentTarget).catch((err) => {
                 alert(err instanceof Error ? err.message : String(err));
               });
             }}
