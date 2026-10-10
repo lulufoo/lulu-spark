@@ -113,14 +113,12 @@ pub enum InvokeOutcome {
     Done {
         result: ToolResult,
         host: bool,
-        /// True when note-content overlay registered a Stage entry.
-        staged_note: bool,
     },
     /// Abort the turn with this assistant reply.
     Abort(String),
 }
 
-/// Validate arguments, dispatch to Stage / Host / MCP, then run post-invoke overlays.
+/// Validate arguments and dispatch to Stage / Host / MCP.
 pub fn invoke(
     turn: &TurnTools,
     name: &str,
@@ -137,7 +135,6 @@ pub fn invoke(
                 is_error: true,
             },
             host,
-            staged_note: false,
         };
     };
     if !catalog.contains(name) {
@@ -147,7 +144,6 @@ pub fn invoke(
                 is_error: true,
             },
             host,
-            staged_note: false,
         };
     }
 
@@ -160,7 +156,6 @@ pub fn invoke(
                     is_error: true,
                 },
                 host,
-                staged_note: false,
             };
         }
     };
@@ -172,7 +167,6 @@ pub fn invoke(
                 is_error: true,
             },
             host,
-            staged_note: false,
         };
     }
 
@@ -203,10 +197,5 @@ pub fn invoke(
         }
     };
 
-    let (result, staged_note) = stage::overlay_note_content(name, result, session);
-    InvokeOutcome::Done {
-        result,
-        host,
-        staged_note,
-    }
+    InvokeOutcome::Done { result, host }
 }

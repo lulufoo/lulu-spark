@@ -22,26 +22,6 @@ fn without(name: &str) -> Vec<String> {
 }
 
 #[test]
-fn missing_file_enables_full_catalog_on_every_channel() {
-    let _sandbox = TestSandbox::new();
-    let all = catalog();
-    for channel in MCP_CHANNELS {
-        let enabled = enabled_names(channel);
-        if *channel == "spark" {
-            assert_eq!(enabled, all, "{channel}");
-            assert!(is_enabled(channel, "delete_note"), "{channel} delete_note");
-        } else {
-            assert!(!enabled.contains("delete_note"), "{channel} must hide delete_note");
-            assert_eq!(enabled.len(), all.len() - 1, "{channel} catalog minus spark-only");
-        }
-        assert!(is_enabled(channel, "create_note"), "{channel} create_note");
-        assert!(is_enabled(channel, "update_note"), "{channel} update_note");
-    }
-    assert!(enabled_names("not-a-channel").is_empty());
-    assert!(!is_enabled("not-a-channel", "create_note"));
-}
-
-#[test]
 fn set_enabled_subset_filters_only_that_channel() {
     let sandbox = TestSandbox::new();
     set_enabled("mobile", without("create_note")).expect("save mobile");
@@ -170,30 +150,33 @@ fn load_rewrites_retired_search_tools_to_search_document() {
     assert!(!is_enabled("cursor_ide", "search_knowledge"));
 }
 
+fn write_channels(channels: serde_json::Value) {
+    let path = paths::mcp_channel_tools_path().expect("path");
+    fs::write(&path, serde_json::json!({ "channels": channels }).to_string()).expect("write");
+}
+
 #[test]
 fn load_rewrites_retired_note_content_name() {
     let sandbox = TestSandbox::new();
+    write_channels(serde_json::json!({
+        "cursor_ide": {
+            "notes": ["get_all_notes_catalog", "get_note_content_by_id"],
+            "todo": [],
+            "knowledge": []
+        },
+        "mobile": { "notes": ["get_note_content_by_id"], "knowledge": [] }
+    }));
     let path = paths::mcp_channel_tools_path().expect("path");
-    fs::write(
-        &path,
-        serde_json::json!({
-            "channels": {
-                "cursor_ide": {
-                    "notes": ["get_all_notes_catalog", "get_note_content_by_id"],
-                    "todo": [],
-                    "knowledge": []
-                }
-            }
-        })
-        .to_string(),
-    )
-    .expect("write retired note content");
     sandbox.assert_not_prod_path(&path).expect("sandbox file");
     let grouped = crate::services::settings::mcp_channel_tools::enabled_by_group("cursor_ide");
     assert!(!grouped.notes.contains(&"get_note_content_by_id".into()));
-    assert!(grouped.notes.contains(&"get_note_content".into()));
-    assert!(is_enabled("cursor_ide", "get_note_content"));
     assert!(!is_enabled("cursor_ide", "get_note_content_by_id"));
+    // Desktop: retired name → get_note_content → get_note_file.
+    assert!(grouped.notes.contains(&"get_note_file".into()));
+    assert!(!is_enabled("cursor_ide", "get_note_content"));
+    // Mobile keeps get_note_content.
+    assert!(is_enabled("mobile", "get_note_content"));
+    assert!(!is_enabled("mobile", "get_note_file"));
 }
 
 #[test]
@@ -248,3 +231,6 @@ fn listen_filters_list_and_call_through_settings_catalog() {
         "/mcp/mobile must use channel mobile while scene_slot stays spark"
     );
 }
+
+#[path = "mcp_channel_availability.rs"]
+mod availability;

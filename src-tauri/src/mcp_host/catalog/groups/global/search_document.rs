@@ -29,9 +29,16 @@ pub fn build(channel: &str) -> Option<ToolRoute> {
     if !available_in(channel) {
         return None;
     }
+    let follow_up = if channel == "mobile" {
+        "For category notes, call get_note_content. For category knowledge, call get_knowledge_content."
+    } else {
+        "For category notes, call get_note_file. For category knowledge, call get_knowledge_file."
+    };
     Some(route(
         "search_document",
-        "Search notes and knowledge together. Returns id, title, snippet, and category (notes or knowledge). Does not return file path or body. For category notes, call get_note_content. For category knowledge, call get_knowledge_content.",
+        &format!(
+            "Search notes and knowledge together. Returns id, title, snippet, and category (notes or knowledge). Does not return file path or body. {follow_up}"
+        ),
         object_schema(
             json!({
                 "q": {

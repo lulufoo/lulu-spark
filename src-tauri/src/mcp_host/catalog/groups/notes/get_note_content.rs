@@ -6,8 +6,9 @@ use crate::mcp_host::catalog::route_util::{missing_field, notes_repo_root, objec
 use crate::mcp_host::ToolRoute;
 use crate::services::spark_read::get_note_path_by_id;
 
-pub fn available_in(_channel: &str) -> bool {
-    true
+/// Mobile only; desktop channels use `get_note_file`.
+pub fn available_in(channel: &str) -> bool {
+    channel == "mobile"
 }
 
 pub fn invoke(args: &Value) -> Value {
@@ -33,16 +34,6 @@ pub fn build(channel: &str) -> Option<ToolRoute> {
         }),
         &["id"],
     );
-    if channel == "spark" {
-        return Some(route(
-            "get_note_content",
-            "Stage one note onto this Chat and return a Stage item (no path, no body). item.source.kind is notes. item.source.id is the notes business index id. Input id comes from search_document (category notes). The user reads the file from the Stage list. Use get_note_digest_by_id for a digest.",
-            id_schema,
-            true,
-            false,
-            invoke,
-        ));
-    }
     Some(route(
         "get_note_content",
         "Resolve a search_document notes document id to the local absolute file path. Does not return file body. Unknown ids fail.",

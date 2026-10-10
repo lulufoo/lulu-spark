@@ -690,6 +690,38 @@ describe('Settings MCP panel actions', () => {
     expect(boxes.every((el) => !el.checked)).toBe(true);
   });
 
+  it('hides tools a channel does not expose and never writes them back', async () => {
+    const fallback = api.invoke.getMockImplementation();
+    api.invoke.mockImplementation(async (cmd, args) => {
+      if (cmd === 'get_mcp_channel_tools') {
+        return {
+          ...TOOLS_SNAPSHOT,
+          unavailable_by_channel: { spark: [], cursor: ['create_note'], mobile: [] },
+        };
+      }
+      return fallback(cmd, args);
+    });
+    const { openSettingsDialog } = await import(
+      '../../frontend/src/app-shell/commands/settings/dialog.ts'
+    );
+    await openSettingsDialog({ panel: 'mcp', tab: 'tools' });
+    expect(document.querySelector('[data-mcp-tool="create_note"]')).toBeTruthy();
+
+    document.getElementById('settings-mcp-channel').value = 'cursor';
+    document.getElementById('settings-mcp-channel').dispatchEvent(new Event('change'));
+    expect(document.querySelector('[data-mcp-tool="create_note"]')).toBeNull();
+    expect(document.querySelector('[data-mcp-tool="get_all_notes_catalog"]')).toBeTruthy();
+
+    api.invoke.mockClear();
+    document.getElementById('btn-settings-mcp-tools-select-all').click();
+    await vi.waitFor(() =>
+      expect(api.invoke).toHaveBeenCalledWith('set_mcp_channel_tools', {
+        channel: 'cursor',
+        enabled: ['get_all_notes_catalog', 'list_todo_tasks'],
+      }),
+    );
+  });
+
   it('does not persist when the tool list is empty', async () => {
     const { openSettingsDialog } = await import(
       '../../frontend/src/app-shell/commands/settings/dialog.ts'
