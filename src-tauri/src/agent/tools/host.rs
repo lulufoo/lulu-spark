@@ -11,7 +11,7 @@ pub fn catalog() -> ToolCatalog {
     ToolCatalog::from_local_tools(vec![
         local_tool(
             "grep",
-            "Search text.\n\nReadable paths: SPARK_DATA_DIR, SESSION_WORKSPACE_DIR, and files on this Chat's Stage.\npath is optional; omit path to search both directories and every staged file.",
+            "Search text.\n\nReadable paths: SESSION_WORKSPACE_DIR and files on this Chat's Stage.\npath is optional; omit path to search the workspace and every staged file.",
             json!({
                 "type": "object",
                 "properties": {
@@ -25,7 +25,7 @@ pub fn catalog() -> ToolCatalog {
         ),
         local_tool(
             "read",
-            "Read a text file.\nOptional offset (1-based start line) and limit (max lines, default 50).\n\nReadable paths: SPARK_DATA_DIR, SESSION_WORKSPACE_DIR, and files on this Chat's Stage.\npath must be absolute.",
+            "Read a text file.\nOptional offset (1-based start line) and limit (max lines, default 50).\n\nReadable paths: SESSION_WORKSPACE_DIR and files on this Chat's Stage.\npath must be absolute.",
             json!({
                 "type": "object",
                 "properties": {
@@ -77,7 +77,7 @@ pub fn catalog() -> ToolCatalog {
             json!({
                 "type": "object",
                 "properties": {
-                    "source_path": { "type": "string", "description": "Absolute readable file in SPARK_DATA_DIR, SESSION_WORKSPACE_DIR, or on Stage." },
+                    "source_path": { "type": "string", "description": "Absolute readable file in SESSION_WORKSPACE_DIR or on Stage." },
                     "dest_path": { "type": "string", "description": "Absolute file path in SESSION_WORKSPACE_DIR or an existing file on Stage. Not a directory." }
                 },
                 "required": ["source_path", "dest_path"],

@@ -8,9 +8,11 @@ mod write;
 mod rename;
 mod entry;
 mod doc_map;
+mod export_file;
 mod hide_patterns;
 mod viewer_state;
 mod mcp;
+mod open;
 mod search_document;
 
 pub use asset::*;
@@ -18,7 +20,9 @@ pub use read::*;
 pub use write::*;
 pub use rename::*;
 pub use entry::*;
+pub use export_file::get_knowledge_file;
 pub use mcp::*;
+pub use open::resolve_knowledge_for_open;
 pub use search_document::*;
 pub use hide_patterns::{
     add as add_kb_hide_pattern, compiled_hide_regexes, list_json as kb_hide_patterns_json,

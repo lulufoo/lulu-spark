@@ -1,18 +1,19 @@
 use crate::mcp_host::build_channel_tool_table;
 use crate::mcp_host::invoke_eq;
 use crate::mcp_host::catalog::groups::global;
-use crate::mcp_host::catalog::groups::knowledge;
+use crate::mcp_host::catalog::groups::knowledge::{self, knowledge_file_invoke};
 use crate::mcp_host::catalog::groups::notes::{
-    self, create_note_from_content, create_note_from_source, note_path_invoke,
+    self, create_note_from_content, create_note_from_source, note_file_invoke, note_path_invoke,
     update_note_from_content, update_note_from_source,
 };
-use crate::mcp_host::catalog::{build, build_routes_for_channel, group_for_migrated_api};
+use crate::mcp_host::catalog::{build, build_routes_for_channel, catalog_groups, group_for_migrated_api};
 use crate::services::settings::mcp_catalog::GroupedEnabledCatalog;
 
 const NOTES_APIS: &[&str] = &[
     "get_all_notes_catalog",
     "get_note_digest_by_id",
     "get_note_content",
+    "get_note_file",
     "create_note",
     "update_note",
     "delete_note",
@@ -25,6 +26,7 @@ const NOTES_APIS: &[&str] = &[
 const KNOWLEDGE_APIS: &[&str] = &[
     "list_knowledge_categories",
     "get_knowledge_content",
+    "get_knowledge_file",
 ];
 
 const GLOBAL_APIS: &[&str] = &["search_document"];
@@ -191,7 +193,7 @@ fn group_for_migrated_api_maps_all_catalog_keys() {
 fn runtime_builds_enabled_routes_from_factory_only() {
     let enabled = GroupedEnabledCatalog {
         notes: vec!["get_all_notes_catalog".into(), "create_note".into()],
-        knowledge: vec!["get_knowledge_content".into()],
+        knowledge: vec!["get_knowledge_file".into()],
         global: vec!["search_document".into()],
         ..GroupedEnabledCatalog::default()
     };
@@ -201,7 +203,7 @@ fn runtime_builds_enabled_routes_from_factory_only() {
     assert!(names.contains(&"create_note"));
     assert!(!names.contains(&"list_todo_tasks"));
     assert!(!names.contains(&"create_todo_task"));
-    assert!(names.contains(&"get_knowledge_content"));
+    assert!(names.contains(&"get_knowledge_file"));
     assert!(names.contains(&"search_document"));
     assert!(!names.contains(&"search_notes"));
     assert!(!names.contains(&"search_knowledge"));
@@ -238,22 +240,38 @@ fn spark_update_note_uses_source_invoke() {
 }
 
 #[test]
-fn spark_get_note_content_stages_via_note_path() {
-    let route = build("notes", "get_note_content", "spark").expect("spark");
-    assert!(invoke_eq(route.invoke, note_path_invoke));
+fn get_note_content_is_mobile_only() {
+    for channel in ["spark", "cursor", "cursor_ide", "codex", "claude"] {
+        assert!(build("notes", "get_note_content", channel).is_none(), "{channel}");
+    }
+    let mobile = build("notes", "get_note_content", "mobile").expect("mobile");
+    assert!(invoke_eq(mobile.invoke, note_path_invoke));
+    assert!(mobile.description.contains("absolute file path"));
+    assert!(!mobile.description.contains("Stage"));
 }
 
 #[test]
-fn cursor_ide_get_note_content_returns_path_not_body() {
-    let spark = build("notes", "get_note_content", "spark").expect("wb");
-    let ide = build("notes", "get_note_content", "cursor_ide").expect("ide");
-    let mobile = build("notes", "get_note_content", "mobile").expect("mobile");
-    assert!(invoke_eq(ide.invoke, note_path_invoke));
-    assert!(invoke_eq(mobile.invoke, note_path_invoke));
-    assert!(ide.description.contains("absolute file path"));
-    assert!(!ide.description.contains("Stage"));
-    assert!(spark.description.contains("Stage"));
-    assert!(!spark.description.to_ascii_lowercase().contains("absolute path"));
+fn get_note_file_is_desktop_only_and_requires_dest_dir() {
+    for channel in ["spark", "cursor", "cursor_ide", "codex", "claude"] {
+        let route = build("notes", "get_note_file", channel).expect(channel);
+        assert!(invoke_eq(route.invoke, note_file_invoke), "{channel}");
+        assert_eq!(route.input_schema["required"], serde_json::json!(["id", "dest_dir"]));
+        assert!(route.input_schema["properties"]["dest_dir"]["description"]
+            .as_str()
+            .unwrap()
+            .contains("read and write"));
+    }
+    assert!(build("notes", "get_note_file", "mobile").is_none());
+}
+
+#[test]
+fn get_knowledge_file_is_desktop_only_and_requires_dest_dir() {
+    for channel in ["spark", "cursor", "cursor_ide", "codex", "claude"] {
+        let route = build("knowledge", "get_knowledge_file", channel).expect(channel);
+        assert!(invoke_eq(route.invoke, knowledge_file_invoke), "{channel}");
+        assert_eq!(route.input_schema["required"], serde_json::json!(["id", "dest_dir"]));
+    }
+    assert!(build("knowledge", "get_knowledge_file", "mobile").is_none());
 }
 
 #[test]
@@ -269,12 +287,38 @@ fn factory_unknown_group_returns_none() {
 }
 
 #[test]
-fn get_knowledge_content_channel_descriptions_split() {
-    let spark = build("knowledge", "get_knowledge_content", "spark").expect("wb");
-    let ide = build("knowledge", "get_knowledge_content", "cursor_ide").expect("ide");
-    assert!(spark.description.contains("Stage"));
-    assert!(ide.description.contains("absolute file path"));
-    assert!(!ide.description.contains("Stage"));
+fn get_knowledge_content_is_mobile_only() {
+    for channel in ["spark", "cursor", "cursor_ide", "codex", "claude"] {
+        assert!(build("knowledge", "get_knowledge_content", channel).is_none(), "{channel}");
+    }
+    let mobile = build("knowledge", "get_knowledge_content", "mobile").expect("mobile");
+    assert!(mobile.description.contains("absolute file path"));
+    assert!(!mobile.description.contains("Stage"));
+}
+
+#[test]
+fn search_document_points_each_channel_at_its_own_follow_up_tools() {
+    for channel in ["spark", "cursor", "cursor_ide", "codex", "claude"] {
+        let route = build("global", "search_document", channel).expect(channel);
+        assert!(route.description.contains("get_note_file"), "{channel}");
+        assert!(route.description.contains("get_knowledge_file"), "{channel}");
+        assert!(!route.description.contains("get_note_content"), "{channel}");
+        assert!(!route.description.contains("get_knowledge_content"), "{channel}");
+    }
+    let mobile = build("global", "search_document", "mobile").expect("mobile");
+    assert!(mobile.description.contains("get_note_content"));
+    assert!(mobile.description.contains("get_knowledge_content"));
+    assert!(!mobile.description.contains("get_note_file"));
+}
+
+#[test]
+fn settings_snapshot_keeps_mobile_only_tools() {
+    let names: Vec<String> = catalog_groups()
+        .into_iter()
+        .flat_map(|(_, tools)| tools.into_iter().map(|t| t.name))
+        .collect();
+    assert!(names.contains(&"get_note_content".to_string()));
+    assert!(names.contains(&"get_knowledge_content".to_string()));
 }
 
 #[path = "produce_wiring.rs"]

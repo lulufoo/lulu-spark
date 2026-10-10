@@ -8,6 +8,7 @@ type McpToolsSnapshot = {
   groups?: McpToolGroup[];
   enabled?: Record<string, string[]>;
   spark_only_tools?: string[];
+  unavailable_by_channel?: Record<string, string[]>;
 };
 
 let toolsSnapshot: McpToolsSnapshot | null = null;
@@ -20,17 +21,18 @@ function catalogNames(snapshot: McpToolsSnapshot | null): string[] {
   );
 }
 
-function sparkOnlyTools(snapshot: McpToolsSnapshot | null): Set<string> {
-  return new Set(
-    (snapshot?.spark_only_tools ?? []).filter((name): name is string => Boolean(name)),
-  );
+/** Tools the given channel does not expose: spark-only tools off spark, plus per-channel gaps. */
+function hiddenTools(snapshot: McpToolsSnapshot | null, channel: string): Set<string> {
+  const hidden = new Set<string>(snapshot?.unavailable_by_channel?.[channel] ?? []);
+  if (channel !== 'spark') for (const name of snapshot?.spark_only_tools ?? []) hidden.add(name);
+  return hidden;
 }
 
 /** Catalog names visible / selectable for the given MCP channel. */
 function catalogNamesForChannel(snapshot: McpToolsSnapshot | null, channel: string): string[] {
-  const only = sparkOnlyTools(snapshot);
-  if (channel === 'spark' || !only.size) return catalogNames(snapshot);
-  return catalogNames(snapshot).filter((name) => !only.has(name));
+  const hidden = hiddenTools(snapshot, channel);
+  if (!hidden.size) return catalogNames(snapshot);
+  return catalogNames(snapshot).filter((name) => !hidden.has(name));
 }
 
 function toolInputs() {
@@ -62,7 +64,7 @@ export function paintMcpToolGroups() {
   const groups = toolsSnapshot?.groups;
   if (!Array.isArray(groups) || !groups.length) return;
   const enabled = enabledNamesForChannel(toolsSnapshot, channel);
-  const only = sparkOnlyTools(toolsSnapshot);
+  const hidden = hiddenTools(toolsSnapshot, channel);
   for (const group of groups) {
     const fieldset = document.createElement('fieldset');
     fieldset.className = 'settings-mcp-tool-group';
@@ -70,7 +72,7 @@ export function paintMcpToolGroups() {
     legend.textContent = group.label || group.id;
     fieldset.appendChild(legend);
     for (const tool of group.tools || []) {
-      if (channel !== 'spark' && only.has(tool.name)) continue;
+      if (hidden.has(tool.name)) continue;
       const label = document.createElement('label');
       label.className = 'settings-mcp-tool';
       const input = document.createElement('input');

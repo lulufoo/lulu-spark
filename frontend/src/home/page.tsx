@@ -30,7 +30,9 @@ import {
   startHomeHub,
   stopHomeHub,
 } from './commands/hub.ts';
+import { applyComposerDraft } from './commands/composer-draft.ts';
 import { consumeComposerFocus, focusComposerFromDock } from './commands/composer-focus.ts';
+import { onChatLinkClick } from './commands/open-chat-link.ts';
 import { openStagedFile, unstageStaged } from './commands/staged.ts';
 import { deleteWorkspaceFile, openWorkspaceFile } from './commands/workspace.ts';
 import { createImeEnterGuard } from './ime-enter.ts';
@@ -107,6 +109,7 @@ const MessageThread = memo(function MessageThread({
             {kind === 'assistant' ? (
               <div
                 className="home-chat-md"
+                onClick={onChatLinkClick}
                 dangerouslySetInnerHTML={{ __html: renderHomeChatMarkdown(m.text) }}
               />
             ) : (
@@ -190,6 +193,7 @@ export function HomePage({
   useEffect(() => {
     if (!consumeComposerFocus()) return;
     inputRef.current?.focus();
+    applyComposerDraft(inputRef.current);
   }, [state.currentSessionId, state.staged]);
 
   useEffect(() => {

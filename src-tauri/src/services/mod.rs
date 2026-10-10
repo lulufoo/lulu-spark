@@ -5,6 +5,7 @@ pub mod archive_parse;
 pub mod notes;
 pub mod translation_gate;
 pub mod source_path_allow;
+pub mod file_export;
 pub mod id;
 pub mod draft;
 pub mod doc_highlights;

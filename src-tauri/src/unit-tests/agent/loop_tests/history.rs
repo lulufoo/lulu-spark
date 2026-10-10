@@ -2,9 +2,7 @@
 
 use std::path::Path;
 
-use crate::agent::{
-    fill_host_file_dirs, SESSION_WORKSPACE_DIR_PLACEHOLDER, SPARK_DATA_DIR_PLACEHOLDER,
-};
+use crate::agent::{fill_host_file_dirs, SESSION_WORKSPACE_DIR_PLACEHOLDER};
 
 use super::support::*;
 
@@ -17,31 +15,39 @@ fn spark_host_system_prompt_is_nonempty_code_constant() {
     assert!(SPARK_HOST_SYSTEM_PROMPT.contains("PathFence"));
     assert!(SPARK_HOST_SYSTEM_PROMPT.contains("API Key"));
     assert!(SPARK_HOST_SYSTEM_PROMPT.contains("SESSION_WORKSPACE_DIR"));
-    assert!(SPARK_HOST_SYSTEM_PROMPT.contains("SPARK_DATA_DIR"));
-    assert!(SPARK_HOST_SYSTEM_PROMPT.contains("NOTES_DIR"));
-    assert!(SPARK_HOST_SYSTEM_PROMPT.contains("KNOWLEDGE_DIR"));
-    assert!(SPARK_HOST_SYSTEM_PROMPT.contains("READ_LATER_DIR"));
-    assert!(SPARK_HOST_SYSTEM_PROMPT.contains("named files on this chat"));
-    assert!(SPARK_HOST_SYSTEM_PROMPT.contains("add the file to Stage to edit"));
     assert!(SPARK_HOST_SYSTEM_PROMPT.contains(SESSION_WORKSPACE_DIR_PLACEHOLDER));
-    assert!(SPARK_HOST_SYSTEM_PROMPT.contains(SPARK_DATA_DIR_PLACEHOLDER));
+}
+
+#[test]
+fn spark_host_system_prompt_closes_data_and_teaches_file_copies() {
+    let prompt = SPARK_HOST_SYSTEM_PROMPT;
+    for gone in [
+        "SPARK_DATA_DIR",
+        "NOTES_DIR",
+        "KNOWLEDGE_DIR",
+        "READ_LATER_DIR",
+        "{spark_data_dir}",
+        "add the file to Stage to edit",
+    ] {
+        assert!(!prompt.contains(gone), "prompt must not mention {gone}");
+    }
+    assert!(prompt.contains("external files"), "Stage is for external files");
+    assert!(prompt.contains("`stage`"), "model stages external files itself");
+    assert!(prompt.contains("get_note_file"));
+    assert!(prompt.contains("get_knowledge_file"));
+    assert!(prompt.contains("source_path"), "edited copy goes back via update_note");
+    assert!(prompt.contains("[标题](note:<id>)"), "note link rule");
+    assert!(prompt.contains("[标题](knowledge:<id>)"), "knowledge link rule");
 }
 
 #[test]
 fn fill_host_file_dirs_replaces_placeholders_without_rules() {
     let scratch = Path::new("/tmp/session-scratch");
-    let data = Path::new("/tmp/spark-data");
-    let filled = fill_host_file_dirs(SPARK_HOST_SYSTEM_PROMPT, Some(scratch), data);
+    let filled = fill_host_file_dirs(SPARK_HOST_SYSTEM_PROMPT, Some(scratch));
     assert!(filled.contains("/tmp/session-scratch"));
-    assert!(filled.contains("/tmp/spark-data"));
-    assert!(filled.contains("/tmp/spark-data/notes"));
-    assert!(filled.contains("/tmp/spark-data/knowledge"));
-    assert!(filled.contains("/tmp/spark-data/read_later"));
     assert!(!filled.contains(SESSION_WORKSPACE_DIR_PLACEHOLDER));
-    assert!(!filled.contains(SPARK_DATA_DIR_PLACEHOLDER));
-    let data_only = fill_host_file_dirs(SPARK_HOST_SYSTEM_PROMPT, None, data);
-    assert!(data_only.contains(SESSION_WORKSPACE_DIR_PLACEHOLDER));
-    assert!(data_only.contains("/tmp/spark-data/notes"));
+    let without_scratch = fill_host_file_dirs(SPARK_HOST_SYSTEM_PROMPT, None);
+    assert!(without_scratch.contains(SESSION_WORKSPACE_DIR_PLACEHOLDER));
 }
 
 #[test]

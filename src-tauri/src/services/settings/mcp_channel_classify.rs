@@ -10,6 +10,9 @@ const RETIRED_SEARCH_TOOLS: &[&str] = &["search_notes", "search_knowledge"];
 const SEARCH_DOCUMENT: &str = "search_document";
 const RETIRED_NOTE_CONTENT: &str = "get_note_content_by_id";
 const NOTE_CONTENT: &str = "get_note_content";
+const NOTE_FILE: &str = "get_note_file";
+const KNOWLEDGE_CONTENT: &str = "get_knowledge_content";
+const KNOWLEDGE_FILE: &str = "get_knowledge_file";
 
 fn push_unique(out: &mut Vec<String>, name: &str) {
     if !out.iter().any(|n| n == name) {
@@ -35,6 +38,23 @@ pub fn rewrite_retired_search_names(names: impl IntoIterator<Item = String>) -> 
         push_unique(&mut out, SEARCH_DOCUMENT);
     }
     out
+}
+
+/// Desktop channels moved from `get_*_content` to `get_*_file`; mobile keeps the old tools.
+pub fn migrate_content_tools_to_file(channel: &str, mut groups: EnabledByGroup) -> EnabledByGroup {
+    if channel == "mobile" {
+        return groups;
+    }
+    swap_name(&mut groups.notes, NOTE_CONTENT, NOTE_FILE);
+    swap_name(&mut groups.knowledge, KNOWLEDGE_CONTENT, KNOWLEDGE_FILE);
+    groups
+}
+
+fn swap_name(names: &mut Vec<String>, old: &str, new: &str) {
+    if names.iter().any(|n| n == old) {
+        names.retain(|n| n != old);
+        push_unique(names, new);
+    }
 }
 
 pub fn migrate_retired_search_groups(mut groups: EnabledByGroup) -> EnabledByGroup {

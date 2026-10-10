@@ -4,6 +4,8 @@
 //! Persists nested `{ channel: { notes: [], knowledge: [], global: [] } }`.
 //! Legacy flat arrays are migrated on read. UI commands still accept/return flat enabled lists.
 //! Retired `search_notes` / `search_knowledge` names rewrite to `search_document`.
+//! Tools a channel does not expose (per the tool's own `build`) are never enabled there;
+//! on desktop channels saved `get_*_content` entries migrate to `get_*_file`.
 
 use std::collections::{BTreeMap, HashSet};
 use std::fs;
@@ -14,10 +16,10 @@ use serde_json::{json, Value};
 
 use crate::config::paths;
 use crate::repositories::atomic_json;
-use crate::mcp_host::catalog::catalog_groups;
+use crate::mcp_host::catalog::{catalog_groups, factory};
 use super::mcp_channel_classify::{
-    classify_flat, filter_groups, groups_to_flat, migrate_retired_search_groups,
-    rewrite_retired_search_names, sort_enabled_groups,
+    classify_flat, filter_groups, groups_to_flat, migrate_content_tools_to_file,
+    migrate_retired_search_groups, rewrite_retired_search_names, sort_enabled_groups,
 };
 
 pub const MCP_CHANNELS: &[&str] = &["spark", "cursor", "codex", "claude", "mobile"];
@@ -67,12 +69,19 @@ fn default_groups_for_channel(channel: &str, catalog: &HashSet<String>) -> Enabl
     classify_flat(flat, catalog)
 }
 
+/// True when the tool's own `build` does not expose it on `channel`.
+fn hidden_on_channel(channel: &str, name: &str) -> bool {
+    factory::group_for_migrated_api(name)
+        .is_some_and(|group| factory::build(group, name, channel).is_none())
+}
+
 fn apply_channel_tool_policy(channel: &str, mut names: HashSet<String>) -> HashSet<String> {
     if channel != "spark" {
         for tool in SPARK_ONLY_TOOLS {
             names.remove(*tool);
         }
     }
+    names.retain(|name| !hidden_on_channel(channel, name));
     names
 }
 
@@ -81,6 +90,9 @@ fn apply_group_policy(channel: &str, mut groups: EnabledByGroup) -> EnabledByGro
         groups
             .notes
             .retain(|name| !SPARK_ONLY_TOOLS.contains(&name.as_str()));
+    }
+    for names in [&mut groups.notes, &mut groups.knowledge, &mut groups.global] {
+        names.retain(|name| !hidden_on_channel(channel, name));
     }
     sort_enabled_groups(&mut groups);
     groups
@@ -123,9 +135,8 @@ fn load_stored() -> Stored {
         let Some(canon) = canonical_channel(channel) else {
             continue;
         };
-        stored
-            .channels
-            .insert(canon.to_string(), normalize_channel_entry(entry, &catalog));
+        let groups = migrate_content_tools_to_file(canon, normalize_channel_entry(entry, &catalog));
+        stored.channels.insert(canon.to_string(), groups);
     }
     stored
 }
@@ -198,7 +209,14 @@ pub fn snapshot() -> Result<Value, String> {
     let stored = load_stored();
     let mut enabled = serde_json::Map::new();
     let mut enabled_grouped = serde_json::Map::new();
+    let mut unavailable = serde_json::Map::new();
     for channel in MCP_CHANNELS {
+        let mut hidden: Vec<&String> = catalog
+            .iter()
+            .filter(|name| hidden_on_channel(channel, name))
+            .collect();
+        hidden.sort();
+        unavailable.insert((*channel).to_string(), json!(hidden));
         let grouped = enabled_groups_from_stored(&stored, channel, &catalog);
         let mut names: Vec<String> = groups_to_flat(&grouped).into_iter().collect();
         names.sort();
@@ -232,6 +250,7 @@ pub fn snapshot() -> Result<Value, String> {
         }).collect::<Vec<_>>(),
         "enabled": enabled,
         "enabled_grouped": enabled_grouped,
+        "unavailable_by_channel": unavailable,
     }))
 }
 

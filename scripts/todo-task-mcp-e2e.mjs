@@ -62,7 +62,7 @@ const E2E_REPO_ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '.
 const NOTES_TOOLS_E2E = [
   'get_all_notes_catalog',
   'get_note_digest_by_id',
-  'get_note_content',
+  'get_note_file',
   'search_document',
   'create_note',
 ];

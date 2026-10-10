@@ -6,6 +6,7 @@ mod categories;
 mod create_meta;
 mod digest;
 mod document;
+mod export_file;
 mod jot;
 mod layout;
 mod store;
@@ -18,6 +19,7 @@ pub use categories::{
     NotesCatError, INBOX_ID,
 };
 pub use document::*;
+pub use export_file::get_note_file;
 pub use jot::*;
 pub use update::*;
 pub use layout::ensure_notes_layout;

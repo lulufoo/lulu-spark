@@ -196,11 +196,7 @@ pub(crate) fn run_loop_with_progress(
             .ok()
             .flatten()
     });
-    let system_prompt = crate::agent::fill_host_file_dirs(
-        &system_prompt,
-        scratch.as_deref(),
-        &crate::config::paths::runtime_data_dir(),
-    );
+    let system_prompt = crate::agent::fill_host_file_dirs(&system_prompt, scratch.as_deref());
     if chat_turn_interrupted(&session.session_id, generation) {
         return cancelled_turn_outcome(session, steps_checkpoint);
     }
@@ -398,7 +394,7 @@ pub(crate) fn run_loop_with_progress(
             if chat_turn_interrupted(&session.session_id, generation) {
                 return cancelled_turn_outcome(session, steps_checkpoint);
             }
-            let (result, use_host, staged_note) = match tools::invoke(
+            let (result, use_host) = match tools::invoke(
                 &turn_tools,
                 &call.name,
                 &call.arguments,
@@ -406,11 +402,7 @@ pub(crate) fn run_loop_with_progress(
                 session,
                 trace_id,
             ) {
-                InvokeOutcome::Done {
-                    result,
-                    host,
-                    staged_note,
-                } => (result, host, staged_note),
+                InvokeOutcome::Done { result, host } => (result, host),
                 InvokeOutcome::Abort(reply) => {
                     session.steps.push(Step {
                         role: "assistant".into(),
@@ -438,10 +430,10 @@ pub(crate) fn run_loop_with_progress(
                 return cancelled_turn_outcome(session, steps_checkpoint);
             }
             let catalog = turn_tools.catalog.as_ref().expect("catalog present");
-            if !result.is_error && (catalog.is_mutating(&call.name) || staged_note) {
+            if !result.is_error && catalog.is_mutating(&call.name) {
                 wrote = true;
             }
-            if !result.is_error && (call.name == "stage" || staged_note) {
+            if !result.is_error && call.name == "stage" {
                 turn_fence = turn_fence_for_session(session);
             }
             let _ = diagnostics::log(

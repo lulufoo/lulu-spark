@@ -75,6 +75,8 @@ const MESSAGE_CENTER_READ_COMMANDS: &[&str] = &["get_message_channel_unread"];
 
 const PACKAGE_SNAPSHOT_READ_COMMANDS: &[&str] = &["get_package_snapshot"];
 
+const NOTE_OPEN_READ_COMMANDS: &[&str] = &["resolve_note_for_open", "resolve_knowledge_for_open"];
+
 const DEFAULT_CAPABILITY_PERMISSIONS: &[&str] = &[
     "core:default",
     "core:window:allow-start-dragging",
@@ -203,6 +205,22 @@ fn package_snapshot_read_command_is_acl_allowed() {
     let toml = fs::read_to_string(root.join("permissions/read-api.toml")).expect("toml");
     let allow = parse_read_api_toml_allow(&toml);
     let missing: Vec<_> = PACKAGE_SNAPSHOT_READ_COMMANDS
+        .iter()
+        .filter(|cmd| !allow.contains(**cmd))
+        .copied()
+        .collect();
+    assert!(
+        missing.is_empty(),
+        "commands missing from read-api.toml ACL: {missing:?}"
+    );
+}
+
+#[test]
+fn note_open_read_command_is_acl_allowed() {
+    let root = manifest_dir();
+    let toml = fs::read_to_string(root.join("permissions/read-api.toml")).expect("toml");
+    let allow = parse_read_api_toml_allow(&toml);
+    let missing: Vec<_> = NOTE_OPEN_READ_COMMANDS
         .iter()
         .filter(|cmd| !allow.contains(**cmd))
         .copied()

@@ -6,8 +6,9 @@ use crate::mcp_host::catalog::route_util::{missing_field, object_schema, route};
 use crate::mcp_host::ToolRoute;
 use crate::services::knowledge::get_knowledge_path_by_id;
 
-pub fn available_in(_channel: &str) -> bool {
-    true
+/// Mobile only; desktop channels use `get_knowledge_file`.
+pub fn available_in(channel: &str) -> bool {
+    channel == "mobile"
 }
 
 pub fn invoke(args: &Value) -> Value {
@@ -30,16 +31,6 @@ pub fn build(channel: &str) -> Option<ToolRoute> {
         }),
         &["id"],
     );
-    if channel == "spark" {
-        return Some(route(
-            "get_knowledge_content",
-            "Stage one knowledge document onto this Chat and return a Stage item (no path, no body). item.source.kind is knowledge. item.source.id is the knowledge business index id. Input id comes from search_document (category knowledge).",
-            id_schema,
-            true,
-            false,
-            invoke,
-        ));
-    }
     Some(route(
         "get_knowledge_content",
         "Resolve a search_document knowledge document id to the local absolute file path. Does not return file body. Unknown ids fail.",
