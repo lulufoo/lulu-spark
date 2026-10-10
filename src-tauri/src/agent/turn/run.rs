@@ -603,7 +603,15 @@ pub(crate) fn run_loop_with_progress(
 
 fn turn_fence_for_session(session: &Session) -> Option<crate::services::path_fence::PathFence> {
     loaded_path_fence().map(|base| {
-        base.with_session_scratch(&session.session_id)
-            .unwrap_or(base)
+        let mut fence = base
+            .with_session_scratch(&session.session_id)
+            .unwrap_or(base);
+        for entry in session.list_staged() {
+            let path = std::path::PathBuf::from(&entry.path);
+            if !fence.read_allow.iter().any(|root| root == &path) {
+                fence.read_allow.push(path);
+            }
+        }
+        fence
     })
 }

@@ -16,7 +16,7 @@ pub fn expand_for_business_key(key: &str) -> Option<PathFence> {
     let cache = stored_path(paths::cache_dir().ok()?);
     let knowledge = stored_path(paths::knowledge_root().ok()?);
 
-    let mut read_allow = vec![wb.clone(), data];
+    let read_allow = vec![data];
     let mut read_deny = vec![wb.join(".git")];
 
     let repos_file = paths::sediment_kb_repos_path().ok();
@@ -30,7 +30,6 @@ pub fn expand_for_business_key(key: &str) -> Option<PathFence> {
                     continue;
                 }
                 let dir = stored_path(knowledge.join(name));
-                read_allow.push(dir.clone());
                 read_deny.push(dir.join(".git"));
             }
         }

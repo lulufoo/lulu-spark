@@ -292,7 +292,7 @@ fn run_loop_offers_host_file_tools_and_keeps_scratch_writes_inside_cache() {
     r#loop::reset_runtime_for_tests();
     mcp_registry::clear_for_tests();
     mcp_registry::seed_defaults();
-    let readable = sandbox.spark_root().join("readable.md");
+    let readable = sandbox.data_dir().join("readable.md");
     fs::write(&readable, "needle-line\n").expect("plant readable file");
     let forbidden = sandbox.spark_root().join("todo.md");
     let (mcp, mcp_port) = start_isolated_mcp(&sandbox);
@@ -423,7 +423,7 @@ fn run_loop_offers_host_file_tools_and_keeps_scratch_writes_inside_cache() {
             .content
             .as_deref()
             .is_some_and(|content| content.contains("needle-line")),
-        "Host read must return the $WB file"
+        "Host read must return the SPARK_DATA_DIR file"
     );
     assert!(
         tool_turns[1]

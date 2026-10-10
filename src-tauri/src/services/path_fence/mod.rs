@@ -44,6 +44,10 @@ impl PathFence {
             && !in_any(path, &self.write_deny)
             && !in_any(path, &self.read_deny)
     }
+
+    pub fn is_read_denied(&self, path: &Path) -> bool {
+        in_any(path, &self.read_deny)
+    }
 }
 
 pub fn sanitize_session_segment(session_id: &str) -> Result<&str, String> {
@@ -64,8 +68,7 @@ pub fn stored_path(path: PathBuf) -> PathBuf {
     path.canonicalize().unwrap_or(path)
 }
 
-/// Absolute existing regular file under the read fence (never a directory).
-pub fn validate_stage_file(path: &str, fence: &PathFence) -> Result<PathBuf, String> {
+fn existing_regular_file(path: &str) -> Result<PathBuf, String> {
     let abs = require_absolute(path)?;
     let meta = std::fs::symlink_metadata(&abs).map_err(|_| "path does not exist".to_string())?;
     if meta.file_type().is_dir() {
@@ -75,6 +78,25 @@ pub fn validate_stage_file(path: &str, fence: &PathFence) -> Result<PathBuf, Str
     if !canon.is_file() {
         return Err("path must be a regular file".into());
     }
+    Ok(canon)
+}
+
+/// Absolute existing regular file eligible to register on Stage (never a directory).
+/// Rejects the session write root and read_deny. Does not require current read allow.
+pub fn validate_stage_file(path: &str, fence: &PathFence) -> Result<PathBuf, String> {
+    let canon = existing_regular_file(path)?;
+    if fence.allows_write(&canon) {
+        return Err("path must be outside SESSION_WORKSPACE_DIR".into());
+    }
+    if fence.is_read_denied(&canon) {
+        return Err("path is outside the read fence".into());
+    }
+    Ok(stored_path(canon))
+}
+
+/// Absolute existing regular file under the current read fence (never a directory).
+pub fn validate_readable_regular_file(path: &str, fence: &PathFence) -> Result<PathBuf, String> {
+    let canon = existing_regular_file(path)?;
     if !fence.allows_read(&canon) {
         return Err("path is outside the read fence".into());
     }

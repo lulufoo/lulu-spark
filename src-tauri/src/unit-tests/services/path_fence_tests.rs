@@ -2,7 +2,8 @@ use std::fs;
 use std::path::PathBuf;
 
 use crate::services::path_fence::{
-    require_absolute, sanitize_session_segment, stored_path, validate_stage_file, PathFence,
+    require_absolute, sanitize_session_segment, stored_path, validate_readable_regular_file,
+    validate_stage_file, PathFence,
 };
 
 fn unique_dir(label: &str) -> PathBuf {
@@ -121,6 +122,50 @@ fn validate_stage_file_accepts_regular_file_and_rejects_dir_deny() {
     assert!(validate_stage_file("rel.md", &fence).is_err());
     assert!(
         validate_stage_file(&root.join(".git").join("config").to_string_lossy(), &fence)
+            .unwrap_err()
+            .contains("read fence")
+    );
+}
+
+#[test]
+fn validate_stage_file_accepts_outside_read_allow_and_rejects_scratch() {
+    let outside_dir = unique_dir("stage-outside");
+    let outside = outside_dir.join("ext.md");
+    fs::write(&outside, "ext").expect("outside");
+    let root = unique_dir("stage-root");
+    let scratch_parent = unique_dir("stage-scratch");
+    let fence = fence_with(root, scratch_parent.clone())
+        .with_session_scratch("sess_abc")
+        .expect("scratch");
+    assert_eq!(
+        validate_stage_file(&outside.to_string_lossy(), &fence).expect("stage outside"),
+        stored_path(outside)
+    );
+    let scratch_file = scratch_parent.join("sess_abc").join("pad.md");
+    fs::create_dir_all(scratch_file.parent().expect("parent")).expect("dir");
+    fs::write(&scratch_file, "pad").expect("scratch file");
+    assert!(
+        validate_stage_file(&scratch_file.to_string_lossy(), &fence)
+            .unwrap_err()
+            .contains("SESSION_WORKSPACE_DIR")
+    );
+}
+
+#[test]
+fn validate_readable_regular_file_stays_inside_read_allow() {
+    let root = unique_dir("readable-root");
+    let inside = root.join("ok.md");
+    fs::write(&inside, "ok").expect("inside");
+    let outside_dir = unique_dir("readable-out");
+    let outside = outside_dir.join("no.md");
+    fs::write(&outside, "no").expect("outside");
+    let fence = fence_with(root, unique_dir("readable-scratch"));
+    assert_eq!(
+        validate_readable_regular_file(&inside.to_string_lossy(), &fence).expect("inside"),
+        stored_path(inside)
+    );
+    assert!(
+        validate_readable_regular_file(&outside.to_string_lossy(), &fence)
             .unwrap_err()
             .contains("read fence")
     );

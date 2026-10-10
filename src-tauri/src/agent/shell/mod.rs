@@ -182,9 +182,12 @@ pub fn stage_chat_document_core(
             return Err("Conversation is running".into());
         }
     }
-    let fence = crate::agent::binding::loaded_path_fence().ok_or_else(|| {
+    let base = crate::agent::binding::loaded_path_fence().ok_or_else(|| {
         "Host tool has no path fence for this binding.".to_string()
     })?;
+    let fence = base
+        .with_session_scratch(sid)
+        .unwrap_or(base);
     let source = session::StagedSource::parse(Some(source_kind), Some(source_id))?;
     let mut session = session::load_session(sid)?;
     let canon = crate::services::path_fence::validate_stage_file(path, &fence)?;

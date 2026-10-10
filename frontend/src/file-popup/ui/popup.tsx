@@ -109,7 +109,9 @@ export function FilePopup() {
               type="button"
               className="md-header-btn"
               data-role="copy-file-path"
-              title="Copy absolute path"
+              title="Copy"
+              data-tip={view.path || undefined}
+              aria-label="Copy absolute path"
               disabled={!canCopy}
               onClick={onCopyPath}
             >

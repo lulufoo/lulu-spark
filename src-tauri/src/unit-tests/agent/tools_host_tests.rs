@@ -114,16 +114,27 @@ fn host_file_tool_descriptions_use_dir_names_not_absolute_paths() {
             "{name} static text must not bake a scratch path"
         );
         assert!(
-            !desc.contains("staged"),
-            "{name} must not mention staged files"
-        );
-        assert!(
             !desc.contains("list_staged"),
             "{name} must not point at list_staged"
         );
     }
+    for name in ["grep", "read", "copy"] {
+        let desc = tool_description(&catalog, name);
+        assert!(
+            desc.contains("files on this Chat's Stage"),
+            "{name} must say Stage files are readable"
+        );
+    }
+    for name in ["write", "str_replace"] {
+        let desc = tool_description(&catalog, name);
+        assert!(
+            !desc.contains("staged"),
+            "{name} must not mention staged files"
+        );
+    }
     let grep_desc = tool_description(&catalog, "grep");
     assert!(grep_desc.contains("Readable paths:"));
+    assert!(grep_desc.contains("every staged file"));
     assert!(grep_desc.starts_with("Search text."));
     let read_desc = tool_description(&catalog, "read");
     assert!(read_desc.contains("Readable paths:"));

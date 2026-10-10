@@ -11,7 +11,7 @@ pub fn catalog() -> ToolCatalog {
     ToolCatalog::from_local_tools(vec![
         local_tool(
             "grep",
-            "Search text.\n\nReadable paths: SPARK_DATA_DIR, SESSION_WORKSPACE_DIR.\npath is optional; omit path to search both directories.",
+            "Search text.\n\nReadable paths: SPARK_DATA_DIR, SESSION_WORKSPACE_DIR, and files on this Chat's Stage.\npath is optional; omit path to search both directories and every staged file.",
             json!({
                 "type": "object",
                 "properties": {
@@ -25,7 +25,7 @@ pub fn catalog() -> ToolCatalog {
         ),
         local_tool(
             "read",
-            "Read a text file.\nOptional offset (1-based start line) and limit (max lines, default 50).\n\nReadable paths: SPARK_DATA_DIR, SESSION_WORKSPACE_DIR.\npath must be absolute.",
+            "Read a text file.\nOptional offset (1-based start line) and limit (max lines, default 50).\n\nReadable paths: SPARK_DATA_DIR, SESSION_WORKSPACE_DIR, and files on this Chat's Stage.\npath must be absolute.",
             json!({
                 "type": "object",
                 "properties": {
@@ -73,7 +73,7 @@ pub fn catalog() -> ToolCatalog {
         ),
         local_tool(
             "copy",
-            "Copy a regular file.\nDoes not modify the source. Overwrites dest_path if it already exists.\n\nSource paths: SPARK_DATA_DIR, SESSION_WORKSPACE_DIR.\nDestination paths: SESSION_WORKSPACE_DIR.\nsource_path must be absolute. dest_path must be a file path in SESSION_WORKSPACE_DIR, not a directory.",
+            "Copy a regular file.\nDoes not modify the source. Overwrites dest_path if it already exists.\n\nSource paths: SPARK_DATA_DIR, SESSION_WORKSPACE_DIR, and files on this Chat's Stage.\nDestination paths: SESSION_WORKSPACE_DIR.\nsource_path must be absolute. dest_path must be a file path in SESSION_WORKSPACE_DIR, not a directory.",
             json!({
                 "type": "object",
                 "properties": {

@@ -6,6 +6,7 @@ use serde_json::json;
 use crate::config::paths;
 use crate::agent::r#loop;
 use crate::mcp_host::registry::{self, SEEDED_BUSINESS_KEY};
+use crate::services::path_fence::stored_path;
 use crate::services::spark_path_fence::expand_for_business_key;
 use crate::test_support::TestSandbox;
 
@@ -47,25 +48,31 @@ fn expand_spark_includes_knowledge_root_and_listed_clone() {
         let clone = paths::knowledge_root().expect("knowledge_root").join("demo");
         let cache = paths::cache_dir().expect("cache");
 
-        let fence_wb = fence
-            .read_allow
-            .iter()
-            .find(|p| same_path(p, &wb))
-            .expect("$WB in A1");
-        let fence_clone = fence
-            .read_allow
-            .iter()
-            .find(|p| same_path(p, &clone))
-            .expect("clone in A1");
+        let data = paths::runtime_data_dir();
+        assert!(
+            fence.read_allow.iter().any(|p| same_path(p, &data)),
+            "SPARK_DATA_DIR must be the default read root"
+        );
+        assert!(
+            !fence.read_allow.iter().any(|p| same_path(p, &wb)),
+            "spark_root must not be a default read root"
+        );
+        assert!(
+            !fence.read_allow.iter().any(|p| same_path(p, &clone)),
+            "clone must not be its own allow root"
+        );
         assert!(!fence
             .read_allow
             .iter()
             .any(|p| same_path(p, &paths::knowledge_root().expect("knowledge_root"))));
-        assert!(fence.read_deny.iter().any(|p| p == &fence_wb.join(".git")));
+        assert!(fence.allows_read(&clone), "clone stays readable under SPARK_DATA_DIR");
+        assert!(!fence.allows_read(&wb.join("readable.md")));
         assert!(fence
             .read_deny
-            .iter()
-            .any(|p| p == &fence_clone.join(".git")));
+            .contains(&stored_path(wb.clone()).join(".git")));
+        assert!(fence
+            .read_deny
+            .contains(&stored_path(clone.clone()).join(".git")));
         assert!(fence.write_allow.is_empty());
         let scratch_parent = fence.scratch_parent.as_ref().expect("scratch_parent");
         assert_eq!(
@@ -94,13 +101,37 @@ fn public_set_attaches_fence_and_reset_clears_it() {
             fence
                 .read_allow
                 .iter()
+                .any(|p| same_path(p, &sandbox.data_dir())),
+            "A1 must include SPARK_DATA_DIR, got {:?}",
+            fence.read_allow
+        );
+        assert!(
+            !fence
+                .read_allow
+                .iter()
                 .any(|p| same_path(p, &sandbox.spark_root())),
-            "A1 must include $WB, got {:?}",
+            "A1 must not include spark_root, got {:?}",
             fence.read_allow
         );
         assert!(fence.write_allow.is_empty(), "B1 stays empty until a turn");
         r#loop::reset_binding().expect("Reset");
         assert!(r#loop::loaded_path_fence().is_none());
+    });
+}
+
+#[test]
+fn staged_exact_spark_root_file_is_readable_without_write() {
+    with_sandbox(|sandbox| {
+        let fence = expand_for_business_key(SEEDED_BUSINESS_KEY).expect("spark fence");
+        let outside = sandbox.spark_root().join("only-if-staged.md");
+        fs::write(&outside, "secret").expect("write");
+        assert!(!fence.allows_read(&outside));
+        let mut granted = fence
+            .with_session_scratch("spark_chat_abc")
+            .expect("scratch");
+        granted.read_allow.push(outside.clone());
+        assert!(granted.allows_read(&outside));
+        assert!(!granted.allows_write(&outside));
     });
 }
 
