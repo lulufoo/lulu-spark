@@ -1,7 +1,7 @@
 import {
   forwardRef,
-  useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useRef,
   type CompositionEventHandler,
   type FormEventHandler,
@@ -74,7 +74,7 @@ export const ComposerInput = forwardRef<ComposerInputHandle, ComposerInputProps>
       [],
     );
 
-    useEffect(() => {
+    useLayoutEffect(() => {
       const el = elRef.current;
       return el ? attachComposerEditing(el) : undefined;
     }, []);

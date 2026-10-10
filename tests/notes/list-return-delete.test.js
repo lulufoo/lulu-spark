@@ -280,4 +280,19 @@ describe('T8 behavioral: delete-dialog confirm ok', () => {
     expect(desc).toBeTruthy();
     expect(desc.textContent).not.toMatch(/raw|digest/i);
   });
+
+  it('delete dialog title has no warning icon', () => {
+    const title = document.querySelector('#delete-dialog-box h3');
+    expect(title?.textContent).toBe('Delete document');
+    expect(title?.textContent).not.toMatch(/⚠️/);
+  });
+
+  it('closes when the overlay is clicked, not the card', () => {
+    const dialog = document.getElementById('delete-dialog');
+    const box = document.getElementById('delete-dialog-box');
+    box.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(dialog.classList.contains('open')).toBe(true);
+    dialog.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(dialog.classList.contains('open')).toBe(false);
+  });
 });

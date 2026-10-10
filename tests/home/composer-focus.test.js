@@ -61,4 +61,48 @@ describe('home composer dock hit area', () => {
     expect(appCss).toMatch(/\.home-chat-input\s*\{[^}]*max-height:\s*148px/);
     expect(appCss).toMatch(/\.home-chat-input\s*\{[^}]*overflow-y:\s*auto/);
   });
+
+  it('keeps the empty placeholder painted when the input is focused', () => {
+    const appCss = readFileSync(
+      join(dirname(fileURLToPath(import.meta.url)), '../../frontend/app.css'),
+      'utf8',
+    );
+    expect(appCss).toMatch(
+      /\.home-chat-input\[data-empty="true"\]::before\s*\{[^}]*content:\s*attr\(data-placeholder\)/,
+    );
+    expect(appCss).toMatch(
+      /\.home-chat-input\[data-empty="true"\]::before\s*\{[^}]*position:\s*absolute/,
+    );
+    expect(appCss).not.toMatch(/\.home-chat-input:focus[^\n]*::before/);
+  });
+
+  it('lifts Workspace/Staged summaries and the token ring on hover', () => {
+    const appCss = readFileSync(
+      join(dirname(fileURLToPath(import.meta.url)), '../../frontend/app.css'),
+      'utf8',
+    );
+    expect(appCss).toMatch(
+      /\.home-chat-staged-summary:hover\s*\{[^}]*background:\s*var\(--bg-canvas\)/,
+    );
+    expect(appCss).toMatch(
+      /\.home-chat-context-percent:hover \.home-chat-context-ring-track/,
+    );
+    expect(appCss).toMatch(
+      /\.home-chat-context-percent\[aria-expanded="true"\] \.home-chat-context-ring-track/,
+    );
+    expect(appCss).toMatch(
+      /\.home-chat-context-percent:hover \.home-chat-context-ring-progress/,
+    );
+    expect(appCss).toMatch(
+      /\.home-chat-context-percent:hover \.home-chat-context-ring-track,\s*\.home-chat-context-percent:hover \.home-chat-context-ring-progress[\s\S]*?stroke-width:\s*2\.75/,
+    );
+    expect(appCss).not.toMatch(
+      /\.home-chat-context-percent:hover[^{]*\{[^}]*stroke:\s*var\(--fg-default\)/,
+    );
+    expect(appCss).not.toMatch(
+      /\.home-chat-context-percent:hover\s*\{[^}]*background:/,
+    );
+    expect(appCss).toMatch(/\.home-chat-send:hover\s*\{[^}]*background:\s*var\(--bg-dark\)/);
+    expect(appCss).not.toMatch(/\.home-chat-send:hover\s*\{[^}]*--bg-hex-141414/);
+  });
 });

@@ -354,10 +354,15 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
   });
 
   it('delete dialog copy uses table B2 strings', () => {
-    expect(indexHtml).toMatch(/<h3>⚠️ Delete document<\/h3>/);
-    expect(indexHtml).toMatch(/id="delete-dialog-desc"[^>]*>[\s\S]*Cannot be undone/);
-    expect(indexHtml).toMatch(/placeholder="Enter CONFIRM here"/);
-    expect(indexHtml).toMatch(/title="Copy CONFIRM"/);
+    const deleteDialog = readFileSync(
+      join(repoRoot, 'frontend/src/notes/ui/delete-dialog.tsx'),
+      'utf8',
+    );
+    expect(deleteDialog).toMatch(/<h3>Delete document<\/h3>/);
+    expect(deleteDialog).not.toMatch(/⚠️/);
+    expect(deleteDialog).toMatch(/id="delete-dialog-desc"[^>]*>[\s\S]*Cannot be undone/);
+    expect(deleteDialog).toMatch(/placeholder="Enter CONFIRM here"/);
+    expect(deleteDialog).toMatch(/title="Copy CONFIRM"/);
   });
 
   it('comment editor placeholder uses table B2', () => {

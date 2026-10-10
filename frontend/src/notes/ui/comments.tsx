@@ -558,7 +558,10 @@ export function NotesDeleteZone() {
           void import('./delete-dialog.tsx').then(({ openDeleteDialog }) => openDeleteDialog());
         }}
       >
-        🗑 Delete this entry
+        <span className="md-body-delete-icon" aria-hidden="true">
+          <span className="md-body-delete-glyph">🗑</span>
+        </span>
+        Delete this entry
       </button>
     </div>
   );
