@@ -172,6 +172,59 @@ describe('deleting a chip', () => {
   });
 });
 
+describe('Command-Backspace line delete', () => {
+  it('deletes a trailing chip and the rest of the line', () => {
+    const onInput = vi.fn();
+    const { ref, el } = render({ onInput });
+    ref.current.setText(`${NOTE} `);
+    expect(beforeInput(el, 'deleteSoftLineBackward').defaultPrevented).toBe(true);
+    expect(el.querySelector('.home-ref-chip')).toBeNull();
+    expect(ref.current.getText()).toBe('');
+    expect(el.getAttribute('data-empty')).toBe('true');
+    expect(window.getSelection().isCollapsed).toBe(true);
+    expect(onInput).toHaveBeenCalled();
+  });
+
+  it('treats deleteHardLineBackward the same way', () => {
+    const { ref, el } = render();
+    ref.current.setText(`${NOTE} `);
+    expect(beforeInput(el, 'deleteHardLineBackward').defaultPrevented).toBe(true);
+    expect(ref.current.getText()).toBe('');
+    expect(el.querySelector('.home-ref-chip')).toBeNull();
+  });
+
+  it('keeps the previous line', () => {
+    const { ref, el } = render();
+    ref.current.setText(`keep\n${NOTE} `);
+    expect(beforeInput(el, 'deleteSoftLineBackward').defaultPrevented).toBe(true);
+    expect(ref.current.getText()).toBe('keep\n');
+    expect(el.querySelector('.home-ref-chip')).toBeNull();
+  });
+
+  it('does not delete when the caret is already at the line start', () => {
+    const { ref, el } = render();
+    ref.current.setText(`${NOTE} `);
+    caretAt(el, 0);
+    expect(beforeInput(el, 'deleteSoftLineBackward').defaultPrevented).toBe(true);
+    expect(ref.current.getText()).toBe(`${NOTE} `);
+    expect(el.querySelector('.home-ref-chip')).not.toBeNull();
+  });
+
+  it('deletes only the selection when one exists', () => {
+    const { ref, el } = render();
+    ref.current.setText(`${NOTE}xy`);
+    const range = document.createRange();
+    range.setStart(el.lastChild, 0);
+    range.setEnd(el.lastChild, 1);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    expect(beforeInput(el, 'deleteSoftLineBackward').defaultPrevented).toBe(true);
+    expect(ref.current.getText()).toBe(`${NOTE}y`);
+    expect(el.querySelector('.home-ref-chip')).not.toBeNull();
+  });
+});
+
 describe('clicking a chip', () => {
   it('opens a note through the note opener', () => {
     const { ref, el } = render();

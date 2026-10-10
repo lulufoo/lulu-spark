@@ -11,6 +11,7 @@ import {
   serializeReference,
   type ReferenceValue,
 } from '../references/index.ts';
+import { deleteComposerLineBackward } from './composer-line-delete.ts';
 
 const BLOCK_TAGS = new Set(['DIV', 'P']);
 
@@ -193,6 +194,9 @@ export function attachComposerEditing(root: HTMLElement): () => void {
       event.preventDefault();
       insertPlainTextAtSelection(root, '\n');
       notifyInput(root);
+    } else if (type === 'deleteSoftLineBackward' || type === 'deleteHardLineBackward') {
+      event.preventDefault();
+      deleteComposerLineBackward(root);
     } else if (type === 'deleteContentBackward' || type === 'deleteContentForward') {
       const chip = adjacentChip(root, type === 'deleteContentBackward' ? 'back' : 'forward');
       if (chip) {
