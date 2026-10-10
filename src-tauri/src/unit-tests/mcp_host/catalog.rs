@@ -29,7 +29,7 @@ const KNOWLEDGE_APIS: &[&str] = &[
     "get_knowledge_file",
 ];
 
-const GLOBAL_APIS: &[&str] = &["search_document"];
+const GLOBAL_APIS: &[&str] = &["search_document", "get_read_later"];
 
 const TODO_APIS: &[&str] = &[
     "create_todo_task",
@@ -284,6 +284,17 @@ fn delete_note_only_available_on_spark() {
 #[test]
 fn factory_unknown_group_returns_none() {
     assert!(build("unknown", "get_all_notes_catalog", "spark").is_none());
+}
+
+#[test]
+fn get_read_later_is_spark_only() {
+    assert!(build("global", "get_read_later", "spark").is_some());
+    for channel in ["cursor", "cursor_ide", "codex", "claude", "mobile"] {
+        assert!(
+            build("global", "get_read_later", channel).is_none(),
+            "{channel}"
+        );
+    }
 }
 
 #[test]

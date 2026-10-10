@@ -35,9 +35,11 @@ fn spark_host_system_prompt_closes_data_and_teaches_file_copies() {
     assert!(prompt.contains("`stage`"), "model stages external files itself");
     assert!(prompt.contains("get_note_file"));
     assert!(prompt.contains("get_knowledge_file"));
+    assert!(prompt.contains("get_read_later"));
     assert!(prompt.contains("source_path"), "edited copy goes back via update_note");
     assert!(prompt.contains("[标题](note:<id>)"), "note link rule");
     assert!(prompt.contains("[标题](knowledge:<id>)"), "knowledge link rule");
+    assert!(prompt.contains("[标题](read-later:<id>)"), "read-later link rule");
 }
 
 #[test]
@@ -49,12 +51,14 @@ fn spark_host_system_prompt_says_what_a_reference_is_not_how_to_read_it() {
     );
     assert!(prompt.contains("refers to a note"));
     assert!(prompt.contains("refers to a knowledge document"));
+    assert!(prompt.contains("refers to a read-later item"));
     assert!(prompt.contains("is that document's id"));
     for imperative in [
         "whenever a reference",
         "when a reference appears",
         "always call get_note_file",
         "always call get_knowledge_file",
+        "always call get_read_later",
     ] {
         assert!(
             !prompt.contains(imperative),
