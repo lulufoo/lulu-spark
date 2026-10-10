@@ -48,6 +48,11 @@ pub fn session_llm_calls_dir(session_id: &str) -> Result<PathBuf, String> {
     Ok(session_dir(session_id)?.join("llm-calls"))
 }
 
+/// Agent diagnostic JSONL for one session. Deleted with the session directory.
+pub fn session_log_path(session_id: &str) -> Result<PathBuf, String> {
+    Ok(session_dir(session_id)?.join("session.log"))
+}
+
 fn catalog_file_path() -> Result<PathBuf, String> {
     let _ = sessions_dir()?;
     Ok(catalog::catalog_path(agent_dir()?))

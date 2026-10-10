@@ -433,14 +433,14 @@ fn run_loop_offers_host_file_tools_and_keeps_scratch_writes_inside_cache() {
         "Host write outside scratch must be denied"
     );
     let log = fs::read_to_string(
-        crate::agent::diagnostics::diagnostic_log_path().expect("diag path"),
+        crate::agent::diagnostics::session_log_path(&session.session_id).expect("session log"),
     )
     .unwrap_or_default();
     assert!(
         log.contains("\"tool_name\":\"read\"")
             && log.contains("\"source\":\"host\"")
             && log.contains(&format!("\"session_id\":\"{}\"", session.session_id)),
-        "Host file tools must reuse assistant-diagnostic.jsonl with session_id"
+        "Host file tools must write session.log with session_id"
     );
 
     drop(hits);

@@ -27,12 +27,13 @@ use rmcp::{
     },
     ErrorData as McpError, RoleServer,
 };
-use serde_json::Value;
+use serde_json::{json, Value};
 use tokio_util::sync::CancellationToken;
 
-use crate::agent::diagnostics::{self, DiagnosticEvent, TraceId};
+use crate::agent::diagnostics::TraceId;
 use crate::agent::mcp::DIAGNOSTIC_TRACE_HEADER;
 use crate::main_host;
+use crate::services::app_log::{self, Level, Side};
 use crate::services::mcp_oauth::{verify_device_token, verify_for_slot, OAuthError, Slot, TicketHandle};
 use crate::services::settings::mcp_catalog;
 use super::proxy::{mapped_to_call_tool_result, proxy_tool_call};
@@ -122,20 +123,24 @@ impl ServerHandler for SlotHandler {
             let trace_id = TraceId::new();
             let tool_name = request.name.to_string();
             let call_started = Instant::now();
-            let _ = diagnostics::log(
-                DiagnosticEvent::point("mcp_host.tools", "call.started", &trace_id)
-                    .with_bounded_text_field("tool_name", &tool_name),
+            log_mcp_host(
+                "call.started",
+                &trace_id,
+                json_params(json!({
+                    "component": "mcp_host.tools",
+                    "tool_name": tool_name,
+                })),
             );
             if !mcp_catalog::is_enabled(&channel, request.name.as_ref()) {
-                let _ = diagnostics::log(
-                    DiagnosticEvent::timing(
-                        "mcp_host.tools",
-                        "call.completed",
-                        &trace_id,
-                        call_started.elapsed(),
-                    )
-                    .with_bounded_text_field("tool_name", &tool_name)
-                    .with_static_field("outcome", "disabled"),
+                log_mcp_host(
+                    "call.completed",
+                    &trace_id,
+                    json_params(json!({
+                        "component": "mcp_host.tools",
+                        "tool_name": tool_name,
+                        "outcome": "disabled",
+                        "elapsed_ms": millis(call_started.elapsed()),
+                    })),
                 );
                 return Err(McpError::invalid_params(
                     format!(
@@ -150,15 +155,15 @@ impl ServerHandler for SlotHandler {
                 Ok(mapped) => Ok(mapped_to_call_tool_result(mapped).into()),
                 Err(msg) => Err(McpError::invalid_params(msg, None)),
             };
-            let _ = diagnostics::log(
-                DiagnosticEvent::timing(
-                    "mcp_host.tools",
-                    "call.completed",
-                    &trace_id,
-                    call_started.elapsed(),
-                )
-                .with_bounded_text_field("tool_name", &tool_name)
-                .with_static_field("outcome", if result.is_ok() { "ok" } else { "error" }),
+            log_mcp_host(
+                "call.completed",
+                &trace_id,
+                json_params(json!({
+                    "component": "mcp_host.tools",
+                    "tool_name": tool_name,
+                    "outcome": if result.is_ok() { "ok" } else { "error" },
+                    "elapsed_ms": millis(call_started.elapsed()),
+                })),
             );
             result
         }
@@ -284,46 +289,65 @@ pub(super) async fn slot_bearer_gate(
         .and_then(TraceId::parse)
         .unwrap_or_else(TraceId::new);
     let request_started = Instant::now();
-    let _ = diagnostics::log(DiagnosticEvent::point(
-        "mcp_host.http",
+    log_mcp_host(
         "request.auth.started",
         &trace_id,
-    ));
+        json_params(json!({ "component": "mcp_host.http" })),
+    );
     if let Err(status) = verify_registered_slot(scene_slot, request.headers()) {
         let response = status.into_response();
-        let _ = diagnostics::log(
-            DiagnosticEvent::timing(
-                "mcp_host.http",
-                "request.completed",
-                &trace_id,
-                request_started.elapsed(),
-            )
-            .with_static_field("outcome", "unauthorized")
-            .with_u64_field("http_status", response.status().as_u16().into()),
+        log_mcp_host(
+            "request.completed",
+            &trace_id,
+            json_params(json!({
+                "component": "mcp_host.http",
+                "outcome": "unauthorized",
+                "http_status": response.status().as_u16(),
+                "elapsed_ms": millis(request_started.elapsed()),
+            })),
         );
         return response;
     }
-    let _ = diagnostics::log(
-        DiagnosticEvent::timing(
-            "mcp_host.http",
-            "request.auth.completed",
-            &trace_id,
-            request_started.elapsed(),
-        )
-        .with_static_field("outcome", "ok"),
+    log_mcp_host(
+        "request.auth.completed",
+        &trace_id,
+        json_params(json!({
+            "component": "mcp_host.http",
+            "outcome": "ok",
+            "elapsed_ms": millis(request_started.elapsed()),
+        })),
     );
     let response = next.run(request).await;
-    let _ = diagnostics::log(
-        DiagnosticEvent::timing(
-            "mcp_host.http",
-            "request.completed",
-            &trace_id,
-            request_started.elapsed(),
-        )
-        .with_static_field("outcome", "response")
-        .with_u64_field("http_status", response.status().as_u16().into()),
+    log_mcp_host(
+        "request.completed",
+        &trace_id,
+        json_params(json!({
+            "component": "mcp_host.http",
+            "outcome": "response",
+            "http_status": response.status().as_u16(),
+            "elapsed_ms": millis(request_started.elapsed()),
+        })),
     );
     response
+}
+
+fn millis(elapsed: std::time::Duration) -> u64 {
+    elapsed.as_millis().try_into().unwrap_or(u64::MAX)
+}
+
+fn json_params(value: serde_json::Value) -> Option<serde_json::Value> {
+    Some(value)
+}
+
+fn log_mcp_host(event: &str, trace_id: &TraceId, params: Option<serde_json::Value>) {
+    app_log::log(
+        "mcp_host",
+        event,
+        Some(trace_id.as_str()),
+        params,
+        Side::Host,
+        Level::Info,
+    );
 }
 
 pub(super) fn verify_mobile_device(headers: &HeaderMap) -> Result<(), StatusCode> {
