@@ -31,6 +31,7 @@ import {
   stopHomeHub,
 } from './commands/hub.ts';
 import { consumeComposerFocus, focusComposerFromDock } from './commands/composer-focus.ts';
+import { onNoteLinkClick } from './commands/open-note-link.ts';
 import { openStagedFile, unstageStaged } from './commands/staged.ts';
 import { deleteWorkspaceFile, openWorkspaceFile } from './commands/workspace.ts';
 import { createImeEnterGuard } from './ime-enter.ts';
@@ -107,6 +108,7 @@ const MessageThread = memo(function MessageThread({
             {kind === 'assistant' ? (
               <div
                 className="home-chat-md"
+                onClick={onNoteLinkClick}
                 dangerouslySetInnerHTML={{ __html: renderHomeChatMarkdown(m.text) }}
               />
             ) : (
