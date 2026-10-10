@@ -7,6 +7,7 @@ import * as api from '../../frontend/src/host/api.ts';
 import { mountHomeHub } from '../../frontend/src/home/hub.tsx';
 import * as chatRender from '../../frontend/src/home/ui/chat-render.ts';
 import { readFrontendJs, readMainSource } from '../helpers/read-frontend-js.js';
+import { composerValue, setComposerValue, composerDisabled, composerPlaceholder } from '../helpers/composer.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const mainJs = readMainSource();
@@ -501,7 +502,7 @@ describe('home hub chat sessions', () => {
     await mountReady();
     const input = container.querySelector('[data-role="input"]');
     const form = container.querySelector('[data-role="form"]');
-    input.value = 'Hello there';
+    setComposerValue(input, 'Hello there');
     form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
     await vi.waitFor(() => {
       const fold = container.querySelector('[data-role="thinking"]');
@@ -524,8 +525,8 @@ describe('home hub chat sessions', () => {
     await mountReady();
     const input = container.querySelector('[data-role="input"]');
     const form = container.querySelector('[data-role="form"]');
-    expect(input.disabled).toBe(false);
-    input.value = 'Hello there';
+    expect(composerDisabled(input)).toBe(false);
+    setComposerValue(input, 'Hello there');
     form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
     await vi.waitFor(() => {
       expect(invokeSpy).toHaveBeenCalledWith('agent_chat_turn', {
@@ -565,7 +566,7 @@ describe('home hub chat sessions', () => {
     await mountReady();
     const input = container.querySelector('[data-role="input"]');
     const form = container.querySelector('[data-role="form"]');
-    input.value = 'Hello there';
+    setComposerValue(input, 'Hello there');
     form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
     await vi.waitFor(() => {
       const hint = container.querySelector('[data-role="progress-hint"]');
@@ -614,7 +615,7 @@ describe('home hub chat sessions', () => {
     await mountReady();
     const input = container.querySelector('[data-role="input"]');
     const form = container.querySelector('[data-role="form"]');
-    input.value = 'Hello there';
+    setComposerValue(input, 'Hello there');
     form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
     await vi.waitFor(() => {
       expect(container.querySelector('.home-chat-bubble--user')?.textContent).toBe(
@@ -661,32 +662,32 @@ describe('home hub chat sessions', () => {
     const input = container.querySelector('[data-role="input"]');
     const send = container.querySelector('[data-role="send"]');
     const form = container.querySelector('[data-role="form"]');
-    input.value = 'Hello there';
+    setComposerValue(input, 'Hello there');
     form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
     await vi.waitFor(() => {
       expect(container.querySelector('.home-chat-bubble--user')?.textContent).toBe(
         'Hello there',
       );
-      expect(input.disabled).toBe(false);
+      expect(composerDisabled(input)).toBe(false);
       expect(send.disabled).toBe(true);
     });
-    input.value = 'Draft while waiting';
+    setComposerValue(input, 'Draft while waiting');
     form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
     expect(invokeSpy.mock.calls.filter(([cmd]) => cmd === 'agent_chat_turn')).toHaveLength(1);
-    expect(input.value).toBe('Draft while waiting');
+    expect(composerValue(input)).toBe('Draft while waiting');
     releaseTurn();
     await vi.waitFor(() => {
       expect(send.disabled).toBe(false);
       expect(container.textContent).toMatch(/Hi back/);
     });
-    expect(input.value).toBe('Draft while waiting');
+    expect(composerValue(input)).toBe('Draft while waiting');
   });
 
   it('disables the composer when Binding is unbound', async () => {
     bound = false;
     cleanup = mountHomeHub(container, { navigate: vi.fn() });
     await vi.waitFor(() => {
-      expect(container.querySelector('[data-role="input"]').disabled).toBe(true);
+      expect(composerDisabled(container.querySelector('[data-role=\"input\"]'))).toBe(true);
       expect(container.querySelector('[data-role="send"]').disabled).toBe(true);
       expect(container.textContent).toMatch(/Chat requires a workspace Binding/);
     });
@@ -727,7 +728,7 @@ describe('home hub chat sessions', () => {
     cleanup = mountHomeHub(container, { navigate: vi.fn() });
     expect(container.querySelector('.home-chat-sessions-title')?.textContent).toBe('Chats');
     expect(container.querySelector('.home-chat-composer-dock')).not.toBeNull();
-    expect(container.querySelector('[data-role="input"]')?.placeholder).toBe('Ask Lulu Spark…');
+    expect(composerPlaceholder(container.querySelector('[data-role="input"]'))).toBe('Ask Lulu Spark…');
     expect(container.querySelector('[data-role="send"]')?.textContent.trim()).toBe('Send');
     expect(container.textContent).not.toMatch(/会话|发送|待办/);
   });

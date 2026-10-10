@@ -7647,10 +7647,12 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   flex: none;
   width: 100%;
   box-sizing: border-box;
-  height: 48px;
   min-height: 48px;
   max-height: 148px;
-  resize: none;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  cursor: text;
   padding: 2px 56px 28px 0;
   border: none;
   border-radius: 0;
@@ -7660,12 +7662,17 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   line-height: 20px;
   color: var(--fg-default);
 }
+.home-chat-input[data-empty="true"]::before {
+  content: attr(data-placeholder);
+  color: var(--fg-subtle);
+  pointer-events: none;
+}
 .home-chat-input:focus {
   outline: none;
   border-color: transparent;
   box-shadow: none;
 }
-.home-chat-input:disabled {
+.home-chat-input[aria-disabled="true"] {
   color: var(--fg-subtle);
 }
 .home-chat-send {

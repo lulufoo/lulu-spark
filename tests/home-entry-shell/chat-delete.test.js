@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as api from '../../frontend/src/host/api.ts';
 import { mountHomeHub } from '../../frontend/src/home/hub.tsx';
 import { neighborSessionId } from '../../frontend/src/home/state/store.ts';
+import { setComposerValue } from '../helpers/composer.js';
 
 describe('neighborSessionId', () => {
   it('picks the next row, else the previous, else empty', () => {
@@ -139,7 +140,7 @@ describe('home chat delete conversation', () => {
     await mountReady();
     const input = container.querySelector('[data-role="input"]');
     const form = container.querySelector('[data-role="form"]');
-    input.value = 'Hello there';
+    setComposerValue(input, 'Hello there');
     form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
     await vi.waitFor(() => {
       expect(

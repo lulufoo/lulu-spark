@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import * as api from '../../frontend/src/host/api.ts';
 import { mountHomeHub } from '../../frontend/src/home/hub.tsx';
+import { setComposerValue, composerDisabled } from '../helpers/composer.js';
 
 function enterKey(init = {}) {
   const event = new KeyboardEvent('keydown', {
@@ -67,14 +68,14 @@ describe('home composer IME Enter', () => {
   async function mountReady() {
     cleanup = mountHomeHub(container, { navigate: vi.fn() });
     await vi.waitFor(() => {
-      expect(container.querySelector('[data-role="input"]')?.disabled).toBe(false);
+      expect(composerDisabled(container.querySelector('[data-role=\"input\"]'))).toBe(false);
     });
   }
 
   it('does not send on the WebKit confirming Enter after compositionend', async () => {
     await mountReady();
     const input = container.querySelector('[data-role="input"]');
-    input.value = 'nihao';
+    setComposerValue(input, 'nihao');
     input.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
     input.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true }));
     input.dispatchEvent(enterKey({ isComposing: false }));
@@ -85,7 +86,7 @@ describe('home composer IME Enter', () => {
   it('sends on Enter after the IME reset tick', async () => {
     await mountReady();
     const input = container.querySelector('[data-role="input"]');
-    input.value = '你好';
+    setComposerValue(input, '你好');
     input.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
     input.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true }));
     await new Promise((resolve) => {

@@ -1,4 +1,5 @@
 import { consumeComposerFocus, requestComposerFocus } from './composer-focus.ts';
+import type { ComposerInputHandle } from '../ui/composer-input.tsx';
 
 let pendingComposerDraft: string | null = null;
 
@@ -21,9 +22,8 @@ export function consumeComposerDraft(): string | null {
 }
 
 /** Write the pending draft into the composer, caret at the end. No-op without a draft. */
-export function applyComposerDraft(input: HTMLTextAreaElement | null) {
+export function applyComposerDraft(input: Pick<ComposerInputHandle, 'setText'> | null) {
   const draft = consumeComposerDraft();
   if (draft === null || !input) return;
-  input.value = draft;
-  input.setSelectionRange(draft.length, draft.length);
+  input.setText(draft);
 }

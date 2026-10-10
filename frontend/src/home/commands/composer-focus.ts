@@ -21,12 +21,12 @@ export function canFocusComposerFromDockTarget(
 }
 
 export function focusComposerFromDock(
-  input: HTMLTextAreaElement | null,
+  input: { el: HTMLElement; focus(): void } | null,
   target: EventTarget | null,
   locked: boolean,
 ) {
   if (locked || !input) return false;
-  if (!canFocusComposerFromDockTarget(input, target)) return false;
+  if (!canFocusComposerFromDockTarget(input.el, target)) return false;
   input.focus();
   return true;
 }

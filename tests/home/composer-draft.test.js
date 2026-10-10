@@ -9,9 +9,26 @@ import {
   requestComposerDraft,
 } from '../../frontend/src/home/commands/composer-draft.ts';
 import { consumeComposerFocus } from '../../frontend/src/home/commands/composer-focus.ts';
+import { readComposerText, writeComposerText } from '../../frontend/src/home/commands/composer-text.ts';
 
-function textarea() {
-  return document.createElement('textarea');
+function composer() {
+  const el = document.createElement('div');
+  el.setAttribute('contenteditable', 'true');
+  el.setAttribute('data-role', 'input');
+  document.body.appendChild(el);
+  return {
+    el,
+    setText: (text) => writeComposerText(el, text),
+    getText: () => readComposerText(el),
+  };
+}
+
+function caretOffset(el) {
+  const sel = window.getSelection();
+  const range = document.createRange();
+  range.selectNodeContents(el);
+  range.setEnd(sel.focusNode, sel.focusOffset);
+  return range.toString().length;
 }
 
 describe('composer draft', () => {
@@ -32,21 +49,20 @@ describe('composer draft', () => {
   });
 
   it('applies the draft with the caret at the end', () => {
-    const input = textarea();
-    document.body.appendChild(input);
+    const input = composer();
     requestComposerDraft('[A](note:x)');
     applyComposerDraft(input);
-    expect(input.value).toBe('[A](note:x)');
-    expect(input.selectionStart).toBe(input.value.length);
-    expect(input.selectionEnd).toBe(input.value.length);
-    input.remove();
+    expect(input.getText()).toBe('[A](note:x)');
+    expect(caretOffset(input.el)).toBe('[A](note:x)'.length);
+    input.el.remove();
   });
 
   it('leaves what the user typed alone when there is no draft', () => {
-    const input = textarea();
-    input.value = 'typing';
+    const input = composer();
+    input.setText('typing');
     applyComposerDraft(input);
-    expect(input.value).toBe('typing');
+    expect(input.getText()).toBe('typing');
+    input.el.remove();
   });
 
   it('cancel drops both the draft and the pending focus', () => {

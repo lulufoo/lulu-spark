@@ -15,9 +15,10 @@ const pageSrc = readFileSync(
 );
 
 describe('focusComposerFromDock', () => {
-  it('focuses when the click is on the dock, not the textarea or a button', () => {
+  it('focuses when the click is on the dock, not the input or a button', () => {
     const dock = document.createElement('div');
-    const input = document.createElement('textarea');
+    const input = document.createElement('div');
+    input.setAttribute('contenteditable', 'true');
     const send = document.createElement('button');
     dock.append(input, send);
     document.body.append(dock);
@@ -25,18 +26,19 @@ describe('focusComposerFromDock', () => {
     input.focus = () => {
       focused = true;
     };
+    const handle = { el: input, focus: () => input.focus() };
 
     const corner = document.createElement('div');
     dock.append(corner);
     expect(canFocusComposerFromDockTarget(input, dock)).toBe(true);
     expect(canFocusComposerFromDockTarget(input, corner)).toBe(true);
-    expect(focusComposerFromDock(input, dock, false)).toBe(true);
+    expect(focusComposerFromDock(handle, dock, false)).toBe(true);
     expect(focused).toBe(true);
 
     focused = false;
-    expect(focusComposerFromDock(input, input, false)).toBe(false);
-    expect(focusComposerFromDock(input, send, false)).toBe(false);
-    expect(focusComposerFromDock(input, dock, true)).toBe(false);
+    expect(focusComposerFromDock(handle, input, false)).toBe(false);
+    expect(focusComposerFromDock(handle, send, false)).toBe(false);
+    expect(focusComposerFromDock(handle, dock, true)).toBe(false);
     expect(focused).toBe(false);
     dock.remove();
   });
@@ -47,7 +49,7 @@ describe('focusComposerFromDock', () => {
 });
 
 describe('home composer dock hit area', () => {
-  it('lets the textarea cover the lower half; send stays overlaid', () => {
+  it('lets the input cover the lower half; send stays overlaid', () => {
     const appCss = readFileSync(
       join(dirname(fileURLToPath(import.meta.url)), '../../frontend/app.css'),
       'utf8',
@@ -55,6 +57,8 @@ describe('home composer dock hit area', () => {
     expect(appCss).toMatch(/\.home-chat-composer-dock\s*\{[^}]*position:\s*relative/);
     expect(appCss).toMatch(/\.home-chat-composer-corner\s*\{[^}]*position:\s*absolute/);
     expect(appCss).toMatch(/\.home-chat-input\s*\{[^}]*padding:\s*2px 56px 28px 0/);
-    expect(pageSrc).toMatch(/input\.style\.height = '48px'/);
+    expect(appCss).toMatch(/\.home-chat-input\s*\{[^}]*min-height:\s*48px/);
+    expect(appCss).toMatch(/\.home-chat-input\s*\{[^}]*max-height:\s*148px/);
+    expect(appCss).toMatch(/\.home-chat-input\s*\{[^}]*overflow-y:\s*auto/);
   });
 });
