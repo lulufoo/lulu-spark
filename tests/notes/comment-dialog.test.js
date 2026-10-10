@@ -1,4 +1,7 @@
 // @vitest-environment jsdom
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { flushSync } from 'react-dom';
@@ -97,5 +100,17 @@ describe('NoteCommentDialog', () => {
     expect(btn).toBeTruthy();
     expect(btn.getAttribute('title')).not.toMatch(/raw|digest/i);
     expect(btn.textContent).toContain('Delete this entry');
+  });
+
+  it('drops the delete button stroke and keeps the zone divider', () => {
+    const css = readFileSync(
+      join(dirname(fileURLToPath(import.meta.url)), '../../frontend/app.css'),
+      'utf8',
+    );
+    expect(css).toMatch(/\.md-body-delete-zone button\s*\{[^}]*border:\s*none/);
+    expect(css).toMatch(/\.md-body-delete-zone\s*\{[^}]*border-top:\s*1px solid var\(--border-muted\)/);
+    expect(css).not.toMatch(
+      /\.md-body-delete-zone button\s*\{[^}]*border:\s*1px solid var\(--border-hex-ffb8b8\)/,
+    );
   });
 });
