@@ -249,8 +249,7 @@ pub fn copy(arguments: &Value, fence: &PathFence) -> Result<String, String> {
 }
 
 fn dest_is_write_root(fence: &PathFence, dest: &Path) -> bool {
-    fence
-        .write_allow
-        .iter()
-        .any(|root| stored_path(dest.to_path_buf()) == *root)
+    fence.write_allow.iter().any(|root| {
+        !root.is_file() && stored_path(dest.to_path_buf()) == *root
+    })
 }

@@ -225,3 +225,25 @@ fn session_scratch_root_matches_write_allow() {
     };
     assert_eq!(no_parent.session_scratch_root("sess_abc").expect("id"), None);
 }
+
+#[test]
+fn grant_staged_file_is_exact_write_and_still_stageable() {
+    let root = unique_dir("grant-root");
+    let file = root.join("note.md");
+    let sibling = root.join("other.md");
+    fs::write(&file, "hi").expect("write");
+    fs::write(&sibling, "x").expect("sibling");
+    let mut fence = fence_with(root, unique_dir("grant-scratch"))
+        .with_session_scratch("sess_abc")
+        .expect("scratch");
+    assert!(!fence.allows_write(&file));
+    fence.grant_staged_file(file.clone());
+    assert!(fence.allows_read(&file));
+    assert!(fence.allows_write(&file));
+    assert!(!fence.allows_write(&sibling));
+    assert!(!fence.is_session_workspace(&file));
+    assert_eq!(
+        validate_stage_file(&file.to_string_lossy(), &fence).expect("restage"),
+        stored_path(file)
+    );
+}

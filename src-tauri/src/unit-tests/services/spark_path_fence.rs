@@ -120,7 +120,7 @@ fn public_set_attaches_fence_and_reset_clears_it() {
 }
 
 #[test]
-fn staged_exact_spark_root_file_is_readable_without_write() {
+fn staged_exact_spark_root_file_is_readable_and_writable() {
     with_sandbox(|sandbox| {
         let fence = expand_for_business_key(SEEDED_BUSINESS_KEY).expect("spark fence");
         let outside = sandbox.spark_root().join("only-if-staged.md");
@@ -129,9 +129,10 @@ fn staged_exact_spark_root_file_is_readable_without_write() {
         let mut granted = fence
             .with_session_scratch("spark_chat_abc")
             .expect("scratch");
-        granted.read_allow.push(outside.clone());
+        granted.grant_staged_file(outside.clone());
         assert!(granted.allows_read(&outside));
-        assert!(!granted.allows_write(&outside));
+        assert!(granted.allows_write(&outside));
+        assert!(!granted.allows_write(&sandbox.spark_root().join("sibling.md")));
     });
 }
 

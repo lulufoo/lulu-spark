@@ -48,6 +48,23 @@ impl PathFence {
     pub fn is_read_denied(&self, path: &Path) -> bool {
         in_any(path, &self.read_deny)
     }
+
+    /// Directory write roots only (session scratch). Exact-file grants are not workspace.
+    pub fn is_session_workspace(&self, path: &Path) -> bool {
+        self.write_allow
+            .iter()
+            .any(|root| !root.is_file() && is_under(path, root))
+    }
+
+    /// Exact staged path: readable and writable. Does not grant siblings.
+    pub fn grant_staged_file(&mut self, path: PathBuf) {
+        if !self.read_allow.iter().any(|root| root == &path) {
+            self.read_allow.push(path.clone());
+        }
+        if !self.write_allow.iter().any(|root| root == &path) {
+            self.write_allow.push(path);
+        }
+    }
 }
 
 pub fn sanitize_session_segment(session_id: &str) -> Result<&str, String> {
@@ -85,7 +102,7 @@ fn existing_regular_file(path: &str) -> Result<PathBuf, String> {
 /// Rejects the session write root and read_deny. Does not require current read allow.
 pub fn validate_stage_file(path: &str, fence: &PathFence) -> Result<PathBuf, String> {
     let canon = existing_regular_file(path)?;
-    if fence.allows_write(&canon) {
+    if fence.is_session_workspace(&canon) {
         return Err("path must be outside SESSION_WORKSPACE_DIR".into());
     }
     if fence.is_read_denied(&canon) {
