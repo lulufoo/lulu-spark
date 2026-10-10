@@ -1,5 +1,6 @@
 import * as api from '../../host/api.ts';
 import { refreshStagedFromBinding } from './staged.ts';
+import { refreshWorkspace } from './workspace.ts';
 import {
   markHomeEntryRead,
   refreshChannelUnread,
@@ -97,12 +98,14 @@ export async function selectSession(sessionId: string) {
     currentSessionId: String(sessionId || ''),
     contextPercent: null,
     contextUsage: null,
+    workspace: [],
   }));
   const payload = (await api.invoke('select_chat_session', { sessionId })) as Record<
     string,
     unknown
   >;
   applySessionPayload(payload, gen);
+  await refreshWorkspace(getHomeState().currentSessionId, gen, () => fetchGen);
   await refreshList(gen);
 }
 
@@ -110,6 +113,7 @@ export async function createSession() {
   const gen = ++fetchGen;
   const payload = (await api.invoke('create_chat_session')) as Record<string, unknown>;
   applySessionPayload(payload, gen);
+  await refreshWorkspace(getHomeState().currentSessionId, gen, () => fetchGen);
   await refreshList(gen);
   return gen === fetchGen;
 }
@@ -133,6 +137,7 @@ export async function deleteSession(sessionId: string) {
         currentSessionId: '',
         messages: [],
         staged: [],
+        workspace: [],
         contextPercent: null,
         contextUsage: null,
       }));
@@ -187,6 +192,7 @@ export async function applyBindingState() {
       currentSessionId,
       messages: [],
       staged: [],
+      workspace: [],
       contextPercent: null,
       contextUsage: null,
       progressByChat: Object.create(null) as Record<string, string>,
@@ -207,6 +213,7 @@ export async function applyBindingState() {
     if (getHomeState().currentSessionId) {
       const state = (await api.invoke('get_ai_assistant_binding')) as Record<string, unknown>;
       applySessionPayload(state, gen);
+      await refreshWorkspace(getHomeState().currentSessionId, gen, () => fetchGen);
     }
   } catch (err) {
     console.info('[DEBUG-assistant] home: bound list/session failed', err);
@@ -310,6 +317,7 @@ export async function sendMessage(text: string) {
         }
       }
       await refreshStagedFromBinding(sid, fetchGen, () => fetchGen);
+      await refreshWorkspace(sid, fetchGen, () => fetchGen);
     }
     await refreshList(fetchGen);
   } catch (err) {

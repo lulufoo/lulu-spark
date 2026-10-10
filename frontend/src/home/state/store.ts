@@ -35,6 +35,11 @@ export type HubStagedEntry = {
   source?: HubStagedSource;
 };
 
+export type HubWorkspaceFile = {
+  path: string;
+  title: string;
+};
+
 export type ChannelUnread = {
   notes: boolean;
   read_later: boolean;
@@ -56,6 +61,7 @@ export type HomeState = {
   currentSessionId: string;
   messages: HubMessage[];
   staged: HubStagedEntry[];
+  workspace: HubWorkspaceFile[];
   hostBound: boolean;
   contextPercent: number | null;
   contextUsage: ContextUsage | null;
@@ -75,6 +81,7 @@ function emptyState(): HomeState {
     currentSessionId: '',
     messages: [],
     staged: [],
+    workspace: [],
     hostBound: false,
     contextPercent: null,
     contextUsage: null,

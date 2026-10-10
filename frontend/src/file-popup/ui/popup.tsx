@@ -108,12 +108,12 @@ export function FilePopup() {
               type="button"
               className="md-header-btn viewer-chrome-persisted"
               data-role="copy-file-path"
-              title={view.path || undefined}
               aria-label="Copy absolute path"
               disabled={!canCopy}
               onClick={onCopyPath}
             >
               <ViewerHeaderIcon name="copy" />
+              {view.path ? <span className="file-popup-path-tip">{view.path}</span> : null}
             </button>
             <OverlayDismissButton disabled={view.saving} onClick={() => closeFilePopup()} />
           </div>

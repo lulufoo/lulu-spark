@@ -8,6 +8,7 @@ function snap(overrides = {}) {
     currentSessionId: 's1',
     messages: [],
     staged: [],
+    workspace: [],
     hostBound: true,
     progressByChat: {},
     inFlightIds: [],

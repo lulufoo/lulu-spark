@@ -17,6 +17,7 @@ import { SessionList } from './ui/session-list.tsx';
 import { SessionMenu } from './ui/session-menu.tsx';
 import { ContextPercent } from './ui/context-percent.tsx';
 import { StagedList } from './ui/staged-list.tsx';
+import { WorkspaceList } from './ui/workspace-list.tsx';
 import { copyMessageText } from './commands/copy-message.ts';
 import { copyCurrentSessionId } from './commands/copy-session-id.ts';
 import {
@@ -32,6 +33,7 @@ import {
 } from './commands/hub.ts';
 import { consumeComposerFocus, focusComposerFromDock } from './commands/composer-focus.ts';
 import { openStagedFile, unstageStaged } from './commands/staged.ts';
+import { openWorkspaceFile } from './commands/workspace.ts';
 import { createImeEnterGuard } from './ime-enter.ts';
 import {
   composerInputLocked,
@@ -436,6 +438,7 @@ export function HomePage({
           </p>
         </div>
         <form ref={formRef} className="home-chat-composer" data-role="form" onSubmit={onSubmit}>
+          <WorkspaceList items={state.workspace} onOpen={openWorkspaceFile} />
           <StagedList
             items={state.staged}
             canRemove={state.hostBound && !locked}

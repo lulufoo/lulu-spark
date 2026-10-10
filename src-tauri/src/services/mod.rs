@@ -30,3 +30,4 @@ pub mod mcp_oauth;
 pub mod bind;
 pub mod spark_read;
 pub mod spark_path_fence;
+pub mod chat_workspace;
