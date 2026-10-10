@@ -150,7 +150,7 @@ fn assert_uniform_401(status: u16, body: &str, secret: Option<&str>) {
 /// Notes tools from Node `buildServer()` when `includeNotes` is true.
 const NOTES_TOOLS: &[&str] = &[
     "get_all_notes_catalog",
-    "get_note_digest_by_id",
+    "get_note_digest",
     "get_note_file",
     "create_note",
     "update_note",
@@ -164,7 +164,7 @@ const NOTES_TOOLS: &[&str] = &[
 /// Notes tools exposed on `/mcp/cursor_ide` and `/mcp/mobile` (channel hard-gate).
 const NOTES_TOOLS_NON_SPARK: &[&str] = &[
     "get_all_notes_catalog",
-    "get_note_digest_by_id",
+    "get_note_digest",
     "get_note_file",
     "create_note",
     "update_note",
@@ -2371,7 +2371,7 @@ fn crate_registers_mcp_host_as_in_process_module() {
     );
 }
 
-/// Boundary: retired names stay gone; digest still hangs get_note_digest_by_id on every channel.
+/// Boundary: retired names stay gone; digest hangs get_note_digest on every channel.
 #[test]
 fn note_content_names_and_digest_route() {
     for (slot, channel, content) in [
@@ -2388,12 +2388,16 @@ fn note_content_names_and_digest_route() {
             table.tools.iter().all(|t| t.name != "get_note_content_by_id"),
             "{channel} must not keep retired name get_note_content_by_id"
         );
+        assert!(
+            table.tools.iter().all(|t| t.name != "get_note_digest_by_id"),
+            "{channel} must not keep retired name get_note_digest_by_id"
+        );
         let digest = table
             .tools
             .iter()
-            .find(|t| t.name == "get_note_digest_by_id")
-            .expect("get_note_digest_by_id");
-        assert_eq!(digest.name, "get_note_digest_by_id");
+            .find(|t| t.name == "get_note_digest")
+            .expect("get_note_digest");
+        assert_eq!(digest.name, "get_note_digest");
         assert!(
             digest.invoke as usize != 0,
             "{channel} digest must keep a Services invoke"

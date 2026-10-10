@@ -5,7 +5,7 @@ import com.lulu.spark.android.agent.tools.stage.StageTools
 internal const val NOTE_CONTENT_TOOL = "get_note_content_by_id"
 
 internal const val NOTE_CONTENT_STAGE_DESCRIPTION =
-    "Fetch one note's raw Markdown onto the phone staged library and tag this chat. On success returns success plus a staged handle. Does not return the body. The user reads it in Stage. Use get_note_digest_by_id for a digest, or get_staged for the staged file."
+    "Fetch one note's raw Markdown onto the phone staged library and tag this chat. On success returns success plus a staged handle. Does not return the body. The user reads it in Stage. Use get_note_digest for a digest, or get_staged for the staged file."
 
 internal fun stageNoteContentResult(
     remoteText: String,

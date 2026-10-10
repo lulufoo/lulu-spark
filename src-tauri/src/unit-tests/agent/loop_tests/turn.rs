@@ -183,7 +183,7 @@ fn run_loop_returns_argument_and_allowlist_failures_to_the_model_as_tool_turns()
                     "id": "invalid_args",
                     "type": "function",
                     "function": {
-                        "name": "get_note_digest_by_id",
+                        "name": "get_note_digest",
                         "arguments": "{}"
                     }
                 },
