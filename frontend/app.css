@@ -4070,15 +4070,40 @@
     justify-content: flex-end;
   }
   .md-body-delete-zone button {
-    font-size: 12px;
-    padding: 5px 14px;
-    background: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    line-height: 1;
+    min-height: 32px;
+    padding: 8px 16px;
+    background: var(--bg-muted);
     border: none;
     border-radius: 6px;
     color: var(--fg-danger);
     cursor: pointer;
   }
-  .md-body-delete-zone button:hover { background: var(--bg-hex-fff0f0); }
+  .md-body-delete-zone button:hover { background: var(--bg-hex-ffd8d3); }
+  [data-theme="light"] .md-body-delete-zone button {
+    background: var(--bg-hex-fff0f0);
+  }
+  [data-theme="light"] .md-body-delete-zone button:hover {
+    background: var(--bg-hex-ffebe9);
+  }
+  .md-body-delete-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1em;
+    height: 1em;
+    overflow: hidden;
+    flex: none;
+  }
+  .md-body-delete-glyph {
+    display: block;
+    line-height: 1;
+    scale: 0.8;
+  }
   .viewer-body {
     flex: 1;
     overflow-y: auto;

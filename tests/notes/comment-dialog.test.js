@@ -108,6 +108,12 @@ describe('NoteCommentDialog', () => {
       'utf8',
     );
     expect(css).toMatch(/\.md-body-delete-zone button\s*\{[^}]*border:\s*none/);
+    expect(css).toMatch(/\.md-body-delete-zone button\s*\{[^}]*background:\s*var\(--bg-muted\)/);
+    expect(css).toMatch(/\[data-theme="light"\] \.md-body-delete-zone button\s*\{[^}]*background:\s*var\(--bg-hex-fff0f0\)/);
+    expect(css).toMatch(/\.md-body-delete-zone button\s*\{[^}]*min-height:\s*32px/);
+    expect(css).toMatch(/\.md-body-delete-icon\s*\{[^}]*height:\s*1em/);
+    expect(css).toMatch(/\.md-body-delete-icon\s*\{[^}]*width:\s*1em/);
+    expect(css).toMatch(/\.md-body-delete-glyph\s*\{[^}]*scale:\s*0\.8/);
     expect(css).toMatch(/\.md-body-delete-zone\s*\{[^}]*border-top:\s*1px solid var\(--border-muted\)/);
     expect(css).not.toMatch(
       /\.md-body-delete-zone button\s*\{[^}]*border:\s*1px solid var\(--border-hex-ffb8b8\)/,
