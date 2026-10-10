@@ -4042,9 +4042,8 @@
     text-align: left;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
-    max-width: min(280px, 70vw);
-    max-height: calc(1.3em * 2);
-    overflow: hidden;
+    width: max-content;
+    max-width: min(480px, calc(100vw - 64px));
     box-shadow: 0 1px 2px var(--shadow-rgba-000000-08);
     pointer-events: none;
   }
