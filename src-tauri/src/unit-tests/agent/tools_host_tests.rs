@@ -117,8 +117,8 @@ fn host_file_tool_descriptions_use_dir_names_not_absolute_paths() {
             "{name} must name SESSION_WORKSPACE_DIR"
         );
         assert!(
-            desc.contains("SPARK_DATA_DIR"),
-            "{name} must name SPARK_DATA_DIR"
+            !desc.contains("SPARK_DATA_DIR"),
+            "{name} must not name SPARK_DATA_DIR"
         );
         assert!(
             desc.contains("files on this Chat's Stage"),
@@ -187,7 +187,7 @@ fn host_file_tool_params_do_not_repeat_dir_names() {
     );
     assert_eq!(
         tool_param_description(&catalog, "copy", "source_path"),
-        "Absolute readable file in SPARK_DATA_DIR, SESSION_WORKSPACE_DIR, or on Stage."
+        "Absolute readable file in SESSION_WORKSPACE_DIR or on Stage."
     );
     assert_eq!(
         tool_param_description(&catalog, "copy", "dest_path"),

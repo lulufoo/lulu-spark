@@ -196,11 +196,7 @@ pub(crate) fn run_loop_with_progress(
             .ok()
             .flatten()
     });
-    let system_prompt = crate::agent::fill_host_file_dirs(
-        &system_prompt,
-        scratch.as_deref(),
-        &crate::config::paths::runtime_data_dir(),
-    );
+    let system_prompt = crate::agent::fill_host_file_dirs(&system_prompt, scratch.as_deref());
     if chat_turn_interrupted(&session.session_id, generation) {
         return cancelled_turn_outcome(session, steps_checkpoint);
     }

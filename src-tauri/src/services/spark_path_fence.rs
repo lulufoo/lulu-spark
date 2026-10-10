@@ -18,8 +18,9 @@ pub fn expand_for_business_key(key: &str) -> Option<PathFence> {
 
     // SPARK_DATA_DIR is closed to the LLM: it reaches notes and knowledge only
     // through `get_note_file` / `get_knowledge_file` copies. Deny wins over any
-    // allow or staged grant, so this also closes write.
-    let read_allow = vec![data.clone()];
+    // staged grant, so this also closes write. No default read roots remain;
+    // session scratch and staged files are added per turn.
+    let read_allow = vec![];
     let mut read_deny = vec![data, wb.join(".git")];
 
     let repos_file = paths::sediment_kb_repos_path().ok();

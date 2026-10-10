@@ -12,7 +12,7 @@ pub fn catalog() -> ToolCatalog {
     ToolCatalog::from_local_tools(vec![
         local_tool(
             "stage",
-            "Add a file to this Chat's Stage. Grants read and write for that file and shows it to the user.",
+            "Add an external file to this Chat's Stage. Grants read and write for that file and shows it to the user. Use it when the user gives an absolute path to a file outside Spark's own data. Notes and knowledge documents are not staged: use get_note_file or get_knowledge_file.",
             json!({
                 "type": "object",
                 "properties": {

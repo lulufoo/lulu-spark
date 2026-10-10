@@ -50,9 +50,11 @@ fn expand_spark_includes_knowledge_root_and_listed_clone() {
 
         let data = paths::runtime_data_dir();
         assert!(
-            fence.read_allow.iter().any(|p| same_path(p, &data)),
-            "SPARK_DATA_DIR must be the default read root"
+            !fence.read_allow.iter().any(|p| same_path(p, &data)),
+            "SPARK_DATA_DIR must not be a read root"
         );
+        assert!(fence.read_allow.is_empty(), "no default read roots: {:?}", fence.read_allow);
+        assert!(fence.read_deny.iter().any(|p| same_path(p, &data)));
         assert!(
             !fence.read_allow.iter().any(|p| same_path(p, &wb)),
             "spark_root must not be a default read root"
@@ -98,11 +100,11 @@ fn public_set_attaches_fence_and_reset_clears_it() {
         r#loop::try_set_binding_json(&json!({ "key": SEEDED_BUSINESS_KEY })).expect("Set");
         let fence = r#loop::loaded_path_fence().expect("fence after Set");
         assert!(
-            fence
+            !fence
                 .read_allow
                 .iter()
                 .any(|p| same_path(p, &sandbox.data_dir())),
-            "A1 must include SPARK_DATA_DIR, got {:?}",
+            "A1 must not include SPARK_DATA_DIR, got {:?}",
             fence.read_allow
         );
         assert!(

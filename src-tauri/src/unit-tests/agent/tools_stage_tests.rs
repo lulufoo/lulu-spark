@@ -89,7 +89,7 @@ fn catalog_registers_stage_trio_off_cursor_ide_and_mobile() {
         .expect("stage");
     assert_eq!(
         stage_def.pointer("/function/description").and_then(|v| v.as_str()),
-        Some("Add a file to this Chat's Stage. Grants read and write for that file and shows it to the user.")
+        Some("Add an external file to this Chat's Stage. Grants read and write for that file and shows it to the user. Use it when the user gives an absolute path to a file outside Spark's own data. Notes and knowledge documents are not staged: use get_note_file or get_knowledge_file.")
     );
     assert_eq!(
         stage_def

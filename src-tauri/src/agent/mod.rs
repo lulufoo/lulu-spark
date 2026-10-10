@@ -50,36 +50,25 @@ SESSION_WORKSPACE_DIR (this chat's working directory):
 {session_workspace_dir}
 Readable and writable. Create new files here.
 
-SPARK_DATA_DIR (Spark business data directory):
-{spark_data_dir}
-Readable. Update via MCP tools, or add the file to Stage to edit.
+Stage (external files on this chat, not a directory):
+When the user gives an absolute path to a file outside Spark's own data, call `stage` with that path, then read and edit it. Files on Stage are readable and writable as exact paths. Unstaging removes both read and write.
 
-Stage (named files on this chat, not a directory):
-Files on Stage are readable and writable as exact paths. Unstaging removes both read and write.
-
-NOTES_DIR (notes archive):
-{spark_data_dir}/notes
-
-KNOWLEDGE_DIR (knowledge documents):
-{spark_data_dir}/knowledge
-
-READ_LATER_DIR (read-later items):
-{spark_data_dir}/read_later"#;
+Notes and knowledge documents:
+Spark's own data is not directly readable. To read or edit a note, call get_note_file with its id and dest_dir set to SESSION_WORKSPACE_DIR, then read the returned copy. After editing the copy, call update_note with source_path set to it. To read a knowledge document, call get_knowledge_file the same way.
+When you point the user at a note, write it as [标题](note:<id>) using the note's id."#;
 
 pub const SESSION_WORKSPACE_DIR_PLACEHOLDER: &str = "{session_workspace_dir}";
-pub const SPARK_DATA_DIR_PLACEHOLDER: &str = "{spark_data_dir}";
 
-/// Fill Host file-directory placeholders for one turn. Data is always filled;
-/// scratch stays a placeholder when this turn has no session scratch.
-pub fn fill_host_file_dirs(prompt: &str, scratch: Option<&Path>, data: &Path) -> String {
-    let mut out = prompt.replace(SPARK_DATA_DIR_PLACEHOLDER, data.to_string_lossy().as_ref());
-    if let Some(scratch) = scratch {
-        out = out.replace(
+/// Fill the Host file-directory placeholder for one turn. Scratch stays a
+/// placeholder when this turn has no session scratch.
+pub fn fill_host_file_dirs(prompt: &str, scratch: Option<&Path>) -> String {
+    match scratch {
+        Some(scratch) => prompt.replace(
             SESSION_WORKSPACE_DIR_PLACEHOLDER,
             scratch.to_string_lossy().as_ref(),
-        );
+        ),
+        None => prompt.to_string(),
     }
-    out
 }
 
 #[cfg(test)]
