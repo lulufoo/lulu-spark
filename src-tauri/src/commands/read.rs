@@ -167,6 +167,12 @@ pub fn get_notes_file(
     Ok(spark_read::get_notes_file(&repo_root()?, &layer, &path))
 }
 
+/// Validate and resolve a `note:<id>` link target. Index entry only; no body, no absolute path.
+#[tauri::command]
+pub fn resolve_note_for_open(_app: AppHandle, id: String) -> Result<Value, String> {
+    Ok(spark_read::resolve_note_for_open(&repo_root()?, &id))
+}
+
 #[tauri::command]
 pub fn read_abs_file(_app: AppHandle, path: String) -> Result<Value, String> {
     Ok(crate::services::abs_file::read_abs_file(&path))

@@ -75,6 +75,7 @@ pub fn run() {
             commands::read::fetch_link_title,
             commands::read::get_notes_index,
             commands::read::get_notes_file,
+            commands::read::resolve_note_for_open,
             commands::read::read_abs_file,
             commands::read::get_notes_asset,
             commands::notes_categories::list_notes_categories,

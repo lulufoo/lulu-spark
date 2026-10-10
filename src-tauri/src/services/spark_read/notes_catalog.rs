@@ -18,7 +18,7 @@ fn catalog_from_common_path(common_path: &str) -> &str {
     common_path.split('/').next().unwrap_or(common_path)
 }
 
-fn is_valid_entry_id(id: &str) -> bool {
+pub(super) fn is_valid_entry_id(id: &str) -> bool {
     id.len() == 32 && id.chars().all(|c| c.is_ascii_hexdigit())
 }
 
