@@ -3,7 +3,7 @@ use crate::mcp_host::invoke_eq;
 use crate::mcp_host::catalog::groups::global;
 use crate::mcp_host::catalog::groups::knowledge;
 use crate::mcp_host::catalog::groups::notes::{
-    self, create_note_from_content, create_note_from_source, note_path_invoke,
+    self, create_note_from_content, create_note_from_source, note_file_invoke, note_path_invoke,
     update_note_from_content, update_note_from_source,
 };
 use crate::mcp_host::catalog::{build, build_routes_for_channel, group_for_migrated_api};
@@ -13,6 +13,7 @@ const NOTES_APIS: &[&str] = &[
     "get_all_notes_catalog",
     "get_note_digest_by_id",
     "get_note_content",
+    "get_note_file",
     "create_note",
     "update_note",
     "delete_note",
@@ -254,6 +255,20 @@ fn cursor_ide_get_note_content_returns_path_not_body() {
     assert!(!ide.description.contains("Stage"));
     assert!(spark.description.contains("Stage"));
     assert!(!spark.description.to_ascii_lowercase().contains("absolute path"));
+}
+
+#[test]
+fn get_note_file_is_desktop_only_and_requires_dest_dir() {
+    for channel in ["spark", "cursor", "cursor_ide", "codex", "claude"] {
+        let route = build("notes", "get_note_file", channel).expect(channel);
+        assert!(invoke_eq(route.invoke, note_file_invoke), "{channel}");
+        assert_eq!(route.input_schema["required"], serde_json::json!(["id", "dest_dir"]));
+        assert!(route.input_schema["properties"]["dest_dir"]["description"]
+            .as_str()
+            .unwrap()
+            .contains("read and write"));
+    }
+    assert!(build("notes", "get_note_file", "mobile").is_none());
 }
 
 #[test]

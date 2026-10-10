@@ -8,6 +8,7 @@ mod delete_notes_category;
 mod get_all_notes_catalog;
 mod get_note_content;
 mod get_note_digest_by_id;
+mod get_note_file;
 mod list_notes_categories;
 mod schema;
 mod update_notes_category;
@@ -22,6 +23,8 @@ pub(crate) use create_note::{
 };
 #[cfg(test)]
 pub(crate) use get_note_content::invoke as note_path_invoke;
+#[cfg(test)]
+pub(crate) use get_note_file::invoke as note_file_invoke;
 #[cfg(test)]
 pub(crate) use update_note::{
     invoke_from_content as update_note_from_content,
@@ -40,6 +43,7 @@ const REGISTRY: &[(&str, BuildFn)] = &[
     ("get_all_notes_catalog", get_all_notes_catalog::build as BuildFn),
     ("get_note_digest_by_id", get_note_digest_by_id::build as BuildFn),
     ("get_note_content", get_note_content::build as BuildFn),
+    ("get_note_file", get_note_file::build as BuildFn),
     ("create_note", create_note::build as BuildFn),
     ("update_note", update_note::build as BuildFn),
     ("delete_note", delete_note::build as BuildFn),

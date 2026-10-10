@@ -152,6 +152,7 @@ const NOTES_TOOLS: &[&str] = &[
     "get_all_notes_catalog",
     "get_note_digest_by_id",
     "get_note_content",
+    "get_note_file",
     "create_note",
     "update_note",
     "delete_note",
@@ -166,6 +167,7 @@ const NOTES_TOOLS_NON_SPARK: &[&str] = &[
     "get_all_notes_catalog",
     "get_note_digest_by_id",
     "get_note_content",
+    "get_note_file",
     "create_note",
     "update_note",
     "list_notes_categories",
@@ -195,6 +197,13 @@ fn cursor_ide_expected_tool_names() -> BTreeSet<&'static str> {
     let mut names: BTreeSet<&'static str> = NOTES_TOOLS_NON_SPARK.iter().copied().collect();
     names.extend(KNOWLEDGE_TOOLS.iter().copied());
     names.extend(GLOBAL_TOOLS.iter().copied());
+    names
+}
+
+/// Mobile = cursor_ide set minus desktop-only `get_note_file`; it keeps `get_note_content`.
+fn mobile_expected_tool_names() -> BTreeSet<&'static str> {
+    let mut names = cursor_ide_expected_tool_names();
+    names.remove("get_note_file");
     names
 }
 
@@ -2013,10 +2022,10 @@ fn t3_mcp_mobile_tools_match_spark_table() {
             ))
             .expect("/mcp/mobile tools/list");
         let got: BTreeSet<_> = names.iter().map(String::as_str).collect();
-        let expected = cursor_ide_expected_tool_names();
+        let expected = mobile_expected_tool_names();
         assert_eq!(
             got, expected,
-            "/mcp/mobile tools = notes∪todo minus spark-only (delete_note)"
+            "/mcp/mobile tools = cursor_ide set minus desktop-only (get_note_file)"
         );
         assert!(
             !got.contains("get_notes_selection"),
@@ -2059,8 +2068,8 @@ fn t3_live_device_ticket_can_call_full_spark_tools_on_mobile() {
             let got: BTreeSet<_> = names.iter().map(String::as_str).collect();
             assert_eq!(
                 got,
-                cursor_ide_expected_tool_names(),
-                "mobile channel set = notes∪todo minus spark-only"
+                mobile_expected_tool_names(),
+                "mobile channel set = cursor_ide set minus desktop-only"
             );
             assert!(!is_error, "mobile {tool} must succeed, got {text}");
             assert!(
