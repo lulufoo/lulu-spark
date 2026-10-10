@@ -180,6 +180,31 @@ fn load_rewrites_retired_note_content_name() {
 }
 
 #[test]
+fn load_rewrites_retired_note_digest_name() {
+    let sandbox = TestSandbox::new();
+    write_channels(serde_json::json!({
+        "cursor_ide": {
+            "notes": ["get_all_notes_catalog", "get_note_digest_by_id"],
+            "todo": [],
+            "knowledge": []
+        },
+        "mobile": { "notes": ["get_note_digest_by_id"], "knowledge": [] }
+    }));
+    let path = paths::mcp_channel_tools_path().expect("path");
+    sandbox.assert_not_prod_path(&path).expect("sandbox file");
+    let desktop = crate::services::settings::mcp_channel_tools::enabled_by_group("cursor_ide");
+    assert!(!desktop.notes.contains(&"get_note_digest_by_id".into()));
+    assert!(desktop.notes.contains(&"get_note_digest".into()));
+    assert!(is_enabled("cursor_ide", "get_note_digest"));
+    assert!(!is_enabled("cursor_ide", "get_note_digest_by_id"));
+    let mobile = crate::services::settings::mcp_channel_tools::enabled_by_group("mobile");
+    assert!(!mobile.notes.contains(&"get_note_digest_by_id".into()));
+    assert!(mobile.notes.contains(&"get_note_digest".into()));
+    assert!(is_enabled("mobile", "get_note_digest"));
+    assert!(!is_enabled("mobile", "get_note_digest_by_id"));
+}
+
+#[test]
 fn load_migrates_legacy_flat_channel_lists() {
     let sandbox = TestSandbox::new();
     let path = paths::mcp_channel_tools_path().expect("path");

@@ -10,6 +10,8 @@ const RETIRED_SEARCH_TOOLS: &[&str] = &["search_notes", "search_knowledge"];
 const SEARCH_DOCUMENT: &str = "search_document";
 const RETIRED_NOTE_CONTENT: &str = "get_note_content_by_id";
 const NOTE_CONTENT: &str = "get_note_content";
+const RETIRED_NOTE_DIGEST: &str = "get_note_digest_by_id";
+const NOTE_DIGEST: &str = "get_note_digest";
 const NOTE_FILE: &str = "get_note_file";
 const KNOWLEDGE_CONTENT: &str = "get_knowledge_content";
 const KNOWLEDGE_FILE: &str = "get_knowledge_file";
@@ -30,6 +32,10 @@ pub fn rewrite_retired_search_names(names: impl IntoIterator<Item = String>) -> 
         }
         if name == RETIRED_NOTE_CONTENT {
             push_unique(&mut out, NOTE_CONTENT);
+            continue;
+        }
+        if name == RETIRED_NOTE_DIGEST {
+            push_unique(&mut out, NOTE_DIGEST);
             continue;
         }
         out.push(name);
@@ -69,6 +75,11 @@ pub fn migrate_retired_search_groups(mut groups: EnabledByGroup) -> EnabledByGro
     groups.notes.retain(|n| n != RETIRED_NOTE_CONTENT);
     if had_old_note {
         push_unique(&mut groups.notes, NOTE_CONTENT);
+    }
+    let had_old_digest = groups.notes.iter().any(|n| n == RETIRED_NOTE_DIGEST);
+    groups.notes.retain(|n| n != RETIRED_NOTE_DIGEST);
+    if had_old_digest {
+        push_unique(&mut groups.notes, NOTE_DIGEST);
     }
     groups
 }

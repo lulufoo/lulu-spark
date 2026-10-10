@@ -433,18 +433,18 @@ fn get_note_digest_and_content_by_id() {
             fs::write(notes.join("index.json"), index.to_string()).expect("write index");
         },
         move |cfg_dir| {
-            let digest = get_note_digest_by_id(cfg_dir, id_ok);
+            let digest = get_note_digest(cfg_dir, id_ok);
             assert_eq!(digest["ok"], true);
             assert_eq!(digest["content"], "# digest body");
-            let missing = get_note_digest_by_id(cfg_dir, "ffffffffffffffffffffffffffffffff");
+            let missing = get_note_digest(cfg_dir, "ffffffffffffffffffffffffffffffff");
             assert_eq!(missing["ok"], false);
-            let bad = get_note_digest_by_id(cfg_dir, "bad");
+            let bad = get_note_digest(cfg_dir, "bad");
             assert_eq!(bad["ok"], false);
             let raw = get_note_content_by_id(cfg_dir, id_ok);
             assert_eq!(raw["ok"], true);
             assert_eq!(raw["content"], "# raw body");
             assert_eq!(raw["truncated"], false);
-            assert_eq!(get_note_digest_by_id(cfg_dir, "")["_status"], 400);
+            assert_eq!(get_note_digest(cfg_dir, "")["_status"], 400);
         },
     );
 }

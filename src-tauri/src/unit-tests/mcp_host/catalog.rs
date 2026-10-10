@@ -11,7 +11,7 @@ use crate::services::settings::mcp_catalog::GroupedEnabledCatalog;
 
 const NOTES_APIS: &[&str] = &[
     "get_all_notes_catalog",
-    "get_note_digest_by_id",
+    "get_note_digest",
     "get_note_content",
     "get_note_file",
     "create_note",

@@ -206,7 +206,7 @@ pub fn list_notes_by_catalog(repo_root: &Path, catalog: &str) -> Value {
     json!({ "ids": rows.into_iter().map(|(id, _)| id).collect::<Vec<_>>() })
 }
 
-pub fn get_note_digest_by_id(repo_root: &Path, id: &str) -> Value {
+pub fn get_note_digest(repo_root: &Path, id: &str) -> Value {
     read_note_layer(repo_root, id, "digest", false)
 }
 
