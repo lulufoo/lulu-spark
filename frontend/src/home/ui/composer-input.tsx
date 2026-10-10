@@ -11,9 +11,11 @@ import {
   attachComposerEditing,
   clearComposerText,
   composerIsEmpty,
+  insertReferenceAtSelection,
   readComposerText,
   writeComposerText,
 } from '../commands/composer-text.ts';
+import type { ReferenceValue } from '../references/index.ts';
 
 /** What the rest of the page may do with the composer. Nothing outside reads `.value`. */
 export type ComposerInputHandle = {
@@ -24,6 +26,8 @@ export type ComposerInputHandle = {
   setText(text: string): void;
   clear(): void;
   isEmpty(): boolean;
+  /** Insert a reference chip at the caret, followed by a space. */
+  insertReference(ref: ReferenceValue): void;
 };
 
 type ComposerInputProps = {
@@ -62,6 +66,9 @@ export const ComposerInput = forwardRef<ComposerInputHandle, ComposerInputProps>
         },
         isEmpty() {
           return elRef.current ? composerIsEmpty(elRef.current) : true;
+        },
+        insertReference(value: ReferenceValue) {
+          if (elRef.current) insertReferenceAtSelection(elRef.current, value);
         },
       }),
       [],
