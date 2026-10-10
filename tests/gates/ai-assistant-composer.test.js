@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import * as api from '../../frontend/src/host/api.ts';
 import { mountHomeHub } from '../../frontend/src/home/hub.tsx';
+import { composerDisabled } from '../helpers/composer.js';
 
 describe('Home chat composer Binding Contract gate', () => {
   let container;
@@ -54,7 +55,7 @@ describe('Home chat composer Binding Contract gate', () => {
     await vi.waitFor(() => {
       expect(invokeSpy).toHaveBeenCalledWith('query_binding');
     });
-    expect(container.querySelector('[data-role="input"]').disabled).toBe(true);
+    expect(composerDisabled(container.querySelector('[data-role=\"input\"]'))).toBe(true);
     expect(container.querySelector('[data-role="send"]').disabled).toBe(true);
     expect(container.textContent).toMatch(/Chat requires a workspace Binding/);
     expect(container.textContent).not.toMatch(/No todo bound/);
@@ -70,7 +71,7 @@ describe('Home chat composer Binding Contract gate', () => {
       payload: { state: 'bound' },
     });
     await vi.waitFor(() => {
-      expect(container.querySelector('[data-role="input"]').disabled).toBe(false);
+      expect(composerDisabled(container.querySelector('[data-role=\"input\"]'))).toBe(false);
       expect(container.querySelector('[data-role="send"]').disabled).toBe(false);
     });
   });
@@ -102,7 +103,7 @@ describe('Home chat composer Binding Contract gate', () => {
       payload: { state: 'unbound' },
     });
     await vi.waitFor(() => {
-      expect(container.querySelector('[data-role="input"]').disabled).toBe(true);
+      expect(composerDisabled(container.querySelector('[data-role=\"input\"]'))).toBe(true);
       expect(container.textContent).toMatch(/Chat requires a workspace Binding/);
     });
   });

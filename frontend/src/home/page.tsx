@@ -17,7 +17,10 @@ import { SessionList } from './ui/session-list.tsx';
 import { SessionMenu } from './ui/session-menu.tsx';
 import { ContextPercent } from './ui/context-percent.tsx';
 import { ComposerFileLists } from './ui/composer-file-lists.tsx';
+import { ComposerInput, type ComposerInputHandle } from './ui/composer-input.tsx';
+import { UserMessageText } from './ui/user-message-text.tsx';
 import { copyMessageText } from './commands/copy-message.ts';
+import { loadComposerText, saveComposerText } from './commands/composer-keep.ts';
 import { copyCurrentSessionId } from './commands/copy-session-id.ts';
 import {
   createSession,
@@ -112,6 +115,8 @@ const MessageThread = memo(function MessageThread({
                 onClick={onChatLinkClick}
                 dangerouslySetInnerHTML={{ __html: renderHomeChatMarkdown(m.text) }}
               />
+            ) : kind === 'user' ? (
+              <UserMessageText text={m.text} />
             ) : (
               m.text
             )}
@@ -162,7 +167,7 @@ export function HomePage({
     (Boolean(hint) && hint !== 'Thinking…') || (state.hostBound && locked && !hint && !liveThinking);
   const messagesRef = useRef<HTMLDivElement | null>(null);
   const formRef = useRef<HTMLFormElement | null>(null);
-  const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const inputRef = useRef<ComposerInputHandle | null>(null);
   const imeEnterRef = useRef(createImeEnterGuard());
   const sidebarRef = useRef<HTMLElement | null>(null);
   const lastPaintKeyRef = useRef('');
@@ -190,10 +195,17 @@ export function HomePage({
     void loadPackageDebug();
   }, []);
 
+  // Leaving #/home unmounts this page; put back what was typed. Runs before the draft effect below.
+  useLayoutEffect(() => {
+    const kept = loadComposerText();
+    if (kept) inputRef.current?.setText(kept);
+  }, []);
+
   useEffect(() => {
     if (!consumeComposerFocus()) return;
     inputRef.current?.focus();
     applyComposerDraft(inputRef.current);
+    saveComposerText(inputRef.current?.getText() ?? '');
   }, [state.currentSessionId, state.staged]);
 
   useEffect(() => {
@@ -228,13 +240,9 @@ export function HomePage({
   }, [paintKey]);
 
   function syncComposerHeight() {
-    const input = inputRef.current;
     const form = formRef.current;
     const messagesEl = messagesRef.current;
-    if (!input || !form) return;
-    input.style.height = '48px';
-    const next = Math.min(Math.max(input.scrollHeight, 48), 148);
-    input.style.height = `${next}px`;
+    if (!form) return;
     const composerH = form.offsetHeight;
     if (composerH > 0 && messagesEl) {
       messagesEl.style.paddingBottom = `${composerH}px`;
@@ -248,9 +256,10 @@ export function HomePage({
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const input = inputRef.current;
-    const text = input ? String(input.value || '').trim() : '';
+    const text = input ? input.getText().trim() : '';
     if (!text || state.inFlightIds.includes(state.currentSessionId)) return;
-    if (input) input.value = '';
+    input?.clear();
+    saveComposerText('');
     syncComposerHeight();
     void sendMessage(text);
   }
@@ -263,7 +272,12 @@ export function HomePage({
     void signOutAuth().catch(() => {});
   }
 
-  function onComposerKey(event: KeyboardEvent<HTMLTextAreaElement>) {
+  function onComposerInput() {
+    saveComposerText(inputRef.current?.getText() ?? '');
+    syncComposerHeight();
+  }
+
+  function onComposerKey(event: KeyboardEvent<HTMLDivElement>) {
     if (event.key !== 'Enter' || event.shiftKey) return;
     if (imeEnterRef.current.isBlocked(event.nativeEvent)) return;
     event.preventDefault();
@@ -462,17 +476,14 @@ export function HomePage({
               }
             }}
           >
-            <textarea
+            <ComposerInput
               ref={inputRef}
-              className="home-chat-input"
-              data-role="input"
-              rows={1}
               placeholder="Ask Lulu Spark…"
               disabled={inputLocked}
               onKeyDown={onComposerKey}
               onCompositionStart={() => imeEnterRef.current.onCompositionStart()}
               onCompositionEnd={() => imeEnterRef.current.onCompositionEnd()}
-              onInput={syncComposerHeight}
+              onInput={onComposerInput}
             />
             <div className="home-chat-composer-corner">
               <ContextPercent percent={state.contextPercent} usage={state.contextUsage} />
