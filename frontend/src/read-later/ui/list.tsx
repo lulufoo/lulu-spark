@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type MouseEvent } from 'react';
 import { flushSync } from 'react-dom';
 import { createRoot, type Root } from 'react-dom/client';
+import { ViewerHeaderIcon } from '../../shared/viewer-header-icons.tsx';
+import { openReadLaterInChat } from '../commands/open-in-chat.ts';
 import {
   bindFocusRefresh,
   deleteReadLaterEntry,
@@ -69,9 +71,20 @@ function LinkEntry({ entry }: { entry: ReadLaterEntry }) {
         <span className="read-later-link-title">{title}</span>
         {savedAt ? <span className="read-later-link-meta">{savedAt}</span> : null}
       </a>
-      <button type="button" className="read-later-delete" data-id={entry.id} aria-label="Delete">
-        ×
-      </button>
+      <div className="read-later-item-actions">
+        <button
+          type="button"
+          className="read-later-open-in-chat"
+          data-id={entry.id}
+          aria-label="Open in chat"
+          title="Open in chat"
+        >
+          <ViewerHeaderIcon name="chat" filled />
+        </button>
+        <button type="button" className="read-later-delete" data-id={entry.id} aria-label="Delete">
+          ×
+        </button>
+      </div>
     </li>
   );
 }
@@ -198,6 +211,24 @@ export function ReadLaterList({
     const tab = target.closest('.read-later-tab');
     if (tab && 'dataset' in tab && (tab as HTMLElement).dataset.filter) {
       setFilter((tab as HTMLElement).dataset.filter === 'all' ? 'all' : 'unread');
+      return;
+    }
+
+    const chatBtn = target.closest('.read-later-open-in-chat') as HTMLButtonElement | null;
+    if (chatBtn) {
+      event.preventDefault();
+      const { id } = chatBtn.dataset;
+      const item = chatBtn.closest('.read-later-item');
+      const entry = id ? entries?.find((row) => row.id === id) : undefined;
+      if (!entry) return;
+      item?.querySelector('.read-later-action-error')?.remove();
+      void openReadLaterInChat(entry, chatBtn).catch((err: { message?: string }) => {
+        if (disposed.current || !item) return;
+        const errEl = document.createElement('div');
+        errEl.className = 'read-later-action-error';
+        errEl.textContent = err?.message || 'Failed to open in chat';
+        item.appendChild(errEl);
+      });
       return;
     }
 
@@ -365,6 +396,24 @@ export function mountReadLaterList(
     if (tab && 'dataset' in tab && (tab as HTMLElement).dataset.filter) {
       filter = (tab as HTMLElement).dataset.filter === 'all' ? 'all' : 'unread';
       paint();
+      return;
+    }
+
+    const chatBtn = target.closest('.read-later-open-in-chat') as HTMLButtonElement | null;
+    if (chatBtn) {
+      event.preventDefault();
+      const { id } = chatBtn.dataset;
+      const item = chatBtn.closest('.read-later-item');
+      const entry = id ? lastSuccessfulEntries?.find((row) => row.id === id) : undefined;
+      if (!entry) return;
+      item?.querySelector('.read-later-action-error')?.remove();
+      void openReadLaterInChat(entry, chatBtn).catch((err: { message?: string }) => {
+        if (disposed || !item) return;
+        const errEl = document.createElement('div');
+        errEl.className = 'read-later-action-error';
+        errEl.textContent = err?.message || 'Failed to open in chat';
+        item.appendChild(errEl);
+      });
       return;
     }
 

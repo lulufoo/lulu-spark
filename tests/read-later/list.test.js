@@ -7,6 +7,12 @@ import { readShellHtml } from '../helpers/read-frontend-js.js';
 
 const invokeMock = vi.fn();
 const getJsonMock = vi.fn();
+const openReadLaterInChat = vi.hoisted(() => vi.fn().mockResolvedValue());
+
+vi.mock('../../frontend/src/read-later/commands/open-in-chat.ts', () => ({
+  openReadLaterInChat,
+  readLaterReferenceDraft: vi.fn(),
+}));
 
 vi.mock('../../frontend/src/host/apiClient.ts', async (importOriginal) => {
   const actual = await importOriginal();
@@ -536,6 +542,25 @@ describe('mountReadLaterList', () => {
     });
     container.querySelector('[data-filter="unread"]').click();
     expect(container.querySelector('[data-entry-id="abc123"]')).toBeNull();
+    dispose();
+  });
+
+  it('open-in-chat button prefills chat and does not open the url', async () => {
+    getJsonMock.mockResolvedValue([sampleEntries[0]]);
+    const { dispose } = mountReadLaterList(container, { showTabs: true, initialFilter: 'all' });
+    await vi.waitFor(() => {
+      expect(container.querySelector('.read-later-open-in-chat')).not.toBeNull();
+    });
+    expect(container.querySelector('.read-later-open-in-chat')?.textContent?.trim()).toBe('');
+    expect(container.querySelector('.read-later-open-in-chat [data-viewer-icon="chat"]')).not.toBeNull();
+    container.querySelector('.read-later-open-in-chat').click();
+    await vi.waitFor(() => {
+      expect(openReadLaterInChat).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'abc123', url: 'https://example.com/unread' }),
+        expect.any(HTMLButtonElement),
+      );
+    });
+    expect(window.__TAURI__.opener.openUrl).not.toHaveBeenCalled();
     dispose();
   });
 

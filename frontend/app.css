@@ -1179,6 +1179,39 @@
     border-color: var(--border-accent);
     color: var(--fg-on-emphasis);
   }
+  .read-later-item-actions {
+    display: flex;
+    flex-shrink: 0;
+    align-items: flex-start;
+    gap: 2px;
+  }
+  .read-later-open-in-chat {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--fg-subtle);
+    padding: 0;
+    cursor: pointer;
+  }
+  .read-later-open-in-chat .viewer-header-icon {
+    width: 14px;
+    height: 14px;
+    display: block;
+  }
+  .read-later-open-in-chat:hover:not(:disabled) {
+    background: var(--bg-canvas);
+    color: var(--fg-accent);
+  }
+  .read-later-open-in-chat:disabled {
+    opacity: .5;
+    cursor: default;
+  }
   .read-later-delete {
     flex-shrink: 0;
     width: 24px;

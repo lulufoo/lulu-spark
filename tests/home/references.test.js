@@ -8,15 +8,19 @@ import {
 } from '../../frontend/src/home/references/index.ts';
 
 const NOTE_ID = 'f6692dc5d5242eec5206b6400e704bd6';
+const READ_LATER_ID = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
 
 describe('reference kinds', () => {
-  it('registers note and knowledge out of the box', () => {
+  it('registers note, knowledge, and read-later out of the box', () => {
     const note = referenceKindByScheme('note');
     const knowledge = referenceKindByScheme('knowledge');
+    const readLater = referenceKindByScheme('read-later');
     expect(note?.kind).toBe('note');
     expect(note?.label).toBe('note');
     expect(knowledge?.kind).toBe('knowledge');
     expect(knowledge?.label).toBe('knowledge');
+    expect(readLater?.kind).toBe('read-later');
+    expect(readLater?.label).toBe('read-later');
     expect(referenceKindByScheme('file')).toBeUndefined();
   });
 
@@ -53,6 +57,19 @@ describe('parseReferences', () => {
     const legacy = parseReferences('[B](knowledge:b5c48a6383d2)');
     expect(long[0]).toMatchObject({ type: 'ref', kind: 'knowledge' });
     expect(legacy[0]).toMatchObject({ type: 'ref', kind: 'knowledge', id: 'b5c48a6383d2' });
+  });
+
+  it('accepts a 32-hex read-later id and leaves a short id as text', () => {
+    const ok = parseReferences(`[Saved](read-later:${READ_LATER_ID})`);
+    expect(ok[0]).toMatchObject({
+      type: 'ref',
+      kind: 'read-later',
+      id: READ_LATER_ID,
+      title: 'Saved',
+    });
+    expect(parseReferences('[Saved](read-later:abc123)')).toEqual([
+      { type: 'text', text: '[Saved](read-later:abc123)' },
+    ]);
   });
 
   it('parses adjacent references', () => {
@@ -99,6 +116,17 @@ describe('serializeReference', () => {
   it('round-trips through the parser', () => {
     const raw = serializeReference({ kind: 'note', id: NOTE_ID, title: 'T' });
     expect(parseReferences(raw)[0]).toMatchObject({ type: 'ref', kind: 'note', id: NOTE_ID, title: 'T' });
+  });
+
+  it('round-trips a read-later reference', () => {
+    const raw = serializeReference({ kind: 'read-later', id: READ_LATER_ID, title: 'Saved page' });
+    expect(raw).toBe(`[Saved page](read-later:${READ_LATER_ID})`);
+    expect(parseReferences(raw)[0]).toMatchObject({
+      type: 'ref',
+      kind: 'read-later',
+      id: READ_LATER_ID,
+      title: 'Saved page',
+    });
   });
 
   it('refuses a kind that is not registered', () => {

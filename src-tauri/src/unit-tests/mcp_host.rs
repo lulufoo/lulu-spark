@@ -188,6 +188,7 @@ fn spark_expected_tool_names() -> BTreeSet<&'static str> {
     let mut names: BTreeSet<&'static str> = NOTES_TOOLS.iter().copied().collect();
     names.extend(KNOWLEDGE_TOOLS.iter().copied());
     names.extend(GLOBAL_TOOLS.iter().copied());
+    names.insert("get_read_later");
     names
 }
 
@@ -1149,6 +1150,14 @@ fn p3_t10_host_dual_slot_list_call_and_unknown_hard_fail_smoke() {
     assert!(
         !ide_names.iter().any(|n| n == "delete_note"),
         "T10/V2: cursor_ide must not expose spark-only delete_note"
+    );
+    assert!(
+        spark_names.iter().any(|n| n == "get_read_later"),
+        "T10/V2: spark must expose get_read_later"
+    );
+    assert!(
+        !ide_names.iter().any(|n| n == "get_read_later"),
+        "T10/V2: cursor_ide must not expose spark-only get_read_later"
     );
     assert!(
         !ide_names.iter().any(|n| n == "get_notes_selection"),

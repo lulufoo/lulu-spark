@@ -135,6 +135,24 @@ pub fn list_entries() -> Value {
     Value::Array(entries)
 }
 
+/// One entry by id for MCP. Only id, url, and read — no file, no title.
+pub fn get_entry(id: &str) -> Value {
+    let id = id.trim();
+    if id.is_empty() {
+        return json!({ "error": "Missing id", "_status": 400 });
+    }
+    let file = load_file_unlocked();
+    match file.entries.iter().find(|entry| entry.id == id) {
+        Some(entry) => json!({
+            "id": entry.id,
+            "url": entry.url,
+            "read": entry.read,
+            "_status": 200
+        }),
+        None => json!({ "error": "Not found", "_status": 404 }),
+    }
+}
+
 pub fn mark_read(id: &str, read: bool) -> Value {
     with_write_lock(|| {
         let mut file = load_file_unlocked();

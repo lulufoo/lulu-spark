@@ -173,6 +173,40 @@ fn mark_read_unknown_id_returns_404() {
 }
 
 #[test]
+fn get_entry_returns_id_url_and_read_only() {
+    with_read_later_sandbox(|_| {
+        let created = create_entry("https://example.com/mcp", Some("Title"));
+        let id = created["entry"]["id"].as_str().expect("id").to_string();
+
+        let found = get_entry(&id);
+        assert_eq!(found["_status"], 200);
+        assert_eq!(found["id"], id);
+        assert_eq!(found["url"], "https://example.com/mcp");
+        assert_eq!(found["read"], false);
+        assert!(found.get("title").is_none());
+        assert!(found.get("path").is_none());
+        assert!(found.get("body").is_none());
+        assert!(found.get("saved_at").is_none());
+    });
+}
+
+#[test]
+fn get_entry_unknown_id_returns_404() {
+    with_read_later_sandbox(|_| {
+        let v = get_entry("00000000000000000000000000000000");
+        assert_eq!(v["_status"], 404);
+        assert!(v.get("url").is_none());
+    });
+}
+
+#[test]
+fn get_entry_blank_id_returns_400() {
+    with_read_later_sandbox(|_| {
+        assert_eq!(get_entry("  ")["_status"], 400);
+    });
+}
+
+#[test]
 fn delete_entry_removes_from_list() {
     with_read_later_sandbox(|_| {
         let created = create_entry("https://example.com/del", Some("del"));
