@@ -8,12 +8,25 @@ import {
 import * as homeOpen from '../../frontend/src/home/commands/open-in-chat.ts';
 import * as api from '../../frontend/src/host/api.ts';
 import { parseReferences } from '../../frontend/src/home/references/index.ts';
+import { state } from '../../frontend/src/host/state.ts';
 
 const PATH = '/Users/me/knowledge/demo/design-notes.md';
 const ID = 'b5c48a6383d20ccb1251d2cc0feb9e3a';
 
+function resetViewer() {
+  state.viewer.isKb = false;
+  state.viewer.kbPath = null;
+  state.viewer.rawText = '';
+}
+
 describe('knowledgeReferenceDraft', () => {
-  it('links the title to the knowledge id, with a space to keep typing after the chip', () => {
+  it('uses the document H1 when the open body has one', () => {
+    expect(knowledgeReferenceDraft(PATH, ID, '# Design Notes\n\nbody')).toBe(
+      `[Design Notes](knowledge:${ID}) `,
+    );
+  });
+
+  it('links the filename to the knowledge id when there is no H1', () => {
     expect(knowledgeReferenceDraft(PATH, ID)).toBe(`[design-notes](knowledge:${ID}) `);
   });
 
@@ -28,8 +41,8 @@ describe('knowledgeReferenceDraft', () => {
   });
 
   it('is a reference the composer shows as a chip', () => {
-    const [segment] = parseReferences(knowledgeReferenceDraft(PATH, ID));
-    expect(segment).toMatchObject({ type: 'ref', kind: 'knowledge', id: ID, title: 'design-notes' });
+    const [segment] = parseReferences(knowledgeReferenceDraft(PATH, ID, '# Design Notes'));
+    expect(segment).toMatchObject({ type: 'ref', kind: 'knowledge', id: ID, title: 'Design Notes' });
   });
 });
 
@@ -40,6 +53,7 @@ describe('openKnowledgeInChat', () => {
   let draftSpy;
 
   beforeEach(() => {
+    resetViewer();
     draftSpy = vi.spyOn(homeOpen, 'openDraftInChat').mockResolvedValue();
     invokeSpy = vi.spyOn(api, 'invoke').mockImplementation(async (cmd, args) => {
       if (cmd === 'remember_knowledge_doc') {
@@ -52,12 +66,21 @@ describe('openKnowledgeInChat', () => {
   afterEach(() => {
     invokeSpy.mockRestore();
     draftSpy.mockRestore();
+    resetViewer();
   });
 
   it('remembers the path, then opens a new chat prefilled with the document reference', async () => {
     await openKnowledgeInChat(PATH);
     expect(invokeSpy).toHaveBeenCalledWith('remember_knowledge_doc', { path: PATH });
     expect(draftSpy).toHaveBeenCalledWith(`[design-notes](knowledge:${ID}) `);
+  });
+
+  it('prefills the open viewer H1 when the current knowledge document has one', async () => {
+    state.viewer.isKb = true;
+    state.viewer.kbPath = 'demo/design-notes.md';
+    state.viewer.rawText = '# Design Notes\n\nbody';
+    await openKnowledgeInChat(PATH);
+    expect(draftSpy).toHaveBeenCalledWith(`[Design Notes](knowledge:${ID}) `);
   });
 
   it('does not stage anything', async () => {
