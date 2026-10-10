@@ -7075,11 +7075,10 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
 }
 .home-chat-btn-danger {
   color: var(--fg-danger);
-  border-color: var(--border-hex-ff8182);
 }
 .home-chat-btn-danger:hover {
   background: var(--bg-hex-fff1f0);
-  border-color: var(--border-danger);
+  border-color: transparent;
 }
 .home-chat-main {
   position: relative;
