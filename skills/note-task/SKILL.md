@@ -39,7 +39,8 @@ Map the user request, then call **only** the tools that match. Do not run a fixe
 | Search notes and knowledge | `search_document` | Do not list a catalog's full id set |
 | Search notes by text | `search_notes` | Do not loop catalog-by-catalog |
 | Read one digest | `get_note_digest_by_id` | — |
-| Read one raw body | `get_note_content_by_id` | — |
+| Read one raw body | `get_note_file` with a `dest_dir`, then read the returned copy | Do not read the notes data directory directly |
+| Edit an existing note | `get_note_file`, edit the copy, then `update_note` with `source_path` set to the copy | Do not edit the notes data directory directly |
 
 **Create is one tool.** `digest` is a required `create_note` field. When a digest will be written, pass `digest_body` on the same call. Host AD-0 decides whether `auto` writes. Companion-image when-to-pass is the live MCP description; collecting sibling files is [path-or-paste.md](references/path-or-paste.md).
 
@@ -75,7 +76,8 @@ Do not invent norms not listed here.
 | `search_document` | Search notes and knowledge; returns id, title, snippet, category |
 | `search_notes` | Search raw note bodies; returns note ids and match snippets (no digest) |
 | `get_note_digest_by_id` | Digest Markdown for one note id |
-| `get_note_content_by_id` | Raw Markdown for one note id (Host truncates over 10KB) |
+| `get_note_file` | Copy one note's file into `dest_dir` and return `{ok, id, path}`; the body is not returned and an existing copy is never overwritten |
+| `update_note` | Replace an existing note body from the Markdown file at `source_path` |
 
 Field names, limits, and optionality: live MCP schema only.
 
