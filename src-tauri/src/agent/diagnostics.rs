@@ -1,7 +1,8 @@
 //! Versioned, privacy-safe diagnostic events for Assistant execution timing.
 //!
-//! Events are emitted as one JSON object per line to stderr and to
-//! `{cache_dir}/agent-exec/assistant-diagnostic.jsonl`. Field names are static.
+//! Events with a `session_id` are appended to
+//! `{cache_dir}/agent-exec/sessions/{session_id}/session.log`.
+//! Events without one go to `app-log` (process-scoped). Field names are static.
 //! Prompt/reply bodies are still forbidden. Bounded, newline-stripped error
 //! classification text is allowed so SDK failures can be distinguished.
 //!
@@ -25,7 +26,6 @@ use crate::agent::session;
 use crate::services::id::random_hex12;
 
 pub const SCHEMA_VERSION: u8 = 1;
-pub const DIAGNOSTIC_LOG_FILE: &str = "assistant-diagnostic.jsonl";
 pub const BOUNDED_TEXT_MAX: usize = 1024;
 
 const BOUNDED_TEXT_FIELDS: &[&str] = &[
@@ -222,19 +222,38 @@ fn redact_sk_tokens(text: &str) -> String {
     out
 }
 
-pub fn diagnostic_log_path() -> Result<PathBuf, String> {
-    Ok(session::agent_log_dir()?.join(DIAGNOSTIC_LOG_FILE))
+pub fn session_log_path(session_id: &str) -> Result<PathBuf, String> {
+    session::session_log_path(session_id)
 }
 
-/// Emit a JSONL event to both stderr and the durable local diagnostics log.
+/// Emit a JSONL event to stderr and the session (or process) log.
 pub fn log(event: DiagnosticEvent) -> Result<(), String> {
     let line = serde_json::to_string(&event).map_err(|e| e.to_string())?;
     eprintln!("[assistant-diagnostic] {line}");
 
-    let path = diagnostic_log_path()?;
+    if let Some(session_id) = event.session_id.as_deref() {
+        return append_session_line(session_id, &line);
+    }
+    crate::services::app_log::log(
+        "agent",
+        event.event,
+        Some(event.trace_id.as_str()),
+        Some(json!({
+            "component": event.component,
+            "fields": event.fields,
+            "elapsed_ms": event.elapsed_ms,
+        })),
+        crate::services::app_log::Side::Host,
+        crate::services::app_log::Level::Info,
+    );
+    Ok(())
+}
+
+fn append_session_line(session_id: &str, line: &str) -> Result<(), String> {
+    let path = session_log_path(session_id)?;
     let parent = path
         .parent()
-        .ok_or_else(|| "diagnostic log path has no parent directory".to_string())?;
+        .ok_or_else(|| "session log path has no parent directory".to_string())?;
     fs::create_dir_all(parent).map_err(|e| e.to_string())?;
 
     let lock = WRITE_LOCK.get_or_init(|| Mutex::new(()));

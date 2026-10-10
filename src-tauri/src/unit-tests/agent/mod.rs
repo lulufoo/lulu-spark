@@ -243,7 +243,7 @@ fn assistant_diagnostic_log_is_versioned_jsonl_with_safe_metadata_only() {
 
         diagnostics::log(event).expect("write diagnostic event");
 
-        let path = diagnostics::diagnostic_log_path().expect("diagnostic log path");
+        let path = diagnostics::session_log_path("sess_abcdef123456").expect("session log path");
         assert_under_cache_not_knowledge_root(&path, sandbox);
         let log = fs::read_to_string(&path).expect("read diagnostic log");
         let line = log

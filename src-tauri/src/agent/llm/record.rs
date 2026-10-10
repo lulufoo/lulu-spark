@@ -1,7 +1,7 @@
 //! One file per LLM request: `{sessions}/{session_id}/llm-calls/{NNNN}.json`.
 //!
 //! Policy: this is a deliberate exception to "prompt/reply bodies never go to logs".
-//! That rule (see `diagnostics.rs`) covers `assistant-diagnostic.jsonl` only. These files
+//! That rule (see `diagnostics.rs`) covers `session.log` only. These files
 //! hold the full request and what the response delivered, stay out of every model-readable
 //! directory, and are deleted together with the session. HTTP headers are never recorded,
 //! and every string goes through `redact_secrets`.
@@ -23,7 +23,7 @@ const ERROR_BODY_LIMIT: usize = 8 * 1024;
 #[derive(Debug, Clone)]
 pub struct CallContext {
     pub session_id: String,
-    /// Same id as the `assistant-diagnostic.jsonl` events of the Turn; `None` outside a Turn.
+    /// Same id as the `session.log` events of the Turn; `None` outside a Turn.
     pub trace_id: Option<String>,
     /// `turn` for the ReAct loop, `summary` for history compression.
     pub purpose: &'static str,

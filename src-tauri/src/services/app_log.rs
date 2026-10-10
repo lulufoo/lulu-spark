@@ -3,8 +3,9 @@
 //! One Spark process = one process session = one JSONL file:
 //! `{cache_dir}/app-log/{process_session_id}.jsonl`
 //!
-//! Not the Assistant diagnostic file. Agent stays in
-//! `{cache_dir}/agent-exec/assistant-diagnostic.jsonl`.
+//! Not the per-session Agent file. Agent turns go to
+//! `{cache_dir}/agent-exec/sessions/{session_id}/session.log`.
+//! MCP host HTTP/tool events without a chat session also land here.
 
 use std::fs;
 use std::io::Write;
