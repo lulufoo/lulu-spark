@@ -280,4 +280,10 @@ describe('T8 behavioral: delete-dialog confirm ok', () => {
     expect(desc).toBeTruthy();
     expect(desc.textContent).not.toMatch(/raw|digest/i);
   });
+
+  it('delete dialog title has no warning icon', () => {
+    const title = document.querySelector('#delete-dialog-box h3');
+    expect(title?.textContent).toBe('Delete document');
+    expect(title?.textContent).not.toMatch(/⚠️/);
+  });
 });

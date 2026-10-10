@@ -54,6 +54,8 @@ describe('P2 copy-switch — main.js & modals (tech-doc T6)', () => {
   });
 
   it('delete-dialog.js uses table B/B2 delete copy', () => {
+    expect(deleteDialogJs).toContain('<h3>Delete document</h3>');
+    expect(deleteDialogJs).not.toContain('⚠️');
     expect(deleteDialogJs).toContain('Deleting…');
     expect(deleteDialogJs).toContain('Confirm delete');
     expect(deleteDialogJs).toContain('Delete failed:');
