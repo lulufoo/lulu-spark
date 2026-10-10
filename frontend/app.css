@@ -3662,6 +3662,40 @@
   .badge-importance-low    { background: var(--bg-canvas); color: var(--fg-muted); border-color: var(--border-default); }
   .badge-importance-unset  { background: none; color: var(--fg-hex-c8d0d8); border-color: transparent; }
   .badge-importance-unset:hover { color: var(--fg-muted); border-color: var(--border-default); background: var(--bg-canvas); }
+  .doc-card-icon-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+  }
+  .badge-importance-unset,
+  .badge-open-in-chat {
+    min-height: 18px;
+    min-width: 18px;
+    padding: 2px;
+    justify-content: center;
+    box-sizing: border-box;
+  }
+  .badge-importance-unset {
+    font-size: 12px;
+    line-height: 1;
+  }
+  .badge-open-in-chat {
+    cursor: pointer;
+    background: none;
+    color: var(--fg-hex-c8d0d8);
+    border-color: transparent;
+  }
+  .badge-open-in-chat .viewer-header-icon {
+    width: 12px;
+    height: 12px;
+    display: block;
+  }
+  .badge-open-in-chat:hover {
+    color: var(--fg-muted);
+    border-color: var(--border-default);
+    background: var(--bg-canvas);
+    opacity: 1;
+  }
   .doc-title-btn.loading {
     background: linear-gradient(90deg, var(--bg-muted) 25%, var(--bg-inset) 50%, var(--bg-muted) 75%);
     background-size: 200% 100%;
@@ -3685,7 +3719,7 @@
   }
 
   /* ── Layer badges ── */
-  .badges { display: flex; flex-wrap: wrap; gap: 6px; }
+  .badges { display: flex; flex-wrap: wrap; gap: 4px; }
   .badge {
     display: inline-flex;
     align-items: center;
@@ -4008,9 +4042,8 @@
     text-align: left;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
-    max-width: min(280px, 70vw);
-    max-height: calc(1.3em * 2);
-    overflow: hidden;
+    width: max-content;
+    max-width: min(480px, calc(100vw - 64px));
     box-shadow: 0 1px 2px var(--shadow-rgba-000000-08);
     pointer-events: none;
   }
@@ -7042,11 +7075,10 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
 }
 .home-chat-btn-danger {
   color: var(--fg-danger);
-  border-color: var(--border-hex-ff8182);
 }
 .home-chat-btn-danger:hover {
   background: var(--bg-hex-fff1f0);
-  border-color: var(--border-danger);
+  border-color: transparent;
 }
 .home-chat-main {
   position: relative;

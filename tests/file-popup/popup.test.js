@@ -143,12 +143,15 @@ describe('FilePopup chrome', () => {
     expect(css).not.toMatch(/#file-popup\s+\.file-popup-box\s*\{[^}]*--shadow-rgba-1f2328-18/);
   });
 
-  it('path tip uses digest tokens and wraps at most two lines', () => {
+  it('path tip uses digest tokens and shows the full path without clipping', () => {
     const css = readRel('frontend/app.css');
     expect(css).toMatch(/#file-popup \.file-popup-path-tip\s*\{[^}]*background:\s*var\(--bg-surface\)/);
     expect(css).toMatch(/#file-popup \.file-popup-path-tip\s*\{[^}]*color:\s*var\(--fg-default\)/);
     expect(css).toMatch(/#file-popup \.file-popup-path-tip\s*\{[^}]*white-space:\s*pre-wrap/);
-    expect(css).toMatch(/#file-popup \.file-popup-path-tip\s*\{[^}]*max-height:\s*calc\(1\.3em \* 2\)/);
+    expect(css).toMatch(/#file-popup \.file-popup-path-tip\s*\{[^}]*width:\s*max-content/);
+    expect(css).toMatch(/#file-popup \.file-popup-path-tip\s*\{[^}]*max-width:\s*min\(480px, calc\(100vw - 64px\)\)/);
+    expect(css).not.toMatch(/#file-popup \.file-popup-path-tip\s*\{[^}]*max-height/);
+    expect(css).not.toMatch(/#file-popup \.file-popup-path-tip\s*\{[^}]*overflow:\s*hidden/);
     expect(css).not.toMatch(/#file-popup \.file-popup-path-tip\s*\{[^}]*color-scheme:\s*light/);
     expect(css).not.toMatch(/#file-popup \.file-popup-path-tip\s*\{[^}]*background:\s*#fff/);
   });
