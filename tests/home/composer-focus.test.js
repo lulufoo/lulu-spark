@@ -102,5 +102,7 @@ describe('home composer dock hit area', () => {
     expect(appCss).not.toMatch(
       /\.home-chat-context-percent:hover\s*\{[^}]*background:/,
     );
+    expect(appCss).toMatch(/\.home-chat-send:hover\s*\{[^}]*background:\s*var\(--bg-dark\)/);
+    expect(appCss).not.toMatch(/\.home-chat-send:hover\s*\{[^}]*--bg-hex-141414/);
   });
 });
