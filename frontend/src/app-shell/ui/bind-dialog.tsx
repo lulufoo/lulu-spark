@@ -17,7 +17,7 @@ export function BindDialog() {
       <div id="bind-dialog-box">
         <div id="bind-dialog-header">
           <div id="bind-dialog-heading">
-            <span id="bind-dialog-title">📲 Bind device</span>
+            <span id="bind-dialog-title">Bind device</span>
             <p id="bind-dialog-lead">Pair this Mac with the Lulu Spark Android app on the same local network.</p>
           </div>
           <OverlayDismissButton id="btn-bind-close" onClick={() => closeBindDialog()} />
