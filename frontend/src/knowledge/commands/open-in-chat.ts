@@ -1,14 +1,15 @@
 import * as api from '../../host/api.ts';
 import { openDraftInChat } from '../../home/commands/open-in-chat.ts';
+import { serializeReference } from '../../home/references/index.ts';
 
 function documentTitle(path: string) {
   const name = path.replace(/\s+/g, ' ').trim().split('/').pop() ?? '';
   return name.replace(/\.[^.]*$/, '') || name;
 }
 
-/** Plain text, no link scheme: the model fetches the document with `get_knowledge_file`. */
+/** `[title](knowledge:<id>) ` — shown as a chip in the composer; the space keeps typing after it. */
 export function knowledgeReferenceDraft(path: string, id: string) {
-  return `请阅读知识库文档「${documentTitle(path)}」（id: ${id}）`;
+  return `${serializeReference({ kind: 'knowledge', id, title: documentTitle(path) })} `;
 }
 
 export async function openKnowledgeInChat(path: string, button?: HTMLButtonElement | null) {

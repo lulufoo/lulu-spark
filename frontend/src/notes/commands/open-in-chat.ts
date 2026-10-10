@@ -2,6 +2,7 @@ import { openDraftInChat } from '../../home/commands/open-in-chat.ts';
 import { slugToTitle, filenameFromPath } from '../../shared/utils.ts';
 import { getEntryId } from '../state/host.ts';
 import type { HostNoteEntry } from '../../host/state.ts';
+import { serializeReference } from '../../home/references/index.ts';
 
 function noteTitle(entry: HostNoteEntry) {
   if (entry.title) return String(entry.title);
@@ -9,10 +10,10 @@ function noteTitle(entry: HostNoteEntry) {
   return 'Untitled note';
 }
 
-/** `[title](note:<id>)` — the same link form the model writes and the chat opens. */
+/** `[title](note:<id>) ` — shown as a chip in the composer; the space keeps typing after it. */
 export function noteReferenceDraft(entry: HostNoteEntry, id: string) {
-  const title = noteTitle(entry).replace(/\s+/g, ' ').trim().replace(/[[\]]/g, '\\$&');
-  return `[${title}](note:${id})`;
+  const title = noteTitle(entry).replace(/\s+/g, ' ').trim();
+  return `${serializeReference({ kind: 'note', id, title })} `;
 }
 
 export async function openNoteInChat(

@@ -41,6 +41,29 @@ fn spark_host_system_prompt_closes_data_and_teaches_file_copies() {
 }
 
 #[test]
+fn spark_host_system_prompt_says_what_a_reference_is_not_how_to_read_it() {
+    let prompt = SPARK_HOST_SYSTEM_PROMPT;
+    assert!(
+        prompt.contains("In a user message,"),
+        "prompt explains references in user messages"
+    );
+    assert!(prompt.contains("refers to a note"));
+    assert!(prompt.contains("refers to a knowledge document"));
+    assert!(prompt.contains("is that document's id"));
+    for imperative in [
+        "whenever a reference",
+        "when a reference appears",
+        "always call get_note_file",
+        "always call get_knowledge_file",
+    ] {
+        assert!(
+            !prompt.contains(imperative),
+            "prompt must not dictate how to react: {imperative}"
+        );
+    }
+}
+
+#[test]
 fn fill_host_file_dirs_replaces_placeholders_without_rules() {
     let scratch = Path::new("/tmp/session-scratch");
     let filled = fill_host_file_dirs(SPARK_HOST_SYSTEM_PROMPT, Some(scratch));
