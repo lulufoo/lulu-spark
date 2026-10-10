@@ -211,41 +211,6 @@ pub fn unstage_chat_staged_core(session_id: &str, staged_id: &str) -> Result<Val
     }))
 }
 
-/// UI-only: validate and Stage one exact file. Rejects in-flight turns. Not an agent tool.
-pub fn stage_chat_document_core(
-    session_id: &str,
-    path: &str,
-    source_kind: &str,
-    source_id: &str,
-) -> Result<Value, String> {
-    let sid = session_id.trim();
-    if sid.is_empty() {
-        return Err("Missing session_id".into());
-    }
-    {
-        let rt = runtime().lock().unwrap();
-        if rt.flights.contains_key(sid) {
-            return Err("Conversation is running".into());
-        }
-    }
-    let base = crate::agent::binding::loaded_path_fence().ok_or_else(|| {
-        "Host tool has no path fence for this binding.".to_string()
-    })?;
-    let fence = base
-        .with_session_scratch(sid)
-        .unwrap_or(base);
-    let source = session::StagedSource::parse(Some(source_kind), Some(source_id))?;
-    let mut session = session::load_session(sid)?;
-    let canon = crate::services::path_fence::validate_stage_file(path, &fence)?;
-    let entry = session.register_staged(&canon.to_string_lossy(), None, Some(source))?;
-    session::save_session(&session)?;
-    Ok(json!({
-        "session_id": session.session_id,
-        "id": entry.id,
-        "staged": session.staged,
-    }))
-}
-
 /// Compatibility entry — production formal chat goes through `runtime::chat_turn`.
 /// Delegates so Host loop tests keep a stable symbol while orchestration is engine-aware.
 pub fn agent_chat_turn_core(

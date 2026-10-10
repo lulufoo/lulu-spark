@@ -35,12 +35,9 @@ describe('openKnowledgeInChat', () => {
   let invokeSpy;
   /** @type {import('vitest').MockInstance} */
   let draftSpy;
-  /** @type {import('vitest').MockInstance} */
-  let pathSpy;
 
   beforeEach(() => {
     draftSpy = vi.spyOn(homeOpen, 'openDraftInChat').mockResolvedValue();
-    pathSpy = vi.spyOn(homeOpen, 'openPathInChat').mockResolvedValue();
     invokeSpy = vi.spyOn(api, 'invoke').mockImplementation(async (cmd, args) => {
       if (cmd === 'remember_knowledge_doc') {
         return { ok: true, id: 'kbdocid12ab' };
@@ -52,7 +49,6 @@ describe('openKnowledgeInChat', () => {
   afterEach(() => {
     invokeSpy.mockRestore();
     draftSpy.mockRestore();
-    pathSpy.mockRestore();
   });
 
   it('remembers the path, then opens a new chat prefilled with the document reference', async () => {
@@ -63,7 +59,6 @@ describe('openKnowledgeInChat', () => {
 
   it('does not stage anything', async () => {
     await openKnowledgeInChat(PATH);
-    expect(pathSpy).not.toHaveBeenCalled();
     expect(invokeSpy.mock.calls.map(([cmd]) => cmd)).not.toContain('stage_chat_document');
   });
 
