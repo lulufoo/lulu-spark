@@ -75,4 +75,26 @@ describe('home composer dock hit area', () => {
     );
     expect(appCss).not.toMatch(/\.home-chat-input:focus[^\n]*::before/);
   });
+
+  it('lifts Workspace/Staged summaries and the token ring on hover', () => {
+    const appCss = readFileSync(
+      join(dirname(fileURLToPath(import.meta.url)), '../../frontend/app.css'),
+      'utf8',
+    );
+    expect(appCss).toMatch(
+      /\.home-chat-staged-summary:hover\s*\{[^}]*background:\s*var\(--bg-canvas\)/,
+    );
+    expect(appCss).toMatch(
+      /\.home-chat-context-percent:hover \.home-chat-context-ring-track/,
+    );
+    expect(appCss).toMatch(
+      /\.home-chat-context-percent\[aria-expanded="true"\] \.home-chat-context-ring-track/,
+    );
+    expect(appCss).toMatch(
+      /\.home-chat-context-percent:hover \.home-chat-context-ring-progress/,
+    );
+    expect(appCss).not.toMatch(
+      /\.home-chat-context-percent:hover\s*\{[^}]*background:/,
+    );
+  });
 });

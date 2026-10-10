@@ -7420,6 +7420,9 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   line-height: 1.3;
   color: var(--fg-muted);
 }
+.home-chat-staged-summary:hover {
+  background: var(--bg-canvas);
+}
 .home-chat-staged-row {
   display: flex;
   align-items: stretch;
@@ -7542,6 +7545,22 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
 }
 [data-theme="dark"] .home-chat-context-ring-progress {
   stroke: var(--fg-muted);
+}
+.home-chat-context-percent:hover .home-chat-context-ring-track,
+.home-chat-context-percent[aria-expanded="true"] .home-chat-context-ring-track {
+  stroke: var(--fg-rgba-1f2328-36);
+}
+.home-chat-context-percent:hover .home-chat-context-ring-progress,
+.home-chat-context-percent[aria-expanded="true"] .home-chat-context-ring-progress {
+  stroke: var(--fg-default);
+}
+[data-theme="dark"] .home-chat-context-percent:hover .home-chat-context-ring-track,
+[data-theme="dark"] .home-chat-context-percent[aria-expanded="true"] .home-chat-context-ring-track {
+  stroke: var(--fg-muted);
+}
+[data-theme="dark"] .home-chat-context-percent:hover .home-chat-context-ring-progress,
+[data-theme="dark"] .home-chat-context-percent[aria-expanded="true"] .home-chat-context-ring-progress {
+  stroke: var(--fg-default);
 }
 .home-chat-context-usage {
   position: absolute;
