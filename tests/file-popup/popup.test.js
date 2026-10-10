@@ -143,6 +143,16 @@ describe('FilePopup chrome', () => {
     expect(css).not.toMatch(/#file-popup\s+\.file-popup-box\s*\{[^}]*--shadow-rgba-1f2328-18/);
   });
 
+  it('path tip uses digest tokens and wraps at most two lines', () => {
+    const css = readRel('frontend/app.css');
+    expect(css).toMatch(/#file-popup \.file-popup-path-tip\s*\{[^}]*background:\s*var\(--bg-surface\)/);
+    expect(css).toMatch(/#file-popup \.file-popup-path-tip\s*\{[^}]*color:\s*var\(--fg-default\)/);
+    expect(css).toMatch(/#file-popup \.file-popup-path-tip\s*\{[^}]*white-space:\s*pre-wrap/);
+    expect(css).toMatch(/#file-popup \.file-popup-path-tip\s*\{[^}]*max-height:\s*calc\(1\.3em \* 2\)/);
+    expect(css).not.toMatch(/#file-popup \.file-popup-path-tip\s*\{[^}]*color-scheme:\s*light/);
+    expect(css).not.toMatch(/#file-popup \.file-popup-path-tip\s*\{[^}]*background:\s*#fff/);
+  });
+
   it('keeps File popup close in commands and not inside the shared control', () => {
     const popupSrc = readRel('frontend/src/file-popup/ui/popup.tsx');
     const commandSrc = readRel('frontend/src/file-popup/commands/popup.ts');
