@@ -137,7 +137,7 @@ describe('FilePopup chrome', () => {
     const css = readRel('frontend/app.css');
     expect(css).toMatch(/#file-popup\s*\{[^}]*background:\s*var\(--bg-rgba-000000-55\)/);
     expect(css).toMatch(
-      /#file-popup\s+\.file-popup-box\s*\{[^}]*box-shadow:\s*0 16px 48px var\(--shadow-rgba-000000-30\)/,
+      /#file-popup\s+\.file-popup-box\s*\{[^}]*box-shadow:\s*0 8px 32px var\(--shadow-rgba-010409-18\), 0 0 0 1px var\(--shadow-rgba-1f2328-08\)/,
     );
     expect(css).not.toMatch(/#file-popup\s*\{[^}]*--bg-rgba-1f2328-45/);
     expect(css).not.toMatch(/#file-popup\s+\.file-popup-box\s*\{[^}]*--shadow-rgba-1f2328-18/);
