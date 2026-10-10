@@ -1,4 +1,5 @@
 import type { HubWorkspaceFile } from '../state/store.ts';
+import { useDismissibleDetails } from './use-dismissible-details.ts';
 
 export function WorkspaceList({
   items,
@@ -7,9 +8,16 @@ export function WorkspaceList({
   items: HubWorkspaceFile[];
   onOpen: (item: HubWorkspaceFile) => void;
 }) {
+  const { open, rootRef, onToggle } = useDismissibleDetails();
   if (!items.length) return null;
   return (
-    <details className="home-chat-staged" data-role="workspace-list" open>
+    <details
+      ref={rootRef}
+      className="home-chat-staged"
+      data-role="workspace-list"
+      open={open}
+      onToggle={onToggle}
+    >
       <summary className="home-chat-staged-summary">Workspace</summary>
       {items.map((item) => (
         <div key={item.path} className="home-chat-staged-row" data-role="workspace-row">

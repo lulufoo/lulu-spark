@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { HubStagedEntry } from '../state/store.ts';
+import { useDismissibleDetails } from './use-dismissible-details.ts';
 
 export function StagedList({
   items,
@@ -13,11 +14,18 @@ export function StagedList({
   onRemove: (id: string) => void;
 }) {
   const [pendingId, setPendingId] = useState('');
+  const { open, rootRef, onToggle } = useDismissibleDetails();
   if (!items.length) return null;
   const pending = items.find((item) => item.id === pendingId) || null;
   return (
     <>
-      <details className="home-chat-staged" data-role="staged-list" open>
+      <details
+        ref={rootRef}
+        className="home-chat-staged"
+        data-role="staged-list"
+        open={open}
+        onToggle={onToggle}
+      >
         <summary className="home-chat-staged-summary">Staged</summary>
         {items.map((item) => (
           <div key={item.id || item.path} className="home-chat-staged-row" data-role="staged-row">
