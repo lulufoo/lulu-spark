@@ -7676,15 +7676,12 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   color: var(--fg-subtle);
 }
 .home-ref-chip {
-  display: inline-block;
+  display: inline-flex;
+  align-items: baseline;
   box-sizing: border-box;
   max-width: 260px;
   margin: 0 1px;
   padding: 0 6px;
-  overflow: hidden;
-  vertical-align: bottom;
-  white-space: nowrap;
-  text-overflow: ellipsis;
   border-radius: 6px;
   background: var(--bg-muted);
   background: color-mix(in srgb, var(--fg-ref-chip) 24%, transparent);
@@ -7694,6 +7691,12 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   cursor: pointer;
   user-select: none;
   transition: background-color 0.12s ease;
+}
+.home-ref-chip-label {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 .home-ref-chip:hover {
   background: var(--border-default);

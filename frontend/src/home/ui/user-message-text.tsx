@@ -1,5 +1,10 @@
 import { Fragment, type KeyboardEvent } from 'react';
-import { parseReferences, referenceKindByName } from '../references/index.ts';
+import {
+  CHIP_LABEL_CLASS,
+  chipLabelText,
+  parseReferences,
+  referenceKindByName,
+} from '../references/index.ts';
 
 /** A user message: plain text stays text; registered references show as clickable chips. */
 export function UserMessageText({ text }: { text: string }) {
@@ -25,7 +30,7 @@ export function UserMessageText({ text }: { text: string }) {
               if (event.key === 'Enter') open();
             }}
           >
-            {`${kind?.label ?? segment.kind}: ${segment.title}`}
+            <span className={CHIP_LABEL_CLASS}>{chipLabelText(segment.kind, segment.title)}</span>
           </span>
         );
       })}

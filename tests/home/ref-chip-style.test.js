@@ -45,4 +45,19 @@ describe('reference chip style', () => {
     const all = `${rule('.home-ref-chip')}${rule('.home-ref-chip:hover')}`;
     expect(all).not.toMatch(/--(fg|bg|border)-accent/);
   });
+
+  it('sits on the text baseline instead of being pinned to the line box', () => {
+    const base = rule('.home-ref-chip');
+    expect(base).toMatch(/display:\s*inline-flex/);
+    expect(base).not.toMatch(/vertical-align:\s*(bottom|top|middle|text-bottom|text-top)/);
+    expect(base).not.toMatch(/overflow:/);
+  });
+
+  it('truncates a long title on the label, not on the chip', () => {
+    const label = rule('.home-ref-chip-label');
+    expect(label).not.toBeNull();
+    expect(label).toMatch(/overflow:\s*hidden/);
+    expect(label).toMatch(/text-overflow:\s*ellipsis/);
+    expect(label).toMatch(/white-space:\s*nowrap/);
+  });
 });

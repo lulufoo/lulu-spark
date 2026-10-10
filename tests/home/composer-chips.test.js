@@ -87,6 +87,7 @@ describe('chips in the composer', () => {
     expect(chip.getAttribute('data-ref-kind')).toBe('note');
     expect(chip.getAttribute('data-ref-id')).toBe(NOTE_ID);
     expect(chip.textContent).toBe('note: Agent Mock');
+    expect(chip.querySelector('.home-ref-chip-label')?.textContent).toBe('note: Agent Mock');
     expect(el.textContent).not.toContain('(note:');
     expect(ref.current.getText()).toBe(`read ${NOTE} now`);
   });

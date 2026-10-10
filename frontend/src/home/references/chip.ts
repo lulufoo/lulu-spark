@@ -2,10 +2,15 @@ import { referenceKindByName } from './registry.ts';
 import { serializeReference, type ReferenceValue } from './parse.ts';
 
 export const CHIP_CLASS = 'home-ref-chip';
+export const CHIP_LABEL_CLASS = 'home-ref-chip-label';
+
+/** The words on a chip: `note: Title`. */
+export function chipLabelText(kind: string, title: string): string {
+  return `${referenceKindByName(kind)?.label ?? kind}: ${title}`;
+}
 
 /** A read-only inline chip for one reference. The markdown link stays recoverable from its data. */
 export function createChipElement(doc: Document, ref: ReferenceValue): HTMLElement {
-  const kind = referenceKindByName(ref.kind);
   const chip = doc.createElement('span');
   chip.className = CHIP_CLASS;
   chip.setAttribute('contenteditable', 'false');
@@ -13,7 +18,10 @@ export function createChipElement(doc: Document, ref: ReferenceValue): HTMLEleme
   chip.setAttribute('data-ref-id', ref.id);
   chip.setAttribute('data-ref-title', ref.title);
   chip.setAttribute('title', ref.title);
-  chip.textContent = `${kind?.label ?? ref.kind}: ${ref.title}`;
+  const label = doc.createElement('span');
+  label.className = CHIP_LABEL_CLASS;
+  label.textContent = chipLabelText(ref.kind, ref.title);
+  chip.appendChild(label);
   return chip;
 }
 

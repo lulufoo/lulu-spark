@@ -49,6 +49,7 @@ describe('UserMessageText', () => {
     const chips = [...el.querySelectorAll('.home-ref-chip')];
     expect(chips.map((c) => c.textContent)).toEqual(['note: Agent Mock', 'knowledge: Guide']);
     expect(el.textContent).toBe('read note: Agent Mock then knowledge: Guide now');
+    expect(chips[0].querySelector('.home-ref-chip-label')?.textContent).toBe('note: Agent Mock');
     expect(chips[0].getAttribute('data-ref-kind')).toBe('note');
     expect(chips[0].getAttribute('data-ref-id')).toBe(NOTE_ID);
   });
