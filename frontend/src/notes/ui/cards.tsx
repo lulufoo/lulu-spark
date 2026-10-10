@@ -6,6 +6,8 @@ import { openMoveProjectDialog } from './move-project-dialog.tsx';
 import { attachDigestTooltip } from './digest-tooltip.tsx';
 import { renderToHtml } from '../../island.ts';
 import { cycleImportance, loadTitles, toggleDone } from '../commands/cards.ts';
+import { openNoteInChat } from '../commands/open-in-chat.ts';
+import { ViewerHeaderIcon } from '../../shared/viewer-header-icons.tsx';
 import type { NoteEntry, NoteTag } from '../state/types.ts';
 
 export { cycleImportance, loadTitles, toggleDone };
@@ -116,6 +118,26 @@ function LinksBadge({ links }: { links?: unknown[] }) {
   );
 }
 
+function OpenInChatBadge() {
+  return (
+    <button
+      type="button"
+      className="badge badge-open-in-chat"
+      data-action="open-in-chat"
+      title="Open in chat"
+      aria-label="Open in chat"
+    >
+      <ViewerHeaderIcon name="chat" filled />
+    </button>
+  );
+}
+
+function startOpenInChat(entry: NoteEntry, button?: HTMLButtonElement | null) {
+  void openNoteInChat(entry, button).catch((err) => {
+    alert(err instanceof Error ? err.message : String(err));
+  });
+}
+
 function ImportanceBadge({ importance }: { importance?: string }) {
   const map: Record<string, { cls: string; label: string }> = {
     high: { cls: 'badge-importance-high', label: '↑ High' },
@@ -198,7 +220,10 @@ function CardInner({
         <SourceTypeBadge sourceType={entry.source_type} />
         <TagBadges tags={entry.tags} />
         <LinksBadge links={entry.links} />
-        <ImportanceBadge importance={entry.importance} />
+        <span className="doc-card-icon-actions">
+          <ImportanceBadge importance={entry.importance} />
+          <OpenInChatBadge />
+        </span>
         <DoneBadge done={!!entry.done} />
         <MoveBadge />
       </div>
@@ -219,6 +244,10 @@ function bindCardActions(card: HTMLElement, entry: NoteEntry) {
   card.querySelector('[data-action="toggle-done"]')?.addEventListener('click', () => toggleDone(entry));
   card.querySelector('[data-action="cycle-importance"]')?.addEventListener('click', () => cycleImportance(entry));
   card.querySelector('[data-action="move-project"]')?.addEventListener('click', () => openMoveProjectDialog(entry));
+  card.querySelector('[data-action="open-in-chat"]')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    startOpenInChat(entry, e.currentTarget as HTMLButtonElement);
+  });
 }
 
 export function buildCard(id: string, entry: NoteEntry, title?: string | null) {
@@ -318,6 +347,11 @@ export function DocCard({
       openMoveProjectDialog(entry);
       return;
     }
+    if (t.dataset.action === 'open-in-chat') {
+      e.stopPropagation();
+      startOpenInChat(entry, t as HTMLButtonElement);
+      return;
+    }
     if (t.classList.contains('doc-title-btn')) {
       openEntry(entry);
     }
@@ -400,7 +434,10 @@ export function updateTitlesInDOM(date: string) {
           <SourceTypeBadge sourceType={entry.source_type} />
           <TagBadges tags={entry.tags} />
           <LinksBadge links={entry.links} />
-          <ImportanceBadge importance={entry.importance} />
+          <span className="doc-card-icon-actions">
+            <ImportanceBadge importance={entry.importance} />
+            <OpenInChatBadge />
+          </span>
           <DoneBadge done={!!entry.done} />
           <MoveBadge />
         </>,
@@ -414,6 +451,10 @@ export function updateTitlesInDOM(date: string) {
         .querySelector('[data-action="cycle-importance"]')
         ?.addEventListener('click', () => cycleImportance(entry));
       card.querySelector('[data-action="move-project"]')?.addEventListener('click', () => openMoveProjectDialog(entry));
+      card.querySelector('[data-action="open-in-chat"]')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        startOpenInChat(entry, e.currentTarget as HTMLButtonElement);
+      });
     }
   }
 }

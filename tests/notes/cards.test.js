@@ -3,9 +3,13 @@ import { createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { flushSync } from 'react-dom';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { buildCard, DocCard, updateTitlesInDOM, sourceTypeBadgeHtml, getEntryDiffState } from '../../frontend/src/notes/ui/cards.tsx';
 import { digestCache } from '../../frontend/src/notes/ui/digest-tooltip.tsx';
 import { loadTitles } from '../../frontend/src/notes/commands/cards.ts';
+import { openNoteInChat } from '../../frontend/src/notes/commands/open-in-chat.ts';
 import { state } from '../../frontend/src/host/state.ts';
 import * as api from '../../frontend/src/host/api.ts';
 
@@ -19,6 +23,10 @@ vi.mock('../../frontend/src/notes/ui/move-project-dialog.tsx', () => ({
   openMoveProjectDialog: vi.fn(),
   closeMoveProjectDialog: vi.fn(),
   MoveProjectDialog: () => null,
+}));
+
+vi.mock('../../frontend/src/notes/commands/open-in-chat.ts', () => ({
+  openNoteInChat: vi.fn().mockResolvedValue(undefined),
 }));
 
 beforeEach(() => {
@@ -336,5 +344,86 @@ describe('digest tooltip 挂在最底徽章行（buildCard / DocCard）', () => 
     await vi.advanceTimersByTimeAsync(300);
     expect(tooltipEl()).toBeNull();
     expect(api.fetchFileContent).not.toHaveBeenCalled();
+  });
+});
+
+describe('card open-in-chat sits next to the star', () => {
+  const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
+
+  function makeEntry(overrides = {}) {
+    return {
+      common_path: 'proj/topic/202605181200-note.md',
+      created_at: '202605181200',
+      layers: ['raw'],
+      source_type: 'summary',
+      ...overrides,
+    };
+  }
+
+  beforeEach(() => {
+    vi.mocked(openNoteInChat).mockClear();
+  });
+
+  it('buildCard places the chat icon immediately after importance', () => {
+    const card = buildCard('chat1', makeEntry(), 'Title');
+    const importance = card.querySelector('.badge-importance');
+    const chat = card.querySelector('.badge-open-in-chat');
+    expect(importance).not.toBeNull();
+    expect(chat).not.toBeNull();
+    expect(importance.nextElementSibling).toBe(chat);
+    expect(chat.getAttribute('aria-label')).toBe('Open in chat');
+    expect(chat.querySelector('[data-viewer-icon="chat"]')).not.toBeNull();
+  });
+
+  it('clicking the chat badge opens chat and does not open the note', () => {
+    const opened = [];
+    const onOpen = (e) => opened.push(e.detail);
+    document.addEventListener('cta:open-entry', onOpen);
+    const card = buildCard('chat2', makeEntry(), 'Title');
+    document.getElementById('doc-list').appendChild(card);
+    card.querySelector('[data-action="open-in-chat"]').click();
+    document.removeEventListener('cta:open-entry', onOpen);
+    expect(openNoteInChat).toHaveBeenCalledTimes(1);
+    expect(openNoteInChat).toHaveBeenCalledWith(
+      expect.objectContaining({ _id: 'chat2', common_path: 'proj/topic/202605181200-note.md' }),
+      expect.any(HTMLButtonElement),
+    );
+    expect(opened).toEqual([]);
+  });
+
+  it('DocCard chat badge calls openNoteInChat', () => {
+    const host = document.createElement('div');
+    document.getElementById('doc-list').appendChild(host);
+    const root = createRoot(host);
+    flushSync(() => {
+      root.render(createElement(DocCard, { id: 'chat4', entry: makeEntry(), title: 'Title' }));
+    });
+    host.querySelector('[data-action="open-in-chat"]').click();
+    expect(openNoteInChat).toHaveBeenCalledWith(
+      expect.objectContaining({ _id: 'chat4' }),
+      expect.any(HTMLButtonElement),
+    );
+    flushSync(() => root.unmount());
+  });
+
+  it('updateTitlesInDOM keeps the chat badge after the star', () => {
+    const entry = makeEntry({ source_type: 'dialogue' });
+    const card = buildCard('chat3', entry, null);
+    document.getElementById('doc-list').appendChild(card);
+    state.index.titleCache.set('20260518', new Map([['chat3', 'Loaded Title']]));
+    state.index.groupedByDate = [{ date: '20260518', entries: [{ id: 'chat3', entry }] }];
+    updateTitlesInDOM('20260518');
+    const importance = card.querySelector('.badge-importance');
+    const chat = card.querySelector('.badge-open-in-chat');
+    expect(importance.nextElementSibling).toBe(chat);
+  });
+
+  it('star and chat match the Summary badge height and sit tightly', () => {
+    const css = readFileSync(join(repoRoot, 'frontend/app.css'), 'utf8');
+    expect(css).toMatch(/\.doc-card-icon-actions\s*\{[^}]*gap:\s*2px/);
+    expect(css).toMatch(/\.badge-importance-unset,\s*\n\s*\.badge-open-in-chat\s*\{[^}]*min-height:\s*18px/);
+    expect(css).toMatch(
+      /\.badge-open-in-chat\s+\.viewer-header-icon\s*\{[^}]*width:\s*12px[^}]*height:\s*12px/,
+    );
   });
 });
