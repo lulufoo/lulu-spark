@@ -98,14 +98,6 @@ fn host_file_tool_descriptions_use_dir_names_not_absolute_paths() {
     for name in ["grep", "read", "write", "str_replace", "copy"] {
         let desc = tool_description(&catalog, name);
         assert!(
-            desc.contains("SESSION_WORKSPACE_DIR"),
-            "{name} must name SESSION_WORKSPACE_DIR"
-        );
-        assert!(
-            desc.contains("SPARK_DATA_DIR"),
-            "{name} must name SPARK_DATA_DIR"
-        );
-        assert!(
             !desc.contains("{session_workspace"),
             "{name} must not inject a scratch placeholder"
         );
@@ -118,8 +110,16 @@ fn host_file_tool_descriptions_use_dir_names_not_absolute_paths() {
             "{name} must not point at list_staged"
         );
     }
-    for name in ["grep", "read", "copy"] {
+    for name in ["grep", "read"] {
         let desc = tool_description(&catalog, name);
+        assert!(
+            desc.contains("SESSION_WORKSPACE_DIR"),
+            "{name} must name SESSION_WORKSPACE_DIR"
+        );
+        assert!(
+            desc.contains("SPARK_DATA_DIR"),
+            "{name} must name SPARK_DATA_DIR"
+        );
         assert!(
             desc.contains("files on this Chat's Stage"),
             "{name} must say Stage files are readable"
@@ -128,8 +128,16 @@ fn host_file_tool_descriptions_use_dir_names_not_absolute_paths() {
     for name in ["write", "str_replace"] {
         let desc = tool_description(&catalog, name);
         assert!(
-            !desc.contains("staged"),
-            "{name} must not mention staged files"
+            desc.contains("SESSION_WORKSPACE_DIR"),
+            "{name} must name SESSION_WORKSPACE_DIR"
+        );
+        assert!(
+            desc.contains("on this Chat's Stage"),
+            "{name} must name Stage"
+        );
+        assert!(
+            !desc.contains("SPARK_DATA_DIR"),
+            "{name} must not name SPARK_DATA_DIR"
         );
     }
     let grep_desc = tool_description(&catalog, "grep");
@@ -139,15 +147,20 @@ fn host_file_tool_descriptions_use_dir_names_not_absolute_paths() {
     let read_desc = tool_description(&catalog, "read");
     assert!(read_desc.contains("Readable paths:"));
     let write_desc = tool_description(&catalog, "write");
-    assert!(write_desc.contains("Writable paths:"));
-    assert!(write_desc.contains("MCP tool"));
+    assert_eq!(
+        write_desc,
+        "Create or overwrite a text file in SESSION_WORKSPACE_DIR or on this Chat's Stage."
+    );
     let replace_desc = tool_description(&catalog, "str_replace");
-    assert!(replace_desc.contains("Writable paths:"));
-    assert!(replace_desc.contains("replace_all"));
+    assert_eq!(
+        replace_desc,
+        "Replace exact text in an existing text file in SESSION_WORKSPACE_DIR or on this Chat's Stage."
+    );
     let copy_desc = tool_description(&catalog, "copy");
-    assert!(copy_desc.contains("Source paths:"));
-    assert!(copy_desc.contains("Destination paths:"));
-    assert!(copy_desc.contains("not a directory"));
+    assert_eq!(
+        copy_desc,
+        "Copy a regular file. Does not modify the source. Overwrites dest_path if it already exists."
+    );
 }
 
 #[test]
@@ -157,21 +170,30 @@ fn host_file_tool_params_do_not_repeat_dir_names() {
         tool_param_description(&catalog, "grep", "path"),
         "Optional absolute file or directory."
     );
-    for name in ["read", "write", "str_replace"] {
-        assert_eq!(
-            tool_param_description(&catalog, name, "path"),
-            "Absolute file path."
-        );
-    }
+    assert_eq!(
+        tool_param_description(&catalog, "read", "path"),
+        "Absolute file path."
+    );
+    let write_path =
+        "Absolute file path. Must be in SESSION_WORKSPACE_DIR or an existing file on Stage.";
+    assert_eq!(tool_param_description(&catalog, "write", "path"), write_path);
+    assert_eq!(
+        tool_param_description(&catalog, "str_replace", "path"),
+        write_path
+    );
+    assert_eq!(
+        tool_param_description(&catalog, "str_replace", "old_string"),
+        "Text to replace. Must match exactly once unless replace_all is true."
+    );
     assert_eq!(
         tool_param_description(&catalog, "copy", "source_path"),
-        "Absolute readable file."
+        "Absolute readable file in SPARK_DATA_DIR, SESSION_WORKSPACE_DIR, or on Stage."
     );
     assert_eq!(
         tool_param_description(&catalog, "copy", "dest_path"),
-        "Absolute file path."
+        "Absolute file path in SESSION_WORKSPACE_DIR or an existing file on Stage. Not a directory."
     );
-    for name in ["grep", "read", "write", "str_replace", "copy"] {
+    for name in ["grep", "read"] {
         let blob = catalog
             .definitions
             .iter()
@@ -403,6 +425,68 @@ fn write_and_str_replace_deny_readable_files_outside_scratch() {
         &fence,
     );
     assert!(!wrote.is_error, "{}", wrote.content);
+}
+
+#[test]
+fn write_str_replace_copy_allow_exact_staged_file() {
+    let (mut fence, read_root, scratch) = live_fence();
+    let file = read_root.join("note.md");
+    let sibling = read_root.join("other.md");
+    let source = read_root.join("src.md");
+    fs::write(&file, "hello").expect("seed");
+    fs::write(&source, "copied").expect("source");
+    fence.grant_staged_file(file.clone());
+
+    let wrote = host::call(
+        "write",
+        &json!({ "path": file.to_string_lossy(), "content": "hello world" }),
+        &fence,
+    );
+    assert!(!wrote.is_error, "{}", wrote.content);
+    assert_eq!(fs::read_to_string(&file).expect("read"), "hello world");
+
+    let edited = host::call(
+        "str_replace",
+        &json!({
+            "path": file.to_string_lossy(),
+            "old_string": "world",
+            "new_string": "staged"
+        }),
+        &fence,
+    );
+    assert!(!edited.is_error, "{}", edited.content);
+    assert_eq!(fs::read_to_string(&file).expect("read"), "hello staged");
+
+    let denied_sibling = host::call(
+        "write",
+        &json!({ "path": sibling.to_string_lossy(), "content": "no" }),
+        &fence,
+    );
+    assert!(denied_sibling.is_error);
+    assert_eq!(denied_sibling.content, "path is outside the write fence");
+    assert!(!sibling.exists());
+
+    let copied = host::call(
+        "copy",
+        &json!({
+            "source_path": source.to_string_lossy(),
+            "dest_path": file.to_string_lossy()
+        }),
+        &fence,
+    );
+    assert!(!copied.is_error, "{}", copied.content);
+    assert_eq!(fs::read_to_string(&file).expect("read"), "copied");
+
+    let pad = scratch.join("pad.md");
+    let to_scratch = host::call(
+        "copy",
+        &json!({
+            "source_path": source.to_string_lossy(),
+            "dest_path": pad.to_string_lossy()
+        }),
+        &fence,
+    );
+    assert!(!to_scratch.is_error, "{}", to_scratch.content);
 }
 
 #[test]

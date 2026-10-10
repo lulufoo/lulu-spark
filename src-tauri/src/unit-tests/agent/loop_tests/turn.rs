@@ -383,8 +383,8 @@ fn run_loop_offers_host_file_tools_and_keeps_scratch_writes_inside_cache() {
         })
         .expect("write description");
     assert!(
-        write_desc.contains("SESSION_WORKSPACE_DIR") && write_desc.contains("SPARK_DATA_DIR"),
-        "sent write description must name the directory variables"
+        write_desc.contains("SESSION_WORKSPACE_DIR") && write_desc.contains("on this Chat's Stage"),
+        "sent write description must name workspace and Stage"
     );
     assert!(
         !write_desc.contains("{session_workspace"),

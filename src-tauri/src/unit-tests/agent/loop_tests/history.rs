@@ -21,6 +21,8 @@ fn spark_host_system_prompt_is_nonempty_code_constant() {
     assert!(SPARK_HOST_SYSTEM_PROMPT.contains("NOTES_DIR"));
     assert!(SPARK_HOST_SYSTEM_PROMPT.contains("KNOWLEDGE_DIR"));
     assert!(SPARK_HOST_SYSTEM_PROMPT.contains("READ_LATER_DIR"));
+    assert!(SPARK_HOST_SYSTEM_PROMPT.contains("named files on this chat"));
+    assert!(SPARK_HOST_SYSTEM_PROMPT.contains("add the file to Stage to edit"));
     assert!(SPARK_HOST_SYSTEM_PROMPT.contains(SESSION_WORKSPACE_DIR_PLACEHOLDER));
     assert!(SPARK_HOST_SYSTEM_PROMPT.contains(SPARK_DATA_DIR_PLACEHOLDER));
 }

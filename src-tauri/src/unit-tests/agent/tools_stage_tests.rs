@@ -82,6 +82,21 @@ fn catalog_registers_stage_trio_off_cursor_ide_and_mobile() {
     }
     assert!(catalog.is_mutating("stage"));
     assert!(!catalog.is_mutating("list_staged") && !catalog.is_mutating("get_staged"));
+    let stage_def = catalog
+        .definitions
+        .iter()
+        .find(|def| def.pointer("/function/name").and_then(|v| v.as_str()) == Some("stage"))
+        .expect("stage");
+    assert_eq!(
+        stage_def.pointer("/function/description").and_then(|v| v.as_str()),
+        Some("Add a file to this Chat's Stage. Grants read and write for that file and shows it to the user.")
+    );
+    assert_eq!(
+        stage_def
+            .pointer("/function/parameters/properties/path/description")
+            .and_then(|v| v.as_str()),
+        Some("Absolute existing regular file. Must be outside SESSION_WORKSPACE_DIR.")
+    );
     for (slot, channel) in [("cursor_ide", "cursor_ide"), ("spark", "mobile")] {
         let table = crate::mcp_host::build_channel_tool_table(slot, channel)
             .expect("table");

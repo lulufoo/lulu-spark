@@ -48,9 +48,14 @@ pub const SPARK_HOST_SYSTEM_PROMPT: &str = r#"你是 Lulu Spark 的 Host 对话�
 
 SESSION_WORKSPACE_DIR (this chat's working directory):
 {session_workspace_dir}
+Readable and writable. Create new files here.
 
 SPARK_DATA_DIR (Spark business data directory):
 {spark_data_dir}
+Readable. Update via MCP tools, or add the file to Stage to edit.
+
+Stage (named files on this chat, not a directory):
+Files on Stage are readable and writable as exact paths. Unstaging removes both read and write.
 
 NOTES_DIR (notes archive):
 {spark_data_dir}/notes

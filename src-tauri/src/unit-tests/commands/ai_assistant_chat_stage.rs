@@ -107,7 +107,7 @@ fn stage_chat_document_rejects_directory_and_in_flight() {
 }
 
 #[test]
-fn stage_chat_document_does_not_grant_write() {
+fn stage_chat_document_grants_exact_file_write() {
     with_bound_sandbox(|sandbox| {
         let sid_a = create_chat_session_json().expect("a")["session_id"]
             .as_str()
@@ -138,11 +138,17 @@ fn stage_chat_document_does_not_grant_write() {
         )
         .expect("stage b");
         let base = loaded_path_fence().expect("fence");
-        let fence_a = base.with_session_scratch(&sid_a).expect("scratch a");
-        let fence_b = base.with_session_scratch(&sid_b).expect("scratch b");
-        assert!(!fence_a.allows_write(&file_a));
+        let mut fence_a = base.with_session_scratch(&sid_a).expect("scratch a");
+        let mut fence_b = base.with_session_scratch(&sid_b).expect("scratch b");
+        for entry in session::load_session(&sid_a).expect("load a").list_staged() {
+            fence_a.grant_staged_file(std::path::PathBuf::from(&entry.path));
+        }
+        for entry in session::load_session(&sid_b).expect("load b").list_staged() {
+            fence_b.grant_staged_file(std::path::PathBuf::from(&entry.path));
+        }
+        assert!(fence_a.allows_write(&file_a));
         assert!(!fence_a.allows_write(&file_b));
-        assert!(!fence_b.allows_write(&file_b));
+        assert!(fence_b.allows_write(&file_b));
         assert!(!fence_b.allows_write(&file_a));
         let wrote = host::call(
             "write",
@@ -152,19 +158,18 @@ fn stage_chat_document_does_not_grant_write() {
             }),
             &fence_a,
         );
-        assert!(wrote.is_error);
-        assert_eq!(wrote.content, "path is outside the write fence");
-        assert_eq!(fs::read_to_string(&file_a).expect("read"), "old-a");
+        assert!(!wrote.is_error, "{}", wrote.content);
+        assert_eq!(fs::read_to_string(&file_a).expect("read"), "new-a");
         let copied = host::call(
             "copy",
             &json!({
-                "source_path": file_a.to_string_lossy(),
+                "source_path": file_b.to_string_lossy(),
                 "dest_path": file_a.to_string_lossy()
             }),
             &fence_a,
         );
-        assert!(copied.is_error);
-        assert_eq!(copied.content, "path is outside the write fence");
+        assert!(!copied.is_error, "{}", copied.content);
+        assert_eq!(fs::read_to_string(&file_a).expect("read"), "old-b");
         let scratch_a = fence_a.session_scratch_root(&sid_a).expect("root").expect("some");
         assert!(fence_a.allows_write(&scratch_a.join("pad.md")));
         assert!(!fence_a.allows_write(&fence_b.session_scratch_root(&sid_b).expect("b").expect("some").join("pad.md")));

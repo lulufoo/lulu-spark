@@ -607,10 +607,7 @@ fn turn_fence_for_session(session: &Session) -> Option<crate::services::path_fen
             .with_session_scratch(&session.session_id)
             .unwrap_or(base);
         for entry in session.list_staged() {
-            let path = std::path::PathBuf::from(&entry.path);
-            if !fence.read_allow.iter().any(|root| root == &path) {
-                fence.read_allow.push(path);
-            }
+            fence.grant_staged_file(std::path::PathBuf::from(&entry.path));
         }
         fence
     })

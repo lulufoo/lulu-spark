@@ -40,11 +40,11 @@ pub fn catalog() -> ToolCatalog {
         ),
         local_tool(
             "write",
-            "Create or overwrite a text file.\n\nWritable paths: SESSION_WORKSPACE_DIR.\nDo not write files in SPARK_DATA_DIR with this tool. Copy them to SESSION_WORKSPACE_DIR to edit; use an MCP tool to update SPARK_DATA_DIR files.",
+            "Create or overwrite a text file in SESSION_WORKSPACE_DIR or on this Chat's Stage.",
             json!({
                 "type": "object",
                 "properties": {
-                    "path": { "type": "string", "description": "Absolute file path." },
+                    "path": { "type": "string", "description": "Absolute file path. Must be in SESSION_WORKSPACE_DIR or an existing file on Stage." },
                     "content": { "type": "string", "description": "Full file contents." }
                 },
                 "required": ["path", "content"],
@@ -54,12 +54,12 @@ pub fn catalog() -> ToolCatalog {
         ),
         local_tool(
             "str_replace",
-            "Replace exact text in an existing text file.\nold_string must match exactly once unless replace_all is true.\n\nWritable paths: SESSION_WORKSPACE_DIR.\nDo not modify files in SPARK_DATA_DIR with this tool. Copy them to SESSION_WORKSPACE_DIR to edit; use an MCP tool to update SPARK_DATA_DIR files.",
+            "Replace exact text in an existing text file in SESSION_WORKSPACE_DIR or on this Chat's Stage.",
             json!({
                 "type": "object",
                 "properties": {
-                    "path": { "type": "string", "description": "Absolute file path." },
-                    "old_string": { "type": "string", "description": "The text to replace." },
+                    "path": { "type": "string", "description": "Absolute file path. Must be in SESSION_WORKSPACE_DIR or an existing file on Stage." },
+                    "old_string": { "type": "string", "description": "Text to replace. Must match exactly once unless replace_all is true." },
                     "new_string": { "type": "string", "description": "The text to replace it with." },
                     "replace_all": {
                         "type": "boolean",
@@ -73,12 +73,12 @@ pub fn catalog() -> ToolCatalog {
         ),
         local_tool(
             "copy",
-            "Copy a regular file.\nDoes not modify the source. Overwrites dest_path if it already exists.\n\nSource paths: SPARK_DATA_DIR, SESSION_WORKSPACE_DIR, and files on this Chat's Stage.\nDestination paths: SESSION_WORKSPACE_DIR.\nsource_path must be absolute. dest_path must be a file path in SESSION_WORKSPACE_DIR, not a directory.",
+            "Copy a regular file. Does not modify the source. Overwrites dest_path if it already exists.",
             json!({
                 "type": "object",
                 "properties": {
-                    "source_path": { "type": "string", "description": "Absolute readable file." },
-                    "dest_path": { "type": "string", "description": "Absolute file path." }
+                    "source_path": { "type": "string", "description": "Absolute readable file in SPARK_DATA_DIR, SESSION_WORKSPACE_DIR, or on Stage." },
+                    "dest_path": { "type": "string", "description": "Absolute file path in SESSION_WORKSPACE_DIR or an existing file on Stage. Not a directory." }
                 },
                 "required": ["source_path", "dest_path"],
                 "additionalProperties": false

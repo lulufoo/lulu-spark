@@ -15,11 +15,11 @@ pub fn catalog() -> ToolCatalog {
     ToolCatalog::from_local_tools(vec![
         local_tool(
             "stage",
-            "Register one regular file that is outside SESSION_WORKSPACE_DIR on this Chat's Stage and assign a staged document id (F1, F2, …). path must be an absolute existing file. Files outside SESSION_WORKSPACE_DIR and SPARK_DATA_DIR become readable by read, grep, and copy only after this call. Do not stage files in SESSION_WORKSPACE_DIR. title is optional. Same path reuses the existing id. Does not store file body.",
+            "Add a file to this Chat's Stage. Grants read and write for that file and shows it to the user.",
             json!({
                 "type": "object",
                 "properties": {
-                    "path": { "type": "string", "description": "File path to register." },
+                    "path": { "type": "string", "description": "Absolute existing regular file. Must be outside SESSION_WORKSPACE_DIR." },
                     "title": { "type": "string", "description": "Optional display title." }
                 },
                 "required": ["path"],
