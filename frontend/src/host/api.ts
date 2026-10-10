@@ -15,6 +15,9 @@ export { showOsNotification } from './api/os-notification.ts';
 export { resolveNoteForOpen } from './api/note-open.ts';
 export type { ResolvedNote } from './api/note-open.ts';
 
+export { resolveKnowledgeForOpen } from './api/knowledge-open.ts';
+export type { ResolvedKnowledgeDoc } from './api/knowledge-open.ts';
+
 export { getPackageSnapshot } from './api/package-snapshot.ts';
 export type { PackageSnapshot } from './api/package-snapshot.ts';
 

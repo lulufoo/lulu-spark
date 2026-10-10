@@ -137,6 +137,6 @@ describe('wiring', () => {
 
   it('assistant markdown in the home page uses the click handler', () => {
     const page = readFileSync(join(repoRoot, 'frontend/src/home/page.tsx'), 'utf8');
-    expect(page).toMatch(/onClick=\{onNoteLinkClick\}/);
+    expect(page).toMatch(/onClick=\{onChatLinkClick\}/);
   });
 });

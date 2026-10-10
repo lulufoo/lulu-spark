@@ -44,7 +44,7 @@ fn remember_knowledge_doc_issues_id() {
     let first = remember_knowledge_doc_value(&file.to_string_lossy());
     assert_eq!(first["ok"], true);
     let id = first["id"].as_str().expect("id");
-    assert_eq!(id.len(), 12);
+    assert_eq!(id.len(), 32);
     let second = remember_knowledge_doc_value(&file.to_string_lossy());
     assert_eq!(second["id"], id);
     let empty = remember_knowledge_doc_value("  ");

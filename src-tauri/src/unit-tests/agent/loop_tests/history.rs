@@ -37,6 +37,7 @@ fn spark_host_system_prompt_closes_data_and_teaches_file_copies() {
     assert!(prompt.contains("get_knowledge_file"));
     assert!(prompt.contains("source_path"), "edited copy goes back via update_note");
     assert!(prompt.contains("[标题](note:<id>)"), "note link rule");
+    assert!(prompt.contains("[标题](knowledge:<id>)"), "knowledge link rule");
 }
 
 #[test]

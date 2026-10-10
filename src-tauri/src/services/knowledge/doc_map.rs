@@ -1,7 +1,7 @@
 //! Global Knowledge document-id map: `{cache_dir}/knowledge-doc-map.json`.
 //!
-//! IDs are issued only when a search hit is remembered. The same absolute path
-//! reuses the same id. The file survives process restart. Wiping `cache_dir` voids the ids.
+//! IDs are issued only when a search hit is remembered (32 hex, like notes). The same
+//! absolute path reuses the same id; ids issued earlier keep their original length. The file survives process restart. Wiping `cache_dir` voids the ids.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -12,7 +12,7 @@ use serde_json::json;
 
 use crate::config::paths;
 use crate::repositories::atomic_json;
-use crate::services::id::random_hex12;
+use crate::services::id::random_entry_id;
 
 static WRITE_LOCK: Mutex<()> = Mutex::new(());
 
@@ -72,7 +72,7 @@ pub fn remember_path(path: &Path) -> Result<String, String> {
     if let Some(entry) = data.entries.iter().find(|e| e.path == abs) {
         return Ok(entry.id.clone());
     }
-    let id = random_hex12();
+    let id = random_entry_id();
     data.version = 1;
     data.entries.push(MapEntry {
         id: id.clone(),

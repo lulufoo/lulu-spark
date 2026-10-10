@@ -75,7 +75,7 @@ const MESSAGE_CENTER_READ_COMMANDS: &[&str] = &["get_message_channel_unread"];
 
 const PACKAGE_SNAPSHOT_READ_COMMANDS: &[&str] = &["get_package_snapshot"];
 
-const NOTE_OPEN_READ_COMMANDS: &[&str] = &["resolve_note_for_open"];
+const NOTE_OPEN_READ_COMMANDS: &[&str] = &["resolve_note_for_open", "resolve_knowledge_for_open"];
 
 const DEFAULT_CAPABILITY_PERMISSIONS: &[&str] = &[
     "core:default",

@@ -22,6 +22,7 @@ commands.allow = [
   "get_notes_index",
   "get_notes_file",
   "resolve_note_for_open",
+  "resolve_knowledge_for_open",
   "read_abs_file",
   "get_notes_asset",
   "list_notes_categories",
