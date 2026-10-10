@@ -7687,8 +7687,8 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   text-overflow: ellipsis;
   border-radius: 6px;
   background: var(--bg-muted);
-  background: color-mix(in srgb, var(--bg-accent) 12%, transparent);
-  color: var(--fg-accent);
+  background: color-mix(in srgb, var(--fg-ref-chip) 24%, transparent);
+  color: var(--fg-ref-chip);
   font-size: 13px;
   line-height: 18px;
   cursor: pointer;
@@ -7697,7 +7697,7 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
 }
 .home-ref-chip:hover {
   background: var(--border-default);
-  background: color-mix(in srgb, var(--bg-accent) 24%, transparent);
+  background: color-mix(in srgb, var(--fg-ref-chip) 36%, transparent);
 }
 .home-chat-send {
   position: relative;
