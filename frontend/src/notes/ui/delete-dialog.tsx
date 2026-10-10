@@ -32,7 +32,13 @@ export function DeleteDialog() {
   }
 
   return (
-    <div id="delete-dialog" className={open ? 'open' : undefined}>
+    <div
+      id="delete-dialog"
+      className={open ? 'open' : undefined}
+      onClick={(e) => {
+        if (!busy && e.target === e.currentTarget) closeDeleteDialog();
+      }}
+    >
       <div id="delete-dialog-box">
         <h3>Delete document</h3>
         <p id="delete-dialog-desc">
