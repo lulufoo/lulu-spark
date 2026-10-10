@@ -61,4 +61,18 @@ describe('home composer dock hit area', () => {
     expect(appCss).toMatch(/\.home-chat-input\s*\{[^}]*max-height:\s*148px/);
     expect(appCss).toMatch(/\.home-chat-input\s*\{[^}]*overflow-y:\s*auto/);
   });
+
+  it('keeps the empty placeholder painted when the input is focused', () => {
+    const appCss = readFileSync(
+      join(dirname(fileURLToPath(import.meta.url)), '../../frontend/app.css'),
+      'utf8',
+    );
+    expect(appCss).toMatch(
+      /\.home-chat-input\[data-empty="true"\]::before\s*\{[^}]*content:\s*attr\(data-placeholder\)/,
+    );
+    expect(appCss).toMatch(
+      /\.home-chat-input\[data-empty="true"\]::before\s*\{[^}]*position:\s*absolute/,
+    );
+    expect(appCss).not.toMatch(/\.home-chat-input:focus[^\n]*::before/);
+  });
 });
