@@ -18,6 +18,7 @@ import { SessionMenu } from './ui/session-menu.tsx';
 import { ContextPercent } from './ui/context-percent.tsx';
 import { ComposerFileLists } from './ui/composer-file-lists.tsx';
 import { ComposerInput, type ComposerInputHandle } from './ui/composer-input.tsx';
+import { UserMessageText } from './ui/user-message-text.tsx';
 import { copyMessageText } from './commands/copy-message.ts';
 import { copyCurrentSessionId } from './commands/copy-session-id.ts';
 import {
@@ -113,6 +114,8 @@ const MessageThread = memo(function MessageThread({
                 onClick={onChatLinkClick}
                 dangerouslySetInnerHTML={{ __html: renderHomeChatMarkdown(m.text) }}
               />
+            ) : kind === 'user' ? (
+              <UserMessageText text={m.text} />
             ) : (
               m.text
             )}
