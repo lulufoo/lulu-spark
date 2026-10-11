@@ -36,15 +36,6 @@ export async function openKbDoc(kbHit: { repo: string; path: string; url?: strin
   v.annotation = {};
   v.lang = null;
 
-  const repoName = (repo || '').split('/').pop();
-  const localPath = state.ui.knowledgeRoot
-    ? `${state.ui.knowledgeRoot}/${repoName}/${path}`
-    : `${repoName}/${path}`;
-  const copyPath = document.getElementById('kb-btn-copy-path') as HTMLElement | null;
-  if (copyPath) {
-    copyPath.dataset.path = localPath;
-    copyPath.dataset.tip = localPath;
-  }
   const fileSize = document.getElementById('kb-md-file-size');
   if (fileSize) fileSize.textContent = '';
 

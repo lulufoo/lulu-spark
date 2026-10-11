@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  copyNoteReference,
   noteReferenceDraft,
   openNoteInChat,
 } from '../../frontend/src/notes/commands/open-in-chat.ts';
@@ -115,5 +116,49 @@ describe('openNoteInChat', () => {
       'Missing source',
     );
     expect(draftSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe('copyNoteReference', () => {
+  /** @type {import('vitest').Mock} */
+  let writeText;
+
+  beforeEach(() => {
+    resetTitleSources();
+    writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal('navigator', { clipboard: { writeText } });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    resetTitleSources();
+  });
+
+  it('copies the kind, title and id, with no file path', async () => {
+    const copied = await copyNoteReference({
+      _id: ID,
+      common_path: 'inbox/notes/202610110218-abc123.md',
+      title: 'My note',
+    });
+    expect(copied).toBe(true);
+    expect(writeText).toHaveBeenCalledWith(`Lulu Spark note\ntitle: My note\nid: ${ID}`);
+    expect(writeText.mock.calls[0][0]).not.toContain('inbox/');
+  });
+
+  it('uses the same title the chat reference uses', async () => {
+    const entry = {
+      _id: ID,
+      common_path: 'inbox/notes/202610110218-abc123.md',
+      created_at: '202610110218',
+    };
+    state.index.titleCache.set('20261011', new Map([[ID, 'Real Title']]));
+    await copyNoteReference(entry);
+    expect(writeText).toHaveBeenCalledWith(`Lulu Spark note\ntitle: Real Title\nid: ${ID}`);
+  });
+
+  it('copies nothing for a missing entry or a missing archive id', async () => {
+    await expect(copyNoteReference(null)).resolves.toBe(false);
+    await expect(copyNoteReference({ common_path: 'inbox/note.md' })).resolves.toBe(false);
+    expect(writeText).not.toHaveBeenCalled();
   });
 });

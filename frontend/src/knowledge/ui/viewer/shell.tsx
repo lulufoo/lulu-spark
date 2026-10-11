@@ -11,7 +11,7 @@ const FALLBACK_SHELL_HTML = `
     <div class="kb-reader">
       <div class="kb-reader-header viewer-header" data-tauri-drag-region="deep">
         <div class="viewer-header-actions kb-reader-header-actions">
-          <button type="button" class="md-header-btn kb-btn-copy-path" title="Copy path" aria-label="Copy path" data-tip="">${viewerHeaderIconHtml('copy')}</button>
+          <button type="button" class="md-header-btn kb-btn-copy-path" title="Copy reference" aria-label="Copy reference">${viewerHeaderIconHtml('copy')}</button>
           <button type="button" class="md-header-btn kb-btn-edit" title="Edit" aria-label="Edit">${viewerHeaderIconHtml('edit')}</button>
           <button type="button" class="md-header-btn kb-btn-add-comment" title="Comment" aria-label="Comment">${viewerHeaderIconHtml('comment')}</button>
           <button type="button" class="md-header-btn kb-btn-save" style="display:none">Save</button>
@@ -48,9 +48,8 @@ export function ReaderShell() {
           <button
             type="button"
             className="md-header-btn kb-btn-copy-path"
-            title="Copy path"
-            aria-label="Copy path"
-            data-tip=""
+            title="Copy reference"
+            aria-label="Copy reference"
           >
             <ViewerHeaderIcon name="copy" />
           </button>

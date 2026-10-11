@@ -2,7 +2,6 @@ import { useEffect, useLayoutEffect, useRef } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { flushSync } from 'react-dom';
 import { getActivePath } from '../knowledge/state/path.ts';
-import { notesFileRelPath } from '../host/constants.ts';
 import { useHostState } from './state/host.ts';
 import { getHomeEntryShell } from '../home-entry-shell/access.ts';
 import { OverlayDismissButton } from '../shared/overlay-dismiss-button.tsx';
@@ -13,7 +12,8 @@ import { NotesLinksBar } from './ui/links-bar.tsx';
 import { NotesSidebar } from './ui/sidebar.tsx';
 import { NotesTagsBar } from './ui/tags-bar.tsx';
 import { clearTagFilter } from './commands/sidebar.ts';
-import { openNoteInChat } from './commands/open-in-chat.ts';
+import { copyNoteReference, openNoteInChat } from './commands/open-in-chat.ts';
+import type { HostNoteEntry } from '../host/state.ts';
 import { closeModal, enterEditMode, exitEditMode, saveDoc, switchLang } from './viewer.ts';
 import {
   findNotesDateGroup,
@@ -91,22 +91,15 @@ function NotesTagChip() {
   );
 }
 
-function copyLocalPath(
-  entry: { translations?: { zh?: string }; common_path?: string } | null,
-  lang: string | null,
-  layer: string,
-  sparkRoot: string,
-) {
-  if (!entry) return;
-  const activePath = getActivePath(entry, lang || '', layer) || '';
-  const relPath = notesFileRelPath(layer, activePath);
-  const fullPath = sparkRoot ? `${sparkRoot}/${relPath}` : relPath;
+function copyReference(entry: HostNoteEntry | null) {
   const btn = document.getElementById('btn-copy-path');
   if (!btn) return;
-  void navigator.clipboard.writeText(fullPath).then(() => {
+  void copyNoteReference(entry).then((copied) => {
+    if (!copied) return;
+    const icon = btn.innerHTML;
     btn.textContent = '✓';
     setTimeout(() => {
-      btn.textContent = '📂';
+      btn.innerHTML = icon;
     }, 1200);
   });
 }
@@ -164,12 +157,8 @@ function NotesOutletChrome({ routeParams }: { routeParams: Record<string, string
   const creating = mode === 'create' || Boolean(viewer.createSession);
   const editing = viewer.editing || creating;
   const entry = viewer.entry;
-  const layer = viewer.layer || 'raw';
   const hasZh = Boolean(entry?.translations?.zh);
-  const activePath = entry ? getActivePath(entry, viewer.lang || '', layer) || '' : '';
   const kbUrl = '';
-  const relPath = entry ? notesFileRelPath(layer, activePath) : '';
-  const fullPath = host.ui.sparkRoot ? `${host.ui.sparkRoot}/${relPath}` : relPath;
   const fileSize = viewer.fileSize || (viewer.rawText ? formatBytes(viewer.rawText) : '');
   const loadFailed = Boolean(viewer.loadError);
 
@@ -236,13 +225,10 @@ function NotesOutletChrome({ routeParams }: { routeParams: Record<string, string
             className="md-header-btn viewer-chrome-persisted"
             id="btn-copy-path"
             type="button"
-            data-tip={fullPath}
             style={{ display: entry && !creating ? undefined : 'none' }}
-            title="Copy path"
-            aria-label="Copy path"
-            onClick={() =>
-              copyLocalPath(entry, viewer.lang, viewer.layer, host.ui.sparkRoot)
-            }
+            title="Copy reference"
+            aria-label="Copy reference"
+            onClick={() => copyReference(entry)}
           >
             <ViewerHeaderIcon name="copy" />
           </button>

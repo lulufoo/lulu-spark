@@ -7,7 +7,7 @@ import { setDocEditMode } from '../../../doc-editor/view.tsx';
 import { cleanupKbHighlightUI, initKbHighlightUI } from '../../ui/viewer/highlight.ts';
 import { revokeKbBlobUrls } from './images.ts';
 import { paintKbMdBody } from './paint.ts';
-import { openKnowledgeInChat } from '../open-in-chat.ts';
+import { copyKnowledgeReference, openKnowledgeInChat } from '../open-in-chat.ts';
 import { paintKbError, paintKbLoading, paintKbPlain, paintReaderShell } from '../../ui/viewer/shell.tsx';
 import {
   errMessage,
@@ -78,8 +78,6 @@ export async function mountKbReader(
   const localPath = state.ui.knowledgeRoot
     ? `${state.ui.knowledgeRoot}/${(repo || '').split('/').pop()}/${path}`
     : `${(repo || '').split('/').pop()}/${path}`;
-  ui.btnCopyPath.dataset.path = localPath;
-  ui.btnCopyPath.dataset.tip = localPath;
   ui.fileSize.textContent = '';
 
   function enterEditMode() {
@@ -158,22 +156,19 @@ export async function mountKbReader(
   });
   bindReaderListener(listeners, ui.btnCancelEdit, 'click', exitEditMode);
   bindReaderListener(listeners, ui.btnOpenInChat, 'click', () => {
-    const copyPath = ui.btnCopyPath.dataset.path || '';
-    void openKnowledgeInChat(copyPath, ui.btnOpenInChat).catch((err) => {
+    void openKnowledgeInChat(localPath, ui.btnOpenInChat).catch((err) => {
       alert(err instanceof Error ? err.message : String(err));
     });
   });
   bindReaderListener(listeners, ui.btnCopyPath, 'click', (e) => {
     const btn = e.currentTarget as HTMLButtonElement;
-    const copyPath = btn.dataset.path || '';
-    if (!copyPath) return;
-    navigator.clipboard
-      .writeText(copyPath)
-      .then(() => {
-        const orig = btn.textContent;
+    copyKnowledgeReference(localPath)
+      .then((copied) => {
+        if (!copied) return;
+        const icon = btn.innerHTML;
         btn.textContent = '✓';
         setTimeout(() => {
-          btn.textContent = orig;
+          btn.innerHTML = icon;
         }, 1200);
       })
       .catch(() => {});
