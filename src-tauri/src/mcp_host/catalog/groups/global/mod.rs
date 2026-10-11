@@ -12,7 +12,7 @@ const SNAPSHOT_CHANNEL: &str = "cursor_ide";
 type BuildFn = fn(&str) -> Option<ToolRoute>;
 
 const REGISTRY: &[(&str, BuildFn)] = &[
-    ("search_document", search_document::build as BuildFn),
+    ("search", search_document::build as BuildFn),
     ("get_read_later", get_read_later::build as BuildFn),
 ];
 

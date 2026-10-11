@@ -31,7 +31,7 @@ pub fn build(channel: &str) -> Option<ToolRoute> {
         json!({
             "id": {
                 "type": "string",
-                "description": "Document id from search_document (category knowledge). Unknown ids fail."
+                "description": "Document id from search (category knowledge). Unknown ids fail."
             },
             "dest_dir": {
                 "type": "string",

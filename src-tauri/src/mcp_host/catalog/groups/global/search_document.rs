@@ -1,4 +1,4 @@
-//! MCP API: `search_document`
+//! MCP API: `search` (retired name: `search_document`)
 
 use serde_json::{json, Value};
 
@@ -35,9 +35,9 @@ pub fn build(channel: &str) -> Option<ToolRoute> {
         "For category notes, call get_note_file. For category knowledge, call get_knowledge_file."
     };
     Some(route(
-        "search_document",
+        "search",
         &format!(
-            "Search notes and knowledge together. Returns id, title, snippet, and category (notes or knowledge). Does not return file path or body. {follow_up}"
+            "Search Lulu Spark's own library. Currently notes and knowledge. Returns id, title, snippet, and category (notes or knowledge). Does not return file path or body. {follow_up}"
         ),
         object_schema(
             json!({
