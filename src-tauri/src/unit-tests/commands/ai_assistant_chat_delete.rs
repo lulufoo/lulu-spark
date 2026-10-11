@@ -5,7 +5,7 @@ use std::sync::Arc;
 use crate::commands::ai_assistant::{
     create_chat_session_json, delete_chat_session_json, list_chat_sessions_json,
 };
-use crate::agent::diagnostics::TraceId;
+use crate::agent::diagnostics::TurnId;
 use crate::agent::progress::ProgressSink;
 use crate::agent::r#loop;
 use crate::agent::session;
@@ -64,7 +64,7 @@ fn delete_in_flight_chat_session_is_rejected() {
         let created = create_chat_session_json().expect("create");
         let id = created["session_id"].as_str().expect("id").to_string();
         let sink: ProgressSink = Arc::new(|_desc| {});
-        r#loop::try_begin_chat_turn(&id, &TraceId::from_optional(None), sink).expect("begin");
+        r#loop::try_begin_chat_turn(&id, &TurnId::from_optional(None), sink).expect("begin");
         let err = delete_chat_session_json(&id).expect_err("in flight");
         assert!(err.contains("running"), "got {err}");
         assert!(session::session_file_path(&id).expect("path").is_file());

@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use crate::commands::ai_assistant::{create_chat_session_json, unstage_chat_staged_json};
-use crate::agent::diagnostics::TraceId;
+use crate::agent::diagnostics::TurnId;
 use crate::agent::tools::{host, stage};
 use crate::agent::progress::ProgressSink;
 use crate::agent::r#loop;
@@ -87,7 +87,7 @@ fn unstage_in_flight_is_rejected() {
             .to_string();
         seed_staged(&sid, &[("F1", "/tmp/a.md", "A")]);
         let sink: ProgressSink = Arc::new(|_desc| {});
-        r#loop::try_begin_chat_turn(&sid, &TraceId::from_optional(None), sink).expect("begin");
+        r#loop::try_begin_chat_turn(&sid, &TurnId::from_optional(None), sink).expect("begin");
         let err = unstage_chat_staged_json(&sid, "F1").expect_err("in flight");
         assert!(err.contains("running"), "got {err}");
         assert_eq!(session::load_session(&sid).expect("load").staged.len(), 1);

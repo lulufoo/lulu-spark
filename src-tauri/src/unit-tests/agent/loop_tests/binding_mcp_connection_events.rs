@@ -4,7 +4,7 @@
 use serde_json::{json, Value};
 
 use super::support::*;
-use crate::agent::diagnostics::{self, TraceId};
+use crate::agent::diagnostics::{self, TurnId};
 use crate::agent::mcp::{self, McpTrace, ResetReason};
 
 // Shared fixture compiled into several test modules; each uses a subset.
@@ -17,7 +17,7 @@ use wire_server::WireServer;
 const SESSION: &str = "spark_chat_0123456789abcdef0123456789abcdef";
 
 fn trace() -> McpTrace {
-    McpTrace::new(&TraceId::new(), SESSION)
+    McpTrace::new(&TurnId::new(), SESSION)
 }
 
 /// `assistant.mcp` connection events of the session, in order.
@@ -51,6 +51,12 @@ fn first_list_handshakes_and_the_second_reuses_the_connection() {
             names(&events),
             ["connect.started", "connect.completed", "list.completed", "list.completed"]
         );
+        for event in &events {
+            assert_eq!(event["schema_version"], 2);
+            assert_eq!(event["session_id"], SESSION);
+            assert!(event["turn_id"].as_str().is_some_and(|id| id.starts_with("turn_")));
+            assert!(event.get("trace_id").is_none(), "a turn-level line has no request id");
+        }
         assert_eq!(events[1]["fields"]["outcome"], "ok");
         assert_eq!(events[2]["fields"]["reused"], false);
         assert_eq!(events[2]["fields"]["tool_count"], 1);
@@ -90,7 +96,7 @@ fn failed_tool_call_logs_a_call_failed_reset() {
         mcp::discover_tools(&config, &trace()).expect("list");
 
         server.fail_next("tools/call", 1);
-        let failed = mcp::call_tool(&config, "ping", json!({}), &TraceId::new(), SESSION);
+        let failed = mcp::call_tool(&config, "ping", json!({}), &TurnId::new(), SESSION);
         assert!(failed.is_err());
 
         let events = connection_events();

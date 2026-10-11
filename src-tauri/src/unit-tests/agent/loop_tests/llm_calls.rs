@@ -47,8 +47,8 @@ fn each_request_of_a_tool_turn_is_recorded_with_its_round() {
     assert_eq!(recs[0]["round"], 1);
     assert_eq!(recs[1]["round"], 2);
     assert_eq!(recs[0]["purpose"], "turn");
-    assert_eq!(recs[0]["trace_id"], recs[1]["trace_id"]);
-    assert!(recs[0]["trace_id"].is_string());
+    assert_eq!(recs[0]["turn_id"], recs[1]["turn_id"]);
+    assert!(recs[0]["turn_id"].is_string());
     assert!(recs[1]["step_index"].as_u64() > recs[0]["step_index"].as_u64());
     assert_eq!(recs[0]["response"]["message"]["reasoning_content"], "先看目录");
     assert_eq!(recs[1]["response"]["message"]["content"], "目录是空的。");

@@ -4,7 +4,7 @@ use std::time::Instant;
 
 use serde_json::{json, Value};
 
-use crate::agent::diagnostics::{self, DiagnosticEvent, TraceId};
+use crate::agent::diagnostics::{self, DiagnosticEvent, TurnId};
 use crate::agent::llm::{self, LlmConfig};
 use crate::agent::progress::{self, ProgressSink};
 use crate::agent::session::{self, read_unix_millis, Session, Step, StepClock};
@@ -23,23 +23,23 @@ use super::response::{empty_reply_text, with_response};
 use super::types::{Terminal, TurnOutcome, MAX_CLARIFY_ROUNDS, MAX_MCP_TOOL_CALLS, MAX_MCP_TOOL_ROUNDS};
 
 pub fn run_loop(session: &mut Session, user_message: &str, config: &LlmConfig) -> TurnOutcome {
-    run_loop_with_trace(session, user_message, config, &TraceId::new())
+    run_loop_with_trace(session, user_message, config, &TurnId::new())
 }
 
 pub(crate) fn run_loop_with_trace(
     session: &mut Session,
     user_message: &str,
     config: &LlmConfig,
-    trace_id: &TraceId,
+    turn_id: &TurnId,
 ) -> TurnOutcome {
-    run_loop_with_progress(session, user_message, config, trace_id, None)
+    run_loop_with_progress(session, user_message, config, turn_id, None)
 }
 
 pub(crate) fn run_loop_with_progress(
     session: &mut Session,
     user_message: &str,
     config: &LlmConfig,
-    trace_id: &TraceId,
+    turn_id: &TurnId,
     sink: Option<&ProgressSink>,
 ) -> TurnOutcome {
     let mut thinking = progress::TurnThinking::default();
@@ -148,7 +148,7 @@ pub(crate) fn run_loop_with_progress(
     let turn_tools = match tools::discover_and_merge(
         mcp_config.as_ref(),
         turn_fence.is_some(),
-        trace_id,
+        turn_id,
         &session.session_id,
     ) {
         Ok(tools) => tools,
@@ -225,7 +225,7 @@ pub(crate) fn run_loop_with_progress(
         progress::emit_progress_state(
             sink,
             &session.session_id,
-            trace_id,
+            turn_id,
             "Requesting…",
             thinking_text,
             thinking_ms,
@@ -239,11 +239,11 @@ pub(crate) fn run_loop_with_progress(
         let session_id = session.session_id.clone();
         let mut on_delta = |hint: &str, reasoning: &str| {
             let (text, ms) = thinking.tick(reasoning);
-            progress::emit_progress_state(sink, &session_id, trace_id, hint, text, ms);
+            progress::emit_progress_state(sink, &session_id, turn_id, hint, text, ms);
         };
         let ctx = llm::CallContext {
             session_id: session.session_id.clone(),
-            trace_id: Some(trace_id.as_str().to_string()),
+            turn_id: Some(turn_id.as_str().to_string()),
             purpose: "turn",
             round: tool_rounds + 1,
             step_index: session.steps.len(),
@@ -388,7 +388,7 @@ pub(crate) fn run_loop_with_progress(
             progress::emit_progress_state(
                 sink,
                 &session.session_id,
-                trace_id,
+                turn_id,
                 format!("Calling {}…", call.name),
                 thinking_text,
                 thinking_ms,
@@ -405,7 +405,7 @@ pub(crate) fn run_loop_with_progress(
                 &call.arguments,
                 turn_fence.as_ref(),
                 session,
-                trace_id,
+                turn_id,
             ) {
                 InvokeOutcome::Done { result, host } => (result, host),
                 InvokeOutcome::Abort(reply) => {
@@ -445,7 +445,7 @@ pub(crate) fn run_loop_with_progress(
                 DiagnosticEvent::timing(
                     "assistant.tools",
                     "tool.completed",
-                    trace_id,
+                    turn_id,
                     tool_started.elapsed(),
                 )
                 .with_session_id(&session.session_id)

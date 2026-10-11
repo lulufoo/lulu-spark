@@ -4,7 +4,7 @@ use axum::http::{header, Method};
 use serde_json::json;
 
 use super::{http_log_params, peek_request, RequestInfo, PEEK_LIMIT};
-use crate::agent::diagnostics::TraceId;
+use crate::agent::diagnostics::TurnId;
 
 const SESSION: &str = "spark_chat_5141a723ad70f2cadd4e5885a5421b06";
 
@@ -34,11 +34,11 @@ fn peek(request: Request) -> (RequestInfo, String) {
 
 #[test]
 fn json_rpc_method_and_meta_ids_are_read_and_the_body_is_forwarded_intact() {
-    let trace_id = TraceId::new();
+    let turn_id = TurnId::new();
     let body = json!({
         "jsonrpc": "2.0", "id": 1, "method": "tools/list",
         "params": { "_meta": {
-            "spark/trace_id": trace_id.as_str(),
+            "spark/turn_id": turn_id.as_str(),
             "spark/session_id": SESSION,
         } },
     })
@@ -47,7 +47,7 @@ fn json_rpc_method_and_meta_ids_are_read_and_the_body_is_forwarded_intact() {
     let (info, forwarded) = peek(post(&body, true));
 
     assert_eq!(info.method, "tools/list");
-    assert_eq!(info.meta.trace_id, Some(trace_id));
+    assert_eq!(info.meta.turn_id, Some(turn_id));
     assert_eq!(info.meta.session_id.as_deref(), Some(SESSION));
     assert_eq!(forwarded, body);
 }
@@ -59,7 +59,7 @@ fn request_without_meta_keeps_its_method_and_has_no_ids() {
     let (info, forwarded) = peek(post(&body, true));
 
     assert_eq!(info.method, "notifications/initialized");
-    assert_eq!(info.meta.trace_id, None);
+    assert_eq!(info.meta.turn_id, None);
     assert_eq!(info.meta.session_id, None);
     assert_eq!(forwarded, body);
 }
@@ -69,7 +69,7 @@ fn invalid_meta_ids_are_dropped() {
     let body = json!({
         "jsonrpc": "2.0", "id": 1, "method": "initialize",
         "params": { "_meta": {
-            "spark/trace_id": "bad id\nwith newline",
+            "spark/turn_id": "bad id\nwith newline",
             "spark/session_id": "../escape",
         } },
     })
@@ -78,7 +78,7 @@ fn invalid_meta_ids_are_dropped() {
     let (info, _) = peek(post(&body, true));
 
     assert_eq!(info.method, "initialize");
-    assert_eq!(info.meta.trace_id, None);
+    assert_eq!(info.meta.turn_id, None);
     assert_eq!(info.meta.session_id, None);
 }
 
@@ -119,11 +119,12 @@ fn non_post_requests_report_their_verb() {
 }
 
 #[test]
-fn http_log_params_carry_component_method_fields_and_session() {
+fn http_log_params_carry_component_method_fields_session_and_turn() {
+    let turn_id = TurnId::new();
     let info = RequestInfo {
         method: "tools/list".into(),
         meta: crate::agent::mcp::TraceMeta {
-            trace_id: None,
+            turn_id: Some(turn_id.clone()),
             session_id: Some(SESSION.into()),
         },
     };
@@ -136,7 +137,9 @@ fn http_log_params_carry_component_method_fields_and_session() {
     assert_eq!(params["outcome"], "ok");
     assert_eq!(params["http_status"], 200);
     assert_eq!(params["session_id"], SESSION);
+    assert_eq!(params["turn_id"], turn_id.as_str());
 
     let without = http_log_params(&RequestInfo::default(), json!({})).expect("params");
     assert!(without.get("session_id").is_none());
+    assert!(without.get("turn_id").is_none());
 }

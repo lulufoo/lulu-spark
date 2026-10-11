@@ -33,7 +33,7 @@ use tokio_util::sync::CancellationToken;
 use crate::agent::diagnostics::TraceId;
 use crate::agent::mcp::read_trace_meta;
 
-use super::request_meta::{http_log_params, peek_request, with_session_id};
+use super::request_meta::{http_log_params, peek_request, with_meta_ids};
 use crate::main_host;
 use crate::services::app_log::{self, Level, Side};
 use crate::services::mcp_oauth::{verify_device_token, verify_for_slot, OAuthError, Slot, TicketHandle};
@@ -124,34 +124,33 @@ impl ServerHandler for SlotHandler {
         // rmcp strips the wire `params._meta` into `context.meta`; the typed
         // `request.meta` stays empty on the server side.
         let meta = read_trace_meta(&context.meta);
-        let trace_id = meta.trace_id.unwrap_or_else(TraceId::new);
-        let session_id = meta.session_id;
+        let trace_id = TraceId::new();
         async move {
             let tool_name = request.name.to_string();
             let call_started = Instant::now();
             log_mcp_host(
                 "call.started",
                 &trace_id,
-                json_params(with_session_id(
+                json_params(with_meta_ids(
                     json!({
                         "component": "mcp_host.tools",
                         "tool_name": tool_name,
                     }),
-                    session_id.as_deref(),
+                    &meta,
                 )),
             );
             if !mcp_catalog::is_enabled(&channel, request.name.as_ref()) {
                 log_mcp_host(
                     "call.completed",
                     &trace_id,
-                    json_params(with_session_id(
+                    json_params(with_meta_ids(
                         json!({
                             "component": "mcp_host.tools",
                             "tool_name": tool_name,
                             "outcome": "disabled",
                             "elapsed_ms": millis(call_started.elapsed()),
                         }),
-                        session_id.as_deref(),
+                        &meta,
                     )),
                 );
                 return Err(McpError::invalid_params(
@@ -170,14 +169,14 @@ impl ServerHandler for SlotHandler {
             log_mcp_host(
                 "call.completed",
                 &trace_id,
-                json_params(with_session_id(
+                json_params(with_meta_ids(
                     json!({
                         "component": "mcp_host.tools",
                         "tool_name": tool_name,
                         "outcome": if result.is_ok() { "ok" } else { "error" },
                         "elapsed_ms": millis(call_started.elapsed()),
                     }),
-                    session_id.as_deref(),
+                    &meta,
                 )),
             );
             result
@@ -302,8 +301,7 @@ pub(super) async fn slot_bearer_gate(
         Ok(peeked) => peeked,
         Err(status) => return status.into_response(),
     };
-    // The client's turn id when it sent one, so these lines join the session log.
-    let trace_id = info.meta.trace_id.clone().unwrap_or_else(TraceId::new);
+    let trace_id = TraceId::new();
     log_mcp_host(
         "request.auth.started",
         &trace_id,

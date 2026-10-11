@@ -8,7 +8,7 @@
 use serde_json::{json, Value};
 
 use super::{bearer, http_post_json_auth, issue_live_ticket, start_ephemeral_mcp, SPARK_SLOT};
-use crate::agent::diagnostics::TraceId;
+use crate::agent::diagnostics::TurnId;
 use crate::mcp_host::stop_embedded_mcp_runtime;
 
 const SESSION: &str = "spark_chat_5141a723ad70f2cadd4e5885a5421b06";
@@ -19,7 +19,7 @@ fn requests_carrying_meta_are_served_with_their_bodies_intact() {
     let auth = bearer(&issue_live_ticket(SPARK_SLOT));
     let url = format!("http://127.0.0.1:{}/mcp/spark", handle.local_addr().port());
     let meta = json!({
-        "spark/trace_id": TraceId::new().as_str(),
+        "spark/turn_id": TurnId::new().as_str(),
         "spark/session_id": SESSION,
     });
     let request = |id: u64, method: &str, params: Value| {

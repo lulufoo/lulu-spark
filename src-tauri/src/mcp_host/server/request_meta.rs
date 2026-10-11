@@ -1,7 +1,7 @@
 //! Read-only peek at an MCP request for logging.
 //!
 //! The HTTP gate logs before rmcp parses the body, so it reads the JSON-RPC
-//! `method` and the `_meta` trace/session ids itself, then hands the body on
+//! `method` and the `_meta` turn/session ids itself, then hands the body on
 //! untouched. This is only used to label log lines; it never changes routing
 //! or authentication.
 
@@ -63,19 +63,25 @@ fn describe_body(bytes: &[u8]) -> Option<RequestInfo> {
 }
 
 /// Fields of an HTTP-level log line: `fields` plus the component, the method
-/// and, when the client sent one, the chat session id.
+/// and, when the client sent them, the chat session id and turn id.
 pub(super) fn http_log_params(info: &RequestInfo, fields: Value) -> Option<Value> {
     let mut params = json!({ "component": "mcp_host.http", "method": info.method });
     if let (Some(target), Some(extra)) = (params.as_object_mut(), fields.as_object()) {
         target.extend(extra.clone());
     }
-    Some(with_session_id(params, info.meta.session_id.as_deref()))
+    Some(with_meta_ids(params, &info.meta))
 }
 
-/// `value` plus `session_id` when there is one.
-pub(super) fn with_session_id(mut value: Value, session_id: Option<&str>) -> Value {
-    if let (Some(session_id), Some(object)) = (session_id, value.as_object_mut()) {
-        object.insert("session_id".into(), Value::String(session_id.to_string()));
+/// `value` plus the `session_id` and `turn_id` the client sent, when it sent them.
+pub(super) fn with_meta_ids(mut value: Value, meta: &TraceMeta) -> Value {
+    let Some(object) = value.as_object_mut() else {
+        return value;
+    };
+    if let Some(session_id) = &meta.session_id {
+        object.insert("session_id".into(), Value::String(session_id.clone()));
+    }
+    if let Some(turn_id) = &meta.turn_id {
+        object.insert("turn_id".into(), Value::String(turn_id.as_str().to_string()));
     }
     value
 }

@@ -6,7 +6,7 @@
 
 use std::time::Duration;
 
-use crate::agent::diagnostics::{self, DiagnosticEvent, TraceId};
+use crate::agent::diagnostics::{self, DiagnosticEvent, TurnId};
 use crate::agent::tools::catalog::ToolCatalog;
 
 use rmcp::model::RequestMetaObject;
@@ -40,14 +40,14 @@ impl ResetReason {
 /// Where connection events are written: one turn of one chat session.
 #[derive(Debug, Clone)]
 pub struct McpTrace {
-    trace_id: TraceId,
+    turn_id: TurnId,
     session_id: String,
 }
 
 impl McpTrace {
-    pub fn new(trace_id: &TraceId, session_id: &str) -> Self {
+    pub fn new(turn_id: &TurnId, session_id: &str) -> Self {
         Self {
-            trace_id: trace_id.clone(),
+            turn_id: turn_id.clone(),
             session_id: session_id.to_string(),
         }
     }
@@ -55,21 +55,21 @@ impl McpTrace {
     /// Not tied to any chat session (Binding Reset, app exit): events go to the
     /// process-level app log.
     pub fn detached() -> Self {
-        Self::new(&TraceId::new(), "")
+        Self::new(&TurnId::new(), "")
     }
 
     /// `_meta` for every request of this turn: both ids, so the server can log them.
     pub(super) fn meta(&self) -> RequestMetaObject {
-        build_trace_meta(&self.trace_id, &self.session_id)
+        build_trace_meta(&self.turn_id, &self.session_id)
     }
 
     pub(super) fn connect_started(&self) {
-        self.emit(DiagnosticEvent::point(COMPONENT, "connect.started", &self.trace_id));
+        self.emit(DiagnosticEvent::point(COMPONENT, "connect.started", &self.turn_id));
     }
 
     pub(super) fn connect_completed(&self, elapsed: Duration, connected: bool) {
         self.emit(
-            DiagnosticEvent::timing(COMPONENT, "connect.completed", &self.trace_id, elapsed)
+            DiagnosticEvent::timing(COMPONENT, "connect.completed", &self.turn_id, elapsed)
                 .with_static_field("outcome", outcome(connected)),
         );
     }
@@ -84,7 +84,7 @@ impl McpTrace {
         result: &Result<ToolCatalog, McpError>,
     ) {
         let mut event =
-            DiagnosticEvent::timing(COMPONENT, "list.completed", &self.trace_id, elapsed)
+            DiagnosticEvent::timing(COMPONENT, "list.completed", &self.turn_id, elapsed)
                 .with_bool_field("reused", reused)
                 .with_bool_field("retried", retried)
                 .with_static_field("outcome", outcome(result.is_ok()));
@@ -96,7 +96,7 @@ impl McpTrace {
 
     pub(super) fn connection_reset(&self, reason: ResetReason) {
         self.emit(
-            DiagnosticEvent::point(COMPONENT, "connection.reset", &self.trace_id)
+            DiagnosticEvent::point(COMPONENT, "connection.reset", &self.turn_id)
                 .with_static_field("reason", reason.as_str()),
         );
     }

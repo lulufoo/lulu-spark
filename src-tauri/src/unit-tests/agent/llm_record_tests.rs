@@ -7,7 +7,7 @@ const SESSION: &str = "spark_chat_recordtest";
 fn ctx(round: usize) -> llm::CallContext {
     llm::CallContext {
         session_id: SESSION.into(),
-        trace_id: Some("trace-abcdef12".into()),
+        turn_id: Some("turn-abcdef12".into()),
         purpose: "turn",
         round,
         step_index: 4,
@@ -67,7 +67,9 @@ fn a_successful_call_records_request_response_and_timings() {
 
         let rec = record(1);
         assert_eq!(rec["session_id"], SESSION);
-        assert_eq!(rec["trace_id"], "trace-abcdef12");
+        assert_eq!(rec["version"], 2);
+        assert_eq!(rec["turn_id"], "turn-abcdef12");
+        assert!(rec.get("trace_id").is_none(), "the record has no request id");
         assert_eq!(rec["purpose"], "turn");
         assert_eq!(rec["round"], 2);
         assert_eq!(rec["step_index"], 4);

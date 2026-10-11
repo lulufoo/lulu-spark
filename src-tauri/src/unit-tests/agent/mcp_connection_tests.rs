@@ -1,5 +1,5 @@
 use super::ConnectionSlot;
-use crate::agent::diagnostics::TraceId;
+use crate::agent::diagnostics::TurnId;
 use crate::agent::mcp::McpTrace;
 use crate::agent::mcp::McpError;
 use rmcp::model::CallToolRequestParams;
@@ -224,8 +224,8 @@ fn initialize_tools_list_and_tools_call_all_carry_trace_and_session_in_meta() {
     let server = WireServer::start();
     let slot = ConnectionSlot::new();
     let config = server.config(&[]);
-    let trace_id = TraceId::new();
-    let trace = McpTrace::new(&trace_id, SESSION);
+    let turn_id = TurnId::new();
+    let trace = McpTrace::new(&turn_id, SESSION);
 
     slot.list_tools(&config, &trace).expect("list");
     slot.call_tool(&config, params("ping"), &trace).expect("call");
@@ -233,13 +233,13 @@ fn initialize_tools_list_and_tools_call_all_carry_trace_and_session_in_meta() {
     for method in ["initialize", "tools/list", "tools/call"] {
         let metas = server.metas(method);
         assert_eq!(metas.len(), 1, "one {method} request");
-        assert_eq!(metas[0]["spark/trace_id"], trace_id.as_str(), "{method} trace id");
+        assert_eq!(metas[0]["spark/turn_id"], turn_id.as_str(), "{method} trace id");
         assert_eq!(metas[0]["spark/session_id"], SESSION, "{method} session id");
     }
 }
 
 #[test]
-fn requests_without_a_chat_session_carry_only_the_trace_id() {
+fn requests_without_a_chat_session_carry_only_the_turn_id() {
     let server = WireServer::start();
     let slot = ConnectionSlot::new();
     let config = server.config(&[]);
@@ -248,7 +248,7 @@ fn requests_without_a_chat_session_carry_only_the_trace_id() {
 
     for method in ["initialize", "tools/list"] {
         let metas = server.metas(method);
-        assert!(metas[0].get("spark/trace_id").is_some(), "{method} trace id");
+        assert!(metas[0].get("spark/turn_id").is_some(), "{method} trace id");
         assert!(metas[0].get("spark/session_id").is_none(), "{method} has no session");
     }
 }

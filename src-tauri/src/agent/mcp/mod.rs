@@ -18,7 +18,7 @@ use rmcp::{
 use rmcp::model::Tool;
 use serde_json::Value;
 
-use crate::agent::diagnostics::{self, DiagnosticEvent, TraceId};
+use crate::agent::diagnostics::{self, DiagnosticEvent, TurnId};
 use crate::mcp_host::registry::McpServerConfig;
 
 #[cfg(test)]
@@ -118,7 +118,7 @@ pub fn call_tool(
     config: &McpServerConfig,
     name: &str,
     arguments: Value,
-    trace_id: &TraceId,
+    turn_id: &TurnId,
     session_id: &str,
 ) -> Result<ToolResult, McpError> {
     let arguments = arguments
@@ -130,18 +130,18 @@ pub fn call_tool(
     let tool_name = params.name.to_string();
 
     let _ = diagnostics::log(
-        DiagnosticEvent::point("assistant.mcp", "call.request.started", trace_id)
+        DiagnosticEvent::point("assistant.mcp", "call.request.started", turn_id)
             .with_session_id(session_id)
             .with_bounded_text_field("tool_name", &tool_name),
     );
     let call_started = Instant::now();
-    let trace = McpTrace::new(trace_id, session_id);
+    let trace = McpTrace::new(turn_id, session_id);
     let result = connection::CONNECTION.call_tool(config, params, &trace);
     let _ = diagnostics::log(
         DiagnosticEvent::timing(
             "assistant.mcp",
             "call.request.completed",
-            trace_id,
+            turn_id,
             call_started.elapsed(),
         )
         .with_session_id(session_id)

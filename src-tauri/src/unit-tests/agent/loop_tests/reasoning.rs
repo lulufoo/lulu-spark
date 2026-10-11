@@ -180,7 +180,7 @@ fn run_loop_emits_thinking_on_progress_and_ui_turns() {
             &mut session,
             "你好",
             &cfg_for(&mock),
-            &crate::agent::diagnostics::TraceId::new(),
+            &crate::agent::diagnostics::TurnId::new(),
             Some(&sink),
         );
         let descs = collected.lock().unwrap();

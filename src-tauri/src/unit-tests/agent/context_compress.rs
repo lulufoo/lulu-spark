@@ -267,7 +267,7 @@ fn maybe_compress_at_70_writes_summary_and_leaves_the_snapshot() {
     let record: Value = serde_json::from_str(&std::fs::read_to_string(file).expect("record")).unwrap();
     assert_eq!(record["purpose"], "summary");
     assert_eq!(record["round"], 0);
-    assert!(record["trace_id"].is_null());
+    assert!(record["turn_id"].is_null());
     assert_eq!(record["response"]["message"]["content"], "one-line summary");
 }
 
