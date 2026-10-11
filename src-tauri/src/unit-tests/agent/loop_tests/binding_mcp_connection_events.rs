@@ -5,7 +5,7 @@ use serde_json::{json, Value};
 
 use super::support::*;
 use crate::agent::diagnostics::{self, TurnId};
-use crate::agent::mcp::{self, McpTrace, ResetReason};
+use crate::agent::mcp::{self, McpTurn, ResetReason};
 
 // Shared fixture compiled into several test modules; each uses a subset.
 #[allow(dead_code)]
@@ -16,18 +16,25 @@ use wire_server::WireServer;
 
 const SESSION: &str = "spark_chat_0123456789abcdef0123456789abcdef";
 
-fn trace() -> McpTrace {
-    McpTrace::new(&TurnId::new(), SESSION)
+fn turn() -> McpTurn {
+    McpTurn::new(&TurnId::new(), SESSION)
 }
 
-/// `assistant.mcp` connection events of the session, in order.
-fn connection_events() -> Vec<Value> {
+/// Every `assistant.mcp` event of the session, in order.
+fn mcp_events() -> Vec<Value> {
     let path = diagnostics::session_log_path(SESSION).expect("session log path");
     std::fs::read_to_string(path)
         .unwrap_or_default()
         .lines()
         .filter_map(|line| serde_json::from_str::<Value>(line).ok())
         .filter(|event| event["component"] == "assistant.mcp")
+        .collect()
+}
+
+/// The connection events: everything but the per-call request events.
+fn connection_events() -> Vec<Value> {
+    mcp_events()
+        .into_iter()
         .filter(|event| event["event"] != "call.request.started")
         .filter(|event| event["event"] != "call.request.completed")
         .collect()
@@ -43,8 +50,8 @@ fn first_list_handshakes_and_the_second_reuses_the_connection() {
         let server = WireServer::start();
         let config = server.config(&[]);
 
-        mcp::discover_tools(&config, &trace()).expect("first list");
-        mcp::discover_tools(&config, &trace()).expect("second list");
+        mcp::discover_tools(&config, &turn()).expect("first list");
+        mcp::discover_tools(&config, &turn()).expect("second list");
 
         let events = connection_events();
         assert_eq!(
@@ -55,8 +62,15 @@ fn first_list_handshakes_and_the_second_reuses_the_connection() {
             assert_eq!(event["schema_version"], 2);
             assert_eq!(event["session_id"], SESSION);
             assert!(event["turn_id"].as_str().is_some_and(|id| id.starts_with("turn_")));
-            assert!(event.get("trace_id").is_none(), "a turn-level line has no request id");
+            let is_request = event["event"].as_str().is_some_and(|name| name.starts_with("connect."));
+            assert_eq!(event.get("trace_id").is_some(), is_request, "{event}");
         }
+        assert_eq!(events[0]["trace_id"], events[1]["trace_id"], "one handshake request");
+        assert_eq!(
+            events[0]["trace_id"],
+            server.metas("initialize")[0]["spark/trace_id"],
+            "the client line carries the id the server received"
+        );
         assert_eq!(events[1]["fields"]["outcome"], "ok");
         assert_eq!(events[2]["fields"]["reused"], false);
         assert_eq!(events[2]["fields"]["tool_count"], 1);
@@ -71,10 +85,10 @@ fn failed_list_on_a_reused_connection_logs_reset_reconnect_and_retry() {
     with_sandbox(|| {
         let server = WireServer::start();
         let config = server.config(&[]);
-        mcp::discover_tools(&config, &trace()).expect("list while healthy");
+        mcp::discover_tools(&config, &turn()).expect("list while healthy");
 
         server.fail_next("tools/list", 1);
-        mcp::discover_tools(&config, &trace()).expect("retry succeeds");
+        mcp::discover_tools(&config, &turn()).expect("retry succeeds");
 
         let events = connection_events();
         assert_eq!(
@@ -93,7 +107,7 @@ fn failed_tool_call_logs_a_call_failed_reset() {
     with_sandbox(|| {
         let server = WireServer::start();
         let config = server.config(&[]);
-        mcp::discover_tools(&config, &trace()).expect("list");
+        mcp::discover_tools(&config, &turn()).expect("list");
 
         server.fail_next("tools/call", 1);
         let failed = mcp::call_tool(&config, "ping", json!({}), &TurnId::new(), SESSION);
@@ -110,8 +124,8 @@ fn failed_tool_call_logs_a_call_failed_reset() {
 fn changed_config_logs_a_config_changed_reset() {
     with_sandbox(|| {
         let server = WireServer::start();
-        mcp::discover_tools(&server.config(&[("x-ticket", "one")]), &trace()).expect("first");
-        mcp::discover_tools(&server.config(&[("x-ticket", "two")]), &trace()).expect("second");
+        mcp::discover_tools(&server.config(&[("x-ticket", "one")]), &turn()).expect("first");
+        mcp::discover_tools(&server.config(&[("x-ticket", "two")]), &turn()).expect("second");
 
         let events = connection_events();
         assert_eq!(
@@ -119,6 +133,42 @@ fn changed_config_logs_a_config_changed_reset() {
             ["connection.reset", "connect.started", "connect.completed", "list.completed"]
         );
         assert_eq!(events[3]["fields"]["reason"], "config_changed");
+        mcp::release_connection(ResetReason::BindingReset);
+    });
+}
+
+#[test]
+fn each_call_request_logs_the_trace_id_the_server_received() {
+    with_sandbox(|| {
+        let server = WireServer::start();
+        let config = server.config(&[]);
+        let turn_id = TurnId::new();
+
+        for _ in 0..2 {
+            mcp::call_tool(&config, "ping", json!({}), &turn_id, SESSION).expect("call");
+        }
+
+        let completed: Vec<Value> = mcp_events()
+            .into_iter()
+            .filter(|event| event["event"] == "call.request.completed")
+            .collect();
+        let sent = server.metas("tools/call");
+        assert_eq!((completed.len(), sent.len()), (2, 2));
+        for (event, meta) in completed.iter().zip(&sent) {
+            assert_eq!(event["trace_id"], meta["spark/trace_id"]);
+            assert_eq!(event["turn_id"], turn_id.as_str());
+            assert_eq!(event["session_id"], SESSION);
+        }
+        assert_ne!(
+            completed[0]["trace_id"], completed[1]["trace_id"],
+            "two calls of one tool in one turn must be told apart"
+        );
+        let started: Vec<Value> = mcp_events()
+            .into_iter()
+            .filter(|event| event["event"] == "call.request.started")
+            .collect();
+        assert_eq!(started[0]["trace_id"], completed[0]["trace_id"]);
+        assert_eq!(started[1]["trace_id"], completed[1]["trace_id"]);
         mcp::release_connection(ResetReason::BindingReset);
     });
 }

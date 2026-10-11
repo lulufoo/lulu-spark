@@ -18,7 +18,7 @@ use rmcp::{
 use rmcp::model::Tool;
 use serde_json::Value;
 
-use crate::agent::diagnostics::{self, DiagnosticEvent, TurnId};
+use crate::agent::diagnostics::TurnId;
 use crate::mcp_host::registry::McpServerConfig;
 
 #[cfg(test)]
@@ -28,7 +28,7 @@ use super::tools::catalog::{ToolCatalog, ToolResult};
 mod connection;
 mod connection_log;
 mod trace_meta;
-pub use connection_log::{McpTrace, ResetReason};
+pub use connection_log::{McpTrace, McpTurn, ResetReason};
 pub(crate) use trace_meta::{build_trace_meta, read_trace_meta, read_trace_meta_json, TraceMeta};
 
 const CLIENT_NAME: &str = "spark-host-agent";
@@ -100,9 +100,9 @@ fn client_info() -> ClientInfo {
 /// Discover the active scene's model-callable tools over the live MCP connection.
 pub fn discover_tools(
     config: &McpServerConfig,
-    trace: &McpTrace,
+    turn: &McpTurn,
 ) -> Result<ToolCatalog, McpError> {
-    connection::CONNECTION.list_tools(config, trace)
+    connection::CONNECTION.list_tools(config, turn)
 }
 
 /// Close the live MCP connection, if any, and its server session. Called when
@@ -129,25 +129,11 @@ pub fn call_tool(
     params.arguments = Some(arguments);
     let tool_name = params.name.to_string();
 
-    let _ = diagnostics::log(
-        DiagnosticEvent::point("assistant.mcp", "call.request.started", turn_id)
-            .with_session_id(session_id)
-            .with_bounded_text_field("tool_name", &tool_name),
-    );
+    let trace = McpTurn::new(turn_id, session_id).trace();
+    trace.call_started(&tool_name);
     let call_started = Instant::now();
-    let trace = McpTrace::new(turn_id, session_id);
     let result = connection::CONNECTION.call_tool(config, params, &trace);
-    let _ = diagnostics::log(
-        DiagnosticEvent::timing(
-            "assistant.mcp",
-            "call.request.completed",
-            turn_id,
-            call_started.elapsed(),
-        )
-        .with_session_id(session_id)
-        .with_bounded_text_field("tool_name", &tool_name)
-        .with_static_field("outcome", if result.is_ok() { "ok" } else { "error" }),
-    );
+    trace.call_completed(call_started.elapsed(), &tool_name, result.is_ok());
 
     result.map(|result| {
         let content = result

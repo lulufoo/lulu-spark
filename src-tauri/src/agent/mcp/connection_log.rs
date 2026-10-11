@@ -3,10 +3,14 @@
 //! They answer, from a session's own `session.log`, whether a turn handshook,
 //! whether `tools/list` reused the connection, and why a connection was
 //! dropped. Events without a chat session land in the process-level app log.
+//!
+//! Two scopes, matching the id layers in `agent::diagnostics`:
+//! [`McpTurn`] is one user message and logs turn-level events; [`McpTrace`] is
+//! one MCP request and logs request-level events with its own `trace_id`.
 
 use std::time::Duration;
 
-use crate::agent::diagnostics::{self, DiagnosticEvent, TurnId};
+use crate::agent::diagnostics::{self, DiagnosticEvent, TraceId, TurnId};
 use crate::agent::tools::catalog::ToolCatalog;
 
 use rmcp::model::RequestMetaObject;
@@ -37,14 +41,15 @@ impl ResetReason {
     }
 }
 
-/// Where connection events are written: one turn of one chat session.
+/// One turn of one chat session: where turn-level connection events are
+/// written, and the source of every request's [`McpTrace`].
 #[derive(Debug, Clone)]
-pub struct McpTrace {
+pub struct McpTurn {
     turn_id: TurnId,
     session_id: String,
 }
 
-impl McpTrace {
+impl McpTurn {
     pub fn new(turn_id: &TurnId, session_id: &str) -> Self {
         Self {
             turn_id: turn_id.clone(),
@@ -52,15 +57,73 @@ impl McpTrace {
         }
     }
 
+    /// A new request of this turn, with a trace id of its own.
+    pub fn trace(&self) -> McpTrace {
+        McpTrace {
+            turn_id: self.turn_id.clone(),
+            session_id: self.session_id.clone(),
+            trace_id: TraceId::new(),
+        }
+    }
+
+    /// The live connection of another config was dropped before this turn's request.
+    pub(super) fn connection_reset(&self, reason: ResetReason) {
+        emit(
+            &self.session_id,
+            DiagnosticEvent::point(COMPONENT, "connection.reset", &self.turn_id)
+                .with_static_field("reason", reason.as_str()),
+        );
+    }
+
+    /// One `tools/list` attempt sequence. `reused`: the first request went over
+    /// an existing connection. `retried`: it failed and was sent once more.
+    pub(super) fn list_completed(
+        &self,
+        elapsed: Duration,
+        reused: bool,
+        retried: bool,
+        result: &Result<ToolCatalog, McpError>,
+    ) {
+        let mut event = DiagnosticEvent::timing(COMPONENT, "list.completed", &self.turn_id, elapsed)
+            .with_bool_field("reused", reused)
+            .with_bool_field("retried", retried)
+            .with_static_field("outcome", outcome(result.is_ok()));
+        if let Ok(catalog) = result {
+            event = event.with_u64_field("tool_count", catalog.definitions.len() as u64);
+        }
+        emit(&self.session_id, event);
+    }
+}
+
+/// One MCP request. It always knows its turn and its chat session, so a line
+/// with a `trace_id` can never lack a `turn_id` or a `session_id`; the only way
+/// to get one is [`McpTurn::trace`].
+#[derive(Debug, Clone)]
+pub struct McpTrace {
+    turn_id: TurnId,
+    session_id: String,
+    trace_id: TraceId,
+}
+
+impl McpTrace {
     /// Not tied to any chat session (Binding Reset, app exit): events go to the
     /// process-level app log.
     pub fn detached() -> Self {
-        Self::new(&TurnId::new(), "")
+        McpTurn::new(&TurnId::new(), "").trace()
     }
 
-    /// `_meta` for every request of this turn: both ids, so the server can log them.
+    /// The turn this request belongs to.
+    pub(super) fn turn(&self) -> McpTurn {
+        McpTurn {
+            turn_id: self.turn_id.clone(),
+            session_id: self.session_id.clone(),
+        }
+    }
+
+    /// `_meta` of this request: session, turn and trace id, so the server logs
+    /// the same ids as the client.
     pub(super) fn meta(&self) -> RequestMetaObject {
-        build_trace_meta(&self.turn_id, &self.session_id)
+        build_trace_meta(&self.trace_id, &self.turn_id, &self.session_id)
     }
 
     pub(super) fn connect_started(&self) {
@@ -74,26 +137,7 @@ impl McpTrace {
         );
     }
 
-    /// One `tools/list` attempt sequence. `reused`: the first request went over
-    /// an existing connection. `retried`: it failed and was sent once more.
-    pub(super) fn list_completed(
-        &self,
-        elapsed: Duration,
-        reused: bool,
-        retried: bool,
-        result: &Result<ToolCatalog, McpError>,
-    ) {
-        let mut event =
-            DiagnosticEvent::timing(COMPONENT, "list.completed", &self.turn_id, elapsed)
-                .with_bool_field("reused", reused)
-                .with_bool_field("retried", retried)
-                .with_static_field("outcome", outcome(result.is_ok()));
-        if let Ok(catalog) = result {
-            event = event.with_u64_field("tool_count", catalog.definitions.len() as u64);
-        }
-        self.emit(event);
-    }
-
+    /// This request failed and the live connection was dropped.
     pub(super) fn connection_reset(&self, reason: ResetReason) {
         self.emit(
             DiagnosticEvent::point(COMPONENT, "connection.reset", &self.turn_id)
@@ -101,10 +145,29 @@ impl McpTrace {
         );
     }
 
-    fn emit(&self, event: DiagnosticEvent) {
-        // An empty session id stays unset and falls through to the app log.
-        let _ = diagnostics::log(event.with_session_id(&self.session_id));
+    pub(crate) fn call_started(&self, tool_name: &str) {
+        self.emit(
+            DiagnosticEvent::point(COMPONENT, "call.request.started", &self.turn_id)
+                .with_bounded_text_field("tool_name", tool_name),
+        );
     }
+
+    pub(crate) fn call_completed(&self, elapsed: Duration, tool_name: &str, ok: bool) {
+        self.emit(
+            DiagnosticEvent::timing(COMPONENT, "call.request.completed", &self.turn_id, elapsed)
+                .with_bounded_text_field("tool_name", tool_name)
+                .with_static_field("outcome", outcome(ok)),
+        );
+    }
+
+    fn emit(&self, event: DiagnosticEvent) {
+        emit(&self.session_id, event.with_trace_id(&self.trace_id));
+    }
+}
+
+fn emit(session_id: &str, event: DiagnosticEvent) {
+    // An empty session id stays unset and falls through to the app log.
+    let _ = diagnostics::log(event.with_session_id(session_id));
 }
 
 fn outcome(ok: bool) -> &'static str {

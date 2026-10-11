@@ -124,7 +124,7 @@ impl ServerHandler for SlotHandler {
         // rmcp strips the wire `params._meta` into `context.meta`; the typed
         // `request.meta` stays empty on the server side.
         let meta = read_trace_meta(&context.meta);
-        let trace_id = TraceId::new();
+        let trace_id = meta.trace_id.clone().unwrap_or_else(TraceId::new);
         async move {
             let tool_name = request.name.to_string();
             let call_started = Instant::now();
@@ -301,7 +301,9 @@ pub(super) async fn slot_bearer_gate(
         Ok(peeked) => peeked,
         Err(status) => return status.into_response(),
     };
-    let trace_id = TraceId::new();
+    // The client's request id when it sent one, so these lines join its log;
+    // requests without `_meta` (notifications/initialized, GET, DELETE) get their own.
+    let trace_id = info.meta.trace_id.clone().unwrap_or_else(TraceId::new);
     log_mcp_host(
         "request.auth.started",
         &trace_id,

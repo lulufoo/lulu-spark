@@ -1,7 +1,8 @@
 //! Binding Reset releases the Host Agent's live MCP connection.
 
 use super::support::*;
-use crate::agent::mcp::{self, McpTrace, ResetReason};
+use crate::agent::diagnostics::TurnId;
+use crate::agent::mcp::{self, McpTurn, ResetReason};
 
 // Shared fixture compiled into several test modules; each uses a subset.
 #[allow(dead_code)]
@@ -15,7 +16,7 @@ fn reset_binding_closes_the_live_mcp_connection_and_the_next_list_handshakes() {
     with_sandbox(|| {
         let server = WireServer::start();
         let config = server.config(&[]);
-        mcp::discover_tools(&config, &McpTrace::detached()).expect("list over the live connection");
+        mcp::discover_tools(&config, &McpTurn::new(&TurnId::new(), "")).expect("list over the live connection");
 
         r#loop::reset_binding().expect("reset");
 
@@ -25,7 +26,7 @@ fn reset_binding_closes_the_live_mcp_connection_and_the_next_list_handshakes() {
             "Reset closes the server session"
         );
 
-        mcp::discover_tools(&config, &McpTrace::detached()).expect("list after reset");
+        mcp::discover_tools(&config, &McpTurn::new(&TurnId::new(), "")).expect("list after reset");
         assert_eq!(
             server.calls()[4..],
             ["initialize", "notifications/initialized", "tools/list"],
@@ -39,7 +40,7 @@ fn reset_binding_closes_the_live_mcp_connection_and_the_next_list_handshakes() {
 fn second_reset_has_no_connection_left_to_close() {
     with_sandbox(|| {
         let server = WireServer::start();
-        mcp::discover_tools(&server.config(&[]), &McpTrace::detached()).expect("list");
+        mcp::discover_tools(&server.config(&[]), &McpTurn::new(&TurnId::new(), "")).expect("list");
 
         r#loop::reset_binding().expect("first reset");
         r#loop::reset_binding().expect("second reset");

@@ -57,8 +57,8 @@ pub fn discover_and_merge(
 ) -> Result<TurnTools, PrepareError> {
     let mcp = match mcp_config {
         Some(config) => {
-            let trace = mcp::McpTrace::new(turn_id, session_id);
-            let catalog = mcp::discover_tools(config, &trace).map_err(PrepareError::Mcp)?;
+            let turn = mcp::McpTurn::new(turn_id, session_id);
+            let catalog = mcp::discover_tools(config, &turn).map_err(PrepareError::Mcp)?;
             if catalog.definitions.is_empty() {
                 return Err(PrepareError::EmptyMcpTools);
             }

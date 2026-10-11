@@ -20,7 +20,7 @@ use crate::mcp_host::registry::McpServerConfig;
 
 use crate::agent::tools::catalog::{self, ToolCatalog};
 
-use super::connection_log::{McpTrace, ResetReason};
+use super::connection_log::{McpTrace, McpTurn, ResetReason};
 use super::{client_info, transport_config, McpError};
 
 type Client = RunningService<RoleClient, ClientInfo>;
@@ -71,19 +71,19 @@ impl ConnectionSlot {
     pub(super) fn list_tools(
         &self,
         config: &McpServerConfig,
-        trace: &McpTrace,
+        turn: &McpTurn,
     ) -> Result<ToolCatalog, McpError> {
-        let (peer, reused) = self.peer_for(config, trace)?;
+        let (peer, reused) = self.peer_for(config, turn)?;
         let started = Instant::now();
-        let (result, retried) = match (self.fetch_tools(&peer, trace), reused) {
+        let (result, retried) = match (self.fetch_tools(&peer, turn), reused) {
             (Err(_), true) => (
-                self.peer_for(config, trace)
-                    .and_then(|(peer, _)| self.fetch_tools(&peer, trace)),
+                self.peer_for(config, turn)
+                    .and_then(|(peer, _)| self.fetch_tools(&peer, turn)),
                 true,
             ),
             (outcome, _) => (outcome, false),
         };
-        trace.list_completed(started.elapsed(), reused, retried, &result);
+        turn.list_completed(started.elapsed(), reused, retried, &result);
         result
     }
 
@@ -98,7 +98,7 @@ impl ConnectionSlot {
         trace: &McpTrace,
     ) -> Result<CallToolResult, McpError> {
         params.meta = Some(trace.meta());
-        let (peer, _) = self.peer_for(config, trace)?;
+        let (peer, _) = self.peer_for(config, &trace.turn())?;
         let result = runtime()?
             .block_on(peer.call_tool(params))
             .map_err(|error| McpError::CallTool(format!("{error:#}")));
@@ -113,7 +113,7 @@ impl ConnectionSlot {
     fn peer_for(
         &self,
         config: &McpServerConfig,
-        trace: &McpTrace,
+        turn: &McpTurn,
     ) -> Result<(Peer<RoleClient>, bool), McpError> {
         let mut live = self.live.lock().unwrap_or_else(PoisonError::into_inner);
         let reused = live
@@ -121,10 +121,10 @@ impl ConnectionSlot {
             .is_some_and(|connection| connection.config == *config);
         if !reused {
             if let Some(stale) = live.take() {
-                trace.connection_reset(ResetReason::ConfigChanged);
+                turn.connection_reset(ResetReason::ConfigChanged);
                 close(stale);
             }
-            let client = connect(config, trace)?;
+            let client = connect(config, turn)?;
             *live = Some(LiveConnection {
                 config: config.clone(),
                 client,
@@ -136,7 +136,8 @@ impl ConnectionSlot {
     }
 
     /// One `tools/list` request; a failure drops the connection.
-    fn fetch_tools(&self, peer: &Peer<RoleClient>, trace: &McpTrace) -> Result<ToolCatalog, McpError> {
+    fn fetch_tools(&self, peer: &Peer<RoleClient>, turn: &McpTurn) -> Result<ToolCatalog, McpError> {
+        let trace = turn.trace();
         let mut params = PaginatedRequestParams::default();
         params.meta = Some(trace.meta());
         let result = runtime()?
@@ -145,7 +146,7 @@ impl ConnectionSlot {
         match result {
             Ok(tools) => Ok(catalog::from_rmcp_tools(tools.tools)),
             Err(error) => {
-                self.reset(trace, ResetReason::ListFailed);
+                self.reset(&trace, ResetReason::ListFailed);
                 Err(error)
             }
         }
@@ -165,7 +166,8 @@ impl ConnectionSlot {
     }
 }
 
-fn connect(config: &McpServerConfig, trace: &McpTrace) -> Result<Client, McpError> {
+fn connect(config: &McpServerConfig, turn: &McpTurn) -> Result<Client, McpError> {
+    let trace = turn.trace();
     let transport_config = transport_config(config)?;
     trace.connect_started();
     let started = Instant::now();
