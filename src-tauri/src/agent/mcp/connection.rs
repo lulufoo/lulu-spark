@@ -10,7 +10,7 @@ use std::sync::{LazyLock, Mutex, PoisonError};
 use rmcp::{
     ServiceExt,
     model::ClientInfo,
-    service::{RoleClient, RunningService},
+    service::{Peer, RoleClient, RunningService},
     transport::StreamableHttpClientTransport,
 };
 use tokio::runtime::{Builder, Runtime};
@@ -61,29 +61,46 @@ impl ConnectionSlot {
     }
 
     /// Discover the model-callable tools over the live connection, handshaking
-    /// first when there is none or `config` changed. A failed request drops
-    /// the connection so the next call handshakes again.
+    /// first when there is none or `config` changed.
+    ///
+    /// A failed request drops the connection. When the failed connection was a
+    /// reused one it may simply be stale, so handshake once more and retry once;
+    /// a connection that was just created is not retried.
     pub(super) fn list_tools(&self, config: &McpServerConfig) -> Result<ToolCatalog, McpError> {
-        let peer = {
-            let mut live = self.live.lock().unwrap_or_else(PoisonError::into_inner);
-            let reusable = live
-                .as_ref()
-                .is_some_and(|connection| connection.config == *config);
-            if !reusable {
-                if let Some(stale) = live.take() {
-                    close(stale);
-                }
-                let client = connect(config)?;
-                *live = Some(LiveConnection {
-                    config: config.clone(),
-                    client,
-                });
+        let (peer, reused) = self.peer_for(config)?;
+        match self.fetch_tools(&peer) {
+            Err(_) if reused => {
+                let (peer, _) = self.peer_for(config)?;
+                self.fetch_tools(&peer)
             }
-            live.as_ref()
-                .map(|connection| connection.client.peer().clone())
-                .ok_or_else(|| McpError::Connect("connection missing after connect".into()))?
-        };
+            outcome => outcome,
+        }
+    }
 
+    /// Peer of the live connection for `config`, and whether it was reused
+    /// rather than freshly handshaken.
+    fn peer_for(&self, config: &McpServerConfig) -> Result<(Peer<RoleClient>, bool), McpError> {
+        let mut live = self.live.lock().unwrap_or_else(PoisonError::into_inner);
+        let reused = live
+            .as_ref()
+            .is_some_and(|connection| connection.config == *config);
+        if !reused {
+            if let Some(stale) = live.take() {
+                close(stale);
+            }
+            let client = connect(config)?;
+            *live = Some(LiveConnection {
+                config: config.clone(),
+                client,
+            });
+        }
+        live.as_ref()
+            .map(|connection| (connection.client.peer().clone(), reused))
+            .ok_or_else(|| McpError::Connect("connection missing after connect".into()))
+    }
+
+    /// One `tools/list` request; a failure drops the connection.
+    fn fetch_tools(&self, peer: &Peer<RoleClient>) -> Result<ToolCatalog, McpError> {
         let result = runtime()?
             .block_on(peer.list_tools(Default::default()))
             .map_err(|error| McpError::ListTools(format!("{error:#}")));
