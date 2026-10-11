@@ -25,8 +25,11 @@ use serde_json::Value;
 use crate::agent::diagnostics::{self, DiagnosticEvent, TraceId};
 use crate::mcp_host::registry::McpServerConfig;
 
-use super::tools::catalog::{self, ToolCatalog, ToolResult};
+#[cfg(test)]
+use super::tools::catalog;
+use super::tools::catalog::{ToolCatalog, ToolResult};
 
+mod connection;
 mod trace_meta;
 pub(crate) use trace_meta::{build_trace_meta, read_trace_id};
 
@@ -104,27 +107,9 @@ fn client_info() -> ClientInfo {
     )
 }
 
-/// Discover the active scene's model-callable tools over MCP.
+/// Discover the active scene's model-callable tools over the live MCP connection.
 pub fn discover_tools(config: &McpServerConfig) -> Result<ToolCatalog, McpError> {
-    let transport_config = transport_config(config, None)?;
-    let runtime = tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .map_err(|error| McpError::Runtime(error.to_string()))?;
-
-    runtime.block_on(async move {
-        let transport = StreamableHttpClientTransport::from_config(transport_config);
-        let client = client_info()
-            .serve(transport)
-            .await
-            .map_err(|error| McpError::Connect(format!("{error:#}")))?;
-        let result = client
-            .list_tools(Default::default())
-            .await
-            .map_err(|error| McpError::ListTools(format!("{error:#}")));
-        let _ = client.cancel().await;
-        result.map(|tools| catalog::from_rmcp_tools(tools.tools))
-    })
+    connection::CONNECTION.list_tools(config)
 }
 
 /// Execute one already-discovered tool. The model argument must be a JSON object.
