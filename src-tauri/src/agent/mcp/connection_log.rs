@@ -74,25 +74,6 @@ impl McpTurn {
                 .with_static_field("reason", reason.as_str()),
         );
     }
-
-    /// One `tools/list` attempt sequence. `reused`: the first request went over
-    /// an existing connection. `retried`: it failed and was sent once more.
-    pub(super) fn list_completed(
-        &self,
-        elapsed: Duration,
-        reused: bool,
-        retried: bool,
-        result: &Result<ToolCatalog, McpError>,
-    ) {
-        let mut event = DiagnosticEvent::timing(COMPONENT, "list.completed", &self.turn_id, elapsed)
-            .with_bool_field("reused", reused)
-            .with_bool_field("retried", retried)
-            .with_static_field("outcome", outcome(result.is_ok()));
-        if let Ok(catalog) = result {
-            event = event.with_u64_field("tool_count", catalog.definitions.len() as u64);
-        }
-        emit(&self.session_id, event);
-    }
 }
 
 /// One MCP request. It always knows its turn and its chat session, so a line
@@ -143,6 +124,27 @@ impl McpTrace {
             DiagnosticEvent::point(COMPONENT, "connection.reset", &self.turn_id)
                 .with_static_field("reason", reason.as_str()),
         );
+    }
+
+    /// One `tools/list` request. `reused`: it went over an existing connection
+    /// rather than a freshly handshaken one. `attempt` is 1, or 2 for the retry.
+    pub(super) fn list_attempt_completed(
+        &self,
+        elapsed: Duration,
+        attempt: u64,
+        reused: bool,
+        result: &Result<ToolCatalog, McpError>,
+    ) {
+        let mut event =
+            DiagnosticEvent::timing(COMPONENT, "list.attempt.completed", &self.turn_id, elapsed)
+                .with_u64_field("attempt", attempt)
+                .with_bool_field("reused", reused)
+                .with_static_field("outcome", outcome(result.is_ok()));
+        event = match result {
+            Ok(catalog) => event.with_u64_field("tool_count", catalog.definitions.len() as u64),
+            Err(error) => event.with_bounded_text_field("sdk_error_message", &error.to_string()),
+        };
+        self.emit(event);
     }
 
     pub(crate) fn call_started(&self, tool_name: &str) {

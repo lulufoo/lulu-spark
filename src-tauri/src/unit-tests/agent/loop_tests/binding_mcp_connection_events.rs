@@ -56,13 +56,20 @@ fn first_list_handshakes_and_the_second_reuses_the_connection() {
         let events = connection_events();
         assert_eq!(
             names(&events),
-            ["connect.started", "connect.completed", "list.completed", "list.completed"]
+            [
+                "connect.started",
+                "connect.completed",
+                "list.attempt.completed",
+                "list.attempt.completed"
+            ]
         );
         for event in &events {
             assert_eq!(event["schema_version"], 2);
             assert_eq!(event["session_id"], SESSION);
             assert!(event["turn_id"].as_str().is_some_and(|id| id.starts_with("turn_")));
-            let is_request = event["event"].as_str().is_some_and(|name| name.starts_with("connect."));
+            let is_request = event["event"]
+                .as_str()
+                .is_some_and(|name| name.starts_with("connect.") || name.starts_with("list.attempt"));
             assert_eq!(event.get("trace_id").is_some(), is_request, "{event}");
         }
         assert_eq!(events[0]["trace_id"], events[1]["trace_id"], "one handshake request");
@@ -72,10 +79,15 @@ fn first_list_handshakes_and_the_second_reuses_the_connection() {
             "the client line carries the id the server received"
         );
         assert_eq!(events[1]["fields"]["outcome"], "ok");
+        assert_eq!(events[2]["fields"]["attempt"], 1);
         assert_eq!(events[2]["fields"]["reused"], false);
         assert_eq!(events[2]["fields"]["tool_count"], 1);
+        assert_eq!(events[3]["fields"]["attempt"], 1);
         assert_eq!(events[3]["fields"]["reused"], true);
-        assert_eq!(events[3]["fields"]["retried"], false);
+        let sent = server.metas("tools/list");
+        assert_eq!(events[2]["trace_id"], sent[0]["spark/trace_id"]);
+        assert_eq!(events[3]["trace_id"], sent[1]["spark/trace_id"]);
+        assert_ne!(events[2]["trace_id"], events[3]["trace_id"]);
         mcp::release_connection(ResetReason::BindingReset);
     });
 }
@@ -92,12 +104,61 @@ fn failed_list_on_a_reused_connection_logs_reset_reconnect_and_retry() {
 
         let events = connection_events();
         assert_eq!(
-            names(&events)[3..],
-            ["connection.reset", "connect.started", "connect.completed", "list.completed"]
+            names(&events)[2..],
+            [
+                "list.attempt.completed",
+                "list.attempt.completed",
+                "connection.reset",
+                "connect.started",
+                "connect.completed",
+                "list.attempt.completed"
+            ]
         );
-        assert_eq!(events[3]["fields"]["reason"], "list_failed");
-        assert_eq!(events[6]["fields"]["reused"], true);
-        assert_eq!(events[6]["fields"]["retried"], true);
+        let (first, failed, reset, retried) = (&events[2], &events[3], &events[4], &events[7]);
+        assert_eq!(first["fields"]["outcome"], "ok");
+        assert_eq!(failed["fields"]["attempt"], 1);
+        assert_eq!(failed["fields"]["reused"], true);
+        assert_eq!(failed["fields"]["outcome"], "error");
+        assert!(failed["fields"]["sdk_error_message"].is_string(), "{failed}");
+        assert_eq!(reset["fields"]["reason"], "list_failed");
+        assert_eq!(reset["trace_id"], failed["trace_id"], "the reset belongs to the failed request");
+        assert_eq!(retried["fields"]["attempt"], 2);
+        assert_eq!(retried["fields"]["reused"], false);
+        assert_eq!(retried["fields"]["outcome"], "ok");
+        let sent = server.metas("tools/list");
+        assert_eq!(sent.len(), 3);
+        for (event, meta) in [first, failed, retried].into_iter().zip(&sent) {
+            assert_eq!(event["trace_id"], meta["spark/trace_id"]);
+        }
+        let traces = [&first["trace_id"], &failed["trace_id"], &retried["trace_id"]];
+        assert!(traces[0] != traces[1] && traces[1] != traces[2] && traces[0] != traces[2]);
+        mcp::release_connection(ResetReason::BindingReset);
+    });
+}
+
+#[test]
+fn list_failing_on_both_attempts_logs_two_error_events() {
+    with_sandbox(|| {
+        let server = WireServer::start();
+        let config = server.config(&[]);
+        mcp::discover_tools(&config, &turn()).expect("list while healthy");
+
+        server.fail_next("tools/list", 2);
+        assert!(mcp::discover_tools(&config, &turn()).is_err());
+
+        let attempts: Vec<_> = connection_events()
+            .into_iter()
+            .filter(|event| event["event"] == "list.attempt.completed")
+            .skip(1)
+            .collect();
+        assert_eq!(attempts.len(), 2);
+        assert_eq!(attempts[0]["fields"]["attempt"], 1);
+        assert_eq!(attempts[1]["fields"]["attempt"], 2);
+        for attempt in &attempts {
+            assert_eq!(attempt["fields"]["outcome"], "error");
+            assert!(attempt["fields"].get("tool_count").is_none());
+        }
+        assert_ne!(attempts[0]["trace_id"], attempts[1]["trace_id"]);
         mcp::release_connection(ResetReason::BindingReset);
     });
 }
@@ -130,9 +191,10 @@ fn changed_config_logs_a_config_changed_reset() {
         let events = connection_events();
         assert_eq!(
             names(&events)[3..],
-            ["connection.reset", "connect.started", "connect.completed", "list.completed"]
+            ["connection.reset", "connect.started", "connect.completed", "list.attempt.completed"]
         );
         assert_eq!(events[3]["fields"]["reason"], "config_changed");
+        assert!(events[3].get("trace_id").is_none(), "dropped before any request of this turn");
         mcp::release_connection(ResetReason::BindingReset);
     });
 }

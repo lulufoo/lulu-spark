@@ -74,17 +74,12 @@ impl ConnectionSlot {
         turn: &McpTurn,
     ) -> Result<ToolCatalog, McpError> {
         let (peer, reused) = self.peer_for(config, turn)?;
-        let started = Instant::now();
-        let (result, retried) = match (self.fetch_tools(&peer, turn), reused) {
-            (Err(_), true) => (
-                self.peer_for(config, turn)
-                    .and_then(|(peer, _)| self.fetch_tools(&peer, turn)),
-                true,
-            ),
-            (outcome, _) => (outcome, false),
-        };
-        turn.list_completed(started.elapsed(), reused, retried, &result);
-        result
+        match (self.list_attempt(&peer, turn, 1, reused), reused) {
+            (Err(_), true) => self.peer_for(config, turn).and_then(|(peer, reused)| {
+                self.list_attempt(&peer, turn, 2, reused)
+            }),
+            (outcome, _) => outcome,
+        }
     }
 
     /// Run one `tools/call` over the live connection, handshaking first when
@@ -135,21 +130,28 @@ impl ConnectionSlot {
             .ok_or_else(|| McpError::Connect("connection missing after connect".into()))
     }
 
-    /// One `tools/list` request; a failure drops the connection.
-    fn fetch_tools(&self, peer: &Peer<RoleClient>, turn: &McpTurn) -> Result<ToolCatalog, McpError> {
+    /// One `tools/list` request, logged as its own event; a failure drops the
+    /// connection. `attempt` is 1, or 2 for the retry.
+    fn list_attempt(
+        &self,
+        peer: &Peer<RoleClient>,
+        turn: &McpTurn,
+        attempt: u64,
+        reused: bool,
+    ) -> Result<ToolCatalog, McpError> {
         let trace = turn.trace();
         let mut params = PaginatedRequestParams::default();
         params.meta = Some(trace.meta());
+        let started = Instant::now();
         let result = runtime()?
             .block_on(peer.list_tools(Some(params)))
+            .map(|tools| catalog::from_rmcp_tools(tools.tools))
             .map_err(|error| McpError::ListTools(format!("{error:#}")));
-        match result {
-            Ok(tools) => Ok(catalog::from_rmcp_tools(tools.tools)),
-            Err(error) => {
-                self.reset(&trace, ResetReason::ListFailed);
-                Err(error)
-            }
+        trace.list_attempt_completed(started.elapsed(), attempt, reused, &result);
+        if result.is_err() {
+            self.reset(&trace, ResetReason::ListFailed);
         }
+        result
     }
 
     /// Drop the live connection, if any, and close its server session.
