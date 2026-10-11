@@ -143,6 +143,29 @@ describe('deleting a chip', () => {
     expect(el.getAttribute('data-empty')).toBe('true');
   });
 
+  it('Backspace after a prefilled chip and its trailing space removes both at once', () => {
+    const { ref, el } = render();
+    ref.current.setText(`${NOTE} `);
+    expect(beforeInput(el, 'deleteContentBackward').defaultPrevented).toBe(true);
+    expect(el.querySelector('.home-ref-chip')).toBeNull();
+    expect(ref.current.getText()).toBe('');
+    expect(el.getAttribute('data-empty')).toBe('true');
+  });
+
+  it('Backspace inside the trailing space node removes chip and space too', () => {
+    const { ref, el } = render();
+    ref.current.setText(`${NOTE} `);
+    caretAt(el.lastChild, 1);
+    expect(beforeInput(el, 'deleteContentBackward').defaultPrevented).toBe(true);
+    expect(ref.current.getText()).toBe('');
+  });
+
+  it('leaves a space that follows other text to the browser', () => {
+    const { ref, el } = render();
+    ref.current.setText(`x${NOTE} y `);
+    expect(beforeInput(el, 'deleteContentBackward').defaultPrevented).toBe(false);
+  });
+
   it('Delete right before a chip removes the whole chip', () => {
     const { ref, el } = render();
     ref.current.setText(`x${NOTE}`);
