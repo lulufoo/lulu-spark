@@ -31,7 +31,7 @@ use serde_json::{json, Value};
 use tokio_util::sync::CancellationToken;
 
 use crate::agent::diagnostics::TraceId;
-use crate::agent::mcp::DIAGNOSTIC_TRACE_HEADER;
+use crate::agent::mcp::{read_trace_id, DIAGNOSTIC_TRACE_HEADER};
 use crate::main_host;
 use crate::services::app_log::{self, Level, Side};
 use crate::services::mcp_oauth::{verify_device_token, verify_for_slot, OAuthError, Slot, TicketHandle};
@@ -115,12 +115,14 @@ impl ServerHandler for SlotHandler {
     fn call_tool(
         &self,
         request: CallToolRequestParams,
-        _context: RequestContext<RoleServer>,
+        context: RequestContext<RoleServer>,
     ) -> impl std::future::Future<Output = Result<CallToolResponse, McpError>> + Send + '_ {
         let slot = self.scene_slot.clone();
         let channel = self.channel.clone();
+        // rmcp strips the wire `params._meta` into `context.meta`; the typed
+        // `request.meta` stays empty on the server side.
+        let trace_id = read_trace_id(&context.meta).unwrap_or_else(TraceId::new);
         async move {
-            let trace_id = TraceId::new();
             let tool_name = request.name.to_string();
             let call_started = Instant::now();
             log_mcp_host(

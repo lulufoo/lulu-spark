@@ -27,6 +27,9 @@ use crate::mcp_host::registry::McpServerConfig;
 
 use super::tools::catalog::{self, ToolCatalog, ToolResult};
 
+mod trace_meta;
+pub(crate) use trace_meta::{build_trace_meta, read_trace_id};
+
 const CLIENT_NAME: &str = "spark-host-agent";
 const CLIENT_VERSION: &str = env!("CARGO_PKG_VERSION");
 const RMCP_RESERVED_HEADERS: &[&str] = &["accept", "mcp-session-id", "last-event-id"];
@@ -182,6 +185,7 @@ pub fn call_tool(
         };
         let mut params = CallToolRequestParams::new(name);
         params.arguments = Some(arguments);
+        params.meta = Some(build_trace_meta(&trace_id));
         let tool_name = params.name.to_string();
         let call_started = Instant::now();
         let _ = diagnostics::log(
