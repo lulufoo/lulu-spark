@@ -52,10 +52,13 @@ fn local_catalog() -> ToolCatalog {
 pub fn discover_and_merge(
     mcp_config: Option<&McpServerConfig>,
     with_host: bool,
+    trace_id: &TraceId,
+    session_id: &str,
 ) -> Result<TurnTools, PrepareError> {
     let mcp = match mcp_config {
         Some(config) => {
-            let catalog = mcp::discover_tools(config).map_err(PrepareError::Mcp)?;
+            let trace = mcp::McpTrace::new(trace_id, session_id);
+            let catalog = mcp::discover_tools(config, &trace).map_err(PrepareError::Mcp)?;
             if catalog.definitions.is_empty() {
                 return Err(PrepareError::EmptyMcpTools);
             }

@@ -145,7 +145,12 @@ pub(crate) fn run_loop_with_progress(
 
     let mut turn_fence = turn_fence_for_session(session);
     let mcp_config = session_capability_mcp_config();
-    let turn_tools = match tools::discover_and_merge(mcp_config.as_ref(), turn_fence.is_some()) {
+    let turn_tools = match tools::discover_and_merge(
+        mcp_config.as_ref(),
+        turn_fence.is_some(),
+        trace_id,
+        &session.session_id,
+    ) {
         Ok(tools) => tools,
         Err(PrepareError::EmptyMcpTools) => {
             let reply = "当前场景的 MCP 服务未暴露任何工具，无法继续。".to_string();

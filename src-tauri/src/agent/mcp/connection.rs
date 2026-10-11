@@ -6,6 +6,7 @@
 //! stop when the runtime that spawned them is dropped.
 
 use std::sync::{LazyLock, Mutex, PoisonError};
+use std::time::Instant;
 
 use rmcp::{
     ServiceExt,
@@ -19,6 +20,7 @@ use crate::mcp_host::registry::McpServerConfig;
 
 use crate::agent::tools::catalog::{self, ToolCatalog};
 
+use super::connection_log::{McpTrace, ResetReason};
 use super::{client_info, transport_config, McpError};
 
 type Client = RunningService<RoleClient, ClientInfo>;
@@ -66,15 +68,23 @@ impl ConnectionSlot {
     /// A failed request drops the connection. When the failed connection was a
     /// reused one it may simply be stale, so handshake once more and retry once;
     /// a connection that was just created is not retried.
-    pub(super) fn list_tools(&self, config: &McpServerConfig) -> Result<ToolCatalog, McpError> {
-        let (peer, reused) = self.peer_for(config)?;
-        match self.fetch_tools(&peer) {
-            Err(_) if reused => {
-                let (peer, _) = self.peer_for(config)?;
-                self.fetch_tools(&peer)
-            }
-            outcome => outcome,
-        }
+    pub(super) fn list_tools(
+        &self,
+        config: &McpServerConfig,
+        trace: &McpTrace,
+    ) -> Result<ToolCatalog, McpError> {
+        let (peer, reused) = self.peer_for(config, trace)?;
+        let started = Instant::now();
+        let (result, retried) = match (self.fetch_tools(&peer, trace), reused) {
+            (Err(_), true) => (
+                self.peer_for(config, trace)
+                    .and_then(|(peer, _)| self.fetch_tools(&peer, trace)),
+                true,
+            ),
+            (outcome, _) => (outcome, false),
+        };
+        trace.list_completed(started.elapsed(), reused, retried, &result);
+        result
     }
 
     /// Run one `tools/call` over the live connection, handshaking first when
@@ -85,29 +95,35 @@ impl ConnectionSlot {
         &self,
         config: &McpServerConfig,
         params: CallToolRequestParams,
+        trace: &McpTrace,
     ) -> Result<CallToolResult, McpError> {
-        let (peer, _) = self.peer_for(config)?;
+        let (peer, _) = self.peer_for(config, trace)?;
         let result = runtime()?
             .block_on(peer.call_tool(params))
             .map_err(|error| McpError::CallTool(format!("{error:#}")));
         if result.is_err() {
-            self.reset();
+            self.reset(trace, ResetReason::CallFailed);
         }
         result
     }
 
     /// Peer of the live connection for `config`, and whether it was reused
     /// rather than freshly handshaken.
-    fn peer_for(&self, config: &McpServerConfig) -> Result<(Peer<RoleClient>, bool), McpError> {
+    fn peer_for(
+        &self,
+        config: &McpServerConfig,
+        trace: &McpTrace,
+    ) -> Result<(Peer<RoleClient>, bool), McpError> {
         let mut live = self.live.lock().unwrap_or_else(PoisonError::into_inner);
         let reused = live
             .as_ref()
             .is_some_and(|connection| connection.config == *config);
         if !reused {
             if let Some(stale) = live.take() {
+                trace.connection_reset(ResetReason::ConfigChanged);
                 close(stale);
             }
-            let client = connect(config)?;
+            let client = connect(config, trace)?;
             *live = Some(LiveConnection {
                 config: config.clone(),
                 client,
@@ -119,42 +135,47 @@ impl ConnectionSlot {
     }
 
     /// One `tools/list` request; a failure drops the connection.
-    fn fetch_tools(&self, peer: &Peer<RoleClient>) -> Result<ToolCatalog, McpError> {
+    fn fetch_tools(&self, peer: &Peer<RoleClient>, trace: &McpTrace) -> Result<ToolCatalog, McpError> {
         let result = runtime()?
             .block_on(peer.list_tools(Default::default()))
             .map_err(|error| McpError::ListTools(format!("{error:#}")));
         match result {
             Ok(tools) => Ok(catalog::from_rmcp_tools(tools.tools)),
             Err(error) => {
-                self.reset();
+                self.reset(trace, ResetReason::ListFailed);
                 Err(error)
             }
         }
     }
 
     /// Drop the live connection, if any, and close its server session.
-    pub(super) fn reset(&self) {
+    pub(super) fn reset(&self, trace: &McpTrace, reason: ResetReason) {
         let stale = self
             .live
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
             .take();
         if let Some(stale) = stale {
+            trace.connection_reset(reason);
             close(stale);
         }
     }
 }
 
-fn connect(config: &McpServerConfig) -> Result<Client, McpError> {
+fn connect(config: &McpServerConfig, trace: &McpTrace) -> Result<Client, McpError> {
     let transport_config = transport_config(config)?;
+    trace.connect_started();
+    let started = Instant::now();
     // The transport spawns its worker on construction, so it must be built
     // inside the runtime that will keep serving the connection.
-    runtime()?
+    let client = runtime()?
         .block_on(async move {
             let transport = StreamableHttpClientTransport::from_config(transport_config);
             client_info().serve(transport).await
         })
-        .map_err(|error| McpError::Connect(format!("{error:#}")))
+        .map_err(|error| McpError::Connect(format!("{error:#}")));
+    trace.connect_completed(started.elapsed(), client.is_ok());
+    client
 }
 
 fn close(connection: LiveConnection) {

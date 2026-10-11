@@ -26,7 +26,9 @@ use super::tools::catalog;
 use super::tools::catalog::{ToolCatalog, ToolResult};
 
 mod connection;
+mod connection_log;
 mod trace_meta;
+pub use connection_log::{McpTrace, ResetReason};
 pub(crate) use trace_meta::{build_trace_meta, read_trace_id};
 
 const CLIENT_NAME: &str = "spark-host-agent";
@@ -96,15 +98,18 @@ fn client_info() -> ClientInfo {
 }
 
 /// Discover the active scene's model-callable tools over the live MCP connection.
-pub fn discover_tools(config: &McpServerConfig) -> Result<ToolCatalog, McpError> {
-    connection::CONNECTION.list_tools(config)
+pub fn discover_tools(
+    config: &McpServerConfig,
+    trace: &McpTrace,
+) -> Result<ToolCatalog, McpError> {
+    connection::CONNECTION.list_tools(config, trace)
 }
 
 /// Close the live MCP connection, if any, and its server session. Called when
 /// the Binding is reset and when the app exits; the next request handshakes
 /// again. Blocks, so it must not run on an async executor thread.
-pub fn release_connection() {
-    connection::CONNECTION.reset();
+pub fn release_connection(reason: ResetReason) {
+    connection::CONNECTION.reset(&McpTrace::detached(), reason);
 }
 
 /// Execute one already-discovered tool over the live MCP connection. The model
@@ -131,7 +136,8 @@ pub fn call_tool(
             .with_bounded_text_field("tool_name", &tool_name),
     );
     let call_started = Instant::now();
-    let result = connection::CONNECTION.call_tool(config, params);
+    let trace = McpTrace::new(trace_id, session_id);
+    let result = connection::CONNECTION.call_tool(config, params, &trace);
     let _ = diagnostics::log(
         DiagnosticEvent::timing(
             "assistant.mcp",
