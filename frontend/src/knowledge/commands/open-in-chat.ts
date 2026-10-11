@@ -1,6 +1,7 @@
 import * as api from '../../host/api.ts';
 import { openDraftInChat } from '../../home/commands/open-in-chat.ts';
 import { serializeReference } from '../../home/references/index.ts';
+import { formatReferenceText, writeClipboardText } from '../../shared/reference-text.ts';
 import { state } from '../state/host.ts';
 
 function filenameTitle(path: string) {
@@ -30,17 +31,30 @@ export function knowledgeReferenceDraft(path: string, id: string, body = '') {
   return `${serializeReference({ kind: 'knowledge', id, title: documentTitle(path, body) })} `;
 }
 
-export async function openKnowledgeInChat(path: string, button?: HTMLButtonElement | null) {
+/** Ask the host for this document's id, issuing one if it has none yet. */
+async function rememberKnowledgeId(path: string) {
   const abs = String(path || '').trim();
   if (!abs) throw new Error('Missing file path');
+  const remembered = (await api.invoke('remember_knowledge_doc', { path: abs })) as {
+    ok?: boolean;
+    id?: string;
+  };
+  const id = String(remembered?.id || '').trim();
+  if (!id) throw new Error('Missing source');
+  return { abs, id };
+}
+
+/** Copy `Lulu Spark knowledge` / title / id for an outside tool. Resolves false when nothing was copied. */
+export async function copyKnowledgeReference(path: string) {
+  const { abs, id } = await rememberKnowledgeId(path);
+  const title = documentTitle(abs, viewingKnowledgeBody(abs));
+  return writeClipboardText(formatReferenceText({ kind: 'knowledge', id, title }));
+}
+
+export async function openKnowledgeInChat(path: string, button?: HTMLButtonElement | null) {
   if (button) button.disabled = true;
   try {
-    const remembered = (await api.invoke('remember_knowledge_doc', { path: abs })) as {
-      ok?: boolean;
-      id?: string;
-    };
-    const sourceId = String(remembered?.id || '').trim();
-    if (!sourceId) throw new Error('Missing source');
+    const { abs, id: sourceId } = await rememberKnowledgeId(path);
     await openDraftInChat(knowledgeReferenceDraft(abs, sourceId, viewingKnowledgeBody(abs)));
   } finally {
     if (button) button.disabled = false;

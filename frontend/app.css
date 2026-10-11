@@ -3891,6 +3891,7 @@
     font-size: 11px !important;
     color: var(--fg-subtle) !important;
     letter-spacing: 0.01em;
+    margin-right: 12px;
   }
   #note-outlet #md-links-bar,
   #note-outlet #md-tags-bar {

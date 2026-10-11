@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  copyKnowledgeReference,
   knowledgeReferenceDraft,
   openKnowledgeInChat,
 } from '../../frontend/src/knowledge/commands/open-in-chat.ts';
@@ -107,5 +108,60 @@ describe('openKnowledgeInChat', () => {
     draftSpy.mockRejectedValueOnce(new Error('boom'));
     await expect(openKnowledgeInChat(PATH, button)).rejects.toThrow('boom');
     expect(button.disabled).toBe(false);
+  });
+});
+
+describe('copyKnowledgeReference', () => {
+  /** @type {import('vitest').MockInstance} */
+  let invokeSpy;
+  /** @type {import('vitest').Mock} */
+  let writeText;
+
+  beforeEach(() => {
+    resetViewer();
+    writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal('navigator', { clipboard: { writeText } });
+    invokeSpy = vi.spyOn(api, 'invoke').mockImplementation(async (cmd, args) => {
+      if (cmd === 'remember_knowledge_doc') {
+        return { ok: true, id: ID };
+      }
+      return args;
+    });
+  });
+
+  afterEach(() => {
+    invokeSpy.mockRestore();
+    vi.unstubAllGlobals();
+    resetViewer();
+  });
+
+  it('remembers the path, then copies the kind, title and id with no file path', async () => {
+    await expect(copyKnowledgeReference(PATH)).resolves.toBe(true);
+    expect(invokeSpy).toHaveBeenCalledWith('remember_knowledge_doc', { path: PATH });
+    expect(writeText).toHaveBeenCalledWith(
+      `Lulu Spark knowledge\ntitle: design-notes\nid: ${ID}`,
+    );
+    expect(writeText.mock.calls[0][0]).not.toContain('/Users/');
+  });
+
+  it('uses the open viewer H1 as the title', async () => {
+    state.viewer.isKb = true;
+    state.viewer.kbPath = 'demo/design-notes.md';
+    state.viewer.rawText = '# Design Notes\n\nbody';
+    await copyKnowledgeReference(PATH);
+    expect(writeText).toHaveBeenCalledWith(
+      `Lulu Spark knowledge\ntitle: Design Notes\nid: ${ID}`,
+    );
+  });
+
+  it('rejects when remember_knowledge_doc returns no id, and copies nothing', async () => {
+    invokeSpy.mockResolvedValue({ error: 'Missing path' });
+    await expect(copyKnowledgeReference(PATH)).rejects.toThrow('Missing source');
+    expect(writeText).not.toHaveBeenCalled();
+  });
+
+  it('rejects an empty path before invoke', async () => {
+    await expect(copyKnowledgeReference('  ')).rejects.toThrow('Missing file path');
+    expect(invokeSpy).not.toHaveBeenCalled();
   });
 });
