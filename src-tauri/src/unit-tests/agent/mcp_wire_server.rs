@@ -181,6 +181,8 @@ impl WireServer {
     }
 
     /// Answer the next `count` requests of `method` with HTTP 500.
+    // This file is compiled into two test modules; only one injects failures.
+    #[allow(dead_code)]
     pub fn fail_next(&self, method: &str, count: usize) {
         self.state
             .failures

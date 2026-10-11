@@ -100,6 +100,13 @@ pub fn discover_tools(config: &McpServerConfig) -> Result<ToolCatalog, McpError>
     connection::CONNECTION.list_tools(config)
 }
 
+/// Close the live MCP connection, if any, and its server session. Called when
+/// the Binding is reset and when the app exits; the next request handshakes
+/// again. Blocks, so it must not run on an async executor thread.
+pub fn release_connection() {
+    connection::CONNECTION.reset();
+}
+
 /// Execute one already-discovered tool over the live MCP connection. The model
 /// argument must be a JSON object.
 pub fn call_tool(

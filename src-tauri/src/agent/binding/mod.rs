@@ -203,6 +203,9 @@ pub fn reset_binding() -> Result<(), ()> {
             (was, previous_business_id, previous_generation)
         })
     };
+    // The MCP config left with the Binding; close its connection outside the
+    // runtime lock so the DELETE round trip never blocks other Binding calls.
+    crate::agent::mcp::release_connection();
     eprintln!(
         "[DEBUG-binding-transition] op=reset was_bound={was_bound} \
          previous_business_id={previous_business_id:?} previous_generation={previous_generation:?}"
