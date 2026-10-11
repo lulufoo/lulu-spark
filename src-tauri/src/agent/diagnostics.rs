@@ -104,6 +104,23 @@ impl DiagnosticEvent {
         }
     }
 
+    /// An event of the process itself (app exit, Binding Reset), not of any
+    /// turn: it carries no `turn_id`, `trace_id` or `session_id` and goes to
+    /// the app log.
+    pub fn process_point(component: &'static str, event: &'static str) -> Self {
+        Self {
+            schema_version: SCHEMA_VERSION,
+            timestamp: Utc::now().to_rfc3339(),
+            component,
+            event,
+            turn_id: None,
+            trace_id: None,
+            session_id: None,
+            elapsed_ms: None,
+            fields: BTreeMap::new(),
+        }
+    }
+
     /// Mark the event as the log line of one cross-process request.
     pub fn with_trace_id(mut self, trace_id: &TraceId) -> Self {
         self.trace_id = Some(trace_id.as_str().to_string());

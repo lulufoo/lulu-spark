@@ -109,7 +109,7 @@ pub fn discover_tools(
 /// the Binding is reset and when the app exits; the next request handshakes
 /// again. Blocks, so it must not run on an async executor thread.
 pub fn release_connection(reason: ResetReason) {
-    connection::CONNECTION.reset(&McpTrace::detached(), reason);
+    connection::CONNECTION.reset(None, reason);
 }
 
 /// Execute one already-discovered tool over the live MCP connection. The model

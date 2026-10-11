@@ -20,7 +20,7 @@ use crate::mcp_host::registry::McpServerConfig;
 
 use crate::agent::tools::catalog::{self, ToolCatalog};
 
-use super::connection_log::{McpTrace, McpTurn, ResetReason};
+use super::connection_log::{self, McpTrace, McpTurn, ResetReason};
 use super::{client_info, transport_config, McpError};
 
 type Client = RunningService<RoleClient, ClientInfo>;
@@ -98,7 +98,7 @@ impl ConnectionSlot {
             .block_on(peer.call_tool(params))
             .map_err(|error| McpError::CallTool(format!("{error:#}")));
         if result.is_err() {
-            self.reset(trace, ResetReason::CallFailed);
+            self.reset(Some(trace), ResetReason::CallFailed);
         }
         result
     }
@@ -149,20 +149,24 @@ impl ConnectionSlot {
             .map_err(|error| McpError::ListTools(format!("{error:#}")));
         trace.list_attempt_completed(started.elapsed(), attempt, reused, &result);
         if result.is_err() {
-            self.reset(&trace, ResetReason::ListFailed);
+            self.reset(Some(&trace), ResetReason::ListFailed);
         }
         result
     }
 
-    /// Drop the live connection, if any, and close its server session.
-    pub(super) fn reset(&self, trace: &McpTrace, reason: ResetReason) {
+    /// Drop the live connection, if any, and close its server session. `trace`
+    /// is the request that failed; `None` when the process releases it.
+    pub(super) fn reset(&self, trace: Option<&McpTrace>, reason: ResetReason) {
         let stale = self
             .live
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
             .take();
         if let Some(stale) = stale {
-            trace.connection_reset(reason);
+            match trace {
+                Some(trace) => trace.connection_reset(reason),
+                None => connection_log::connection_released(reason),
+            }
             close(stale);
         }
     }

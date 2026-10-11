@@ -3,6 +3,10 @@
 //! `initialize`, `tools/list` and `tools/call` each carry the chat session id,
 //! the turn id and the request's own trace id in the request body instead of an
 //! HTTP header, so they stay correct when one connection serves many turns.
+//!
+//! Requests that cannot carry `_meta`: `notifications/initialized` (rmcp's
+//! `NotificationNoParam` has no params), the GET (SSE) stream and DELETE (no body).
+//! The server logs them with a random trace id and no turn or session id.
 
 use rmcp::model::RequestMetaObject;
 use serde_json::Value;

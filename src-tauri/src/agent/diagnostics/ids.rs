@@ -10,6 +10,14 @@
 //!
 //! A line that carries a `trace_id` also carries its `turn_id` and `session_id`; a line
 //! that carries a `turn_id` also carries its `session_id`. The reverse does not hold.
+//!
+//! Every line of a `session.log` carries its `session_id`. Events of the process itself
+//! (Binding Reset, app exit) belong to no turn and carry none of the three ids.
+//!
+//! Server lines of an MCP request carry the ids the client put in `_meta`, with one
+//! limit: `notifications/initialized`, the GET (SSE) stream and DELETE cannot carry
+//! `_meta` (a no-param notification and body-less requests), so their server lines get a
+//! random `trace_id` and no turn or session.
 
 use std::sync::atomic::{AtomicU64, Ordering};
 

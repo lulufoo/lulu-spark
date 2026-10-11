@@ -87,12 +87,6 @@ pub struct McpTrace {
 }
 
 impl McpTrace {
-    /// Not tied to any chat session (Binding Reset, app exit): events go to the
-    /// process-level app log.
-    pub fn detached() -> Self {
-        McpTurn::new(&TurnId::new(), "").trace()
-    }
-
     /// The turn this request belongs to.
     pub(super) fn turn(&self) -> McpTurn {
         McpTurn {
@@ -165,6 +159,15 @@ impl McpTrace {
     fn emit(&self, event: DiagnosticEvent) {
         emit(&self.session_id, event.with_trace_id(&self.trace_id));
     }
+}
+
+/// The live connection was released by the process (Binding Reset, app exit),
+/// outside any turn: no ids, only the reason, in the app log.
+pub(super) fn connection_released(reason: ResetReason) {
+    let _ = diagnostics::log(
+        DiagnosticEvent::process_point(COMPONENT, "connection.reset")
+            .with_static_field("reason", reason.as_str()),
+    );
 }
 
 fn emit(session_id: &str, event: DiagnosticEvent) {

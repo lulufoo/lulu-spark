@@ -1042,3 +1042,13 @@ fn llm_load_config_blank_assistant_engine_is_missing_config() {
         assert!(matches!(err, LlmError::MissingConfig), "{err:?}");
     });
 }
+
+#[test]
+fn process_events_carry_none_of_the_three_ids() {
+    let event = diagnostics::DiagnosticEvent::process_point("assistant.mcp", "connection.reset");
+    let line = serde_json::to_value(&event).expect("serialize");
+    for key in ["turn_id", "trace_id", "session_id"] {
+        assert!(line.get(key).is_none(), "{key} must be absent: {line}");
+    }
+    assert_eq!(line["schema_version"], 2);
+}

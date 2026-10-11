@@ -234,3 +234,55 @@ fn each_call_request_logs_the_trace_id_the_server_received() {
         mcp::release_connection(ResetReason::BindingReset);
     });
 }
+
+/// One full flow: handshake, tools/list, two tool calls, a failed call, a Binding Reset.
+/// Every line of the session log must respect the id layers, and every request the server
+/// received must carry all three ids of the matching client line.
+#[test]
+fn id_layers_hold_on_every_line_of_a_full_flow() {
+    with_sandbox(|| {
+        let server = WireServer::start();
+        let config = server.config(&[]);
+        let turn_id = TurnId::new();
+
+        mcp::discover_tools(&config, &McpTurn::new(&turn_id, SESSION)).expect("list");
+        for _ in 0..2 {
+            mcp::call_tool(&config, "ping", json!({}), &turn_id, SESSION).expect("call");
+        }
+        server.fail_next("tools/call", 1);
+        assert!(mcp::call_tool(&config, "ping", json!({}), &turn_id, SESSION).is_err());
+        mcp::discover_tools(&config, &McpTurn::new(&turn_id, SESSION)).expect("list again");
+        mcp::release_connection(ResetReason::BindingReset);
+
+        let lines = mcp_events();
+        assert!(lines.len() >= 10, "the flow must have logged: {lines:?}");
+        for line in &lines {
+            assert_eq!(line["session_id"], SESSION, "every session.log line has it: {line}");
+            assert_eq!(line["turn_id"], turn_id.as_str(), "{line}");
+        }
+        assert!(
+            lines.iter().filter(|line| line["event"] == "connection.reset").count() >= 1,
+            "the failed call dropped the connection"
+        );
+        // The Binding Reset released a live connection, but it belongs to no turn, so it
+        // goes to the app log and never into a session log.
+        assert!(lines
+            .iter()
+            .all(|line| line["fields"]["reason"] != "binding_reset"));
+
+        for (method, event) in [
+            ("initialize", "connect.started"),
+            ("tools/list", "list.attempt.completed"),
+            ("tools/call", "call.request.started"),
+        ] {
+            let logged: Vec<&Value> = lines.iter().filter(|line| line["event"] == event).collect();
+            let sent = server.metas(method);
+            assert_eq!(logged.len(), sent.len(), "{method}");
+            for (line, meta) in logged.iter().zip(&sent) {
+                assert_eq!(line["trace_id"], meta["spark/trace_id"], "{method}");
+                assert_eq!(meta["spark/turn_id"], turn_id.as_str(), "{method}");
+                assert_eq!(meta["spark/session_id"], SESSION, "{method}");
+            }
+        }
+    });
+}
