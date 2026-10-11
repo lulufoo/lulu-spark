@@ -31,7 +31,7 @@ use serde_json::{json, Value};
 use tokio_util::sync::CancellationToken;
 
 use crate::agent::diagnostics::TraceId;
-use crate::agent::mcp::{read_trace_id, DIAGNOSTIC_TRACE_HEADER};
+use crate::agent::mcp::read_trace_id;
 use crate::main_host;
 use crate::services::app_log::{self, Level, Side};
 use crate::services::mcp_oauth::{verify_device_token, verify_for_slot, OAuthError, Slot, TicketHandle};
@@ -284,12 +284,7 @@ pub(super) async fn slot_bearer_gate(
     request: Request,
     next: Next,
 ) -> Response {
-    let trace_id = request
-        .headers()
-        .get(DIAGNOSTIC_TRACE_HEADER)
-        .and_then(|value| value.to_str().ok())
-        .and_then(TraceId::parse)
-        .unwrap_or_else(TraceId::new);
+    let trace_id = TraceId::new();
     let request_started = Instant::now();
     log_mcp_host(
         "request.auth.started",

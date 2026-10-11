@@ -9,7 +9,7 @@ use std::sync::{LazyLock, Mutex, PoisonError};
 
 use rmcp::{
     ServiceExt,
-    model::ClientInfo,
+    model::{CallToolRequestParams, CallToolResult, ClientInfo},
     service::{Peer, RoleClient, RunningService},
     transport::StreamableHttpClientTransport,
 };
@@ -77,6 +77,25 @@ impl ConnectionSlot {
         }
     }
 
+    /// Run one `tools/call` over the live connection, handshaking first when
+    /// there is none. Any error from the request drops the connection so the
+    /// next request handshakes again; a tool that merely reports `is_error` is
+    /// a successful call and keeps it. The failed call itself is not retried.
+    pub(super) fn call_tool(
+        &self,
+        config: &McpServerConfig,
+        params: CallToolRequestParams,
+    ) -> Result<CallToolResult, McpError> {
+        let (peer, _) = self.peer_for(config)?;
+        let result = runtime()?
+            .block_on(peer.call_tool(params))
+            .map_err(|error| McpError::CallTool(format!("{error:#}")));
+        if result.is_err() {
+            self.reset();
+        }
+        result
+    }
+
     /// Peer of the live connection for `config`, and whether it was reused
     /// rather than freshly handshaken.
     fn peer_for(&self, config: &McpServerConfig) -> Result<(Peer<RoleClient>, bool), McpError> {
@@ -127,7 +146,7 @@ impl ConnectionSlot {
 }
 
 fn connect(config: &McpServerConfig) -> Result<Client, McpError> {
-    let transport_config = transport_config(config, None)?;
+    let transport_config = transport_config(config)?;
     // The transport spawns its worker on construction, so it must be built
     // inside the runtime that will keep serving the connection.
     runtime()?

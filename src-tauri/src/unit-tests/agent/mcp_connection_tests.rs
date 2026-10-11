@@ -1,10 +1,15 @@
 use super::ConnectionSlot;
 use crate::agent::mcp::McpError;
+use rmcp::model::CallToolRequestParams;
 
 #[path = "mcp_wire_server.rs"]
 mod wire_server;
 
 use wire_server::WireServer;
+
+fn params(tool: &str) -> CallToolRequestParams {
+    CallToolRequestParams::new(tool.to_string())
+}
 
 #[test]
 fn second_list_tools_reuses_the_connection_without_a_new_handshake() {
@@ -55,7 +60,7 @@ fn failed_list_on_a_reused_connection_handshakes_again_and_retries_once() {
     let config = server.config(&[]);
     slot.list_tools(&config).expect("list while healthy");
 
-    server.fail_next_lists(1);
+    server.fail_next("tools/list", 1);
     let recovered = slot.list_tools(&config).expect("retry succeeds");
 
     assert!(recovered.contains("ping"));
@@ -82,7 +87,7 @@ fn second_failure_is_reported_without_a_further_retry() {
     let config = server.config(&[]);
     slot.list_tools(&config).expect("list while healthy");
 
-    server.fail_next_lists(2);
+    server.fail_next("tools/list", 2);
     let error = slot.list_tools(&config).expect_err("both attempts fail");
 
     assert!(matches!(error, McpError::ListTools(_)), "{error}");
@@ -96,7 +101,7 @@ fn failed_list_on_a_new_connection_is_not_retried() {
     let slot = ConnectionSlot::new();
     let config = server.config(&[]);
 
-    server.fail_next_lists(1);
+    server.fail_next("tools/list", 1);
     let error = slot.list_tools(&config).expect_err("fresh connection fails");
 
     assert!(matches!(error, McpError::ListTools(_)), "{error}");
@@ -124,4 +129,83 @@ fn failed_list_drops_the_connection_so_the_next_call_connects_afresh() {
     );
     let next = slot.list_tools(&config).expect_err("still no server");
     assert!(matches!(next, McpError::Connect(_)), "{next}");
+}
+
+#[test]
+fn tool_calls_reuse_the_connection_opened_for_tools_list() {
+    let server = WireServer::start();
+    let slot = ConnectionSlot::new();
+    let config = server.config(&[]);
+    slot.list_tools(&config).expect("list");
+
+    for _ in 0..2 {
+        let result = slot.call_tool(&config, params("ping")).expect("call");
+        assert_eq!(result.is_error, Some(false));
+    }
+
+    assert_eq!(
+        server.calls(),
+        ["initialize", "notifications/initialized", "tools/list", "tools/call", "tools/call"],
+        "calls send only tools/call over the connection the list opened"
+    );
+}
+
+#[test]
+fn tool_call_without_a_connection_handshakes_once() {
+    let server = WireServer::start();
+    let slot = ConnectionSlot::new();
+    let config = server.config(&[]);
+
+    slot.call_tool(&config, params("ping")).expect("first call");
+    slot.call_tool(&config, params("ping")).expect("second call");
+
+    assert_eq!(
+        server.calls(),
+        ["initialize", "notifications/initialized", "tools/call", "tools/call"]
+    );
+}
+
+#[test]
+fn failed_tool_call_drops_the_connection_without_retrying() {
+    let server = WireServer::start();
+    let slot = ConnectionSlot::new();
+    let config = server.config(&[]);
+    slot.call_tool(&config, params("ping")).expect("healthy call");
+
+    server.fail_next("tools/call", 1);
+    let failed = slot.call_tool(&config, params("ping"));
+    assert!(matches!(failed, Err(McpError::CallTool(_))), "got {failed:?}");
+    slot.call_tool(&config, params("ping")).expect("call after reset");
+
+    assert_eq!(
+        server.calls(),
+        [
+            "initialize",
+            "notifications/initialized",
+            "tools/call",
+            "tools/call",
+            "DELETE",
+            "initialize",
+            "notifications/initialized",
+            "tools/call",
+        ],
+        "the failed call is sent once, then the next call handshakes again"
+    );
+}
+
+#[test]
+fn tool_reported_error_keeps_the_connection() {
+    let server = WireServer::start();
+    let slot = ConnectionSlot::new();
+    let config = server.config(&[]);
+
+    let refused = slot.call_tool(&config, params("refuse")).expect("call completes");
+    assert_eq!(refused.is_error, Some(true));
+    slot.call_tool(&config, params("ping")).expect("next call");
+
+    assert_eq!(
+        server.calls(),
+        ["initialize", "notifications/initialized", "tools/call", "tools/call"],
+        "is_error is a tool outcome, not a connection failure"
+    );
 }

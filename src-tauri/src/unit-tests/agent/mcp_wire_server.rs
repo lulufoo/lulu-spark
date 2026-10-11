@@ -1,8 +1,8 @@
 //! In-process MCP server for connection tests: exposes one tool, records every
-//! request that reaches it, and can fail upcoming `tools/list` requests.
+//! request that reaches it, and can fail upcoming requests of one method.
 
 use std::collections::BTreeMap;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 
@@ -14,7 +14,10 @@ use axum::response::Response;
 use axum::Router;
 use rmcp::{
     ServerHandler,
-    model::{ListToolsResult, PaginatedRequestParams, ServerCapabilities, ServerInfo, Tool},
+    model::{
+        CallToolRequestParams, CallToolResponse, CallToolResult, ContentBlock, ListToolsResult,
+        PaginatedRequestParams, ServerCapabilities, ServerInfo, Tool,
+    },
     service::RequestContext,
     transport::streamable_http_server::{
         session::local::LocalSessionManager, StreamableHttpServerConfig, StreamableHttpService,
@@ -28,10 +31,11 @@ use crate::mcp_host::registry::{HttpMcpTransport, McpServerConfig};
 
 /// Requests the connection tests assert on. The optional server-event GET
 /// stream is deliberately not part of this list.
-const TRACKED_REQUESTS: [&str; 4] = [
+const TRACKED_REQUESTS: [&str; 5] = [
     "initialize",
     "notifications/initialized",
     "tools/list",
+    "tools/call",
     "DELETE",
 ];
 
@@ -57,16 +61,31 @@ impl ServerHandler for OneToolServer {
             Arc::new(schema),
         )])))
     }
+
+    /// `ping` answers `pong`; any other name is a tool-level error result.
+    fn call_tool(
+        &self,
+        request: CallToolRequestParams,
+        _context: RequestContext<RoleServer>,
+    ) -> impl std::future::Future<Output = Result<CallToolResponse, McpError>> + Send + '_ {
+        let result = if request.name == "ping" {
+            CallToolResult::success(vec![ContentBlock::text("pong")])
+        } else {
+            CallToolResult::error(vec![ContentBlock::text("tool refused")])
+        };
+        std::future::ready(Ok(result.into()))
+    }
 }
 
 #[derive(Default)]
 struct WireState {
     requests: Mutex<Vec<String>>,
-    lists_to_fail: AtomicUsize,
+    /// Pending HTTP 500 answers per JSON-RPC method.
+    failures: Mutex<HashMap<String, usize>>,
 }
 
 /// Records the JSON-RPC method (or HTTP verb) of each request, then either
-/// forwards it or answers HTTP 500 when a `tools/list` failure is pending.
+/// forwards it or answers HTTP 500 when a failure is pending for its method.
 async fn record_wire(State(state): State<Arc<WireState>>, request: Request, next: Next) -> Response {
     let (parts, body) = request.into_parts();
     let bytes = to_bytes(body, 1 << 20).await.expect("request body");
@@ -78,12 +97,17 @@ async fn record_wire(State(state): State<Arc<WireState>>, request: Request, next
         ref other => other.to_string(),
     };
     state.requests.lock().expect("request log").push(label.clone());
-    let fail_this_list = label == "tools/list"
-        && state
-            .lists_to_fail
-            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |pending| pending.checked_sub(1))
-            .is_ok();
-    if fail_this_list {
+    let fail_this_request = {
+        let mut failures = state.failures.lock().expect("failure plan");
+        match failures.get_mut(&label) {
+            Some(pending) if *pending > 0 => {
+                *pending -= 1;
+                true
+            }
+            _ => false,
+        }
+    };
+    if fail_this_request {
         return Response::builder()
             .status(StatusCode::INTERNAL_SERVER_ERROR)
             .body(Body::empty())
@@ -156,9 +180,13 @@ impl WireServer {
         }
     }
 
-    /// Answer the next `count` `tools/list` requests with HTTP 500.
-    pub fn fail_next_lists(&self, count: usize) {
-        self.state.lists_to_fail.store(count, Ordering::SeqCst);
+    /// Answer the next `count` requests of `method` with HTTP 500.
+    pub fn fail_next(&self, method: &str, count: usize) {
+        self.state
+            .failures
+            .lock()
+            .expect("failure plan")
+            .insert(method.to_string(), count);
     }
 
     /// Tracked requests seen so far, in arrival order.
