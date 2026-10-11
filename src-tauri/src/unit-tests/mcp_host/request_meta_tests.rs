@@ -3,7 +3,7 @@ use axum::extract::Request;
 use axum::http::{header, Method};
 use serde_json::json;
 
-use super::{http_log_params, peek_request, RequestInfo, PEEK_LIMIT};
+use super::{http_log_params, peek_request, Caller, RequestInfo, PEEK_LIMIT};
 use crate::agent::diagnostics::{TraceId, TurnId};
 
 const SESSION: &str = "spark_chat_5141a723ad70f2cadd4e5885a5421b06";
@@ -133,9 +133,11 @@ fn http_log_params_carry_component_method_fields_session_and_turn() {
             turn_id: Some(turn_id.clone()),
             session_id: Some(SESSION.into()),
         },
+        ..Default::default()
     };
 
-    let params = http_log_params(&info, json!({ "outcome": "ok", "http_status": 200 }))
+    let caller = Caller::from_headers("spark", &axum::http::HeaderMap::new());
+    let params = http_log_params(&info, &caller, json!({ "outcome": "ok", "http_status": 200 }))
         .expect("params");
 
     assert_eq!(params["component"], "mcp_host.http");
@@ -145,7 +147,48 @@ fn http_log_params_carry_component_method_fields_session_and_turn() {
     assert_eq!(params["session_id"], SESSION);
     assert_eq!(params["turn_id"], turn_id.as_str());
 
-    let without = http_log_params(&RequestInfo::default(), json!({})).expect("params");
+    assert_eq!(params["slot"], "spark");
+
+    let without = http_log_params(&RequestInfo::default(), &caller, json!({})).expect("params");
     assert!(without.get("session_id").is_none());
     assert!(without.get("turn_id").is_none());
+}
+
+fn initialize_body(client_info: serde_json::Value) -> String {
+    json!({
+        "jsonrpc": "2.0", "id": 1, "method": "initialize",
+        "params": { "protocolVersion": "2025-03-26", "capabilities": {}, "clientInfo": client_info },
+    })
+    .to_string()
+}
+
+#[test]
+fn initialize_reports_the_client_name_and_version() {
+    let body = initialize_body(json!({ "name": "cursor-vscode", "version": "1.2.3" }));
+    let (info, _) = peek(post(&body, true));
+    assert_eq!(info.client_name.as_deref(), Some("cursor-vscode"));
+    assert_eq!(info.client_version.as_deref(), Some("1.2.3"));
+
+    let caller = Caller::from_headers("spark", &axum::http::HeaderMap::new());
+    let params = http_log_params(&info, &caller, json!({})).expect("params");
+    assert_eq!(params["client_name"], "cursor-vscode");
+    assert_eq!(params["client_version"], "1.2.3");
+}
+
+#[test]
+fn client_name_is_cleaned_and_cut_and_only_read_from_initialize() {
+    let body = initialize_body(json!({ "name": format!("bad\nname{}", "x".repeat(200)), "version": "1\r.0" }));
+    let (info, _) = peek(post(&body, true));
+    let name = info.client_name.expect("name");
+    assert!(!name.contains('\n') && name.starts_with("badname"));
+    assert_eq!(name.chars().count(), 64);
+    assert_eq!(info.client_version.as_deref(), Some("1.0"));
+
+    let list = json!({
+        "jsonrpc": "2.0", "id": 2, "method": "tools/list",
+        "params": { "clientInfo": { "name": "spoof", "version": "9" } },
+    })
+    .to_string();
+    let (info, _) = peek(post(&list, true));
+    assert_eq!((info.client_name, info.client_version), (None, None));
 }

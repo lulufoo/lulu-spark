@@ -33,6 +33,7 @@ use tokio_util::sync::CancellationToken;
 use crate::agent::diagnostics::TraceId;
 use crate::agent::mcp::read_trace_meta;
 
+use super::caller::{diagnose_slot_bearer, Caller};
 use super::request_meta::{http_log_params, peek_request, with_meta_ids};
 use crate::main_host;
 use crate::services::app_log::{self, Level, Side};
@@ -134,6 +135,7 @@ impl ServerHandler for SlotHandler {
                 json_params(with_meta_ids(
                     json!({
                         "component": "mcp_host.tools",
+                        "slot": slot,
                         "tool_name": tool_name,
                     }),
                     &meta,
@@ -146,6 +148,7 @@ impl ServerHandler for SlotHandler {
                     json_params(with_meta_ids(
                         json!({
                             "component": "mcp_host.tools",
+                            "slot": slot,
                             "tool_name": tool_name,
                             "outcome": "disabled",
                             "elapsed_ms": millis(call_started.elapsed()),
@@ -172,6 +175,7 @@ impl ServerHandler for SlotHandler {
                 json_params(with_meta_ids(
                     json!({
                         "component": "mcp_host.tools",
+                        "slot": slot,
                         "tool_name": tool_name,
                         "outcome": if result.is_ok() { "ok" } else { "error" },
                         "elapsed_ms": millis(call_started.elapsed()),
@@ -304,24 +308,27 @@ pub(super) async fn slot_bearer_gate(
     // The client's request id when it sent one, so these lines join its log;
     // requests without `_meta` (notifications/initialized, GET, DELETE) get their own.
     let trace_id = info.meta.trace_id.clone().unwrap_or_else(TraceId::new);
+    let caller = Caller::from_headers(scene_slot, request.headers());
     log_mcp_host(
         "request.auth.started",
         &trace_id,
-        http_log_params(&info, json!({})),
+        http_log_params(&info, &caller, json!({})),
     );
     if let Err(status) = verify_registered_slot(scene_slot, request.headers()) {
         let response = status.into_response();
+        let mut fields = json!({
+            "outcome": "unauthorized",
+            "http_status": response.status().as_u16(),
+            "elapsed_ms": millis(request_started.elapsed()),
+        });
+        // The reason goes to the log only; the response stays a uniform 401.
+        if let Some(object) = fields.as_object_mut() {
+            diagnose_slot_bearer(scene_slot, request.headers()).add_to(object);
+        }
         log_mcp_host(
             "request.completed",
             &trace_id,
-            http_log_params(
-                &info,
-                json!({
-                    "outcome": "unauthorized",
-                    "http_status": response.status().as_u16(),
-                    "elapsed_ms": millis(request_started.elapsed()),
-                }),
-            ),
+            http_log_params(&info, &caller, fields),
         );
         return response;
     }
@@ -330,6 +337,7 @@ pub(super) async fn slot_bearer_gate(
         &trace_id,
         http_log_params(
             &info,
+            &caller,
             json!({
                 "outcome": "ok",
                 "elapsed_ms": millis(request_started.elapsed()),
@@ -342,6 +350,7 @@ pub(super) async fn slot_bearer_gate(
         &trace_id,
         http_log_params(
             &info,
+            &caller,
             json!({
                 "outcome": "response",
                 "http_status": response.status().as_u16(),
