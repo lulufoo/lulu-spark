@@ -29,7 +29,7 @@ mod connection;
 mod connection_log;
 mod trace_meta;
 pub use connection_log::{McpTrace, ResetReason};
-pub(crate) use trace_meta::{build_trace_meta, read_trace_meta};
+pub(crate) use trace_meta::{build_trace_meta, read_trace_meta, read_trace_meta_json, TraceMeta};
 
 const CLIENT_NAME: &str = "spark-host-agent";
 const CLIENT_VERSION: &str = env!("CARGO_PKG_VERSION");

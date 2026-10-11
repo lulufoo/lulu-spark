@@ -41,6 +41,12 @@ pub(crate) fn read_trace_meta(meta: &RequestMetaObject) -> TraceMeta {
     read_values(meta.get(TRACE_META_KEY), meta.get(SESSION_META_KEY))
 }
 
+/// Read the ids from a raw JSON `_meta` object (the HTTP layer, before rmcp
+/// parses the body).
+pub(crate) fn read_trace_meta_json(meta: &Value) -> TraceMeta {
+    read_values(meta.get(TRACE_META_KEY), meta.get(SESSION_META_KEY))
+}
+
 fn read_values(trace_id: Option<&Value>, session_id: Option<&Value>) -> TraceMeta {
     TraceMeta {
         trace_id: trace_id.and_then(Value::as_str).and_then(TraceId::parse),

@@ -2417,3 +2417,6 @@ fn note_content_names_and_digest_route() {
 #[path = "mcp_host/ac1.rs"]
 mod ac1;
 
+#[path = "mcp_host/request_meta_http.rs"]
+mod request_meta_http;
+
