@@ -155,7 +155,27 @@ function adjacentChip(root: HTMLElement, direction: 'back' | 'forward'): HTMLEle
   return neighbor instanceof HTMLElement && neighbor.classList.contains(CHIP_CLASS) ? neighbor : null;
 }
 
-function removeChip(root: HTMLElement, chip: HTMLElement): void {
+/**
+ * The lone space that Open in chat and `insertReferenceAtSelection` leave after a trailing chip.
+ * Backspace with the caret behind it belongs to the chip: letting the browser eat the space
+ * leaves the chip with no text node after it, and WebKit then draws the caret left of the chip.
+ */
+function trailingAutoSpace(root: HTMLElement): Text | null {
+  const selection = root.ownerDocument.getSelection();
+  if (!selection || selection.rangeCount === 0 || !selection.isCollapsed) return null;
+  const range = selection.getRangeAt(0);
+  const space = root.lastChild;
+  if (!(space instanceof Text) || space.data !== ' ') return null;
+  const prev = space.previousSibling;
+  if (!(prev instanceof HTMLElement) || !prev.classList.contains(CHIP_CLASS)) return null;
+  const atEnd =
+    (range.startContainer === space && range.startOffset === 1) ||
+    (range.startContainer === root && range.startOffset === root.childNodes.length);
+  return atEnd ? space : null;
+}
+
+function removeChip(root: HTMLElement, chip: HTMLElement, trailingSpace?: Text | null): void {
+  trailingSpace?.remove();
   const parent = chip.parentNode as Node;
   const index = Array.prototype.indexOf.call(parent.childNodes, chip) as number;
   chip.remove();
@@ -198,10 +218,14 @@ export function attachComposerEditing(root: HTMLElement): () => void {
       event.preventDefault();
       deleteComposerLineBackward(root);
     } else if (type === 'deleteContentBackward' || type === 'deleteContentForward') {
-      const chip = adjacentChip(root, type === 'deleteContentBackward' ? 'back' : 'forward');
+      const back = type === 'deleteContentBackward';
+      const space = back ? trailingAutoSpace(root) : null;
+      const chip = space
+        ? (space.previousSibling as HTMLElement)
+        : adjacentChip(root, back ? 'back' : 'forward');
       if (chip) {
         event.preventDefault();
-        removeChip(root, chip);
+        removeChip(root, chip, space);
       }
     } else if (type.startsWith('format')) {
       event.preventDefault();
