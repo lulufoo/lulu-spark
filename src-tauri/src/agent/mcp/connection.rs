@@ -10,7 +10,7 @@ use std::time::Instant;
 
 use rmcp::{
     ServiceExt,
-    model::{CallToolRequestParams, CallToolResult, ClientInfo},
+    model::{CallToolRequestParams, CallToolResult, ClientInfo, PaginatedRequestParams},
     service::{Peer, RoleClient, RunningService},
     transport::StreamableHttpClientTransport,
 };
@@ -94,9 +94,10 @@ impl ConnectionSlot {
     pub(super) fn call_tool(
         &self,
         config: &McpServerConfig,
-        params: CallToolRequestParams,
+        mut params: CallToolRequestParams,
         trace: &McpTrace,
     ) -> Result<CallToolResult, McpError> {
+        params.meta = Some(trace.meta());
         let (peer, _) = self.peer_for(config, trace)?;
         let result = runtime()?
             .block_on(peer.call_tool(params))
@@ -136,8 +137,10 @@ impl ConnectionSlot {
 
     /// One `tools/list` request; a failure drops the connection.
     fn fetch_tools(&self, peer: &Peer<RoleClient>, trace: &McpTrace) -> Result<ToolCatalog, McpError> {
+        let mut params = PaginatedRequestParams::default();
+        params.meta = Some(trace.meta());
         let result = runtime()?
-            .block_on(peer.list_tools(Default::default()))
+            .block_on(peer.list_tools(Some(params)))
             .map_err(|error| McpError::ListTools(format!("{error:#}")));
         match result {
             Ok(tools) => Ok(catalog::from_rmcp_tools(tools.tools)),
@@ -168,10 +171,12 @@ fn connect(config: &McpServerConfig, trace: &McpTrace) -> Result<Client, McpErro
     let started = Instant::now();
     // The transport spawns its worker on construction, so it must be built
     // inside the runtime that will keep serving the connection.
+    let mut info = client_info();
+    info.meta = Some(trace.meta());
     let client = runtime()?
         .block_on(async move {
             let transport = StreamableHttpClientTransport::from_config(transport_config);
-            client_info().serve(transport).await
+            info.serve(transport).await
         })
         .map_err(|error| McpError::Connect(format!("{error:#}")));
     trace.connect_completed(started.elapsed(), client.is_ok());

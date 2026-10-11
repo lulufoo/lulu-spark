@@ -9,7 +9,9 @@ use std::time::Duration;
 use crate::agent::diagnostics::{self, DiagnosticEvent, TraceId};
 use crate::agent::tools::catalog::ToolCatalog;
 
-use super::McpError;
+use rmcp::model::RequestMetaObject;
+
+use super::{build_trace_meta, McpError};
 
 const COMPONENT: &str = "assistant.mcp";
 
@@ -54,6 +56,11 @@ impl McpTrace {
     /// process-level app log.
     pub fn detached() -> Self {
         Self::new(&TraceId::new(), "")
+    }
+
+    /// `_meta` for every request of this turn: both ids, so the server can log them.
+    pub(super) fn meta(&self) -> RequestMetaObject {
+        build_trace_meta(&self.trace_id, &self.session_id)
     }
 
     pub(super) fn connect_started(&self) {

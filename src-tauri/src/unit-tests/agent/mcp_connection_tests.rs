@@ -1,4 +1,5 @@
 use super::ConnectionSlot;
+use crate::agent::diagnostics::TraceId;
 use crate::agent::mcp::McpTrace;
 use crate::agent::mcp::McpError;
 use rmcp::model::CallToolRequestParams;
@@ -214,4 +215,40 @@ fn tool_reported_error_keeps_the_connection() {
         ["initialize", "notifications/initialized", "tools/call", "tools/call"],
         "is_error is a tool outcome, not a connection failure"
     );
+}
+
+const SESSION: &str = "spark_chat_5141a723ad70f2cadd4e5885a5421b06";
+
+#[test]
+fn initialize_tools_list_and_tools_call_all_carry_trace_and_session_in_meta() {
+    let server = WireServer::start();
+    let slot = ConnectionSlot::new();
+    let config = server.config(&[]);
+    let trace_id = TraceId::new();
+    let trace = McpTrace::new(&trace_id, SESSION);
+
+    slot.list_tools(&config, &trace).expect("list");
+    slot.call_tool(&config, params("ping"), &trace).expect("call");
+
+    for method in ["initialize", "tools/list", "tools/call"] {
+        let metas = server.metas(method);
+        assert_eq!(metas.len(), 1, "one {method} request");
+        assert_eq!(metas[0]["spark/trace_id"], trace_id.as_str(), "{method} trace id");
+        assert_eq!(metas[0]["spark/session_id"], SESSION, "{method} session id");
+    }
+}
+
+#[test]
+fn requests_without_a_chat_session_carry_only_the_trace_id() {
+    let server = WireServer::start();
+    let slot = ConnectionSlot::new();
+    let config = server.config(&[]);
+
+    slot.list_tools(&config, &trace()).expect("list");
+
+    for method in ["initialize", "tools/list"] {
+        let metas = server.metas(method);
+        assert!(metas[0].get("spark/trace_id").is_some(), "{method} trace id");
+        assert!(metas[0].get("spark/session_id").is_none(), "{method} has no session");
+    }
 }

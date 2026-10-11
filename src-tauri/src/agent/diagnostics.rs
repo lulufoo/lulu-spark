@@ -170,7 +170,7 @@ impl DiagnosticEvent {
     }
 }
 
-fn sanitize_session_id(value: &str) -> Option<String> {
+pub(crate) fn sanitize_session_id(value: &str) -> Option<String> {
     let value = value.trim();
     if value.is_empty()
         || !(4..=64).contains(&value.len())

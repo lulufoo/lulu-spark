@@ -80,6 +80,8 @@ impl ServerHandler for OneToolServer {
 #[derive(Default)]
 struct WireState {
     requests: Mutex<Vec<String>>,
+    /// `params._meta` of every JSON-RPC request, keyed by method.
+    metas: Mutex<Vec<(String, Value)>>,
     /// Pending HTTP 500 answers per JSON-RPC method.
     failures: Mutex<HashMap<String, usize>>,
 }
@@ -89,13 +91,25 @@ struct WireState {
 async fn record_wire(State(state): State<Arc<WireState>>, request: Request, next: Next) -> Response {
     let (parts, body) = request.into_parts();
     let bytes = to_bytes(body, 1 << 20).await.expect("request body");
-    let label = match parts.method {
-        Method::POST => serde_json::from_slice::<Value>(&bytes)
-            .ok()
-            .and_then(|value| value.get("method").and_then(Value::as_str).map(String::from))
-            .unwrap_or_else(|| "POST".into()),
-        ref other => other.to_string(),
+    let body = match parts.method {
+        Method::POST => serde_json::from_slice::<Value>(&bytes).ok(),
+        _ => None,
     };
+    let label = match (&parts.method, &body) {
+        (&Method::POST, Some(value)) => value
+            .get("method")
+            .and_then(Value::as_str)
+            .map_or_else(|| "POST".to_string(), String::from),
+        (&Method::POST, None) => "POST".to_string(),
+        (other, _) => other.to_string(),
+    };
+    if let Some(meta) = body.as_ref().and_then(|value| value.pointer("/params/_meta")) {
+        state
+            .metas
+            .lock()
+            .expect("meta log")
+            .push((label.clone(), meta.clone()));
+    }
     state.requests.lock().expect("request log").push(label.clone());
     let fail_this_request = {
         let mut failures = state.failures.lock().expect("failure plan");
@@ -181,14 +195,24 @@ impl WireServer {
     }
 
     /// Answer the next `count` requests of `method` with HTTP 500.
-    // This file is compiled into two test modules; only one injects failures.
-    #[allow(dead_code)]
     pub fn fail_next(&self, method: &str, count: usize) {
         self.state
             .failures
             .lock()
             .expect("failure plan")
             .insert(method.to_string(), count);
+    }
+
+    /// `params._meta` of each `method` request seen so far, in arrival order.
+    pub fn metas(&self, method: &str) -> Vec<Value> {
+        self.state
+            .metas
+            .lock()
+            .expect("meta log")
+            .iter()
+            .filter(|(label, _)| label == method)
+            .map(|(_, meta)| meta.clone())
+            .collect()
     }
 
     /// Tracked requests seen so far, in arrival order.

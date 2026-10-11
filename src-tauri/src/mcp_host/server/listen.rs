@@ -31,7 +31,7 @@ use serde_json::{json, Value};
 use tokio_util::sync::CancellationToken;
 
 use crate::agent::diagnostics::TraceId;
-use crate::agent::mcp::read_trace_id;
+use crate::agent::mcp::read_trace_meta;
 use crate::main_host;
 use crate::services::app_log::{self, Level, Side};
 use crate::services::mcp_oauth::{verify_device_token, verify_for_slot, OAuthError, Slot, TicketHandle};
@@ -121,7 +121,9 @@ impl ServerHandler for SlotHandler {
         let channel = self.channel.clone();
         // rmcp strips the wire `params._meta` into `context.meta`; the typed
         // `request.meta` stays empty on the server side.
-        let trace_id = read_trace_id(&context.meta).unwrap_or_else(TraceId::new);
+        let trace_id = read_trace_meta(&context.meta)
+            .trace_id
+            .unwrap_or_else(TraceId::new);
         async move {
             let tool_name = request.name.to_string();
             let call_started = Instant::now();

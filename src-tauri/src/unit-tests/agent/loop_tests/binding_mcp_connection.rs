@@ -3,6 +3,8 @@
 use super::support::*;
 use crate::agent::mcp::{self, McpTrace, ResetReason};
 
+// Shared fixture compiled into several test modules; each uses a subset.
+#[allow(dead_code)]
 #[path = "../mcp_wire_server.rs"]
 mod wire_server;
 

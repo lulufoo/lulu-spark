@@ -29,7 +29,7 @@ mod connection;
 mod connection_log;
 mod trace_meta;
 pub use connection_log::{McpTrace, ResetReason};
-pub(crate) use trace_meta::{build_trace_meta, read_trace_id};
+pub(crate) use trace_meta::{build_trace_meta, read_trace_meta};
 
 const CLIENT_NAME: &str = "spark-host-agent";
 const CLIENT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -127,7 +127,6 @@ pub fn call_tool(
         .ok_or_else(|| McpError::InvalidArguments("arguments must be a JSON object".into()))?;
     let mut params = CallToolRequestParams::new(name.to_string());
     params.arguments = Some(arguments);
-    params.meta = Some(build_trace_meta(trace_id));
     let tool_name = params.name.to_string();
 
     let _ = diagnostics::log(
