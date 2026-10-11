@@ -3,6 +3,7 @@
 //! Events with a `session_id` are appended to
 //! `{cache_dir}/agent-exec/sessions/{session_id}/session.log`.
 //! Events without one go to `app-log` (process-scoped). Field names are static.
+//! Lines are correlated by `session_id` > `turn_id` > `trace_id`; see `ids.rs`.
 //! Prompt/reply bodies are still forbidden. Bounded, newline-stripped error
 //! classification text is allowed so SDK failures can be distinguished.
 //!
@@ -23,9 +24,13 @@ use serde::Serialize;
 use serde_json::{json, Value};
 
 use crate::agent::session;
-use crate::services::id::random_hex12;
 
-pub const SCHEMA_VERSION: u8 = 1;
+mod ids;
+
+pub use ids::{TraceId, TurnId};
+
+/// Version 2: the per-turn id is `turn_id`; `trace_id` is reserved for one request.
+pub const SCHEMA_VERSION: u8 = 2;
 pub const BOUNDED_TEXT_MAX: usize = 1024;
 
 const BOUNDED_TEXT_FIELDS: &[&str] = &[
@@ -47,41 +52,6 @@ const BOUNDED_TEXT_FIELDS: &[&str] = &[
 
 static WRITE_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
 
-/// Correlation identifier shared by the UI, Host command, and engine events.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TraceId(String);
-
-impl TraceId {
-    /// Accept only bounded identifier characters so externally supplied values
-    /// cannot inject line breaks or arbitrary text into the log.
-    pub fn parse(value: &str) -> Option<Self> {
-        let value = value.trim();
-        if !(8..=64).contains(&value.len())
-            || !value
-                .chars()
-                .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
-        {
-            return None;
-        }
-        Some(Self(value.to_string()))
-    }
-
-    pub fn new() -> Self {
-        Self(format!("trace_{}", random_hex12()))
-    }
-
-    pub fn from_optional(value: Option<String>) -> Self {
-        value
-            .as_deref()
-            .and_then(Self::parse)
-            .unwrap_or_else(Self::new)
-    }
-
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-}
-
 /// A single structured diagnostic event.
 ///
 /// `fields` can only be populated through safe metadata helpers. Arbitrary
@@ -93,7 +63,12 @@ pub struct DiagnosticEvent {
     pub timestamp: String,
     pub component: &'static str,
     pub event: &'static str,
-    pub trace_id: String,
+    /// The user message the event belongs to.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub turn_id: Option<String>,
+    /// One cross-process request. Only request-level events carry it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub trace_id: Option<String>,
     /// Chat id when the event belongs to a turn. Startup / other process-wide
     /// events omit it.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -107,32 +82,49 @@ impl DiagnosticEvent {
     pub fn timing(
         component: &'static str,
         event: &'static str,
-        trace_id: &TraceId,
+        turn_id: &TurnId,
         elapsed: Duration,
     ) -> Self {
-        Self {
-            schema_version: SCHEMA_VERSION,
-            timestamp: Utc::now().to_rfc3339(),
-            component,
-            event,
-            trace_id: trace_id.as_str().to_string(),
-            session_id: None,
-            elapsed_ms: Some(elapsed.as_millis().try_into().unwrap_or(u64::MAX)),
-            fields: BTreeMap::new(),
-        }
+        let mut event = Self::point(component, event, turn_id);
+        event.elapsed_ms = Some(elapsed.as_millis().try_into().unwrap_or(u64::MAX));
+        event
     }
 
-    pub fn point(component: &'static str, event: &'static str, trace_id: &TraceId) -> Self {
+    pub fn point(component: &'static str, event: &'static str, turn_id: &TurnId) -> Self {
         Self {
             schema_version: SCHEMA_VERSION,
             timestamp: Utc::now().to_rfc3339(),
             component,
             event,
-            trace_id: trace_id.as_str().to_string(),
+            turn_id: Some(turn_id.as_str().to_string()),
+            trace_id: None,
             session_id: None,
             elapsed_ms: None,
             fields: BTreeMap::new(),
         }
+    }
+
+    /// An event of the process itself (app exit, Binding Reset), not of any
+    /// turn: it carries no `turn_id`, `trace_id` or `session_id` and goes to
+    /// the app log.
+    pub fn process_point(component: &'static str, event: &'static str) -> Self {
+        Self {
+            schema_version: SCHEMA_VERSION,
+            timestamp: Utc::now().to_rfc3339(),
+            component,
+            event,
+            turn_id: None,
+            trace_id: None,
+            session_id: None,
+            elapsed_ms: None,
+            fields: BTreeMap::new(),
+        }
+    }
+
+    /// Mark the event as the log line of one cross-process request.
+    pub fn with_trace_id(mut self, trace_id: &TraceId) -> Self {
+        self.trace_id = Some(trace_id.as_str().to_string());
+        self
     }
 
     /// Empty / invalid ids stay unset (startup and other non-chat events).
@@ -170,7 +162,7 @@ impl DiagnosticEvent {
     }
 }
 
-fn sanitize_session_id(value: &str) -> Option<String> {
+pub(crate) fn sanitize_session_id(value: &str) -> Option<String> {
     let value = value.trim();
     if value.is_empty()
         || !(4..=64).contains(&value.len())
@@ -237,9 +229,10 @@ pub fn log(event: DiagnosticEvent) -> Result<(), String> {
     crate::services::app_log::log(
         "agent",
         event.event,
-        Some(event.trace_id.as_str()),
+        event.trace_id.as_deref(),
         Some(json!({
             "component": event.component,
+            "turn_id": event.turn_id,
             "fields": event.fields,
             "elapsed_ms": event.elapsed_ms,
         })),

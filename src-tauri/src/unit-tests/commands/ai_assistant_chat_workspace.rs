@@ -7,7 +7,7 @@ use crate::agent::tools::{host, stage};
 use crate::commands::ai_assistant::{
     create_chat_session_json, delete_chat_workspace_file_json, list_chat_workspace_json,
 };
-use crate::agent::diagnostics::TraceId;
+use crate::agent::diagnostics::TurnId;
 use crate::agent::progress::ProgressSink;
 use std::sync::Arc;
 use crate::mcp_host::registry::SEEDED_BUSINESS_KEY;
@@ -114,7 +114,7 @@ fn delete_chat_workspace_file_rejects_outside_and_in_flight() {
         let path = root.join("pad.md");
         fs::write(&path, "scratch").expect("write");
         let sink: ProgressSink = Arc::new(|_desc| {});
-        r#loop::try_begin_chat_turn(&sid, &TraceId::from_optional(None), sink).expect("begin");
+        r#loop::try_begin_chat_turn(&sid, &TurnId::from_optional(None), sink).expect("begin");
         let busy = delete_chat_workspace_file_json(&sid, &path.to_string_lossy())
             .expect_err("in flight");
         assert!(busy.contains("running"), "{busy}");

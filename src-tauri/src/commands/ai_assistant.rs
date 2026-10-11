@@ -7,7 +7,7 @@ use serde_json::{json, Value};
 use tauri::ipc::Channel;
 use tauri::{AppHandle, Emitter};
 
-use crate::agent::diagnostics::{self, DiagnosticEvent, TraceId};
+use crate::agent::diagnostics::{self, DiagnosticEvent, TurnId};
 use crate::agent::progress::{ProgressDesc, ProgressSink};
 use crate::agent::r#loop::{self, ChatTurnResult, EVENT_TURN_COMPLETED, WINDOW_LABEL};
 use crate::agent::runtime;
@@ -255,10 +255,10 @@ fn agent_chat_turn_with_trace(
     session_id: &str,
     message: &str,
     master_task_id: Option<&str>,
-    trace_id: &TraceId,
+    turn_id: &TurnId,
     sink: ProgressSink,
 ) -> Result<ChatTurnResult, String> {
-    runtime::chat_turn_with_trace(session_id, message, master_task_id, trace_id, sink)
+    runtime::chat_turn_with_trace(session_id, message, master_task_id, turn_id, sink)
 }
 
 
@@ -376,12 +376,12 @@ pub async fn agent_chat_turn(
     session_id: String,
     message: String,
     master_task_id: Option<String>,
-    trace_id: Option<String>,
+    turn_id: Option<String>,
     progress: Channel<ProgressDesc>,
 ) -> Result<Value, String> {
-    let trace_id = TraceId::from_optional(trace_id);
+    let turn_id = TurnId::from_optional(turn_id);
     let command_started = Instant::now();
-    let worker_trace_id = trace_id.clone();
+    let worker_turn_id = turn_id.clone();
     let sink: ProgressSink = std::sync::Arc::new(move |desc: ProgressDesc| {
         let _ = progress.send(desc);
     });
@@ -392,7 +392,7 @@ pub async fn agent_chat_turn(
             DiagnosticEvent::point(
                 "assistant.command",
                 "blocking_worker.started",
-                &worker_trace_id,
+                &worker_turn_id,
             )
             .with_session_id(&session_id),
         );
@@ -400,7 +400,7 @@ pub async fn agent_chat_turn(
             &session_id,
             &message,
             master_task_id.as_deref(),
-            &worker_trace_id,
+            &worker_turn_id,
             sink,
         );
         let outcome = if result.is_ok() { "ok" } else { "error" };
@@ -408,7 +408,7 @@ pub async fn agent_chat_turn(
             DiagnosticEvent::timing(
                 "assistant.command",
                 "blocking_worker.completed",
-                &worker_trace_id,
+                &worker_turn_id,
                 worker_started.elapsed(),
             )
             .with_session_id(&session_id)
@@ -424,7 +424,7 @@ pub async fn agent_chat_turn(
                 DiagnosticEvent::timing(
                     "assistant.command",
                     "agent_chat_turn.completed",
-                    &trace_id,
+                    &turn_id,
                     command_started.elapsed(),
                 )
                 .with_session_id(&session_id_for_log)
@@ -437,7 +437,7 @@ pub async fn agent_chat_turn(
                 DiagnosticEvent::timing(
                     "assistant.command",
                     "agent_chat_turn.completed",
-                    &trace_id,
+                    &turn_id,
                     command_started.elapsed(),
                 )
                 .with_session_id(&session_id_for_log)
@@ -450,7 +450,7 @@ pub async fn agent_chat_turn(
                 DiagnosticEvent::timing(
                     "assistant.command",
                     "agent_chat_turn.completed",
-                    &trace_id,
+                    &turn_id,
                     command_started.elapsed(),
                 )
                 .with_session_id(&session_id_for_log)

@@ -226,7 +226,7 @@ fn flights_same_session_and_cap_three_allow_select() {
         let d_id = d["session_id"].as_str().unwrap().to_string();
 
         let sink = crate::agent::progress::noop_sink();
-        let tid = crate::agent::diagnostics::TraceId::new();
+        let tid = crate::agent::diagnostics::TurnId::new();
 
         r#loop::select_chat_session_core(&a_id).unwrap();
         r#loop::try_begin_chat_turn(&a_id, &tid, sink.clone()).unwrap();

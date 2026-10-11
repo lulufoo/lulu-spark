@@ -1,7 +1,9 @@
 //! Embedded Host MCP server: Streamable HTTP listen, tool proxy, slot tables.
 
+mod caller;
 mod listen;
 mod proxy;
+mod request_meta;
 mod slot;
 mod types;
 

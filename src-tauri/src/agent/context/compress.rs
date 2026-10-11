@@ -76,7 +76,7 @@ pub fn maybe_compress(session: &mut Session, config: &LlmConfig) {
     };
     let ctx = llm::CallContext {
         session_id: session.session_id.clone(),
-        trace_id: None,
+        turn_id: None,
         purpose: "summary",
         round: 0,
         step_index: session.steps.len(),

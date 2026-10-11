@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex, OnceLock};
 
 use serde_json::json;
 
-use crate::agent::diagnostics::TraceId;
+use crate::agent::diagnostics::TurnId;
 use crate::agent::progress::ProgressSink;
 use crate::agent::session::{self, Session};
 
@@ -186,7 +186,7 @@ fn busy_turn_result(session_id: &str) -> ChatTurnResult {
 /// Flight gate + live-session check. `Err` carries the early `ChatTurnResult`.
 pub fn try_begin_chat_turn(
     session_id: &str,
-    request_id: &TraceId,
+    request_id: &TurnId,
     sink: ProgressSink,
 ) -> Result<(), ChatTurnResult> {
     let mut rt = runtime().lock().unwrap();

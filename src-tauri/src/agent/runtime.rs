@@ -9,7 +9,7 @@ use std::time::Instant;
 use serde_json::{json, Value};
 
 use crate::config::settings;
-use crate::agent::diagnostics::{self, DiagnosticEvent, TraceId};
+use crate::agent::diagnostics::{self, DiagnosticEvent, TurnId};
 use crate::agent::engine_router::{self, AdapterKind, EngineRouteError, TurnInput};
 use crate::agent::llm;
 use crate::agent::progress::{self, ProgressSink};
@@ -104,14 +104,14 @@ fn decode_host_outcome(value: &str) -> Result<TurnOutcome, String> {
 fn host_adapter_turn(
     session_id: &str,
     message: &str,
-    trace_id: &TraceId,
+    turn_id: &TurnId,
     sink: &ProgressSink,
 ) -> Result<String, String> {
     let started = Instant::now();
     let mut session = session::load_session(session_id)?;
     let outcome = match llm::load_llm_config() {
         Ok(config) => {
-            r#loop::run_loop_with_progress(&mut session, message, &config, trace_id, Some(sink))
+            r#loop::run_loop_with_progress(&mut session, message, &config, turn_id, Some(sink))
         }
         Err(error) => {
             let outcome = r#loop::map_llm_error(&error);
@@ -120,7 +120,7 @@ fn host_adapter_turn(
         }
     };
     log_timing(
-        trace_id,
+        turn_id,
         session_id,
         "assistant.host",
         "turn.completed",
@@ -131,7 +131,7 @@ fn host_adapter_turn(
 }
 
 fn log_timing(
-    trace_id: &TraceId,
+    turn_id: &TurnId,
     session_id: &str,
     component: &'static str,
     event: &'static str,
@@ -139,7 +139,7 @@ fn log_timing(
     outcome: &'static str,
 ) {
     let _ = diagnostics::log(
-        DiagnosticEvent::timing(component, event, trace_id, started.elapsed())
+        DiagnosticEvent::timing(component, event, turn_id, started.elapsed())
             .with_session_id(session_id)
             .with_static_field("outcome", outcome),
     );
@@ -151,12 +151,12 @@ pub fn chat_turn(
     message: &str,
     master_task_id: Option<&str>,
 ) -> Result<ChatTurnResult, String> {
-    let trace_id = TraceId::new();
+    let turn_id = TurnId::new();
     chat_turn_with_trace(
         session_id,
         message,
         master_task_id,
-        &trace_id,
+        &turn_id,
         progress::noop_sink(),
     )
 }
@@ -165,18 +165,18 @@ pub(crate) fn chat_turn_with_trace(
     session_id: &str,
     message: &str,
     _master_task_id: Option<&str>,
-    trace_id: &TraceId,
+    turn_id: &TurnId,
     sink: ProgressSink,
 ) -> Result<ChatTurnResult, String> {
     let turn_started = Instant::now();
     let _ = diagnostics::log(
-        DiagnosticEvent::point("assistant.runtime", "turn.started", trace_id)
+        DiagnosticEvent::point("assistant.runtime", "turn.started", turn_id)
             .with_session_id(session_id),
     );
 
-    if let Err(early) = r#loop::try_begin_chat_turn(session_id, trace_id, sink.clone()) {
+    if let Err(early) = r#loop::try_begin_chat_turn(session_id, turn_id, sink.clone()) {
         log_timing(
-            trace_id,
+            turn_id,
             session_id,
             "assistant.runtime",
             "turn.completed",
@@ -190,7 +190,7 @@ pub(crate) fn chat_turn_with_trace(
     let mut session = match session::load_session(session_id) {
         Ok(session) => {
             log_timing(
-                trace_id,
+                turn_id,
                 session_id,
                 "assistant.runtime",
                 "session_load.completed",
@@ -201,7 +201,7 @@ pub(crate) fn chat_turn_with_trace(
         }
         Err(error) => {
             log_timing(
-                trace_id,
+                turn_id,
                 session_id,
                 "assistant.runtime",
                 "session_load.completed",
@@ -219,7 +219,7 @@ pub(crate) fn chat_turn_with_trace(
         append_user_assistant(&mut session, message, &reply);
         r#loop::end_chat_turn(session_id);
         log_timing(
-            trace_id,
+            turn_id,
             session_id,
             "assistant.runtime",
             "turn.completed",
@@ -241,7 +241,7 @@ pub(crate) fn chat_turn_with_trace(
         Err(error) => {
             r#loop::end_chat_turn(session_id);
             log_timing(
-                trace_id,
+                turn_id,
                 session_id,
                 "assistant.runtime",
                 "turn.completed",
@@ -267,7 +267,7 @@ pub(crate) fn chat_turn_with_trace(
             host_adapter_turn(
                 &session_id_for_adapter,
                 &message_for_adapter,
-                trace_id,
+                turn_id,
                 &sink_for_adapter,
             )
         },
@@ -278,7 +278,7 @@ pub(crate) fn chat_turn_with_trace(
     match routed {
         Ok(route) => {
             log_timing(
-                trace_id,
+                turn_id,
                 session_id,
                 "assistant.runtime",
                 "engine_dispatch.completed",
@@ -296,7 +296,7 @@ pub(crate) fn chat_turn_with_trace(
                 DiagnosticEvent::timing(
                     "assistant.runtime",
                     "turn.completed",
-                    trace_id,
+                    turn_id,
                     turn_started.elapsed(),
                 )
                 .with_session_id(session_id)
@@ -307,7 +307,7 @@ pub(crate) fn chat_turn_with_trace(
         }
         Err(EngineRouteError::Unconfigured) => {
             log_timing(
-                trace_id,
+                turn_id,
                 session_id,
                 "assistant.runtime",
                 "engine_dispatch.completed",
@@ -315,7 +315,7 @@ pub(crate) fn chat_turn_with_trace(
                 "unconfigured",
             );
             log_timing(
-                trace_id,
+                turn_id,
                 session_id,
                 "assistant.runtime",
                 "turn.completed",
@@ -335,7 +335,7 @@ pub(crate) fn chat_turn_with_trace(
         }
         Err(EngineRouteError::Adapter(message)) => {
             log_timing(
-                trace_id,
+                turn_id,
                 session_id,
                 "assistant.runtime",
                 "engine_dispatch.completed",
@@ -343,7 +343,7 @@ pub(crate) fn chat_turn_with_trace(
                 "adapter_error",
             );
             log_timing(
-                trace_id,
+                turn_id,
                 session_id,
                 "assistant.runtime",
                 "turn.completed",

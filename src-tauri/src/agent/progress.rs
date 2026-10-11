@@ -5,11 +5,12 @@ use std::time::Instant;
 
 use serde::{Deserialize, Serialize};
 
-use crate::agent::diagnostics::TraceId;
+use crate::agent::diagnostics::TurnId;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ProgressDesc {
     pub session_id: String,
+    /// The turn id. The wire name predates `turn_id` and is an IPC contract, so it stays.
     pub request_id: String,
     pub desc: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -83,7 +84,7 @@ pub fn noop_sink() -> ProgressSink {
 pub fn emit_progress(
     sink: Option<&ProgressSink>,
     session_id: &str,
-    request_id: &TraceId,
+    request_id: &TurnId,
     desc: impl Into<String>,
 ) {
     emit_progress_state(sink, session_id, request_id, desc, None, None);
@@ -92,7 +93,7 @@ pub fn emit_progress(
 pub fn emit_progress_state(
     sink: Option<&ProgressSink>,
     session_id: &str,
-    request_id: &TraceId,
+    request_id: &TurnId,
     desc: impl Into<String>,
     thinking: Option<String>,
     thinking_ms: Option<u64>,

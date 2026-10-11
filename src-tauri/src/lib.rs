@@ -278,6 +278,9 @@ pub fn run() {
                 }
                 tauri::RunEvent::Exit => {
                     crate::services::app_log::shutdown();
+                    // Before the embedded MCP server stops, so the session's
+                    // DELETE still reaches it.
+                    crate::agent::mcp::release_connection(crate::agent::mcp::ResetReason::AppExit);
                     if let Some(embedded) = app_handle.try_state::<EmbeddedMcpRuntime>() {
                         embedded.stop();
                     }

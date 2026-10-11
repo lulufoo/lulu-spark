@@ -13,7 +13,7 @@ use serde_json::Value;
 use crate::mcp_host::registry::McpServerConfig;
 use crate::services::path_fence::PathFence;
 
-use super::diagnostics::TraceId;
+use super::diagnostics::TurnId;
 use super::mcp;
 use super::session::Session;
 
@@ -52,10 +52,13 @@ fn local_catalog() -> ToolCatalog {
 pub fn discover_and_merge(
     mcp_config: Option<&McpServerConfig>,
     with_host: bool,
+    turn_id: &TurnId,
+    session_id: &str,
 ) -> Result<TurnTools, PrepareError> {
     let mcp = match mcp_config {
         Some(config) => {
-            let catalog = mcp::discover_tools(config).map_err(PrepareError::Mcp)?;
+            let turn = mcp::McpTurn::new(turn_id, session_id);
+            let catalog = mcp::discover_tools(config, &turn).map_err(PrepareError::Mcp)?;
             if catalog.definitions.is_empty() {
                 return Err(PrepareError::EmptyMcpTools);
             }
@@ -125,7 +128,7 @@ pub fn invoke(
     arguments_json: &str,
     fence: Option<&PathFence>,
     session: &mut Session,
-    trace_id: &TraceId,
+    turn_id: &TurnId,
 ) -> InvokeOutcome {
     let host = uses_host(turn, name);
     let Some(catalog) = turn.catalog.as_ref() else {
@@ -188,7 +191,7 @@ pub fn invoke(
                 "MCP tool '{name}' has no MCP server for this binding."
             ));
         };
-        match mcp::call_tool(mcp_config, name, arguments, trace_id, &session.session_id) {
+        match mcp::call_tool(mcp_config, name, arguments, turn_id, &session.session_id) {
             Ok(result) => result,
             Err(error) => ToolResult {
                 content: format!("MCP tool call failed: {error}"),

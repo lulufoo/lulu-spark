@@ -24,7 +24,7 @@ const ERROR_BODY_LIMIT: usize = 8 * 1024;
 pub struct CallContext {
     pub session_id: String,
     /// Same id as the `session.log` events of the Turn; `None` outside a Turn.
-    pub trace_id: Option<String>,
+    pub turn_id: Option<String>,
     /// `turn` for the ReAct loop, `summary` for history compression.
     pub purpose: &'static str,
     /// 1-based tool-loop round inside the Turn; 0 when not part of the loop.
@@ -112,9 +112,9 @@ fn build(
     outcome: &LlmCallOutcome,
 ) -> Value {
     json!({
-        "version": 1,
+        "version": 2,
         "session_id": ctx.session_id,
-        "trace_id": ctx.trace_id,
+        "turn_id": ctx.turn_id,
         "purpose": ctx.purpose,
         "round": ctx.round,
         "step_index": ctx.step_index,

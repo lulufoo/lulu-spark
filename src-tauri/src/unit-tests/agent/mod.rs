@@ -32,7 +32,7 @@ use serde_json::{json, Value};
 
 use crate::config::secrets;
 use crate::config::settings;
-use crate::agent::diagnostics::{self, DiagnosticEvent, TraceId};
+use crate::agent::diagnostics::{self, DiagnosticEvent, TraceId, TurnId};
 use crate::agent::llm::{self, LlmConfig, LlmError};
 use crate::agent::session::{self, Session, Step};
 use crate::agent::SPARK_HOST_SYSTEM_PROMPT;
@@ -230,11 +230,11 @@ fn agent_error_log_writes_under_cache_agent_without_secrets() {
 #[test]
 fn assistant_diagnostic_log_is_versioned_jsonl_with_safe_metadata_only() {
     with_agent_sandbox(|sandbox| {
-        let trace_id = TraceId::parse("trace_12345678").expect("valid trace id");
+        let turn_id = TurnId::parse("turn_12345678").expect("valid turn id");
         let event = DiagnosticEvent::timing(
             "assistant.runtime",
             "turn.completed",
-            &trace_id,
+            &turn_id,
             Duration::from_millis(42),
         )
         .with_session_id("sess_abcdef123456")
@@ -252,10 +252,11 @@ fn assistant_diagnostic_log_is_versioned_jsonl_with_safe_metadata_only() {
             .expect("diagnostic line");
         let value: Value = serde_json::from_str(line).expect("valid JSONL event");
 
-        assert_eq!(value["schema_version"], 1);
+        assert_eq!(value["schema_version"], 2);
         assert_eq!(value["component"], "assistant.runtime");
         assert_eq!(value["event"], "turn.completed");
-        assert_eq!(value["trace_id"], "trace_12345678");
+        assert_eq!(value["turn_id"], "turn_12345678");
+        assert!(value.get("trace_id").is_none(), "a turn-level line has no request id");
         assert_eq!(value["session_id"], "sess_abcdef123456");
         assert_eq!(value["elapsed_ms"], 42);
         assert_eq!(value["fields"]["adapter"], "host");
@@ -267,16 +268,54 @@ fn assistant_diagnostic_log_is_versioned_jsonl_with_safe_metadata_only() {
             "diagnostic event must not expose message content"
         );
 
-        let startup = DiagnosticEvent::point("assistant.startup", "agent_loop_warm.scheduled", &trace_id);
+        let startup = DiagnosticEvent::point("assistant.startup", "agent_loop_warm.scheduled", &turn_id);
         let startup_line = serde_json::to_value(&startup).expect("serialize startup event");
         assert!(startup_line.get("session_id").is_none());
         assert!(
-            DiagnosticEvent::point("assistant.runtime", "turn.started", &trace_id)
+            DiagnosticEvent::point("assistant.runtime", "turn.started", &turn_id)
                 .with_session_id("")
                 .session_id
                 .is_none()
         );
     });
+}
+
+#[test]
+fn request_level_event_carries_turn_id_and_trace_id() {
+    let turn_id = TurnId::parse("turn_12345678").expect("valid turn id");
+    let trace_id = TraceId::parse("trace_87654321").expect("valid trace id");
+    let event = DiagnosticEvent::point("assistant.mcp", "call.request.started", &turn_id)
+        .with_session_id("sess_abcdef123456")
+        .with_trace_id(&trace_id);
+    let value = serde_json::to_value(&event).expect("serialize event");
+    assert_eq!(value["turn_id"], "turn_12345678");
+    assert_eq!(value["trace_id"], "trace_87654321");
+    assert_eq!(value["session_id"], "sess_abcdef123456");
+}
+
+#[test]
+fn turn_and_trace_ids_use_distinct_prefixes_and_reject_unsafe_text() {
+    assert!(TurnId::new().as_str().starts_with("turn_"));
+    assert!(TraceId::new().as_str().starts_with("trace_"));
+    let traces: std::collections::HashSet<String> = (0..5000)
+        .map(|_| TraceId::new().as_str().to_string())
+        .collect();
+    assert_eq!(traces.len(), 5000, "ids minted back to back must not repeat");
+    let turns: std::collections::HashSet<String> = (0..5000)
+        .map(|_| TurnId::new().as_str().to_string())
+        .collect();
+    assert_eq!(turns.len(), 5000);
+    for bad in ["", "short", "has space inside", "line\nbreak_12345", "a/b_12345678"] {
+        assert_eq!(TurnId::parse(bad), None, "{bad:?}");
+        assert_eq!(TraceId::parse(bad), None, "{bad:?}");
+    }
+    assert_eq!(
+        TurnId::from_optional(Some("turn_abcdef12".into())).as_str(),
+        "turn_abcdef12"
+    );
+    assert!(TurnId::from_optional(Some("bad id".into()))
+        .as_str()
+        .starts_with("turn_"));
 }
 
 #[test]
@@ -293,7 +332,7 @@ fn assistant_diagnostics_are_correlated_without_message_content() {
             .expect("read diagnostics");
 
     assert!(
-        command.contains("trace_id: Option<String>")
+        command.contains("turn_id: Option<String>")
             && command.contains("agent_chat_turn_with_trace"),
         "Tauri command must carry a caller correlation id into the runtime"
     );
@@ -327,8 +366,8 @@ fn assistant_diagnostics_bounded_error_text_redacts_secrets_and_newlines() {
     assert!(!cleaned.contains("sk-abc123"));
     assert!(cleaned.contains("sk-[REDACTED]"));
 
-    let trace_id = TraceId::parse("trace_12345678").expect("valid trace id");
-    let event = DiagnosticEvent::point("assistant.host", "turn.completed", &trace_id)
+    let turn_id = TurnId::parse("turn_12345678").expect("valid turn id");
+    let event = DiagnosticEvent::point("assistant.host", "turn.completed", &turn_id)
         .with_bounded_text_field("prompt", "should-not-appear")
         .with_bounded_text_field("sdk_error_message", "rate_limit: quota exceeded");
     assert!(event.fields.get("prompt").is_none());
@@ -1002,4 +1041,14 @@ fn llm_load_config_blank_assistant_engine_is_missing_config() {
         let err = llm::load_llm_config().expect_err("blank engine");
         assert!(matches!(err, LlmError::MissingConfig), "{err:?}");
     });
+}
+
+#[test]
+fn process_events_carry_none_of_the_three_ids() {
+    let event = diagnostics::DiagnosticEvent::process_point("assistant.mcp", "connection.reset");
+    let line = serde_json::to_value(&event).expect("serialize");
+    for key in ["turn_id", "trace_id", "session_id"] {
+        assert!(line.get(key).is_none(), "{key} must be absent: {line}");
+    }
+    assert_eq!(line["schema_version"], 2);
 }

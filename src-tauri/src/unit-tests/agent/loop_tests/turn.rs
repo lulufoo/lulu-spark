@@ -1285,7 +1285,7 @@ fn run_loop_emits_requesting_progress() {
             &mut sess,
             "你好",
             &cfg_for(&mock),
-            &crate::agent::diagnostics::TraceId::new(),
+            &crate::agent::diagnostics::TurnId::new(),
             Some(&sink),
         );
         assert_outcome(&out, "none", false);

@@ -31,7 +31,10 @@ use serde_json::{json, Value};
 use tokio_util::sync::CancellationToken;
 
 use crate::agent::diagnostics::TraceId;
-use crate::agent::mcp::DIAGNOSTIC_TRACE_HEADER;
+use crate::agent::mcp::read_trace_meta;
+
+use super::caller::{diagnose_slot_bearer, Caller};
+use super::request_meta::{http_log_params, peek_request, with_meta_ids};
 use crate::main_host;
 use crate::services::app_log::{self, Level, Side};
 use crate::services::mcp_oauth::{verify_device_token, verify_for_slot, OAuthError, Slot, TicketHandle};
@@ -115,32 +118,43 @@ impl ServerHandler for SlotHandler {
     fn call_tool(
         &self,
         request: CallToolRequestParams,
-        _context: RequestContext<RoleServer>,
+        context: RequestContext<RoleServer>,
     ) -> impl std::future::Future<Output = Result<CallToolResponse, McpError>> + Send + '_ {
         let slot = self.scene_slot.clone();
         let channel = self.channel.clone();
+        // rmcp strips the wire `params._meta` into `context.meta`; the typed
+        // `request.meta` stays empty on the server side.
+        let meta = read_trace_meta(&context.meta);
+        let trace_id = meta.trace_id.clone().unwrap_or_else(TraceId::new);
         async move {
-            let trace_id = TraceId::new();
             let tool_name = request.name.to_string();
             let call_started = Instant::now();
             log_mcp_host(
                 "call.started",
                 &trace_id,
-                json_params(json!({
-                    "component": "mcp_host.tools",
-                    "tool_name": tool_name,
-                })),
+                json_params(with_meta_ids(
+                    json!({
+                        "component": "mcp_host.tools",
+                        "slot": slot,
+                        "tool_name": tool_name,
+                    }),
+                    &meta,
+                )),
             );
             if !mcp_catalog::is_enabled(&channel, request.name.as_ref()) {
                 log_mcp_host(
                     "call.completed",
                     &trace_id,
-                    json_params(json!({
-                        "component": "mcp_host.tools",
-                        "tool_name": tool_name,
-                        "outcome": "disabled",
-                        "elapsed_ms": millis(call_started.elapsed()),
-                    })),
+                    json_params(with_meta_ids(
+                        json!({
+                            "component": "mcp_host.tools",
+                            "slot": slot,
+                            "tool_name": tool_name,
+                            "outcome": "disabled",
+                            "elapsed_ms": millis(call_started.elapsed()),
+                        }),
+                        &meta,
+                    )),
                 );
                 return Err(McpError::invalid_params(
                     format!(
@@ -158,12 +172,16 @@ impl ServerHandler for SlotHandler {
             log_mcp_host(
                 "call.completed",
                 &trace_id,
-                json_params(json!({
-                    "component": "mcp_host.tools",
-                    "tool_name": tool_name,
-                    "outcome": if result.is_ok() { "ok" } else { "error" },
-                    "elapsed_ms": millis(call_started.elapsed()),
-                })),
+                json_params(with_meta_ids(
+                    json!({
+                        "component": "mcp_host.tools",
+                        "slot": slot,
+                        "tool_name": tool_name,
+                        "outcome": if result.is_ok() { "ok" } else { "error" },
+                        "elapsed_ms": millis(call_started.elapsed()),
+                    }),
+                    &meta,
+                )),
             );
             result
         }
@@ -282,51 +300,63 @@ pub(super) async fn slot_bearer_gate(
     request: Request,
     next: Next,
 ) -> Response {
-    let trace_id = request
-        .headers()
-        .get(DIAGNOSTIC_TRACE_HEADER)
-        .and_then(|value| value.to_str().ok())
-        .and_then(TraceId::parse)
-        .unwrap_or_else(TraceId::new);
     let request_started = Instant::now();
+    let (request, info) = match peek_request(request).await {
+        Ok(peeked) => peeked,
+        Err(status) => return status.into_response(),
+    };
+    // The client's request id when it sent one, so these lines join its log;
+    // requests without `_meta` (notifications/initialized, GET, DELETE) get their own.
+    let trace_id = info.meta.trace_id.clone().unwrap_or_else(TraceId::new);
+    let caller = Caller::from_headers(scene_slot, request.headers());
     log_mcp_host(
         "request.auth.started",
         &trace_id,
-        json_params(json!({ "component": "mcp_host.http" })),
+        http_log_params(&info, &caller, json!({})),
     );
     if let Err(status) = verify_registered_slot(scene_slot, request.headers()) {
         let response = status.into_response();
+        let mut fields = json!({
+            "outcome": "unauthorized",
+            "http_status": response.status().as_u16(),
+            "elapsed_ms": millis(request_started.elapsed()),
+        });
+        // The reason goes to the log only; the response stays a uniform 401.
+        if let Some(object) = fields.as_object_mut() {
+            diagnose_slot_bearer(scene_slot, request.headers()).add_to(object);
+        }
         log_mcp_host(
             "request.completed",
             &trace_id,
-            json_params(json!({
-                "component": "mcp_host.http",
-                "outcome": "unauthorized",
-                "http_status": response.status().as_u16(),
-                "elapsed_ms": millis(request_started.elapsed()),
-            })),
+            http_log_params(&info, &caller, fields),
         );
         return response;
     }
     log_mcp_host(
         "request.auth.completed",
         &trace_id,
-        json_params(json!({
-            "component": "mcp_host.http",
-            "outcome": "ok",
-            "elapsed_ms": millis(request_started.elapsed()),
-        })),
+        http_log_params(
+            &info,
+            &caller,
+            json!({
+                "outcome": "ok",
+                "elapsed_ms": millis(request_started.elapsed()),
+            }),
+        ),
     );
     let response = next.run(request).await;
     log_mcp_host(
         "request.completed",
         &trace_id,
-        json_params(json!({
-            "component": "mcp_host.http",
-            "outcome": "response",
-            "http_status": response.status().as_u16(),
-            "elapsed_ms": millis(request_started.elapsed()),
-        })),
+        http_log_params(
+            &info,
+            &caller,
+            json!({
+                "outcome": "response",
+                "http_status": response.status().as_u16(),
+                "elapsed_ms": millis(request_started.elapsed()),
+            }),
+        ),
     );
     response
 }
