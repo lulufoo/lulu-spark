@@ -34,7 +34,7 @@ pub fn build(channel: &str) -> Option<ToolRoute> {
         json!({
             "id": {
                 "type": "string",
-                "description": "Document id from search_document (category notes). Archive entry id, 32-char hex."
+                "description": "Document id from search (category notes). Archive entry id, 32-char hex."
             },
             "dest_dir": {
                 "type": "string",

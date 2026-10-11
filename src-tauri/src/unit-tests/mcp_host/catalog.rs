@@ -29,7 +29,7 @@ const KNOWLEDGE_APIS: &[&str] = &[
     "get_knowledge_file",
 ];
 
-const GLOBAL_APIS: &[&str] = &["search_document", "get_read_later"];
+const GLOBAL_APIS: &[&str] = &["search", "get_read_later"];
 
 const TODO_APIS: &[&str] = &[
     "create_todo_task",
@@ -187,6 +187,7 @@ fn group_for_migrated_api_maps_all_catalog_keys() {
     assert_eq!(group_for_migrated_api("not_a_tool"), None);
     assert_eq!(group_for_migrated_api("search_notes"), None);
     assert_eq!(group_for_migrated_api("search_knowledge"), None);
+    assert_eq!(group_for_migrated_api("search_document"), None);
 }
 
 #[test]
@@ -194,7 +195,7 @@ fn runtime_builds_enabled_routes_from_factory_only() {
     let enabled = GroupedEnabledCatalog {
         notes: vec!["get_all_notes_catalog".into(), "create_note".into()],
         knowledge: vec!["get_knowledge_file".into()],
-        global: vec!["search_document".into()],
+        global: vec!["search".into()],
         ..GroupedEnabledCatalog::default()
     };
     let routes = build_routes_for_channel("spark", "spark", &enabled);
@@ -204,7 +205,7 @@ fn runtime_builds_enabled_routes_from_factory_only() {
     assert!(!names.contains(&"list_todo_tasks"));
     assert!(!names.contains(&"create_todo_task"));
     assert!(names.contains(&"get_knowledge_file"));
-    assert!(names.contains(&"search_document"));
+    assert!(names.contains(&"search"));
     assert!(!names.contains(&"search_notes"));
     assert!(!names.contains(&"search_knowledge"));
 }
@@ -308,15 +309,22 @@ fn get_knowledge_content_is_mobile_only() {
 }
 
 #[test]
-fn search_document_points_each_channel_at_its_own_follow_up_tools() {
+fn search_points_each_channel_at_its_own_follow_up_tools() {
     for channel in ["spark", "cursor", "cursor_ide", "codex", "claude"] {
-        let route = build("global", "search_document", channel).expect(channel);
+        let route = build("global", "search", channel).expect(channel);
+        assert!(route.description.contains("own library"), "{channel}");
+        assert!(route.description.contains("Currently notes and knowledge"), "{channel}");
+        assert!(!route.description.to_lowercase().contains("read later"), "{channel}");
+        assert!(!route.description.contains("read-later"), "{channel}");
         assert!(route.description.contains("get_note_file"), "{channel}");
         assert!(route.description.contains("get_knowledge_file"), "{channel}");
         assert!(!route.description.contains("get_note_content"), "{channel}");
         assert!(!route.description.contains("get_knowledge_content"), "{channel}");
     }
-    let mobile = build("global", "search_document", "mobile").expect("mobile");
+    let mobile = build("global", "search", "mobile").expect("mobile");
+    assert!(mobile.description.contains("own library"));
+    assert!(mobile.description.contains("Currently notes and knowledge"));
+    assert!(!mobile.description.to_lowercase().contains("read later"));
     assert!(mobile.description.contains("get_note_content"));
     assert!(mobile.description.contains("get_knowledge_content"));
     assert!(!mobile.description.contains("get_note_file"));

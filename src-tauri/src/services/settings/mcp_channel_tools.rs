@@ -3,7 +3,7 @@
 //!
 //! Persists nested `{ channel: { notes: [], knowledge: [], global: [] } }`.
 //! Legacy flat arrays are migrated on read. UI commands still accept/return flat enabled lists.
-//! Retired `search_notes` / `search_knowledge` names rewrite to `search_document`.
+//! Retired `search_notes` / `search_knowledge` / `search_document` names rewrite to `search`.
 //! Tools a channel does not expose (per the tool's own `build`) are never enabled there;
 //! on desktop channels saved `get_*_content` entries migrate to `get_*_file`.
 

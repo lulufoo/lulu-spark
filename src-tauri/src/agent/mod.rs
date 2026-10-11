@@ -55,7 +55,7 @@ When the user gives an absolute path to a file outside Spark's own data, call `s
 
 Notes and knowledge documents:
 Spark's own data is not directly readable. To read or edit a note, call get_note_file with its id and dest_dir set to SESSION_WORKSPACE_DIR, then read the returned copy. After editing the copy, call update_note with source_path set to it. To read a knowledge document, call get_knowledge_file the same way. To read a read-later item, call get_read_later with its id; it returns id, url, and read, not a file.
-When you point the user at a note, write it as [标题](note:<id>) using the note's id. When you point the user at a knowledge document, write it as [标题](knowledge:<id>) using the id from search_document. When you point the user at a read-later item, write it as [标题](read-later:<id>) using the item's id.
+When you point the user at a note, write it as [标题](note:<id>) using the note's id. When you point the user at a knowledge document, write it as [标题](knowledge:<id>) using the id from search. When you point the user at a read-later item, write it as [标题](read-later:<id>) using the item's id.
 In a user message, `[标题](note:<id>)` refers to a note and `[标题](knowledge:<id>)` refers to a knowledge document; `<id>` is that document's id.
 In a user message, `[标题](read-later:<id>)` refers to a read-later item; `<id>` is that item's id."#;
 

@@ -123,7 +123,7 @@ fn delete_note_never_enables_on_non_spark_even_if_listed() {
 }
 
 #[test]
-fn load_rewrites_retired_search_tools_to_search_document() {
+fn load_rewrites_retired_search_tools_to_search() {
     let sandbox = TestSandbox::new();
     let path = paths::mcp_channel_tools_path().expect("path");
     fs::write(
@@ -133,7 +133,8 @@ fn load_rewrites_retired_search_tools_to_search_document() {
                 "cursor_ide": {
                     "notes": ["get_all_notes_catalog", "search_notes"],
                     "todo": [],
-                    "knowledge": ["search_knowledge"]
+                    "knowledge": ["search_knowledge"],
+                    "global": ["search_document"]
                 }
             }
         })
@@ -144,8 +145,10 @@ fn load_rewrites_retired_search_tools_to_search_document() {
     let grouped = crate::services::settings::mcp_channel_tools::enabled_by_group("cursor_ide");
     assert!(!grouped.notes.contains(&"search_notes".into()));
     assert!(!grouped.knowledge.contains(&"search_knowledge".into()));
-    assert!(grouped.global.contains(&"search_document".into()));
-    assert!(is_enabled("cursor_ide", "search_document"));
+    assert!(!grouped.global.contains(&"search_document".into()));
+    assert!(grouped.global.contains(&"search".into()));
+    assert!(is_enabled("cursor_ide", "search"));
+    assert!(!is_enabled("cursor_ide", "search_document"));
     assert!(!is_enabled("cursor_ide", "search_notes"));
     assert!(!is_enabled("cursor_ide", "search_knowledge"));
 }

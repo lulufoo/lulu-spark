@@ -29,14 +29,14 @@ pub fn build(channel: &str) -> Option<ToolRoute> {
         json!({
             "id": {
                 "type": "string",
-                "description": "Document id from search_document (category notes). Archive entry id, 32-char hex."
+                "description": "Document id from search (category notes). Archive entry id, 32-char hex."
             }
         }),
         &["id"],
     );
     Some(route(
         "get_note_content",
-        "Resolve a search_document notes document id to the local absolute file path. Does not return file body. Unknown ids fail.",
+        "Resolve a notes document id from search to the local absolute file path. Does not return file body. Unknown ids fail.",
         id_schema,
         true,
         false,

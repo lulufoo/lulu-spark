@@ -26,14 +26,14 @@ pub fn build(channel: &str) -> Option<ToolRoute> {
         json!({
             "id": {
                 "type": "string",
-                "description": "Document id from search_document (category knowledge). Unknown ids fail."
+                "description": "Document id from search (category knowledge). Unknown ids fail."
             }
         }),
         &["id"],
     );
     Some(route(
         "get_knowledge_content",
-        "Resolve a search_document knowledge document id to the local absolute file path. Does not return file body. Unknown ids fail.",
+        "Resolve a knowledge document id from search to the local absolute file path. Does not return file body. Unknown ids fail.",
         id_schema,
         true,
         false,

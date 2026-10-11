@@ -179,7 +179,7 @@ const KNOWLEDGE_TOOLS: &[&str] = &[
     "get_knowledge_file",
 ];
 
-const GLOBAL_TOOLS: &[&str] = &["search_document"];
+const GLOBAL_TOOLS: &[&str] = &["search"];
 
 const SPARK_SLOT: &str = "spark";
 const CURSOR_IDE_SLOT: &str = "cursor_ide";
@@ -653,8 +653,8 @@ fn mcp_tools_list_publishes_descriptions_schemas_and_mutation_hints() {
         "note file copy must be hung"
     );
     assert!(
-        notes_tools.iter().any(|tool| tool.name == "search_document"),
-        "document search must be hung"
+        notes_tools.iter().any(|tool| tool.name == "search"),
+        "library search must be hung"
     );
     assert!(
         !notes_tools
@@ -865,7 +865,7 @@ fn representative_tools_call_per_registered_slot_hits_services() {
 /// Regression: MCP dispatch must isolate a synchronous search from the
 /// async MCP worker; otherwise a blocking client panics the worker.
 #[test]
-fn proxy_dispatches_search_document_on_blocking_worker() {
+fn proxy_dispatches_search_on_blocking_worker() {
     let _sandbox = TestSandbox::new();
     plant_empty_notes_index();
     let rt = tokio::runtime::Builder::new_current_thread()
@@ -877,7 +877,7 @@ fn proxy_dispatches_search_document_on_blocking_worker() {
         .block_on(proxy_tool_call(
             SPARK_SLOT,
             SPARK_SLOT,
-            "search_document",
+            "search",
             serde_json::json!({ "q": "regression" }),
         ))
         .expect("blocking worker must return a mapped tool result");

@@ -84,7 +84,7 @@ pub fn update_note_properties(include_source_path: bool) -> Value {
     let mut props = json!({
         "id": {
             "type": "string",
-            "description": "Archive entry id (32-char hex) from search_document or create_note."
+            "description": "Archive entry id (32-char hex) from search or create_note."
         },
         "digest": {
             "type": "string",
