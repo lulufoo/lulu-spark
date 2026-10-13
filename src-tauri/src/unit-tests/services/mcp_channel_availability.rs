@@ -2,7 +2,7 @@
 
 use super::*;
 
-/// Tools a channel never exposes: desktop-only file copies off mobile, mobile-only reads on desktop.
+/// Tools a channel never exposes: desktop-only file copies off mobile, mobile-only reads on desktop, Spark-only tools elsewhere.
 fn hidden_on(channel: &str) -> Vec<&'static str> {
     let mut hidden = if channel == "mobile" {
         vec!["get_note_file", "get_knowledge_file"]
@@ -11,6 +11,7 @@ fn hidden_on(channel: &str) -> Vec<&'static str> {
     };
     if channel != "spark" {
         hidden.push("delete_note");
+        hidden.push("get_read_later");
     }
     hidden
 }
