@@ -80,6 +80,7 @@ const NOTE_OPEN_READ_COMMANDS: &[&str] = &["resolve_note_for_open", "resolve_kno
 const DEFAULT_CAPABILITY_PERMISSIONS: &[&str] = &[
     "core:default",
     "core:window:allow-start-dragging",
+    "core:window:allow-set-theme",
     "read-api",
     "write-api",
     "sync-api",

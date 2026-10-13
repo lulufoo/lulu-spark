@@ -64,9 +64,12 @@ describe('FilePopup chrome', () => {
       identityKey: 'knowledge:demo/doc.md',
       content: '# KB',
     });
+    const icons = [...container.querySelectorAll('button [data-viewer-icon]')].map((el) =>
+      el.getAttribute('data-viewer-icon'),
+    );
+    expect(icons).toContain('edit');
+    expect(icons).toContain('copy');
     const labels = [...container.querySelectorAll('button')].map((b) => b.textContent.trim());
-    expect(labels).toContain('Edit');
-    expect(labels).toContain('Copy');
     expect(labels).not.toContain('Close');
 
     const dismiss = container.querySelector('.overlay-dismiss-button');
