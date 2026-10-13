@@ -61,7 +61,7 @@ describe('mountHomeHub', () => {
     expect(readLaterEntry.textContent).toMatch(/Read Later/);
     expect(knowledgeEntry.textContent).toMatch(/Knowledge/);
     const labels = [...shortcuts].map((entry) => entry.querySelector('.home-desktop-shortcut-label')?.textContent);
-    expect(labels).toEqual(['Notes', 'Knowledge', 'Read Later', 'Bind Device', 'Settings']);
+    expect(labels).toEqual(['Notes', 'Knowledge', 'Read Later', 'Devices', 'Settings']);
     expect(container.querySelector('#btn-bind [data-home-icon="bind"]')).not.toBeNull();
     expect(container.querySelector('#btn-settings [data-home-icon="settings"]')).not.toBeNull();
     expect(container.querySelector('[data-home-entry="spark"] [data-home-icon="notes"]')).not.toBeNull();

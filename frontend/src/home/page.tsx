@@ -364,7 +364,7 @@ export function HomePage({
               onClick={() => openBindDialog()}
             >
               <HomeNavIcon name="bind" />
-              <span className="home-desktop-shortcut-label">Bind Device</span>
+              <span className="home-desktop-shortcut-label">Devices</span>
             </button>
             <button
               type="button"
