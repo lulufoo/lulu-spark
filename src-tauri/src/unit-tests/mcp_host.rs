@@ -929,31 +929,29 @@ fn tool_dispatch_is_in_process_services() {
     );
 }
 
-/// Production close-gate ports (V5 / Topic2): MCP `:9876` + Sidecar `:8765`.
-const CLOSE_GATE_MCP_PORT: u16 = 9876;
-const CLOSE_GATE_SIDECAR_PORT: u16 = 8765;
-
-fn start_close_gate_dual_listen() -> (main_host::MainHostHandle, McpRuntimeHandle) {
+/// Close-gate dual listen on ephemeral ports; returns `(http, mcp, mcp_port, sidecar_port)`.
+fn start_close_gate_dual_listen() -> (main_host::MainHostHandle, McpRuntimeHandle, u16, u16) {
     let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..");
-    let http_handle =
-        main_host::start(repo_root, CLOSE_GATE_SIDECAR_PORT).expect("start Sidecar :8765");
+    let sidecar_port = ephemeral_port();
+    let mcp_port = ephemeral_port();
+    let http_handle = main_host::start(repo_root, sidecar_port).expect("start Sidecar");
     thread::sleep(Duration::from_millis(50));
     let mcp_handle = start_embedded_mcp_runtime(McpRuntimeConfig {
-        bind_addr: format!("127.0.0.1:{CLOSE_GATE_MCP_PORT}")
+        bind_addr: format!("127.0.0.1:{mcp_port}")
             .parse()
             .expect("mcp addr"),
     })
-    .expect("start MCP :9876");
-    (http_handle, mcp_handle)
+    .expect("start MCP");
+    (http_handle, mcp_handle, mcp_port, sidecar_port)
 }
 
-/// Normal / V5: same-process dual listen (:9876 + :8765) + registered-slot initialize + tools/list.
+/// Normal / V5: same-process dual listen (MCP + Sidecar on ephemeral ports) + registered-slot initialize + tools/list.
 #[test]
 fn close_gate_smoke_initialize_list_passes_v5_dual_listen_and_session() {
-    let (http_handle, mcp_handle) = start_close_gate_dual_listen();
+    let (http_handle, mcp_handle, mcp_port, sidecar_port) = start_close_gate_dual_listen();
     let ticket = issue_live_ticket(SPARK_SLOT);
 
-    let dual_listen_observed = observe_dual_listen(CLOSE_GATE_MCP_PORT, CLOSE_GATE_SIDECAR_PORT)
+    let dual_listen_observed = observe_dual_listen(mcp_port, sidecar_port)
         .expect("P1 close gate must observe dual listen");
     let rt = tokio::runtime::Builder::new_current_thread()
         .enable_all()
@@ -961,7 +959,7 @@ fn close_gate_smoke_initialize_list_passes_v5_dual_listen_and_session() {
         .expect("tokio");
     let tool_names = rt
         .block_on(run_initialize_and_list_tools_authed(
-            CLOSE_GATE_MCP_PORT,
+            mcp_port,
             SPARK_SLOT,
             &ticket,
         ))
@@ -969,7 +967,7 @@ fn close_gate_smoke_initialize_list_passes_v5_dual_listen_and_session() {
 
     assert!(
         dual_listen_observed,
-        "same-process :9876 + :8765 must be observable"
+        "same-process MCP + Sidecar must be observable"
     );
     assert!(
         !tool_names.is_empty(),
@@ -983,10 +981,10 @@ fn close_gate_smoke_initialize_list_passes_v5_dual_listen_and_session() {
 /// Boundary: readiness `/health` success ≠ session-level initialize/tools/list (T2/T8 vs T6).
 #[test]
 fn health_success_is_not_session_level_close_gate_proof() {
-    let (http_handle, mcp_handle) = start_close_gate_dual_listen();
+    let (http_handle, mcp_handle, mcp_port, _) = start_close_gate_dual_listen();
 
     let (status, health_body) =
-        http_get(&format!("http://127.0.0.1:{CLOSE_GATE_MCP_PORT}/health"));
+        http_get(&format!("http://127.0.0.1:{mcp_port}/health"));
     assert_eq!(status, 200, "health body={health_body}");
     let health_json: serde_json::Value =
         serde_json::from_str(&health_body).expect("health JSON");
@@ -1007,7 +1005,7 @@ fn health_success_is_not_session_level_close_gate_proof() {
         .expect("tokio");
     let tool_names = rt
         .block_on(run_initialize_and_list_tools_authed(
-            CLOSE_GATE_MCP_PORT,
+            mcp_port,
             SPARK_SLOT,
             &ticket,
         ))
@@ -1042,7 +1040,7 @@ fn p2_hard_cut_must_remove_node_spawn_lifecycle_paths() {
 /// Exception: unregistered slot cannot satisfy the close gate.
 #[test]
 fn close_gate_smoke_rejects_unregistered_slot() {
-    let (http_handle, mcp_handle) = start_close_gate_dual_listen();
+    let (http_handle, mcp_handle, _, _) = start_close_gate_dual_listen();
 
     let err = close_gate_smoke_initialize_list("__unknown__")
         .expect_err("unregistered slot must fail close gate");
@@ -1074,10 +1072,10 @@ fn p3_t10_knowledge_mcp_package_not_runtime_ssot() {
 }
 
 /// T10 / V2+V3: dual-slot tools/list + representative tools/call + unknown-slot hard-fail
-/// against Host MCP URL `http://127.0.0.1:9876` (Sidecar fixture stays process-independent).
+/// against Host MCP on an ephemeral port (Sidecar fixture stays process-independent).
 #[test]
 fn p3_t10_host_dual_slot_list_call_and_unknown_hard_fail_smoke() {
-    // Main Host fixture: independent listen on :8765 with migration gate planted.
+    // Main Host fixture: independent listen on an ephemeral port with migration gate planted.
     let sandbox = TestSandbox::new();
     let wb = sandbox.spark_root();
     let todo_root = wb.join("todo_tasks");
@@ -1087,30 +1085,32 @@ fn p3_t10_host_dual_slot_list_call_and_unknown_hard_fail_smoke() {
     fs::create_dir_all(&notes).expect("notes");
     fs::write(notes.join("index.json"), br#"{"entries":{}}"#).expect("plant empty notes index");
 
+    let sidecar_port = ephemeral_port();
+    let mcp_port = ephemeral_port();
     let http_handle =
-        main_host::start(sandbox.config_dir().to_path_buf(), CLOSE_GATE_SIDECAR_PORT)
-            .expect("start Sidecar :8765 independent of MCP");
+        main_host::start(sandbox.config_dir().to_path_buf(), sidecar_port)
+            .expect("start Sidecar on ephemeral port independent of MCP");
     thread::sleep(Duration::from_millis(50));
     let mcp_handle = start_embedded_mcp_runtime(McpRuntimeConfig {
-        bind_addr: format!("127.0.0.1:{CLOSE_GATE_MCP_PORT}")
+        bind_addr: format!("127.0.0.1:{mcp_port}")
             .parse()
             .expect("mcp addr"),
     })
-    .expect("start Host MCP :9876");
+    .expect("start Host MCP on ephemeral port");
 
     let (sidecar_status, _) = http_get(&format!(
-        "http://127.0.0.1:{CLOSE_GATE_SIDECAR_PORT}/api/unknown"
+        "http://127.0.0.1:{sidecar_port}/api/unknown"
     ));
     assert_eq!(
         sidecar_status, 404,
-        "T10: Main Host HTTP must be independently observable on :8765"
+        "T10: Main Host HTTP must be independently observable on its port"
     );
 
     let (mcp_health_status, mcp_health_body) =
-        http_get(&format!("http://127.0.0.1:{CLOSE_GATE_MCP_PORT}/health"));
+        http_get(&format!("http://127.0.0.1:{mcp_port}/health"));
     assert_eq!(
         mcp_health_status, 200,
-        "T10: Host MCP /health must succeed on :9876, body={mcp_health_body}"
+        "T10: Host MCP /health must succeed, body={mcp_health_body}"
     );
 
     let rt = tokio::runtime::Builder::new_current_thread()
@@ -1121,11 +1121,11 @@ fn p3_t10_host_dual_slot_list_call_and_unknown_hard_fail_smoke() {
     let spark_ticket = issue_live_ticket(SPARK_SLOT);
     let spark_names = rt
         .block_on(run_initialize_and_list_tools_authed(
-            CLOSE_GATE_MCP_PORT,
+            mcp_port,
             SPARK_SLOT,
             &spark_ticket,
         ))
-        .expect("spark tools/list on Host :9876");
+        .expect("spark tools/list on Host MCP");
     for tool in NOTES_TOOLS {
         assert!(
             spark_names.iter().any(|n| n == *tool),
@@ -1136,11 +1136,11 @@ fn p3_t10_host_dual_slot_list_call_and_unknown_hard_fail_smoke() {
     let ide_ticket = issue_live_ticket(CURSOR_IDE_SLOT);
     let ide_names = rt
         .block_on(run_initialize_and_list_tools_authed(
-            CLOSE_GATE_MCP_PORT,
+            mcp_port,
             CURSOR_IDE_SLOT,
             &ide_ticket,
         ))
-        .expect("cursor_ide tools/list on Host :9876");
+        .expect("cursor_ide tools/list on Host MCP");
     for tool in NOTES_TOOLS_NON_SPARK {
         assert!(
             ide_names.iter().any(|n| n == *tool),
@@ -1222,7 +1222,7 @@ fn p3_t10_host_dual_slot_list_call_and_unknown_hard_fail_smoke() {
 
     let (_, notes_err, notes_text) = rt
         .block_on(list_and_call(
-            CLOSE_GATE_MCP_PORT,
+            mcp_port,
             SPARK_SLOT,
             &spark_ticket,
             "get_all_notes_catalog",
@@ -1236,7 +1236,7 @@ fn p3_t10_host_dual_slot_list_call_and_unknown_hard_fail_smoke() {
 
     let (_, ide_err, ide_text) = rt
         .block_on(list_and_call(
-            CLOSE_GATE_MCP_PORT,
+            mcp_port,
             "cursor_ide",
             &ide_ticket,
             "get_all_notes_catalog",
@@ -1250,12 +1250,12 @@ fn p3_t10_host_dual_slot_list_call_and_unknown_hard_fail_smoke() {
 
     let init = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"t10-unknown","version":"0.0.1"}}}"#;
     let (status, body, session) = http_post_json(
-        &format!("http://127.0.0.1:{CLOSE_GATE_MCP_PORT}/mcp/__unknown__"),
+        &format!("http://127.0.0.1:{mcp_port}/mcp/__unknown__"),
         init,
     );
     assert_eq!(
         status, 404,
-        "T10/V3: unknown slot must HTTP hard-reject on Host :9876, body={body}"
+        "T10/V3: unknown slot must HTTP hard-reject on Host MCP, body={body}"
     );
     assert!(
         session.is_none(),
