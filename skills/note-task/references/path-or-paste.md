@@ -2,7 +2,7 @@
 
 Use when the input is a path or pasted Markdown and no producer supplied the note fields.
 
-Stage the Markdown on an allow-listed path. Load [chinese-companion.md](chinese-companion.md). Call `create_note` with the live schema parameters.
+Stage the Markdown at any absolute path. Load [chinese-companion.md](chinese-companion.md). Call `create_note` with the live schema parameters.
 
 ## Fields
 

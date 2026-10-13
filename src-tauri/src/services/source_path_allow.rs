@@ -1,4 +1,4 @@
-//! Shared allow-list resolution for Host reads of local source files (todo attachments, archive).
+//! Source path resolution for Host reads of local files: allow-listed (todo attachments, file export) and unrestricted (notes).
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -48,12 +48,9 @@ fn path_is_under_root(path: &Path, root: &Path) -> bool {
     path.starts_with(root)
 }
 
-/// Resolve an absolute source path under the allow-list.
-/// Does not enforce `.md` or basename rules — callers apply domain constraints.
-pub fn resolve_allowed_source_path(
-    source_path: &str,
-    max_bytes: u64,
-) -> Result<PathBuf, Value> {
+/// Resolve an absolute source path to a canonical regular file within `max_bytes`.
+/// Does not check the allow-list or enforce `.md` / basename rules — callers apply domain constraints.
+pub fn resolve_source_path(source_path: &str, max_bytes: u64) -> Result<PathBuf, Value> {
     let trimmed = source_path.trim();
     if trimmed.is_empty() {
         return Err(json!({ "error": "Missing source_path", "_status": 400 }));
@@ -74,13 +71,6 @@ pub fn resolve_allowed_source_path(
     if !canonical.is_file() {
         return Err(json!({ "error": "Source is not a regular file", "_status": 400 }));
     }
-    let roots = allow_roots();
-    if !roots
-        .iter()
-        .any(|root| path_is_under_root(&canonical, root))
-    {
-        return Err(json!({ "error": "source_path not allowed", "_status": 403 }));
-    }
     let meta = match fs::metadata(&canonical) {
         Ok(m) => m,
         Err(e) => return Err(json!({ "error": e.to_string(), "_status": 500 })),
@@ -90,3 +80,24 @@ pub fn resolve_allowed_source_path(
     }
     Ok(canonical)
 }
+
+/// Resolve an absolute source path under the allow-list.
+/// Does not enforce `.md` or basename rules — callers apply domain constraints.
+pub fn resolve_allowed_source_path(
+    source_path: &str,
+    max_bytes: u64,
+) -> Result<PathBuf, Value> {
+    let canonical = resolve_source_path(source_path, max_bytes)?;
+    let roots = allow_roots();
+    if !roots
+        .iter()
+        .any(|root| path_is_under_root(&canonical, root))
+    {
+        return Err(json!({ "error": "source_path not allowed", "_status": 403 }));
+    }
+    Ok(canonical)
+}
+
+#[cfg(test)]
+#[path = "../unit-tests/services/source_path_allow.rs"]
+mod tests;

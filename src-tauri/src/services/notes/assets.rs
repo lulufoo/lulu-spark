@@ -104,7 +104,7 @@ pub(super) fn copy_assets(
 }
 
 fn resolve_asset_source(path: &str) -> Result<PathBuf, Value> {
-    match source_path_allow::resolve_allowed_source_path(path, MAX_NOTE_ASSET_BYTES) {
+    match source_path_allow::resolve_source_path(path, MAX_NOTE_ASSET_BYTES) {
         Ok(canonical) => {
             let ext = canonical
                 .extension()
@@ -142,8 +142,6 @@ fn remap_source_error(err: Value) -> Value {
     };
     let mapped = if msg == "Missing source_path" || msg == "Invalid source_path" {
         "Invalid asset_paths item"
-    } else if msg == "source_path not allowed" {
-        "asset_paths not allowed"
     } else if msg == "Source file too large" {
         "Asset file too large"
     } else if msg == "Source file not found" {

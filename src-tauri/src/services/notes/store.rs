@@ -19,7 +19,7 @@ pub(super) struct TranslationDoc {
 
 pub(super) fn resolve_archive_source_markdown(source_path: &str) -> Result<String, Value> {
     let canonical =
-        source_path_allow::resolve_allowed_source_path(source_path, MAX_ARCHIVE_SOURCE_BYTES)?;
+        source_path_allow::resolve_source_path(source_path, MAX_ARCHIVE_SOURCE_BYTES)?;
     let is_md = canonical
         .extension()
         .and_then(|e| e.to_str())

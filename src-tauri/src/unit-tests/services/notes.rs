@@ -654,9 +654,8 @@ fn create_note_rejects_document_field() {
 }
 
 #[test]
-fn create_note_rejects_disallowed_source_path() {
+fn create_note_missing_source_outside_allow_roots_is_404_not_403() {
     let (_sandbox, repo_root) = setup_notes();
-    // Absolute path outside allow-roots (and typically missing).
     let outside = PathBuf::from("/var/empty/lulu-spark-archive-forbid.md");
     let v = create_note(
         &repo_root,
@@ -667,11 +666,7 @@ fn create_note_rejects_disallowed_source_path() {
             "digest": "never",
         }),
     );
-    let status = v.get("_status").and_then(|s| s.as_u64()).unwrap_or(0);
-    assert!(
-        status == 403 || status == 404,
-        "expected 403/404, got {v}"
-    );
+    assert_eq!(v.get("_status"), Some(&json!(404)), "{v}");
 }
 
 const FULL_EN_DOC: &str = r#"# English Title
