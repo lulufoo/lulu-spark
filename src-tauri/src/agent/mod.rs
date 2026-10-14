@@ -7,6 +7,7 @@ pub mod context;
 pub mod diagnostics;
 pub mod engine_router;
 pub mod fence;
+pub mod language;
 pub mod llm;
 pub mod mcp;
 pub mod progress;
