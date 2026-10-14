@@ -17,7 +17,10 @@ use crate::config::settings;
 pub use record::CallContext;
 use record::CallTrace;
 
+/// Waiting for response headers and for each chunk of the stream (idle timeout).
 pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(120);
+/// Setting up the TCP connection; a host that cannot be reached fails sooner than `DEFAULT_TIMEOUT`.
+pub const LLM_CONNECT_TIMEOUT: Duration = Duration::from_secs(30);
 
 #[derive(Debug, Clone)]
 pub struct LlmConfig {
@@ -253,7 +256,7 @@ fn send_request(
     // read, resetting after a successful read — idle timeout for SSE chunks.
     let client = match Client::builder()
         .timeout(timeout)
-        .connect_timeout(timeout)
+        .connect_timeout(connect_timeout_for(timeout))
         .build()
     {
         Ok(client) => client,
@@ -288,6 +291,11 @@ fn send_request(
     }
 
     stream::assemble_sse(resp, on_delta, trace)
+}
+
+/// The connect timeout never exceeds the caller's own (shorter) timeout.
+fn connect_timeout_for(timeout: Duration) -> Duration {
+    LLM_CONNECT_TIMEOUT.min(timeout)
 }
 
 fn map_error_status(status: u16, text: &str) -> LlmError {
@@ -328,3 +336,7 @@ fn map_error_status(status: u16, text: &str) -> LlmError {
 #[cfg(test)]
 #[path = "../unit-tests/agent/llm_classify_tests.rs"]
 mod classify_tests;
+
+#[cfg(test)]
+#[path = "../unit-tests/agent/llm_timeout_tests.rs"]
+mod timeout_tests;
