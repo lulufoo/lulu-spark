@@ -270,6 +270,7 @@ pub(crate) fn run_loop_with_progress(
         let options = llm::CallOptions {
             tool_choice,
             timeout: llm::DEFAULT_TIMEOUT,
+            connect_timeout: llm::LLM_CONNECT_TIMEOUT,
             max_retries: llm::MAX_LLM_RETRIES,
             is_cancelled: Some(&is_cancelled),
         };

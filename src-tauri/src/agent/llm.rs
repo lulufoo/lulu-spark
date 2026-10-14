@@ -227,8 +227,10 @@ impl ToolChoice {
 /// What a caller may choose about one logical call.
 pub struct CallOptions<'a> {
     pub tool_choice: ToolChoice,
-    /// Idle timeout (see [`DEFAULT_TIMEOUT`]); the connect timeout is capped by it.
+    /// Idle timeout (see [`DEFAULT_TIMEOUT`]).
     pub timeout: Duration,
+    /// Setting up the connection (see [`LLM_CONNECT_TIMEOUT`]).
+    pub connect_timeout: Duration,
     /// Extra requests after a `Timeout`; they do not count as separate calls to the caller.
     pub max_retries: usize,
     /// Asked before each retry; `true` stops retrying and returns the last failure.
@@ -241,6 +243,7 @@ impl Default for CallOptions<'_> {
         Self {
             tool_choice: ToolChoice::Auto,
             timeout: DEFAULT_TIMEOUT,
+            connect_timeout: LLM_CONNECT_TIMEOUT,
             max_retries: 0,
             is_cancelled: None,
         }
@@ -280,7 +283,7 @@ pub fn chat_completions_with_options(
             }
         }
         let mut trace = CallTrace::start();
-        let outcome = send_request(&url, &body, config, options.timeout, &mut on_delta, &mut trace);
+        let outcome = send_request(&url, &body, config, options, &mut on_delta, &mut trace);
         if let Some(ctx) = ctx {
             record::write(ctx, attempt, &url, &body, &trace, &outcome);
         }
@@ -292,15 +295,15 @@ fn send_request(
     url: &str,
     body: &Value,
     config: &LlmConfig,
-    timeout: Duration,
+    options: &CallOptions,
     on_delta: &mut Option<&mut dyn FnMut(&str, &str)>,
     trace: &mut CallTrace,
 ) -> LlmCallOutcome {
     // Blocking reqwest applies this duration to connect/TTFB and to each body
     // read, resetting after a successful read — idle timeout for SSE chunks.
     let client = match Client::builder()
-        .timeout(timeout)
-        .connect_timeout(connect_timeout_for(timeout))
+        .timeout(options.timeout)
+        .connect_timeout(options.connect_timeout)
         .build()
     {
         Ok(client) => client,
@@ -335,11 +338,6 @@ fn send_request(
     }
 
     stream::assemble_sse(resp, on_delta, trace, LLM_TOTAL_TIMEOUT)
-}
-
-/// The connect timeout never exceeds the caller's own (shorter) timeout.
-fn connect_timeout_for(timeout: Duration) -> Duration {
-    LLM_CONNECT_TIMEOUT.min(timeout)
 }
 
 fn map_error_status(status: u16, text: &str) -> LlmError {
