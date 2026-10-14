@@ -20,7 +20,8 @@ use super::history::{
     prompt_text_from_binding,
 };
 use super::response::{empty_reply_text, with_response};
-use super::types::{Terminal, TurnOutcome, MAX_CLARIFY_ROUNDS, MAX_MCP_TOOL_CALLS, MAX_MCP_TOOL_ROUNDS};
+use super::call_limit::{attach_wrap_up_prompt, end_turn_at_call_limit};
+use super::types::{Terminal, TurnOutcome, MAX_CLARIFY_ROUNDS, MAX_LLM_CALLS_PER_TURN};
 
 pub fn run_loop(session: &mut Session, user_message: &str, config: &LlmConfig) -> TurnOutcome {
     run_loop_with_trace(session, user_message, config, &TurnId::new())
@@ -214,11 +215,15 @@ pub(crate) fn run_loop_with_progress(
     }
 
     let mut wrote = false;
-    let mut tool_rounds = 0usize;
-    let mut tool_call_count = 0usize;
+    let mut llm_calls = 0usize;
     let (msg, llm_start, llm_end) = loop {
         if chat_turn_interrupted(&session.session_id, generation) {
             return cancelled_turn_outcome(session, steps_checkpoint);
+        }
+        llm_calls += 1;
+        let last_call = llm_calls >= MAX_LLM_CALLS_PER_TURN;
+        if last_call {
+            attach_wrap_up_prompt(session);
         }
         let summaries =
             session::load_summary_bodies(&session.session_id).unwrap_or_default();
@@ -252,13 +257,19 @@ pub(crate) fn run_loop_with_progress(
             session_id: session.session_id.clone(),
             turn_id: Some(turn_id.as_str().to_string()),
             purpose: "turn",
-            round: tool_rounds + 1,
+            round: llm_calls,
             step_index: session.steps.len(),
         };
         let llm_start = read_unix_millis();
-        let call = llm::chat_completions_recorded(
+        let tool_choice = if last_call {
+            llm::ToolChoice::None
+        } else {
+            llm::ToolChoice::Auto
+        };
+        let call = llm::chat_completions_with_choice(
             &messages,
             tool_defs,
+            tool_choice,
             config,
             llm::DEFAULT_TIMEOUT,
             Some(&mut on_delta),
@@ -334,33 +345,6 @@ pub(crate) fn run_loop_with_progress(
             };
         }
 
-        if tool_rounds >= MAX_MCP_TOOL_ROUNDS
-            || tool_call_count.saturating_add(msg.tool_calls.len()) > MAX_MCP_TOOL_CALLS
-        {
-            let reply = "工具调用次数已达上限，未继续执行。".to_string();
-            session.steps.push(Step {
-                role: "assistant".into(),
-                content: Some(reply.clone()),
-                tool_call_id: None,
-                tool_calls: None,
-                name: None,
-                finish_reason: None,
-                model: None,
-                usage: None,
-                reasoning_content: None,
-                clock: StepClock::stamp_now(),
-                extra: Default::default(),
-            });
-            persist_thinking(session, thinking.persist_ms());
-            return TurnOutcome {
-                reply_text: reply,
-                terminal: Terminal::Error,
-                wrote,
-            };
-        }
-        tool_rounds += 1;
-        tool_call_count += msg.tool_calls.len();
-
         let tool_calls = Value::Array(
             msg.tool_calls
                 .iter()
@@ -390,6 +374,13 @@ pub(crate) fn run_loop_with_progress(
             extra: Default::default(),
         }, &msg));
         persist_thinking(session, thinking.persist_ms());
+
+        // Tools were switched off for this call; whatever it still asked for is not run.
+        if last_call {
+            let outcome = end_turn_at_call_limit(session, &msg, wrote);
+            persist_thinking(session, thinking.persist_ms());
+            return outcome;
+        }
 
         for call in msg.tool_calls {
             if chat_turn_interrupted(&session.session_id, generation) {
@@ -499,7 +490,7 @@ pub(crate) fn run_loop_with_progress(
 
     let content = msg.content.clone().unwrap_or_default();
     if content.trim().is_empty() {
-        let reply = empty_reply_text(wrote, tool_rounds).to_string();
+        let reply = empty_reply_text(wrote, llm_calls - 1).to_string();
         session.steps.push(with_response(Step {
             role: "assistant".into(),
             content: Some(reply.clone()),

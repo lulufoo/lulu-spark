@@ -63,6 +63,11 @@ pub struct Step {
     pub extra: Map<String, Value>,
 }
 
+/// `Step::extra` key: text sent as a user message right after this `Step`.
+pub const EXTRA_APPEND_CONTENT: &str = "append_content";
+/// `Step::extra` key: `true` on a `tool` `Step` whose call was not run.
+pub const EXTRA_SKIPPED: &str = "skipped";
+
 /// Binding Contract surface.
 ///
 /// Public Set input is key-only (`binding_from_json`). Host may still hold

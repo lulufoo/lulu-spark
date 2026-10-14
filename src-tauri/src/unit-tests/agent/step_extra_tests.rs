@@ -53,7 +53,7 @@ fn extra_roundtrips_and_does_not_start_a_new_turn() {
         let id = session::create_session().expect("create").session_id;
         let steps = vec![
             plain("user", "hi"),
-            with_extra(plain("assistant", "reply"), json!({ "append_content": "收尾", "n": [1, { "k": null }] })),
+            with_extra(plain("assistant", "reply"), json!({ "append_content": "wrap up", "n": [1, { "k": null }] })),
             with_extra(plain("tool", "skipped"), json!({ "skipped": true })),
         ];
         let again = save_steps(&id, steps.clone());

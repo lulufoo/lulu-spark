@@ -236,56 +236,6 @@ fn run_loop_returns_argument_and_allowlist_failures_to_the_model_as_tool_turns()
 }
 
 #[test]
-fn run_loop_stops_after_bounded_mcp_tool_rounds() {
-    let sandbox = TestSandbox::new();
-    secrets::test_secrets_clear();
-    r#loop::reset_runtime_for_tests();
-    mcp_registry::clear_for_tests();
-    mcp_registry::seed_defaults();
-    let (mcp, mcp_port) = start_isolated_mcp(&sandbox);
-    register_test_mcp("spark", mcp_port);
-
-    let responses = (0..=r#loop::MAX_MCP_TOOL_ROUNDS)
-        .map(|round| {
-            assistant_tools(
-                json!([{
-                    "id": format!("selection_{round}"),
-                    "type": "function",
-                    "function": {
-                        "name": "list_todo_tasks",
-                        "arguments": "{}"
-                    }
-                }]),
-                None,
-            )
-        })
-        .collect();
-    let mock = spawn_scripted_llm(responses);
-    r#loop::try_set_binding_json(&json!({ "key": "spark" })).expect("Set spark binding");
-    let mut session = session::create_session().expect("session");
-    let outcome = r#loop::run_loop(&mut session, "反复读取待办", &cfg_for(&mock));
-
-    assert_outcome(&outcome, "error", false);
-    assert!(outcome.reply_text.contains("调用次数已达上限"));
-    assert_eq!(
-        session
-            .steps
-            .iter()
-            .filter(|turn| turn.role == "tool")
-            .count(),
-        r#loop::MAX_MCP_TOOL_ROUNDS,
-        "the cap must prevent the next requested tool call"
-    );
-    assert_eq!(
-        mock.hits.lock().unwrap().len(),
-        r#loop::MAX_MCP_TOOL_ROUNDS + 1,
-        "the cap is checked after the model requests its next tool round"
-    );
-
-    stop_embedded_mcp_runtime(mcp).expect("stop MCP");
-}
-
-#[test]
 fn run_loop_offers_host_file_tools_and_keeps_scratch_writes_inside_cache() {
     let sandbox = TestSandbox::new();
     secrets::test_secrets_clear();
