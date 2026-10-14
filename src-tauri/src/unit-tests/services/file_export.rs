@@ -14,7 +14,7 @@ fn source_file(sandbox: &TestSandbox, body: &str) -> PathBuf {
     path
 }
 
-/// A destination outside Spark's config and cache base dirs.
+/// A destination outside the sandbox, so it never touches Spark's own directories.
 fn dest_outside(outside: &tempfile::TempDir, name: &str) -> PathBuf {
     outside.path().join(name)
 }
@@ -85,25 +85,22 @@ fn copy_accepts_dir_outside_spark_base_dirs() {
 }
 
 #[test]
-fn copy_rejects_dir_under_config_base_dir() {
+fn copy_accepts_dir_under_cache_outside_data() {
     let sandbox = TestSandbox::new();
     let src = source_file(&sandbox, "x");
-    let config = crate::config::settings::runtime_config_dir().expect("config dir");
-    let dest = config.join("lw-260-probe");
-    let err = copy_into_dir_versioned(&src, dest.to_str().unwrap(), ID, "md").unwrap_err();
-    assert_eq!(err["_status"], 403);
-    assert!(!dest.exists(), "must not create a dir under the config base dir");
+    let dest = sandbox.cache_dir().join("agent-workspace").join("session-1");
+    let out = copy_into_dir_versioned(&src, dest.to_str().unwrap(), ID, "md").expect("copy");
+    assert_eq!(fs::read_to_string(&out).unwrap(), "x");
+    assert!(out.starts_with(dest.canonicalize().unwrap()));
 }
 
 #[test]
-fn copy_rejects_dir_under_cache_base_dir() {
+fn copy_accepts_dir_under_config_dir() {
     let sandbox = TestSandbox::new();
     let src = source_file(&sandbox, "x");
-    let cache = crate::config::settings::runtime_cache_dir().expect("cache dir");
-    let dest = cache.join("exports");
-    let err = copy_into_dir_versioned(&src, dest.to_str().unwrap(), ID, "md").unwrap_err();
-    assert_eq!(err["_status"], 403);
-    assert!(!dest.exists(), "must not create a dir under the cache base dir");
+    let dest = sandbox.config_dir().join("exports");
+    let out = copy_into_dir_versioned(&src, dest.to_str().unwrap(), ID, "md").expect("copy");
+    assert!(out.starts_with(dest.canonicalize().unwrap()));
 }
 
 #[test]
@@ -118,7 +115,7 @@ fn copy_rejects_dir_inside_data_dir() {
 
 #[cfg(unix)]
 #[test]
-fn copy_rejects_symlink_into_cache_base_dir() {
+fn copy_rejects_symlink_into_data_dir() {
     let sandbox = TestSandbox::new();
     let outside = tempfile::tempdir().expect("outside dir");
     let src = source_file(&sandbox, "x");
