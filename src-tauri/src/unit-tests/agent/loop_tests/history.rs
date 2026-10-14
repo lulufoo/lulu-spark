@@ -10,7 +10,7 @@ use super::support::*;
 #[test]
 fn spark_host_system_prompt_is_nonempty_code_constant() {
     assert!(!SPARK_HOST_SYSTEM_PROMPT.trim().is_empty());
-    assert!(SPARK_HOST_SYSTEM_PROMPT.contains("Host 对话助手"));
+    assert!(SPARK_HOST_SYSTEM_PROMPT.contains("Host chat assistant"));
     assert!(SPARK_HOST_SYSTEM_PROMPT.contains("MCP"));
     assert!(SPARK_HOST_SYSTEM_PROMPT.contains("PathFence"));
     assert!(SPARK_HOST_SYSTEM_PROMPT.contains("API Key"));
@@ -37,9 +37,9 @@ fn spark_host_system_prompt_closes_data_and_teaches_file_copies() {
     assert!(prompt.contains("get_knowledge_file"));
     assert!(prompt.contains("get_read_later"));
     assert!(prompt.contains("source_path"), "edited copy goes back via update_note");
-    assert!(prompt.contains("[标题](note:<id>)"), "note link rule");
-    assert!(prompt.contains("[标题](knowledge:<id>)"), "knowledge link rule");
-    assert!(prompt.contains("[标题](read-later:<id>)"), "read-later link rule");
+    assert!(prompt.contains("[Title](note:<id>)"), "note link rule");
+    assert!(prompt.contains("[Title](knowledge:<id>)"), "knowledge link rule");
+    assert!(prompt.contains("[Title](read-later:<id>)"), "read-later link rule");
 }
 
 #[test]
