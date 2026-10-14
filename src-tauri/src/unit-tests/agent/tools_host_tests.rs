@@ -5,7 +5,7 @@ use serde_json::json;
 
 use crate::agent::tools::host;
 use crate::agent::tools::ToolCatalog;
-use crate::services::path_fence::PathFence;
+use crate::agent::fence::PathFence;
 
 fn tool_param_description(catalog: &ToolCatalog, name: &str, field: &str) -> String {
     catalog

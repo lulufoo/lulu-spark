@@ -6,8 +6,8 @@ use serde_json::json;
 use crate::config::paths;
 use crate::agent::r#loop;
 use crate::mcp_host::registry::{self, SEEDED_BUSINESS_KEY};
-use crate::services::path_fence::{stored_path, validate_stage_file};
-use crate::services::spark_path_fence::expand_for_business_key;
+use crate::agent::fence::{stored_path, validate_stage_file};
+use crate::agent::fence::spark::expand_for_business_key;
 use crate::test_support::TestSandbox;
 
 fn same_path(left: &Path, right: &Path) -> bool {

@@ -3,7 +3,7 @@
 use std::fs;
 use std::path::Path;
 
-use crate::services::path_fence::{require_absolute, stored_path, PathFence};
+use crate::agent::fence::{require_absolute, stored_path, PathFence};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WorkspaceFile {
@@ -102,5 +102,5 @@ fn relative_title(root: &Path, path: &Path) -> String {
 }
 
 #[cfg(test)]
-#[path = "../unit-tests/services/chat_workspace.rs"]
+#[path = "../unit-tests/agent/workspace_tests.rs"]
 mod tests;

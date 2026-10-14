@@ -11,7 +11,7 @@ use std::fmt;
 use serde_json::Value;
 
 use crate::mcp_host::registry::McpServerConfig;
-use crate::services::path_fence::PathFence;
+use crate::agent::fence::PathFence;
 
 use super::diagnostics::TurnId;
 use super::mcp;

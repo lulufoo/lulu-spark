@@ -8,7 +8,7 @@ use serde_json::{json, Value};
 
 use crate::config::paths;
 use crate::services::search_index::{prefilter_or_none, should_scan_file, GrepPrefilter};
-use crate::services::path_fence::{
+use crate::agent::fence::{
     require_absolute, stored_path, validate_readable_regular_file, PathFence,
 };
 

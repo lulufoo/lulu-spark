@@ -156,7 +156,7 @@ pub fn list_chat_workspace_core(session_id: &str) -> Result<Value, String> {
     let base = crate::agent::binding::loaded_path_fence().ok_or_else(|| {
         "Host tool has no path fence for this binding.".to_string()
     })?;
-    let files = crate::services::chat_workspace::list_session_workspace_files(sid, &base)?;
+    let files = crate::agent::workspace::list_session_workspace_files(sid, &base)?;
     Ok(json!({
         "session_id": sid,
         "files": files
@@ -182,7 +182,7 @@ pub fn delete_chat_workspace_file_core(session_id: &str, path: &str) -> Result<V
     let base = crate::agent::binding::loaded_path_fence().ok_or_else(|| {
         "Host tool has no path fence for this binding.".to_string()
     })?;
-    let files = crate::services::chat_workspace::delete_session_workspace_file(sid, path, &base)?;
+    let files = crate::agent::workspace::delete_session_workspace_file(sid, path, &base)?;
     Ok(json!({
         "session_id": sid,
         "files": files

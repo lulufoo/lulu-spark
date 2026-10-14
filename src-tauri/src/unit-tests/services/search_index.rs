@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use regex::Regex;
 
 use crate::services::search_index::chunk::char_len;
-use crate::services::path_fence::PathFence;
+use crate::agent::fence::PathFence;
 
 fn temp_cache() -> (tempfile::TempDir, PathBuf) {
     let dir = tempfile::tempdir().expect("tmp");

@@ -6,7 +6,7 @@ use serde_json::{json, Value};
 use crate::agent::r#loop;
 use crate::agent::session::{self, Session};
 use crate::agent::tools::stage;
-use crate::services::path_fence::{stored_path, PathFence};
+use crate::agent::fence::{stored_path, PathFence};
 use crate::test_support::TestSandbox;
 
 const SECRET_BODY: &str = "SECRET_BODY_MUST_NOT_APPEAR";

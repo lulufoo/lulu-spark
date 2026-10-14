@@ -1,4 +1,3 @@
-pub mod path_fence;
 pub mod abs_file;
 pub mod annotation;
 pub mod archive_parse;
@@ -30,5 +29,3 @@ pub mod settings;
 pub mod mcp_oauth;
 pub mod bind;
 pub mod spark_read;
-pub mod spark_path_fence;
-pub mod chat_workspace;
