@@ -22,6 +22,7 @@ fn step_with(role: &str, text: &str, clock: StepClock) -> Step {
         usage: None,
         reasoning_content: None,
         clock,
+        extra: Default::default(),
     }
 }
 

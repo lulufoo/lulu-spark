@@ -38,6 +38,7 @@ fn append_user_assistant(session: &mut session::Session, user: &str, assistant: 
         usage: None,
         reasoning_content: None,
         clock: StepClock::stamp_now(),
+        extra: Default::default(),
     });
     session.steps.push(Step {
         role: "assistant".into(),
@@ -50,6 +51,7 @@ fn append_user_assistant(session: &mut session::Session, user: &str, assistant: 
         usage: None,
         reasoning_content: None,
         clock: StepClock::stamp_now(),
+        extra: Default::default(),
     });
     r#loop::persist(session);
 }

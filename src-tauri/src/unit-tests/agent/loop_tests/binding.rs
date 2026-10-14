@@ -988,6 +988,7 @@ fn t2_reset_old_session_not_reused_by_ensure_for_executable() {
             usage: None,
             reasoning_content: None,
             clock: Default::default(),
+            extra: Default::default(),
         });
         session::save_session(&old).unwrap();
 
@@ -1131,6 +1132,7 @@ fn t2_unbound_ensure_session_not_auto_promoted_on_set() {
             usage: None,
             reasoning_content: None,
             clock: Default::default(),
+            extra: Default::default(),
         });
         session::save_session(&seeded).unwrap();
 
@@ -1170,6 +1172,7 @@ fn t2_cut_does_not_wipe_turns_as_primary_means() {
             usage: None,
             reasoning_content: None,
             clock: Default::default(),
+            extra: Default::default(),
         });
         session::save_session(&sess).unwrap();
         let turns_before = sess.steps.len();

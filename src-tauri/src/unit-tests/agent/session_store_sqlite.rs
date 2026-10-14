@@ -21,6 +21,7 @@ fn user_step(text: &str) -> Step {
         usage: None,
         reasoning_content: None,
         clock: Default::default(),
+        extra: Default::default(),
     }
 }
 
@@ -36,6 +37,7 @@ fn assistant_step(text: &str) -> Step {
         usage: None,
         reasoning_content: None,
         clock: Default::default(),
+        extra: Default::default(),
     }
 }
 
@@ -83,6 +85,7 @@ fn save_roundtrip_keeps_user_assistant_and_tool_turns() {
             usage: None,
             reasoning_content: None,
             clock: Default::default(),
+            extra: Default::default(),
         });
         loaded.steps.push(Step {
             role: "tool".into(),
@@ -95,6 +98,7 @@ fn save_roundtrip_keeps_user_assistant_and_tool_turns() {
             usage: None,
             reasoning_content: None,
             clock: Default::default(),
+            extra: Default::default(),
         });
         loaded.steps.push(assistant_step("done"));
         session::save_session(&loaded).expect("save");

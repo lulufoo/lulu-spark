@@ -57,6 +57,7 @@ pub(crate) fn run_loop_with_progress(
             usage: None,
             reasoning_content: None,
             clock: StepClock::stamp_now(),
+            extra: Default::default(),
         });
         // Distinguish never/fully unbound from a corrupted bound-without-generation slot.
         if current_binding_snapshot().is_none() {
@@ -73,6 +74,7 @@ pub(crate) fn run_loop_with_progress(
                 usage: None,
                 reasoning_content: None,
                 clock: StepClock::stamp_now(),
+                extra: Default::default(),
             });
             persist_thinking(session, thinking.persist_ms());
             return TurnOutcome {
@@ -97,6 +99,7 @@ pub(crate) fn run_loop_with_progress(
             usage: None,
             reasoning_content: None,
             clock: StepClock::stamp_now(),
+            extra: Default::default(),
         });
         let reply = "Binding prompt is empty; cannot run chat.".to_string();
         session.steps.push(Step {
@@ -110,6 +113,7 @@ pub(crate) fn run_loop_with_progress(
             usage: None,
             reasoning_content: None,
             clock: StepClock::stamp_now(),
+            extra: Default::default(),
         });
         persist_thinking(session, thinking.persist_ms());
         return TurnOutcome {
@@ -133,6 +137,7 @@ pub(crate) fn run_loop_with_progress(
         usage: None,
         reasoning_content: None,
         clock: StepClock::stamp_now(),
+        extra: Default::default(),
     });
     persist_thinking(session, thinking.persist_ms());
 
@@ -165,6 +170,7 @@ pub(crate) fn run_loop_with_progress(
                 usage: None,
                 reasoning_content: None,
                 clock: StepClock::stamp_now(),
+                extra: Default::default(),
             });
             persist_thinking(session, thinking.persist_ms());
             return TurnOutcome {
@@ -186,6 +192,7 @@ pub(crate) fn run_loop_with_progress(
                 usage: None,
                 reasoning_content: None,
                 clock: StepClock::stamp_now(),
+                extra: Default::default(),
             });
             persist_thinking(session, thinking.persist_ms());
             return TurnOutcome {
@@ -282,6 +289,7 @@ pub(crate) fn run_loop_with_progress(
                     usage: None,
                     reasoning_content: None,
                     clock: StepClock::stamp_span(llm_start, llm_end),
+                    extra: Default::default(),
                 };
                 session.steps.push(match &arrived {
                     Some(message) => with_response(step, message),
@@ -316,6 +324,7 @@ pub(crate) fn run_loop_with_progress(
                 usage: None,
                 reasoning_content: None,
                 clock: StepClock::stamp_now(),
+                extra: Default::default(),
             });
             persist_thinking(session, thinking.persist_ms());
             return TurnOutcome {
@@ -340,6 +349,7 @@ pub(crate) fn run_loop_with_progress(
                 usage: None,
                 reasoning_content: None,
                 clock: StepClock::stamp_now(),
+                extra: Default::default(),
             });
             persist_thinking(session, thinking.persist_ms());
             return TurnOutcome {
@@ -377,6 +387,7 @@ pub(crate) fn run_loop_with_progress(
             usage: None,
             reasoning_content: None,
             clock: StepClock::stamp_span(llm_start, llm_end),
+            extra: Default::default(),
         }, &msg));
         persist_thinking(session, thinking.persist_ms());
 
@@ -420,6 +431,7 @@ pub(crate) fn run_loop_with_progress(
                         usage: None,
                         reasoning_content: None,
                         clock: StepClock::stamp_now(),
+                        extra: Default::default(),
                     });
                     persist_thinking(session, thinking.persist_ms());
                     return TurnOutcome {
@@ -479,6 +491,7 @@ pub(crate) fn run_loop_with_progress(
                 usage: None,
                 reasoning_content: None,
                 clock: StepClock::stamp_span(tool_start_ts, tool_end_ts),
+                extra: Default::default(),
             });
         }
         persist_thinking(session, thinking.persist_ms());
@@ -498,6 +511,7 @@ pub(crate) fn run_loop_with_progress(
             usage: None,
             reasoning_content: None,
             clock: StepClock::stamp_span(llm_start, llm_end),
+            extra: Default::default(),
         }, &msg));
         persist_thinking(session, thinking.persist_ms());
         return TurnOutcome {
@@ -527,6 +541,7 @@ pub(crate) fn run_loop_with_progress(
                 usage: None,
                 reasoning_content: None,
                 clock: StepClock::stamp_now(),
+                extra: Default::default(),
             });
             persist_thinking(session, thinking.persist_ms());
             return TurnOutcome {
@@ -548,6 +563,7 @@ pub(crate) fn run_loop_with_progress(
             usage: None,
             reasoning_content: None,
             clock: StepClock::stamp_span(llm_start, llm_end),
+            extra: Default::default(),
         }, &msg));
         persist_thinking(session, thinking.persist_ms());
         return TurnOutcome {
@@ -569,6 +585,7 @@ pub(crate) fn run_loop_with_progress(
             usage: None,
             reasoning_content: None,
             clock: StepClock::stamp_span(llm_start, llm_end),
+            extra: Default::default(),
         }, &msg));
         persist_thinking(session, thinking.persist_ms());
         return TurnOutcome {
@@ -589,6 +606,7 @@ pub(crate) fn run_loop_with_progress(
         usage: None,
         reasoning_content: None,
         clock: StepClock::stamp_span(llm_start, llm_end),
+        extra: Default::default(),
     }, &msg));
     persist_thinking(session, thinking.persist_ms());
     TurnOutcome {

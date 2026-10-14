@@ -30,3 +30,7 @@ mod step_response_tests;
 #[cfg(test)]
 #[path = "../../unit-tests/agent/step_clock_tests.rs"]
 mod step_clock_tests;
+
+#[cfg(test)]
+#[path = "../../unit-tests/agent/step_extra_tests.rs"]
+mod step_extra_tests;

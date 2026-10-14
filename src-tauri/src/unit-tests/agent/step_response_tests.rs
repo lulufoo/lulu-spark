@@ -23,6 +23,7 @@ fn plain(role: &str, text: &str) -> Step {
         usage: None,
         reasoning_content: None,
         clock: Default::default(),
+        extra: Default::default(),
     }
 }
 
@@ -59,6 +60,7 @@ fn tool_call_step(call_count: usize) -> Step {
         usage: None,
         reasoning_content: None,
         clock: Default::default(),
+        extra: Default::default(),
     }
 }
 
@@ -224,6 +226,7 @@ fn one_turn_joins_thinking_pieces_on_the_final_assistant_ui_message() {
                     usage: None,
                     reasoning_content: None,
                     clock: Default::default(),
+                    extra: Default::default(),
                 },
                 with_thinking(with_response(plain("assistant", "done"), "stop"), "再想"),
             ],

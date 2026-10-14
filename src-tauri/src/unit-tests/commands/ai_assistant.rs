@@ -308,6 +308,7 @@ fn sk3_t5_binding_returns_live_session_turns() {
                 usage: None,
                 reasoning_content: None,
                 clock: Default::default(),
+                extra: Default::default(),
             },
         )
         .expect("append user");
@@ -324,6 +325,7 @@ fn sk3_t5_binding_returns_live_session_turns() {
                 usage: None,
                 reasoning_content: None,
                 clock: Default::default(),
+                extra: Default::default(),
             },
         )
         .expect("append assistant");
@@ -365,6 +367,7 @@ fn sk3_t5_binding_turns_empty_without_live_or_after_reset() {
                 usage: None,
                 reasoning_content: None,
                 clock: Default::default(),
+                extra: Default::default(),
             },
         )
         .expect("append");
@@ -400,6 +403,7 @@ fn sk3_t5_binding_turns_empty_without_live_or_after_reset() {
                 usage: None,
                 reasoning_content: None,
                 clock: Default::default(),
+                extra: Default::default(),
             },
         )
         .expect("append2");
@@ -431,6 +435,7 @@ fn sk3_t5_shell_close_preserves_live_turns_for_reopen_hydrate() {
                 usage: None,
                 reasoning_content: None,
                 clock: Default::default(),
+                extra: Default::default(),
             },
         )
         .expect("append");
@@ -607,6 +612,7 @@ fn list_select_create_chat_sessions_for_home_history() {
                 usage: None,
                 reasoning_content: None,
                 clock: Default::default(),
+                extra: Default::default(),
             },
         )
         .expect("append");
@@ -648,6 +654,7 @@ fn list_select_create_chat_sessions_for_home_history() {
                 usage: None,
                 reasoning_content: None,
                 clock: Default::default(),
+                extra: Default::default(),
             },
         )
         .expect("append tool dump");

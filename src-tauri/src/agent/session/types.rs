@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{Map, Value};
 
 use crate::services::path_fence::PathFence;
 use crate::mcp_host::registry::McpServerConfig;
@@ -57,6 +57,10 @@ pub struct Step {
     /// Wall-clock marks (ms). Fixed at push; see `StepClock`.
     #[serde(default, skip_serializing_if = "StepClock::is_empty")]
     pub clock: StepClock,
+    /// Open key/value slot for per-step data that has no fixed column. Empty means "none"
+    /// (stored as NULL), so a step without extras serializes and compares exactly as before.
+    #[serde(default, skip_serializing_if = "Map::is_empty")]
+    pub extra: Map<String, Value>,
 }
 
 /// Binding Contract surface.

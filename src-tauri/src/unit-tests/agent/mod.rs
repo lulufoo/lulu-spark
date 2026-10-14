@@ -148,6 +148,7 @@ fn session_save_load_roundtrip_under_cache_agent_sessions() {
                 usage: None,
                 reasoning_content: None,
                 clock: Default::default(),
+                extra: Default::default(),
             },
         )
         .expect("append");
