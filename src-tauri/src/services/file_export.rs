@@ -1,8 +1,8 @@
 //! Versioned copy of a Host-owned file into a caller-chosen directory.
 //!
 //! The caller names the directory. The Host enforces only a floor: absolute path,
-//! no `..`, resolves (symlinks included) inside the `source_path` allow-list, and
-//! never inside the Data directory. Existing files are never overwritten.
+//! no `..`, and never resolves (symlinks included) inside Spark's config or cache
+//! base directory. Existing files are never overwritten.
 
 use std::ffi::OsString;
 use std::fs::{self, OpenOptions};
@@ -11,8 +11,7 @@ use std::path::{Component, Path, PathBuf};
 
 use serde_json::{json, Value};
 
-use crate::config::paths;
-use crate::services::source_path_allow::allow_roots;
+use crate::config::settings;
 
 fn reject(error: &str, status: u16) -> Value {
     json!({ "error": error, "_status": status })
@@ -39,6 +38,16 @@ fn resolve_dest_dir(raw: &Path) -> Result<PathBuf, Value> {
     }
 }
 
+/// Startup-determined config and cache base dirs, canonicalized when they exist.
+fn read_spark_base_dirs() -> Result<[PathBuf; 2], Value> {
+    let unavailable = |e: settings::SettingsError| {
+        reject(&format!("Spark base directory unavailable: {e:?}"), 500)
+    };
+    let config = settings::runtime_config_dir().map_err(unavailable)?;
+    let cache = settings::runtime_cache_dir().map_err(unavailable)?;
+    Ok([config, cache].map(|dir| dir.canonicalize().unwrap_or(dir)))
+}
+
 fn validate_dest_dir(dest_dir: &str) -> Result<PathBuf, Value> {
     let trimmed = dest_dir.trim();
     if trimmed.is_empty() {
@@ -52,16 +61,10 @@ fn validate_dest_dir(dest_dir: &str) -> Result<PathBuf, Value> {
         return Err(reject("dest_dir must not contain '..'", 400));
     }
     let resolved = resolve_dest_dir(&raw)?;
-    // `allow_roots` also creates the Data dir, so it can be canonicalized below.
-    let roots = allow_roots();
-    let data = paths::runtime_data_dir()
-        .map_err(|e| reject(&format!("Data directory unavailable: {e:?}"), 500))?;
-    let data = data.canonicalize().unwrap_or(data);
-    if resolved.starts_with(&data) {
-        return Err(reject("dest_dir must not be inside the Data directory", 403));
-    }
-    if !roots.iter().any(|root| resolved.starts_with(root)) {
-        return Err(reject("dest_dir not allowed", 403));
+    for base in read_spark_base_dirs()? {
+        if resolved.starts_with(&base) {
+            return Err(reject("dest_dir must not be inside a Spark base directory", 403));
+        }
     }
     Ok(resolved)
 }

@@ -14,15 +14,17 @@ fn source_file(sandbox: &TestSandbox, body: &str) -> PathBuf {
     path
 }
 
-fn dest_under_cache(sandbox: &TestSandbox, name: &str) -> PathBuf {
-    sandbox.cache_dir().join(name)
+/// A destination outside Spark's config and cache base dirs.
+fn dest_outside(outside: &tempfile::TempDir, name: &str) -> PathBuf {
+    outside.path().join(name)
 }
 
 #[test]
 fn copy_writes_id_named_file_and_creates_missing_dir() {
     let sandbox = TestSandbox::new();
+    let outside = tempfile::tempdir().expect("outside dir");
     let src = source_file(&sandbox, "# body");
-    let dest = dest_under_cache(&sandbox, "ws/session-1");
+    let dest = dest_outside(&outside, "ws/session-1");
     let out = copy_into_dir_versioned(&src, dest.to_str().unwrap(), ID, "md").expect("copy");
     assert_eq!(out.file_name().unwrap().to_str().unwrap(), format!("{ID}.md"));
     assert_eq!(fs::read_to_string(&out).unwrap(), "# body");
@@ -31,8 +33,9 @@ fn copy_writes_id_named_file_and_creates_missing_dir() {
 #[test]
 fn copy_with_empty_ext_drops_the_dot() {
     let sandbox = TestSandbox::new();
+    let outside = tempfile::tempdir().expect("outside dir");
     let src = source_file(&sandbox, "x");
-    let dest = dest_under_cache(&sandbox, "ws/bare");
+    let dest = dest_outside(&outside, "ws/bare");
     let dest = dest.to_str().unwrap();
     let first = copy_into_dir_versioned(&src, dest, "doc", "").expect("v0");
     let second = copy_into_dir_versioned(&src, dest, "doc", "").expect("v1");
@@ -43,8 +46,9 @@ fn copy_with_empty_ext_drops_the_dot() {
 #[test]
 fn copy_never_overwrites_and_bumps_version() {
     let sandbox = TestSandbox::new();
+    let outside = tempfile::tempdir().expect("outside dir");
     let src = source_file(&sandbox, "first");
-    let dest = dest_under_cache(&sandbox, "ws/versions");
+    let dest = dest_outside(&outside, "ws/versions");
     let dest = dest.to_str().unwrap();
     let first = copy_into_dir_versioned(&src, dest, ID, "md").expect("v0");
     fs::write(&first, "edited by agent").unwrap();
@@ -59,30 +63,47 @@ fn copy_never_overwrites_and_bumps_version() {
 #[test]
 fn copy_rejects_relative_and_parent_dir_paths() {
     let sandbox = TestSandbox::new();
+    let outside = tempfile::tempdir().expect("outside dir");
     let src = source_file(&sandbox, "x");
     let relative = copy_into_dir_versioned(&src, "relative/dir", ID, "md").unwrap_err();
     assert_eq!(relative["_status"], 400);
     let empty = copy_into_dir_versioned(&src, "  ", ID, "md").unwrap_err();
     assert_eq!(empty["_status"], 400);
-    let dotdot = dest_under_cache(&sandbox, "a/../b");
+    let dotdot = dest_outside(&outside, "a/../b");
     let parent = copy_into_dir_versioned(&src, dotdot.to_str().unwrap(), ID, "md").unwrap_err();
     assert_eq!(parent["_status"], 400);
 }
 
 #[test]
-fn copy_rejects_dir_outside_allow_list() {
+fn copy_accepts_dir_outside_spark_base_dirs() {
     let sandbox = TestSandbox::new();
     let src = source_file(&sandbox, "x");
-    let outside = std::env::current_dir()
-        .expect("cwd")
-        .ancestors()
-        .last()
-        .expect("root")
-        .join("usr")
-        .join("lulu-export-denied-probe");
-    let err = copy_into_dir_versioned(&src, outside.to_str().unwrap(), ID, "md").unwrap_err();
+    let dir = tempfile::tempdir().expect("outside dir");
+    let dest = dir.path().join("exports");
+    let out = copy_into_dir_versioned(&src, dest.to_str().unwrap(), ID, "md").expect("copy");
+    assert!(out.starts_with(dest.canonicalize().unwrap()));
+}
+
+#[test]
+fn copy_rejects_dir_under_config_base_dir() {
+    let sandbox = TestSandbox::new();
+    let src = source_file(&sandbox, "x");
+    let config = crate::config::settings::runtime_config_dir().expect("config dir");
+    let dest = config.join("lw-260-probe");
+    let err = copy_into_dir_versioned(&src, dest.to_str().unwrap(), ID, "md").unwrap_err();
     assert_eq!(err["_status"], 403);
-    assert!(!outside.exists(), "must not create a dir outside the allow-list");
+    assert!(!dest.exists(), "must not create a dir under the config base dir");
+}
+
+#[test]
+fn copy_rejects_dir_under_cache_base_dir() {
+    let sandbox = TestSandbox::new();
+    let src = source_file(&sandbox, "x");
+    let cache = crate::config::settings::runtime_cache_dir().expect("cache dir");
+    let dest = cache.join("exports");
+    let err = copy_into_dir_versioned(&src, dest.to_str().unwrap(), ID, "md").unwrap_err();
+    assert_eq!(err["_status"], 403);
+    assert!(!dest.exists(), "must not create a dir under the cache base dir");
 }
 
 #[test]
@@ -97,12 +118,13 @@ fn copy_rejects_dir_inside_data_dir() {
 
 #[cfg(unix)]
 #[test]
-fn copy_rejects_symlink_that_escapes_allow_list() {
+fn copy_rejects_symlink_into_cache_base_dir() {
     let sandbox = TestSandbox::new();
+    let outside = tempfile::tempdir().expect("outside dir");
     let src = source_file(&sandbox, "x");
     let target = sandbox.data_dir().join("notes");
     fs::create_dir_all(&target).unwrap();
-    let link = dest_under_cache(&sandbox, "link-to-data");
+    let link = dest_outside(&outside, "link-to-data");
     std::os::unix::fs::symlink(&target, &link).unwrap();
     let dest = link.join("sub");
     let err = copy_into_dir_versioned(&src, dest.to_str().unwrap(), ID, "md").unwrap_err();
@@ -112,8 +134,9 @@ fn copy_rejects_symlink_that_escapes_allow_list() {
 #[test]
 fn copy_rejects_unsafe_stem() {
     let sandbox = TestSandbox::new();
+    let outside = tempfile::tempdir().expect("outside dir");
     let src = source_file(&sandbox, "x");
-    let dest = dest_under_cache(&sandbox, "ws/stem");
+    let dest = dest_outside(&outside, "ws/stem");
     for bad in ["", "../x", "a/b", "a\\b"] {
         let err = copy_into_dir_versioned(&src, dest.to_str().unwrap(), bad, "md").unwrap_err();
         assert_eq!(err["_status"], 400, "stem {bad:?}");
