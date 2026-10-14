@@ -1,6 +1,6 @@
 //! One `model_steps` row <-> one `Step` (kept one-to-one, nothing is merged).
 
-use serde_json::{json, Value};
+use serde_json::{json, Map, Value};
 
 use super::step_clock::StepClock;
 use super::types::Step;
@@ -20,6 +20,8 @@ pub(super) struct StepRow {
     pub create_ts: Option<i64>,
     pub start_ts: Option<i64>,
     pub end_ts: Option<i64>,
+    /// JSON text of `Step::extra`; NULL when the step has none.
+    pub extra: Option<String>,
 }
 
 pub(super) fn encode_step(step: &Step) -> StepRow {
@@ -36,6 +38,7 @@ pub(super) fn encode_step(step: &Step) -> StepRow {
         create_ts: step.clock.create_ts,
         start_ts: step.clock.start_ts,
         end_ts: step.clock.end_ts,
+        extra: (!step.extra.is_empty()).then(|| Value::Object(step.extra.clone()).to_string()),
     }
 }
 
@@ -65,6 +68,10 @@ pub(super) fn decode_step(row: StepRow) -> Step {
         start_ts: row.start_ts,
         end_ts: row.end_ts,
     };
+    step.extra = row
+        .extra
+        .and_then(|text| serde_json::from_str::<Map<String, Value>>(&text).ok())
+        .unwrap_or_default();
     step
 }
 
@@ -92,6 +99,7 @@ fn decode_base(
                 usage: None,
                 reasoning_content: None,
                 clock: StepClock::default(),
+                extra: Map::new(),
             };
         }
     }
@@ -111,5 +119,6 @@ fn decode_base(
         usage: None,
         reasoning_content: None,
         clock: StepClock::default(),
+        extra: Map::new(),
     }
 }

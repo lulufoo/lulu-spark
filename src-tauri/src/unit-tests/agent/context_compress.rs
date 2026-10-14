@@ -36,6 +36,7 @@ fn user_step(text: &str) -> Step {
         usage: None,
         reasoning_content: None,
         clock: Default::default(),
+        extra: Default::default(),
     }
 }
 
@@ -51,6 +52,7 @@ fn assistant_step(text: &str) -> Step {
         usage: None,
         reasoning_content: None,
         clock: Default::default(),
+        extra: Default::default(),
     }
 }
 
@@ -66,6 +68,7 @@ fn tool_step(name: &str, content: &str) -> Step {
         usage: None,
         reasoning_content: None,
         clock: Default::default(),
+        extra: Default::default(),
     }
 }
 
@@ -87,6 +90,7 @@ fn transcript_with_tool(result: &str) -> Vec<Step> {
             usage: None,
             reasoning_content: None,
             clock: Default::default(),
+            extra: Default::default(),
         },
         tool_step("lookup", result),
         assistant_step("done"),

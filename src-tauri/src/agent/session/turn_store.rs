@@ -14,7 +14,7 @@ pub(crate) fn load_stored_steps(conn: &Connection) -> Result<Vec<StoredStep>, St
         .prepare(
             "SELECT s.step_id, s.kind, s.content, s.tool_call_id, s.tool_name,
                     s.finish_reason, s.model, s.usage, s.reasoning_content,
-                    s.create_ts, s.start_ts, s.end_ts
+                    s.create_ts, s.start_ts, s.end_ts, s.extra
              FROM model_steps s
              JOIN model_turns t ON t.turn_id = s.turn_id
              ORDER BY t.seq ASC, s.seq ASC",
@@ -36,6 +36,7 @@ pub(crate) fn load_stored_steps(conn: &Connection) -> Result<Vec<StoredStep>, St
                     create_ts: row.get(9)?,
                     start_ts: row.get(10)?,
                     end_ts: row.get(11)?,
+                    extra: row.get(12)?,
                 },
             ))
         })
@@ -148,8 +149,8 @@ fn append_steps(tx: &Transaction<'_>, steps: &[Step], now: i64) -> Result<(), St
         tx.execute(
             "INSERT INTO model_steps (step_id, turn_id, seq, kind, content, tool_call_id, tool_name,
                                       finish_reason, model, usage, reasoning_content,
-                                      create_ts, start_ts, end_ts)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
+                                      create_ts, start_ts, end_ts, extra)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
             params![
                 format!("step_{}", random_entry_id()),
                 turn_id,
@@ -164,7 +165,8 @@ fn append_steps(tx: &Transaction<'_>, steps: &[Step], now: i64) -> Result<(), St
                 row.reasoning_content,
                 row.create_ts,
                 row.start_ts,
-                row.end_ts
+                row.end_ts,
+                row.extra
             ],
         )
         .map_err(|e| e.to_string())?;

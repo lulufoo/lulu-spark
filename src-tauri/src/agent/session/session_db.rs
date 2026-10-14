@@ -39,6 +39,8 @@ fn open(path: &PathBuf) -> Result<Connection, String> {
     for column in ["create_ts", "start_ts", "end_ts"] {
         ensure_column(&conn, "model_steps", column, "INTEGER")?;
     }
+    // JSON text of `Step::extra`; NULL on rows written before this column existed.
+    ensure_column(&conn, "model_steps", "extra", "TEXT")?;
     ensure_column(&conn, "model_turns", "thinking_ms", "INTEGER")?;
     Ok(conn)
 }
@@ -305,6 +307,7 @@ fn attach_turn_thinking(conn: &Connection, items: &mut [Value]) -> Result<(), St
                     create_ts: None,
                     start_ts: None,
                     end_ts: None,
+                    extra: None,
                 },
             ))
         })

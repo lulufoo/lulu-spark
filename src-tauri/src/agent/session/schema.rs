@@ -38,7 +38,8 @@ CREATE TABLE IF NOT EXISTS model_steps (
   reasoning_content TEXT,
   create_ts INTEGER,
   start_ts INTEGER,
-  end_ts INTEGER
+  end_ts INTEGER,
+  extra TEXT
 );
 CREATE TABLE IF NOT EXISTS summaries (
   summary_id TEXT PRIMARY KEY,

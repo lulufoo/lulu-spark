@@ -3,7 +3,7 @@
 use serde_json::{json, Value};
 
 use crate::agent::llm::LlmError;
-use crate::agent::session::{self, Session, Step};
+use crate::agent::session::{self, Session, Step, EXTRA_APPEND_CONTENT};
 
 use super::types::{Terminal, TurnOutcome, EVENT_TURN_COMPLETED, MAX_HISTORY_MESSAGES, MAX_USER_TURNS};
 
@@ -84,6 +84,9 @@ pub fn build_llm_messages(steps: &[Step], system_prompt: &str, summaries: &[Stri
     for (index, step) in kept.iter().enumerate() {
         let echo_reasoning = last_user.map_or(true, |user| index > user);
         messages.push(step_to_message(step, echo_reasoning));
+        if let Some(text) = step.extra.get(EXTRA_APPEND_CONTENT).and_then(Value::as_str) {
+            messages.push(json!({ "role": "user", "content": text }));
+        }
     }
     messages
 }

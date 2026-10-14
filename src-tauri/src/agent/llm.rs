@@ -184,6 +184,36 @@ pub fn chat_completions_recorded(
     tools: &[Value],
     config: &LlmConfig,
     timeout: Duration,
+    on_delta: Option<&mut dyn FnMut(&str, &str)>,
+    ctx: Option<&CallContext>,
+) -> LlmCallOutcome {
+    chat_completions_with_choice(messages, tools, ToolChoice::Auto, config, timeout, on_delta, ctx)
+}
+
+/// Whether the model may call the `tools` it is shown.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ToolChoice {
+    Auto,
+    /// Tools stay in the request (the prompt prefix stays cacheable) but must not be called.
+    None,
+}
+
+impl ToolChoice {
+    fn as_str(self) -> &'static str {
+        match self {
+            ToolChoice::Auto => "auto",
+            ToolChoice::None => "none",
+        }
+    }
+}
+
+/// Same as [`chat_completions_recorded`], with the `tool_choice` the caller picks.
+pub fn chat_completions_with_choice(
+    messages: &[Value],
+    tools: &[Value],
+    tool_choice: ToolChoice,
+    config: &LlmConfig,
+    timeout: Duration,
     mut on_delta: Option<&mut dyn FnMut(&str, &str)>,
     ctx: Option<&CallContext>,
 ) -> LlmCallOutcome {
@@ -200,7 +230,7 @@ pub fn chat_completions_recorded(
     // Empty tools = omit tools + tool_choice (Host business path / tools=[] semantics).
     if !tools.is_empty() {
         body["tools"] = Value::Array(tools.to_vec());
-        body["tool_choice"] = json!("auto");
+        body["tool_choice"] = json!(tool_choice.as_str());
     }
 
     let mut trace = CallTrace::start();

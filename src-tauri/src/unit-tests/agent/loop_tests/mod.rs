@@ -5,6 +5,7 @@ mod support;
 mod binding;
 mod binding_mcp_connection;
 mod binding_mcp_connection_events;
+mod call_limit;
 mod finish_reason;
 mod flights;
 mod history;
