@@ -118,17 +118,17 @@ fn read_later_path_under_runtime_data_dir() {
 }
 
 #[test]
-fn message_center_path_ignores_configured_cache_dir() {
+fn message_center_path_follows_sandbox_cache_dir() {
     let sandbox = TestSandbox::new();
-    let configured = cache_dir().expect("cache");
     let path = message_center_path().expect("message_center");
     assert_eq!(
         path,
-        settings::default_cache_dir()
+        settings::runtime_cache_dir()
+            .expect("sandbox cache")
             .join("message_center")
             .join("message_center.json")
     );
-    assert!(!path.starts_with(&configured));
+    assert!(path.starts_with(sandbox.sandbox_dir().join("cache")));
     sandbox.assert_not_prod_path(&path).expect("sandbox path");
 }
 
@@ -156,7 +156,7 @@ fn knowledge_root_is_runtime_knowledge_dir() {
     let sandbox = TestSandbox::new();
     let kb = knowledge_root().expect("knowledge_root");
     assert_eq!(kb, sandbox.knowledge_root());
-    assert_eq!(kb, runtime_knowledge_dir());
+    assert_eq!(kb, runtime_knowledge_dir().expect("runtime knowledge"));
     assert_eq!(kb, sandbox.data_dir().join("knowledge"));
     assert_eq!(kb, sediment_kb_dir().expect("sediment"));
     assert_ne!(
@@ -189,15 +189,15 @@ fn ssot_paths_use_configured_spark_root_not_cache() {
     assert!(read_later.starts_with(&data));
     assert!(notes.starts_with(&data));
     assert!(todo_tasks.starts_with(&wb));
-    let cache = cache_dir().expect("cache");
+    // One sandbox = one dir: runtime data and message center live under `<id>/cache`.
+    let cache = sandbox.sandbox_dir().join("cache");
     assert!(!sediment.starts_with(&wb));
     assert!(!read_later.starts_with(&wb));
     assert!(!notes.starts_with(&wb));
-    assert!(!sediment.starts_with(&cache));
-    assert!(!read_later.starts_with(&cache));
-    assert!(!todo_tasks.starts_with(&cache));
+    assert!(sediment.starts_with(&cache));
+    assert!(read_later.starts_with(&cache));
     assert!(!message_center.starts_with(&wb));
-    assert!(!message_center.starts_with(&cache));
+    assert!(message_center.starts_with(&cache));
 }
 
 #[test]

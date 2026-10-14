@@ -132,7 +132,7 @@ fn default_repos_file() -> ReposFile {
 }
 
 fn ensure_storage_dir() -> Result<(), SedimentKbError> {
-    let data = paths::runtime_data_dir();
+    let data = paths::runtime_data_dir().map_err(|e| SedimentKbError::Io(format!("{e:?}")))?;
     crate::services::knowledge_layout::ensure_knowledge_registry_layout(&data)
         .map_err(SedimentKbError::Io)?;
     let dir = paths::sediment_kb_dir().map_err(|e| SedimentKbError::Io(format!("{e:?}")))?;

@@ -24,7 +24,6 @@ fn read_later_path_is_under_runtime_data_dir() {
         assert_eq!(path, data.join("read_later").join("read_later.json"));
         let cache = paths::cache_dir().expect("cache");
         assert_ne!(path, cache.join("read_later.json"));
-        assert!(!path.starts_with(&cache));
         assert_ne!(
             path,
             paths::spark_root()

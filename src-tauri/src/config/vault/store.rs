@@ -19,15 +19,19 @@ pub(super) fn io_lock() -> std::sync::MutexGuard<'static, ()> {
         .unwrap_or_else(|e| e.into_inner())
 }
 
-pub(super) fn scope_id() -> String {
+/// Memory vault scope: sandbox id, or `_default`. Unreadable runtime mode → `Err`.
+pub(super) fn scope_id() -> Result<String, SecretError> {
     if cfg!(test) {
-        return "_default".to_string();
+        return Ok("_default".to_string());
     }
-    if settings::is_test_sandbox() {
-        settings::test_sandbox_id_raw().unwrap_or_else(|| "_shared_sandbox".to_string())
-    } else {
-        "_default".to_string()
+    match settings::runtime_mode().map_err(|e| SecretError::Store(e.to_string()))? {
+        settings::RuntimeMode::Sandbox { id } => Ok(id),
+        settings::RuntimeMode::Prod => Ok("_default".to_string()),
     }
+}
+
+fn uses_memory_store() -> Result<bool, SecretError> {
+    settings::uses_in_memory_keychain().map_err(|e| SecretError::Store(e.to_string()))
 }
 
 fn memory_map() -> std::sync::MutexGuard<'static, HashMap<String, Vault>> {
@@ -45,38 +49,40 @@ pub(super) fn memory_fail_map() -> std::sync::MutexGuard<'static, HashMap<String
         .unwrap_or_else(|e| e.into_inner())
 }
 
-fn memory_fail() -> Option<String> {
-    memory_fail_map().get(&scope_id()).cloned()
+fn memory_fail(scope: &str) -> Option<String> {
+    memory_fail_map().get(scope).cloned()
 }
 
-pub(super) fn memory_vault() -> Vault {
+pub(super) fn memory_vault(scope: &str) -> Vault {
     memory_map()
-        .get(&scope_id())
+        .get(scope)
         .cloned()
         .unwrap_or_default()
 }
 
-pub(super) fn store_memory_vault(vault: &Vault) {
-    memory_map().insert(scope_id(), vault.clone());
+pub(super) fn store_memory_vault(scope: &str, vault: &Vault) {
+    memory_map().insert(scope.to_string(), vault.clone());
 }
 
 fn load_raw() -> Result<Vault, SecretError> {
-    if settings::uses_in_memory_keychain() {
-        if let Some(e) = memory_fail() {
+    if uses_memory_store()? {
+        let scope = scope_id()?;
+        if let Some(e) = memory_fail(&scope) {
             return Err(SecretError::Store(e));
         }
-        Ok(memory_vault())
+        Ok(memory_vault(&scope))
     } else {
         persistent_load()
     }
 }
 
 fn store_raw(vault: &Vault) -> Result<(), SecretError> {
-    if settings::uses_in_memory_keychain() {
-        if let Some(e) = memory_fail() {
+    if uses_memory_store()? {
+        let scope = scope_id()?;
+        if let Some(e) = memory_fail(&scope) {
             return Err(SecretError::Store(e));
         }
-        store_memory_vault(vault);
+        store_memory_vault(&scope, vault);
         Ok(())
     } else {
         persistent_store(vault)

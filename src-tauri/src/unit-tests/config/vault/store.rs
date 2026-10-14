@@ -21,29 +21,34 @@ fn sample_auth_session() -> AuthSession {
     }
 }
 
+fn current_scope() -> String {
+    scope_id().expect("vault scope")
+}
+
 pub fn test_clear_scope() {
     let _guard = io_lock();
-    store_memory_vault(&Vault::default());
-    memory_fail_map().remove(&scope_id());
+    store_memory_vault(&current_scope(), &Vault::default());
+    memory_fail_map().remove(&current_scope());
 }
 
 /// LLM slot only. Parallel lib tests share vault scope `_default`; wiping MCP
 /// tickets here races mcp_host / oauth (HTTP 401).
 pub fn test_clear_llm() {
     let _guard = io_lock();
-    let mut vault = memory_vault();
+    let scope = current_scope();
+    let mut vault = memory_vault(&scope);
     vault.set_llm_api_key(None);
-    store_memory_vault(&vault);
+    store_memory_vault(&scope, &vault);
 }
 
 pub fn test_fail_store() {
     let _guard = io_lock();
-    memory_fail_map().insert(scope_id(), "unavailable".into());
+    memory_fail_map().insert(current_scope(), "unavailable".into());
 }
 
 pub fn test_clear_store_fail() {
     let _guard = io_lock();
-    memory_fail_map().remove(&scope_id());
+    memory_fail_map().remove(&current_scope());
 }
 
 pub fn test_vault_json() -> serde_json::Value {
@@ -78,7 +83,7 @@ fn read_vault_round_trips_devices_without_raw_token() {
 
 #[test]
 fn memory_backend_uses_in_memory_keychain_switch() {
-    assert!(crate::config::settings::uses_in_memory_keychain());
+    assert!(crate::config::settings::uses_in_memory_keychain().expect("mode"));
     let src = concat!(
         include_str!("../../../config/vault/mod.rs"),
         include_str!("../../../config/vault/types.rs"),

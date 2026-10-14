@@ -12,7 +12,7 @@ pub fn expand_for_business_key(key: &str) -> Option<PathFence> {
         return None;
     }
     let wb = stored_path(paths::spark_root().ok()?);
-    let data = stored_path(paths::runtime_data_dir());
+    let data = stored_path(paths::runtime_data_dir().ok()?);
     let cache = stored_path(paths::cache_dir().ok()?);
     let knowledge = stored_path(paths::knowledge_root().ok()?);
 

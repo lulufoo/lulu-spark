@@ -5,11 +5,12 @@ use crate::test_support::TestConfigEnv;
 
 #[test]
 fn defaults_select_host_but_do_not_fabricate_llm_credentials() {
+    let _sandbox = crate::test_support::TestSandbox::new();
     let settings = AppSettings::default();
     assert_eq!(settings.assistant_engine, "host");
     assert!(settings.llm.is_empty());
 
-    let json = to_config_json(&settings, false);
+    let json = to_config_json(&settings, false).expect("json");
     assert_eq!(json["assistant_engine"], "host");
     assert_eq!(json["has_host_key"], false);
     assert!(json.get("has_cursor_key").is_none());
@@ -42,18 +43,18 @@ fn effective_gateway_port_follows_prod_and_sandbox_planes() {
     let dir = tempfile::tempdir().expect("tmp");
     {
         let _env = TestConfigEnv::prod(dir.path());
-        assert_eq!(AppSettings::default().effective_gateway_port(), 7654);
+        assert_eq!(AppSettings::default().effective_gateway_port().expect("port"), 7654);
     }
     {
         let _env = TestConfigEnv::sandbox(dir.path(), "gwport");
-        assert_eq!(AppSettings::default().effective_gateway_port(), 17654);
+        assert_eq!(AppSettings::default().effective_gateway_port().expect("port"), 17654);
     }
 }
 
 #[test]
 fn uses_in_memory_keychain_is_true_during_lib_tests() {
     assert!(
-        uses_in_memory_keychain(),
+        uses_in_memory_keychain().expect("mode"),
         "cargo test --lib must keep Keychain stores in memory"
     );
 }

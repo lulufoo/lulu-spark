@@ -17,7 +17,6 @@ use axum_server::Handle;
 use base64::Engine;
 use sha2::{Digest, Sha256};
 
-use crate::config::settings::AppSettings;
 use crate::host::lan_ip::current_lan_ipv4;
 
 pub mod discovery;
@@ -131,11 +130,11 @@ pub fn advertised_address(port: u16) -> Option<String> {
     current_lan_ipv4().map(|ip| format!("{ip}:{port}"))
 }
 
-pub fn boot(settings: &AppSettings, config_dir: PathBuf) -> BootDecision {
+pub fn boot(listen_port: u16, mcp_port: u16, sidecar_port: u16, config_dir: PathBuf) -> BootDecision {
     boot_with(GatewayConfig {
-        listen_port: settings.effective_gateway_port(),
-        mcp_port: settings.effective_mcp_port(),
-        sidecar_port: settings.effective_http_port(),
+        listen_port,
+        mcp_port,
+        sidecar_port,
         config_dir,
     })
 }

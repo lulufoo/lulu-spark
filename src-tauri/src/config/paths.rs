@@ -34,15 +34,16 @@ pub fn spark_root() -> Result<PathBuf, PathsError> {
     Ok(settings()?.spark_root)
 }
 
-/// Durable user store: `{HOME}/.cache/lulu-spark/data`.
+/// Durable user store: `{runtime_cache_dir}/data`.
+/// Prod: `{HOME}/.cache/lulu-spark/data`; sandbox: `<sandbox_dir>/cache/data`.
 /// Does not follow `cache_dir` or `spark_root` in config.
-pub fn runtime_data_dir() -> PathBuf {
-    settings::default_cache_dir().join("data")
+pub fn runtime_data_dir() -> Result<PathBuf, PathsError> {
+    Ok(settings::runtime_cache_dir()?.join("data"))
 }
 
 /// Notes files live at `{runtime_data_dir}/notes/`.
 pub fn notes_root() -> Result<PathBuf, PathsError> {
-    Ok(runtime_data_dir().join("notes"))
+    Ok(runtime_data_dir()?.join("notes"))
 }
 
 /// Notes category registry: `{runtime_data_dir}/notes/categories.json`.
@@ -50,29 +51,29 @@ pub fn notes_categories_path() -> Result<PathBuf, PathsError> {
     Ok(notes_root()?.join("categories.json"))
 }
 
-/// Knowledge clones: `{HOME}/.cache/lulu-spark/data/knowledge`.
+/// Knowledge clones: `{runtime_data_dir}/knowledge`.
 /// Does not follow `knowledge_root` or `cache_dir` in config.
-pub fn runtime_knowledge_dir() -> PathBuf {
-    runtime_data_dir().join("knowledge")
+pub fn runtime_knowledge_dir() -> Result<PathBuf, PathsError> {
+    Ok(runtime_data_dir()?.join("knowledge"))
 }
 
 pub fn knowledge_root() -> Result<PathBuf, PathsError> {
-    Ok(runtime_knowledge_dir())
+    runtime_knowledge_dir()
 }
 
 /// Knowledge registry (repo list / categories) at `{runtime_data_dir}/knowledge/`.
 pub fn sediment_kb_dir() -> Result<PathBuf, PathsError> {
-    Ok(runtime_data_dir().join("knowledge"))
+    Ok(runtime_data_dir()?.join("knowledge"))
 }
 
 pub fn read_later_path() -> Result<PathBuf, PathsError> {
-    Ok(runtime_data_dir().join("read_later").join("read_later.json"))
+    Ok(runtime_data_dir()?.join("read_later").join("read_later.json"))
 }
 
-/// Runtime unread ledger: `{HOME}/.cache/lulu-spark/message_center/message_center.json`.
+/// Runtime unread ledger: `{runtime_cache_dir}/message_center/message_center.json`.
 /// Does not follow `cache_dir` or `spark_root` in config.
 pub fn message_center_path() -> Result<PathBuf, PathsError> {
-    Ok(settings::default_cache_dir()
+    Ok(settings::runtime_cache_dir()?
         .join("message_center")
         .join("message_center.json"))
 }

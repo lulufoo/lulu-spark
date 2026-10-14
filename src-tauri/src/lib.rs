@@ -1,4 +1,5 @@
 pub mod agent;
+pub mod boot_settings;
 pub mod commands;
 pub mod config;
 pub mod gateway;
@@ -20,17 +21,10 @@ pub const DEFAULT_MCP_PORT: u16 = config::settings::DEFAULT_PROD_MCP_PORT;
 pub const AI_ASSISTANT_LABEL: &str = "ai-assistant";
 pub const PLAN_ATTACHMENT_DIALOG_EXTENSIONS: &[&str] = &["md"];
 
-#[cfg(not(test))]
-#[tauri::command]
+#[cfg_attr(not(test), tauri::command)]
 fn ping() -> &'static str {
     "pong"
 }
-
-#[cfg(test)]
-fn ping() -> &'static str {
-    "pong"
-}
-
 
 #[cfg(not(test))]
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -167,20 +161,10 @@ pub fn run() {
 
             let main_host = crate::main_host::MainHostState::new();
             let mut embedded_mcp_handle = None;
-            let boot_settings = match config::settings::load() {
-                Ok(s) => s,
-                Err(err) => {
-                    eprintln!("[settings] load failed: {err}");
-                    if config::settings::is_test_sandbox() {
-                        return Err(format!("sandbox settings: {err}").into());
-                    }
-                    config::settings::AppSettings::default()
-                }
-            };
+            let boot = boot_settings::resolve_boot_settings()?;
             crate::services::app_log::init();
             crate::commands::mcp_ide_env::apply_live_ide_ticket_envs();
-            let http_port = boot_settings.effective_http_port();
-            let mcp_port = boot_settings.effective_mcp_port();
+            let (http_port, mcp_port) = (boot.http_port, boot.mcp_port);
             if let Ok(repo_root) = crate::config::paths::repo_root() {
                 main_host.try_start(repo_root.clone(), http_port);
                 // Embedded MCP only (dual-listen with Sidecar). Bind failure is fail-closed:
@@ -203,8 +187,8 @@ pub fn run() {
             let discovery = crate::gateway::discovery::DiscoveryState::new();
             if host::lan_ip::current_lan_ipv4().is_some() {
                 if let Ok(config_dir) = config::settings::settings_config_dir() {
-                    let gateway_port = boot_settings.effective_gateway_port();
-                    match crate::gateway::boot(&boot_settings, config_dir) {
+                    let gateway_port = boot.gateway_port;
+                    match crate::gateway::boot(boot.gateway_port, boot.mcp_port, boot.http_port, config_dir) {
                         crate::gateway::BootDecision::Started(handle) => {
                             eprintln!("[gateway] listening 0.0.0.0:{gateway_port}");
                             gateway.set(handle);
@@ -249,7 +233,9 @@ pub fn run() {
                 let Ok(repo_root) = crate::config::paths::repo_root() else {
                     return;
                 };
-                let data = crate::config::paths::runtime_data_dir();
+                let Ok(data) = crate::config::paths::runtime_data_dir() else {
+                    return;
+                };
                 let _ = crate::services::notes::ensure_notes_layout(&data);
                 let _ = crate::services::knowledge_layout::ensure_knowledge_registry_layout(&data);
                 if !data.join("notes").join("index.json").is_file() {
@@ -307,49 +293,5 @@ pub fn run() {
 mod test_support;
 
 #[cfg(test)]
-#[path = "unit-tests/test_support.rs"]
-mod test_support_tests;
-
-#[cfg(test)]
-#[path = "unit-tests/lib/wait_for_port_tests.rs"]
-mod wait_for_port_tests;
-
-#[cfg(test)]
-#[path = "unit-tests/lib/ping_tests.rs"]
-mod ping_tests;
-
-#[cfg(test)]
-#[path = "unit-tests/lib/spawn_decision_tests.rs"]
-mod spawn_decision_tests;
-
-#[cfg(test)]
-#[path = "unit-tests/lib/knowledge_mcp_tests.rs"]
-mod knowledge_mcp_tests;
-
-#[cfg(test)]
-#[path = "unit-tests/lib/read_later_assistant_window_tests.rs"]
-mod read_later_assistant_window_tests;
-
-#[cfg(test)]
-#[path = "unit-tests/lib/ai_assistant_window_tests.rs"]
-mod ai_assistant_window_tests;
-
-#[cfg(test)]
-#[path = "unit-tests/lib/gateway_startup_tests.rs"]
-mod gateway_startup_tests;
-
-#[cfg(test)]
-#[path = "unit-tests/lib/discovery_startup_tests.rs"]
-mod discovery_startup_tests;
-
-#[cfg(test)]
-#[path = "unit-tests/lib/message_center_event_tests.rs"]
-mod message_center_event_tests;
-
-#[cfg(test)]
-#[path = "unit-tests/lib/dev_dock_icon.rs"]
-mod dev_dock_icon;
-
-#[cfg(test)]
-#[path = "unit-tests/lib/auth_session_wiring_tests.rs"]
-mod auth_session_wiring_tests;
+#[path = "unit-tests/lib/mod.rs"]
+mod lib_tests;

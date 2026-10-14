@@ -1,6 +1,15 @@
 use std::collections::BTreeMap;
 
 use super::*;
+use crate::test_support::TestConfigEnv;
+
+/// Prod plane + seed; keep returned guards alive for the test body.
+fn seed_with_prod_plane() -> (tempfile::TempDir, TestConfigEnv) {
+    let home = tempfile::tempdir().expect("tmp");
+    let env = TestConfigEnv::prod(home.path());
+    seed_defaults();
+    (home, env)
+}
 
 fn sample_transport(label: &str) -> HttpMcpTransport {
     HttpMcpTransport {
@@ -49,7 +58,7 @@ fn lookup_same_key_is_stable() {
 #[test]
 fn seeded_business_key_is_registered_and_lookupable() {
     clear_for_tests();
-    seed_defaults();
+    let _plane = seed_with_prod_plane();
     let got = lookup(SEEDED_BUSINESS_KEY).expect("seeded business key must be lookupable");
     assert!(
         !got.capability_description.trim().is_empty(),
@@ -60,7 +69,7 @@ fn seeded_business_key_is_registered_and_lookupable() {
 #[test]
 fn unknown_key_returns_explicit_not_found() {
     clear_for_tests();
-    seed_defaults();
+    let _plane = seed_with_prod_plane();
     let err = lookup("unknown_business_key_xyz").expect_err("unknown key must fail");
     assert_eq!(err, McpServerLookupError::NotFound);
 }
@@ -102,7 +111,7 @@ fn config_exposes_capability_description_and_http_transport() {
 #[test]
 fn seeded_config_exposes_structured_http_transport() {
     clear_for_tests();
-    seed_defaults();
+    let _plane = seed_with_prod_plane();
     let got = lookup(SEEDED_BUSINESS_KEY).expect("seeded");
     let t = got.http_transport();
     assert!(!t.name.trim().is_empty(), "transport name required");
@@ -117,11 +126,11 @@ fn seeded_config_exposes_structured_http_transport() {
 #[test]
 fn seeded_lookup_url_uses_mcp_key_path_slot_not_bare_mcp() {
     clear_for_tests();
-    seed_defaults();
+    let _plane = seed_with_prod_plane();
     let got = lookup(SEEDED_BUSINESS_KEY).expect("seeded");
     let expected = format!(
         "http://127.0.0.1:{}/mcp/{}",
-        crate::DEFAULT_MCP_PORT,
+        crate::config::settings::runtime_mcp_port().expect("plane mcp port"),
         SEEDED_BUSINESS_KEY
     );
     assert_eq!(
@@ -169,7 +178,7 @@ const SEEDED_SPARK_CAPABILITY: &str = "internal host-mcp spark capability surfac
 fn expected_seed_url(key: &str) -> String {
     format!(
         "http://127.0.0.1:{}/mcp/{}",
-        crate::DEFAULT_MCP_PORT,
+        crate::config::settings::runtime_mcp_port().expect("plane mcp port"),
         key
     )
 }
@@ -189,7 +198,7 @@ fn seeded_business_key_is_spark() {
 #[test]
 fn seed_defaults_registers_only_spark_with_mcp_spark_url() {
     clear_for_tests();
-    seed_defaults();
+    let _plane = seed_with_prod_plane();
     let got = lookup(SPARK_SCENE_SLOT).expect("spark must be seeded");
     assert!(
         !got.capability_description.trim().is_empty(),
@@ -218,7 +227,7 @@ fn seed_defaults_registers_only_spark_with_mcp_spark_url() {
 #[test]
 fn lookup_notes_and_todo_task_return_not_found() {
     clear_for_tests();
-    seed_defaults();
+    let _plane = seed_with_prod_plane();
     assert_eq!(
         lookup("notes").expect_err("notes must not remain a registry key"),
         McpServerLookupError::NotFound
@@ -241,6 +250,8 @@ fn registry_no_longer_exports_seeded_notes_key() {
 #[test]
 fn seed_defaults_after_clear_reseeds_spark_and_is_idempotent() {
     clear_for_tests();
+    let home = tempfile::tempdir().expect("tmp");
+    let _env = TestConfigEnv::prod(home.path());
     let err = lookup(SPARK_SCENE_SLOT).expect_err("cleared spark must be absent");
     assert_eq!(err, McpServerLookupError::NotFound);
     seed_defaults();
@@ -265,7 +276,7 @@ fn seed_defaults_after_clear_reseeds_spark_and_is_idempotent() {
 #[test]
 fn unregistered_key_still_not_found_after_spark_seed() {
     clear_for_tests();
-    seed_defaults();
+    let _plane = seed_with_prod_plane();
     lookup(SPARK_SCENE_SLOT).expect("spark seeded");
     let err = lookup("unknown_business_key_xyz").expect_err("unknown key must fail");
     assert_eq!(err, McpServerLookupError::NotFound);
@@ -276,12 +287,23 @@ fn unregistered_key_still_not_found_after_spark_seed() {
 #[test]
 fn empty_key_still_invalid_does_not_fall_to_spark() {
     clear_for_tests();
-    seed_defaults();
+    let _plane = seed_with_prod_plane();
     let err = lookup("").expect_err("empty key must fail");
     assert_eq!(err, McpServerLookupError::InvalidKey);
     let ws = lookup("   ").expect_err("whitespace key must fail");
     assert_eq!(ws, McpServerLookupError::InvalidKey);
     lookup(SPARK_SCENE_SLOT).expect("empty key must not silently land on spark");
+}
+
+#[test]
+fn seed_defaults_skips_when_runtime_plane_missing() {
+    let home = tempfile::tempdir().expect("tmp");
+    let _env = TestConfigEnv::prod(home.path());
+    clear_for_tests();
+    crate::config::settings::clear_runtime_plane();
+    seed_defaults();
+    let err = lookup(SEEDED_BUSINESS_KEY).expect_err("no plane → no seed");
+    assert_eq!(err, McpServerLookupError::NotFound);
 }
 
 #[test]

@@ -54,7 +54,8 @@ fn validate_dest_dir(dest_dir: &str) -> Result<PathBuf, Value> {
     let resolved = resolve_dest_dir(&raw)?;
     // `allow_roots` also creates the Data dir, so it can be canonicalized below.
     let roots = allow_roots();
-    let data = paths::runtime_data_dir();
+    let data = paths::runtime_data_dir()
+        .map_err(|e| reject(&format!("Data directory unavailable: {e:?}"), 500))?;
     let data = data.canonicalize().unwrap_or(data);
     if resolved.starts_with(&data) {
         return Err(reject("dest_dir must not be inside the Data directory", 403));

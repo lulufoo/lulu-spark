@@ -8,9 +8,9 @@ use super::llm::{
 use super::sandbox::{
     is_unstable_path, normalize_prod_paths, should_normalize_for_path, validate_sandbox_against_prod,
 };
+use super::runtime_mode::{runtime_cache_dir, runtime_config_dir, runtime_mode, RuntimeMode};
 use super::types::{
-    default_cache_dir, home_dir, is_test_sandbox, test_sandbox_id_raw, validate_test_sandbox_id,
-    AppSettings, LlmSettings, LlmSettingsEntry, SettingsError, PROD_CONFIG_FILE_NAME,
+    home_dir, AppSettings, LlmSettings, LlmSettingsEntry, SettingsError, PROD_CONFIG_FILE_NAME,
 };
 
 /// Fixed prod config directory (never follows `TestSandbox`).
@@ -18,27 +18,11 @@ pub fn prod_config_dir() -> PathBuf {
     home_dir().join(".config").join("lulu-spark")
 }
 
-/// Shared sandbox config directory (secrets + template `config.toml`).
-pub fn shared_sandbox_config_dir() -> PathBuf {
-    home_dir().join(".config").join("lulu-spark-sandbox")
-}
-
-/// Active config directory from `TestSandbox` / `TestSandboxId`.
+/// Active config directory from the installed runtime plane.
 ///
-/// Invalid `TestSandboxId` returns `Err` — callers must fail closed.
+/// Unreadable plane returns `Err` — callers must fail closed.
 pub fn settings_config_dir() -> Result<PathBuf, SettingsError> {
-    if !is_test_sandbox() {
-        return Ok(prod_config_dir());
-    }
-    match test_sandbox_id_raw() {
-        None => Ok(shared_sandbox_config_dir()),
-        Some(id) => {
-            validate_test_sandbox_id(&id)?;
-            Ok(home_dir()
-                .join(".config")
-                .join(format!("lulu-spark-sandbox-{id}")))
-        }
-    }
+    runtime_config_dir()
 }
 
 pub fn prod_config_file_path() -> PathBuf {
@@ -70,7 +54,8 @@ pub fn load_prod_settings() -> AppSettings {
 
 pub fn load() -> Result<AppSettings, SettingsError> {
     let path = config_file_path()?;
-    if is_test_sandbox() && !path.is_file() {
+    let is_sandbox = matches!(runtime_mode()?, RuntimeMode::Sandbox { .. });
+    if is_sandbox && !path.is_file() {
         return Err(SettingsError::ConfigGuard(format!(
             "sandbox config missing (initiator must fork): {}",
             path.display()
@@ -81,11 +66,11 @@ pub fn load() -> Result<AppSettings, SettingsError> {
     }
     let text = fs::read_to_string(&path)?;
     let mut settings: AppSettings = toml::from_str(&text)?;
-    if should_normalize_for_path(&path) {
+    if should_normalize_for_path(&path)? {
         normalize_prod_paths(&mut settings);
     }
     stamp_host_preset_on_load(&mut settings);
-    if is_test_sandbox() {
+    if is_sandbox {
         validate_sandbox_against_prod(&settings, &load_prod_settings())?;
     }
     Ok(settings)
@@ -94,18 +79,18 @@ pub fn load() -> Result<AppSettings, SettingsError> {
 pub fn save(settings: &AppSettings) -> Result<(), SettingsError> {
     let path = config_file_path()?;
     let mut to_save = settings.clone();
-    if should_normalize_for_path(&path) {
+    if should_normalize_for_path(&path)? {
         normalize_prod_paths(&mut to_save);
     }
-    if is_test_sandbox() {
+    if matches!(runtime_mode()?, RuntimeMode::Sandbox { .. }) {
         validate_sandbox_against_prod(&to_save, &load_prod_settings())?;
     }
     let text = toml::to_string_pretty(&to_save)?;
 
     #[cfg(test)]
     {
-        super::sandbox::reject_test_write_to_machine_config(&path)?;
-        super::sandbox::atomic_write_test_config(&path, &text)
+        super::sandbox_test_guard::reject_test_write_to_machine_config(&path)?;
+        super::sandbox_test_guard::atomic_write_test_config(&path, &text)
     }
 
     #[cfg(not(test))]
@@ -122,7 +107,10 @@ pub fn save(settings: &AppSettings) -> Result<(), SettingsError> {
 pub fn to_config_json(
     settings: &AppSettings,
     has_host_key: bool,
-) -> serde_json::Value {
+) -> Result<serde_json::Value, SettingsError> {
+    let mode = runtime_mode()?;
+    let cache_dir = runtime_cache_dir()?;
+    let data_dir = cache_dir.join("data");
     let current = if let Some(engine) = normalize_engine_value(&settings.assistant_engine) {
         llm_entry_by_type(&settings.llm, engine)
             .map(LlmSettingsEntry::fields)
@@ -130,24 +118,24 @@ pub fn to_config_json(
     } else {
         LlmSettings::default()
     };
-    serde_json::json!({
+    Ok(serde_json::json!({
         "spark_root": settings.spark_root.to_string_lossy(),
-        "knowledge_root": default_cache_dir().join("data").join("knowledge").to_string_lossy(),
-        "notes_root": default_cache_dir().join("data").join("notes").to_string_lossy(),
-        "cache_dir": settings.cache_dir.to_string_lossy(),
+        "knowledge_root": data_dir.join("knowledge").to_string_lossy(),
+        "notes_root": data_dir.join("notes").to_string_lossy(),
+        "cache_dir": cache_dir.to_string_lossy(),
         "assistant_engine": settings.assistant_engine,
         "theme": settings.theme,
-        "http_port": settings.effective_http_port(),
-        "mcp_port": settings.effective_mcp_port(),
-        "gateway_port": settings.effective_gateway_port(),
-        "test_sandbox": is_test_sandbox(),
+        "http_port": settings.effective_http_port()?,
+        "mcp_port": settings.effective_mcp_port()?,
+        "gateway_port": settings.effective_gateway_port()?,
+        "test_sandbox": matches!(mode, RuntimeMode::Sandbox { .. }),
         "has_host_key": has_host_key,
         "llm": {
             "platform": current.platform,
             "base_url": current.base_url,
             "model": current.model,
         },
-    })
+    }))
 }
 
 /// Apply `set_config` payload keys onto settings (toml fields only).

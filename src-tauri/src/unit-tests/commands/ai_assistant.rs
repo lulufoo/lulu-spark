@@ -94,14 +94,16 @@ fn commands_module_exports_match_acl_names() {
     let _ = agent_chat_turn_json;
     let _ = present_ai_assistant_json;
     let _ = json!({ "ok": true });
-    let mut s = settings::load().unwrap();
-    settings::apply_config_payload(
-        &mut s,
-        &json!({ "llm": { "base_url": "http://127.0.0.1:9", "model": "m", "platform": "kimi" } }),
-    )
-    .expect("apply");
-    let _ = settings::save(&s);
-    let _ = secrets::set_secret("k");
+    with_cmd_sandbox(|| {
+        let mut s = settings::load().unwrap();
+        settings::apply_config_payload(
+            &mut s,
+            &json!({ "llm": { "base_url": "http://127.0.0.1:9", "model": "m", "platform": "kimi" } }),
+        )
+        .expect("apply");
+        let _ = settings::save(&s);
+        let _ = secrets::set_secret("k");
+    });
 }
 
 #[test]

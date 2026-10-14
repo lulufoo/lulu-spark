@@ -22,15 +22,12 @@ fn apply_config_payload(payload: &Value) -> Result<Value, String> {
     if let Err(e) = secrets::apply_token_payload(payload) {
         return Ok(secrets::secret_error_json(&e));
     }
-    if !settings::is_test_sandbox() {
+    if settings::runtime_normalize_prod_paths().map_err(|e| format!("{e}"))? {
         settings::normalize_cache_dir(&mut settings);
         settings::normalize_prod_paths(&mut settings);
     }
     settings::save(&settings).map_err(|e| format!("{e}"))?;
-    Ok(settings::to_config_json(
-        &settings,
-        secrets::has_host_key(),
-    ))
+    settings::to_config_json(&settings, secrets::has_host_key()).map_err(|e| format!("{e}"))
 }
 
 #[cfg(test)]

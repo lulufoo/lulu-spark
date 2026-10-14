@@ -2,6 +2,8 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
+use super::runtime_mode::{runtime_gateway_port, runtime_http_port, runtime_mcp_port, runtime_mode, RuntimeMode};
+
 pub const PROD_CONFIG_FILE_NAME: &str = "config.toml";
 
 pub const HOST_LLM_PLATFORM: &str = "glm";
@@ -17,27 +19,15 @@ pub const DEFAULT_SANDBOX_GATEWAY_PORT: u16 = 17654;
 pub(super) const ENV_TEST_SANDBOX: &str = "TestSandbox";
 pub(super) const ENV_TEST_SANDBOX_ID: &str = "TestSandboxId";
 
-/// True when env `TestSandbox` is `true` or `1`.
-pub fn is_test_sandbox() -> bool {
-    matches!(
-        std::env::var(ENV_TEST_SANDBOX).ok().as_deref(),
-        Some("true") | Some("1")
-    )
-}
-
 /// Keychain-backed stores stay in process memory.
-/// `TestSandbox` is the product switch. `cfg(test)` keeps `cargo test --lib`
+/// Sandbox mode is the product switch. `cfg(test)` keeps `cargo test --lib`
 /// off the login keychain even when a case did not open a sandbox.
-pub fn uses_in_memory_keychain() -> bool {
-    cfg!(test) || is_test_sandbox()
-}
-
-/// Optional instance id; `None` if unset/empty. Does not validate charset.
-pub fn test_sandbox_id_raw() -> Option<String> {
-    std::env::var(ENV_TEST_SANDBOX_ID)
-        .ok()
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty())
+/// Err when the runtime mode is unreadable — callers must fail closed.
+pub fn uses_in_memory_keychain() -> Result<bool, SettingsError> {
+    if cfg!(test) {
+        return Ok(true);
+    }
+    Ok(matches!(runtime_mode()?, RuntimeMode::Sandbox { .. }))
 }
 
 /// Validate `TestSandboxId`: `[A-Za-z0-9_-]{1,64}`.
@@ -122,28 +112,17 @@ pub struct AppSettings {
 }
 
 impl AppSettings {
-    pub fn effective_http_port(&self) -> u16 {
-        self.http_port.unwrap_or(if is_test_sandbox() {
-            DEFAULT_SANDBOX_HTTP_PORT
-        } else {
-            DEFAULT_PROD_HTTP_PORT
-        })
+    /// Settings field, else plane default installed at boot.
+    pub fn effective_http_port(&self) -> Result<u16, SettingsError> {
+        Ok(self.http_port.unwrap_or(runtime_http_port()?))
     }
 
-    pub fn effective_mcp_port(&self) -> u16 {
-        self.mcp_port.unwrap_or(if is_test_sandbox() {
-            DEFAULT_SANDBOX_MCP_PORT
-        } else {
-            DEFAULT_PROD_MCP_PORT
-        })
+    pub fn effective_mcp_port(&self) -> Result<u16, SettingsError> {
+        Ok(self.mcp_port.unwrap_or(runtime_mcp_port()?))
     }
 
-    pub fn effective_gateway_port(&self) -> u16 {
-        self.gateway_port.unwrap_or(if is_test_sandbox() {
-            DEFAULT_SANDBOX_GATEWAY_PORT
-        } else {
-            DEFAULT_PROD_GATEWAY_PORT
-        })
+    pub fn effective_gateway_port(&self) -> Result<u16, SettingsError> {
+        Ok(self.gateway_port.unwrap_or(runtime_gateway_port()?))
     }
 }
 
