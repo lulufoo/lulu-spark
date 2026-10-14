@@ -21,6 +21,9 @@ use record::CallTrace;
 pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(120);
 /// Setting up the TCP connection; a host that cannot be reached fails sooner than `DEFAULT_TIMEOUT`.
 pub const LLM_CONNECT_TIMEOUT: Duration = Duration::from_secs(30);
+/// One request from sending to the end of the stream; a stream that keeps sending data
+/// still stops here.
+pub const LLM_TOTAL_TIMEOUT: Duration = Duration::from_secs(300);
 
 #[derive(Debug, Clone)]
 pub struct LlmConfig {
@@ -36,7 +39,11 @@ pub enum LlmError {
     BadRequest(String),
     RateLimited,
     Server(u16),
+    /// Connect timeout, or no response / no new chunk within `DEFAULT_TIMEOUT`.
     Timeout,
+    /// The request ran past `LLM_TOTAL_TIMEOUT` while data kept arriving. Not the same as
+    /// `Timeout`: a retry would only repeat the long wait.
+    TotalTimeout,
     /// `finish_reason=length` after a cut-off answer or cut-off tool arguments.
     Truncated,
     /// `finish_reason=length` with only thinking: it used up the output budget.
@@ -290,7 +297,7 @@ fn send_request(
         return LlmCallOutcome::failed(map_error_status(status, &text));
     }
 
-    stream::assemble_sse(resp, on_delta, trace)
+    stream::assemble_sse(resp, on_delta, trace, LLM_TOTAL_TIMEOUT)
 }
 
 /// The connect timeout never exceeds the caller's own (shorter) timeout.

@@ -9,7 +9,7 @@
 use std::fs;
 use std::io::Write;
 use std::path::Path;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use chrono::Utc;
 use serde_json::{json, Value};
@@ -55,6 +55,10 @@ impl CallTrace {
             status: None,
             error_body: None,
         }
+    }
+
+    pub(super) fn elapsed(&self) -> Duration {
+        self.started.elapsed()
     }
 
     fn elapsed_ms(&self) -> u64 {
@@ -153,7 +157,7 @@ fn message_json(message: &AssistantMessage) -> Value {
     })
 }
 
-/// ok / truncated / empty / timeout / status / error.
+/// ok / truncated / empty / timeout / total_timeout / status / error.
 fn category(outcome: &LlmCallOutcome) -> &'static str {
     match &outcome.error {
         None => match &outcome.snapshot {
@@ -162,6 +166,7 @@ fn category(outcome: &LlmCallOutcome) -> &'static str {
         },
         Some(LlmError::Truncated | LlmError::ThinkingExhausted) => "truncated",
         Some(LlmError::Timeout) => "timeout",
+        Some(LlmError::TotalTimeout) => "total_timeout",
         Some(
             LlmError::Unauthorized
             | LlmError::RateLimited
