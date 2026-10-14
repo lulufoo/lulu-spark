@@ -8,7 +8,7 @@ use super::llm::{
 use super::sandbox::{
     is_unstable_path, normalize_prod_paths, should_normalize_for_path, validate_sandbox_against_prod,
 };
-use super::runtime_mode::{resolve_sandbox_dir, runtime_cache_dir, runtime_mode, RuntimeMode};
+use super::runtime_mode::{runtime_cache_dir, runtime_config_dir, runtime_mode, RuntimeMode};
 use super::types::{
     home_dir, AppSettings, LlmSettings, LlmSettingsEntry, SettingsError, PROD_CONFIG_FILE_NAME,
 };
@@ -18,14 +18,11 @@ pub fn prod_config_dir() -> PathBuf {
     home_dir().join(".config").join("lulu-spark")
 }
 
-/// Active config directory: prod, or `<HOME>/.config/lulu-spark-sandbox/<id>`.
+/// Active config directory from the installed runtime plane.
 ///
-/// Unreadable runtime mode returns `Err` — callers must fail closed.
+/// Unreadable plane returns `Err` — callers must fail closed.
 pub fn settings_config_dir() -> Result<PathBuf, SettingsError> {
-    match runtime_mode()? {
-        RuntimeMode::Prod => Ok(prod_config_dir()),
-        RuntimeMode::Sandbox { id } => Ok(resolve_sandbox_dir(&id)),
-    }
+    runtime_config_dir()
 }
 
 pub fn prod_config_file_path() -> PathBuf {
@@ -112,7 +109,8 @@ pub fn to_config_json(
     has_host_key: bool,
 ) -> Result<serde_json::Value, SettingsError> {
     let mode = runtime_mode()?;
-    let data_dir = runtime_cache_dir()?.join("data");
+    let cache_dir = runtime_cache_dir()?;
+    let data_dir = cache_dir.join("data");
     let current = if let Some(engine) = normalize_engine_value(&settings.assistant_engine) {
         llm_entry_by_type(&settings.llm, engine)
             .map(LlmSettingsEntry::fields)
@@ -124,7 +122,7 @@ pub fn to_config_json(
         "spark_root": settings.spark_root.to_string_lossy(),
         "knowledge_root": data_dir.join("knowledge").to_string_lossy(),
         "notes_root": data_dir.join("notes").to_string_lossy(),
-        "cache_dir": settings.cache_dir.to_string_lossy(),
+        "cache_dir": cache_dir.to_string_lossy(),
         "assistant_engine": settings.assistant_engine,
         "theme": settings.theme,
         "http_port": settings.effective_http_port()?,

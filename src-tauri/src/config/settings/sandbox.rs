@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use super::runtime_mode::{runtime_mode, RuntimeMode};
+use super::runtime_mode::{runtime_mode, runtime_normalize_prod_paths, RuntimeMode};
 use super::types::{
     default_cache_dir, default_knowledge_root, default_spark_root, AppSettings, SettingsError, DEFAULT_PROD_GATEWAY_PORT, DEFAULT_PROD_HTTP_PORT,
     DEFAULT_PROD_MCP_PORT, PROD_CONFIG_FILE_NAME,
@@ -99,10 +99,10 @@ fn config_is_prod_file(path: &Path) -> bool {
     path.file_name().and_then(|n| n.to_str()) == Some(PROD_CONFIG_FILE_NAME)
 }
 
-/// Err when the runtime mode is unreadable; callers then skip normalize.
+/// Err when the runtime plane is unreadable; callers then skip normalize.
 pub(super) fn should_normalize_for_path(path: &Path) -> Result<bool, SettingsError> {
-    // Sandbox / temp HOME fixtures must keep written roots (do not "heal" to ~/Code).
-    if matches!(runtime_mode()?, RuntimeMode::Sandbox { .. }) {
+    // Boot installs whether prod-path healing is on; sandbox plane keeps written roots.
+    if !runtime_normalize_prod_paths()? {
         return Ok(false);
     }
     if path.ancestors().any(is_unstable_path) {

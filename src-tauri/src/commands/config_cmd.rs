@@ -22,8 +22,7 @@ fn apply_config_payload(payload: &Value) -> Result<Value, String> {
     if let Err(e) = secrets::apply_token_payload(payload) {
         return Ok(secrets::secret_error_json(&e));
     }
-    let mode = settings::runtime_mode().map_err(|e| format!("{e}"))?;
-    if !matches!(mode, settings::RuntimeMode::Sandbox { .. }) {
+    if settings::runtime_normalize_prod_paths().map_err(|e| format!("{e}"))? {
         settings::normalize_cache_dir(&mut settings);
         settings::normalize_prod_paths(&mut settings);
     }

@@ -1,8 +1,9 @@
 //! Single entry for the runtime plane (Prod vs TestSandbox) and the cache root.
 //!
 //! Boot (and test fixtures) call [`install_runtime_plane`] once after the process
-//! env is set; runtime path helpers then read [`runtime_cache_dir`] from the
-//! process plane — they never re-resolve env or fall back to prod paths.
+//! env is set; runtime path helpers then read [`runtime_config_dir`] /
+//! [`runtime_cache_dir`] from the process plane — they never re-resolve env
+//! or fall back to prod paths.
 
 use std::path::PathBuf;
 use std::sync::Mutex;
@@ -25,7 +26,11 @@ pub enum RuntimeMode {
 #[derive(Debug, Clone)]
 struct RuntimePlane {
     mode: RuntimeMode,
+    /// Active config root (prod `~/.config/lulu-spark` or sandbox base dir).
+    config_dir: PathBuf,
     cache_dir: PathBuf,
+    /// When true, load/save may heal unstable roots to prod defaults.
+    normalize_prod_paths: bool,
     http_port: u16,
     mcp_port: u16,
     gateway_port: u16,
@@ -104,11 +109,18 @@ pub fn install_runtime_plane() -> Result<RuntimeMode, SettingsError> {
     if matches!(mode, RuntimeMode::Prod) {
         super::sandbox_test_guard::assert_test_home_isolated();
     }
+    let config_dir = match &mode {
+        RuntimeMode::Prod => home_dir().join(".config").join("lulu-spark"),
+        RuntimeMode::Sandbox { id } => resolve_sandbox_dir(id),
+    };
     let cache_dir = resolve_cache_dir()?;
+    let normalize_prod_paths = matches!(mode, RuntimeMode::Prod);
     let (http_port, mcp_port, gateway_port) = default_listen_ports(&mode);
     *plane_slot() = Some(RuntimePlane {
         mode: mode.clone(),
+        config_dir,
         cache_dir,
+        normalize_prod_paths,
         http_port,
         mcp_port,
         gateway_port,
@@ -173,11 +185,27 @@ pub fn runtime_mode() -> Result<RuntimeMode, SettingsError> {
         .ok_or_else(|| SettingsError::ConfigGuard("runtime plane not initialized".into()))
 }
 
+/// Active config directory from the process plane.
+pub fn runtime_config_dir() -> Result<PathBuf, SettingsError> {
+    plane_slot()
+        .as_ref()
+        .map(|p| p.config_dir.clone())
+        .ok_or_else(|| SettingsError::ConfigGuard("runtime plane not initialized".into()))
+}
+
 /// Cached cache root from the process plane. Never falls back to prod defaults.
 pub fn runtime_cache_dir() -> Result<PathBuf, SettingsError> {
     plane_slot()
         .as_ref()
         .map(|p| p.cache_dir.clone())
+        .ok_or_else(|| SettingsError::ConfigGuard("runtime plane not initialized".into()))
+}
+
+/// Whether load/save should normalize unstable roots to prod defaults.
+pub fn runtime_normalize_prod_paths() -> Result<bool, SettingsError> {
+    plane_slot()
+        .as_ref()
+        .map(|p| p.normalize_prod_paths)
         .ok_or_else(|| SettingsError::ConfigGuard("runtime plane not initialized".into()))
 }
 

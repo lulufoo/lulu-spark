@@ -2,7 +2,8 @@
 
 use super::{
     clear_runtime_plane, install_runtime_plane, resolve_cache_dir, resolve_real_user_home,
-    resolve_runtime_mode, resolve_sandbox_dir, runtime_cache_dir, RuntimeMode,
+    resolve_runtime_mode, resolve_sandbox_dir, runtime_cache_dir, runtime_config_dir,
+    runtime_normalize_prod_paths, RuntimeMode,
 };
 use crate::config::settings::default_cache_dir;
 use crate::test_support::{TestConfigEnv, TestSandbox};
@@ -74,6 +75,8 @@ fn resolve_cache_dir_returns_sandbox_cache() {
         .join("cache");
     assert_eq!(resolve_cache_dir().expect("cache"), expected);
     assert_eq!(runtime_cache_dir().expect("plane"), expected);
+    assert_eq!(runtime_config_dir().expect("config"), sandbox.sandbox_dir());
+    assert!(!runtime_normalize_prod_paths().expect("normalize"));
     assert_eq!(resolve_sandbox_dir(&id), sandbox.sandbox_dir());
 }
 
@@ -83,6 +86,11 @@ fn resolve_cache_dir_returns_default_in_prod_under_temp_home() {
     let _env = TestConfigEnv::prod(home.path());
     assert_eq!(resolve_cache_dir().expect("cache"), default_cache_dir());
     assert_eq!(runtime_cache_dir().expect("plane"), default_cache_dir());
+    assert_eq!(
+        runtime_config_dir().expect("config"),
+        home.path().join(".config").join("lulu-spark")
+    );
+    assert!(runtime_normalize_prod_paths().expect("normalize"));
 }
 
 #[test]

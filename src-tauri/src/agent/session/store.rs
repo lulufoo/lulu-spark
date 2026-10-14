@@ -23,15 +23,19 @@ pub fn agent_log_dir() -> Result<PathBuf, String> {
 }
 
 /// Conversation files live under `{cache_dir}/agent-exec/sessions/{session_id}/`.
-/// Tests must use `TestSandbox` so they cannot read or write the user's store.
+/// Tests must run under an installed plane cache so they cannot touch the user's store.
 pub fn sessions_dir() -> Result<PathBuf, String> {
     #[cfg(test)]
     {
-        require_sandbox_sessions_plane()?;
+        // Plane must exist before resolving paths (load would otherwise fail first).
+        let _ = crate::config::settings::runtime_cache_dir().map_err(|_| {
+            "assistant conversation directory requires TestSandbox isolation".to_string()
+        })?;
     }
     let dir = agent_dir()?.join("sessions");
     #[cfg(test)]
     {
+        require_sessions_under_plane_cache(&dir)?;
         reject_prod_cache_sessions_dir(&dir)?;
     }
     Ok(dir)
@@ -63,13 +67,18 @@ fn catalog_file_path() -> Result<PathBuf, String> {
 }
 
 #[cfg(test)]
-fn require_sandbox_sessions_plane() -> Result<(), String> {
+fn require_sessions_under_plane_cache(dir: &PathBuf) -> Result<(), String> {
     use crate::config::settings;
-    if matches!(settings::runtime_mode(), Ok(settings::RuntimeMode::Sandbox { .. })) {
-        Ok(())
-    } else {
-        Err("assistant conversation directory requires TestSandbox isolation".into())
+    let cache = settings::runtime_cache_dir().map_err(|_| {
+        "assistant conversation directory requires TestSandbox isolation".to_string()
+    })?;
+    if dir != &cache && !dir.starts_with(&cache) {
+        return Err(format!(
+            "assistant conversation directory must stay under plane cache {}",
+            cache.display()
+        ));
     }
+    Ok(())
 }
 
 #[cfg(test)]
