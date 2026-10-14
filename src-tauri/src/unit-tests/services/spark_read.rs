@@ -8,6 +8,7 @@ use crate::test_support::TestSandbox;
 
 #[test]
 fn get_config_has_frontend_contract_keys() {
+    let _sandbox = TestSandbox::new();
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .unwrap()

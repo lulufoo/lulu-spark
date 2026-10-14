@@ -14,7 +14,7 @@ fn sandbox_secret_roundtrip_stays_in_memory() {
     test_secrets_clear();
     set_secret("sk-sandbox").expect("set");
     assert_eq!(get_secret().expect("get"), Some("sk-sandbox".to_string()));
-    assert!(crate::config::settings::uses_in_memory_keychain());
+    assert!(crate::config::settings::uses_in_memory_keychain().expect("mode"));
     let src = include_str!("../../config/secrets.rs");
     assert!(!src.contains("uses_in_memory_keychain"));
     assert!(!src.contains("key != KEY_LLM_API_KEY"));

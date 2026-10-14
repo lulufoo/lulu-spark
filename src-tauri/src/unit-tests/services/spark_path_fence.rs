@@ -48,7 +48,7 @@ fn expand_spark_includes_knowledge_root_and_listed_clone() {
         let clone = paths::knowledge_root().expect("knowledge_root").join("demo");
         let cache = paths::cache_dir().expect("cache");
 
-        let data = paths::runtime_data_dir();
+        let data = paths::runtime_data_dir().expect("data dir");
         assert!(
             !fence.read_allow.iter().any(|p| same_path(p, &data)),
             "SPARK_DATA_DIR must not be a read root"

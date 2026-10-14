@@ -3,9 +3,9 @@ use std::path::Path;
 
 use super::{apply_config_payload, load, save, to_config_json};
 use crate::config::settings::{
-    default_cache_dir, llm_entry_by_type, AppSettings, LlmSettingsEntry,
+    llm_entry_by_type, AppSettings, LlmSettingsEntry,
 };
-use crate::test_support::TestConfigEnv;
+use crate::test_support::{TestConfigEnv, TestSandbox};
 
 fn prepare_config(env: &TestConfigEnv) -> std::path::PathBuf {
     let path = env.config_file_path();
@@ -159,6 +159,7 @@ fn blank_assistant_engine_is_preserved_on_load() {
 
 #[test]
 fn to_config_json_hides_legacy_engine_llm_fields() {
+    let _sandbox = TestSandbox::new();
     let mut settings = AppSettings::default();
     settings.assistant_engine = "cursor".into();
     settings.llm.push(LlmSettingsEntry {
@@ -168,7 +169,7 @@ fn to_config_json_hides_legacy_engine_llm_fields() {
         model: "composer-1".into(),
     });
 
-    let json = to_config_json(&settings, true);
+    let json = to_config_json(&settings, true).expect("json");
     assert_eq!(json["assistant_engine"], "cursor");
     assert_eq!(json["llm"]["model"], "");
     assert_eq!(json["llm"]["platform"], "");
@@ -190,6 +191,7 @@ fn save_roundtrip_keeps_general_settings() {
 
 #[test]
 fn spark_github_fields_are_ignored_by_set_config() {
+    let _sandbox = TestSandbox::new();
     let mut settings = AppSettings::default();
     apply_config_payload(
         &mut settings,
@@ -199,7 +201,7 @@ fn spark_github_fields_are_ignored_by_set_config() {
         }),
     )
     .expect("apply");
-    let json = to_config_json(&settings, false);
+    let json = to_config_json(&settings, false).expect("json");
     assert!(json.get("spark_github_repo_url").is_none());
     assert!(json.get("github_user_url").is_none());
     assert!(json.get("has_github_token").is_none());
@@ -214,23 +216,25 @@ fn save_roundtrip_keeps_gateway_port() {
     save(&settings).expect("save");
     let loaded = load().expect("load");
     assert_eq!(loaded.gateway_port, Some(7654));
-    assert_eq!(loaded.effective_gateway_port(), 7654);
+    assert_eq!(loaded.effective_gateway_port().expect("port"), 7654);
 }
 
 #[test]
 fn to_config_json_includes_gateway_port() {
+    let _sandbox = TestSandbox::new();
     let settings = AppSettings::default();
-    let json = to_config_json(&settings, false);
-    assert_eq!(json["gateway_port"], settings.effective_gateway_port());
+    let json = to_config_json(&settings, false).expect("json");
+    assert_eq!(json["gateway_port"], settings.effective_gateway_port().expect("port"));
 }
 
 #[test]
 fn to_config_json_exposes_fixed_notes_root() {
+    let sandbox = TestSandbox::new();
     let settings = AppSettings::default();
-    let json = to_config_json(&settings, false);
+    let json = to_config_json(&settings, false).expect("json");
     assert_eq!(
         json["notes_root"],
-        default_cache_dir().join("data").join("notes").to_string_lossy().as_ref()
+        sandbox.data_dir().join("notes").to_string_lossy().as_ref()
     );
     let mut next = settings;
     apply_config_payload(
@@ -238,15 +242,16 @@ fn to_config_json_exposes_fixed_notes_root() {
         &serde_json::json!({ "notes_root": "/tmp/should-not-stick" }),
     )
     .expect("apply");
-    let after = to_config_json(&next, false);
+    let after = to_config_json(&next, false).expect("json");
     assert_eq!(after["notes_root"], json["notes_root"]);
 }
 
 #[test]
 fn theme_payload_accepts_stable_ids_and_rejects_unknown() {
+    let _sandbox = TestSandbox::new();
     let mut settings = AppSettings::default();
     assert_eq!(settings.theme, "system");
-    assert_eq!(to_config_json(&settings, false)["theme"], "system");
+    assert_eq!(to_config_json(&settings, false).expect("json")["theme"], "system");
     apply_config_payload(&mut settings, &serde_json::json!({ "theme": "dark" }))
         .expect("apply dark");
     assert_eq!(settings.theme, "dark");

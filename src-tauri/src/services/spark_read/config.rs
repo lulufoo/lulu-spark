@@ -33,6 +33,7 @@ pub fn get_config(_repo_root: &Path) -> Value {
     let _ = _repo_root;
     let s = settings::load().unwrap_or_default();
     settings::to_config_json(&s, secrets::has_host_key())
+        .unwrap_or_else(|e| json!({ "ok": false, "error": format!("{e}") }))
 }
 
 /// Derive topics from sediment-kb repos (+ inbox virtual entry).

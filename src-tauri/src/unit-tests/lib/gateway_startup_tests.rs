@@ -21,7 +21,8 @@ fn lib_starts_gateway_only_when_lan_ip_is_present() {
         "lib.rs must start the in-process Gateway module"
     );
     assert!(
-        src.contains("effective_gateway_port"),
+        src.contains("boot.gateway_port")
+            && include_str!("../../boot_settings.rs").contains("effective_gateway_port"),
         "lib.rs must use the settings Gateway port"
     );
 }

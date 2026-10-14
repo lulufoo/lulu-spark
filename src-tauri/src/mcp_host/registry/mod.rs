@@ -47,39 +47,38 @@ pub enum McpServerLookupError {
 const SEEDED_SPARK_CAPABILITY_DESCRIPTION: &str =
     "internal host-mcp spark capability surface";
 
-fn seeded_http_transport(key: &str) -> HttpMcpTransport {
+/// Build seeded HTTP transport from the installed runtime plane's MCP port.
+/// Fail closed: no plane → `None` (never fall back to the prod default port).
+fn seeded_http_transport(key: &str) -> Option<HttpMcpTransport> {
+    let port = crate::config::settings::runtime_mcp_port().ok()?;
     let mut headers = BTreeMap::new();
     headers.insert(
         "Accept".to_string(),
         "application/json, text/event-stream".to_string(),
     );
-    HttpMcpTransport {
+    Some(HttpMcpTransport {
         name: DEFAULT_HTTP_MCP_SERVER_NAME.to_string(),
-        url: format!(
-            "http://127.0.0.1:{}/mcp/{}",
-            crate::config::settings::load()
-                .map(|s| s.effective_mcp_port())
-                .unwrap_or(crate::DEFAULT_MCP_PORT),
-            key
-        ),
+        url: format!("http://127.0.0.1:{port}/mcp/{key}"),
         headers,
-    }
+    })
 }
 
-fn seeded_spark_config() -> McpServerConfig {
-    McpServerConfig {
+fn seeded_spark_config() -> Option<McpServerConfig> {
+    Some(McpServerConfig {
         capability_description: SEEDED_SPARK_CAPABILITY_DESCRIPTION.to_string(),
-        http_transport: seeded_http_transport(SEEDED_BUSINESS_KEY),
-    }
+        http_transport: seeded_http_transport(SEEDED_BUSINESS_KEY)?,
+    })
 }
 
 fn table() -> &'static Mutex<HashMap<String, McpServerConfig>> {
     static TABLE: OnceLock<Mutex<HashMap<String, McpServerConfig>>> = OnceLock::new();
-    // Host-authoritative defaults must exist on first access (production Set path),
-    // not only when tests call `seed_defaults`.
+    // Host-authoritative defaults must exist on first access when the plane is ready.
+    // No plane yet → empty table; `seed_defaults` after boot fills it.
     TABLE.get_or_init(|| {
         let mut map = HashMap::new();
-        map.insert(SEEDED_BUSINESS_KEY.to_string(), seeded_spark_config());
+        if let Some(cfg) = seeded_spark_config() {
+            map.insert(SEEDED_BUSINESS_KEY.to_string(), cfg);
+        }
         Mutex::new(map)
     })
 }
@@ -123,8 +122,11 @@ pub fn lookup(key: &str) -> Result<McpServerConfig, McpServerLookupError> {
 }
 
 /// Seed (or re-seed after test clear) the L1-backed spark Binding key.
+/// Skips when the runtime plane has no MCP port (fail closed).
 pub fn seed_defaults() {
-    let _ = register(SEEDED_BUSINESS_KEY, seeded_spark_config());
+    if let Some(cfg) = seeded_spark_config() {
+        let _ = register(SEEDED_BUSINESS_KEY, cfg);
+    }
 }
 
 /// Test helper: reset Host-internal registry state.

@@ -88,7 +88,7 @@ fn agent_module_mount_point_is_addressable() {
 fn assistant_conversation_dir_requires_sandbox_and_misses_prod_cache() {
     with_config_test_serial(|| {
         assert!(
-            !settings::is_test_sandbox(),
+            !matches!(settings::runtime_mode(), Ok(settings::RuntimeMode::Sandbox { .. })),
             "this isolation test must run outside TestSandbox"
         );
         let err = session::sessions_dir().expect_err("unisolated sessions_dir");

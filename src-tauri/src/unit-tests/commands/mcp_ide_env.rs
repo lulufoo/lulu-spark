@@ -44,7 +44,7 @@ fn apply_uses_launchctl_setenv_and_skips_in_sandbox() {
     assert!(src.contains("launchctl"));
     assert!(src.contains("setenv"));
     assert!(src.contains("unsetenv"));
-    assert!(src.contains("is_test_sandbox"));
+    assert!(src.contains("runtime_mode"));
     assert!(
         !src.contains("LaunchAgents") || src.contains("remove_file"),
         "must not write a LaunchAgent plist"

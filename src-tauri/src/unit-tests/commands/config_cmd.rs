@@ -24,7 +24,8 @@ fn host_config_persists_glm_model_and_host_credential_without_echoing_secret() {
         let json = settings::to_config_json(
             &app_settings,
             secrets::has_host_key(),
-        );
+        )
+        .expect("json");
         assert_eq!(json["assistant_engine"], "host");
         assert_eq!(json["llm"]["platform"], "glm");
         assert_eq!(

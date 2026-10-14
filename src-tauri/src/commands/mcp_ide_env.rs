@@ -17,7 +17,11 @@ pub fn apply_ide_ticket_env(
     let Some(base) = slot.env_var_base() else {
         return Ok(());
     };
-    if cfg!(test) || settings::is_test_sandbox() {
+    if cfg!(test) {
+        return Ok(());
+    }
+    // Unreadable runtime mode is treated as sandbox: skip the launchd write (fail closed).
+    if !matches!(settings::runtime_mode(), Ok(settings::RuntimeMode::Prod)) {
         return Ok(());
     }
     let new_var = ledger_record(slot)
