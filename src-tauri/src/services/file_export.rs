@@ -1,8 +1,8 @@
 //! Versioned copy of a Host-owned file into a caller-chosen directory.
 //!
 //! The caller names the directory. The Host enforces only a floor: absolute path,
-//! no `..`, and never resolves (symlinks included) inside Spark's config or cache
-//! base directory. Existing files are never overwritten.
+//! no `..`, and never resolves (symlinks included) inside the Data directory,
+//! which is the Host's own store. Existing files are never overwritten.
 
 use std::ffi::OsString;
 use std::fs::{self, OpenOptions};
@@ -11,7 +11,7 @@ use std::path::{Component, Path, PathBuf};
 
 use serde_json::{json, Value};
 
-use crate::config::settings;
+use crate::config::paths;
 
 fn reject(error: &str, status: u16) -> Value {
     json!({ "error": error, "_status": status })
@@ -38,14 +38,11 @@ fn resolve_dest_dir(raw: &Path) -> Result<PathBuf, Value> {
     }
 }
 
-/// Startup-determined config and cache base dirs, canonicalized when they exist.
-fn read_spark_base_dirs() -> Result<[PathBuf; 2], Value> {
-    let unavailable = |e: settings::SettingsError| {
-        reject(&format!("Spark base directory unavailable: {e:?}"), 500)
-    };
-    let config = settings::runtime_config_dir().map_err(unavailable)?;
-    let cache = settings::runtime_cache_dir().map_err(unavailable)?;
-    Ok([config, cache].map(|dir| dir.canonicalize().unwrap_or(dir)))
+/// The Data directory, resolved like `dest_dir` so a missing directory still compares correctly.
+fn resolve_data_dir() -> Result<PathBuf, Value> {
+    let data = paths::runtime_data_dir()
+        .map_err(|e| reject(&format!("Data directory unavailable: {e:?}"), 500))?;
+    resolve_dest_dir(&data)
 }
 
 fn validate_dest_dir(dest_dir: &str) -> Result<PathBuf, Value> {
@@ -61,10 +58,8 @@ fn validate_dest_dir(dest_dir: &str) -> Result<PathBuf, Value> {
         return Err(reject("dest_dir must not contain '..'", 400));
     }
     let resolved = resolve_dest_dir(&raw)?;
-    for base in read_spark_base_dirs()? {
-        if resolved.starts_with(&base) {
-            return Err(reject("dest_dir must not be inside a Spark base directory", 403));
-        }
+    if resolved.starts_with(resolve_data_dir()?) {
+        return Err(reject("dest_dir must not be inside the Data directory", 403));
     }
     Ok(resolved)
 }

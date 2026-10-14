@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
-use crate::services::path_fence::PathFence;
+use crate::agent::fence::PathFence;
 use crate::mcp_host::registry::McpServerConfig;
 
 use super::step_clock::StepClock;
@@ -282,7 +282,7 @@ impl Session {
 }
 
 fn staged_path_key(path: &str) -> String {
-    crate::services::path_fence::stored_path(std::path::PathBuf::from(path.trim()))
+    crate::agent::fence::stored_path(std::path::PathBuf::from(path.trim()))
         .to_string_lossy()
         .into_owned()
 }

@@ -2,7 +2,7 @@
 
 use serde_json::{json, Value};
 
-use crate::services::path_fence::PathFence;
+use crate::agent::fence::PathFence;
 
 use super::catalog::{LocalTool, ToolCatalog, ToolResult};
 use super::fs;

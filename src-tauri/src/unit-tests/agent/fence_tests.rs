@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::PathBuf;
 
-use crate::services::path_fence::{
+use crate::agent::fence::{
     require_absolute, sanitize_session_segment, stored_path, validate_readable_regular_file,
     validate_stage_file, PathFence,
 };

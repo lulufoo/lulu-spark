@@ -2,7 +2,7 @@
 //! The Agent loop only stores the resulting path lists.
 
 use crate::config::paths;
-use crate::services::path_fence::{stored_path, PathFence};
+use crate::agent::fence::{stored_path, PathFence};
 use crate::mcp_host::registry::SEEDED_BUSINESS_KEY;
 use crate::services::sediment_kb;
 
@@ -49,5 +49,5 @@ pub fn expand_for_business_key(key: &str) -> Option<PathFence> {
 }
 
 #[cfg(test)]
-#[path = "../unit-tests/services/spark_path_fence.rs"]
+#[path = "../../unit-tests/agent/fence_spark_tests.rs"]
 mod tests;

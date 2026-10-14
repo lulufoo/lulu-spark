@@ -3,7 +3,7 @@
 use serde_json::{json, Value};
 
 use crate::agent::session::{Session, StagedEntry};
-use crate::services::path_fence::{validate_stage_file, PathFence};
+use crate::agent::fence::{validate_stage_file, PathFence};
 
 use super::catalog::{LocalTool, ToolCatalog, ToolResult};
 use super::fs;

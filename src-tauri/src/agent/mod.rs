@@ -6,6 +6,7 @@ pub mod binding;
 pub mod context;
 pub mod diagnostics;
 pub mod engine_router;
+pub mod fence;
 pub mod llm;
 pub mod mcp;
 pub mod progress;
@@ -15,6 +16,7 @@ pub mod session;
 pub mod shell;
 pub mod tools;
 pub mod turn;
+pub mod workspace;
 
 /// Host spark chat system prompt (code constant; not toml / notes store).
 ///

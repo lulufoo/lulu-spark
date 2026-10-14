@@ -11,7 +11,7 @@ use crate::commands::ai_assistant::{
     create_chat_session_json, delete_chat_session_json, unstage_chat_staged_json,
 };
 use crate::mcp_host::registry::SEEDED_BUSINESS_KEY;
-use crate::services::path_fence::validate_stage_file;
+use crate::agent::fence::validate_stage_file;
 use crate::test_support::TestSandbox;
 use serde_json::json;
 

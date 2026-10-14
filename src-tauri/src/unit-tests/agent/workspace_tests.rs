@@ -1,9 +1,9 @@
 use std::fs;
 
-use crate::services::chat_workspace::{
+use crate::agent::workspace::{
     delete_session_workspace_file, list_session_workspace_files,
 };
-use crate::services::path_fence::{stored_path, PathFence};
+use crate::agent::fence::{stored_path, PathFence};
 
 fn fence_with_parent(parent: &std::path::Path) -> PathFence {
     PathFence {

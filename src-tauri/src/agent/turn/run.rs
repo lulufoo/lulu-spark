@@ -607,7 +607,7 @@ pub(crate) fn run_loop_with_progress(
     }
 }
 
-fn turn_fence_for_session(session: &Session) -> Option<crate::services::path_fence::PathFence> {
+fn turn_fence_for_session(session: &Session) -> Option<crate::agent::fence::PathFence> {
     loaded_path_fence().map(|base| {
         let mut fence = base
             .with_session_scratch(&session.session_id)

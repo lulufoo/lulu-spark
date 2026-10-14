@@ -2,6 +2,8 @@
 
 use std::path::{Component, Path, PathBuf};
 
+pub mod spark;
+
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct PathFence {
     pub read_allow: Vec<PathBuf>,
@@ -191,5 +193,5 @@ fn resolve_existing_prefix(path: &Path) -> PathBuf {
 }
 
 #[cfg(test)]
-#[path = "../../unit-tests/services/path_fence_tests.rs"]
+#[path = "../../unit-tests/agent/fence_tests.rs"]
 mod tests;

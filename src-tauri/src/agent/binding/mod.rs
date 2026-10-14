@@ -4,11 +4,11 @@ use std::sync::atomic::Ordering;
 
 use serde_json::{json, Value};
 
-use crate::services::path_fence::PathFence;
+use crate::agent::fence::PathFence;
 use crate::agent::session::{self, BindingStateSummary, SetError};
 use crate::services::mcp_oauth::{issue_for_slot, Slot};
 use crate::mcp_host::registry::{self, McpServerConfig, McpServerLookupError};
-use crate::services::spark_path_fence;
+use crate::agent::fence::spark;
 
 use crate::agent::turn::{emit_lifecycle, emit_shell_binding_changed, request_in_flight_cancel, runtime};
 use crate::agent::turn::{ChatTurnResult, ExecError, ExecuteOutcome};
@@ -111,7 +111,7 @@ pub fn try_set_binding_json(v: &Value) -> Result<(), SetError> {
         }
     };
     let config = inject_spark_ticket(key.as_str(), config)?;
-    let fence = spark_path_fence::expand_for_business_key(key.as_str());
+    let fence = spark::expand_for_business_key(key.as_str());
     // L1+L2: public key-only Set must not feed business tool handles to the
     // Agent Loop. The business key is already resolved into loaded_mcp_server;
     // Binding.tools stays an empty interface slot. File tools are Host-owned
