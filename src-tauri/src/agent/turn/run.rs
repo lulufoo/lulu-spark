@@ -5,6 +5,7 @@ use std::time::Instant;
 use serde_json::{json, Value};
 
 use crate::agent::diagnostics::{self, DiagnosticEvent, TurnId};
+use crate::agent::language::Language;
 use crate::agent::llm::{self, LlmConfig};
 use crate::agent::progress::{self, ProgressSink};
 use crate::agent::session::{self, read_unix_millis, Session, Step, StepClock};
@@ -293,7 +294,7 @@ pub(crate) fn run_loop_with_progress(
                 if chat_turn_interrupted(&session.session_id, generation) {
                     return cancelled_turn_outcome(session, steps_checkpoint);
                 }
-                let mut out = map_llm_error(&error);
+                let mut out = map_llm_error(&error, Language::current());
                 out.wrote = wrote;
                 // The text is our error copy, not model output; the fields are the model's.
                 let step = Step {

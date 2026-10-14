@@ -11,6 +11,7 @@ use serde_json::{json, Value};
 use crate::config::settings;
 use crate::agent::diagnostics::{self, DiagnosticEvent, TurnId};
 use crate::agent::engine_router::{self, AdapterKind, EngineRouteError, TurnInput};
+use crate::agent::language::Language;
 use crate::agent::llm;
 use crate::agent::progress::{self, ProgressSink};
 use crate::agent::r#loop::{self, ChatTurnResult, Terminal, TurnOutcome};
@@ -116,7 +117,7 @@ fn host_adapter_turn(
             r#loop::run_loop_with_progress(&mut session, message, &config, turn_id, Some(sink))
         }
         Err(error) => {
-            let outcome = r#loop::map_llm_error(&error);
+            let outcome = r#loop::map_llm_error(&error, Language::current());
             append_user_assistant(&mut session, message, &outcome.reply_text);
             outcome
         }

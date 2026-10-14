@@ -6,7 +6,7 @@
 
 mod llm_errors;
 
-pub use llm_errors::describe_missing_config;
+pub use llm_errors::describe_llm_error;
 
 /// The language of the copy the engine writes itself (not of the model's replies).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

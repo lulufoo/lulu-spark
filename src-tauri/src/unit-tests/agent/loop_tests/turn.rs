@@ -718,7 +718,7 @@ fn terminal_no_plan_unsupported_and_error_are_distinguishable() {
         let tech_err = r#loop::run_loop(&mut sess2, "继续", &cfg_for(&mock_err));
         assert_outcome(&tech_err, "error", false);
         assert!(
-            tech_err.reply_text.contains("截断") || tech_err.reply_text.contains("重试"),
+            tech_err.reply_text.contains("cut off") || tech_err.reply_text.contains("Try again"),
             "{}",
             tech_err.reply_text
         );

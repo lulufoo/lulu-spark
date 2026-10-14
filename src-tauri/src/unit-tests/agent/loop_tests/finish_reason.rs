@@ -31,7 +31,7 @@ fn thinking_that_used_up_the_budget_has_its_own_message_and_is_kept() {
     with_sandbox(|| {
         let (outcome, session) = run_one(response("length", "", Some("想了很久")));
         assert!(matches!(outcome.terminal, Terminal::Error));
-        assert!(outcome.reply_text.contains("思考占满"), "{}", outcome.reply_text);
+        assert!(outcome.reply_text.contains("thinking"), "{}", outcome.reply_text);
         let last = session.steps.last().expect("error step");
         assert_eq!(last.content.as_deref(), Some(outcome.reply_text.as_str()));
         assert_eq!(last.reasoning_content.as_deref(), Some("想了很久"));
@@ -44,8 +44,8 @@ fn thinking_that_used_up_the_budget_has_its_own_message_and_is_kept() {
 fn length_with_text_stays_the_plain_truncated_message() {
     with_sandbox(|| {
         let (outcome, _) = run_one(response("length", "写到一半", None));
-        assert!(outcome.reply_text.contains("截断"), "{}", outcome.reply_text);
-        assert!(!outcome.reply_text.contains("思考"));
+        assert!(outcome.reply_text.contains("cut off"), "{}", outcome.reply_text);
+        assert!(!outcome.reply_text.contains("thinking"));
     });
 }
 
@@ -54,7 +54,7 @@ fn sensitive_is_an_error_even_with_partial_text_and_the_text_is_not_the_reply() 
     with_sandbox(|| {
         let (outcome, session) = run_one(response("sensitive", "半截正文", None));
         assert!(matches!(outcome.terminal, Terminal::Error));
-        assert!(outcome.reply_text.contains("审核"), "{}", outcome.reply_text);
+        assert!(outcome.reply_text.contains("safety review"), "{}", outcome.reply_text);
         assert!(!outcome.reply_text.contains("半截正文"));
         let last = session.steps.last().expect("error step");
         assert_eq!(last.finish_reason.as_deref(), Some("sensitive"));
@@ -66,8 +66,8 @@ fn the_other_known_failures_each_get_their_own_message() {
     with_sandbox(|| {
         let (inference, _) = run_one(response("network_error", "", None));
         let (context, _) = run_one(response("model_context_window_exceeded", "", None));
-        assert!(inference.reply_text.contains("推理"), "{}", inference.reply_text);
-        assert!(context.reply_text.contains("上下文"), "{}", context.reply_text);
+        assert!(inference.reply_text.contains("inference"), "{}", inference.reply_text);
+        assert!(context.reply_text.contains("context window"), "{}", context.reply_text);
         assert_ne!(inference.reply_text, context.reply_text);
     });
 }

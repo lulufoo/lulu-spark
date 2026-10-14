@@ -2,7 +2,7 @@
 
 use serde_json::{json, Value};
 
-use crate::agent::language::{describe_missing_config, Language};
+use crate::agent::language::{describe_llm_error, Language};
 use crate::agent::llm::LlmError;
 use crate::agent::session::{self, Session, Step, EXTRA_APPEND_CONTENT};
 
@@ -102,37 +102,8 @@ pub(crate) fn prompt_text_from_binding(prompt: &Value) -> String {
     }
 }
 
-pub fn map_llm_error(err: &LlmError) -> TurnOutcome {
-    let reply_text = match err {
-        LlmError::MissingConfig => describe_missing_config(Language::current()).into(),
-        LlmError::Unauthorized => "鉴权失败，请检查 API Key 配置。".into(),
-        LlmError::BadRequest(_) => "请求不被上游接受，请稍后重试或检查配置。".into(),
-        LlmError::RateLimited => "请求过于频繁，请稍后重试。".into(),
-        LlmError::Server(_) | LlmError::Network(_) => {
-            "上游服务暂时不可用，请稍后重试。".into()
-        }
-        LlmError::Timeout => "调用超时，请稍后重试。".into(),
-        LlmError::TotalTimeout => {
-            "The response took too long and was stopped. Shorten the request or try again later."
-                .into()
-        }
-        LlmError::Truncated => "回复被截断，请重试或缩短请求。".into(),
-        LlmError::ThinkingExhausted => {
-            "模型的思考占满了输出预算，没有给出回复，请缩短请求或稍后重试。".into()
-        }
-        LlmError::ContentFiltered => "回复被上游的安全审核拦截，请调整请求后重试。".into(),
-        LlmError::InferenceFailed => "模型推理出现异常，请稍后重试。".into(),
-        LlmError::ContextExceeded => {
-            "对话内容超出了模型的上下文窗口，请缩短请求或开启新会话。".into()
-        }
-        LlmError::UnknownFinish(reason) => {
-            format!("模型以未知原因（{reason}）结束，没有给出回复，未执行任何写入。")
-        }
-        LlmError::UnsupportedToolCalls => {
-            "当前上游不支持工具调用（tool_calls），无法继续。".into()
-        }
-        LlmError::InvalidResponse(_) => "模型响应格式异常，未执行任何写入。".into(),
-    };
+pub fn map_llm_error(err: &LlmError, language: Language) -> TurnOutcome {
+    let reply_text = describe_llm_error(language, err);
     TurnOutcome {
         reply_text,
         terminal: Terminal::Error,
