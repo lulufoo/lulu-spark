@@ -266,12 +266,18 @@ pub(crate) fn run_loop_with_progress(
         } else {
             llm::ToolChoice::Auto
         };
-        let call = llm::chat_completions_with_choice(
+        let is_cancelled = || chat_turn_interrupted(&session_id, generation);
+        let options = llm::CallOptions {
+            tool_choice,
+            timeout: llm::DEFAULT_TIMEOUT,
+            max_retries: llm::MAX_LLM_RETRIES,
+            is_cancelled: Some(&is_cancelled),
+        };
+        let call = llm::chat_completions_with_options(
             &messages,
             tool_defs,
-            tool_choice,
+            &options,
             config,
-            llm::DEFAULT_TIMEOUT,
             Some(&mut on_delta),
             Some(&ctx),
         );

@@ -3,6 +3,7 @@
 mod classify;
 mod read_error;
 mod record;
+mod retry;
 mod stream;
 
 use std::time::Duration;
@@ -24,6 +25,8 @@ pub const LLM_CONNECT_TIMEOUT: Duration = Duration::from_secs(30);
 /// One request from sending to the end of the stream; a stream that keeps sending data
 /// still stops here.
 pub const LLM_TOTAL_TIMEOUT: Duration = Duration::from_secs(300);
+/// How often a Turn request is sent again after a `Timeout`, per logical call.
+pub const MAX_LLM_RETRIES: usize = 2;
 
 #[derive(Debug, Clone)]
 pub struct LlmConfig {
@@ -197,7 +200,11 @@ pub fn chat_completions_recorded(
     on_delta: Option<&mut dyn FnMut(&str, &str)>,
     ctx: Option<&CallContext>,
 ) -> LlmCallOutcome {
-    chat_completions_with_choice(messages, tools, ToolChoice::Auto, config, timeout, on_delta, ctx)
+    let options = CallOptions {
+        timeout,
+        ..CallOptions::default()
+    };
+    chat_completions_with_options(messages, tools, &options, config, on_delta, ctx)
 }
 
 /// Whether the model may call the `tools` it is shown.
@@ -217,13 +224,36 @@ impl ToolChoice {
     }
 }
 
-/// Same as [`chat_completions_recorded`], with the `tool_choice` the caller picks.
-pub fn chat_completions_with_choice(
+/// What a caller may choose about one logical call.
+pub struct CallOptions<'a> {
+    pub tool_choice: ToolChoice,
+    /// Idle timeout (see [`DEFAULT_TIMEOUT`]); the connect timeout is capped by it.
+    pub timeout: Duration,
+    /// Extra requests after a `Timeout`; they do not count as separate calls to the caller.
+    pub max_retries: usize,
+    /// Asked before each retry; `true` stops retrying and returns the last failure.
+    pub is_cancelled: Option<&'a dyn Fn() -> bool>,
+}
+
+impl Default for CallOptions<'_> {
+    /// One request, no retry.
+    fn default() -> Self {
+        Self {
+            tool_choice: ToolChoice::Auto,
+            timeout: DEFAULT_TIMEOUT,
+            max_retries: 0,
+            is_cancelled: None,
+        }
+    }
+}
+
+/// Same as [`chat_completions_recorded`], with the options the caller picks. A `Timeout`
+/// is sent again up to `max_retries` times; each attempt is recorded on its own.
+pub fn chat_completions_with_options(
     messages: &[Value],
     tools: &[Value],
-    tool_choice: ToolChoice,
+    options: &CallOptions,
     config: &LlmConfig,
-    timeout: Duration,
     mut on_delta: Option<&mut dyn FnMut(&str, &str)>,
     ctx: Option<&CallContext>,
 ) -> LlmCallOutcome {
@@ -240,15 +270,17 @@ pub fn chat_completions_with_choice(
     // Empty tools = omit tools + tool_choice (Host business path / tools=[] semantics).
     if !tools.is_empty() {
         body["tools"] = Value::Array(tools.to_vec());
-        body["tool_choice"] = json!(tool_choice.as_str());
+        body["tool_choice"] = json!(options.tool_choice.as_str());
     }
 
-    let mut trace = CallTrace::start();
-    let outcome = send_request(&url, &body, config, timeout, &mut on_delta, &mut trace);
-    if let Some(ctx) = ctx {
-        record::write(ctx, &url, &body, &trace, &outcome);
-    }
-    outcome
+    retry::run_with_retries(options.max_retries, options.is_cancelled, || {
+        let mut trace = CallTrace::start();
+        let outcome = send_request(&url, &body, config, options.timeout, &mut on_delta, &mut trace);
+        if let Some(ctx) = ctx {
+            record::write(ctx, &url, &body, &trace, &outcome);
+        }
+        outcome
+    })
 }
 
 fn send_request(
