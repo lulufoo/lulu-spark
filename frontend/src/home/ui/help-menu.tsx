@@ -1,15 +1,24 @@
 import { useState } from 'react';
+import { HomeNavIcon } from './nav-icons.tsx';
 
-export function HelpMenu({ onAbout }: { onAbout?: () => void }) {
+export function HelpMenu({
+  onSettings,
+  onDevices,
+  onAbout,
+}: {
+  onSettings?: () => void;
+  onDevices?: () => void;
+  onAbout?: () => void;
+}) {
   const [open, setOpen] = useState(false);
 
   function close() {
     setOpen(false);
   }
 
-  function chooseAbout() {
+  function choose(action?: () => void) {
     try {
-      onAbout?.();
+      action?.();
     } catch {
       /* keep the menu clickable */
     }
@@ -24,11 +33,11 @@ export function HelpMenu({ onAbout }: { onAbout?: () => void }) {
         data-role="help-menu-trigger"
         aria-haspopup="menu"
         aria-expanded={open ? 'true' : 'false'}
-        aria-label="Help"
-        title="Help"
+        aria-label="Settings"
+        title="Settings"
         onClick={() => setOpen((prev) => !prev)}
       >
-        <span className="home-help-menu-mark" aria-hidden="true">?</span>
+        <HomeNavIcon name="settings" />
       </button>
       {open ? (
         <>
@@ -41,8 +50,26 @@ export function HelpMenu({ onAbout }: { onAbout?: () => void }) {
             <button
               type="button"
               role="menuitem"
+              id="btn-settings"
+              data-role="help-menu-settings"
+              onClick={() => choose(onSettings)}
+            >
+              Settings
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              id="btn-bind"
+              data-role="help-menu-devices"
+              onClick={() => choose(onDevices)}
+            >
+              Devices
+            </button>
+            <button
+              type="button"
+              role="menuitem"
               data-role="help-menu-about"
-              onClick={chooseAbout}
+              onClick={() => choose(onAbout)}
             >
               About
             </button>
