@@ -113,6 +113,10 @@ pub fn map_llm_error(err: &LlmError) -> TurnOutcome {
             "上游服务暂时不可用，请稍后重试。".into()
         }
         LlmError::Timeout => "调用超时，请稍后重试。".into(),
+        LlmError::TotalTimeout => {
+            "The response took too long and was stopped. Shorten the request or try again later."
+                .into()
+        }
         LlmError::Truncated => "回复被截断，请重试或缩短请求。".into(),
         LlmError::ThinkingExhausted => {
             "模型的思考占满了输出预算，没有给出回复，请缩短请求或稍后重试。".into()

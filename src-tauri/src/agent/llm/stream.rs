@@ -1,24 +1,33 @@
 //! SSE assembly for OpenAI-compatible chat/completions streams.
 
 use std::io::{BufRead, BufReader, Read};
+use std::time::Duration;
 
 use serde_json::Value;
 
 use super::classify::{classify_finish, Shape};
 use super::read_error::map_read_error;
 use super::record::CallTrace;
+use crate::agent::session;
 use super::{AssistantMessage, LlmCallOutcome, LlmError, ToolCall};
 
 pub(super) fn assemble_sse(
     resp: impl Read,
     on_delta: &mut Option<&mut dyn FnMut(&str, &str)>,
     trace: &mut CallTrace,
+    total_limit: Duration,
 ) -> LlmCallOutcome {
     let mut reader = BufReader::new(resp);
     let mut assembler = StreamAssembler::default();
     let mut data_buf = String::new();
     let mut failure: Option<LlmError> = None;
     loop {
+        // Checked between reads, so a request may run over by at most one read wait.
+        if trace.elapsed() > total_limit {
+            let _ = session::log_agent_error("LLM total timeout reading stream");
+            failure = Some(LlmError::TotalTimeout);
+            break;
+        }
         let mut line = String::new();
         match reader.read_line(&mut line) {
             Ok(0) => break,

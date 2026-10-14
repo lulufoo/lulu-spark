@@ -9,7 +9,7 @@
 use std::fs;
 use std::io::Write;
 use std::path::Path;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use chrono::Utc;
 use serde_json::{json, Value};
@@ -27,7 +27,8 @@ pub struct CallContext {
     pub turn_id: Option<String>,
     /// `turn` for the ReAct loop, `summary` for history compression.
     pub purpose: &'static str,
-    /// 1-based tool-loop round inside the Turn; 0 when not part of the loop.
+    /// 1-based tool-loop round inside the Turn; 0 when not part of the loop. Every attempt
+    /// of one logical call shares it; the record's `attempt` tells them apart.
     pub round: usize,
     /// Index the response Step takes in `session.steps` (the Turn id does not exist yet).
     pub step_index: usize,
@@ -55,6 +56,10 @@ impl CallTrace {
             status: None,
             error_body: None,
         }
+    }
+
+    pub(super) fn elapsed(&self) -> Duration {
+        self.started.elapsed()
     }
 
     fn elapsed_ms(&self) -> u64 {
@@ -88,12 +93,13 @@ impl CallTrace {
 /// Never fails the call: a write problem is logged and dropped.
 pub(super) fn write(
     ctx: &CallContext,
+    attempt: usize,
     url: &str,
     body: &Value,
     trace: &CallTrace,
     outcome: &LlmCallOutcome,
 ) {
-    let mut record = build(ctx, url, body, trace, outcome);
+    let mut record = build(ctx, attempt, url, body, trace, outcome);
     redact_strings(&mut record);
     let result = session::session_llm_calls_dir(&ctx.session_id).and_then(|dir| {
         let text = serde_json::to_string_pretty(&record).map_err(|e| e.to_string())?;
@@ -106,6 +112,7 @@ pub(super) fn write(
 
 fn build(
     ctx: &CallContext,
+    attempt: usize,
     url: &str,
     body: &Value,
     trace: &CallTrace,
@@ -117,6 +124,7 @@ fn build(
         "turn_id": ctx.turn_id,
         "purpose": ctx.purpose,
         "round": ctx.round,
+        "attempt": attempt,
         "step_index": ctx.step_index,
         "started_at": trace.started_at,
         "request": { "url": url, "body": body },
@@ -153,7 +161,7 @@ fn message_json(message: &AssistantMessage) -> Value {
     })
 }
 
-/// ok / truncated / empty / timeout / status / error.
+/// ok / truncated / empty / timeout / total_timeout / status / error.
 fn category(outcome: &LlmCallOutcome) -> &'static str {
     match &outcome.error {
         None => match &outcome.snapshot {
@@ -162,6 +170,7 @@ fn category(outcome: &LlmCallOutcome) -> &'static str {
         },
         Some(LlmError::Truncated | LlmError::ThinkingExhausted) => "truncated",
         Some(LlmError::Timeout) => "timeout",
+        Some(LlmError::TotalTimeout) => "total_timeout",
         Some(
             LlmError::Unauthorized
             | LlmError::RateLimited

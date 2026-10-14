@@ -3,6 +3,7 @@
 mod classify;
 mod read_error;
 mod record;
+mod retry;
 mod stream;
 
 use std::time::Duration;
@@ -17,7 +18,15 @@ use crate::config::settings;
 pub use record::CallContext;
 use record::CallTrace;
 
+/// Waiting for response headers and for each chunk of the stream (idle timeout).
 pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(120);
+/// Setting up the TCP connection; a host that cannot be reached fails sooner than `DEFAULT_TIMEOUT`.
+pub const LLM_CONNECT_TIMEOUT: Duration = Duration::from_secs(30);
+/// One request from sending to the end of the stream; a stream that keeps sending data
+/// still stops here.
+pub const LLM_TOTAL_TIMEOUT: Duration = Duration::from_secs(300);
+/// How often a Turn request is sent again after a `Timeout`, per logical call.
+pub const MAX_LLM_RETRIES: usize = 2;
 
 #[derive(Debug, Clone)]
 pub struct LlmConfig {
@@ -33,7 +42,11 @@ pub enum LlmError {
     BadRequest(String),
     RateLimited,
     Server(u16),
+    /// Connect timeout, or no response / no new chunk within `DEFAULT_TIMEOUT`.
     Timeout,
+    /// The request ran past `LLM_TOTAL_TIMEOUT` while data kept arriving. Not the same as
+    /// `Timeout`: a retry would only repeat the long wait.
+    TotalTimeout,
     /// `finish_reason=length` after a cut-off answer or cut-off tool arguments.
     Truncated,
     /// `finish_reason=length` with only thinking: it used up the output budget.
@@ -187,7 +200,11 @@ pub fn chat_completions_recorded(
     on_delta: Option<&mut dyn FnMut(&str, &str)>,
     ctx: Option<&CallContext>,
 ) -> LlmCallOutcome {
-    chat_completions_with_choice(messages, tools, ToolChoice::Auto, config, timeout, on_delta, ctx)
+    let options = CallOptions {
+        timeout,
+        ..CallOptions::default()
+    };
+    chat_completions_with_options(messages, tools, &options, config, on_delta, ctx)
 }
 
 /// Whether the model may call the `tools` it is shown.
@@ -207,13 +224,39 @@ impl ToolChoice {
     }
 }
 
-/// Same as [`chat_completions_recorded`], with the `tool_choice` the caller picks.
-pub fn chat_completions_with_choice(
+/// What a caller may choose about one logical call.
+pub struct CallOptions<'a> {
+    pub tool_choice: ToolChoice,
+    /// Idle timeout (see [`DEFAULT_TIMEOUT`]).
+    pub timeout: Duration,
+    /// Setting up the connection (see [`LLM_CONNECT_TIMEOUT`]).
+    pub connect_timeout: Duration,
+    /// Extra requests after a `Timeout`; they do not count as separate calls to the caller.
+    pub max_retries: usize,
+    /// Asked before each retry; `true` stops retrying and returns the last failure.
+    pub is_cancelled: Option<&'a dyn Fn() -> bool>,
+}
+
+impl Default for CallOptions<'_> {
+    /// One request, no retry.
+    fn default() -> Self {
+        Self {
+            tool_choice: ToolChoice::Auto,
+            timeout: DEFAULT_TIMEOUT,
+            connect_timeout: LLM_CONNECT_TIMEOUT,
+            max_retries: 0,
+            is_cancelled: None,
+        }
+    }
+}
+
+/// Same as [`chat_completions_recorded`], with the options the caller picks. A `Timeout`
+/// is sent again up to `max_retries` times; each attempt is recorded on its own.
+pub fn chat_completions_with_options(
     messages: &[Value],
     tools: &[Value],
-    tool_choice: ToolChoice,
+    options: &CallOptions,
     config: &LlmConfig,
-    timeout: Duration,
     mut on_delta: Option<&mut dyn FnMut(&str, &str)>,
     ctx: Option<&CallContext>,
 ) -> LlmCallOutcome {
@@ -230,30 +273,37 @@ pub fn chat_completions_with_choice(
     // Empty tools = omit tools + tool_choice (Host business path / tools=[] semantics).
     if !tools.is_empty() {
         body["tools"] = Value::Array(tools.to_vec());
-        body["tool_choice"] = json!(tool_choice.as_str());
+        body["tool_choice"] = json!(options.tool_choice.as_str());
     }
 
-    let mut trace = CallTrace::start();
-    let outcome = send_request(&url, &body, config, timeout, &mut on_delta, &mut trace);
-    if let Some(ctx) = ctx {
-        record::write(ctx, &url, &body, &trace, &outcome);
-    }
-    outcome
+    retry::run_with_retries(options.max_retries, options.is_cancelled, |attempt| {
+        if attempt > 1 {
+            if let Some(callback) = on_delta.as_mut() {
+                callback(&format!("Retrying ({}/{})…", attempt - 1, options.max_retries), "");
+            }
+        }
+        let mut trace = CallTrace::start();
+        let outcome = send_request(&url, &body, config, options, &mut on_delta, &mut trace);
+        if let Some(ctx) = ctx {
+            record::write(ctx, attempt, &url, &body, &trace, &outcome);
+        }
+        outcome
+    })
 }
 
 fn send_request(
     url: &str,
     body: &Value,
     config: &LlmConfig,
-    timeout: Duration,
+    options: &CallOptions,
     on_delta: &mut Option<&mut dyn FnMut(&str, &str)>,
     trace: &mut CallTrace,
 ) -> LlmCallOutcome {
     // Blocking reqwest applies this duration to connect/TTFB and to each body
     // read, resetting after a successful read — idle timeout for SSE chunks.
     let client = match Client::builder()
-        .timeout(timeout)
-        .connect_timeout(timeout)
+        .timeout(options.timeout)
+        .connect_timeout(options.connect_timeout)
         .build()
     {
         Ok(client) => client,
@@ -287,7 +337,7 @@ fn send_request(
         return LlmCallOutcome::failed(map_error_status(status, &text));
     }
 
-    stream::assemble_sse(resp, on_delta, trace)
+    stream::assemble_sse(resp, on_delta, trace, LLM_TOTAL_TIMEOUT)
 }
 
 fn map_error_status(status: u16, text: &str) -> LlmError {
@@ -328,3 +378,7 @@ fn map_error_status(status: u16, text: &str) -> LlmError {
 #[cfg(test)]
 #[path = "../unit-tests/agent/llm_classify_tests.rs"]
 mod classify_tests;
+
+#[cfg(test)]
+#[path = "../unit-tests/agent/llm_timeout_tests.rs"]
+mod timeout_tests;
