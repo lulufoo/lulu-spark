@@ -2,23 +2,16 @@ use std::fs;
 
 use serde_json::json;
 
-use super::{resolve_allowed_source_path, resolve_source_path};
+use super::resolve_source_path;
 use crate::test_support::TestSandbox;
 
-/// Read-only system file that exists outside every allow root.
+/// Read-only system file that exists outside Spark's roots.
 const OUTSIDE_FILE: &str = "/etc/hosts";
 
 #[test]
-fn resolve_source_path_accepts_file_outside_allow_roots() {
+fn resolve_source_path_accepts_file_outside_spark_roots() {
     let resolved = resolve_source_path(OUTSIDE_FILE, u64::MAX).expect("resolve");
     assert!(resolved.is_absolute());
-}
-
-#[test]
-fn resolve_allowed_source_path_still_rejects_file_outside_allow_roots() {
-    let _sandbox = TestSandbox::new();
-    let err = resolve_allowed_source_path(OUTSIDE_FILE, u64::MAX).unwrap_err();
-    assert_eq!(err["_status"], json!(403), "{err}");
 }
 
 #[test]
