@@ -22,8 +22,9 @@ fn seed_note(sandbox: &TestSandbox, layers: &[&str]) {
 #[test]
 fn get_note_file_copies_raw_into_dest_dir() {
     let sandbox = TestSandbox::new();
+    let outside = tempfile::tempdir().expect("outside dir");
     seed_note(&sandbox, &["raw"]);
-    let dest = sandbox.cache_dir().join("ws/s1");
+    let dest = outside.path().join("ws/s1");
     let out = get_note_file(sandbox.config_dir(), ID, dest.to_str().unwrap());
     assert_eq!(out["ok"], true, "{out}");
     assert_eq!(out["id"], ID);
@@ -36,8 +37,9 @@ fn get_note_file_copies_raw_into_dest_dir() {
 #[test]
 fn get_note_file_bumps_version_instead_of_overwriting() {
     let sandbox = TestSandbox::new();
+    let outside = tempfile::tempdir().expect("outside dir");
     seed_note(&sandbox, &["raw"]);
-    let dest = sandbox.cache_dir().join("ws/s2");
+    let dest = outside.path().join("ws/s2");
     let dest = dest.to_str().unwrap();
     let first = get_note_file(sandbox.config_dir(), ID, dest);
     let second = get_note_file(sandbox.config_dir(), ID, dest);
@@ -48,8 +50,9 @@ fn get_note_file_bumps_version_instead_of_overwriting() {
 #[test]
 fn get_note_file_errors_without_raw_layer_or_unknown_id() {
     let sandbox = TestSandbox::new();
+    let outside = tempfile::tempdir().expect("outside dir");
     seed_note(&sandbox, &["digest"]);
-    let dest = sandbox.cache_dir().join("ws/s3");
+    let dest = outside.path().join("ws/s3");
     let dest = dest.to_str().unwrap();
     let no_raw = get_note_file(sandbox.config_dir(), ID, dest);
     assert_eq!(no_raw["ok"], false);
@@ -58,7 +61,7 @@ fn get_note_file_errors_without_raw_layer_or_unknown_id() {
     assert_eq!(unknown["ok"], false);
     let bad = get_note_file(sandbox.config_dir(), "bad", dest);
     assert_eq!(bad["ok"], false);
-    assert!(!sandbox.cache_dir().join("ws/s3").exists(), "failed lookups create no dir");
+    assert!(!outside.path().join("ws/s3").exists(), "failed lookups create no dir");
 }
 
 #[test]
