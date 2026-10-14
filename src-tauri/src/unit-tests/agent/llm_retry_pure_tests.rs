@@ -25,8 +25,9 @@ fn run(
 ) -> (LlmCallOutcome, usize) {
     let sent = Cell::new(0);
     let mut script = script.into_iter();
-    let outcome = run_with_retries(max_retries, is_cancelled, || {
+    let outcome = run_with_retries(max_retries, is_cancelled, |attempt| {
         sent.set(sent.get() + 1);
+        assert_eq!(attempt, sent.get(), "attempts are numbered from 1");
         script.next().expect("sent more requests than scripted")
     });
     (outcome, sent.get())

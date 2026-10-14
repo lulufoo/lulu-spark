@@ -2,7 +2,7 @@
 
 use super::{LlmCallOutcome, LlmError};
 
-/// Runs `send` once, then again while it ends in `LlmError::Timeout`, at most
+/// Runs `send` (given its 1-based attempt number) once, then again while it ends in `LlmError::Timeout`, at most
 /// `max_retries` more times and never once `is_cancelled` says so.
 ///
 /// Only a connect or idle timeout is worth repeating. `TotalTimeout` would only repeat the
@@ -11,11 +11,11 @@ use super::{LlmCallOutcome, LlmError};
 pub(super) fn run_with_retries(
     max_retries: usize,
     is_cancelled: Option<&dyn Fn() -> bool>,
-    mut send: impl FnMut() -> LlmCallOutcome,
+    mut send: impl FnMut(usize) -> LlmCallOutcome,
 ) -> LlmCallOutcome {
     let mut retries = 0;
     loop {
-        let outcome = send();
+        let outcome = send(retries + 1);
         let timed_out = matches!(outcome.error, Some(LlmError::Timeout));
         let stopped = is_cancelled.is_some_and(|cancelled| cancelled());
         if !timed_out || retries >= max_retries || stopped {

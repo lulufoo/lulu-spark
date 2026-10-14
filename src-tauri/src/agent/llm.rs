@@ -273,11 +273,16 @@ pub fn chat_completions_with_options(
         body["tool_choice"] = json!(options.tool_choice.as_str());
     }
 
-    retry::run_with_retries(options.max_retries, options.is_cancelled, || {
+    retry::run_with_retries(options.max_retries, options.is_cancelled, |attempt| {
+        if attempt > 1 {
+            if let Some(callback) = on_delta.as_mut() {
+                callback(&format!("Retrying ({}/{})…", attempt - 1, options.max_retries), "");
+            }
+        }
         let mut trace = CallTrace::start();
         let outcome = send_request(&url, &body, config, options.timeout, &mut on_delta, &mut trace);
         if let Some(ctx) = ctx {
-            record::write(ctx, &url, &body, &trace, &outcome);
+            record::write(ctx, attempt, &url, &body, &trace, &outcome);
         }
         outcome
     })

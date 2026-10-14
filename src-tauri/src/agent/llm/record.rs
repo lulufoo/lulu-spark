@@ -27,7 +27,8 @@ pub struct CallContext {
     pub turn_id: Option<String>,
     /// `turn` for the ReAct loop, `summary` for history compression.
     pub purpose: &'static str,
-    /// 1-based tool-loop round inside the Turn; 0 when not part of the loop.
+    /// 1-based tool-loop round inside the Turn; 0 when not part of the loop. Every attempt
+    /// of one logical call shares it; the record's `attempt` tells them apart.
     pub round: usize,
     /// Index the response Step takes in `session.steps` (the Turn id does not exist yet).
     pub step_index: usize,
@@ -92,12 +93,13 @@ impl CallTrace {
 /// Never fails the call: a write problem is logged and dropped.
 pub(super) fn write(
     ctx: &CallContext,
+    attempt: usize,
     url: &str,
     body: &Value,
     trace: &CallTrace,
     outcome: &LlmCallOutcome,
 ) {
-    let mut record = build(ctx, url, body, trace, outcome);
+    let mut record = build(ctx, attempt, url, body, trace, outcome);
     redact_strings(&mut record);
     let result = session::session_llm_calls_dir(&ctx.session_id).and_then(|dir| {
         let text = serde_json::to_string_pretty(&record).map_err(|e| e.to_string())?;
@@ -110,6 +112,7 @@ pub(super) fn write(
 
 fn build(
     ctx: &CallContext,
+    attempt: usize,
     url: &str,
     body: &Value,
     trace: &CallTrace,
@@ -121,6 +124,7 @@ fn build(
         "turn_id": ctx.turn_id,
         "purpose": ctx.purpose,
         "round": ctx.round,
+        "attempt": attempt,
         "step_index": ctx.step_index,
         "started_at": trace.started_at,
         "request": { "url": url, "body": body },
