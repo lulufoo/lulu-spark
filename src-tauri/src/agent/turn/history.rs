@@ -2,6 +2,7 @@
 
 use serde_json::{json, Value};
 
+use crate::agent::language::{describe_missing_config, Language};
 use crate::agent::llm::LlmError;
 use crate::agent::session::{self, Session, Step, EXTRA_APPEND_CONTENT};
 
@@ -103,9 +104,7 @@ pub(crate) fn prompt_text_from_binding(prompt: &Value) -> String {
 
 pub fn map_llm_error(err: &LlmError) -> TurnOutcome {
     let reply_text = match err {
-        LlmError::MissingConfig => {
-            "Host / GLM is not configured. Enter the API key and model in Settings.".into()
-        }
+        LlmError::MissingConfig => describe_missing_config(Language::current()).into(),
         LlmError::Unauthorized => "鉴权失败，请检查 API Key 配置。".into(),
         LlmError::BadRequest(_) => "请求不被上游接受，请稍后重试或检查配置。".into(),
         LlmError::RateLimited => "请求过于频繁，请稍后重试。".into(),
