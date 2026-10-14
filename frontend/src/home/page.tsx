@@ -355,30 +355,6 @@ export function HomePage({
               <span className="home-desktop-shortcut-label">Read Later</span>
             </button>
           </div>
-          <div className="home-chat-nav-group" data-home-nav-group="settings">
-            <div className="home-chat-nav-label">Settings</div>
-            <button
-              type="button"
-              className="home-chat-nav-item home-desktop-shortcut"
-              id="btn-bind"
-              onClick={() => openBindDialog()}
-            >
-              <HomeNavIcon name="bind" />
-              <span className="home-desktop-shortcut-label">Devices</span>
-            </button>
-            <button
-              type="button"
-              className="home-chat-nav-item home-desktop-shortcut"
-              id="btn-settings"
-              title="Settings"
-              onClick={() => {
-                void openSettingsDialog();
-              }}
-            >
-              <HomeNavIcon name="settings" />
-              <span className="home-desktop-shortcut-label">Settings</span>
-            </button>
-          </div>
         </nav>
         <div className="home-chat-sessions-head">
           <span className="home-chat-sessions-title">Chats</span>
@@ -426,6 +402,10 @@ export function HomePage({
             onLogout={onAccountLogout}
           />
           <HelpMenu
+            onSettings={() => {
+              void openSettingsDialog();
+            }}
+            onDevices={() => openBindDialog()}
             onAbout={() => {
               void openAbout();
             }}

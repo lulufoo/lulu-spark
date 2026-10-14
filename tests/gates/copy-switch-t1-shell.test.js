@@ -7,9 +7,11 @@ import { readShellHtml } from '../helpers/read-frontend-js.js';
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const shellSrc = readFileSync(join(repoRoot, 'frontend/src/shell.tsx'), 'utf8');
 const homeSrc = readFileSync(join(repoRoot, 'frontend/src/home/page.tsx'), 'utf8');
+const helpMenuSrc = readFileSync(join(repoRoot, 'frontend/src/home/ui/help-menu.tsx'), 'utf8');
 const indexHtml = [
   readShellHtml(),
   homeSrc,
+  helpMenuSrc,
   readFileSync(join(repoRoot, 'frontend/src/shared/home-mark.tsx'), 'utf8'),
   readFileSync(join(repoRoot, 'frontend/src/notes/page.tsx'), 'utf8'),
   readFileSync(join(repoRoot, 'frontend/src/notes/ui/sidebar.tsx'), 'utf8'),
@@ -250,16 +252,17 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
     expect(indexHtml).not.toContain('id="btn-local-refresh"');
     expect(indexHtml).not.toContain('id="btn-tools-menu"');
     expect(homeSrc).toMatch(/data-home-nav-group="workspace"/);
-    expect(homeSrc).toMatch(/data-home-nav-group="settings"/);
+    expect(homeSrc).not.toMatch(/data-home-nav-group="settings"/);
     expect(homeSrc).toMatch(/home-chat-nav-label">Workspace</);
-    expect(homeSrc).toMatch(/home-chat-nav-label">Settings</);
+    expect(homeSrc).not.toMatch(/home-chat-nav-label">Settings</);
     expect(homeSrc).not.toMatch(/home-chat-nav-label">Library</);
-    expect(homeSrc).toMatch(/id="btn-bind"[\s\S]*?Devices/);
+    expect(helpMenuSrc).toMatch(/id="btn-bind"/);
+    expect(helpMenuSrc).toMatch(/id="btn-bind"[\s\S]*?Devices/);
     expect(homeSrc).toMatch(/<HomeNavIcon name="notes"/);
     expect(homeSrc).toMatch(/<HomeNavIcon name="knowledge"/);
     expect(homeSrc).toMatch(/<HomeNavIcon name="read-later"/);
-    expect(homeSrc).toMatch(/<HomeNavIcon name="bind"/);
-    expect(homeSrc).toMatch(/<HomeNavIcon name="settings"/);
+    expect(homeSrc).not.toMatch(/<HomeNavIcon name="bind"/);
+    expect(helpMenuSrc).toMatch(/<HomeNavIcon name="settings"/);
     expect(homeSrc).not.toMatch(/📂|📚|📑|📱|📲|⚙️|⚙/);
     const navIcons = readFileSync(join(repoRoot, 'frontend/src/home/ui/nav-icons.tsx'), 'utf8');
     expect(navIcons).toMatch(/data-home-icon=\{name\}/);
@@ -279,9 +282,9 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
   it('keeps Bind on the home rail and unmounts GitHub and Convert', () => {
     expect(shellSrc).not.toMatch(/id="btn-tools-menu"/);
     expect(shellSrc).toMatch(/<BindDialog\s*\/>/);
-    expect(homeSrc).toMatch(/id="btn-bind"/);
-    expect(homeSrc).toMatch(/id="btn-bind"[\s\S]{0,280}openBindDialog/);
-    expect(homeSrc).toMatch(/id="btn-settings"/);
+    expect(helpMenuSrc).toMatch(/id="btn-bind"/);
+    expect(homeSrc).toMatch(/onDevices=\{\(\) => openBindDialog\(\)\}/);
+    expect(helpMenuSrc).toMatch(/id="btn-settings"/);
     expect(shellSrc).not.toContain('id="btn-move-doc-header"');
     expect(shellSrc).not.toContain('id="btn-convert"');
     expect(shellSrc).not.toMatch(/\bConvertDialog\b/);

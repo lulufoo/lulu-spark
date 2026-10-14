@@ -134,11 +134,12 @@ function assertNoAddresses(call) {
 }
 
 describe('bind-dialog markup and wiring', () => {
-  it('keeps Bind on the home workspace rail', () => {
+  it('keeps Bind on the account Settings menu', () => {
     const home = readSrc('frontend/src/home/page.tsx');
-    expect(home).toMatch(/id="btn-bind"/);
-    expect(home).toMatch(/data-home-nav-group="settings"/);
-    expect(home).toMatch(/openBindDialog/);
+    const help = readSrc('frontend/src/home/ui/help-menu.tsx');
+    expect(help).toMatch(/id="btn-bind"/);
+    expect(home).not.toMatch(/data-home-nav-group="settings"/);
+    expect(home).toMatch(/onDevices=\{\(\) => openBindDialog\(\)\}/);
   });
 
   it('adds an independent bind overlay with its own preview node', () => {
@@ -157,12 +158,10 @@ describe('bind-dialog markup and wiring', () => {
     expect(shell).toMatch(/from ['"]\.\/app-shell\/ui\/bind-dialog\.tsx['"]/);
     expect(shell).toMatch(/<BindDialog\s*\/>/);
     const home = readSrc('frontend/src/home/page.tsx');
+    const help = readSrc('frontend/src/home/ui/help-menu.tsx');
     expect(home).toMatch(/from ['"]\.\.\/app-shell\/ui\/bind-dialog\.tsx['"]/);
-    const bindBlock = home.match(
-      /id="btn-bind"[\s\S]{0,280}openBindDialog/,
-    );
-    expect(bindBlock, 'missing #btn-bind click wiring').toBeTruthy();
-    expect(bindBlock[0]).toContain('openBindDialog');
+    expect(help).toMatch(/id="btn-bind"/);
+    expect(home).toMatch(/onDevices=\{\(\) => openBindDialog\(\)\}/);
   });
 
   it('does not reuse renderQr, qr-dialog, list_devices, or a frontend address', () => {

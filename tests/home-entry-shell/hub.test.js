@@ -47,7 +47,7 @@ describe('mountHomeHub', () => {
     expect(container.querySelector('[data-role="session-list"]')).not.toBeNull();
 
     const shortcuts = container.querySelectorAll('.home-desktop-shortcut');
-    expect(shortcuts).toHaveLength(5);
+    expect(shortcuts).toHaveLength(3);
 
     const sparkEntry = container.querySelector('[data-home-entry="spark"]');
     const readLaterEntry = container.querySelector('[data-home-entry="read-later"]');
@@ -61,9 +61,10 @@ describe('mountHomeHub', () => {
     expect(readLaterEntry.textContent).toMatch(/Read Later/);
     expect(knowledgeEntry.textContent).toMatch(/Knowledge/);
     const labels = [...shortcuts].map((entry) => entry.querySelector('.home-desktop-shortcut-label')?.textContent);
-    expect(labels).toEqual(['Notes', 'Knowledge', 'Read Later', 'Devices', 'Settings']);
-    expect(container.querySelector('#btn-bind [data-home-icon="bind"]')).not.toBeNull();
-    expect(container.querySelector('#btn-settings [data-home-icon="settings"]')).not.toBeNull();
+    expect(labels).toEqual(['Notes', 'Knowledge', 'Read Later']);
+    expect(container.querySelector('#btn-bind')).toBeNull();
+    expect(container.querySelector('#btn-settings')).toBeNull();
+    expect(container.querySelector('[data-role="help-menu-trigger"] [data-home-icon="settings"]')).not.toBeNull();
     expect(container.querySelector('[data-home-entry="spark"] [data-home-icon="notes"]')).not.toBeNull();
     expect(container.querySelector('[data-home-entry="knowledge"] [data-home-icon="knowledge"]')).not.toBeNull();
     expect(container.querySelector('[data-home-entry="read-later"] [data-home-icon="read-later"]')).not.toBeNull();

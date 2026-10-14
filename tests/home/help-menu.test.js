@@ -28,15 +28,21 @@ describe('help menu · source', () => {
     expect(bar).not.toMatch(/HelpMenu|help-menu/);
   });
 
-  it('defines HelpMenu with a circled ? and only About', () => {
+  it('defines HelpMenu with a gear and Settings, Devices, About', () => {
     const path = join(repoRoot, 'frontend/src/home/ui/help-menu.tsx');
     expect(existsSync(path)).toBe(true);
     const src = readRel('frontend/src/home/ui/help-menu.tsx');
     expect(src).toMatch(/export function HelpMenu/);
-    expect(src).toMatch(/aria-label="Help"/);
-    expect(src).toMatch(/>\?<\/span>/);
-    expect(src).toMatch(/About/);
-    expect(src).not.toMatch(/Keyboard shortcuts|Settings|Sign in/);
+    expect(src).toMatch(/aria-label="Settings"/);
+    expect(src).toMatch(/<HomeNavIcon name="settings"/);
+    expect(src).not.toMatch(/>\?<\/span>/);
+    const settings = src.indexOf('data-role="help-menu-settings"');
+    const devices = src.indexOf('data-role="help-menu-devices"');
+    const about = src.indexOf('data-role="help-menu-about"');
+    expect(settings).toBeGreaterThan(-1);
+    expect(devices).toBeGreaterThan(settings);
+    expect(about).toBeGreaterThan(devices);
+    expect(src).not.toMatch(/Keyboard shortcuts|Sign in/);
     expect(src).not.toMatch(/getPackageSnapshot|ApiInvokeMap/);
   });
 
@@ -77,24 +83,50 @@ describe('HelpMenu', () => {
     return container.querySelector('[data-role="help-menu-trigger"]');
   }
 
-  it('shows only About after the circled ? is clicked', () => {
+  it('shows Settings, Devices, About after the gear is clicked', () => {
     render();
     expect(container.querySelector('[data-role="help-menu"]')).not.toBeNull();
-    expect(trigger()?.getAttribute('aria-label')).toBe('Help');
+    expect(trigger()?.getAttribute('aria-label')).toBe('Settings');
+    expect(container.querySelector('[data-home-icon="settings"]')).not.toBeNull();
     expect(container.querySelector('[data-role="help-menu-about"]')).toBeNull();
 
     act(() => {
       trigger().click();
     });
     const items = container.querySelectorAll('[role="menuitem"]');
-    expect(items.length).toBe(1);
-    expect(items[0].getAttribute('data-role')).toBe('help-menu-about');
-    expect(items[0].textContent).toBe('About');
+    expect(items.length).toBe(3);
+    expect([...items].map((item) => item.getAttribute('data-role'))).toEqual([
+      'help-menu-settings',
+      'help-menu-devices',
+      'help-menu-about',
+    ]);
+    expect([...items].map((item) => item.textContent)).toEqual(['Settings', 'Devices', 'About']);
+    expect(items[0].id).toBe('btn-settings');
+    expect(items[1].id).toBe('btn-bind');
   });
 
-  it('calls onAbout and closes the menu', () => {
+  it('calls onSettings, onDevices, onAbout and closes the menu', () => {
+    const onSettings = vi.fn();
+    const onDevices = vi.fn();
     const onAbout = vi.fn();
-    render({ onAbout });
+    render({ onSettings, onDevices, onAbout });
+    act(() => {
+      trigger().click();
+    });
+    act(() => {
+      container.querySelector('[data-role="help-menu-settings"]').click();
+    });
+    expect(onSettings).toHaveBeenCalledTimes(1);
+    expect(container.querySelector('[data-role="help-menu-settings"]')).toBeNull();
+
+    act(() => {
+      trigger().click();
+    });
+    act(() => {
+      container.querySelector('[data-role="help-menu-devices"]').click();
+    });
+    expect(onDevices).toHaveBeenCalledTimes(1);
+
     act(() => {
       trigger().click();
     });

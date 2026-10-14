@@ -53,7 +53,8 @@ describe('account bar · source', () => {
 
     const settings = readRel('frontend/src/app-shell/ui/settings/dialog.tsx');
     const settingsChrome = readRel('frontend/src/app-shell/ui/settings/chrome.tsx');
-    expect(page).toMatch(/id="btn-settings"/);
+    expect(page).toMatch(/<HelpMenu/);
+    expect(readRel('frontend/src/home/ui/help-menu.tsx')).toMatch(/id="btn-settings"/);
     expect(`${settings}\n${settingsChrome}`).not.toMatch(/startAuthLogin|signOutAuth|AccountBar/);
   });
 
@@ -317,7 +318,7 @@ describe('account bar · home rail', () => {
     const bar = sidebar.querySelector('[data-role="account-bar"]');
     expect(bar).not.toBeNull();
     expect(container.querySelectorAll('[data-role="account-bar"]').length).toBe(1);
-    expect(container.querySelector('#btn-settings')).not.toBeNull();
+    expect(container.querySelector('[data-role="help-menu-trigger"]')).not.toBeNull();
     expect(container.querySelector('#settings-dialog [data-role="account-bar"]')).toBeNull();
 
     const sessions = sidebar.querySelector('[data-role="session-list"]');
