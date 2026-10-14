@@ -676,7 +676,7 @@ fn run_loop_host_text_paths_remain_observable_without_tool_writes() {
 }
 
 #[test]
-fn terminal_no_plan_unsupported_and_error_are_distinguishable() {
+fn terminal_no_plan_and_error_are_distinguishable() {
     with_sandbox(|| {
         let mock_unused = spawn_scripted_llm(vec![assistant_text("should-not-run")]);
         let mut unbound = session::create_session().unwrap();
@@ -690,19 +690,6 @@ fn terminal_no_plan_unsupported_and_error_are_distinguishable() {
         );
 
         let master = create_bound_plan("分型");
-        let mock_unsup = spawn_scripted_llm(vec![assistant_text(
-            "目前不支持删除计划，我只能查看、加子计划或改标题。",
-        )]);
-        let mut sess = session::create_session().unwrap();
-        arm_plan_binding(&master);
-        let unsupported = r#loop::run_loop(&mut sess, "删掉这个计划", &cfg_for(&mock_unsup));
-        assert_outcome(&unsupported, "business", false);
-        assert!(
-            unsupported.reply_text.contains("目前不支持"),
-            "{}",
-            unsupported.reply_text
-        );
-
         r#loop::reset_runtime_for_tests();
         let mock_err = spawn_scripted_llm(vec![(
             200,
@@ -723,14 +710,11 @@ fn terminal_no_plan_unsupported_and_error_are_distinguishable() {
             tech_err.reply_text
         );
 
-        assert_ne!(no_plan.reply_text, unsupported.reply_text);
         assert_ne!(no_plan.reply_text, tech_err.reply_text);
-        assert_ne!(unsupported.reply_text, tech_err.reply_text);
         assert_ne!(
             format!("{:?}", no_plan.terminal),
             format!("{:?}", tech_err.terminal)
         );
-        assert_eq!(unsupported.terminal, Terminal::Business);
         assert_eq!(tech_err.terminal, Terminal::Error);
     });
 }

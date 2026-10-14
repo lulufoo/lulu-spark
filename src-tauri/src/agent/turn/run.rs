@@ -5,7 +5,10 @@ use std::time::Instant;
 use serde_json::{json, Value};
 
 use crate::agent::diagnostics::{self, DiagnosticEvent, TurnId};
-use crate::agent::language::Language;
+use crate::agent::language::{
+    describe_clarify_limit, describe_empty_reply, describe_mcp_unavailable,
+    describe_mcp_without_tools, describe_unusable_response, Language,
+};
 use crate::agent::llm::{self, LlmConfig};
 use crate::agent::progress::{self, ProgressSink};
 use crate::agent::session::{self, read_unix_millis, Session, Step, StepClock};
@@ -20,7 +23,7 @@ use super::history::{
     build_llm_messages, cancelled_turn_outcome, is_clarify_text, map_llm_error,     persist_thinking,
     prompt_text_from_binding,
 };
-use super::response::{empty_reply_text, with_response};
+use super::response::with_response;
 use super::call_limit::{attach_wrap_up_prompt, end_turn_at_call_limit};
 use super::types::{Terminal, TurnOutcome, MAX_CLARIFY_ROUNDS, MAX_LLM_CALLS_PER_TURN};
 
@@ -160,7 +163,7 @@ pub(crate) fn run_loop_with_progress(
     ) {
         Ok(tools) => tools,
         Err(PrepareError::EmptyMcpTools) => {
-            let reply = "当前场景的 MCP 服务未暴露任何工具，无法继续。".to_string();
+            let reply = describe_mcp_without_tools(Language::current()).to_string();
             session.steps.push(Step {
                 role: "assistant".into(),
                 content: Some(reply.clone()),
@@ -182,7 +185,7 @@ pub(crate) fn run_loop_with_progress(
             };
         }
         Err(PrepareError::Mcp(error)) => {
-            let reply = format!("当前场景的 MCP 服务不可用：{error}");
+            let reply = describe_mcp_unavailable(Language::current(), &error.to_string());
             session.steps.push(Step {
                 role: "assistant".into(),
                 content: Some(reply.clone()),
@@ -331,7 +334,7 @@ pub(crate) fn run_loop_with_progress(
         if turn_tools.catalog.is_none() {
             // Typed/internal Binding without an MCP server keeps the old
             // text-only contract and never dispatches in-process tools.
-            let reply = "模型响应异常或请求了不支持的工具，未执行任何写入。".to_string();
+            let reply = describe_unusable_response(Language::current()).to_string();
             session.steps.push(Step {
                 role: "assistant".into(),
                 content: Some(reply.clone()),
@@ -498,7 +501,7 @@ pub(crate) fn run_loop_with_progress(
 
     let content = msg.content.clone().unwrap_or_default();
     if content.trim().is_empty() {
-        let reply = empty_reply_text(wrote, llm_calls - 1).to_string();
+        let reply = describe_empty_reply(Language::current(), wrote, llm_calls - 1).to_string();
         session.steps.push(with_response(Step {
             role: "assistant".into(),
             content: Some(reply.clone()),
@@ -528,7 +531,7 @@ pub(crate) fn run_loop_with_progress(
             .or_insert(0);
         if *count >= MAX_CLARIFY_ROUNDS {
             drop(rt);
-            let reply = "澄清次数已达上限，请换种方式说明需求或稍后重试。".to_string();
+            let reply = describe_clarify_limit(Language::current()).to_string();
             session.steps.push(Step {
                 role: "assistant".into(),
                 content: Some(reply.clone()),
@@ -568,28 +571,6 @@ pub(crate) fn run_loop_with_progress(
         return TurnOutcome {
             reply_text: content,
             terminal: Terminal::None,
-            wrote,
-        };
-    }
-
-    if content.contains("目前不支持") {
-        session.steps.push(with_response(Step {
-            role: "assistant".into(),
-            content: Some(content.clone()),
-            tool_call_id: None,
-            tool_calls: None,
-            name: None,
-            finish_reason: None,
-            model: None,
-            usage: None,
-            reasoning_content: None,
-            clock: StepClock::stamp_span(llm_start, llm_end),
-            extra: Default::default(),
-        }, &msg));
-        persist_thinking(session, thinking.persist_ms());
-        return TurnOutcome {
-            reply_text: content,
-            terminal: Terminal::Business,
             wrote,
         };
     }

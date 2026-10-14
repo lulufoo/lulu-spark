@@ -118,7 +118,7 @@ fn silent_stop_after_a_read_only_tool_says_the_tool_ran_without_writing() {
 
     assert!(matches!(outcome.terminal, Terminal::Error));
     assert!(!outcome.wrote);
-    assert!(outcome.reply_text.contains("已执行工具"), "{}", outcome.reply_text);
-    assert!(outcome.reply_text.contains("未写入"));
+    assert!(outcome.reply_text.contains("Tools ran"), "{}", outcome.reply_text);
+    assert!(outcome.reply_text.contains("nothing was written"));
     stop_embedded_mcp_runtime(mcp).expect("stop MCP");
 }
