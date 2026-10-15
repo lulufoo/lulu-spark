@@ -4,7 +4,7 @@ use std::path::Path;
 use regex::Regex;
 use serde_json::{json, Value};
 
-use crate::repositories::knowledge::{kb_annotation_path, kb_list_dir, kb_safe_path};
+use crate::repositories::knowledge::{kb_list_dir, kb_safe_path};
 use crate::services::sediment_kb;
 use crate::services::spark_read::knowledge_root_string;
 
@@ -28,23 +28,6 @@ pub fn kb_read_json(repo_root: &Path, repo: &str, path: &str) -> Value {
             }
             let content = fs::read_to_string(&target).unwrap_or_default();
             json!({ "content": content })
-        }
-    }
-}
-
-pub fn kb_annotation_json(repo_root: &Path, repo: &str, path: &str) -> Value {
-    let kb_root_str = knowledge_root_string(repo_root);
-    let kb_root = Path::new(&kb_root_str);
-    match kb_annotation_path(kb_root, repo, path) {
-        Err(e) => json!({ "error": e, "_status": err_status_code(&e) }),
-        Ok(ann_path) => {
-            if !ann_path.is_file() {
-                return json!({});
-            }
-            let Ok(text) = fs::read_to_string(&ann_path) else {
-                return json!({});
-            };
-            serde_json::from_str(&text).unwrap_or_else(|_| json!({}))
         }
     }
 }

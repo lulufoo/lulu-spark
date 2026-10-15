@@ -1,6 +1,25 @@
 use super::*;
+use crate::services::spark_data::{
+    self, find_knowledge_doc_id, get_knowledge_doc, register_knowledge_doc, update_knowledge_doc,
+};
 use crate::test_support::TestSandbox;
+use serde_json::json;
 use std::fs;
+
+/// Register `(myrepo, path)` and give it one comment so deletion is observable.
+fn seed_commented_doc(path: &str) -> String {
+    let conn = spark_data::open().expect("db");
+    let id = register_knowledge_doc(&conn, "myrepo", path).expect("register");
+    let mut row = get_knowledge_doc(&conn, &id).expect("get").expect("row");
+    row.comments = json!([{ "id": "c1", "text": "keep me", "ts": "t" }]);
+    update_knowledge_doc(&conn, &row).expect("update");
+    id
+}
+
+fn doc_exists(path: &str) -> bool {
+    let conn = spark_data::open().expect("db");
+    find_knowledge_doc_id(&conn, "myrepo", path).expect("find").is_some()
+}
 
 fn with_kb_repo<F: FnOnce(&std::path::Path, &std::path::Path)>(
     setup: impl FnOnce(&std::path::Path, &std::path::Path),
@@ -30,6 +49,7 @@ fn kb_create_file_appends_md_and_writes_empty() {
             assert_eq!(v["ok"], true);
             assert_eq!(v["path"], "docs/guide.md");
             assert_eq!(fs::read_to_string(kb.join("myrepo/docs/guide.md")).expect("r"), "");
+            assert!(doc_exists("docs/guide.md"), "a created file gets its record");
         },
     );
 }
@@ -51,6 +71,7 @@ fn kb_create_dir_at_repo_root() {
             assert_eq!(v["ok"], true);
             assert_eq!(v["path"], "notes");
             assert!(kb.join("myrepo/notes").is_dir());
+            assert!(!doc_exists("notes"), "folders have no record");
         },
     );
 }
@@ -97,45 +118,47 @@ fn kb_create_rejects_destination_exists() {
 }
 
 #[test]
-fn kb_delete_removes_file_and_annotation() {
+fn kb_delete_removes_file_and_its_record() {
     with_kb_repo(
         |_, kb| {
             let repo_dir = kb.join("myrepo");
             fs::create_dir_all(repo_dir.join("docs")).expect("mkdir");
             fs::write(repo_dir.join("docs/a.md"), "hello").expect("w");
-            let ann = repo_dir.join(".knowledge_annotations/docs");
-            fs::create_dir_all(&ann).expect("ann");
-            fs::write(ann.join("a.json"), "{\"ok\":true}").expect("ann w");
+            fs::write(repo_dir.join("docs/b.md"), "other").expect("w");
         },
         |cfg_dir, kb| {
+            seed_commented_doc("docs/a.md");
+            seed_commented_doc("docs/b.md");
             let v = kb_delete(cfg_dir, "lulufoo/myrepo".into(), "docs/a.md".into());
             assert_eq!(v["ok"], true);
-            let repo_dir = kb.join("myrepo");
-            assert!(!repo_dir.join("docs/a.md").exists());
-            assert!(!repo_dir.join(".knowledge_annotations/docs/a.json").exists());
+            assert!(!kb.join("myrepo/docs/a.md").exists());
+            assert!(!doc_exists("docs/a.md"), "App-side delete removes the record");
+            assert!(doc_exists("docs/b.md"), "other records stay");
         },
     );
 }
 
 #[test]
-fn kb_delete_removes_directory_and_annotation_tree() {
+fn kb_delete_removes_directory_and_records_below_it_only() {
     with_kb_repo(
         |_, kb| {
             let repo_dir = kb.join("myrepo");
             fs::create_dir_all(repo_dir.join("docs/nested")).expect("mkdir");
+            fs::create_dir_all(repo_dir.join("docs2")).expect("mkdir");
             fs::write(repo_dir.join("docs/nested/x.md"), "x").expect("w");
-            let ann = repo_dir.join(".knowledge_annotations/docs/nested");
-            fs::create_dir_all(&ann).expect("ann");
-            fs::write(ann.join("x.json"), "{}").expect("ann w");
-            fs::write(repo_dir.join(".knowledge_annotations/docs.json"), "{\"dir\":1}").expect("dir ann");
+            fs::write(repo_dir.join("docs/a.md"), "a").expect("w");
+            fs::write(repo_dir.join("docs2/y.md"), "y").expect("w");
         },
         |cfg_dir, kb| {
+            seed_commented_doc("docs/nested/x.md");
+            seed_commented_doc("docs/a.md");
+            seed_commented_doc("docs2/y.md");
             let v = kb_delete(cfg_dir, "lulufoo/myrepo".into(), "docs".into());
             assert_eq!(v["ok"], true);
-            let repo_dir = kb.join("myrepo");
-            assert!(!repo_dir.join("docs").exists());
-            assert!(!repo_dir.join(".knowledge_annotations/docs").exists());
-            assert!(!repo_dir.join(".knowledge_annotations/docs.json").exists());
+            assert!(!kb.join("myrepo/docs").exists());
+            assert!(!doc_exists("docs/nested/x.md"));
+            assert!(!doc_exists("docs/a.md"));
+            assert!(doc_exists("docs2/y.md"), "a sibling sharing the name prefix must stay");
         },
     );
 }

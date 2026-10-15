@@ -209,3 +209,40 @@ fn newer_file_is_refused_and_failed_step_leaves_version_unchanged() {
         .exists([])
         .expect("exists"));
 }
+
+fn path_of(conn: &Connection, repo: &str, doc_id: &str) -> Option<String> {
+    get_knowledge_doc(conn, doc_id).expect("get").filter(|d| d.repo == repo).map(|d| d.path)
+}
+
+#[test]
+fn register_is_idempotent_and_reactivates_a_missing_record() {
+    let (_dir, path) = temp_db();
+    let conn = open_at(&path).expect("open");
+    let id = register_knowledge_doc(&conn, "r", "a.md").expect("register");
+    assert_eq!(register_knowledge_doc(&conn, "r", "a.md").expect("again"), id);
+    let mut doc = get_knowledge_doc(&conn, &id).expect("get").expect("row");
+    doc.status = KnowledgeStatus::Missing;
+    update_knowledge_doc(&conn, &doc).expect("mark missing");
+    assert_eq!(register_knowledge_doc(&conn, "r", "a.md").expect("revive"), id);
+    let revived = get_knowledge_doc(&conn, &id).expect("get").expect("row");
+    assert_eq!(revived.status, KnowledgeStatus::Active);
+    assert_ne!(register_knowledge_doc(&conn, "other", "a.md").expect("other repo"), id);
+}
+
+#[test]
+fn move_and_remove_treat_percent_and_underscore_literally() {
+    let (_dir, path) = temp_db();
+    let conn = open_at(&path).expect("open");
+    let inside = register_knowledge_doc(&conn, "r", "100%_done/a.md").expect("inside");
+    let lookalike = register_knowledge_doc(&conn, "r", "100xxdone/a.md").expect("lookalike");
+    let other_repo = register_knowledge_doc(&conn, "s", "100%_done/a.md").expect("other repo");
+
+    move_knowledge_paths(&conn, "r", "100%_done", "done").expect("move folder");
+    assert_eq!(path_of(&conn, "r", &inside).as_deref(), Some("done/a.md"));
+    assert_eq!(path_of(&conn, "r", &lookalike).as_deref(), Some("100xxdone/a.md"));
+    assert_eq!(path_of(&conn, "s", &other_repo).as_deref(), Some("100%_done/a.md"));
+
+    assert_eq!(remove_knowledge_paths(&conn, "r", "done").expect("remove folder"), 1);
+    assert!(get_knowledge_doc(&conn, &inside).expect("get").is_none());
+    assert!(get_knowledge_doc(&conn, &lookalike).expect("get").is_some());
+}

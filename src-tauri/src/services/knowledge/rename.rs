@@ -1,13 +1,14 @@
 //! Same-directory rename of a knowledge file or folder.
 
 use std::fs;
-use std::path::{Component, Path, PathBuf};
+use std::path::{Path, PathBuf};
 
 use serde_json::{json, Value};
 
 use crate::config::roots::knowledge_root_string;
-use crate::repositories::knowledge::kb_safe_path;
+use crate::repositories::knowledge::{kb_dir_name, kb_safe_path};
 use crate::services::id::random_hex12;
+use crate::services::spark_data::{self, move_knowledge_paths};
 
 fn err_status(msg: &str) -> u16 {
     if msg.contains("invalid") || msg.contains("traversal") {
@@ -63,67 +64,6 @@ fn rename_path(src: &Path, dest: &Path) -> Result<(), String> {
     fs::rename(src, dest).map_err(|e| e.to_string())
 }
 
-fn annotation_rel(rel: &str) -> String {
-    if rel.ends_with(".md") {
-        format!("{}.json", &rel[..rel.len() - 3])
-    } else {
-        format!("{rel}.json")
-    }
-}
-
-fn annotation_base(kb_root: &Path, repo: &str, rel: &str) -> Result<PathBuf, String> {
-    kb_safe_path(kb_root, repo, rel)?;
-    let repo_name = repo.trim().split('/').next_back().unwrap_or("");
-    let kb_canon = kb_root.canonicalize().map_err(|e| format!("kb root: {e}"))?;
-    Ok(kb_canon.join(repo_name).join(".knowledge_annotations"))
-}
-
-fn push_rel(mut path: PathBuf, rel: &str) -> Result<PathBuf, String> {
-    for comp in Path::new(rel).components() {
-        match comp {
-            Component::Normal(s) => path.push(s),
-            Component::CurDir => {}
-            _ => return Err("invalid path".into()),
-        }
-    }
-    Ok(path)
-}
-
-fn annotation_tree_dir(kb_root: &Path, repo: &str, rel: &str) -> Result<PathBuf, String> {
-    push_rel(annotation_base(kb_root, repo, rel)?, rel.trim())
-}
-
-fn annotation_sidecar_path(kb_root: &Path, repo: &str, rel: &str) -> Result<PathBuf, String> {
-    push_rel(annotation_base(kb_root, repo, rel)?, &annotation_rel(rel.trim()))
-}
-
-fn move_if_absent(src: &Path, dest: &Path) {
-    if !src.exists() || dest.exists() {
-        return;
-    }
-    if let Some(parent) = dest.parent() {
-        let _ = fs::create_dir_all(parent);
-    }
-    let _ = fs::rename(src, dest);
-}
-
-fn move_annotation_sidecars(kb_root: &Path, repo: &str, from: &str, to: &str, is_dir: bool) {
-    if is_dir {
-        if let (Ok(old_dir), Ok(new_dir)) = (
-            annotation_tree_dir(kb_root, repo, from),
-            annotation_tree_dir(kb_root, repo, to),
-        ) {
-            move_if_absent(&old_dir, &new_dir);
-        }
-    }
-    if let (Ok(old_ann), Ok(new_ann)) = (
-        annotation_sidecar_path(kb_root, repo, from),
-        annotation_sidecar_path(kb_root, repo, to),
-    ) {
-        move_if_absent(&old_ann, &new_ann);
-    }
-}
-
 pub fn kb_rename(repo_root: &Path, repo: String, path: String, name: String) -> Value {
     let kb_root = kb_root_path(repo_root);
     let src_rel = path.trim();
@@ -151,11 +91,18 @@ pub fn kb_rename(repo_root: &Path, repo: String, path: String, name: String) -> 
     if dest.exists() && !same_inode(&src, &dest) {
         return json!({ "error": "destination exists", "_status": 409 });
     }
-    let is_dir = src.is_dir();
     if let Err(e) = rename_path(&src, &dest) {
         return json!({ "error": e, "_status": 500 });
     }
-    move_annotation_sidecars(&kb_root, &repo, src_rel, &dest_rel, is_dir);
+    // File first, record second (decision 11). A crash in between is not repaired:
+    // the old record turns `missing` on the next scan and the file registers anew.
+    let moved = kb_dir_name(&repo).and_then(|repo_dir| {
+        let conn = spark_data::open()?;
+        move_knowledge_paths(&conn, repo_dir, src_rel, &dest_rel)
+    });
+    if let Err(e) = moved {
+        return json!({ "error": e, "_status": 500 });
+    }
     json!({ "ok": true, "path": dest_rel })
 }
 
