@@ -1,17 +1,22 @@
-//! Single-file FTS5 store: docs_tri (trigram) + docs_bi (unicode61 bigram).
+//! Single-file index: plain `chunk` table (metadata, unique key) + FTS5 text tables
+//! `docs_tri` (trigram) and `docs_bi` (unicode61 over CJK bigrams).
+//!
+//! `chunk.id` is the `rowid` of the matching row in both FTS tables. The FTS tables
+//! hold only `body`; everything else lives in `chunk`, where `(doc_id, layer, idx)`
+//! is enforced unique by the database.
 
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 use rusqlite::{params, Connection, OptionalExtension};
 
-use super::bigram::cjk_bigram_text;
-use super::collect::SourceChunk;
+use super::chunk_rows::{delete_ghosts, replace_path_chunks, upsert_chunks};
+use super::collect::{ChunkKey, SourceChunk};
 
 pub const INDEX_FILE: &str = "search-index.sqlite";
 
 /// Bump when table columns change; mismatched files are dropped and rebuilt.
-pub const SCHEMA_VERSION: i32 = 2;
+pub const SCHEMA_VERSION: i32 = 3;
 
 #[derive(Debug, Clone, Default)]
 pub struct IndexStats {
@@ -29,36 +34,24 @@ pub fn index_exists(cache_dir: &Path) -> bool {
 }
 
 const CREATE_TABLES: &str = r#"
-CREATE VIRTUAL TABLE IF NOT EXISTS docs_tri USING fts5(
-  chunk_id UNINDEXED,
-  doc_id UNINDEXED,
-  category UNINDEXED,
-  layer UNINDEXED,
-  path UNINDEXED,
-  common_path UNINDEXED,
-  repo UNINDEXED,
-  title,
-  body,
-  content_hash UNINDEXED,
-  created_at UNINDEXED,
-  mtime UNINDEXED,
-  tokenize = 'trigram'
+CREATE TABLE IF NOT EXISTS chunk (
+  id INTEGER PRIMARY KEY,
+  doc_id TEXT NOT NULL,
+  layer TEXT NOT NULL,
+  idx INTEGER NOT NULL,
+  category TEXT NOT NULL,
+  title TEXT NOT NULL,
+  content_hash TEXT NOT NULL,
+  path TEXT NOT NULL,
+  common_path TEXT NOT NULL,
+  repo TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  mtime INTEGER NOT NULL,
+  UNIQUE (doc_id, layer, idx)
 );
-CREATE VIRTUAL TABLE IF NOT EXISTS docs_bi USING fts5(
-  chunk_id UNINDEXED,
-  doc_id UNINDEXED,
-  category UNINDEXED,
-  layer UNINDEXED,
-  path UNINDEXED,
-  common_path UNINDEXED,
-  repo UNINDEXED,
-  title UNINDEXED,
-  body,
-  orig UNINDEXED,
-  content_hash UNINDEXED,
-  created_at UNINDEXED,
-  tokenize = 'unicode61'
-);
+CREATE INDEX IF NOT EXISTS chunk_path ON chunk(path);
+CREATE VIRTUAL TABLE IF NOT EXISTS docs_tri USING fts5(body, tokenize = 'trigram');
+CREATE VIRTUAL TABLE IF NOT EXISTS docs_bi USING fts5(body, tokenize = 'unicode61');
 "#;
 
 pub fn open(cache_dir: &Path) -> Result<Connection, String> {
@@ -70,8 +63,10 @@ pub fn open(cache_dir: &Path) -> Result<Connection, String> {
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .map_err(|e| e.to_string())?;
     if version != SCHEMA_VERSION {
-        conn.execute_batch("DROP TABLE IF EXISTS docs_tri; DROP TABLE IF EXISTS docs_bi;")
-            .map_err(|e| e.to_string())?;
+        conn.execute_batch(
+            "DROP TABLE IF EXISTS docs_tri; DROP TABLE IF EXISTS docs_bi; DROP TABLE IF EXISTS chunk;",
+        )
+        .map_err(|e| e.to_string())?;
     }
     conn.execute_batch(CREATE_TABLES).map_err(|e| e.to_string())?;
     if version != SCHEMA_VERSION {
@@ -81,206 +76,20 @@ pub fn open(cache_dir: &Path) -> Result<Connection, String> {
     Ok(conn)
 }
 
-/// `(content_hash, mtime)` of an indexed chunk.
-///
-/// One-row lookup on an FTS5 `UNINDEXED` column is a table scan. Prefer
-/// [`load_existing_hashes`] when checking many chunks (rebuild / upsert).
-pub fn existing_hash(conn: &Connection, chunk_id: &str) -> Result<Option<(String, i64)>, String> {
+/// `(content_hash, mtime)` of one indexed chunk, found through the unique index.
+pub fn existing_hash(
+    conn: &Connection,
+    doc_id: &str,
+    layer: &str,
+    idx: usize,
+) -> Result<Option<(String, i64)>, String> {
     conn.query_row(
-        "SELECT content_hash, mtime FROM docs_tri WHERE chunk_id = ?1",
-        params![chunk_id],
+        "SELECT content_hash, mtime FROM chunk WHERE doc_id = ?1 AND layer = ?2 AND idx = ?3",
+        params![doc_id, layer, idx as i64],
         |row| Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?)),
     )
     .optional()
     .map_err(|e| e.to_string())
-}
-
-/// One scan of `docs_tri` → `chunk_id → (content_hash, mtime)`.
-fn load_existing_hashes(conn: &Connection) -> Result<HashMap<String, (String, i64)>, String> {
-    let mut stmt = conn
-        .prepare("SELECT chunk_id, content_hash, mtime FROM docs_tri")
-        .map_err(|e| e.to_string())?;
-    let rows = stmt
-        .query_map([], |row| {
-            Ok((
-                row.get::<_, String>(0)?,
-                row.get::<_, String>(1)?,
-                row.get::<_, i64>(2)?,
-            ))
-        })
-        .map_err(|e| e.to_string())?;
-    let mut map = HashMap::new();
-    for row in rows {
-        let (id, hash, mtime) = row.map_err(|e| e.to_string())?;
-        map.insert(id, (hash, mtime));
-    }
-    Ok(map)
-}
-
-fn delete_chunk(conn: &Connection, chunk_id: &str) -> Result<(), String> {
-    conn.execute("DELETE FROM docs_tri WHERE chunk_id = ?1", params![chunk_id])
-        .map_err(|e| e.to_string())?;
-    conn.execute("DELETE FROM docs_bi WHERE chunk_id = ?1", params![chunk_id])
-        .map_err(|e| e.to_string())?;
-    Ok(())
-}
-
-fn delete_path_rows(conn: &Connection, path: &str) -> Result<usize, String> {
-    let n = conn
-        .execute("DELETE FROM docs_tri WHERE path = ?1", params![path])
-        .map_err(|e| e.to_string())?;
-    conn.execute("DELETE FROM docs_bi WHERE path = ?1", params![path])
-        .map_err(|e| e.to_string())?;
-    Ok(n)
-}
-
-fn insert_chunk(conn: &Connection, chunk: &SourceChunk) -> Result<(), String> {
-    conn.execute(
-        "INSERT INTO docs_tri(chunk_id, doc_id, category, layer, path, common_path, repo, title, body, content_hash, created_at, mtime)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
-        params![
-            chunk.chunk_id,
-            chunk.doc_id,
-            chunk.category,
-            chunk.layer,
-            chunk.path,
-            chunk.common_path,
-            chunk.repo,
-            chunk.title,
-            chunk.body,
-            chunk.content_hash,
-            chunk.created_at,
-            chunk.mtime,
-        ],
-    )
-    .map_err(|e| e.to_string())?;
-    conn.execute(
-        "INSERT INTO docs_bi(chunk_id, doc_id, category, layer, path, common_path, repo, title, body, orig, content_hash, created_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
-        params![
-            chunk.chunk_id,
-            chunk.doc_id,
-            chunk.category,
-            chunk.layer,
-            chunk.path,
-            chunk.common_path,
-            chunk.repo,
-            chunk.title,
-            cjk_bigram_text(&chunk.body),
-            chunk.body,
-            chunk.content_hash,
-            chunk.created_at,
-        ],
-    )
-    .map_err(|e| e.to_string())?;
-    Ok(())
-}
-
-/// Upsert chunks in one transaction. Unchanged `content_hash` is skipped on both
-/// tables; a newer file `mtime` is still recorded so grep prefiltering stays trusted.
-pub fn upsert_chunks(conn: &Connection, chunks: &[SourceChunk]) -> Result<IndexStats, String> {
-    let tx = conn.unchecked_transaction().map_err(|e| e.to_string())?;
-    let existing = load_existing_hashes(&tx)?;
-    let mut stats = IndexStats::default();
-    for chunk in chunks {
-        match existing.get(&chunk.chunk_id) {
-            Some((hash, mtime)) if hash == &chunk.content_hash => {
-                if *mtime != chunk.mtime {
-                    tx.execute(
-                        "UPDATE docs_tri SET mtime = ?1 WHERE chunk_id = ?2",
-                        params![chunk.mtime, chunk.chunk_id],
-                    )
-                    .map_err(|e| e.to_string())?;
-                }
-                stats.skipped += 1;
-            }
-            Some(_) => {
-                delete_chunk(&tx, &chunk.chunk_id)?;
-                insert_chunk(&tx, chunk)?;
-                stats.upserted += 1;
-            }
-            None => {
-                insert_chunk(&tx, chunk)?;
-                stats.upserted += 1;
-            }
-        }
-    }
-    tx.commit().map_err(|e| e.to_string())?;
-    Ok(stats)
-}
-
-pub fn delete_ghosts(
-    conn: &Connection,
-    live_ids: &HashSet<String>,
-    category: Option<&str>,
-    repo: Option<&str>,
-) -> Result<usize, String> {
-    let mut ids = Vec::new();
-    match (category, repo) {
-        (Some(c), Some(r)) => {
-            let mut stmt = conn
-                .prepare("SELECT chunk_id FROM docs_tri WHERE category = ?1 AND repo = ?2")
-                .map_err(|e| e.to_string())?;
-            let rows = stmt
-                .query_map(params![c, r], |row| row.get::<_, String>(0))
-                .map_err(|e| e.to_string())?;
-            for id in rows {
-                ids.push(id.map_err(|e| e.to_string())?);
-            }
-        }
-        (Some(c), None) => {
-            let mut stmt = conn
-                .prepare("SELECT chunk_id FROM docs_tri WHERE category = ?1")
-                .map_err(|e| e.to_string())?;
-            let rows = stmt
-                .query_map(params![c], |row| row.get::<_, String>(0))
-                .map_err(|e| e.to_string())?;
-            for id in rows {
-                ids.push(id.map_err(|e| e.to_string())?);
-            }
-        }
-        (None, _) => {
-            let mut stmt = conn
-                .prepare("SELECT chunk_id FROM docs_tri")
-                .map_err(|e| e.to_string())?;
-            let rows = stmt
-                .query_map([], |row| row.get::<_, String>(0))
-                .map_err(|e| e.to_string())?;
-            for id in rows {
-                ids.push(id.map_err(|e| e.to_string())?);
-            }
-        }
-    }
-    let gone: Vec<String> = ids
-        .into_iter()
-        .filter(|id| !live_ids.contains(id))
-        .collect();
-    let tx = conn.unchecked_transaction().map_err(|e| e.to_string())?;
-    for id in &gone {
-        delete_chunk(&tx, id)?;
-    }
-    tx.commit().map_err(|e| e.to_string())?;
-    Ok(gone.len())
-}
-
-/// Replace every chunk stored under `path` with `chunks` (may be empty = delete).
-/// Path-scoped so a shrinking document leaves no stale tail chunks.
-pub fn replace_path_chunks(
-    conn: &Connection,
-    path: &str,
-    chunks: &[SourceChunk],
-) -> Result<IndexStats, String> {
-    let tx = conn.unchecked_transaction().map_err(|e| e.to_string())?;
-    let deleted = delete_path_rows(&tx, path)?;
-    for chunk in chunks {
-        insert_chunk(&tx, chunk)?;
-    }
-    tx.commit().map_err(|e| e.to_string())?;
-    Ok(IndexStats {
-        upserted: chunks.len(),
-        skipped: 0,
-        deleted,
-    })
 }
 
 /// Single-document write hook. No-op when the index file does not exist yet:
@@ -316,14 +125,14 @@ pub fn rebuild(
 ) -> Result<IndexStats, String> {
     let conn = open(cache_dir)?;
     let mut stats = upsert_chunks(&conn, chunks)?;
-    let live: HashSet<String> = chunks.iter().map(|c| c.chunk_id.clone()).collect();
+    let live: HashSet<ChunkKey> = chunks.iter().map(|c| c.to_key()).collect();
     stats.deleted = delete_ghosts(&conn, &live, category, repo)?;
     Ok(stats)
 }
 
 pub fn distinct_paths(conn: &Connection) -> Result<HashSet<String>, String> {
     let mut stmt = conn
-        .prepare("SELECT DISTINCT path FROM docs_tri")
+        .prepare("SELECT DISTINCT path FROM chunk")
         .map_err(|e| e.to_string())?;
     let rows = stmt
         .query_map([], |row| row.get::<_, String>(0))
@@ -338,7 +147,7 @@ pub fn distinct_paths(conn: &Connection) -> Result<HashSet<String>, String> {
 /// `path → newest mtime` for every indexed file.
 pub fn indexed_mtimes(conn: &Connection) -> Result<HashMap<String, i64>, String> {
     let mut stmt = conn
-        .prepare("SELECT path, MAX(mtime) FROM docs_tri GROUP BY path")
+        .prepare("SELECT path, MAX(mtime) FROM chunk GROUP BY path")
         .map_err(|e| e.to_string())?;
     let rows = stmt
         .query_map([], |row| {

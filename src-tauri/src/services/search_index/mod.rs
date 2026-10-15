@@ -2,6 +2,7 @@
 
 mod bigram;
 mod chunk;
+mod chunk_rows;
 mod collect;
 mod grep_prefilter;
 mod query;
@@ -10,9 +11,10 @@ mod sync;
 
 pub use bigram::cjk_bigram_text;
 pub use chunk::{chunk_markdown, MAX_CHUNK_CHARS, SHORT_TITLE_MERGE_CHARS};
+pub use chunk_rows::{delete_ghosts, replace_path_chunks, upsert_chunks};
 pub use collect::{
     collect_all, collect_knowledge, collect_knowledge_text, collect_notes, file_mtime_nanos,
-    note_file_chunks, SourceChunk,
+    note_file_chunks, ChunkKey, SourceChunk,
 };
 pub use grep_prefilter::{
     candidate_paths, extract_literals, indexed_paths, prefilter_or_none, should_scan_file,
@@ -23,8 +25,8 @@ pub use query::{
     search_desktop_spark, search_in_cache, QueryHit, QueryRoute, SearchFilter,
 };
 pub use store::{
-    delete_ghosts, distinct_paths, existing_hash, index_exists, indexed_mtimes, open, rebuild,
-    replace_path_chunks, upsert_chunks, upsert_document, IndexStats, INDEX_FILE, SCHEMA_VERSION,
+    distinct_paths, existing_hash, index_exists, indexed_mtimes, open, rebuild, upsert_document,
+    IndexStats, INDEX_FILE, SCHEMA_VERSION,
 };
 pub use sync::{sync_note_files, sync_note_files_best_effort};
 

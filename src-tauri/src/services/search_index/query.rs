@@ -28,7 +28,6 @@ pub struct SearchFilter {
 
 #[derive(Debug, Clone)]
 pub struct QueryHit {
-    pub chunk_id: String,
     pub doc_id: String,
     pub category: String,
     pub layer: String,
@@ -119,15 +118,15 @@ fn window_snippet(body: &str, terms: &[String]) -> String {
 
 fn apply_filters(sql: &mut String, args: &mut Vec<String>, filter: &SearchFilter) {
     if let Some(c) = &filter.category {
-        sql.push_str(" AND category = ?");
+        sql.push_str(" AND chunk.category = ?");
         args.push(c.clone());
     }
     if let Some(l) = &filter.layer {
-        sql.push_str(" AND layer = ?");
+        sql.push_str(" AND chunk.layer = ?");
         args.push(l.clone());
     }
     if let Some(p) = &filter.common_path_prefix {
-        sql.push_str(" AND common_path LIKE ? ESCAPE '\\'");
+        sql.push_str(" AND chunk.common_path LIKE ? ESCAPE '\\'");
         args.push(format!(
             "{}%",
             p.replace('\\', "\\\\").replace('%', "\\%").replace('_', "\\_")
@@ -143,14 +142,16 @@ fn query_tri(
     fetch: u32,
 ) -> Result<Vec<QueryHit>, String> {
     let mut sql = String::from(
-        "SELECT chunk_id, doc_id, category, layer, path, common_path, repo, title, body,
-                snippet(docs_tri, 8, '<em>', '</em>', '…', 16), bm25(docs_tri), created_at
-         FROM docs_tri WHERE docs_tri MATCH ?",
+        "SELECT chunk.doc_id, chunk.category, chunk.layer, chunk.path, chunk.common_path,
+                chunk.repo, chunk.title, docs_tri.body,
+                snippet(docs_tri, 0, '<em>', '</em>', '…', 16), bm25(docs_tri), chunk.created_at
+         FROM docs_tri JOIN chunk ON chunk.id = docs_tri.rowid
+         WHERE docs_tri MATCH ?",
     );
     let mut args = vec![match_expr(match_terms, " AND ")];
     apply_filters(&mut sql, &mut args, filter);
     for t in like_terms {
-        sql.push_str(" AND body LIKE ? ESCAPE '\\'");
+        sql.push_str(" AND docs_tri.body LIKE ? ESCAPE '\\'");
         args.push(like_needle(t));
     }
     sql.push_str(&format!(" ORDER BY bm25(docs_tri) LIMIT {fetch}"));
@@ -168,9 +169,12 @@ fn query_bi(
     fetch: u32,
 ) -> Result<Vec<QueryHit>, String> {
     let mut sql = String::from(
-        "SELECT chunk_id, doc_id, category, layer, path, common_path, repo, title, orig,
-                '', bm25(docs_bi), created_at
-         FROM docs_bi WHERE docs_bi MATCH ?",
+        "SELECT chunk.doc_id, chunk.category, chunk.layer, chunk.path, chunk.common_path,
+                chunk.repo, chunk.title,
+                COALESCE((SELECT body FROM docs_tri WHERE rowid = chunk.id), ''),
+                '', bm25(docs_bi), chunk.created_at
+         FROM docs_bi JOIN chunk ON chunk.id = docs_bi.rowid
+         WHERE docs_bi MATCH ?",
     );
     let mut args = vec![match_expr(terms, " AND ")];
     apply_filters(&mut sql, &mut args, filter);
@@ -189,18 +193,17 @@ fn query_bi(
 
 fn row_to_hit(row: &rusqlite::Row<'_>) -> rusqlite::Result<QueryHit> {
     Ok(QueryHit {
-        chunk_id: row.get(0)?,
-        doc_id: row.get(1)?,
-        category: row.get(2)?,
-        layer: row.get(3)?,
-        path: row.get(4)?,
-        common_path: row.get(5)?,
-        repo: row.get(6)?,
-        title: row.get(7)?,
-        body: row.get(8)?,
-        snippet: row.get::<_, String>(9).unwrap_or_default(),
-        score: row.get(10)?,
-        created_at: row.get::<_, String>(11).unwrap_or_default(),
+        doc_id: row.get(0)?,
+        category: row.get(1)?,
+        layer: row.get(2)?,
+        path: row.get(3)?,
+        common_path: row.get(4)?,
+        repo: row.get(5)?,
+        title: row.get(6)?,
+        body: row.get(7)?,
+        snippet: row.get::<_, String>(8).unwrap_or_default(),
+        score: row.get(9)?,
+        created_at: row.get::<_, String>(10).unwrap_or_default(),
     })
 }
 

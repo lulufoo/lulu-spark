@@ -85,7 +85,9 @@ pub fn candidate_paths(conn: &rusqlite::Connection, literals: &[String]) -> Resu
         .collect::<Vec<_>>()
         .join(" OR ");
     let mut stmt = conn
-        .prepare("SELECT DISTINCT path FROM docs_tri WHERE docs_tri MATCH ?1")
+        .prepare("SELECT DISTINCT chunk.path FROM docs_tri
+             JOIN chunk ON chunk.id = docs_tri.rowid
+             WHERE docs_tri MATCH ?1")
         .map_err(|e| e.to_string())?;
     let rows = stmt
         .query_map(params![expr], |row| row.get::<_, String>(0))

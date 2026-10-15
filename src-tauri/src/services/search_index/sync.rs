@@ -7,7 +7,8 @@ use std::path::Path;
 
 use super::collect::note_file_chunks;
 use super::query::cache_dir_or_err;
-use super::store::{index_exists, open, replace_path_chunks};
+use super::chunk_rows::replace_path_chunks;
+use super::store::{index_exists, open};
 
 /// `(layer, common_path)` pairs. Existing files are re-chunked and replace their
 /// rows; missing files have their rows dropped. No-op when no index file exists.

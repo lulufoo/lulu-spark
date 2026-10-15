@@ -71,7 +71,7 @@ fn replace_path_chunks_drops_stale_tail_chunks() {
     assert_eq!(stats.deleted, 3);
     assert_eq!(stats.upserted, 1);
     let n: i64 = conn
-        .query_row("SELECT count(*) FROM docs_tri WHERE path = '/tmp/p.md'", [], |r| r.get(0))
+        .query_row("SELECT count(*) FROM chunk WHERE path = '/tmp/p.md'", [], |r| r.get(0))
         .expect("count");
     assert_eq!(n, 1);
     replace_path_chunks(&conn, "/tmp/p.md", &[]).expect("delete all");
@@ -241,7 +241,7 @@ fn content_hash_skips_unchanged_and_ghost_delete_removes_stale() {
     assert_eq!(s2.skipped, 2);
     assert_eq!(s2.upserted, 0);
 
-    let live: HashSet<String> = first[..1].iter().map(|c| c.chunk_id.clone()).collect();
+    let live: HashSet<ChunkKey> = first[..1].iter().map(|c| c.to_key()).collect();
     let deleted = delete_ghosts(&conn, &live, Some("notes"), None).expect("ghost");
     assert_eq!(deleted, 1);
     let paths = distinct_paths(&conn).expect("paths");
@@ -276,7 +276,7 @@ fn upsert_chunks_preloads_hashes_and_updates_mtime_only() {
     let s2 = upsert_chunks(&conn, &many).expect("mtime only");
     assert_eq!(s2.skipped, 80);
     assert_eq!(s2.upserted, 0);
-    let (hash, mtime) = existing_hash(&conn, &many[0].chunk_id)
+    let (hash, mtime) = existing_hash(&conn, &many[0].doc_id, &many[0].layer, many[0].idx)
         .expect("lookup")
         .expect("row");
     assert_eq!(hash, many[0].content_hash);
@@ -337,6 +337,126 @@ fn two_char_and_mixed_queries_return_snippets() {
     .expect("mixed");
     assert!(!mixed.is_empty(), "mixed should hit via trigram + like");
     assert!(!mixed[0].snippet.is_empty());
+}
+
+fn count_rows(conn: &rusqlite::Connection, sql: &str) -> i64 {
+    conn.query_row(sql, [], |r| r.get(0)).expect("count")
+}
+
+#[test]
+fn chunk_unique_key_is_enforced_by_the_database() {
+    let (_dir, cache) = temp_cache();
+    let conn = open(&cache).expect("open");
+    let insert = "INSERT INTO chunk(doc_id, layer, idx, category, title, content_hash, path, common_path, repo, created_at, mtime)
+                  VALUES ('d', 'raw', 0, 'notes', '', 'h', '/p', 'p', '', '', 0)";
+    conn.execute(insert, []).expect("first insert");
+    assert!(conn.execute(insert, []).is_err(), "duplicate (doc_id, layer, idx) must fail");
+}
+
+#[test]
+fn fts_rows_share_rowid_with_chunk_and_leave_no_orphans() {
+    let (_dir, cache) = temp_cache();
+    let conn = open(&cache).expect("open");
+    let chunks = vec![
+        chunk("a:0", "doc-a", "notes", "角色扮演与叙事设计", "/tmp/a.md"),
+        chunk("a:1", "doc-a", "notes", "第二段关于检索的内容", "/tmp/a.md"),
+        chunk("b:0", "doc-b", "notes", "另一个文件正文足够长", "/tmp/b.md"),
+    ];
+    upsert_chunks(&conn, &chunks).expect("seed");
+    let orphans = |table: &str| {
+        count_rows(
+            &conn,
+            &format!("SELECT count(*) FROM {table} WHERE rowid NOT IN (SELECT id FROM chunk)"),
+        )
+    };
+    assert_eq!(count_rows(&conn, "SELECT count(*) FROM docs_tri"), 3);
+    assert_eq!(count_rows(&conn, "SELECT count(*) FROM docs_bi"), 3);
+
+    let rewritten = vec![chunk("a:0", "doc-a", "notes", "改过的正文也要足够长", "/tmp/a.md")];
+    upsert_chunks(&conn, &rewritten).expect("rewrite one");
+    replace_path_chunks(&conn, "/tmp/b.md", &[]).expect("delete path");
+    let live: HashSet<ChunkKey> = rewritten.iter().map(|c| c.to_key()).collect();
+    delete_ghosts(&conn, &live, Some("notes"), None).expect("ghosts");
+
+    assert_eq!(count_rows(&conn, "SELECT count(*) FROM chunk"), 1);
+    assert_eq!(count_rows(&conn, "SELECT count(*) FROM docs_tri"), 1);
+    assert_eq!(count_rows(&conn, "SELECT count(*) FROM docs_bi"), 1);
+    assert_eq!(orphans("docs_tri"), 0);
+    assert_eq!(orphans("docs_bi"), 0);
+}
+
+#[test]
+fn moved_document_is_replaced_without_unique_collision() {
+    let (_dir, cache) = temp_cache();
+    let conn = open(&cache).expect("open");
+    upsert_chunks(&conn, &[chunk("a:0", "doc-a", "notes", "搬家前的正文足够长", "/tmp/old.md")])
+        .expect("seed");
+    let stats = replace_path_chunks(
+        &conn,
+        "/tmp/new.md",
+        &[chunk("a:0", "doc-a", "notes", "搬家后的正文足够长", "/tmp/new.md")],
+    )
+    .expect("moved note, new path synced first");
+    assert_eq!(stats.deleted, 1);
+    assert_eq!(count_rows(&conn, "SELECT count(*) FROM chunk"), 1);
+    assert_eq!(count_rows(&conn, "SELECT count(*) FROM chunk WHERE path = '/tmp/new.md'"), 1);
+    assert_eq!(count_rows(&conn, "SELECT count(*) FROM docs_tri"), 1);
+}
+
+#[test]
+fn unchanged_body_refreshes_stale_metadata() {
+    let (_dir, cache) = temp_cache();
+    let conn = open(&cache).expect("open");
+    let old = chunk("a:0", "doc-a", "notes", "同样的正文足够长", "/tmp/old.md");
+    upsert_chunks(&conn, &[old.clone()]).expect("seed");
+    let mut moved = old;
+    moved.path = "/tmp/new.md".into();
+    moved.common_path = "new.md".into();
+    moved.title = "新标题".into();
+    let stats = upsert_chunks(&conn, &[moved]).expect("same hash, new metadata");
+    assert_eq!(stats.skipped, 1);
+    assert_eq!(stats.upserted, 0);
+    let (path, title): (String, String) = conn
+        .query_row("SELECT path, title FROM chunk", [], |r| Ok((r.get(0)?, r.get(1)?)))
+        .expect("row");
+    assert_eq!((path.as_str(), title.as_str()), ("/tmp/new.md", "新标题"));
+}
+
+#[test]
+fn bigram_hit_snippet_comes_from_original_text_and_title_only_words_do_not_match() {
+    let (_dir, cache) = temp_cache();
+    let conn = open(&cache).expect("open");
+    let mut c = chunk("n:0", "doc-n", "notes", "这一段讲角色扮演如何展开，与 search 无关。", "/tmp/n.md");
+    c.title = "专属标题词".into();
+    upsert_chunks(&conn, &[c]).expect("seed");
+    let filter = SearchFilter::default();
+
+    let hits = search(&conn, "角色", &filter, 10).expect("bi");
+    assert_eq!(hits.len(), 1);
+    assert!(hits[0].snippet.contains("角色扮演"), "snippet must be original text, not bigrams");
+    assert_eq!(hits[0].title, "专属标题词", "title is read from chunk");
+
+    assert!(
+        search(&conn, "专属标题词", &filter, 10).expect("title-only").is_empty(),
+        "title is not indexed (decision 27)"
+    );
+}
+
+#[test]
+fn doc_id_lookup_uses_the_unique_index() {
+    let (_dir, cache) = temp_cache();
+    let conn = open(&cache).expect("open");
+    let plan: Vec<String> = conn
+        .prepare("EXPLAIN QUERY PLAN SELECT content_hash, mtime FROM chunk WHERE doc_id = 'd' AND layer = 'raw' AND idx = 0")
+        .expect("prepare")
+        .query_map([], |r| r.get::<_, String>(3))
+        .expect("plan")
+        .collect::<Result<_, _>>()
+        .expect("rows");
+    assert!(
+        plan.iter().all(|step| step.contains("USING INDEX") || step.contains("USING COVERING INDEX")),
+        "lookup must not scan: {plan:?}"
+    );
 }
 
 fn scan_matches(root: &Path, regex: &Regex) -> Vec<String> {

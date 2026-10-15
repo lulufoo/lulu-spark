@@ -17,9 +17,11 @@ use crate::services::spark_read::{get_topics, load_notes_index_entries};
 use super::chunk::{chunk_markdown, first_heading_title};
 use regex::Regex;
 
+/// `(doc_id, layer, idx)`: the unique key of a chunk in the index.
+pub type ChunkKey = (String, String, usize);
+
 #[derive(Debug, Clone)]
 pub struct SourceChunk {
-    pub chunk_id: String,
     pub doc_id: String,
     pub category: String,
     pub layer: String,
@@ -30,6 +32,8 @@ pub struct SourceChunk {
     pub body: String,
     pub content_hash: String,
     pub created_at: String,
+    /// Position of this chunk within its file.
+    pub idx: usize,
     /// File modification time in nanoseconds since epoch; 0 when unknown.
     pub mtime: i64,
 }
@@ -50,7 +54,6 @@ impl SourceChunk {
         mtime: i64,
     ) -> Self {
         Self {
-            chunk_id: format!("{category}:{path}:{idx}"),
             doc_id: doc_id.to_string(),
             category: category.to_string(),
             layer: layer.to_string(),
@@ -61,8 +64,13 @@ impl SourceChunk {
             body: body.to_string(),
             content_hash: content_hash(body),
             created_at: created_at.to_string(),
+            idx,
             mtime,
         }
+    }
+
+    pub fn to_key(&self) -> ChunkKey {
+        (self.doc_id.clone(), self.layer.clone(), self.idx)
     }
 }
 
