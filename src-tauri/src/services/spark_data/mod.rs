@@ -8,7 +8,7 @@ mod note_row;
 
 pub use db::{db_path, open, open_at, DB_FILE};
 pub use knowledge_doc_row::{
-    delete_knowledge_doc, find_knowledge_doc_id, get_knowledge_doc, insert_knowledge_doc,
+    active_knowledge_doc_ids, delete_knowledge_doc, find_knowledge_doc_id, get_knowledge_doc, insert_knowledge_doc,
     update_knowledge_doc, KnowledgeDocRow, KnowledgeStatus,
 };
 pub use knowledge_registry::{

@@ -1,5 +1,7 @@
 //! Basic reads and writes of one `knowledge_doc` row.
 
+use std::collections::HashMap;
+
 use rusqlite::{params, Connection, OptionalExtension, Row};
 use serde_json::Value;
 
@@ -131,4 +133,19 @@ pub fn delete_knowledge_doc(conn: &Connection, doc_id: &str) -> Result<bool, Str
         .execute("DELETE FROM knowledge_doc WHERE doc_id = ?1", params![doc_id])
         .map_err(|e| e.to_string())?;
     Ok(changed > 0)
+}
+
+/// `(repo, path) → doc_id` of every `active` record; `missing` ones stay out.
+pub fn active_knowledge_doc_ids(
+    conn: &Connection,
+) -> Result<HashMap<(String, String), String>, String> {
+    let mut stmt = conn
+        .prepare("SELECT repo, path, doc_id FROM knowledge_doc WHERE status = 'active'")
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map([], |row| {
+            Ok(((row.get::<_, String>(0)?, row.get::<_, String>(1)?), row.get::<_, String>(2)?))
+        })
+        .map_err(|e| e.to_string())?;
+    rows.collect::<Result<HashMap<_, _>, _>>().map_err(|e| e.to_string())
 }

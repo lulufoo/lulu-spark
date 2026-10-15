@@ -13,12 +13,12 @@ fn cache_dir_uses_settings_not_repo_dot_cache() {
 }
 
 #[test]
-fn knowledge_doc_map_path_under_cache_dir() {
+fn spark_data_db_path_under_runtime_data_dir() {
     let sandbox = TestSandbox::new();
-    let cache = cache_dir().expect("cache");
-    let got = knowledge_doc_map_path().expect("map");
-    assert_eq!(got, cache.join("knowledge-doc-map.json"));
-    sandbox.assert_not_prod_path(&got).expect("sandbox map");
+    let data = runtime_data_dir().expect("data");
+    let got = spark_data_db_path().expect("db");
+    assert_eq!(got, data.join("spark-data.sqlite"));
+    sandbox.assert_not_prod_path(&got).expect("sandbox db");
 }
 
 #[test]

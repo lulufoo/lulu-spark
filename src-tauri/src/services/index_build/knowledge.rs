@@ -10,7 +10,7 @@ use crate::services::search_index;
 pub fn rebuild(repo_root: &Path, force_repo: Option<&str>) -> Result<String, String> {
     let cache = paths::cache_dir().map_err(|e| format!("{e:?}"))?;
     scan_registered_repos(repo_root, force_repo)?;
-    let chunks = search_index::collect_knowledge(repo_root, force_repo);
+    let chunks = search_index::collect_knowledge(repo_root, force_repo)?;
     let stats = search_index::rebuild(&cache, &chunks, Some("knowledge"), force_repo)?;
     Ok(format!(
         "Indexed {} chunks ({} unchanged, {} removed)",
@@ -19,3 +19,7 @@ pub fn rebuild(repo_root: &Path, force_repo: Option<&str>) -> Result<String, Str
         stats.deleted
     ))
 }
+
+#[cfg(test)]
+#[path = "../../unit-tests/services/index_build/knowledge.rs"]
+mod tests;

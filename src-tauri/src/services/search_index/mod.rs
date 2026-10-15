@@ -12,7 +12,7 @@ pub use bigram::cjk_bigram_text;
 pub use chunk::{chunk_markdown, MAX_CHUNK_CHARS, SHORT_TITLE_MERGE_CHARS};
 pub use chunk_rows::{delete_ghosts, replace_path_chunks, upsert_chunks};
 pub use collect::{
-    collect_all, collect_knowledge, collect_knowledge_text, collect_notes, file_mtime_nanos,
+    collect_all, collect_knowledge, collect_notes, file_mtime_nanos,
     note_file_chunks, ChunkKey, SourceChunk,
 };
 pub use query::{

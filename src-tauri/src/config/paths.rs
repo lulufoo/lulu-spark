@@ -130,11 +130,6 @@ pub fn cache_todo_tasks_v1_path() -> Result<PathBuf, PathsError> {
     Ok(cache_dir()?.join("todo_tasks.json"))
 }
 
-/// Knowledge MCP document-id map: `{cache_dir}/knowledge-doc-map.json`.
-pub fn knowledge_doc_map_path() -> Result<PathBuf, PathsError> {
-    Ok(cache_dir()?.join("knowledge-doc-map.json"))
-}
-
 /// Knowledge hide-pattern records: `{cache_dir}/knowledge-hide-patterns.json`.
 pub fn knowledge_hide_patterns_path() -> Result<PathBuf, PathsError> {
     Ok(cache_dir()?.join("knowledge-hide-patterns.json"))

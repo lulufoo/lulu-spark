@@ -22,11 +22,6 @@ pub fn spark_doc_id(layer: &str, common_path: &str) -> String {
     sanitize_doc_id(&format!("{layer}__{common_path}"))
 }
 
-pub fn knowledge_doc_id(repo: &str, path: &str) -> String {
-    let repo_name = repo.split('/').next_back().unwrap_or(repo);
-    sanitize_doc_id(&format!("{repo_name}__{}", path.replace('/', "__")))
-}
-
 pub fn should_skip_md(name: &str) -> bool {
     if SKIP_FILES.contains(&name) {
         return true;

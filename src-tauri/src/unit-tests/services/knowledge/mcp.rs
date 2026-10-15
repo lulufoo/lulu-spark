@@ -1,7 +1,7 @@
 use super::*;
 use std::fs;
 
-use crate::services::knowledge::doc_map;
+use crate::services::spark_data::{self, register_knowledge_doc};
 use crate::services::sediment_kb::{self, UNCATEGORIZED_ID};
 use crate::test_support::TestSandbox;
 
@@ -36,20 +36,46 @@ fn search_missing_q_is_400() {
     assert_eq!(v["_status"], 400);
 }
 
+fn plant(sandbox: &TestSandbox, rel: &str, body: &str) -> std::path::PathBuf {
+    let file = sandbox.knowledge_root().join(rel);
+    fs::create_dir_all(file.parent().expect("parent")).expect("mkdir");
+    fs::write(&file, body).expect("write");
+    file
+}
+
+fn register(repo: &str, rel: &str) -> String {
+    register_knowledge_doc(&spark_data::open().expect("db"), repo, rel).expect("register")
+}
+
 #[test]
-fn remember_knowledge_doc_issues_id() {
+fn remember_knowledge_doc_registers_once_and_reuses_the_id() {
     let sandbox = TestSandbox::new();
-    let file = sandbox.cache_dir().join("open.md");
-    fs::write(&file, "body").expect("write");
+    let file = plant(&sandbox, "demo/docs/open.md", "body");
     let first = remember_knowledge_doc_value(&file.to_string_lossy());
-    assert_eq!(first["ok"], true);
+    assert_eq!(first["ok"], true, "{first}");
     let id = first["id"].as_str().expect("id");
     assert_eq!(id.len(), 32);
-    let second = remember_knowledge_doc_value(&file.to_string_lossy());
-    assert_eq!(second["id"], id);
+    assert_eq!(remember_knowledge_doc_value(&file.to_string_lossy())["id"], id);
+    assert_eq!(id, register("demo", "docs/open.md"), "same record as the registry's");
     let empty = remember_knowledge_doc_value("  ");
     assert_eq!(empty["error"], "Missing path");
     assert_eq!(empty["_status"], 400);
+}
+
+#[test]
+fn remember_knowledge_doc_rejects_files_outside_the_library() {
+    let sandbox = TestSandbox::new();
+    let outside = sandbox.cache_dir().join("elsewhere.md");
+    fs::write(&outside, "x").expect("write");
+    let out = remember_knowledge_doc_value(&outside.to_string_lossy());
+    assert_eq!(out["error"], "Not in the knowledge library");
+    assert_eq!(out["_status"], 400);
+    let loose = plant(&sandbox, "loose.md", "x");
+    assert_eq!(
+        remember_knowledge_doc_value(&loose.to_string_lossy())["error"],
+        "Not in the knowledge library",
+        "a file needs a repo directory"
+    );
 }
 
 #[test]
@@ -61,16 +87,26 @@ fn get_unknown_id_fails() {
 }
 
 #[test]
-fn get_remembered_id_returns_path_without_body() {
+fn get_registered_id_returns_path_without_body() {
     let sandbox = TestSandbox::new();
-    let file = sandbox.cache_dir().join("kb.md");
-    fs::write(&file, "secret body").expect("write");
-    let id = doc_map::remember_path(&file).expect("remember");
+    plant(&sandbox, "demo/kb.md", "secret body");
+    let id = register("demo", "kb.md");
     let v = get_knowledge_path_by_id(&id);
     assert_eq!(v["ok"], true);
     assert_eq!(v["id"], id);
     assert!(v.get("content").is_none());
     let path = v["path"].as_str().expect("path");
-    assert!(path.ends_with("kb.md"));
+    assert!(path.ends_with("demo/kb.md"));
     assert!(!v.to_string().contains("secret body"));
+}
+
+#[test]
+fn get_id_of_a_vanished_file_is_file_not_found() {
+    let sandbox = TestSandbox::new();
+    let file = plant(&sandbox, "demo/gone.md", "x");
+    let id = register("demo", "gone.md");
+    fs::remove_file(&file).expect("remove");
+    let v = get_knowledge_path_by_id(&id);
+    assert_eq!(v["ok"], false);
+    assert_eq!(v["error"], "File not found");
 }

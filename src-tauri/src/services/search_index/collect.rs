@@ -9,9 +9,10 @@ use sha2::{Digest, Sha256};
 
 use crate::config::roots::{knowledge_root_string, notes_root_path};
 use crate::services::index_build::common::{
-    extract_spark_title, knowledge_doc_id, should_skip_md, spark_doc_id, SPARK_LAYERS,
+    extract_spark_title, should_skip_md, spark_doc_id, SPARK_LAYERS,
 };
 use crate::services::knowledge::{compiled_hide_regexes, name_is_hidden};
+use crate::services::spark_data::{self, active_knowledge_doc_ids};
 use crate::services::spark_read::{get_topics, load_notes_index_entries};
 
 use super::chunk::{chunk_markdown, first_heading_title};
@@ -267,7 +268,14 @@ pub fn note_file_chunks(repo_root: &Path, layer: &str, common_path: &str) -> (St
     (key, chunks)
 }
 
-pub fn collect_knowledge(repo_root: &Path, force_repo: Option<&str>) -> Vec<SourceChunk> {
+/// Chunks of every `active` knowledge document found on disk. A file the registry has
+/// no active record for (hidden, `missing`, not scanned yet) is not indexed; the
+/// record's `doc_id` is the index `doc_id`.
+pub fn collect_knowledge(
+    repo_root: &Path,
+    force_repo: Option<&str>,
+) -> Result<Vec<SourceChunk>, String> {
+    let doc_ids = active_knowledge_doc_ids(&spark_data::open()?)?;
     let kb_root = PathBuf::from(knowledge_root_string(repo_root));
     let topics = get_topics(repo_root);
     let repos: Vec<(String, String)> = topics
@@ -304,33 +312,25 @@ pub fn collect_knowledge(repo_root: &Path, force_repo: Option<&str>) -> Vec<Sour
         walk_md(&local_dir, &local_dir, &hide, &mut files);
         files.sort_by(|a, b| a.1.cmp(&b.1));
         for (abs, rel) in files {
-            let doc_id = knowledge_doc_id(&repo_full, &rel);
+            let Some(doc_id) = doc_ids.get(&(repo_name.to_string(), rel.clone())) else {
+                continue;
+            };
             chunks.extend(chunks_from_file(
                 "knowledge",
                 "",
                 &abs,
                 &rel,
                 &repo_full,
-                &doc_id,
+                doc_id,
                 "",
             ));
         }
     }
-    chunks
+    Ok(chunks)
 }
 
-pub fn collect_all(repo_root: &Path) -> Vec<SourceChunk> {
+pub fn collect_all(repo_root: &Path) -> Result<Vec<SourceChunk>, String> {
     let mut chunks = collect_notes(repo_root);
-    chunks.extend(collect_knowledge(repo_root, None));
-    chunks
-}
-
-pub fn collect_knowledge_text(
-    repo: &str,
-    rel: &str,
-    abs: &Path,
-    body: &str,
-) -> Vec<SourceChunk> {
-    let doc_id = knowledge_doc_id(repo, rel);
-    chunks_from_text("knowledge", "", abs, rel, repo, &doc_id, "", body, rel)
+    chunks.extend(collect_knowledge(repo_root, None)?);
+    Ok(chunks)
 }

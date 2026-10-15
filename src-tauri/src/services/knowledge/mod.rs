@@ -9,7 +9,6 @@ mod rename;
 mod entry;
 mod doc_annotation;
 mod registry;
-mod doc_map;
 mod export_file;
 mod hide_patterns;
 mod viewer_state;

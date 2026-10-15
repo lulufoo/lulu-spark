@@ -22,14 +22,6 @@ fn spark_title_from_heading_or_slug() {
 }
 
 #[test]
-fn knowledge_doc_id_matches_legacy_id_rules() {
-    assert_eq!(
-        knowledge_doc_id("o/repo", "docs/a.md"),
-        sanitize_doc_id("repo__docs__a.md")
-    );
-}
-
-#[test]
 fn should_skip_md_translation_suffixes() {
     assert!(should_skip_md("202606191700-waymo-interview-zh.md"));
     assert!(should_skip_md("202606191700-waymo-interview-fr.md"));
