@@ -18,7 +18,7 @@ Do not invent `{ts}-{slug}` as the write identity.
 
 ## Body
 
-Separate the title from the body with `---`. Do not add a digest nav line.
+Stage the Markdown as written. `title` is a `create_note` parameter; do not rewrite the file. Do not add a digest nav line.
 
 For a summary, delete external images before staging. Keep prose, headings, relative images, and non-image links.
 

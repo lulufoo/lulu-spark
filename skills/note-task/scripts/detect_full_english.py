@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
-"""Detect whether archive markdown body (after ---) is full English.
+"""Detect whether archive markdown is full English.
 
-Exit 0 and print `full_english` when the body has Latin letters and no CJK.
+Exit 0 and print `full_english` when the document has Latin letters and no CJK.
 Exit 1 and print `not_full_english` otherwise.
 
-Header lines before --- are ignored (they are Chinese archive chrome).
-Known body chrome such as `作者 | …` and HTML comments is ignored too.
+Known chrome such as `作者 | …` and HTML comments is ignored.
 Any remaining Han / Kana / Hangul means mixed content — do not translate.
 """
 
@@ -28,17 +27,9 @@ CHROME_LINE = re.compile(
 )
 
 
-def body_after_separator(document: str) -> str:
-    for sep in ("\n---\n", "\n---\r\n"):
-        idx = document.find(sep)
-        if idx != -1:
-            return document[idx + len(sep) :]
-    return ""
-
-
 def content_for_detect(document: str) -> str:
     lines = []
-    for line in body_after_separator(document).splitlines():
+    for line in document.splitlines():
         if CHROME_LINE.match(line.strip()):
             continue
         lines.append(line)

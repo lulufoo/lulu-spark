@@ -16,15 +16,6 @@ pub const STUB_MARKERS: &[&str] = &[
     "见文件",
 ];
 
-pub fn body_after_separator(document: &str) -> &str {
-    for sep in ["\n---\n", "\n---\r\n"] {
-        if let Some(idx) = document.find(sep) {
-            return &document[idx + sep.len()..];
-        }
-    }
-    ""
-}
-
 fn is_cjk(c: char) -> bool {
     matches!(
         c,
@@ -45,14 +36,14 @@ fn is_detect_chrome_line(line: &str) -> bool {
 }
 
 fn content_for_detect(document: &str) -> String {
-    body_after_separator(document)
+    document
         .lines()
         .filter(|line| !is_detect_chrome_line(line))
         .collect::<Vec<_>>()
         .join("\n")
 }
 
-/// True when the body after `---` has Latin letters and no CJK.
+/// True when the document has Latin letters and no CJK.
 pub fn is_full_english(document: &str) -> bool {
     let body = content_for_detect(document);
     if body.trim().is_empty() {
@@ -117,23 +108,21 @@ pub fn check_zh_parity(en_doc: &str, zh_doc: &str) -> Result<(), String> {
     if has_stub_marker(zh_doc) {
         return Err("zh translation looks like a stub".to_string());
     }
-    let en_body = body_after_separator(en_doc);
-    let zh_body = body_after_separator(zh_doc);
-    if zh_body.trim().is_empty() {
+    if zh_doc.trim().is_empty() {
         return Err("zh translation body is empty".to_string());
     }
-    if zh_too_short(en_body, zh_body) {
+    if zh_too_short(en_doc, zh_doc) {
         return Err("zh translation is too short relative to the English body".to_string());
     }
-    let en_headings = count_headings(en_body);
-    let zh_headings = count_headings(zh_body);
+    let en_headings = count_headings(en_doc);
+    let zh_headings = count_headings(zh_doc);
     if en_headings > 0 && zh_headings != en_headings {
         return Err(format!(
             "zh heading count {zh_headings} != English {en_headings}"
         ));
     }
-    let en_turns = count_turns(en_body);
-    let zh_turns = count_turns(zh_body);
+    let en_turns = count_turns(en_doc);
+    let zh_turns = count_turns(zh_doc);
     if zh_turns_too_few(en_turns, zh_turns) {
         return Err(format!(
             "zh turn count {zh_turns} below 80% of English {en_turns}"

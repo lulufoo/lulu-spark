@@ -2,6 +2,8 @@ use std::path::Path;
 
 use serde_json::{json, Value};
 
+use crate::services::translation_gate;
+
 use super::create_meta::format_created_at_zh;
 use super::document::create_note_from_markdown;
 
@@ -46,6 +48,10 @@ pub fn create_jot(
     if body.trim().is_empty() {
         return Err("empty body".into());
     }
+    if translation_gate::is_full_english(body) {
+        return Err("400: full English note requires translations.zh".into());
+    }
+    let doc = synthesize_jot_document(body, opts).map_err(|e| format!("400: {e}"))?;
     let first = body.lines().next().unwrap_or("").trim();
     let ts = opts.ts.clone().unwrap_or_default();
     let title = if first.is_empty() {
@@ -67,7 +73,7 @@ pub fn create_jot(
     if !ts.is_empty() {
         payload["created_at"] = json!(ts);
     }
-    let result = create_note_from_markdown(repo_root, body, &payload);
+    let result = create_note_from_markdown(repo_root, &doc, &payload);
     if result.get("ok") == Some(&json!(true)) {
         Ok(result)
     } else {
