@@ -62,7 +62,7 @@ Do not invent norms not listed here.
 ## Hard Constraints
 
 1. **Listed tools only** — Agent must use `note-task` and the note tools listed in this SKILL only.
-2. **Verify after write** — After create, confirm `id` / `common_path` / `raw_path`; `digest_path` when a digest was written; `extra_paths` when a zh companion was written; `asset_paths` when companion images were sent.
+2. **Verify after write** — After create or update, confirm `ok` and `id`. Treat `digest_written`, `zh_written`, and `assets_copied` as present only when that write happened. Do not require `common_path`, `raw_path`, `digest_path`, `extra_paths`, or `asset_paths` on the result.
 3. **HTTP errors** — 4xx/5xx surface as MCP tool errors (`isError: true`); do not treat error payloads as success.
 4. **Path or paste** — a lone markdown path or pasted body uses [path-or-paste.md](references/path-or-paste.md). Do not call Host HTTP.
 
@@ -84,10 +84,10 @@ Field names, limits, and optionality: live MCP schema only.
 Observable completion for a write request:
 
 - Tool call succeeded; and
-- Response has `id`, `common_path`, `raw_path`; and
-- When a digest was written: `digest_path` is present; when skipped: it is absent; and
-- When a zh companion was written: `extra_paths` includes the `-zh.md` path; and
-- When companion images were sent: `asset_paths` lists the copied `raw/…` files.
+- Response has `ok` and `id`; and
+- When a digest was written: `digest_written` is present; when skipped: it is absent; and
+- When a zh companion was written: `zh_written` is present; when skipped: it is absent; and
+- When companion images were sent: `assets_copied` is present; when skipped: it is absent.
 
 ## References
 

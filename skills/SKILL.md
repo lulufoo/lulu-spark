@@ -52,6 +52,6 @@ git -C "$SRC" pull --rebase
 
 ## 验收
 
-触发 `note-task` 时，首步确认 Lulu Spark MCP 可用；写入成功后 MCP 返回 `id` / `common_path` / `raw_path`（或 digest 路径）。
+触发 `note-task` 时，首步确认 Lulu Spark MCP 可用；写入成功后 MCP 返回 `ok` / `id`，以及按需出现的 `digest_written` / `zh_written` / `assets_copied`。
 
-路径公式与 digest 写法由 note-task 自己的 references 说明（随 `create_note` 的 `digest_body`）。
+digest 写法由 note-task 自己的 references 说明（随 `create_note` 的 `digest_body`）。

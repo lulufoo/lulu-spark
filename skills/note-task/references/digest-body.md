@@ -10,7 +10,7 @@ Load when composing `digest_body` and `digest` is `auto` or `always`.
 |-------|----|
 | `never` | Do not pass `digest_body`. |
 | `always` | Pass a non-empty `digest_body`. |
-| `auto` | Pass `digest_body` when any rule below matches. Otherwise omit it. No `digest_path` means it was skipped. |
+| `auto` | Pass `digest_body` when any rule below matches. Otherwise omit it. No `digest_written` means it was skipped. |
 
 Write a digest when any of these is true:
 
@@ -50,4 +50,4 @@ theme-line: one digest on the primary raw, not on `-zh.md`.
 
 ## Submit
 
-Pass `digest_body` on the same `create_note` call. On success, `digest_path` is present when a digest was written and absent when `auto` skipped it.
+Pass `digest_body` on the same `create_note` call. On success, `digest_written` is present when a digest was written and absent when `auto` skipped it.
