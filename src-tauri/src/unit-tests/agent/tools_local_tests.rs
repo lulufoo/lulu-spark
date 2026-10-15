@@ -5,13 +5,15 @@ use std::time::{Duration, Instant};
 use serde_json::{json, Value};
 
 use crate::agent::fence::PathFence;
-use crate::agent::prompt::{read_tool_timeout_text, write_tool_timeout_text};
+use crate::agent::prompt::{
+    read_tool_timeout_text, write_tool_crash_text, write_tool_timeout_text,
+};
 use crate::agent::r#loop;
 use crate::agent::session::{self, Session};
 use crate::agent::tools::host;
 use crate::test_support::TestSandbox;
 
-use super::{call, settle, timeout_result, Local, Waited};
+use super::{call, crash_result, settle, timeout_result, Local, Stopped, Waited};
 
 const LIMIT: Duration = Duration::from_secs(5);
 
@@ -87,7 +89,7 @@ fn settle_turns_a_timeout_into_the_matching_text() {
         (false, write_tool_timeout_text()),
     ] {
         match settle(Waited::<()>::TimedOut, read_only) {
-            Err(Local::TimedOut(result)) => assert_eq!(result.content, text),
+            Err(Local::Stopped(Stopped::TimedOut, result)) => assert_eq!(result.content, text),
             _ => panic!("expected a timeout"),
         }
     }
@@ -102,10 +104,25 @@ fn settle_keeps_cancel_apart_from_a_tool_error() {
 }
 
 #[test]
-fn settle_reports_a_crash_as_a_tool_error() {
+fn settle_reports_a_read_only_crash_as_a_plain_tool_error() {
     match settle(Waited::<()>::Crashed, true) {
-        Err(Local::Done(result)) => assert!(result.is_error),
-        _ => panic!("expected a tool error"),
+        Err(Local::Stopped(Stopped::Crashed, result)) => {
+            assert!(result.is_error);
+            assert_eq!(result, crash_result(true));
+            assert!(!result.content.contains("unknown"));
+        }
+        _ => panic!("expected a crash"),
+    }
+}
+
+#[test]
+fn settle_reports_a_crash_of_a_tool_that_changes_things_as_unknown() {
+    match settle(Waited::<()>::Crashed, false) {
+        Err(Local::Stopped(Stopped::Crashed, result)) => {
+            assert!(result.is_error);
+            assert_eq!(result.content, write_tool_crash_text());
+        }
+        _ => panic!("expected a crash"),
     }
 }
 

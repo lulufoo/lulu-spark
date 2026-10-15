@@ -9,17 +9,25 @@ use std::time::Duration;
 use serde_json::Value;
 
 use crate::agent::fence::PathFence;
-use crate::agent::prompt::{read_tool_timeout_text, write_tool_timeout_text};
+use crate::agent::prompt::{read_tool_timeout_text, write_tool_crash_text, write_tool_timeout_text};
 use crate::agent::session::Session;
 
 use super::catalog::ToolResult;
 use super::timeout::{run_with_timeout, Waited};
 use super::{host, stage};
 
+/// Why a local tool ended without a result of its own. Either way the tool may have changed
+/// something before it stopped.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Stopped {
+    TimedOut,
+    Crashed,
+}
+
 pub enum Local {
     Done(ToolResult),
-    /// The limit passed. The result says whether it is safe to retry.
-    TimedOut(ToolResult),
+    /// The tool did not finish. The result says whether it is safe to retry.
+    Stopped(Stopped, ToolResult),
     /// The turn was cancelled while the tool was running.
     Cancelled,
 }
@@ -69,11 +77,12 @@ pub fn call(
 fn settle<T>(waited: Waited<T>, read_only: bool) -> Result<T, Local> {
     match waited {
         Waited::Done(value) => Ok(value),
-        Waited::TimedOut => Err(Local::TimedOut(timeout_result(read_only))),
+        Waited::TimedOut => Err(Local::Stopped(
+            Stopped::TimedOut,
+            timeout_result(read_only),
+        )),
         Waited::Cancelled => Err(Local::Cancelled),
-        Waited::Crashed => Err(Local::Done(error(
-            "The tool stopped unexpectedly before it returned a result.".into(),
-        ))),
+        Waited::Crashed => Err(Local::Stopped(Stopped::Crashed, crash_result(read_only))),
     }
 }
 
@@ -84,6 +93,14 @@ fn timeout_result(read_only: bool) -> ToolResult {
         write_tool_timeout_text()
     };
     error(content.into())
+}
+
+fn crash_result(read_only: bool) -> ToolResult {
+    if read_only {
+        error("The tool stopped unexpectedly before it returned a result.".into())
+    } else {
+        error(write_tool_crash_text().into())
+    }
 }
 
 fn error(content: String) -> ToolResult {

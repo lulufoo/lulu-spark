@@ -13,7 +13,7 @@ use crate::agent::language::{
 use crate::agent::llm::{self, LlmConfig};
 use crate::agent::progress::{self, ProgressSink};
 use crate::agent::session::{self, read_unix_millis, Session, Step, StepClock};
-use crate::agent::tools::{self, InvokeOutcome, PrepareError};
+use crate::agent::tools::{self, InvokeOutcome, PrepareError, Stopped};
 
 use crate::agent::binding::{
     current_binding_generation_snapshot, current_binding_snapshot, loaded_path_fence,
@@ -413,7 +413,7 @@ pub(crate) fn run_loop_with_progress(
             if chat_turn_interrupted(&session.session_id, generation) {
                 return cancelled_turn_outcome(session, steps_checkpoint);
             }
-            let (result, use_host, timed_out) = match tools::invoke(
+            let (result, use_host, stopped) = match tools::invoke(
                 &turn_tools,
                 &call.name,
                 &call.arguments,
@@ -425,8 +425,8 @@ pub(crate) fn run_loop_with_progress(
                 InvokeOutcome::Done {
                     result,
                     host,
-                    timed_out,
-                } => (result, host, timed_out),
+                    stopped,
+                } => (result, host, stopped),
                 InvokeOutcome::Cancelled => {
                     return cancelled_turn_outcome(session, steps_checkpoint);
                 }
@@ -458,8 +458,8 @@ pub(crate) fn run_loop_with_progress(
                 return cancelled_turn_outcome(session, steps_checkpoint);
             }
             let catalog = turn_tools.catalog.as_ref().expect("catalog present");
-            // A timed-out writing tool may still have changed something.
-            if (!result.is_error || timed_out) && catalog.is_mutating(&call.name) {
+            // A writing tool that timed out or crashed may still have changed something.
+            if (!result.is_error || stopped.is_some()) && catalog.is_mutating(&call.name) {
                 wrote = true;
             }
             if !result.is_error && call.name == "stage" {
@@ -476,7 +476,8 @@ pub(crate) fn run_loop_with_progress(
                 .with_bounded_text_field("tool_name", &call.name)
                 .with_static_field("source", if use_host { "host" } else { "mcp" })
                 .with_bool_field("is_error", result.is_error)
-                .with_bool_field("timed_out", timed_out),
+                .with_bool_field("timed_out", stopped == Some(Stopped::TimedOut))
+                .with_bool_field("crashed", stopped == Some(Stopped::Crashed)),
             );
             let empty_copy = if use_host {
                 if result.is_error {

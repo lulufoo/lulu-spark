@@ -20,6 +20,7 @@ use super::mcp;
 use super::session::Session;
 
 pub use catalog::{ToolCatalog, ToolResult};
+pub use local::Stopped;
 use timeout::LOCAL_TOOL_TIMEOUT;
 
 /// Prepared tool surface for one agent turn.
@@ -119,8 +120,8 @@ pub enum InvokeOutcome {
     Done {
         result: ToolResult,
         host: bool,
-        /// A local tool hit the time limit; `result` holds the text for the model.
-        timed_out: bool,
+        /// A local tool did not finish; `result` holds the text for the model.
+        stopped: Option<Stopped>,
     },
     /// The turn was cancelled while a local tool was running.
     Cancelled,
@@ -148,7 +149,7 @@ pub fn invoke(
                 is_error: true,
             },
             host,
-            timed_out: false,
+            stopped: None,
         };
     };
     if !catalog.contains(name) {
@@ -158,7 +159,7 @@ pub fn invoke(
                 is_error: true,
             },
             host,
-            timed_out: false,
+            stopped: None,
         };
     }
 
@@ -171,7 +172,7 @@ pub fn invoke(
                     is_error: true,
                 },
                 host,
-                timed_out: false,
+                stopped: None,
             };
         }
     };
@@ -183,7 +184,7 @@ pub fn invoke(
                 is_error: true,
             },
             host,
-            timed_out: false,
+            stopped: None,
         };
     }
 
@@ -199,11 +200,11 @@ pub fn invoke(
             is_cancelled,
         ) {
             local::Local::Done(result) => result,
-            local::Local::TimedOut(result) => {
+            local::Local::Stopped(stopped, result) => {
                 return InvokeOutcome::Done {
                     result,
                     host,
-                    timed_out: true,
+                    stopped: Some(stopped),
                 };
             }
             local::Local::Cancelled => return InvokeOutcome::Cancelled,
@@ -226,6 +227,6 @@ pub fn invoke(
     InvokeOutcome::Done {
         result,
         host,
-        timed_out: false,
+        stopped: None,
     }
 }
