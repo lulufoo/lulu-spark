@@ -106,12 +106,12 @@ test('fetchConfig 调用 /api/config', async () => {
 })
 
 test('setConfig 发送 POST 到 /api/config', async () => {
-  mockFetch({ has_host_key: true })
-  await setConfig({ api_key_host: 'sk-test' })
+  mockFetch({ llm: { host: { key_saved: true } } })
+  await setConfig({ llm_api_key: { engine: 'host', value: 'sk-test' } })
   expect(fetch.mock.calls[0][0]).toBe(`${DEFAULT_DEV_BASE}/api/config`)
   expect(fetch.mock.calls[0][1].method).toBe('POST')
   const body = JSON.parse(fetch.mock.calls[0][1].body)
-  expect(body.api_key_host).toBe('sk-test')
+  expect(body.llm_api_key).toEqual({ engine: 'host', value: 'sk-test' })
 })
 
 test('fetchFileContent 调用 /api/notes-file 并返回 content', async () => {

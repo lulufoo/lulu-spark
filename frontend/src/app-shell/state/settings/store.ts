@@ -6,9 +6,11 @@ export function publishEngineCategory(categoryId: string) {
   window.dispatchEvent(new CustomEvent(ENGINE_CHANGED_EVENT, { detail: { categoryId } }));
 }
 
-export const engineKeyHints = {
-  has_host_key: false,
-};
+/** Credential already saved on the host, per category (`llm.<id>.key_saved` from get_config). */
+export const engineKeySavedByCategory: Record<string, boolean | undefined> = {};
+
+/** Six characters: a password field paints them as six dots. Never sent to the host. */
+export const SAVED_KEY_PLACEHOLDER = '••••••';
 
 /** Per-category drafts (`undefined` = not loaded for this panel session). */
 export const engineModelByCategory: Record<string, string | undefined> = {};
