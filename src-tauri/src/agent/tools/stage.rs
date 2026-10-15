@@ -66,6 +66,10 @@ pub fn call(
         "get_staged" => get_staged(arguments, session),
         other => Err(format!("unknown stage tool '{other}'")),
     };
+    into_tool_result(result)
+}
+
+fn into_tool_result(result: Result<String, String>) -> ToolResult {
     match result {
         Ok(content) => ToolResult {
             content,
@@ -96,18 +100,46 @@ fn entry_json(entry: &StagedEntry) -> Result<String, String> {
     serde_json::to_string(entry).map_err(|e| e.to_string())
 }
 
+/// A `stage` request whose file passed the disk checks. Registering it only touches memory.
+pub struct CheckedStage {
+    path: String,
+    title: Option<String>,
+}
+
+/// The part of `stage` that reads the disk. It owns everything it returns, so it can run
+/// on another thread.
+pub fn check_stage(arguments: &Value, fence: Option<&PathFence>) -> Result<CheckedStage, String> {
+    let Some(fence) = fence else {
+        return Err("Host tool 'stage' has no path fence for this binding.".into());
+    };
+    let path = fs::arg_str(arguments, "path")?;
+    let title = arguments
+        .get("title")
+        .and_then(Value::as_str)
+        .map(str::to_string);
+    let canon = validate_stage_file(&path, fence)?;
+    Ok(CheckedStage {
+        path: canon.to_string_lossy().into_owned(),
+        title,
+    })
+}
+
+/// The part of `stage` that changes the Session. Pure memory, so it never needs a time limit.
+pub fn register_stage(session: &mut Session, checked: CheckedStage) -> ToolResult {
+    into_tool_result(register(session, checked))
+}
+
+fn register(session: &mut Session, checked: CheckedStage) -> Result<String, String> {
+    let entry = session.register_staged(&checked.path, checked.title.as_deref(), None)?;
+    entry_json(&entry)
+}
+
 fn stage(
     arguments: &Value,
     session: &mut Session,
     fence: Option<&PathFence>,
 ) -> Result<String, String> {
-    let Some(fence) = fence else {
-        return Err("Host tool 'stage' has no path fence for this binding.".into());
-    };
-    let path = fs::arg_str(arguments, "path")?;
-    let title = arguments.get("title").and_then(Value::as_str);
-    let canon = validate_stage_file(&path, fence)?;
-    entry_json(&session.register_staged(&canon.to_string_lossy(), title, None)?)
+    register(session, check_stage(arguments, fence)?)
 }
 
 fn list_staged(session: &Session) -> Result<String, String> {

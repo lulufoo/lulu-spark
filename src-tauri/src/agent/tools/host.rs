@@ -1,5 +1,7 @@
 //! Host file tools (grep / read / write / str_replace / copy) under PathFence.
 
+use std::time::Instant;
+
 use serde_json::{json, Value};
 
 use crate::agent::fence::PathFence;
@@ -93,8 +95,18 @@ pub fn is_builtin(name: &str) -> bool {
 }
 
 pub fn call(name: &str, arguments: &Value, fence: &PathFence) -> ToolResult {
+    call_until(name, arguments, fence, None)
+}
+
+/// `call` where a tool that loops (`grep`) stops by itself at `deadline`.
+pub fn call_until(
+    name: &str,
+    arguments: &Value,
+    fence: &PathFence,
+    deadline: Option<Instant>,
+) -> ToolResult {
     let result = match name {
-        "grep" => fs::grep(arguments, fence),
+        "grep" => fs::grep_until(arguments, fence, deadline),
         "read" => fs::read(arguments, fence),
         "write" => fs::write(arguments, fence),
         "str_replace" => fs::str_replace(arguments, fence),

@@ -2,6 +2,7 @@
 
 use std::fs as std_fs;
 use std::path::Path;
+use std::time::Instant;
 
 use regex::Regex;
 use serde_json::{json, Value};
@@ -11,6 +12,7 @@ use crate::services::search_index::{prefilter_or_none, should_scan_file, GrepPre
 use crate::agent::fence::{
     require_absolute, stored_path, validate_readable_regular_file, PathFence,
 };
+use crate::agent::prompt::read_tool_timeout_text;
 
 const READ_DEFAULT_LIMIT: usize = 50;
 const GREP_MAX_MATCHES: usize = 80;
@@ -26,6 +28,31 @@ pub fn arg_str(arguments: &Value, key: &str) -> Result<String, String> {
 }
 
 pub fn grep(arguments: &Value, fence: &PathFence) -> Result<String, String> {
+    grep_until(arguments, fence, None)
+}
+
+/// Tracks the optional deadline of one `grep` and whether it was reached.
+struct GrepClock {
+    deadline: Option<Instant>,
+    reached: bool,
+}
+
+impl GrepClock {
+    fn has_run_out(&mut self) -> bool {
+        if !self.reached {
+            self.reached = self.deadline.is_some_and(|deadline| Instant::now() >= deadline);
+        }
+        self.reached
+    }
+}
+
+/// `grep` that stops by itself at `deadline` and then fails, so a partial list is never
+/// returned as if it were complete.
+pub fn grep_until(
+    arguments: &Value,
+    fence: &PathFence,
+    deadline: Option<Instant>,
+) -> Result<String, String> {
     let pattern = arg_str(arguments, "pattern")?;
     let regex = Regex::new(&pattern).map_err(|e| format!("invalid pattern: {e}"))?;
     let roots = match arguments.get("path").and_then(Value::as_str) {
@@ -43,6 +70,10 @@ pub fn grep(arguments: &Value, fence: &PathFence) -> Result<String, String> {
         .and_then(|cache| prefilter_or_none(&cache, &pattern));
     let mut matches = Vec::new();
     let mut files_seen = 0usize;
+    let mut clock = GrepClock {
+        deadline,
+        reached: false,
+    };
     for root in roots {
         walk_grep(
             &root,
@@ -51,10 +82,14 @@ pub fn grep(arguments: &Value, fence: &PathFence) -> Result<String, String> {
             &mut matches,
             &mut files_seen,
             prefilter.as_ref(),
+            &mut clock,
         );
-        if matches.len() >= GREP_MAX_MATCHES || files_seen >= GREP_MAX_FILES {
+        if matches.len() >= GREP_MAX_MATCHES || files_seen >= GREP_MAX_FILES || clock.reached {
             break;
         }
+    }
+    if clock.reached {
+        return Err(read_tool_timeout_text().into());
     }
     if matches.is_empty() {
         return Ok("No matches.".into());
@@ -69,8 +104,9 @@ fn walk_grep(
     matches: &mut Vec<String>,
     files_seen: &mut usize,
     prefilter: Option<&GrepPrefilter>,
+    clock: &mut GrepClock,
 ) {
-    if matches.len() >= GREP_MAX_MATCHES || *files_seen >= GREP_MAX_FILES {
+    if matches.len() >= GREP_MAX_MATCHES || *files_seen >= GREP_MAX_FILES || clock.has_run_out() {
         return;
     }
     if root.is_file() {
@@ -81,7 +117,7 @@ fn walk_grep(
         return;
     };
     for entry in entries.flatten() {
-        if matches.len() >= GREP_MAX_MATCHES || *files_seen >= GREP_MAX_FILES {
+        if matches.len() >= GREP_MAX_MATCHES || *files_seen >= GREP_MAX_FILES || clock.has_run_out() {
             return;
         }
         let path = entry.path();
@@ -92,7 +128,7 @@ fn walk_grep(
             if path.file_name().and_then(|n| n.to_str()) == Some(".git") {
                 continue;
             }
-            walk_grep(&path, fence, regex, matches, files_seen, prefilter);
+            walk_grep(&path, fence, regex, matches, files_seen, prefilter, clock);
         } else if path.is_file() {
             grep_file(&path, fence, regex, matches, files_seen, prefilter);
         }

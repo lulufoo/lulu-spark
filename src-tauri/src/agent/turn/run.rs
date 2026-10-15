@@ -413,15 +413,23 @@ pub(crate) fn run_loop_with_progress(
             if chat_turn_interrupted(&session.session_id, generation) {
                 return cancelled_turn_outcome(session, steps_checkpoint);
             }
-            let (result, use_host) = match tools::invoke(
+            let (result, use_host, timed_out) = match tools::invoke(
                 &turn_tools,
                 &call.name,
                 &call.arguments,
                 turn_fence.as_ref(),
                 session,
                 turn_id,
+                &is_cancelled,
             ) {
-                InvokeOutcome::Done { result, host } => (result, host),
+                InvokeOutcome::Done {
+                    result,
+                    host,
+                    timed_out,
+                } => (result, host, timed_out),
+                InvokeOutcome::Cancelled => {
+                    return cancelled_turn_outcome(session, steps_checkpoint);
+                }
                 InvokeOutcome::Abort(reply) => {
                     session.steps.push(Step {
                         role: "assistant".into(),
@@ -450,7 +458,8 @@ pub(crate) fn run_loop_with_progress(
                 return cancelled_turn_outcome(session, steps_checkpoint);
             }
             let catalog = turn_tools.catalog.as_ref().expect("catalog present");
-            if !result.is_error && catalog.is_mutating(&call.name) {
+            // A timed-out writing tool may still have changed something.
+            if (!result.is_error || timed_out) && catalog.is_mutating(&call.name) {
                 wrote = true;
             }
             if !result.is_error && call.name == "stage" {
@@ -466,7 +475,8 @@ pub(crate) fn run_loop_with_progress(
                 .with_session_id(&session.session_id)
                 .with_bounded_text_field("tool_name", &call.name)
                 .with_static_field("source", if use_host { "host" } else { "mcp" })
-                .with_bool_field("is_error", result.is_error),
+                .with_bool_field("is_error", result.is_error)
+                .with_bool_field("timed_out", timed_out),
             );
             let empty_copy = if use_host {
                 if result.is_error {
