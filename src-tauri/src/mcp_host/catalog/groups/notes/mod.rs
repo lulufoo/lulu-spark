@@ -12,6 +12,7 @@ mod get_note_file;
 mod list_notes_categories;
 mod schema;
 mod update_notes_category;
+mod write_public;
 
 use crate::mcp_host::ToolRoute;
 

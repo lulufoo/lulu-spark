@@ -241,6 +241,33 @@ fn spark_update_note_uses_source_invoke() {
 }
 
 #[test]
+fn create_and_update_note_descriptions_omit_internal_paths() {
+    for (api, channel) in [
+        ("create_note", "spark"),
+        ("create_note", "mobile"),
+        ("update_note", "spark"),
+        ("update_note", "mobile"),
+    ] {
+        let route = build("notes", api, channel).expect(api);
+        assert!(
+            !route.description.contains("common_path"),
+            "{api} {channel}: {}",
+            route.description
+        );
+        assert!(
+            !route.description.contains("{project}/{theme}"),
+            "{api} {channel}: {}",
+            route.description
+        );
+        assert!(
+            route.description.contains("{ok, id}"),
+            "{api} {channel}: {}",
+            route.description
+        );
+    }
+}
+
+#[test]
 fn get_note_content_is_mobile_only() {
     for channel in ["spark", "cursor", "cursor_ide", "codex", "claude"] {
         assert!(build("notes", "get_note_content", channel).is_none(), "{channel}");
