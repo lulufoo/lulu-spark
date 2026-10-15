@@ -149,7 +149,7 @@ fn install_host_llm(mock: &MockLlm) {
     )
     .expect("host entry");
     settings::save(&app_settings).expect("save");
-    secrets::set_secret("sk-host").expect("host key");
+    secrets::set_secret("host", "sk-host").expect("host key");
 }
 
 #[test]

@@ -10,8 +10,14 @@ export type SettingsConfig = {
   mcp_port?: number;
   assistant_engine?: string;
   theme?: string;
-  has_host_key?: boolean;
-  llm?: { model?: string; base_url?: string };
+  llm?: Record<string, EngineLlmConfig>;
+};
+
+export type EngineLlmConfig = {
+  platform?: string;
+  base_url?: string;
+  model?: string;
+  key_saved?: boolean;
 };
 
 export function errMessage(err: unknown, fallback: string): string {

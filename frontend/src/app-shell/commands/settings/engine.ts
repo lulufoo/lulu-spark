@@ -5,8 +5,9 @@ import { syncSettingsListSelect } from '../../ui/settings/list-select.ts';
 import {
   DEFAULT_ENGINE_CATEGORY,
   engineBaseUrlByCategory,
-  engineKeyHints,
+  engineKeySavedByCategory,
   engineModelByCategory,
+  SAVED_KEY_PLACEHOLDER,
   setResult,
   publishEngineCategory,
   store,
@@ -33,10 +34,32 @@ function ensureEngineCategoryOptions() {
   }
 }
 
-function credentialHintForCategory(_categoryId: string) {
-  return engineKeyHints.has_host_key
+function credentialHintForCategory(categoryId: string) {
+  return engineKeySavedByCategory[categoryId]
     ? 'API key configured. Enter a new key to replace it.'
     : 'No API key configured.';
+}
+
+/** Saved key → six dots; unsaved → empty. The hint follows the same flag. */
+function paintCredentialForCategory(categoryId: string) {
+  const apiKeyInput = document.getElementById('settings-llm-api-key') as HTMLInputElement | null;
+  const keyHint = document.getElementById('settings-llm-key-hint');
+  if (apiKeyInput) {
+    apiKeyInput.value = engineKeySavedByCategory[categoryId] ? SAVED_KEY_PLACEHOLDER : '';
+  }
+  if (keyHint) keyHint.textContent = credentialHintForCategory(categoryId);
+}
+
+/** Focus on the six dots: empty the field so the user types a replacement. */
+export function clearSavedCredentialPlaceholder(input: HTMLInputElement) {
+  if (input.value === SAVED_KEY_PLACEHOLDER) input.value = '';
+}
+
+/** Blur with nothing typed: bring the six dots back when this category has a saved key. */
+export function restoreSavedCredentialPlaceholder(input: HTMLInputElement) {
+  if (input.value === '' && engineKeySavedByCategory[store.activeEngineCategory]) {
+    input.value = SAVED_KEY_PLACEHOLDER;
+  }
 }
 
 function resolveEnginePreset(categoryId: string) {
@@ -74,22 +97,22 @@ export function loadAssistantEnginePanel(cfg?: SettingsConfig | Record<string, u
   const rec = (cfg ?? {}) as SettingsConfig;
   const categoryId = normalizeEngineCategory(rec.assistant_engine);
   const llm = rec.llm ?? {};
-  const preset = resolveEnginePreset(categoryId);
-
-  engineKeyHints.has_host_key = Boolean(rec.has_host_key);
   const engineSelect = document.getElementById('settings-llm-engine') as HTMLSelectElement | null;
   const modelInput = document.getElementById('settings-llm-model') as HTMLInputElement | null;
-  const keyHint = document.getElementById('settings-llm-key-hint');
-  const apiKeyInput = document.getElementById('settings-llm-api-key') as HTMLInputElement | null;
 
   store.activeEngineCategory = categoryId;
   publishEngineCategory(categoryId);
-  const savedModel = typeof llm.model === 'string' ? llm.model : '';
-  engineModelByCategory[categoryId] = savedModel || preset?.fields?.model || '';
-  engineBaseUrlByCategory[categoryId] =
-    typeof llm.base_url === 'string' && llm.base_url.trim()
-      ? llm.base_url.trim()
-      : preset?.fields?.base_url || '';
+  for (const category of listEngineCategories()) {
+    const saved = llm[category.id] ?? {};
+    const categoryPreset = getEnginePreset(category.id);
+    engineModelByCategory[category.id] =
+      (typeof saved.model === 'string' ? saved.model : '') || categoryPreset?.fields?.model || '';
+    engineBaseUrlByCategory[category.id] =
+      (typeof saved.base_url === 'string' ? saved.base_url.trim() : '')
+      || categoryPreset?.fields?.base_url
+      || '';
+    engineKeySavedByCategory[category.id] = Boolean(saved.key_saved);
+  }
 
   if (engineSelect) {
     engineSelect.value = categoryId;
@@ -104,8 +127,7 @@ export function loadAssistantEnginePanel(cfg?: SettingsConfig | Record<string, u
     modelInput.readOnly = false;
     modelInput.disabled = false;
   }
-  if (apiKeyInput) apiKeyInput.value = '';
-  if (keyHint) keyHint.textContent = credentialHintForCategory(categoryId);
+  paintCredentialForCategory(categoryId);
 }
 
 /**
@@ -120,8 +142,6 @@ export async function applyEngineCategorySelection(
   const engineSelect = document.getElementById('settings-llm-engine') as HTMLSelectElement | null;
   const modelInput = document.getElementById('settings-llm-model') as HTMLInputElement | null;
   const baseUrlInput = document.getElementById('settings-llm-base-url') as HTMLInputElement | null;
-  const keyHint = document.getElementById('settings-llm-key-hint');
-  const apiKeyInput = document.getElementById('settings-llm-api-key') as HTMLInputElement | null;
   const preset = resolveEnginePreset(id);
 
   if (modelInput) {
@@ -141,8 +161,12 @@ export async function applyEngineCategorySelection(
     baseUrl: engineBaseUrlByCategory[id] ?? '',
     forceBaseUrl: true,
   });
-  if (clearCredential && apiKeyInput) apiKeyInput.value = '';
-  if (keyHint) keyHint.textContent = credentialHintForCategory(id);
+  if (clearCredential) {
+    paintCredentialForCategory(id);
+  } else {
+    const keyHint = document.getElementById('settings-llm-key-hint');
+    if (keyHint) keyHint.textContent = credentialHintForCategory(id);
+  }
 
   if (modelInput && store.activeEngineCategory === id) {
     const draft = engineModelByCategory[id];
@@ -166,14 +190,15 @@ export async function saveAssistantEnginePanel() {
     (document.getElementById('settings-llm-base-url') as HTMLInputElement | null)?.value.trim()
     || preset?.fields?.base_url
     || '';
-  const apiKey = (document.getElementById('settings-llm-api-key') as HTMLInputElement | null)?.value.trim() ?? '';
+  const typedKey = (document.getElementById('settings-llm-api-key') as HTMLInputElement | null)?.value.trim() ?? '';
+  const apiKey = typedKey === SAVED_KEY_PLACEHOLDER ? '' : typedKey;
 
   const payload: Record<string, unknown> = {
     assistant_engine: categoryId,
     llm: { model, base_url: baseUrl },
   };
   if (apiKey) {
-    payload.api_key_host = apiKey;
+    payload.llm_api_key = { engine: categoryId, value: apiKey };
   }
 
   btn.disabled = true;

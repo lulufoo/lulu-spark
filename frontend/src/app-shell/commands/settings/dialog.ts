@@ -1,5 +1,10 @@
 import { loadKbHidePatterns } from './kb-hide-patterns.ts';
-import { applyEngineCategorySelection, saveAssistantEnginePanel } from './engine.ts';
+import {
+  applyEngineCategorySelection,
+  clearSavedCredentialPlaceholder,
+  restoreSavedCredentialPlaceholder,
+  saveAssistantEnginePanel,
+} from './engine.ts';
 import {
   deselectAllMcpChannelTools,
   loadMcpChannelTools,
@@ -117,6 +122,10 @@ function wireSettingsDialog() {
   document.getElementById('settings-llm-engine')?.addEventListener('change', (e) => {
     void applyEngineCategorySelection((e.target as HTMLSelectElement).value, { clearCredential: true });
   });
+
+  const keyInput = input('settings-llm-api-key');
+  keyInput?.addEventListener('focus', () => clearSavedCredentialPlaceholder(keyInput));
+  keyInput?.addEventListener('blur', () => restoreSavedCredentialPlaceholder(keyInput));
 
   btn('btn-settings-save-llm')?.addEventListener('click', () => {
     void saveAssistantEnginePanel();

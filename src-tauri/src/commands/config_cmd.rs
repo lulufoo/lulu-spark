@@ -1,8 +1,8 @@
 //! Config read/write commands.
 //!
-//! Persists the Host/GLM `assistant_engine`, `llm.model`, and Host credential
-//! (`api_key_host`). `get_config` / `to_config_json` expose only a key hint —
-//! never plaintext credentials.
+//! Persists `assistant_engine`, `llm.model` / `llm.base_url`, and the per-engine
+//! credential (`llm_api_key: { engine, value }`). `get_config` / `to_config_json`
+//! expose only a per-engine `key_saved` flag — never plaintext credentials.
 //! Illegal `assistant_engine` values are rejected at `apply_config_payload`.
 
 use serde_json::Value;
@@ -27,7 +27,7 @@ fn apply_config_payload(payload: &Value) -> Result<Value, String> {
         settings::normalize_prod_paths(&mut settings);
     }
     settings::save(&settings).map_err(|e| format!("{e}"))?;
-    settings::to_config_json(&settings, secrets::has_host_key()).map_err(|e| format!("{e}"))
+    settings::to_config_json(&settings, &secrets::list_saved_engines()).map_err(|e| format!("{e}"))
 }
 
 #[cfg(test)]

@@ -51,12 +51,14 @@ function baseConfig() {
     spark_root: '',
     knowledge_root: '',
     assistant_engine: 'host',
-    has_host_key: false,
     mcp_port: 19876,
     llm: {
-      platform: 'glm',
-      base_url: 'https://open.bigmodel.cn/api/paas/v4',
-      model: '',
+      host: {
+        platform: 'glm',
+        base_url: 'https://open.bigmodel.cn/api/paas/v4',
+        model: '',
+        key_saved: false,
+      },
     },
   };
 }

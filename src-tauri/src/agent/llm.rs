@@ -127,7 +127,7 @@ pub fn load_llm_config() -> Result<LlmConfig, LlmError> {
     let Some(engine) = settings::normalize_engine_value(&settings.assistant_engine) else {
         return Err(LlmError::MissingConfig);
     };
-    let api_key = secrets::get_secret()
+    let api_key = secrets::get_secret(engine)
         .map_err(|_| LlmError::MissingConfig)?
         .unwrap_or_default();
     let entry = settings::llm_entry_by_type(&settings.llm, engine)

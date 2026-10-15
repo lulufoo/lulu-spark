@@ -2,6 +2,9 @@ use super::types::{
     AppSettings, LlmSettings, LlmSettingsEntry, SettingsError, HOST_LLM_BASE_URL, HOST_LLM_PLATFORM,
 };
 
+/// Every LLM engine id. Keep aligned with `normalize_engine_value`.
+pub const LLM_ENGINES: [&str; 6] = ["host", "openai", "claude", "grok", "kimi", "qwen"];
+
 pub fn normalize_engine_value(raw: &str) -> Option<&'static str> {
     match raw.trim().to_ascii_lowercase().as_str() {
         "host" => Some("host"),

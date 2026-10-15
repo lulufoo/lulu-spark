@@ -169,11 +169,13 @@ fn to_config_json_hides_legacy_engine_llm_fields() {
         model: "composer-1".into(),
     });
 
-    let json = to_config_json(&settings, true).expect("json");
+    let json = to_config_json(&settings, &[]).expect("json");
     assert_eq!(json["assistant_engine"], "cursor");
-    assert_eq!(json["llm"]["model"], "");
-    assert_eq!(json["llm"]["platform"], "");
-    assert_eq!(json["llm"]["base_url"], "");
+    assert!(json["llm"].get("cursor").is_none());
+    for engine in ["host", "openai", "claude", "grok", "kimi", "qwen"] {
+        assert_eq!(json["llm"][engine]["model"], "", "{engine}");
+        assert_ne!(json["llm"][engine]["platform"], "cursor_agent", "{engine}");
+    }
     assert!(json.get("has_cursor_key").is_none());
 }
 
@@ -201,7 +203,7 @@ fn spark_github_fields_are_ignored_by_set_config() {
         }),
     )
     .expect("apply");
-    let json = to_config_json(&settings, false).expect("json");
+    let json = to_config_json(&settings, &[]).expect("json");
     assert!(json.get("spark_github_repo_url").is_none());
     assert!(json.get("github_user_url").is_none());
     assert!(json.get("has_github_token").is_none());
@@ -223,7 +225,7 @@ fn save_roundtrip_keeps_gateway_port() {
 fn to_config_json_includes_gateway_port() {
     let _sandbox = TestSandbox::new();
     let settings = AppSettings::default();
-    let json = to_config_json(&settings, false).expect("json");
+    let json = to_config_json(&settings, &[]).expect("json");
     assert_eq!(json["gateway_port"], settings.effective_gateway_port().expect("port"));
 }
 
@@ -231,7 +233,7 @@ fn to_config_json_includes_gateway_port() {
 fn to_config_json_exposes_fixed_notes_root() {
     let sandbox = TestSandbox::new();
     let settings = AppSettings::default();
-    let json = to_config_json(&settings, false).expect("json");
+    let json = to_config_json(&settings, &[]).expect("json");
     assert_eq!(
         json["notes_root"],
         sandbox.data_dir().join("notes").to_string_lossy().as_ref()
@@ -242,7 +244,7 @@ fn to_config_json_exposes_fixed_notes_root() {
         &serde_json::json!({ "notes_root": "/tmp/should-not-stick" }),
     )
     .expect("apply");
-    let after = to_config_json(&next, false).expect("json");
+    let after = to_config_json(&next, &[]).expect("json");
     assert_eq!(after["notes_root"], json["notes_root"]);
 }
 
@@ -251,7 +253,7 @@ fn theme_payload_accepts_stable_ids_and_rejects_unknown() {
     let _sandbox = TestSandbox::new();
     let mut settings = AppSettings::default();
     assert_eq!(settings.theme, "system");
-    assert_eq!(to_config_json(&settings, false).expect("json")["theme"], "system");
+    assert_eq!(to_config_json(&settings, &[]).expect("json")["theme"], "system");
     apply_config_payload(&mut settings, &serde_json::json!({ "theme": "dark" }))
         .expect("apply dark");
     assert_eq!(settings.theme, "dark");

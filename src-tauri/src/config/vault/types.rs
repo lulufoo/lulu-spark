@@ -1,6 +1,6 @@
-use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 
-pub const KEY_LLM_API_KEY: &str = "llm_api_key";
+use serde::{Deserialize, Serialize};
 
 const SLOT_SPARK: &str = "spark";
 const SLOT_CURSOR: &str = "cursor";
@@ -12,6 +12,7 @@ const SLOT_CLAUDE: &str = "claude";
 pub enum SecretError {
     Store(String),
     Parse(String),
+    InvalidEngine(String),
 }
 
 impl std::fmt::Display for SecretError {
@@ -19,6 +20,7 @@ impl std::fmt::Display for SecretError {
         match self {
             SecretError::Store(e) => write!(f, "store: {e}"),
             SecretError::Parse(e) => write!(f, "parse: {e}"),
+            SecretError::InvalidEngine(e) => write!(f, "invalid llm engine: {e}"),
         }
     }
 }
@@ -39,8 +41,9 @@ pub struct Vault {
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LlmSecrets {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub llm_api_key: Option<String>,
+    /// One credential per LLM engine id (`host`, `openai`, ...).
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub keys: BTreeMap<String, String>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -105,7 +108,7 @@ pub struct AuthUser {
 
 impl Vault {
     pub fn is_empty(&self) -> bool {
-        self.llm_api_key().is_none()
+        self.has_no_llm_keys()
             && self.mcp_slot(SLOT_SPARK).is_none()
             && self.mcp_slot(SLOT_CURSOR).is_none()
             && self.mcp_slot(SLOT_CODEX).is_none()
@@ -114,21 +117,40 @@ impl Vault {
             && self.auth_session().is_none()
     }
 
-    pub fn llm_api_key(&self) -> Option<&str> {
+    pub fn llm_api_key(&self, engine: &str) -> Option<&str> {
         self.llm
             .as_ref()
-            .and_then(|llm| llm.llm_api_key.as_deref())
+            .and_then(|llm| llm.keys.get(engine))
+            .map(String::as_str)
             .filter(|key| !key.is_empty())
     }
 
-    pub fn set_llm_api_key(&mut self, value: Option<String>) {
+    pub fn set_llm_api_key(&mut self, engine: &str, value: Option<String>) {
         match value.filter(|key| !key.is_empty()) {
             Some(key) => {
-                self.llm = Some(LlmSecrets {
-                    llm_api_key: Some(key),
-                });
+                self.llm
+                    .get_or_insert_with(LlmSecrets::default)
+                    .keys
+                    .insert(engine.to_string(), key);
             }
-            None => self.llm = None,
+            None => {
+                if let Some(llm) = self.llm.as_mut() {
+                    llm.keys.remove(engine);
+                }
+            }
+        }
+        self.prune_llm();
+    }
+
+    fn has_no_llm_keys(&self) -> bool {
+        self.llm
+            .as_ref()
+            .map_or(true, |llm| llm.keys.values().all(|key| key.is_empty()))
+    }
+
+    fn prune_llm(&mut self) {
+        if self.has_no_llm_keys() {
+            self.llm = None;
         }
     }
 
@@ -184,9 +206,7 @@ impl Vault {
     }
 
     pub(super) fn prune(&mut self) {
-        if self.llm_api_key().is_none() {
-            self.llm = None;
-        }
+        self.prune_llm();
         if let Some(mcp) = &self.mcp_oauth {
             if mcp_oauth_empty(mcp) {
                 self.mcp_oauth = None;
