@@ -21,5 +21,19 @@
   "turn.mcp_without_tools": "The MCP service for this scene exposes no tools, so the turn cannot continue.",
   "turn.mcp_unavailable": "The MCP service for this scene is unavailable: {error}",
   "turn.unusable_response": "The model's response was malformed or asked for an unsupported tool. Nothing was written.",
-  "turn.clarify_limit": "Too many clarifying questions. Rephrase the request or try again later."
+  "turn.clarify_limit": "Too many clarifying questions. Rephrase the request or try again later.",
+  "turn.not_configured": "GLM is not configured. Configure Host / GLM in Settings before starting a chat.",
+  "turn.unbound": "Unbound — no active Binding Contract; chat cannot run.",
+  "turn.cancelled": "In-flight turn cancelled — binding cut.",
+  "turn.empty_prompt": "Binding prompt is empty; cannot run chat.",
+  "turn.busy": "Busy — try again later",
+  "turn.session_mismatch": "Session identity mismatch — cut or stale session cannot continue.",
+  "progress.requesting": "Requesting…",
+  "progress.calling_tool": "Calling {name}…",
+  "progress.preparing_tool": "Preparing {name}…",
+  "progress.preparing": "Preparing…",
+  "progress.receiving_preview": "Receiving… {preview}",
+  "progress.thinking": "Thinking…",
+  "progress.receiving": "Receiving…",
+  "progress.retrying": "Retrying ({attempt}/{max})…"
 }

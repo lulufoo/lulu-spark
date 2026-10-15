@@ -6,8 +6,9 @@ use serde_json::{json, Value};
 
 use crate::agent::diagnostics::{self, DiagnosticEvent, TurnId};
 use crate::agent::language::{
-    describe_clarify_limit, describe_empty_reply, describe_mcp_unavailable,
-    describe_mcp_without_tools, describe_unusable_response, Language,
+    describe_clarify_limit, describe_empty_prompt, describe_empty_reply, describe_mcp_unavailable,
+    describe_mcp_without_tools, describe_calling_tool, describe_requesting,
+    describe_unbound, describe_unusable_response, Language,
 };
 use crate::agent::llm::{self, LlmConfig};
 use crate::agent::progress::{self, ProgressSink};
@@ -66,8 +67,7 @@ pub(crate) fn run_loop_with_progress(
         });
         // Distinguish never/fully unbound from a corrupted bound-without-generation slot.
         if current_binding_snapshot().is_none() {
-            let reply =
-                "Unbound — no active Binding Contract; chat cannot run.".to_string();
+            let reply = describe_unbound(Language::current()).to_string();
             session.steps.push(Step {
                 role: "assistant".into(),
                 content: Some(reply.clone()),
@@ -106,7 +106,7 @@ pub(crate) fn run_loop_with_progress(
             clock: StepClock::stamp_now(),
             extra: Default::default(),
         });
-        let reply = "Binding prompt is empty; cannot run chat.".to_string();
+        let reply = describe_empty_prompt(Language::current()).to_string();
         session.steps.push(Step {
             role: "assistant".into(),
             content: Some(reply.clone()),
@@ -242,7 +242,7 @@ pub(crate) fn run_loop_with_progress(
             sink,
             &session.session_id,
             turn_id,
-            "Requesting…",
+            describe_requesting(Language::current()),
             thinking_text,
             thinking_ms,
         );
@@ -402,7 +402,7 @@ pub(crate) fn run_loop_with_progress(
                 sink,
                 &session.session_id,
                 turn_id,
-                format!("Calling {}…", call.name),
+                describe_calling_tool(Language::current(), &call.name),
                 thinking_text,
                 thinking_ms,
             );

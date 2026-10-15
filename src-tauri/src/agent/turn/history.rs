@@ -2,7 +2,7 @@
 
 use serde_json::{json, Value};
 
-use crate::agent::language::{describe_llm_error, Language};
+use crate::agent::language::{describe_cancelled, describe_llm_error, Language};
 use crate::agent::llm::LlmError;
 use crate::agent::session::{self, Session, Step, EXTRA_APPEND_CONTENT};
 
@@ -134,7 +134,7 @@ pub(crate) fn cancelled_turn_outcome(session: &mut Session, steps_checkpoint: us
         persist(session);
     }
     TurnOutcome {
-        reply_text: "In-flight turn cancelled — binding cut.".to_string(),
+        reply_text: describe_cancelled(Language::current()).to_string(),
         terminal: Terminal::Error,
         wrote: false,
     }

@@ -4,13 +4,14 @@ use super::{fill_text, load_texts, read_text};
 use crate::agent::language::Language;
 
 /// Message keys start with one of these scene prefixes.
-const KEY_PREFIXES: [&str; 2] = ["llm_error.", "turn."];
+const KEY_PREFIXES: [&str; 3] = ["llm_error.", "turn.", "progress."];
 
 /// Every message key written as a string literal in the code that picks copy.
 fn keys_used_in_code() -> BTreeSet<String> {
     let sources = [
         include_str!("../../agent/language/llm_errors.rs"),
         include_str!("../../agent/language/turn_replies.rs"),
+        include_str!("../../agent/language/progress_hints.rs"),
     ];
     let mut keys = BTreeSet::new();
     for source in sources {
@@ -78,4 +79,13 @@ fn a_variable_without_a_value_stays_as_it_is() {
 #[test]
 fn the_language_code_names_its_locale_file() {
     assert_eq!(Language::English.code(), "en");
+}
+
+#[test]
+fn progress_hints_keep_their_variables() {
+    use crate::agent::language::{describe_receiving_preview, describe_retrying};
+    let retry = describe_retrying(Language::English, 1, 2);
+    assert!(retry.contains("1/2"), "{retry}");
+    assert!(!retry.contains('{'), "{retry}");
+    assert_eq!(describe_receiving_preview(Language::English, "你好"), "Receiving… 你好");
 }

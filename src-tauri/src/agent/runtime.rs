@@ -11,7 +11,7 @@ use serde_json::{json, Value};
 use crate::config::settings;
 use crate::agent::diagnostics::{self, DiagnosticEvent, TurnId};
 use crate::agent::engine_router::{self, AdapterKind, EngineRouteError, TurnInput};
-use crate::agent::language::Language;
+use crate::agent::language::{describe_not_configured, describe_unbound, Language};
 use crate::agent::llm;
 use crate::agent::progress::{self, ProgressSink};
 use crate::agent::r#loop::{self, ChatTurnResult, Terminal, TurnOutcome};
@@ -218,7 +218,7 @@ pub(crate) fn chat_turn_with_trace(
 
     // Binding is checked before settings or credentials.
     if !r#loop::has_active_binding() {
-        let reply = "Unbound — no active Binding Contract; chat cannot run.".to_string();
+        let reply = describe_unbound(Language::current()).to_string();
         append_user_assistant(&mut session, message, &reply);
         r#loop::end_chat_turn(session_id);
         log_timing(
@@ -328,9 +328,7 @@ pub(crate) fn chat_turn_with_trace(
             Ok(pack_outcome(
                 session_id,
                 TurnOutcome {
-                    reply_text:
-                        "GLM is not configured. Configure Host / GLM in Settings before starting a chat."
-                            .into(),
+                    reply_text: describe_not_configured(Language::current()).into(),
                     terminal: Terminal::Error,
                     wrote: false,
                 },

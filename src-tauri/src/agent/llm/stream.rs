@@ -8,6 +8,10 @@ use serde_json::Value;
 use super::classify::{classify_finish, Shape};
 use super::read_error::map_read_error;
 use super::record::CallTrace;
+use crate::agent::language::{
+    describe_preparing, describe_preparing_tool, describe_receiving, describe_receiving_preview,
+    describe_thinking, Language,
+};
 use crate::agent::session;
 use super::{AssistantMessage, LlmCallOutcome, LlmError, ToolCall};
 
@@ -214,22 +218,22 @@ impl StreamAssembler {
             .rev()
             .find(|slot| !slot.name.is_empty())
         {
-            return format!("Preparing {}…", slot.name);
+            return describe_preparing_tool(Language::current(), &slot.name);
         }
         if self
             .tool_calls
             .iter()
             .any(|slot| !slot.id.is_empty() || !slot.arguments.is_empty())
         {
-            return "Preparing…".into();
+            return describe_preparing(Language::current()).into();
         }
         if !self.content.is_empty() {
-            return format!("Receiving… {}", preview_tail(&self.content, 40));
+            return describe_receiving_preview(Language::current(), &preview_tail(&self.content, 40));
         }
         if !self.reasoning.is_empty() {
-            return "Thinking…".into();
+            return describe_thinking(Language::current()).into();
         }
-        "Receiving…".into()
+        describe_receiving(Language::current()).into()
     }
 
     /// Unconditional view of everything received so far; never fails, never normalises.
