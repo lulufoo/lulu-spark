@@ -1,9 +1,11 @@
-//! Fixed user-facing copy, one entry point per language.
+//! Fixed user-facing copy.
 //!
-//! Convention: every message is one function; its first parameter is the [`Language`],
-//! and its body is an exhaustive `match` on it. Adding a language then makes the
-//! compiler list every message that still needs a text.
+//! The texts live in `src-tauri/locales/<code>.json`, one file per language (see
+//! `catalog`). Convention: every message is one function; its first parameter is the
+//! [`Language`]; its body picks the message key and fills the variables. The text itself
+//! never appears in the code.
 
+mod catalog;
 mod llm_errors;
 mod turn_replies;
 
@@ -20,6 +22,13 @@ pub enum Language {
 }
 
 impl Language {
+    /// The language code, which is also the name of its locale file.
+    pub fn code(self) -> &'static str {
+        match self {
+            Language::English => "en",
+        }
+    }
+
     /// Only English exists today. A language setting would be read here, so callers
     /// that pass `Language::current()` need no change.
     pub fn current() -> Self {
