@@ -3,7 +3,9 @@
 pub mod catalog;
 pub mod fs;
 pub mod host;
+mod local;
 pub mod stage;
+pub mod timeout;
 
 use std::collections::BTreeSet;
 use std::fmt;
@@ -18,6 +20,8 @@ use super::mcp;
 use super::session::Session;
 
 pub use catalog::{ToolCatalog, ToolResult};
+pub use local::Stopped;
+use timeout::LOCAL_TOOL_TIMEOUT;
 
 /// Prepared tool surface for one agent turn.
 pub struct TurnTools {
@@ -116,12 +120,18 @@ pub enum InvokeOutcome {
     Done {
         result: ToolResult,
         host: bool,
+        /// A local tool did not finish; `result` holds the text for the model.
+        stopped: Option<Stopped>,
     },
+    /// The turn was cancelled while a local tool was running.
+    Cancelled,
     /// Abort the turn with this assistant reply.
     Abort(String),
 }
 
 /// Validate arguments and dispatch to Stage / Host / MCP.
+///
+/// Local tools run under `LOCAL_TOOL_TIMEOUT`; `is_cancelled` is checked while they run.
 pub fn invoke(
     turn: &TurnTools,
     name: &str,
@@ -129,6 +139,7 @@ pub fn invoke(
     fence: Option<&PathFence>,
     session: &mut Session,
     turn_id: &TurnId,
+    is_cancelled: &dyn Fn() -> bool,
 ) -> InvokeOutcome {
     let host = uses_host(turn, name);
     let Some(catalog) = turn.catalog.as_ref() else {
@@ -138,6 +149,7 @@ pub fn invoke(
                 is_error: true,
             },
             host,
+            stopped: None,
         };
     };
     if !catalog.contains(name) {
@@ -147,6 +159,7 @@ pub fn invoke(
                 is_error: true,
             },
             host,
+            stopped: None,
         };
     }
 
@@ -159,6 +172,7 @@ pub fn invoke(
                     is_error: true,
                 },
                 host,
+                stopped: None,
             };
         }
     };
@@ -170,20 +184,30 @@ pub fn invoke(
                 is_error: true,
             },
             host,
+            stopped: None,
         };
     }
 
     let result = if host {
-        if stage::is_builtin(name) {
-            stage::call(name, &arguments, session, fence)
-        } else {
-            match fence {
-                Some(fence) => host::call(name, &arguments, fence),
-                None => ToolResult {
-                    content: format!("Host tool '{name}' has no path fence for this binding."),
-                    is_error: true,
-                },
+        let read_only = !catalog.is_mutating(name);
+        match local::call(
+            name,
+            &arguments,
+            session,
+            fence,
+            read_only,
+            LOCAL_TOOL_TIMEOUT,
+            is_cancelled,
+        ) {
+            local::Local::Done(result) => result,
+            local::Local::Stopped(stopped, result) => {
+                return InvokeOutcome::Done {
+                    result,
+                    host,
+                    stopped: Some(stopped),
+                };
             }
+            local::Local::Cancelled => return InvokeOutcome::Cancelled,
         }
     } else {
         let Some((mcp_config, _)) = turn.mcp.as_ref() else {
@@ -200,5 +224,9 @@ pub fn invoke(
         }
     };
 
-    InvokeOutcome::Done { result, host }
+    InvokeOutcome::Done {
+        result,
+        host,
+        stopped: None,
+    }
 }

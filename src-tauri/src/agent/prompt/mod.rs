@@ -20,6 +20,21 @@ pub fn read_skipped_tool_text() -> &'static str {
     include_str!("skipped_tool.md").trim_end()
 }
 
+/// Result text of a read-only tool call that hit the time limit.
+pub fn read_tool_timeout_text() -> &'static str {
+    include_str!("tool-timeout-read.md").trim_end()
+}
+
+/// Result text of a tool call that changes things and hit the time limit.
+pub fn write_tool_timeout_text() -> &'static str {
+    include_str!("tool-timeout-write.md").trim_end()
+}
+
+/// Result text of a tool call that changes things and whose thread crashed.
+pub fn write_tool_crash_text() -> &'static str {
+    include_str!("tool-crash-write.md").trim_end()
+}
+
 #[cfg(test)]
 #[path = "../../unit-tests/agent/prompt_tests.rs"]
 mod tests;
