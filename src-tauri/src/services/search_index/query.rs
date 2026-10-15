@@ -23,7 +23,6 @@ pub enum QueryRoute {
 pub struct SearchFilter {
     pub category: Option<String>,
     pub layer: Option<String>,
-    pub common_path_prefix: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -124,13 +123,6 @@ fn apply_filters(sql: &mut String, args: &mut Vec<String>, filter: &SearchFilter
     if let Some(l) = &filter.layer {
         sql.push_str(" AND chunk.layer = ?");
         args.push(l.clone());
-    }
-    if let Some(p) = &filter.common_path_prefix {
-        sql.push_str(" AND chunk.common_path LIKE ? ESCAPE '\\'");
-        args.push(format!(
-            "{}%",
-            p.replace('\\', "\\\\").replace('%', "\\%").replace('_', "\\_")
-        ));
     }
 }
 

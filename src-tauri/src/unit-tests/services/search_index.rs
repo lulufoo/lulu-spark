@@ -1,12 +1,9 @@
 use super::*;
 use std::collections::HashSet;
 use std::fs;
-use std::path::{Path, PathBuf};
-
-use regex::Regex;
+use std::path::PathBuf;
 
 use crate::services::search_index::chunk::char_len;
-use crate::agent::fence::PathFence;
 
 fn temp_cache() -> (tempfile::TempDir, PathBuf) {
     let dir = tempfile::tempdir().expect("tmp");
@@ -53,7 +50,7 @@ fn open_drops_tables_from_older_schema_version() {
         .query_row("PRAGMA user_version", [], |r| r.get(0))
         .expect("version");
     assert_eq!(version, SCHEMA_VERSION);
-    assert!(indexed_mtimes(&conn).expect("mtime column exists").is_empty());
+    assert!(distinct_paths(&conn).expect("new schema is readable").is_empty());
 }
 
 #[test]
@@ -111,63 +108,6 @@ fn desktop_spark_hits_always_expose_raw_layer() {
     assert_eq!(hits.len(), 1);
     assert_eq!(hits[0]["layer"], "raw");
     assert_eq!(hits[0]["common_path"], "proj/n.md");
-}
-
-#[test]
-fn grep_prefilter_forces_scan_when_file_newer_than_index() {
-    let (_dir, cache) = temp_cache();
-    let root = _dir.path().join("corpus");
-    fs::create_dir_all(&root).expect("mkdir");
-    let path = root.join("stale.md");
-    fs::write(&path, "original text without the needle").expect("write");
-    let key = path.to_string_lossy().replace('\\', "/");
-    let indexed = SourceChunk::from_text(
-        "notes",
-        "raw",
-        &key,
-        "stale.md",
-        "",
-        "doc-stale",
-        "stale",
-        "original text without the needle",
-        "",
-        0,
-        file_mtime_nanos(&path) - 1_000_000_000,
-    );
-    upsert_chunks(&open(&cache).expect("open"), &[indexed]).expect("index");
-
-    // Indexed, unchanged-looking, not a candidate → would be skipped if mtime were ignored.
-    let pre = prefilter_or_none(&cache, "needlework").expect("prefilter");
-    assert!(!pre.candidates.contains(&PathBuf::from(&key)));
-    assert!(
-        should_scan_file(&path, Some(&pre)),
-        "file newer than its index row must be scanned"
-    );
-
-    // Same file re-indexed with the current mtime → skip is allowed again.
-    let fresh = SourceChunk::from_text(
-        "notes",
-        "raw",
-        &key,
-        "stale.md",
-        "",
-        "doc-stale",
-        "stale",
-        "original text without the needle",
-        "",
-        0,
-        file_mtime_nanos(&path),
-    );
-    upsert_chunks(&open(&cache).expect("open"), &[fresh]).expect("reindex");
-    let pre = prefilter_or_none(&cache, "needlework").expect("prefilter");
-    assert!(!should_scan_file(&path, Some(&pre)));
-}
-
-#[test]
-fn prefilter_does_not_create_missing_index_file() {
-    let (_dir, cache) = temp_cache();
-    assert!(prefilter_or_none(&cache, "anything").is_none());
-    assert!(!index_exists(&cache));
 }
 
 #[test]
@@ -249,7 +189,7 @@ fn content_hash_skips_unchanged_and_ghost_delete_removes_stale() {
 }
 
 #[test]
-fn upsert_chunks_preloads_hashes_and_updates_mtime_only() {
+fn upsert_chunks_preloads_hashes_and_skips_unchanged_bodies() {
     let (_dir, cache) = temp_cache();
     let conn = open(&cache).expect("open");
     let mut many = Vec::new();
@@ -270,17 +210,13 @@ fn upsert_chunks_preloads_hashes_and_updates_mtime_only() {
     }
     let s1 = upsert_chunks(&conn, &many).expect("seed");
     assert_eq!(s1.upserted, 80);
-    for c in &mut many {
-        c.mtime += 50;
-    }
-    let s2 = upsert_chunks(&conn, &many).expect("mtime only");
+    let s2 = upsert_chunks(&conn, &many).expect("unchanged");
     assert_eq!(s2.skipped, 80);
     assert_eq!(s2.upserted, 0);
-    let (hash, mtime) = existing_hash(&conn, &many[0].doc_id, &many[0].layer, many[0].idx)
+    let hash = existing_hash(&conn, &many[0].doc_id, &many[0].layer, many[0].idx)
         .expect("lookup")
         .expect("row");
     assert_eq!(hash, many[0].content_hash);
-    assert_eq!(mtime, many[0].mtime);
     many[3] = SourceChunk::from_text(
         "notes",
         "raw",
@@ -458,130 +394,3 @@ fn doc_id_lookup_uses_the_unique_index() {
         "lookup must not scan: {plan:?}"
     );
 }
-
-fn scan_matches(root: &Path, regex: &Regex) -> Vec<String> {
-    let fence = PathFence {
-        read_allow: vec![root.to_path_buf()],
-        ..PathFence::default()
-    };
-    let mut matches = Vec::new();
-    let mut files_seen = 0usize;
-    walk_for_test(root, &fence, regex, &mut matches, &mut files_seen, None);
-    matches
-}
-
-fn walk_for_test(
-    root: &Path,
-    fence: &PathFence,
-    regex: &Regex,
-    matches: &mut Vec<String>,
-    files_seen: &mut usize,
-    prefilter: Option<&GrepPrefilter>,
-) {
-    if !root.is_dir() {
-        return;
-    }
-    for entry in fs::read_dir(root).expect("rd").flatten() {
-        let path = entry.path();
-        if path.is_dir() {
-            walk_for_test(&path, fence, regex, matches, files_seen, prefilter);
-            continue;
-        }
-        if !path.is_file() {
-            continue;
-        }
-        if !should_scan_file(&path, prefilter) {
-            continue;
-        }
-        *files_seen += 1;
-        let Ok(text) = fs::read_to_string(&path) else {
-            continue;
-        };
-        for (idx, line) in text.lines().enumerate() {
-            if regex.is_match(line) {
-                matches.push(format!("{}:{}:{line}", path.display(), idx + 1));
-            }
-        }
-    }
-}
-
-#[test]
-fn grep_prefilter_matches_full_scan_on_random_patterns() {
-    let (_dir, cache) = temp_cache();
-    let root = _dir.path().join("corpus");
-    fs::create_dir_all(&root).expect("mkdir");
-    let files = [
-        ("a.md", "角色扮演 is a long story about narrative design"),
-        ("b.md", "search tools and 角色 appear together here"),
-        ("c.txt", "unindexed sidecar file mentions 角色扮演 too"),
-        ("d.md", "zzzz only filler text without the keywords"),
-    ];
-    let mut chunks = Vec::new();
-    for (name, body) in files {
-        let path = root.join(name);
-        fs::write(&path, body).expect("write");
-        if name.ends_with(".md") {
-            chunks.push(SourceChunk::from_text(
-                "notes",
-                "raw",
-                &path.to_string_lossy(),
-                name,
-                "",
-                name,
-                name,
-                body,
-                "",
-                0,
-                file_mtime_nanos(&path),
-            ));
-        }
-    }
-    upsert_chunks(&open(&cache).expect("open"), &chunks).expect("index");
-
-    let patterns = [
-        "角色扮演",
-        "search",
-        "narrative",
-        "filler",
-        "foo",
-        "角色扮演|missing",
-        "search.*角色",
-        "zzzz",
-        "sidecar",
-        "design",
-    ];
-    let mut extra = Vec::new();
-    for i in 0..90 {
-        extra.push(format!("story{i:02}"));
-    }
-    let all: Vec<String> = patterns
-        .iter()
-        .map(|s| s.to_string())
-        .chain(extra)
-        .collect();
-    assert!(all.len() >= 100);
-
-    for pat in &all {
-        let Ok(regex) = Regex::new(pat) else {
-            continue;
-        };
-        let full = scan_matches(&root, &regex);
-        let pre = prefilter_or_none(&cache, pat);
-        let fence = PathFence {
-            read_allow: vec![root.clone()],
-            ..PathFence::default()
-        };
-        let mut filtered = Vec::new();
-        let mut seen = 0usize;
-        walk_for_test(
-            &root,
-            &fence,
-            &regex,
-            &mut filtered,
-            &mut seen,
-            pre.as_ref(),
-        );
-        assert_eq!(filtered, full, "pattern {pat}");
-    }
-}
-

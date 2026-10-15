@@ -4,7 +4,6 @@ mod bigram;
 mod chunk;
 mod chunk_rows;
 mod collect;
-mod grep_prefilter;
 mod query;
 mod store;
 mod sync;
@@ -16,16 +15,12 @@ pub use collect::{
     collect_all, collect_knowledge, collect_knowledge_text, collect_notes, file_mtime_nanos,
     note_file_chunks, ChunkKey, SourceChunk,
 };
-pub use grep_prefilter::{
-    candidate_paths, extract_literals, indexed_paths, prefilter_or_none, should_scan_file,
-    GrepPrefilter,
-};
 pub use query::{
     cache_dir_or_err, classify_query, fold_by_doc_id, parse_limit, search, search_desktop_knowledge,
     search_desktop_spark, search_in_cache, QueryHit, QueryRoute, SearchFilter,
 };
 pub use store::{
-    distinct_paths, existing_hash, index_exists, indexed_mtimes, open, rebuild, upsert_document,
+    distinct_paths, existing_hash, index_exists, open, rebuild, upsert_document,
     IndexStats, INDEX_FILE, SCHEMA_VERSION,
 };
 pub use sync::{sync_note_files, sync_note_files_best_effort};

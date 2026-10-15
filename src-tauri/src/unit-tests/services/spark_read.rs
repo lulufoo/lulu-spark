@@ -470,22 +470,7 @@ fn get_note_content_truncates_over_10kb() {
 }
 
 #[test]
-fn notes_search_filter_and_hit_projection() {
-    assert_eq!(
-        notes_raw_search_filter(None).expect("filter"),
-        r#"layer = "raw""#
-    );
-    assert_eq!(
-        notes_raw_search_filter(Some("inbox")).expect("filter"),
-        r#"layer = "raw" AND common_path STARTS WITH "inbox/""#
-    );
-    assert_eq!(
-        notes_raw_search_filter(Some("personal-growth")).expect("filter"),
-        r#"layer = "raw" AND common_path STARTS WITH "personal-growth/""#
-    );
-    let bad = notes_raw_search_filter(Some(r#"inbox" OR layer = "digest"#));
-    assert_eq!(bad.expect_err("reject injected catalog")["_status"], 400);
-
+fn notes_search_hit_projection() {
     let id = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
     let mut path_index = std::collections::HashMap::new();
     path_index.insert(
@@ -529,7 +514,7 @@ fn search_notes_rejects_empty_q() {
             fs::write(notes.join("index.json"), br#"{"entries":{}}"#).expect("index");
         },
         |cfg_dir| {
-            let v = search_notes(cfg_dir, "  ", None, None);
+            let v = search_notes(cfg_dir, "  ", None);
             assert_eq!(v["_status"], 400);
             assert_eq!(v["error"], "Missing q");
         },

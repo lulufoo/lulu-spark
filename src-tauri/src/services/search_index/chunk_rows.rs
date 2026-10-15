@@ -21,7 +21,6 @@ struct StoredChunk {
     common_path: String,
     repo: String,
     created_at: String,
-    mtime: i64,
 }
 
 impl StoredChunk {
@@ -33,14 +32,13 @@ impl StoredChunk {
             || self.common_path != chunk.common_path
             || self.repo != chunk.repo
             || self.created_at != chunk.created_at
-            || self.mtime != chunk.mtime
     }
 }
 
 fn load_existing(conn: &Connection) -> Result<HashMap<ChunkKey, StoredChunk>, String> {
     let mut stmt = conn
         .prepare(
-            "SELECT id, doc_id, layer, idx, content_hash, category, title, path, common_path, repo, created_at, mtime
+            "SELECT id, doc_id, layer, idx, content_hash, category, title, path, common_path, repo, created_at
              FROM chunk",
         )
         .map_err(|e| e.to_string())?;
@@ -62,7 +60,6 @@ fn load_existing(conn: &Connection) -> Result<HashMap<ChunkKey, StoredChunk>, St
                     common_path: row.get(8)?,
                     repo: row.get(9)?,
                     created_at: row.get(10)?,
-                    mtime: row.get(11)?,
                 },
             ))
         })
@@ -131,7 +128,7 @@ fn insert_chunk(conn: &Connection, chunk: &SourceChunk) -> Result<(), String> {
 }
 
 /// Upsert chunks in one transaction, keyed by `(doc_id, layer, idx)`. An unchanged
-/// `content_hash` keeps the stored text; stale metadata (path, title, mtime, ...) is
+/// `content_hash` keeps the stored text; stale metadata (path, title, ...) is
 /// refreshed in place so a moved or retitled document stays correct without a rewrite.
 pub fn upsert_chunks(conn: &Connection, chunks: &[SourceChunk]) -> Result<IndexStats, String> {
     let tx = conn.unchecked_transaction().map_err(|e| e.to_string())?;
@@ -143,8 +140,8 @@ pub fn upsert_chunks(conn: &Connection, chunks: &[SourceChunk]) -> Result<IndexS
                 if old.metadata_differs(chunk) {
                     tx.execute(
                         "UPDATE chunk SET category = ?1, title = ?2, path = ?3, common_path = ?4,
-                                repo = ?5, created_at = ?6, mtime = ?7
-                         WHERE id = ?8",
+                                repo = ?5, created_at = ?6
+                         WHERE id = ?7",
                         params![
                             chunk.category,
                             chunk.title,
@@ -152,7 +149,6 @@ pub fn upsert_chunks(conn: &Connection, chunks: &[SourceChunk]) -> Result<IndexS
                             chunk.common_path,
                             chunk.repo,
                             chunk.created_at,
-                            chunk.mtime,
                             old.id,
                         ],
                     )

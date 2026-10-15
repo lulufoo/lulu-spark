@@ -5,7 +5,7 @@
 //! hold only `body`; everything else lives in `chunk`, where `(doc_id, layer, idx)`
 //! is enforced unique by the database.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use rusqlite::{params, Connection, OptionalExtension};
@@ -76,17 +76,17 @@ pub fn open(cache_dir: &Path) -> Result<Connection, String> {
     Ok(conn)
 }
 
-/// `(content_hash, mtime)` of one indexed chunk, found through the unique index.
+/// `content_hash` of one indexed chunk, found through the unique index.
 pub fn existing_hash(
     conn: &Connection,
     doc_id: &str,
     layer: &str,
     idx: usize,
-) -> Result<Option<(String, i64)>, String> {
+) -> Result<Option<String>, String> {
     conn.query_row(
-        "SELECT content_hash, mtime FROM chunk WHERE doc_id = ?1 AND layer = ?2 AND idx = ?3",
+        "SELECT content_hash FROM chunk WHERE doc_id = ?1 AND layer = ?2 AND idx = ?3",
         params![doc_id, layer, idx as i64],
-        |row| Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?)),
+        |row| row.get::<_, String>(0),
     )
     .optional()
     .map_err(|e| e.to_string())
@@ -142,22 +142,4 @@ pub fn distinct_paths(conn: &Connection) -> Result<HashSet<String>, String> {
         set.insert(path.map_err(|e| e.to_string())?);
     }
     Ok(set)
-}
-
-/// `path → newest mtime` for every indexed file.
-pub fn indexed_mtimes(conn: &Connection) -> Result<HashMap<String, i64>, String> {
-    let mut stmt = conn
-        .prepare("SELECT path, MAX(mtime) FROM chunk GROUP BY path")
-        .map_err(|e| e.to_string())?;
-    let rows = stmt
-        .query_map([], |row| {
-            Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?))
-        })
-        .map_err(|e| e.to_string())?;
-    let mut map = HashMap::new();
-    for row in rows {
-        let (path, mtime) = row.map_err(|e| e.to_string())?;
-        map.insert(path, mtime);
-    }
-    Ok(map)
 }
