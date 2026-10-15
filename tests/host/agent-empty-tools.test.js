@@ -105,7 +105,7 @@ describe('Host Agent MCP tools — source / interface layer locks', () => {
     expect(loopRs).toMatch(/catalog\.definitions\.as_slice\(\)/);
     expect(loopRs).not.toMatch(/mcp_client::/);
     expect(loopRs).not.toMatch(/fs_tools::/);
-    expect(loopRs).toMatch(/spark_path_fence::expand_for_business_key/);
+    expect(loopRs).toMatch(/spark::expand_for_business_key/);
     expect(loopRs).not.toMatch(
       /chat_completions\s*\(\s*&messages\s*,\s*&\s*\[\s*\]\s*,\s*config\s*\)/,
     );

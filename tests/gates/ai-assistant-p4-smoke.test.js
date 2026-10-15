@@ -56,7 +56,7 @@ const LOOP_MARKERS = [
   'unsupported_tool_calls_upstream_is_error_terminal_no_prompt_json',
   'length_and_http_errors_map_to_error_terminal_no_retry',
   'history_truncation_keeps_system_and_dual_hard_caps',
-  'terminal_no_plan_unsupported_and_error_are_distinguishable',
+  'terminal_no_plan_and_error_are_distinguishable',
   't3_host_business_chat_sends_empty_tools_to_llm',
   't3_host_empty_tools_facade_usable_confirmed',
   't2_empty_tools_binding_text_only_round_succeeds',

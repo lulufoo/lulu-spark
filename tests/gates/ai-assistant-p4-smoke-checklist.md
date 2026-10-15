@@ -19,7 +19,7 @@
 
 - [ ] 绑定计划后对话「加一个子计划 …」：助手成功回复；计划列表/详情出现新子项（`wrote=true` 触发刷新）。✅ Verified（Loop：`run_loop_add_sub_and_update_sub_title_paths_are_observable`；计划页：`turn-completed` + `get_todo_tasks`）
 - [ ] 对话改主标题 / 改子标题：对应标题更新可见。✅ Verified（Loop：`run_loop_tool_write_sets_wrote_true_and_persists` / 子标题路径同上）
-- [ ] 无计划 / 不支持 / 技术失败：文案与终态可区分，不假装成功。✅ Verified（`terminal_no_plan_unsupported_and_error_are_distinguishable`）
+- [ ] 无计划 / 不支持 / 技术失败：文案与终态可区分，不假装成功。✅ Verified（`terminal_no_plan_and_error_are_distinguishable`）
 
 ## Host / GLM 配置冒烟
 
@@ -48,7 +48,7 @@
 - [ ] P2：只读查计划/子项基于真实数据。✅ Verified（T-lift `get_plan` / `list_sub_tasks` + prompt 只读规约；`TODOS_T_LIFT_TOOL_NAMES`；Loop `run_loop_*` / Host Tools；`tests/todo-task/binding.test.js`）
 - [ ] P3：加子项成功且列表/详情出现。✅ Verified（`add_sub_task` + turn-completed 写回刷新；Loop `run_loop_add_sub_and_update_sub_title_paths_are_observable`；`tests/todo-task/deembed-writeback.test.js`）
 - [ ] P4：改主/子标题 Todos 侧可见。✅ Verified（`update_master_title` / `update_sub_title` + wrote 刷新；Loop `run_loop_tool_write_sets_wrote_true_and_persists`）
-- [ ] P5：不支持操作明确拒绝且数据不变。✅ Verified（prompt「目前不支持」；Loop `unsupported_tool_calls_*` / `terminal_no_plan_unsupported_and_error_are_distinguishable`；Binding 不含 complete/abandon/batch）
+- [ ] P5：不支持操作明确拒绝且数据不变。✅ Verified（prompt「目前不支持」；Loop `unsupported_tool_calls_*` / `terminal_no_plan_and_error_are_distinguishable`；Binding 不含 complete/abandon/batch）
 - [ ] P6：离页不 Reset；Binding 保持 spark。✅ Verified（`onTodosPageLeave` 不再 `reset_binding`；`tests/todo-task/lifecycle.test.js` / smoke P6）
 - [ ] N1：调用 open_ai_assistant(masterTaskId)（或等价）不得再作成功主路径且无 bound 副作用。✅ Verified（`TODOS_OPEN_AND_BIND_MAIN_PATH_DISABLED`；Present-only 入口；`tests/todo-task/deembed-writeback.test.js`）
 - [ ] N2：未 Set 仅 Present 时不可发送/执行成功。✅ Verified（Present≠bound；execute `rejected_unbound`；`j1_present_not_bound_execute_rejects_without_set` / smoke N2）
