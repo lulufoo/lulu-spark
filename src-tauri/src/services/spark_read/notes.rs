@@ -68,7 +68,7 @@ pub fn get_notes_file(_repo_root: &Path, layer: &str, common_path: &str) -> Valu
         Path::new(&knowledge_root_string(_repo_root)),
         &target_canon,
     ) {
-        return read_text_file(&target_canon, layer, common_path);
+        return read_text_file(&target_canon);
     }
     let notes_canon = match notes.canonicalize() {
         Ok(p) => p,
@@ -77,13 +77,13 @@ pub fn get_notes_file(_repo_root: &Path, layer: &str, common_path: &str) -> Valu
     if !is_under_root(&notes_canon, &target_canon) {
         return json!({ "error": "Path traversal not allowed", "_status": 400 });
     }
-    read_text_file(&target_canon, layer, common_path)
+    read_text_file(&target_canon)
 }
 
-fn read_text_file(target: &Path, layer: &str, common_path: &str) -> Value {
+fn read_text_file(target: &Path) -> Value {
     if !target.is_file() {
         return json!({
-            "error": format!("File not found: {layer}/{common_path}"),
+            "error": "File not found",
             "_status": 404
         });
     }
@@ -177,7 +177,7 @@ pub fn get_notes_asset(repo_root: &Path, layer: &str, base: &str, href: &str) ->
     };
     if !target_canon.is_file() {
         return json!({
-            "error": format!("File not found: {layer}/{common_path}"),
+            "error": "File not found",
             "_status": 404
         });
     }

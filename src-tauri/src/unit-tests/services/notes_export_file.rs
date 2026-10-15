@@ -56,7 +56,9 @@ fn get_note_file_errors_without_raw_layer_or_unknown_id() {
     let dest = dest.to_str().unwrap();
     let no_raw = get_note_file(sandbox.config_dir(), ID, dest);
     assert_eq!(no_raw["ok"], false);
-    assert!(no_raw["error"].is_string(), "{no_raw}");
+    let err = no_raw["error"].as_str().unwrap_or("");
+    assert!(!err.contains("raw/"), "{no_raw}");
+    assert!(!err.contains("ai/note.md"), "{no_raw}");
     let unknown = get_note_file(sandbox.config_dir(), "ffffffffffffffffffffffffffffffff", dest);
     assert_eq!(unknown["ok"], false);
     let bad = get_note_file(sandbox.config_dir(), "bad", dest);

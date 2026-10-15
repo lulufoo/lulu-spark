@@ -98,11 +98,11 @@ fn update_note_from_body(repo_root: &Path, payload: &Value, source: &str) -> Val
         return json!({ "error": "Entry not found", "_status": 404 });
     };
     let Some(common_path) = entry.get("common_path").and_then(|v| v.as_str()) else {
-        return json!({ "error": "Missing common_path", "_status": 400 });
+        return json!({ "error": "Missing path", "_status": 400 });
     };
     let common_path = common_path.trim().to_string();
     if common_path.is_empty() || common_path.contains("..") {
-        return json!({ "error": "Invalid common_path", "_status": 400 });
+        return json!({ "error": "Invalid path", "_status": 400 });
     }
     let source_type = entry
         .get("source_type")
@@ -130,7 +130,7 @@ fn update_note_from_body(repo_root: &Path, payload: &Value, source: &str) -> Val
     };
     if !raw_path.is_file() {
         return json!({
-            "error": format!("File not found: raw/{common_path}"),
+            "error": "File not found",
             "_status": 404
         });
     }
