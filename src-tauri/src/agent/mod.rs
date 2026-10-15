@@ -11,6 +11,7 @@ pub mod language;
 pub mod llm;
 pub mod mcp;
 pub mod progress;
+pub mod prompt;
 pub mod r#loop;
 pub mod runtime;
 pub mod session;
@@ -19,12 +20,7 @@ pub mod tools;
 pub mod turn;
 pub mod workspace;
 
-/// Host spark chat system prompt (code constant; not toml / notes store).
-///
-/// SSOT for key-only Binding Set → `Binding.prompt` → turn system message.
-/// Registry `capability_description` stays a short MCP identity string and is
-/// not used as the LLM system prompt.
-pub const SPARK_HOST_SYSTEM_PROMPT: &str = include_str!("system_prompt.md");
+pub use prompt::SPARK_HOST_SYSTEM_PROMPT;
 
 pub const SESSION_WORKSPACE_DIR_PLACEHOLDER: &str = "{session_workspace_dir}";
 

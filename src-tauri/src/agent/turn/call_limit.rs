@@ -4,15 +4,10 @@ use serde_json::Value;
 
 use crate::agent::language::{describe_no_wrap_up, Language};
 use crate::agent::llm::AssistantMessage;
+use crate::agent::prompt::{read_skipped_tool_text, MAX_STEPS_PROMPT};
 use crate::agent::session::{Session, Step, StepClock, EXTRA_APPEND_CONTENT, EXTRA_SKIPPED};
 
 use super::types::{Terminal, TurnOutcome};
-
-/// Sent as a trailing user message on the last LLM call (`tool_choice: "none"`).
-const MAX_STEPS_PROMPT: &str = include_str!("max_steps_prompt.md");
-
-/// Result text of a tool call the model asked for on the last call; the call is not run.
-const SKIPPED_TOOL_TEXT: &str = "Not run: the LLM call limit for this turn was reached.";
 
 /// Attach the wrap-up prompt to the newest `Step`, so it is sent after it and stored with it.
 pub(super) fn attach_wrap_up_prompt(session: &mut Session) {
@@ -35,7 +30,7 @@ pub(super) fn end_turn_at_call_limit(
     for call in &msg.tool_calls {
         let mut step = Step {
             role: "tool".into(),
-            content: Some(SKIPPED_TOOL_TEXT.into()),
+            content: Some(read_skipped_tool_text().into()),
             tool_call_id: Some(call.id.clone()),
             tool_calls: None,
             name: Some(call.name.clone()),

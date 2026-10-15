@@ -17,8 +17,8 @@ use crate::test_support::TestSandbox;
 
 use super::compress::{
     fit_summary_messages, maybe_compress, pack_summary_messages, should_compress,
-    SUMMARY_SYSTEM_PROMPT,
 };
+use crate::agent::prompt::SUMMARY_SYSTEM_PROMPT;
 
 const GLM_WINDOW: u64 = 1_048_576;
 const TOKENS_AT_69: i64 = 728_760;
