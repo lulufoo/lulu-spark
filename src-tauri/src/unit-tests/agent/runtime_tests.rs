@@ -202,7 +202,7 @@ fn legacy_cursor_and_empty_settings_are_unconfigured_without_host_call() {
         assert!(result.body["reply_text"]
             .as_str()
             .unwrap_or_default()
-            .contains("GLM is not configured"));
+            .contains("Spark isn't set up yet"));
 
         let mut app_settings = settings::load().expect("reload");
         app_settings.assistant_engine.clear();

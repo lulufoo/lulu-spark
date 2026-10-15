@@ -11,6 +11,7 @@ use std::time::Duration;
 use reqwest::blocking::Client;
 use serde_json::{json, Value};
 
+use crate::agent::language::{describe_retrying, Language};
 use crate::agent::session;
 use crate::config::secrets;
 use crate::config::settings;
@@ -279,7 +280,7 @@ pub fn chat_completions_with_options(
     retry::run_with_retries(options.max_retries, options.is_cancelled, |attempt| {
         if attempt > 1 {
             if let Some(callback) = on_delta.as_mut() {
-                callback(&format!("Retrying ({}/{})…", attempt - 1, options.max_retries), "");
+                callback(describe_retrying(Language::current()), "");
             }
         }
         let mut trace = CallTrace::start();

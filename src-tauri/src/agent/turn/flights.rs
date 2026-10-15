@@ -8,6 +8,7 @@ use std::sync::{Arc, Mutex, OnceLock};
 use serde_json::json;
 
 use crate::agent::diagnostics::TurnId;
+use crate::agent::language::{describe_busy, describe_session_mismatch, Language};
 use crate::agent::progress::ProgressSink;
 use crate::agent::session::{self, Session};
 
@@ -173,7 +174,7 @@ pub fn clarify_count(session: &Session) -> u32 {
 fn busy_turn_result(session_id: &str) -> ChatTurnResult {
     ChatTurnResult {
         body: json!({
-            "reply_text": "Busy — try again later",
+            "reply_text": describe_busy(Language::current()),
             "terminal": "none",
             "wrote": false,
             "busy": true,
@@ -204,7 +205,7 @@ pub fn try_begin_chat_turn(
     if live_id.as_deref() != Some(session_id) {
         return Err(ChatTurnResult {
             body: json!({
-                "reply_text": "Session identity mismatch — cut or stale session cannot continue.",
+                "reply_text": describe_session_mismatch(Language::current()),
                 "terminal": "business",
                 "wrote": false,
                 "busy": false,

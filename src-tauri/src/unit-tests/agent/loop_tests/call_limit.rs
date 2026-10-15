@@ -93,7 +93,7 @@ fn tool_calls_on_the_last_call_are_kept_as_skipped_steps_and_not_run() {
 fn tool_calls_without_text_on_the_last_call_end_as_error_with_fixed_copy() {
     let (outcome, session, _, _sandbox) = run_turn_to_the_limit(tool_response(MAX_LLM_CALLS_PER_TURN));
     assert_outcome(&outcome, "error", false);
-    assert!(outcome.reply_text.contains("call limit"));
+    assert!(outcome.reply_text.contains("step limit"));
     assert_eq!(tool_steps(&session).len(), MAX_LLM_CALLS_PER_TURN);
     let last = session.steps.last().unwrap();
     assert_eq!(last.role, "assistant");

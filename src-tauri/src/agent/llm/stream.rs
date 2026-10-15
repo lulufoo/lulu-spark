@@ -8,6 +8,10 @@ use serde_json::Value;
 use super::classify::{classify_finish, Shape};
 use super::read_error::map_read_error;
 use super::record::CallTrace;
+use crate::agent::language::{
+    describe_preparing_action, describe_replying, describe_replying_preview, describe_thinking,
+    Language,
+};
 use crate::agent::session;
 use super::{AssistantMessage, LlmCallOutcome, LlmError, ToolCall};
 
@@ -208,28 +212,18 @@ impl StreamAssembler {
     }
 
     fn hint(&self) -> String {
-        if let Some(slot) = self
-            .tool_calls
-            .iter()
-            .rev()
-            .find(|slot| !slot.name.is_empty())
-        {
-            return format!("Preparing {}…", slot.name);
-        }
-        if self
-            .tool_calls
-            .iter()
-            .any(|slot| !slot.id.is_empty() || !slot.arguments.is_empty())
-        {
-            return "Preparing…".into();
+        if self.tool_calls.iter().any(|slot| {
+            !slot.name.is_empty() || !slot.id.is_empty() || !slot.arguments.is_empty()
+        }) {
+            return describe_preparing_action(Language::current()).into();
         }
         if !self.content.is_empty() {
-            return format!("Receiving… {}", preview_tail(&self.content, 40));
+            return describe_replying_preview(Language::current(), &preview_tail(&self.content, 40));
         }
         if !self.reasoning.is_empty() {
-            return "Thinking…".into();
+            return describe_thinking(Language::current()).into();
         }
-        "Receiving…".into()
+        describe_replying(Language::current()).into()
     }
 
     /// Unconditional view of everything received so far; never fails, never normalises.

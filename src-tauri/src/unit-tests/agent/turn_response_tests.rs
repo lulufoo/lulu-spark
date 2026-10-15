@@ -11,10 +11,10 @@ fn empty_reply_tells_apart_written_read_only_and_no_tools() {
     let wrote = text(true, 2);
     let read_only = text(false, 1);
     let none = text(false, 0);
-    assert!(wrote.contains("Writes were made"));
-    assert!(read_only.contains("nothing was written") && read_only.contains("Tools ran"));
-    assert_eq!(none, "The model's response was empty. Nothing was written.");
-    assert!(!wrote.contains("Nothing was written"));
+    assert!(wrote.contains("Your changes were made"));
+    assert!(read_only.contains("did some work") && read_only.contains("No changes were made"));
+    assert_eq!(none, "Spark gave an empty reply. No changes were made. Try again.");
+    assert!(!wrote.contains("No changes were made"));
     assert!(wrote != read_only && read_only != none);
 }
 

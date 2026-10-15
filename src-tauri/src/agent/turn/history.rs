@@ -2,7 +2,7 @@
 
 use serde_json::{json, Value};
 
-use crate::agent::language::{describe_llm_error, Language};
+use crate::agent::language::{describe_cancelled, describe_llm_error, Language};
 use crate::agent::llm::LlmError;
 use crate::agent::session::{self, Session, Step, EXTRA_APPEND_CONTENT};
 
@@ -102,12 +102,13 @@ pub(crate) fn prompt_text_from_binding(prompt: &Value) -> String {
     }
 }
 
-pub fn map_llm_error(err: &LlmError, language: Language) -> TurnOutcome {
-    let reply_text = describe_llm_error(language, err);
+/// `wrote` is true when a tool already changed something earlier in the Turn.
+pub fn map_llm_error(err: &LlmError, language: Language, wrote: bool) -> TurnOutcome {
+    let reply_text = describe_llm_error(language, err, wrote);
     TurnOutcome {
         reply_text,
         terminal: Terminal::Error,
-        wrote: false,
+        wrote,
     }
 }
 
@@ -134,7 +135,7 @@ pub(crate) fn cancelled_turn_outcome(session: &mut Session, steps_checkpoint: us
         persist(session);
     }
     TurnOutcome {
-        reply_text: "In-flight turn cancelled — binding cut.".to_string(),
+        reply_text: describe_cancelled(Language::current()).to_string(),
         terminal: Terminal::Error,
         wrote: false,
     }

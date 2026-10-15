@@ -428,7 +428,7 @@ fn run_loop_does_not_call_mcp_after_reset_invalidates_its_generation() {
     let outcome = r#loop::run_loop(&mut session, "读取待办", &cfg_for(&mock));
 
     assert_outcome(&outcome, "error", false);
-    assert!(outcome.reply_text.contains("cancelled"));
+    assert!(outcome.reply_text.contains("was stopped"));
     assert!(
         session.steps.is_empty(),
         "cut cancellation must truncate the old generation's user and tool turns"
@@ -561,7 +561,7 @@ fn unbound_session_maps_to_business_no_plan_without_llm() {
         let out = r#loop::run_loop(&mut sess, "加个子计划", &cfg_for(&mock));
         assert_outcome(&out, "business", false);
         assert!(
-            out.reply_text.contains("Unbound") || out.reply_text.contains("Binding Contract"),
+            out.reply_text.contains("can't start a chat"),
             "{}",
             out.reply_text
         );
@@ -683,8 +683,7 @@ fn terminal_no_plan_and_error_are_distinguishable() {
         let no_plan = r#loop::run_loop(&mut unbound, "加子计划", &cfg_for(&mock_unused));
         assert_outcome(&no_plan, "business", false);
         assert!(
-            no_plan.reply_text.contains("Unbound")
-                || no_plan.reply_text.contains("Binding Contract"),
+            no_plan.reply_text.contains("can't start a chat"),
             "{}",
             no_plan.reply_text
         );
@@ -1051,7 +1050,7 @@ fn t3_host_reports_unavailable_loaded_mcp_without_dispatch() {
         assert!(
             result.body["reply_text"]
                 .as_str()
-                .is_some_and(|text| text.contains("MCP")),
+                .is_some_and(|text| text.contains("can't access your content")),
             "unavailable MCP must be reported to the user"
         );
 
@@ -1225,15 +1224,15 @@ fn run_loop_emits_requesting_progress() {
         assert_outcome(&out, "none", false);
         let descs = collected.lock().unwrap().clone();
         assert!(
-            descs.iter().any(|desc| desc == "Requesting…"),
-            "loop must emit Requesting…, got {descs:?}"
+            descs.iter().any(|desc| desc == "Working on it…"),
+            "loop must emit Working on it…, got {descs:?}"
         );
         assert!(
-            descs.iter().any(|desc| desc.starts_with("Receiving…")),
+            descs.iter().any(|desc| desc.starts_with("Replying…")),
             "run.rs must forward on_delta into ProgressDesc, got {descs:?}"
         );
         assert!(
-            !descs.iter().any(|desc| desc.contains("Calling ")),
+            !descs.iter().any(|desc| desc.contains("Running an action")),
             "text-only reply must not emit Calling, got {descs:?}"
         );
     });

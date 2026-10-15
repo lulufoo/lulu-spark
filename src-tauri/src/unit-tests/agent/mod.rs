@@ -814,7 +814,7 @@ fn llm_on_delta_receives_assembled_hints() {
         assert_eq!(msg.content.as_deref(), Some("你好"));
         let hints = hints.lock().unwrap();
         assert!(
-            hints.iter().any(|hint| hint == "Receiving… 你好"),
+            hints.iter().any(|hint| hint == "Replying… 你好"),
             "on_delta hints={hints:?}"
         );
     });
