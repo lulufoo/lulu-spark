@@ -2,15 +2,15 @@ use std::fs;
 use std::path::PathBuf;
 
 use super::llm::{
-    llm_entry_by_type, normalize_engine_value, stamp_host_preset_on_load, stamp_readonly_preset_fields,
-    upsert_llm_entry,
+    builtin_preset_fields, llm_entry_by_type, normalize_engine_value, stamp_host_preset_on_load,
+    stamp_readonly_preset_fields, upsert_llm_entry, LLM_ENGINES,
 };
 use super::sandbox::{
     is_unstable_path, normalize_prod_paths, should_normalize_for_path, validate_sandbox_against_prod,
 };
 use super::runtime_mode::{runtime_cache_dir, runtime_config_dir, runtime_mode, RuntimeMode};
 use super::types::{
-    home_dir, AppSettings, LlmSettings, LlmSettingsEntry, SettingsError, PROD_CONFIG_FILE_NAME,
+    home_dir, AppSettings, LlmSettingsEntry, SettingsError, PROD_CONFIG_FILE_NAME,
 };
 
 /// Fixed prod config directory (never follows `TestSandbox`).
@@ -103,21 +103,37 @@ pub fn save(settings: &AppSettings) -> Result<(), SettingsError> {
 }
 
 /// JSON shape for `get_config` / `set_config` (frontend field names).
-/// Never echoes plaintext api keys — only the Host/GLM key hint.
+/// Never echoes plaintext api keys — only a per-engine `key_saved` flag.
+/// `llm` covers every engine: unset `base_url` falls back to the preset default,
+/// unset `model` stays empty (the client falls back to its own preset).
 pub fn to_config_json(
     settings: &AppSettings,
-    has_host_key: bool,
+    key_saved_engines: &[&str],
 ) -> Result<serde_json::Value, SettingsError> {
     let mode = runtime_mode()?;
     let cache_dir = runtime_cache_dir()?;
     let data_dir = cache_dir.join("data");
-    let current = if let Some(engine) = normalize_engine_value(&settings.assistant_engine) {
-        llm_entry_by_type(&settings.llm, engine)
+    let mut llm = serde_json::Map::new();
+    for engine in LLM_ENGINES {
+        let (platform, default_base_url) = builtin_preset_fields(engine).unwrap_or(("", ""));
+        let fields = llm_entry_by_type(&settings.llm, engine)
             .map(LlmSettingsEntry::fields)
-            .unwrap_or_default()
-    } else {
-        LlmSettings::default()
-    };
+            .unwrap_or_default();
+        let base_url = if fields.base_url.trim().is_empty() {
+            default_base_url.to_string()
+        } else {
+            fields.base_url
+        };
+        llm.insert(
+            engine.to_string(),
+            serde_json::json!({
+                "platform": platform,
+                "base_url": base_url,
+                "model": fields.model,
+                "key_saved": key_saved_engines.contains(&engine),
+            }),
+        );
+    }
     Ok(serde_json::json!({
         "spark_root": settings.spark_root.to_string_lossy(),
         "knowledge_root": data_dir.join("knowledge").to_string_lossy(),
@@ -129,12 +145,7 @@ pub fn to_config_json(
         "mcp_port": settings.effective_mcp_port()?,
         "gateway_port": settings.effective_gateway_port()?,
         "test_sandbox": matches!(mode, RuntimeMode::Sandbox { .. }),
-        "has_host_key": has_host_key,
-        "llm": {
-            "platform": current.platform,
-            "base_url": current.base_url,
-            "model": current.model,
-        },
+        "llm": llm,
     }))
 }
 

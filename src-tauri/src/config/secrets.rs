@@ -1,33 +1,49 @@
-//! Host LLM credential. The store is the vault tree.
+//! LLM credentials, one per engine. The store is the vault tree.
 
-pub use crate::config::vault::{SecretError, KEY_LLM_API_KEY};
+pub use crate::config::vault::SecretError;
 
+use crate::config::settings::{normalize_engine_value, LLM_ENGINES};
 use crate::config::vault;
 
-pub fn get_secret() -> Result<Option<String>, SecretError> {
-    vault::get_llm_api_key()
+fn resolve_engine_id(engine: &str) -> Result<&'static str, SecretError> {
+    normalize_engine_value(engine).ok_or_else(|| SecretError::InvalidEngine(engine.to_string()))
 }
 
-pub fn set_secret(value: &str) -> Result<(), SecretError> {
-    vault::set_llm_api_key(value)
+pub fn get_secret(engine: &str) -> Result<Option<String>, SecretError> {
+    vault::get_llm_api_key(resolve_engine_id(engine)?)
 }
 
-/// Host credential present.
-pub fn has_host_key() -> bool {
-    get_secret()
-        .ok()
-        .flatten()
-        .map(|s| !s.is_empty())
-        .unwrap_or(false)
+pub fn set_secret(engine: &str, value: &str) -> Result<(), SecretError> {
+    vault::set_llm_api_key(resolve_engine_id(engine)?, value)
 }
 
-/// Apply token fields from `set_config` payload.
+/// Engines that currently have a stored credential. Read failure → none.
+pub fn list_saved_engines() -> Vec<&'static str> {
+    let Ok(vault) = vault::read_vault() else {
+        return Vec::new();
+    };
+    LLM_ENGINES
+        .iter()
+        .copied()
+        .filter(|engine| vault.llm_api_key(engine).is_some())
+        .collect()
+}
+
+/// Apply `llm_api_key: { engine, value }` from the `set_config` payload.
+/// An empty `value` does not clear (UI omits blank credentials). An unknown or
+/// missing `engine` is rejected.
 pub fn apply_token_payload(payload: &serde_json::Value) -> Result<(), SecretError> {
-    // Host key: empty does not clear (UI omits blank credentials).
-    if let Some(v) = payload.get("api_key_host").and_then(|x| x.as_str()) {
-        if !v.is_empty() {
-            set_secret(v)?;
-        }
+    let Some(slot) = payload.get("llm_api_key").filter(|v| !v.is_null()) else {
+        return Ok(());
+    };
+    let engine = slot
+        .get("engine")
+        .and_then(|x| x.as_str())
+        .ok_or_else(|| SecretError::InvalidEngine("<missing>".to_string()))?;
+    let engine = resolve_engine_id(engine)?;
+    let value = slot.get("value").and_then(|x| x.as_str()).unwrap_or("");
+    if !value.is_empty() {
+        set_secret(engine, value)?;
     }
     Ok(())
 }

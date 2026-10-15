@@ -244,7 +244,7 @@ pub(super) fn install_llm_cfg(mock: &MockLlm) {
     )
     .expect("upsert host llm");
     settings::save(&s).expect("save");
-    secrets::set_secret("sk-test").expect("key");
+    secrets::set_secret("host", "sk-test").expect("key");
 }
 
 pub(super) fn assistant_text(content: &str) -> (u16, Value) {

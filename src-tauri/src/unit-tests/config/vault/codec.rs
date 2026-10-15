@@ -32,7 +32,7 @@ fn empty_vault_omits_keys_in_json_and_toml() {
 #[test]
 fn json_and_toml_backends_share_the_same_tree() {
     let mut vault = Vault::default();
-    vault.set_llm_api_key(Some("sk-host".into()));
+    vault.set_llm_api_key("host", Some("sk-host".into()));
     vault.set_mcp_slot(
         "spark",
         Some(SlotTicket {
@@ -55,10 +55,17 @@ fn json_and_toml_backends_share_the_same_tree() {
     assert_eq!(from_toml, vault);
     assert_eq!(from_json, from_toml);
     let toml_text = vault_to_toml(&vault).expect("toml text");
-    assert!(toml_text.contains("[llm]"));
+    assert!(toml_text.contains("[llm.keys]"));
+    assert!(toml_text.contains("host = \"sk-host\""));
     assert!(toml_text.contains("[mcp-oauth.spark]"));
     assert!(toml_text.contains("[[bind.devices]]"));
-    assert!(!toml_text.contains("llm_api_key = \"sk-host\"\n[llm]"));
+}
+
+#[test]
+fn legacy_single_llm_key_is_ignored() {
+    let vault = vault_from_toml("[llm]\nllm_api_key = \"sk-old\"\n").expect("parse");
+    assert!(vault.is_empty(), "legacy single key must not become a channel key");
+    assert_eq!(vault.llm_api_key("host"), None);
 }
 
 #[test]

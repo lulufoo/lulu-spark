@@ -54,7 +54,7 @@ fn resolve_engine_accepts_known_categories_and_treats_legacy_values_as_unconfigu
 #[test]
 fn read_engine_runtime_config_reads_only_the_glm_host_entry() {
     secrets::test_secrets_clear();
-    secrets::set_secret("sk-host").expect("host key");
+    secrets::set_secret("host", "sk-host").expect("host key");
 
     let settings = host_settings_with_model("glm-4");
     let config = engine_router::read_engine_runtime_config(&settings).expect("runtime config");
@@ -67,6 +67,21 @@ fn read_engine_runtime_config_reads_only_the_glm_host_entry() {
             credential: Some("sk-host".into()),
         }
     );
+}
+
+#[test]
+fn read_engine_runtime_config_uses_only_the_active_engine_key() {
+    let _sandbox = TestSandbox::new();
+    secrets::test_secrets_clear();
+    secrets::set_secret("host", "sk-host").expect("host key");
+
+    let settings = settings_with_engine("openai");
+    let config = engine_router::read_engine_runtime_config(&settings).expect("runtime config");
+    assert_eq!(config.credential, None, "openai must not borrow the host key");
+
+    secrets::set_secret("openai", "sk-openai").expect("openai key");
+    let config = engine_router::read_engine_runtime_config(&settings).expect("runtime config");
+    assert_eq!(config.credential, Some("sk-openai".into()));
 }
 
 #[test]

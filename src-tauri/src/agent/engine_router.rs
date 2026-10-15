@@ -81,13 +81,13 @@ pub fn read_engine_runtime_config(
     settings: &AppSettings,
 ) -> Result<EngineRuntimeConfig, EngineRouteError> {
     let engine = resolve_engine(settings)?;
-    let model = settings::normalize_engine_value(&settings.assistant_engine)
+    let kind = settings::normalize_engine_value(&settings.assistant_engine);
+    let model = kind
         .and_then(|kind| settings::llm_entry_by_type(&settings.llm, kind))
         .map(|entry| entry.model.clone())
         .unwrap_or_default();
-    let credential = secrets::get_secret()
-        .ok()
-        .flatten()
+    let credential = kind
+        .and_then(|kind| secrets::get_secret(kind).ok().flatten())
         .map(|secret| secret.trim().to_string())
         .filter(|secret| !secret.is_empty());
 

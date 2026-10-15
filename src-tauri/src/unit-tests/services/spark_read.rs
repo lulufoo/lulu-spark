@@ -23,13 +23,14 @@ fn get_config_has_frontend_contract_keys() {
     assert!(v.get("theme").is_some());
     assert!(v.get("cache_dir").is_some());
     assert!(v.get("has_github_token").is_none());
-    assert!(v.get("has_host_key").is_some());
+    assert!(v.get("has_host_key").is_none());
     assert!(v.get("has_cursor_key").is_none());
     assert!(v.get("llm").is_some());
     assert!(v.get("api_key").is_none());
     assert!(v.get("api_key_host").is_none());
     assert!(v.get("api_key_cursor").is_none());
     assert!(v["llm"].get("api_key").is_none());
+    assert!(v["llm"]["host"].get("key_saved").is_some());
 }
 
 

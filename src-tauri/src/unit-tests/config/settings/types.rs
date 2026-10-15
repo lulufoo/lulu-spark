@@ -10,10 +10,17 @@ fn defaults_select_host_but_do_not_fabricate_llm_credentials() {
     assert_eq!(settings.assistant_engine, "host");
     assert!(settings.llm.is_empty());
 
-    let json = to_config_json(&settings, false).expect("json");
+    let json = to_config_json(&settings, &[]).expect("json");
     assert_eq!(json["assistant_engine"], "host");
-    assert_eq!(json["has_host_key"], false);
+    assert!(json.get("has_host_key").is_none());
     assert!(json.get("has_cursor_key").is_none());
+    for engine in ["host", "openai", "claude", "grok", "kimi", "qwen"] {
+        assert_eq!(json["llm"][engine]["key_saved"], false, "{engine}");
+        assert!(
+            !json["llm"][engine]["base_url"].as_str().unwrap_or("").is_empty(),
+            "{engine} falls back to its preset base_url"
+        );
+    }
 }
 
 #[test]

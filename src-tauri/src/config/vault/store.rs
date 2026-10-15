@@ -157,16 +157,16 @@ where
     store_raw(&vault)
 }
 
-pub fn get_llm_api_key() -> Result<Option<String>, SecretError> {
-    Ok(read_vault()?.llm_api_key().map(str::to_string))
+pub fn get_llm_api_key(engine: &str) -> Result<Option<String>, SecretError> {
+    Ok(read_vault()?.llm_api_key(engine).map(str::to_string))
 }
 
-pub fn set_llm_api_key(value: &str) -> Result<(), SecretError> {
-    update_vault(|vault| vault.set_llm_api_key(Some(value.to_string())))
+pub fn set_llm_api_key(engine: &str, value: &str) -> Result<(), SecretError> {
+    update_vault(|vault| vault.set_llm_api_key(engine, Some(value.to_string())))
 }
 
-pub fn delete_llm_api_key() -> Result<(), SecretError> {
-    update_vault(|vault| vault.set_llm_api_key(None))
+pub fn delete_llm_api_key(engine: &str) -> Result<(), SecretError> {
+    update_vault(|vault| vault.set_llm_api_key(engine, None))
 }
 
 pub fn get_auth_session() -> Result<Option<AuthSession>, SecretError> {

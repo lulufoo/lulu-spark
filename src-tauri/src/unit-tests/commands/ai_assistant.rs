@@ -102,7 +102,7 @@ fn commands_module_exports_match_acl_names() {
         )
         .expect("apply");
         let _ = settings::save(&s);
-        let _ = secrets::set_secret("k");
+        let _ = secrets::set_secret("host", "k");
     });
 }
 

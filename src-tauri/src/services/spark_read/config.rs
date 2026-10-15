@@ -32,7 +32,7 @@ pub fn check_spark_root(path: &str) -> Value {
 pub fn get_config(_repo_root: &Path) -> Value {
     let _ = _repo_root;
     let s = settings::load().unwrap_or_default();
-    settings::to_config_json(&s, secrets::has_host_key())
+    settings::to_config_json(&s, &secrets::list_saved_engines())
         .unwrap_or_else(|e| json!({ "ok": false, "error": format!("{e}") }))
 }
 

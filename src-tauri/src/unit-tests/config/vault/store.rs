@@ -37,7 +37,7 @@ pub fn test_clear_llm() {
     let _guard = io_lock();
     let scope = current_scope();
     let mut vault = memory_vault(&scope);
-    vault.set_llm_api_key(None);
+    vault.llm = None;
     store_memory_vault(&scope, &vault);
 }
 
@@ -104,12 +104,12 @@ fn memory_backend_uses_in_memory_keychain_switch() {
 #[test]
 fn memory_store_fail_is_store_error_and_clearing_fail_keeps_data() {
     test_clear_scope();
-    update_vault(|vault| vault.set_llm_api_key(Some("sk-keep".into()))).expect("store");
+    update_vault(|vault| vault.set_llm_api_key("host", Some("sk-keep".into()))).expect("store");
     test_fail_store();
     assert!(matches!(read_vault(), Err(SecretError::Store(_))));
     test_clear_store_fail();
     assert_eq!(
-        read_vault().expect("vault after fail off").llm_api_key(),
+        read_vault().expect("vault after fail off").llm_api_key("host"),
         Some("sk-keep")
     );
 }
@@ -118,7 +118,7 @@ fn memory_store_fail_is_store_error_and_clearing_fail_keeps_data() {
 fn test_clear_scope_wipes_mcp_and_fail_state() {
     test_clear_scope();
     update_vault(|vault| {
-        vault.set_llm_api_key(Some("sk".into()));
+        vault.set_llm_api_key("host", Some("sk".into()));
         vault.set_mcp_slot(
             "spark",
             Some(SlotTicket {
