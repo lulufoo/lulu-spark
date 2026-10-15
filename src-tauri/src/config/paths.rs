@@ -41,6 +41,11 @@ pub fn runtime_data_dir() -> Result<PathBuf, PathsError> {
     Ok(settings::runtime_cache_dir()?.join("data"))
 }
 
+/// Durable metadata database: `{runtime_data_dir}/spark-data.sqlite`.
+pub fn spark_data_db_path() -> Result<PathBuf, PathsError> {
+    Ok(runtime_data_dir()?.join("spark-data.sqlite"))
+}
+
 /// Notes files live at `{runtime_data_dir}/notes/`.
 pub fn notes_root() -> Result<PathBuf, PathsError> {
     Ok(runtime_data_dir()?.join("notes"))

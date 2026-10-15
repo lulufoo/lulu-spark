@@ -93,6 +93,24 @@ fn expand_spark_includes_knowledge_root_and_listed_clone() {
 }
 
 #[test]
+fn spark_data_database_is_closed_to_the_agent() {
+    with_sandbox(|_| {
+        let mut fence = expand_for_business_key(SEEDED_BUSINESS_KEY).expect("spark fence");
+        let db = paths::spark_data_db_path().expect("db path");
+        // Even a staged grant over the whole data dir must lose to the deny entry.
+        let data = stored_path(paths::runtime_data_dir().expect("data dir"));
+        fence.read_allow.push(data.clone());
+        fence.write_allow.push(data);
+        let name = db.file_name().and_then(|n| n.to_str()).expect("name").to_string();
+        for file in [name.clone(), format!("{name}-wal"), format!("{name}-shm")] {
+            let path = db.with_file_name(file);
+            assert!(!fence.allows_read(&path), "agent must not read {path:?}");
+            assert!(!fence.allows_write(&path), "agent must not write {path:?}");
+        }
+    });
+}
+
+#[test]
 fn public_set_attaches_fence_and_reset_clears_it() {
     with_sandbox(|sandbox| {
         plant_demo_repo(sandbox);
