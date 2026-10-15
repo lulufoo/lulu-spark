@@ -10,9 +10,7 @@ use super::support::*;
 #[test]
 fn spark_host_system_prompt_is_nonempty_code_constant() {
     assert!(!SPARK_HOST_SYSTEM_PROMPT.trim().is_empty());
-    assert!(SPARK_HOST_SYSTEM_PROMPT.contains("Host chat assistant"));
-    assert!(SPARK_HOST_SYSTEM_PROMPT.contains("MCP"));
-    assert!(SPARK_HOST_SYSTEM_PROMPT.contains("PathFence"));
+    assert!(SPARK_HOST_SYSTEM_PROMPT.contains("chat assistant of Lulu Spark"));
     assert!(SPARK_HOST_SYSTEM_PROMPT.contains("API Key"));
     assert!(SPARK_HOST_SYSTEM_PROMPT.contains("SESSION_WORKSPACE_DIR"));
     assert!(SPARK_HOST_SYSTEM_PROMPT.contains(SESSION_WORKSPACE_DIR_PLACEHOLDER));
@@ -33,13 +31,29 @@ fn spark_host_system_prompt_closes_data_and_teaches_file_copies() {
     }
     assert!(prompt.contains("external files"), "Stage is for external files");
     assert!(prompt.contains("`stage`"), "model stages external files itself");
-    assert!(prompt.contains("get_note_file"));
-    assert!(prompt.contains("get_knowledge_file"));
-    assert!(prompt.contains("get_read_later"));
-    assert!(prompt.contains("source_path"), "edited copy goes back via update_note");
+    assert!(prompt.contains("SESSION_WORKSPACE_DIR"), "copies go to the session workspace");
     assert!(prompt.contains("[Title](note:<id>)"), "note link rule");
     assert!(prompt.contains("[Title](knowledge:<id>)"), "knowledge link rule");
     assert!(prompt.contains("[Title](read-later:<id>)"), "read-later link rule");
+}
+
+#[test]
+fn spark_host_system_prompt_names_no_business_tool_and_no_stale_wording() {
+    for hard_coded in [
+        "get_note_file",
+        "update_note",
+        "get_knowledge_file",
+        "get_read_later",
+        "to-do",
+        "planning assistant",
+        "PathFence",
+        "Host",
+    ] {
+        assert!(
+            !SPARK_HOST_SYSTEM_PROMPT.contains(hard_coded),
+            "prompt must not hard-code {hard_coded}"
+        );
+    }
 }
 
 #[test]
