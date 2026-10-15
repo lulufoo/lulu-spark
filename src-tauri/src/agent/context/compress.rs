@@ -3,6 +3,7 @@
 use serde_json::{json, Value};
 
 use crate::agent::llm::{self, LlmConfig};
+use crate::agent::prompt::SUMMARY_SYSTEM_PROMPT;
 use crate::agent::session::{self, Session, Step};
 
 use super::count::count_tokens;
@@ -10,9 +11,6 @@ use super::render::render_request;
 use super::window::{round_percent, window_tokens};
 
 pub const COMPRESS_THRESHOLD_PERCENT: i64 = 70;
-
-pub const SUMMARY_SYSTEM_PROMPT: &str =
-    "把下面的对话压成一段给后续主请求用的摘要。保留已做的决定、结论和未完成事项。不要向用户说话。";
 
 /// True when the last stored prompt already occupies at least 70% of the window.
 pub fn should_compress(tokens: i64, window: u64) -> bool {
