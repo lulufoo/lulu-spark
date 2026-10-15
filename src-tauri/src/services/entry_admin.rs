@@ -109,7 +109,11 @@ pub fn delete_entry(payload: &Value) -> Value {
         return v;
     }
     sync_index_for(&[common_path]);
-    json!({ "ok": true, "deleted": deleted })
+    json!({
+        "ok": true,
+        "id": entry_id,
+        "removed": deleted.len(),
+    })
 }
 
 /// Files are gone or moved by now, so a missing file drops its rows.

@@ -36,6 +36,9 @@ fn delete_entry_removes_file_and_index() {
             let id = "a".repeat(32);
             let v = delete_entry(&json!({ "id": id }));
             assert_eq!(v["ok"], true);
+            assert_eq!(v["id"], json!(id));
+            assert_eq!(v["removed"], json!(1));
+            assert!(v.get("deleted").is_none());
             assert!(!notes.join("raw/proj/a.md").exists());
         },
     );
