@@ -11,8 +11,8 @@ use serde_json::{json, Value};
 use crate::config::settings;
 use crate::agent::diagnostics::{self, DiagnosticEvent, TurnId};
 use crate::agent::engine_router::{self, AdapterKind, EngineRouteError, TurnInput};
-use crate::agent::language::{describe_not_configured, describe_unbound, Language};
-use crate::agent::llm;
+use crate::agent::language::{describe_llm_error, describe_unbound, Language};
+use crate::agent::llm::{self, LlmError};
 use crate::agent::progress::{self, ProgressSink};
 use crate::agent::r#loop::{self, ChatTurnResult, Terminal, TurnOutcome};
 use crate::agent::session::{self, Step, StepClock};
@@ -117,7 +117,7 @@ fn host_adapter_turn(
             r#loop::run_loop_with_progress(&mut session, message, &config, turn_id, Some(sink))
         }
         Err(error) => {
-            let outcome = r#loop::map_llm_error(&error, Language::current());
+            let outcome = r#loop::map_llm_error(&error, Language::current(), false);
             append_user_assistant(&mut session, message, &outcome.reply_text);
             outcome
         }
@@ -328,13 +328,15 @@ pub(crate) fn chat_turn_with_trace(
             Ok(pack_outcome(
                 session_id,
                 TurnOutcome {
-                    reply_text: describe_not_configured(Language::current()).into(),
+                    reply_text: describe_llm_error(Language::current(), &LlmError::MissingConfig, false),
                     terminal: Terminal::Error,
                     wrote: false,
                 },
             ))
         }
         Err(EngineRouteError::Adapter(message)) => {
+            // The message is the store's own error text: it goes to the log, not the user.
+            let _ = session::log_agent_error(&format!("host adapter failed: {message}"));
             log_timing(
                 turn_id,
                 session_id,
@@ -354,7 +356,11 @@ pub(crate) fn chat_turn_with_trace(
             Ok(pack_outcome(
                 session_id,
                 TurnOutcome {
-                    reply_text: message,
+                    reply_text: describe_llm_error(
+                        Language::current(),
+                        &LlmError::InferenceFailed,
+                        false,
+                    ),
                     terminal: Terminal::Error,
                     wrote: false,
                 },

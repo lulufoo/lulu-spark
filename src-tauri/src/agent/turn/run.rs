@@ -6,9 +6,9 @@ use serde_json::{json, Value};
 
 use crate::agent::diagnostics::{self, DiagnosticEvent, TurnId};
 use crate::agent::language::{
-    describe_clarify_limit, describe_empty_prompt, describe_empty_reply, describe_mcp_unavailable,
-    describe_mcp_without_tools, describe_calling_tool, describe_requesting,
-    describe_unbound, describe_unusable_response, Language,
+    describe_clarify_limit, describe_content_unavailable, describe_empty_prompt,
+    describe_empty_reply, describe_running_action, describe_unbound, describe_unusable_response,
+    describe_working, Language,
 };
 use crate::agent::llm::{self, LlmConfig};
 use crate::agent::progress::{self, ProgressSink};
@@ -163,7 +163,8 @@ pub(crate) fn run_loop_with_progress(
     ) {
         Ok(tools) => tools,
         Err(PrepareError::EmptyMcpTools) => {
-            let reply = describe_mcp_without_tools(Language::current()).to_string();
+            let _ = session::log_agent_error("MCP server returned no tools");
+            let reply = describe_content_unavailable(Language::current()).to_string();
             session.steps.push(Step {
                 role: "assistant".into(),
                 content: Some(reply.clone()),
@@ -185,7 +186,8 @@ pub(crate) fn run_loop_with_progress(
             };
         }
         Err(PrepareError::Mcp(error)) => {
-            let reply = describe_mcp_unavailable(Language::current(), &error.to_string());
+            let _ = session::log_agent_error(&format!("MCP tool discovery failed: {error}"));
+            let reply = describe_content_unavailable(Language::current()).to_string();
             session.steps.push(Step {
                 role: "assistant".into(),
                 content: Some(reply.clone()),
@@ -242,7 +244,7 @@ pub(crate) fn run_loop_with_progress(
             sink,
             &session.session_id,
             turn_id,
-            describe_requesting(Language::current()),
+            describe_working(Language::current()),
             thinking_text,
             thinking_ms,
         );
@@ -297,8 +299,7 @@ pub(crate) fn run_loop_with_progress(
                 if chat_turn_interrupted(&session.session_id, generation) {
                     return cancelled_turn_outcome(session, steps_checkpoint);
                 }
-                let mut out = map_llm_error(&error, Language::current());
-                out.wrote = wrote;
+                let out = map_llm_error(&error, Language::current(), wrote);
                 // The text is our error copy, not model output; the fields are the model's.
                 let step = Step {
                     role: "assistant".into(),
@@ -334,7 +335,7 @@ pub(crate) fn run_loop_with_progress(
         if turn_tools.catalog.is_none() {
             // Typed/internal Binding without an MCP server keeps the old
             // text-only contract and never dispatches in-process tools.
-            let reply = describe_unusable_response(Language::current()).to_string();
+            let reply = describe_unusable_response(Language::current(), wrote).to_string();
             session.steps.push(Step {
                 role: "assistant".into(),
                 content: Some(reply.clone()),
@@ -402,7 +403,7 @@ pub(crate) fn run_loop_with_progress(
                 sink,
                 &session.session_id,
                 turn_id,
-                describe_calling_tool(Language::current(), &call.name),
+                describe_running_action(Language::current()),
                 thinking_text,
                 thinking_ms,
             );

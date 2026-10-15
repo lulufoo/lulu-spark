@@ -102,12 +102,13 @@ pub(crate) fn prompt_text_from_binding(prompt: &Value) -> String {
     }
 }
 
-pub fn map_llm_error(err: &LlmError, language: Language) -> TurnOutcome {
-    let reply_text = describe_llm_error(language, err);
+/// `wrote` is true when a tool already changed something earlier in the Turn.
+pub fn map_llm_error(err: &LlmError, language: Language, wrote: bool) -> TurnOutcome {
+    let reply_text = describe_llm_error(language, err, wrote);
     TurnOutcome {
         reply_text,
         terminal: Terminal::Error,
-        wrote: false,
+        wrote,
     }
 }
 

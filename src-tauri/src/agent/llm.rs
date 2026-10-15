@@ -280,10 +280,7 @@ pub fn chat_completions_with_options(
     retry::run_with_retries(options.max_retries, options.is_cancelled, |attempt| {
         if attempt > 1 {
             if let Some(callback) = on_delta.as_mut() {
-                callback(
-                    &describe_retrying(Language::current(), attempt - 1, options.max_retries),
-                    "",
-                );
+                callback(describe_retrying(Language::current()), "");
             }
         }
         let mut trace = CallTrace::start();

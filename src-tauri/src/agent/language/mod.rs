@@ -12,14 +12,13 @@ mod turn_replies;
 
 pub use llm_errors::describe_llm_error;
 pub use progress_hints::{
-    describe_calling_tool, describe_preparing, describe_preparing_tool, describe_receiving, describe_receiving_preview,
-    describe_requesting, describe_retrying, describe_thinking,
+    describe_preparing_action, describe_replying, describe_replying_preview,
+    describe_retrying, describe_running_action, describe_thinking, describe_working,
 };
 pub use turn_replies::{
-    describe_busy, describe_cancelled, describe_clarify_limit, describe_empty_prompt,
-    describe_empty_reply, describe_mcp_unavailable, describe_mcp_without_tools,
-    describe_no_wrap_up, describe_not_configured, describe_session_mismatch, describe_unbound,
-    describe_unusable_response,
+    describe_busy, describe_cancelled, describe_clarify_limit, describe_content_unavailable,
+    describe_empty_prompt, describe_empty_reply, describe_no_wrap_up, describe_session_mismatch,
+    describe_unbound, describe_unusable_response,
 };
 
 /// The language of the copy the engine writes itself (not of the model's replies).

@@ -1,6 +1,6 @@
 //! Copy for replies the engine writes itself during a Turn.
 
-use super::catalog::{fill_text, read_text};
+use super::catalog::read_text;
 use super::Language;
 
 /// A response that ended with no text and no tool calls. `wrote` is true once a mutating
@@ -22,28 +22,25 @@ pub fn describe_no_wrap_up(language: Language) -> &'static str {
     read_text(language, "turn.no_wrap_up")
 }
 
-pub fn describe_mcp_without_tools(language: Language) -> &'static str {
-    read_text(language, "turn.mcp_without_tools")
+/// The content service (the scene's MCP server) has no tools or can't be reached. Its own
+/// error text is not shown; it stays in the logs.
+pub fn describe_content_unavailable(language: Language) -> &'static str {
+    read_text(language, "turn.content_unavailable")
 }
 
-/// `error` is the service's own text and is passed on as it is.
-pub fn describe_mcp_unavailable(language: Language, error: &str) -> String {
-    fill_text(language, "turn.mcp_unavailable", &[("error", error)])
-}
-
-/// The model answered with something the turn cannot use, or asked for a tool that does
-/// not exist here.
-pub fn describe_unusable_response(language: Language) -> &'static str {
-    read_text(language, "turn.unusable_response")
+/// The model asked for a tool call this scene cannot run. `wrote` is true when a tool
+/// already changed something earlier in the Turn.
+pub fn describe_unusable_response(language: Language, wrote: bool) -> &'static str {
+    let key = if wrote {
+        "turn.unusable_response_after_write"
+    } else {
+        "turn.unusable_response"
+    };
+    read_text(language, key)
 }
 
 pub fn describe_clarify_limit(language: Language) -> &'static str {
     read_text(language, "turn.clarify_limit")
-}
-
-/// No usable model settings: the user has to configure the service first.
-pub fn describe_not_configured(language: Language) -> &'static str {
-    read_text(language, "turn.not_configured")
 }
 
 /// A chat was started while no business scene is active.

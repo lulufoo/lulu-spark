@@ -132,6 +132,6 @@ fn every_attempt_is_recorded_and_the_retry_is_announced() {
         assert_eq!(second["response"]["message"]["content"], "ok");
 
         let hints = hints.lock().unwrap();
-        assert!(hints.iter().any(|hint| hint == "Retrying (1/2)…"), "hints={hints:?}");
+        assert!(hints.iter().any(|hint| hint == "Having trouble reaching the service — retrying…"), "hints={hints:?}");
     });
 }

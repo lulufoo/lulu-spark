@@ -63,29 +63,19 @@ fn a_missing_key_shows_as_the_key_not_as_an_empty_text() {
 fn variables_are_replaced_and_unknown_names_are_ignored() {
     let text = fill_text(
         Language::English,
-        "llm_error.unknown_finish",
-        &[("reason", "odd"), ("other", "x")],
+        "progress.replying_preview",
+        &[("preview", "hi"), ("other", "x")],
     );
-    assert!(text.contains("(odd)"), "{text}");
-    assert!(!text.contains('{'), "{text}");
+    assert_eq!(text, "Replying… hi");
 }
 
 #[test]
 fn a_variable_without_a_value_stays_as_it_is() {
-    let text = fill_text(Language::English, "turn.mcp_unavailable", &[]);
-    assert!(text.contains("{error}"), "{text}");
+    let text = fill_text(Language::English, "progress.replying_preview", &[]);
+    assert!(text.contains("{preview}"), "{text}");
 }
 
 #[test]
 fn the_language_code_names_its_locale_file() {
     assert_eq!(Language::English.code(), "en");
-}
-
-#[test]
-fn progress_hints_keep_their_variables() {
-    use crate::agent::language::{describe_receiving_preview, describe_retrying};
-    let retry = describe_retrying(Language::English, 1, 2);
-    assert!(retry.contains("1/2"), "{retry}");
-    assert!(!retry.contains('{'), "{retry}");
-    assert_eq!(describe_receiving_preview(Language::English, "你好"), "Receiving… 你好");
 }

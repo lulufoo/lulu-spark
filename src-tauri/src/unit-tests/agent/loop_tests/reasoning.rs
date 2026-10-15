@@ -156,10 +156,10 @@ fn empty_response_fallback_step_carries_thinking_and_response_fields() {
         let mut session = session::create_session().expect("session");
         arm_plan_binding(&master);
         let outcome = r#loop::run_loop(&mut session, "你好", &cfg_for(&mock));
-        assert_eq!(outcome.reply_text, "The model's response was empty. Nothing was written.");
+        assert_eq!(outcome.reply_text, "Spark gave an empty reply. No changes were made. Try again.");
 
         let last = session.steps.last().expect("fallback step");
-        assert_eq!(last.content.as_deref(), Some("The model's response was empty. Nothing was written."));
+        assert_eq!(last.content.as_deref(), Some("Spark gave an empty reply. No changes were made. Try again."));
         assert_eq!(last.reasoning_content.as_deref(), Some("只想不说"));
         assert_eq!(last.finish_reason.as_deref(), Some("stop"));
         assert_eq!(last.model.as_deref(), Some("glm-reply"));
