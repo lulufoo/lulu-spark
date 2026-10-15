@@ -238,6 +238,17 @@ pub fn run() {
                 };
                 let _ = crate::services::notes::ensure_notes_layout(&data);
                 let _ = crate::services::knowledge_layout::ensure_knowledge_registry_layout(&data);
+                if let Err(error) = crate::services::spark_data::backup_daily() {
+                    use crate::services::app_log::{log, Level, Side};
+                    log(
+                        "spark_data",
+                        "backup_failed",
+                        None,
+                        Some(serde_json::json!({ "error": error })),
+                        Side::Host,
+                        Level::Error,
+                    );
+                }
                 if !data.join("notes").join("index.json").is_file() {
                     return;
                 }

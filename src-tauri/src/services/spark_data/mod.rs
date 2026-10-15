@@ -1,11 +1,13 @@
 //! Durable metadata database `spark-data.sqlite` (design: Linear project 元数据库 spark-data).
 
+mod backup;
 mod db;
 mod json_column;
 mod knowledge_doc_row;
 mod knowledge_registry;
 mod note_row;
 
+pub use backup::{backup_daily, backup_dir, backup_for_day, BACKUP_DIR};
 pub use db::{db_path, open, open_at, DB_FILE};
 pub use knowledge_doc_row::{
     active_knowledge_doc_ids, delete_knowledge_doc, find_knowledge_doc_id, get_knowledge_doc, insert_knowledge_doc,
