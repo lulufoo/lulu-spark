@@ -231,7 +231,7 @@ pub fn get_note_path_by_id(repo_root: &Path, id: &str) -> Value {
         return json!({ "id": id, "ok": false, "error": "Entry not found" });
     };
     let Some(common_path) = entry.get("common_path").and_then(|v| v.as_str()) else {
-        return json!({ "id": id, "ok": false, "error": "Missing common_path" });
+        return json!({ "id": id, "ok": false, "error": "Missing path" });
     };
     let common_path = common_path.trim();
     if common_path.is_empty() || common_path.contains("..") {
@@ -248,7 +248,7 @@ pub fn get_note_path_by_id(repo_root: &Path, id: &str) -> Value {
         return json!({ "id": id, "ok": false, "error": "Path traversal not allowed" });
     }
     if !target_canon.is_file() {
-        return json!({ "id": id, "ok": false, "error": format!("File not found: raw/{common_path}") });
+        return json!({ "id": id, "ok": false, "error": "File not found" });
     }
     json!({
         "id": id,
@@ -284,7 +284,7 @@ fn read_note_layer(repo_root: &Path, id: &str, layer: &str, truncate_raw: bool) 
         return json!({
             "id": id,
             "ok": false,
-            "error": "Missing common_path",
+            "error": "Missing path",
         });
     };
     let file_value = get_notes_file(repo_root, layer, common_path);

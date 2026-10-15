@@ -70,7 +70,7 @@ pub(super) fn write_digest_file(
     let digest_path = notes_layer_path(notes, "digest", common_path)?;
     if digest_path.is_file() {
         return Err(json!({
-            "error": format!("File already exists: digest/{common_path}"),
+            "error": "File already exists",
             "_status": 409
         }));
     }

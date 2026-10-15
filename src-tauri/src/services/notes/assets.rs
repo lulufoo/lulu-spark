@@ -55,7 +55,7 @@ pub(super) fn resolve_create_assets(
         .parent()
         .map(|p| p.to_string_lossy().replace('\\', "/"))
         .filter(|s| !s.is_empty())
-        .ok_or_else(|| json!({ "error": "Invalid common_path", "_status": 400 }))?;
+        .ok_or_else(|| json!({ "error": "Invalid path", "_status": 400 }))?;
 
     let mut out = Vec::with_capacity(items.len());
     let mut seen = HashSet::new();
@@ -70,14 +70,14 @@ pub(super) fn resolve_create_assets(
         let dest_name = dest_basename(&source)?;
         if !seen.insert(dest_name.clone()) {
             return Err(json!({
-                "error": format!("File already exists: raw/{dir_rel}/{dest_name}"),
+                "error": "File already exists",
                 "_status": 409
             }));
         }
         let dest = parent.join(&dest_name);
         if dest.exists() {
             return Err(json!({
-                "error": format!("File already exists: raw/{dir_rel}/{dest_name}"),
+                "error": "File already exists",
                 "_status": 409
             }));
         }

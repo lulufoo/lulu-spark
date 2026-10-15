@@ -74,7 +74,7 @@ pub fn delete_entry(payload: &Value) -> Value {
     };
     let common_path = entry.get("common_path").and_then(|v| v.as_str()).unwrap_or("");
     if common_path.is_empty() || common_path.contains("..") {
-        return json!({ "error": "Invalid common_path", "_status": 400 });
+        return json!({ "error": "Invalid path", "_status": 400 });
     }
     let mut deleted = Vec::new();
     for layer in LAYERS {
@@ -109,7 +109,11 @@ pub fn delete_entry(payload: &Value) -> Value {
         return v;
     }
     sync_index_for(&[common_path]);
-    json!({ "ok": true, "deleted": deleted })
+    json!({
+        "ok": true,
+        "id": entry_id,
+        "removed": deleted.len(),
+    })
 }
 
 /// Files are gone or moved by now, so a missing file drops its rows.

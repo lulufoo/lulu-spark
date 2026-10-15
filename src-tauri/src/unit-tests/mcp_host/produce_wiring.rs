@@ -82,10 +82,20 @@ fn notes_identity_params(result: &Value) -> Value {
     if let Some(value) = result.get("id") {
         params.insert("archive_id".to_string(), value.clone());
     }
-    if let Some(value) = result.get("common_path") {
-        params.insert("common_path".to_string(), value.clone());
-    }
     Value::Object(params)
+}
+
+fn assert_mcp_write_hides_internal_paths(result: &Value) {
+    for key in [
+        "common_path",
+        "raw_path",
+        "digest_path",
+        "extra_paths",
+        "asset_paths",
+        "created_at",
+    ] {
+        assert!(result.get(key).is_none(), "{key} leaked: {result}");
+    }
 }
 
 fn assert_produced_envelope(business: &str, action: &str, params: Value) {
@@ -113,10 +123,18 @@ fn assert_produced_envelope(business: &str, action: &str, params: Value) {
 
 fn assert_notes_produced(action: &str, result: &Value, before: usize) {
     assert_note_ok(result);
-    let params = notes_identity_params(result);
+    assert_mcp_write_hides_internal_paths(result);
+    let mut params = notes_identity_params(result);
+    let envelope = last_changed_envelope().expect("envelope");
+    if let Some(path) = envelope.params.get("common_path") {
+        params
+            .as_object_mut()
+            .expect("params object")
+            .insert("common_path".to_string(), path.clone());
+    }
     assert!(
         params.get("archive_id").is_some() && params.get("common_path").is_some(),
-        "{result}"
+        "{result} envelope={envelope:?}"
     );
     let note_id = result.get("id").and_then(|v| v.as_str()).expect("note id");
     let hop_id = last_changed_envelope()

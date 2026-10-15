@@ -133,7 +133,7 @@ fn write_note(
     };
     if raw_path.is_file() {
         return json!({
-            "error": format!("File already exists: raw/{}", meta.common_path),
+            "error": "File already exists",
             "_status": 409
         });
     }
@@ -146,7 +146,7 @@ fn write_note(
         };
         if path.is_file() {
             return json!({
-                "error": format!("File already exists: {}", t.rel),
+                "error": "File already exists",
                 "_status": 409
             });
         }
