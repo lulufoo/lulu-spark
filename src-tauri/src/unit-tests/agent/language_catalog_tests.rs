@@ -3,6 +3,8 @@ use std::collections::BTreeSet;
 use super::{fill_text, load_texts, read_text};
 use crate::agent::language::Language;
 
+const LANGUAGES: [Language; 2] = [Language::English, Language::ChineseSimplified];
+
 /// Message keys start with one of these scene prefixes.
 const KEY_PREFIXES: [&str; 3] = ["llm_error.", "turn.", "progress."];
 
@@ -30,27 +32,64 @@ fn keys_used_in_code() -> BTreeSet<String> {
 }
 
 #[test]
-fn the_english_file_parses_and_has_no_empty_text() {
-    let texts = load_texts(Language::English);
-    assert!(!texts.is_empty());
-    for (key, text) in texts {
-        assert!(!text.trim().is_empty(), "{key} has no text");
+fn every_file_parses_and_has_no_empty_text() {
+    for language in LANGUAGES {
+        let texts = load_texts(language);
+        assert!(!texts.is_empty());
+        for (key, text) in texts {
+            assert!(!text.trim().is_empty(), "{} {key} has no text", language.code());
+        }
     }
 }
 
 #[test]
-fn every_key_used_in_code_is_in_the_english_file() {
-    let texts = load_texts(Language::English);
-    for key in keys_used_in_code() {
-        assert!(texts.contains_key(&key), "{key} is used in code but missing from en.json");
+fn every_key_used_in_code_is_in_every_file() {
+    for language in LANGUAGES {
+        let texts = load_texts(language);
+        for key in keys_used_in_code() {
+            assert!(
+                texts.contains_key(&key),
+                "{key} is used in code but missing from {}.json",
+                language.code()
+            );
+        }
     }
 }
 
 #[test]
-fn every_key_in_the_english_file_is_used_in_code() {
+fn every_key_in_every_file_is_used_in_code() {
     let used = keys_used_in_code();
-    for key in load_texts(Language::English).keys() {
-        assert!(used.contains(key), "{key} is in en.json but no code uses it");
+    for language in LANGUAGES {
+        for key in load_texts(language).keys() {
+            assert!(used.contains(key), "{key} is in {}.json but no code uses it", language.code());
+        }
+    }
+}
+
+#[test]
+fn the_files_have_the_same_keys() {
+    let english: BTreeSet<_> = load_texts(Language::English).keys().collect();
+    let chinese: BTreeSet<_> = load_texts(Language::ChineseSimplified).keys().collect();
+    assert_eq!(english, chinese);
+}
+
+/// The `{name}` placeholders in a text, sorted.
+fn variables_in(text: &str) -> Vec<String> {
+    let mut names: Vec<String> = text
+        .split('{')
+        .skip(1)
+        .filter_map(|part| part.split_once('}').map(|(name, _)| name.to_string()))
+        .collect();
+    names.sort();
+    names
+}
+
+#[test]
+fn a_text_has_the_same_variables_in_every_language() {
+    let english = load_texts(Language::English);
+    let chinese = load_texts(Language::ChineseSimplified);
+    for (key, text) in english {
+        assert_eq!(variables_in(text), variables_in(&chinese[key]), "{key}");
     }
 }
 
@@ -78,4 +117,10 @@ fn a_variable_without_a_value_stays_as_it_is() {
 #[test]
 fn the_language_code_names_its_locale_file() {
     assert_eq!(Language::English.code(), "en");
+    assert_eq!(Language::ChineseSimplified.code(), "zh-CN");
+    let locales = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("locales");
+    for language in LANGUAGES {
+        let file = locales.join(format!("{}.json", language.code()));
+        assert!(file.is_file(), "{}", file.display());
+    }
 }

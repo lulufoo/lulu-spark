@@ -7,6 +7,7 @@ use std::sync::OnceLock;
 use super::Language;
 
 const EN_JSON: &str = include_str!("../../../locales/en.json");
+const ZH_CN_JSON: &str = include_str!("../../../locales/zh-CN.json");
 
 type Texts = HashMap<String, String>;
 
@@ -15,6 +16,10 @@ fn load_texts(language: Language) -> &'static Texts {
         Language::English => {
             static TEXTS: OnceLock<Texts> = OnceLock::new();
             TEXTS.get_or_init(|| parse_texts(EN_JSON))
+        }
+        Language::ChineseSimplified => {
+            static TEXTS: OnceLock<Texts> = OnceLock::new();
+            TEXTS.get_or_init(|| parse_texts(ZH_CN_JSON))
         }
     }
 }

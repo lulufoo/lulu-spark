@@ -38,9 +38,10 @@ fn every_llm_error() -> Vec<LlmError> {
     ]
 }
 
-/// Every message the user can see, in English, whatever the inputs.
-fn every_message() -> Vec<String> {
-    let language = Language::English;
+const LANGUAGES: [Language; 2] = [Language::English, Language::ChineseSimplified];
+
+/// Every message the user can see in `language`, whatever the inputs.
+fn every_message(language: Language) -> Vec<String> {
     let mut texts = Vec::new();
     for wrote in [false, true] {
         for error in every_llm_error() {
@@ -75,20 +76,35 @@ fn every_message() -> Vec<String> {
 }
 
 #[test]
-fn every_message_has_copy_and_no_leftover_variable() {
-    for text in every_message() {
-        assert!(!text.trim().is_empty());
-        assert!(!text.contains('{') && !text.contains('}'), "{text}");
+fn every_message_has_copy_and_no_leftover_variable_in_every_language() {
+    for language in LANGUAGES {
+        for text in every_message(language) {
+            assert!(!text.trim().is_empty(), "{}", language.code());
+            assert!(!text.contains('{') && !text.contains('}'), "{text}");
+        }
     }
 }
 
 #[test]
-fn no_message_uses_an_internal_term() {
-    for text in every_message() {
-        let lower = text.to_lowercase();
-        for term in INTERNAL_TERMS {
-            assert!(!lower.contains(term), "`{term}` in: {text}");
+fn no_message_uses_an_internal_term_in_any_language() {
+    for language in LANGUAGES {
+        for text in every_message(language) {
+            let lower = text.to_lowercase();
+            for term in INTERNAL_TERMS {
+                assert!(!lower.contains(term), "`{term}` in {}: {text}", language.code());
+            }
         }
+    }
+}
+
+#[test]
+fn the_chinese_copy_is_chinese_and_differs_from_the_english() {
+    let english = every_message(Language::English);
+    let chinese = every_message(Language::ChineseSimplified);
+    assert_eq!(english.len(), chinese.len());
+    for (en, zh) in english.iter().zip(&chinese) {
+        assert!(zh.chars().any(|c| ('\u{4e00}'..='\u{9fff}').contains(&c)), "{zh}");
+        assert_ne!(en, zh);
     }
 }
 
@@ -104,29 +120,36 @@ fn error_replies_say_only_plain_ascii() {
 
 #[test]
 fn the_details_of_an_error_are_not_in_its_copy() {
-    let text = describe_llm_error(Language::English, &LlmError::UnknownFinish("odd".into()), false);
-    assert!(!text.contains("odd"), "{text}");
-    let text = describe_llm_error(Language::English, &LlmError::Network("refused".into()), false);
-    assert!(!text.contains("refused"), "{text}");
+    for language in LANGUAGES {
+        let unknown = LlmError::UnknownFinish("odd".into());
+        assert!(!describe_llm_error(language, &unknown, false).contains("odd"));
+        let network = LlmError::Network("refused".into());
+        assert!(!describe_llm_error(language, &network, false).contains("refused"));
+    }
 }
 
 #[test]
 fn a_promise_of_no_changes_is_only_made_when_nothing_was_written() {
-    let language = Language::English;
-    let promising = |text: &str| text.contains("No changes were made");
-    for error in [
-        LlmError::UnknownFinish("odd".into()),
-        LlmError::InvalidResponse("x".into()),
+    for (language, phrase) in [
+        (Language::English, "No changes were made"),
+        (Language::ChineseSimplified, "没有做任何修改"),
     ] {
-        assert!(promising(&describe_llm_error(language, &error, false)), "{error:?}");
-        assert!(!promising(&describe_llm_error(language, &error, true)), "{error:?}");
+        let promising = |text: &str| text.contains(phrase);
+        for error in [
+            LlmError::UnknownFinish("odd".into()),
+            LlmError::InvalidResponse("x".into()),
+        ] {
+            assert!(promising(&describe_llm_error(language, &error, false)), "{error:?}");
+            assert!(!promising(&describe_llm_error(language, &error, true)), "{error:?}");
+        }
+        assert!(promising(describe_unusable_response(language, false)));
+        assert!(!promising(describe_unusable_response(language, true)));
+        assert!(!promising(describe_empty_reply(language, true, 3)));
     }
-    assert!(promising(describe_unusable_response(language, false)));
-    assert!(!promising(describe_unusable_response(language, true)));
-    assert!(!promising(describe_empty_reply(language, true, 3)));
 }
 
 #[test]
 fn the_reply_preview_is_part_of_the_hint() {
     assert_eq!(describe_replying_preview(Language::English, "你好"), "Replying… 你好");
+    assert_eq!(describe_replying_preview(Language::ChineseSimplified, "你好"), "正在回复… 你好");
 }

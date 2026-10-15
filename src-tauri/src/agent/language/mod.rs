@@ -25,6 +25,7 @@ pub use turn_replies::{
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Language {
     English,
+    ChineseSimplified,
 }
 
 impl Language {
@@ -32,11 +33,13 @@ impl Language {
     pub fn code(self) -> &'static str {
         match self {
             Language::English => "en",
+            Language::ChineseSimplified => "zh-CN",
         }
     }
 
-    /// Only English exists today. A language setting would be read here, so callers
-    /// that pass `Language::current()` need no change.
+    /// Always English for now: there is no language setting yet, so Chinese is written and
+    /// tested but cannot be chosen. A setting would be read here, so callers that pass
+    /// `Language::current()` need no change.
     pub fn current() -> Self {
         Language::English
     }
