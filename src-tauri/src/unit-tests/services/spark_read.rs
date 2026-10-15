@@ -340,7 +340,7 @@ fn get_notes_asset_rejects_non_whitelist_ext() {
 }
 
 #[test]
-fn list_all_notes_catalogs_picks_newest_including_raw_only() {
+fn catalog_listing_helpers_pick_newest_including_raw_only() {
     let id_old = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
     let id_new = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
     let id_pg = "cccccccccccccccccccccccccccccccc";
@@ -383,18 +383,6 @@ fn list_all_notes_catalogs_picks_newest_including_raw_only() {
             fs::write(notes.join("index.json"), index.to_string()).expect("write index");
         },
         move |cfg_dir| {
-            let v = list_all_notes_catalogs(cfg_dir);
-            let items = v["items"].as_array().expect("items");
-            assert_eq!(items.len(), 2);
-            let ai = items.iter().find(|i| i["catalog"] == "ai").expect("ai");
-            assert_eq!(ai["note_id"], id_raw);
-            assert_eq!(ai["created_at"], "202606200000");
-            assert!(ai.get("content").is_none());
-            let pg = items
-                .iter()
-                .find(|i| i["catalog"] == "personal-growth")
-                .expect("pg");
-            assert_eq!(pg["note_id"], id_pg);
             let listed = list_notes_by_catalog(cfg_dir, "ai");
             assert_eq!(
                 listed["ids"],

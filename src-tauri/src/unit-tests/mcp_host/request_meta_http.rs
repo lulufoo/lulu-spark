@@ -57,7 +57,7 @@ fn requests_carrying_meta_are_served_with_their_bodies_intact() {
         Some(&session),
     );
     assert_eq!(status, 200, "tools/list with _meta");
-    assert!(body.contains("get_all_notes_catalog"), "tool list intact: {body}");
+    assert!(body.contains("list_notes_categories"), "tool list intact: {body}");
 
     let (status, body, _) = http_post_json_auth(
         &url,

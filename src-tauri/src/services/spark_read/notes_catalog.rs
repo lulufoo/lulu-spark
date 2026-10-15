@@ -45,59 +45,6 @@ pub(crate) fn truncate_utf8(text: &str, max_bytes: usize) -> (String, bool) {
     (text[..end].to_string(), true)
 }
 
-/// All project catalogs with the newest note pointer (no digest body).
-pub fn list_all_notes_catalogs(repo_root: &Path) -> Value {
-    let entries = match load_notes_index_entries(repo_root) {
-        Ok(e) => e,
-        Err(v) => return v,
-    };
-
-    let mut best_by_catalog: HashMap<String, (String, String)> = HashMap::new();
-    for (id, entry) in &entries {
-        if !is_valid_entry_id(id) {
-            continue;
-        }
-        let Some(common_path) = entry.get("common_path").and_then(|v| v.as_str()) else {
-            continue;
-        };
-        if common_path.is_empty() {
-            continue;
-        }
-        let created_at = entry
-            .get("created_at")
-            .and_then(|v| v.as_str())
-            .unwrap_or("");
-        let catalog = catalog_from_common_path(common_path).to_string();
-        match best_by_catalog.get(&catalog) {
-            None => {
-                best_by_catalog.insert(catalog, (id.clone(), created_at.to_string()));
-            }
-            Some((_, prev_created)) if created_at > prev_created.as_str() => {
-                best_by_catalog.insert(catalog, (id.clone(), created_at.to_string()));
-            }
-            _ => {}
-        }
-    }
-
-    let mut items: Vec<Value> = best_by_catalog
-        .into_iter()
-        .map(|(catalog, (note_id, created_at))| {
-            json!({
-                "catalog": catalog,
-                "note_id": note_id,
-                "created_at": created_at,
-            })
-        })
-        .collect();
-    items.sort_by(|a, b| {
-        a.get("catalog")
-            .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .cmp(b.get("catalog").and_then(|v| v.as_str()).unwrap_or(""))
-    });
-    json!({ "items": items })
-}
-
 /// Newest digest-bearing note per catalog, with digest body. One MCP round-trip.
 pub fn get_latest_digest_per_catalog(repo_root: &Path) -> Value {
     let entries = match load_notes_index_entries(repo_root) {

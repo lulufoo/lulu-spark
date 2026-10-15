@@ -48,7 +48,7 @@ fn tool_turn_gives_each_row_its_own_window_in_order() {
 
     let call = json!([{
         "id": "selection_1", "type": "function",
-        "function": { "name": "get_all_notes_catalog", "arguments": "{}" }
+        "function": { "name": "list_notes_categories", "arguments": "{}" }
     }]);
     let mock = spawn_scripted_llm(vec![assistant_tools(call, None), assistant_text("好了")]);
     r#loop::try_set_binding_json(&json!({ "key": "spark" })).expect("Set spark binding");

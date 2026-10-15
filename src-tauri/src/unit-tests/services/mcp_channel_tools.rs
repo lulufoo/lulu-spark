@@ -26,7 +26,7 @@ fn set_enabled_subset_filters_only_that_channel() {
     let sandbox = TestSandbox::new();
     set_enabled("mobile", without("create_note")).expect("save mobile");
     assert!(!is_enabled("mobile", "create_note"));
-    assert!(is_enabled("mobile", "get_all_notes_catalog"));
+    assert!(is_enabled("mobile", "list_notes_categories"));
     assert!(is_enabled("spark", "create_note"));
     assert!(is_enabled("cursor_ide", "create_note"));
     let path = paths::mcp_channel_tools_path().expect("path");
@@ -131,7 +131,7 @@ fn load_rewrites_retired_search_tools_to_search() {
         serde_json::json!({
             "channels": {
                 "cursor_ide": {
-                    "notes": ["get_all_notes_catalog", "search_notes"],
+                    "notes": ["list_notes_categories", "search_notes"],
                     "todo": [],
                     "knowledge": ["search_knowledge"],
                     "global": ["search_document"]
@@ -163,7 +163,7 @@ fn load_rewrites_retired_note_content_name() {
     let sandbox = TestSandbox::new();
     write_channels(serde_json::json!({
         "cursor_ide": {
-            "notes": ["get_all_notes_catalog", "get_note_content_by_id"],
+            "notes": ["list_notes_categories", "get_note_content_by_id"],
             "todo": [],
             "knowledge": []
         },
@@ -187,7 +187,7 @@ fn load_rewrites_retired_note_digest_name() {
     let sandbox = TestSandbox::new();
     write_channels(serde_json::json!({
         "cursor_ide": {
-            "notes": ["get_all_notes_catalog", "get_note_digest_by_id"],
+            "notes": ["list_notes_categories", "get_note_digest_by_id"],
             "todo": [],
             "knowledge": []
         },
@@ -215,7 +215,7 @@ fn load_migrates_legacy_flat_channel_lists() {
         &path,
         serde_json::json!({
             "channels": {
-                "mobile": ["get_all_notes_catalog", "list_todo_tasks"]
+                "mobile": ["list_notes_categories", "list_todo_tasks"]
             }
         })
         .to_string(),
@@ -223,9 +223,43 @@ fn load_migrates_legacy_flat_channel_lists() {
     .expect("write legacy");
     sandbox.assert_not_prod_path(&path).expect("sandbox file");
     let grouped = crate::services::settings::mcp_channel_tools::enabled_by_group("mobile");
-    assert!(grouped.notes.contains(&"get_all_notes_catalog".into()));
-    assert!(is_enabled("mobile", "get_all_notes_catalog"));
+    assert!(grouped.notes.contains(&"list_notes_categories".into()));
+    assert!(is_enabled("mobile", "list_notes_categories"));
     assert!(!is_enabled("mobile", "list_todo_tasks"));
+}
+
+#[test]
+fn load_ignores_retired_get_all_notes_catalog() {
+    let sandbox = TestSandbox::new();
+    write_channels(serde_json::json!({
+        "cursor_ide": {
+            "notes": ["get_all_notes_catalog", "create_note"],
+            "knowledge": []
+        },
+        "mobile": ["get_all_notes_catalog", "get_note_digest"]
+    }));
+    let path = paths::mcp_channel_tools_path().expect("path");
+    sandbox.assert_not_prod_path(&path).expect("sandbox file");
+    for channel in ["cursor_ide", "mobile"] {
+        let grouped = crate::services::settings::mcp_channel_tools::enabled_by_group(channel);
+        assert!(
+            !grouped.notes.contains(&"get_all_notes_catalog".into()),
+            "{channel}: retired name must be dropped on load"
+        );
+        assert!(!is_enabled(channel, "get_all_notes_catalog"), "{channel}");
+    }
+    assert!(is_enabled("cursor_ide", "create_note"));
+    assert!(is_enabled("mobile", "get_note_digest"));
+    let snap = snapshot().expect("snapshot must not fail on a stored retired name");
+    let listed: HashSet<&str> = snap["groups"]
+        .as_array()
+        .expect("groups")
+        .iter()
+        .flat_map(|g| g["tools"].as_array().expect("tools"))
+        .filter_map(|t| t["name"].as_str())
+        .collect();
+    assert!(!listed.contains("get_all_notes_catalog"));
+    assert!(listed.contains("list_notes_categories"));
 }
 
 #[test]

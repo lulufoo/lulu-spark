@@ -77,7 +77,7 @@ fn tool_loop_echoes_thinking_in_the_same_turn_and_stores_the_response_fields() {
 
     let call = json!([{
         "id": "selection_1", "type": "function",
-        "function": { "name": "get_all_notes_catalog", "arguments": "{}" }
+        "function": { "name": "list_notes_categories", "arguments": "{}" }
     }]);
     let mock = spawn_scripted_llm(vec![
         thinking(assistant_tools(call, None), "先看目录"),

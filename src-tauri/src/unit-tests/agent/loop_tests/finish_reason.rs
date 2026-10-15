@@ -115,7 +115,7 @@ fn silent_stop_after_a_read_only_tool_says_the_tool_ran_without_writing() {
 
     let call = json!([{
         "id": "selection_1", "type": "function",
-        "function": { "name": "get_all_notes_catalog", "arguments": "{}" }
+        "function": { "name": "list_notes_categories", "arguments": "{}" }
     }]);
     let mock = spawn_scripted_llm(vec![assistant_tools(call, None), response("stop", "", None)]);
     r#loop::try_set_binding_json(&json!({ "key": "spark" })).expect("Set spark binding");

@@ -35,7 +35,7 @@ Map the user request, then call **only** the tools that match. Do not run a fixe
 | User intent | Do | Do not |
 |-------------|----|--------|
 | Create / save / archive a note | Infer `project`, `theme`, and `title` when the user did not give them — [path-or-paste.md](references/path-or-paste.md) for a lone path or paste. Load [chinese-companion.md](references/chinese-companion.md). Call `create_note` with the live schema parameters. | — |
-| List catalogs with newest note pointer | `get_all_notes_catalog` | — |
+| List note categories | `list_notes_categories` | — |
 | Search notes and knowledge | `search` | Do not list a catalog's full id set |
 | Read one digest | `get_note_digest` | — |
 | Read one raw body | `get_note_file` with a `dest_dir`, then read the returned copy | Do not read the notes data directory directly |
@@ -71,7 +71,7 @@ Do not invent norms not listed here.
 | MCP tool | Purpose |
 |----------|---------|
 | `create_note` | Create a note |
-| `get_all_notes_catalog` | Every project catalog with newest `note_id` + `created_at` (no bodies) |
+| `list_notes_categories` | List notes categories; does not list notes |
 | `search` | Search Lulu Spark's own library (currently notes and knowledge); returns id, title, snippet, category |
 | `get_note_digest` | Digest Markdown for one note id |
 | `get_note_file` | Copy one note's file into `dest_dir` and return `{ok, id, path}`; the body is not returned and an existing copy is never overwritten |

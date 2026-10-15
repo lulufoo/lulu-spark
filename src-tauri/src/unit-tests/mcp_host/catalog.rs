@@ -10,7 +10,6 @@ use crate::mcp_host::catalog::{build, build_routes_for_channel, catalog_groups, 
 use crate::services::settings::mcp_catalog::GroupedEnabledCatalog;
 
 const NOTES_APIS: &[&str] = &[
-    "get_all_notes_catalog",
     "get_note_digest",
     "get_note_content",
     "get_note_file",
@@ -193,14 +192,14 @@ fn group_for_migrated_api_maps_all_catalog_keys() {
 #[test]
 fn runtime_builds_enabled_routes_from_factory_only() {
     let enabled = GroupedEnabledCatalog {
-        notes: vec!["get_all_notes_catalog".into(), "create_note".into()],
+        notes: vec!["list_notes_categories".into(), "create_note".into()],
         knowledge: vec!["get_knowledge_file".into()],
         global: vec!["search".into()],
         ..GroupedEnabledCatalog::default()
     };
     let routes = build_routes_for_channel("spark", "spark", &enabled);
     let names: Vec<_> = routes.iter().map(|r| r.name.as_str()).collect();
-    assert!(names.contains(&"get_all_notes_catalog"));
+    assert!(names.contains(&"list_notes_categories"));
     assert!(names.contains(&"create_note"));
     assert!(!names.contains(&"list_todo_tasks"));
     assert!(!names.contains(&"create_todo_task"));
@@ -311,7 +310,7 @@ fn delete_note_only_available_on_spark() {
 
 #[test]
 fn factory_unknown_group_returns_none() {
-    assert!(build("unknown", "get_all_notes_catalog", "spark").is_none());
+    assert!(build("unknown", "list_notes_categories", "spark").is_none());
 }
 
 #[test]

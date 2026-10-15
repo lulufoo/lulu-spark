@@ -52,7 +52,7 @@ const TOOLS_SNAPSHOT = {
       label: 'Notes',
       tools: [
         { name: 'create_note', description: 'Create a note' },
-        { name: 'get_all_notes_catalog', description: 'Catalog' },
+        { name: 'list_notes_categories', description: 'Categories' },
       ],
     },
     {
@@ -62,11 +62,11 @@ const TOOLS_SNAPSHOT = {
     },
   ],
   enabled: {
-    spark: ['create_note', 'get_all_notes_catalog', 'list_todo_tasks'],
-    cursor: ['create_note', 'get_all_notes_catalog', 'list_todo_tasks'],
-    codex: ['create_note', 'get_all_notes_catalog', 'list_todo_tasks'],
-    claude: ['create_note', 'get_all_notes_catalog', 'list_todo_tasks'],
-    mobile: ['get_all_notes_catalog', 'list_todo_tasks'],
+    spark: ['create_note', 'list_notes_categories', 'list_todo_tasks'],
+    cursor: ['create_note', 'list_notes_categories', 'list_todo_tasks'],
+    codex: ['create_note', 'list_notes_categories', 'list_todo_tasks'],
+    claude: ['create_note', 'list_notes_categories', 'list_todo_tasks'],
+    mobile: ['list_notes_categories', 'list_todo_tasks'],
   },
 };
 
@@ -595,7 +595,7 @@ describe('Settings MCP panel actions', () => {
     document.getElementById('settings-mcp-channel').value = 'mobile';
     document.getElementById('settings-mcp-channel').dispatchEvent(new Event('change'));
     expect(document.querySelector('[data-mcp-tool="create_note"]').checked).toBe(false);
-    expect(document.querySelector('[data-mcp-tool="get_all_notes_catalog"]').checked).toBe(true);
+    expect(document.querySelector('[data-mcp-tool="list_notes_categories"]').checked).toBe(true);
   });
 
   it('writes the selected channel when a tool checkbox changes', async () => {
@@ -612,7 +612,7 @@ describe('Settings MCP panel actions', () => {
     await vi.waitFor(() =>
       expect(api.invoke).toHaveBeenCalledWith('set_mcp_channel_tools', {
         channel: 'mobile',
-        enabled: ['create_note', 'get_all_notes_catalog', 'list_todo_tasks'],
+        enabled: ['create_note', 'list_notes_categories', 'list_todo_tasks'],
       }),
     );
     await vi.waitFor(() =>
@@ -636,7 +636,7 @@ describe('Settings MCP panel actions', () => {
     await vi.waitFor(() =>
       expect(api.invoke).toHaveBeenCalledWith('set_mcp_channel_tools', {
         channel: 'mobile',
-        enabled: ['create_note', 'get_all_notes_catalog', 'list_todo_tasks'],
+        enabled: ['create_note', 'list_notes_categories', 'list_todo_tasks'],
       }),
     );
     api.invoke.mockClear();
@@ -664,7 +664,7 @@ describe('Settings MCP panel actions', () => {
     const boxes = [...document.querySelectorAll('#settings-mcp-tool-groups input[data-mcp-tool]')];
     expect(boxes.map((el) => el.dataset.mcpTool)).toEqual([
       'create_note',
-      'get_all_notes_catalog',
+      'list_notes_categories',
       'list_todo_tasks',
     ]);
     expect(boxes.every((el) => el.checked)).toBe(true);
@@ -710,14 +710,14 @@ describe('Settings MCP panel actions', () => {
     document.getElementById('settings-mcp-channel').value = 'cursor';
     document.getElementById('settings-mcp-channel').dispatchEvent(new Event('change'));
     expect(document.querySelector('[data-mcp-tool="create_note"]')).toBeNull();
-    expect(document.querySelector('[data-mcp-tool="get_all_notes_catalog"]')).toBeTruthy();
+    expect(document.querySelector('[data-mcp-tool="list_notes_categories"]')).toBeTruthy();
 
     api.invoke.mockClear();
     document.getElementById('btn-settings-mcp-tools-select-all').click();
     await vi.waitFor(() =>
       expect(api.invoke).toHaveBeenCalledWith('set_mcp_channel_tools', {
         channel: 'cursor',
-        enabled: ['get_all_notes_catalog', 'list_todo_tasks'],
+        enabled: ['list_notes_categories', 'list_todo_tasks'],
       }),
     );
   });
