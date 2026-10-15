@@ -149,7 +149,6 @@ fn assert_uniform_401(status: u16, body: &str, secret: Option<&str>) {
 
 /// Notes tools from Node `buildServer()` when `includeNotes` is true.
 const NOTES_TOOLS: &[&str] = &[
-    "get_all_notes_catalog",
     "get_note_digest",
     "get_note_file",
     "create_note",
@@ -163,7 +162,6 @@ const NOTES_TOOLS: &[&str] = &[
 
 /// Notes tools exposed on `/mcp/cursor_ide` and `/mcp/mobile` (channel hard-gate).
 const NOTES_TOOLS_NON_SPARK: &[&str] = &[
-    "get_all_notes_catalog",
     "get_note_digest",
     "get_note_file",
     "create_note",
@@ -637,8 +635,8 @@ fn mcp_tools_list_publishes_descriptions_schemas_and_mutation_hints() {
     }
     let catalog = notes_tools
         .iter()
-        .find(|tool| tool.name == "get_all_notes_catalog")
-        .expect("get_all_notes_catalog");
+        .find(|tool| tool.name == "list_notes_categories")
+        .expect("list_notes_categories");
     assert!(
         catalog
             .input_schema
@@ -831,7 +829,7 @@ fn representative_tools_call_per_registered_slot_hits_services() {
         .block_on(proxy_tool_call(
             SPARK_SLOT,
             SPARK_SLOT,
-            "get_all_notes_catalog",
+            "list_notes_categories",
             serde_json::json!({}),
         ))
         .expect("proxy")
@@ -840,7 +838,7 @@ fn representative_tools_call_per_registered_slot_hits_services() {
         serde_json::from_str(mcp_text_ok(&catalogs)).expect("catalogs JSON");
     assert!(
         catalog_json.is_object() || catalog_json.is_array(),
-        "get_all_notes_catalog must return Services wire, got {}",
+        "list_notes_categories must return Services wire, got {}",
         mcp_text_ok(&catalogs)
     );
 
@@ -848,7 +846,7 @@ fn representative_tools_call_per_registered_slot_hits_services() {
         .block_on(proxy_tool_call(
             CURSOR_IDE_SLOT,
             CURSOR_IDE_SLOT,
-            "get_all_notes_catalog",
+            "list_notes_categories",
             serde_json::json!({}),
         ))
         .expect("proxy")
@@ -856,8 +854,8 @@ fn representative_tools_call_per_registered_slot_hits_services() {
     let catalog_json: serde_json::Value =
         serde_json::from_str(mcp_text_ok(&catalogs)).expect("catalogs JSON");
     assert!(
-        catalog_json.get("items").is_some(),
-        "get_all_notes_catalog must return items, got {}",
+        catalog_json.get("categories").is_some(),
+        "list_notes_categories must return categories, got {}",
         mcp_text_ok(&catalogs)
     );
 }
@@ -1225,10 +1223,10 @@ fn p3_t10_host_dual_slot_list_call_and_unknown_hard_fail_smoke() {
             mcp_port,
             SPARK_SLOT,
             &spark_ticket,
-            "get_all_notes_catalog",
+            "list_notes_categories",
             serde_json::json!({}),
         ))
-        .expect("spark get_all_notes_catalog");
+        .expect("spark list_notes_categories");
     assert!(
         !notes_err,
         "T10/V2: spark representative tools/call must succeed via Host→Sidecar; got {notes_text}"
@@ -1239,10 +1237,10 @@ fn p3_t10_host_dual_slot_list_call_and_unknown_hard_fail_smoke() {
             mcp_port,
             "cursor_ide",
             &ide_ticket,
-            "get_all_notes_catalog",
+            "list_notes_categories",
             serde_json::json!({}),
         ))
-        .expect("cursor_ide get_all_notes_catalog");
+        .expect("cursor_ide list_notes_categories");
     assert!(
         !ide_err,
         "T10/V2: cursor_ide representative tools/call must succeed via Host→Sidecar; got {ide_text}"
@@ -1564,8 +1562,12 @@ fn registered_spark_live_ticket_enters_streamable_http() {
         ))
         .expect("tools/list with Live ticket");
     assert!(
-        names.iter().any(|n| n == "get_all_notes_catalog"),
+        names.iter().any(|n| n == "list_notes_categories"),
         "spark tools/list must remain available, got {names:?}"
+    );
+    assert!(
+        !names.iter().any(|n| n == "get_all_notes_catalog"),
+        "retired tool must not be listed, got {names:?}"
     );
     stop_embedded_mcp_runtime(handle).expect("stop");
 }
@@ -1586,8 +1588,12 @@ fn registered_cursor_ide_live_ticket_enters_streamable_http() {
         ))
         .expect("cursor_ide tools/list with Live ticket");
     assert!(
-        names.iter().any(|n| n == "get_all_notes_catalog"),
+        names.iter().any(|n| n == "list_notes_categories"),
         "cursor_ide tools/list must remain available, got {names:?}"
+    );
+    assert!(
+        !names.iter().any(|n| n == "get_all_notes_catalog"),
+        "retired tool must not be listed, got {names:?}"
     );
     stop_embedded_mcp_runtime(handle).expect("stop");
 }
@@ -2078,7 +2084,7 @@ fn t3_live_device_ticket_can_call_full_spark_tools_on_mobile() {
             .build()
             .expect("tokio");
 
-        let cases = [("get_all_notes_catalog", serde_json::json!({}))];
+        let cases = [("list_notes_categories", serde_json::json!({}))];
         for (tool, args) in cases {
             let (names, is_error, text) = rt
                 .block_on(list_and_call_mobile(port, &token, tool, args))
@@ -2192,7 +2198,7 @@ fn channel_filter_hides_and_rejects_create_note_on_mobile() {
             .expect("mobile list");
         let got: BTreeSet<_> = names.iter().map(String::as_str).collect();
         assert!(!got.contains("create_note"), "unchecked tool must leave list");
-        assert!(got.contains("get_all_notes_catalog"));
+        assert!(got.contains("list_notes_categories"));
         assert_ne!(got, all, "mobile list must no longer equal the full table");
 
         let err = rt.block_on(list_and_call_mobile(

@@ -1,4 +1,5 @@
 //! OTH-205: three catalog tools leave MCP.
+//! LW-243: `get_all_notes_catalog` leaves MCP; listing categories is `list_notes_categories` only.
 
 use std::path::PathBuf;
 
@@ -6,6 +7,7 @@ use crate::mcp_host::catalog::groups::{knowledge, notes};
 use crate::mcp_host::catalog::{build, group_for_migrated_api};
 
 const RETIRED_NOTES_APIS: &[&str] = &[
+    "get_all_notes_catalog",
     "get_latest_digest_per_catalog",
     "get_notes_by_catalog",
 ];
@@ -40,6 +42,7 @@ fn retired_catalog_tools_do_not_build() {
 fn retired_catalog_tool_modules_are_gone() {
     let src = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src");
     for rel in [
+        "mcp_host/catalog/groups/notes/get_all_notes_catalog.rs",
         "mcp_host/catalog/groups/notes/get_latest_digest_per_catalog.rs",
         "mcp_host/catalog/groups/notes/get_notes_by_catalog.rs",
         "mcp_host/catalog/groups/knowledge/list_knowledge_repos.rs",

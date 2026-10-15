@@ -32,7 +32,7 @@ fn each_request_of_a_tool_turn_is_recorded_with_its_round() {
 
     let call = json!([{
         "id": "selection_1", "type": "function",
-        "function": { "name": "get_all_notes_catalog", "arguments": "{}" }
+        "function": { "name": "list_notes_categories", "arguments": "{}" }
     }]);
     let mut first = assistant_tools(call, None);
     first.1["choices"][0]["message"]["reasoning_content"] = json!("先看目录");

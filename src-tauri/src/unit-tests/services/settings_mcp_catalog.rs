@@ -9,7 +9,7 @@ fn with_channel_tools<F: FnOnce()>(f: F) {
     mcp_channel_tools::set_enabled(
         "spark",
         vec![
-            "get_all_notes_catalog".into(),
+            "list_notes_categories".into(),
             "create_note".into(),
         ],
     )
@@ -21,7 +21,7 @@ fn with_channel_tools<F: FnOnce()>(f: F) {
 fn enabled_grouped_partitions_flat_settings_by_business() {
     with_channel_tools(|| {
         let grouped = enabled_grouped("spark");
-        assert!(grouped.notes.contains(&"get_all_notes_catalog".into()));
+        assert!(grouped.notes.contains(&"list_notes_categories".into()));
         assert!(grouped.notes.contains(&"create_note".into()));
         assert!(!mcp_channel_tools::is_enabled(
             "spark",

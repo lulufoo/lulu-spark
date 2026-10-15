@@ -38,7 +38,7 @@ fn missing_file_enables_every_tool_the_channel_exposes() {
 fn load_migrates_content_tools_to_file_tools_on_desktop_channels_only() {
     let _sandbox = TestSandbox::new();
     let saved = serde_json::json!({
-        "notes": ["get_all_notes_catalog", "get_note_content"],
+        "notes": ["list_notes_categories", "get_note_content"],
         "knowledge": ["get_knowledge_content"]
     });
     write_channels(serde_json::json!({
@@ -60,7 +60,7 @@ fn load_migrates_content_tools_to_file_tools_on_desktop_channels_only() {
 fn migration_keeps_a_user_who_had_content_tools_switched_off_switched_off() {
     let _sandbox = TestSandbox::new();
     write_channels(serde_json::json!({
-        "cursor": { "notes": ["get_all_notes_catalog"], "knowledge": [] }
+        "cursor": { "notes": ["list_notes_categories"], "knowledge": [] }
     }));
     assert!(!is_enabled("cursor", "get_note_file"));
     assert!(!is_enabled("cursor", "get_knowledge_file"));

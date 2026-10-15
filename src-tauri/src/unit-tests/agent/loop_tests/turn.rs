@@ -56,7 +56,7 @@ fn run_loop_uses_mcp_tools_and_feeds_tool_result_back_to_model() {
                 "id": "selection_1",
                 "type": "function",
                 "function": {
-                    "name": "get_all_notes_catalog",
+                    "name": "list_notes_categories",
                     "arguments": "{}"
                 }
             }]),
@@ -84,7 +84,7 @@ fn run_loop_uses_mcp_tools_and_feeds_tool_result_back_to_model() {
         hits[0]["tools"]
             .as_array()
             .is_some_and(|tools| tools.iter().any(|tool| {
-                tool.pointer("/function/name") == Some(&json!("get_all_notes_catalog"))
+                tool.pointer("/function/name") == Some(&json!("list_notes_categories"))
             })),
         "active spark MCP tools must be sent to the model"
     );
@@ -94,7 +94,7 @@ fn run_loop_uses_mcp_tools_and_feeds_tool_result_back_to_model() {
             .is_some_and(|messages| messages.iter().any(|message| {
                 message["role"] == "tool"
                     && message["tool_call_id"] == "selection_1"
-                    && message["name"] == "get_all_notes_catalog"
+                    && message["name"] == "list_notes_categories"
             })),
         "the model follow-up must receive the MCP result"
     );
@@ -313,7 +313,7 @@ fn run_loop_offers_host_file_tools_and_keeps_scratch_writes_inside_cache() {
                     .iter()
                     .any(|tool| tool.pointer("/function/name") == Some(&json!(name)))
             }) && tools.iter().any(|tool| {
-                tool.pointer("/function/name") == Some(&json!("get_all_notes_catalog"))
+                tool.pointer("/function/name") == Some(&json!("list_notes_categories"))
             })
         }),
         "model tools must include Host file tools and MCP tools"
