@@ -16,9 +16,9 @@ Write a digest when any of these is true:
 
 - The raw has 2 or more Turn blocks (`## Turn N` or `<!-- DDM:TURN_SEP:v1 -->`).
 - The raw has 2 or more theme-level `## ` headings that are not `## Turn`.
-- The body after `---` is at least 600 characters.
-- `source_type` is `summary` and the body is at least 200 characters.
-- `source_type` is `article` and the body is at least 600 characters.
+- The document is at least 600 characters.
+- `source_type` is `summary` and the document is at least 200 characters.
+- `source_type` is `article` and the document is at least 600 characters.
 
 ## Shape
 

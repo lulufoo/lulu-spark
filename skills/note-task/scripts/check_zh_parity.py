@@ -23,14 +23,6 @@ STUB_MARKERS = (
 )
 
 
-def body_after_separator(document: str) -> str:
-    for sep in ("\n---\n", "\n---\r\n"):
-        idx = document.find(sep)
-        if idx != -1:
-            return document[idx + len(sep) :]
-    return ""
-
-
 def has_stub_marker(text: str) -> bool:
     upper = text.upper()
     for marker in STUB_MARKERS:
@@ -64,20 +56,18 @@ def count_turns(body: str) -> int:
 def check_zh_parity(en_doc: str, zh_doc: str) -> str | None:
     if has_stub_marker(zh_doc):
         return "zh translation looks like a stub"
-    en_body = body_after_separator(en_doc)
-    zh_body = body_after_separator(zh_doc)
-    if not zh_body.strip():
+    if not zh_doc.strip():
         return "zh translation body is empty"
-    en_len = len(en_body.strip())
-    zh_len = len(zh_body.strip())
+    en_len = len(en_doc.strip())
+    zh_len = len(zh_doc.strip())
     if zh_len == 0 or zh_len * 4 < en_len:
         return "zh translation is too short relative to the English body"
-    en_headings = count_headings(en_body)
-    zh_headings = count_headings(zh_body)
+    en_headings = count_headings(en_doc)
+    zh_headings = count_headings(zh_doc)
     if en_headings > 0 and zh_headings != en_headings:
         return f"zh heading count {zh_headings} != English {en_headings}"
-    en_turns = count_turns(en_body)
-    zh_turns = count_turns(zh_body)
+    en_turns = count_turns(en_doc)
+    zh_turns = count_turns(zh_doc)
     if en_turns > 0 and zh_turns * 5 < en_turns * 4:
         return f"zh turn count {zh_turns} below 80% of English {en_turns}"
     return None

@@ -85,10 +85,10 @@ fn create_note_writes_raw_and_index() {
     let raw = notes.join("raw").join(common_path);
     assert!(raw.is_file());
     let raw_text = fs::read_to_string(&raw).unwrap();
-    assert!(raw_text.starts_with("# Test Title\n"));
-    assert!(!raw_text.contains("[digest]("));
+    assert_eq!(raw_text, SAMPLE_DOC);
     let index: serde_json::Value =
         serde_json::from_str(&fs::read_to_string(notes.join("index.json")).unwrap()).unwrap();
+    assert_eq!(index["entries"][id]["title"], json!("Test Title"));
     assert!(index["entries"][id]["layers"]
         .as_array()
         .unwrap()
@@ -215,6 +215,9 @@ Host: hello
 const THEME_LINE_ZH: &str = r#"# 中文标题
 
 > 创建时间：2026年6月19日 17:00
+> 时长：约 30 分钟 · 发布：2026-01-01
+> 导航：[digest](../../../digest/learning-ai-agent/waymo-interview/202606191700-waymo-interview.md)
+> 原文：[Video](https://example.com/watch)
 
 ---
 
@@ -289,11 +292,7 @@ fn create_note_rejects_zh_stub() {
 #[test]
 fn create_note_rejects_zh_too_short() {
     let (sandbox, repo_root) = setup_notes();
-    let long_en = format!(
-        "{}\n{}\nHost: hello\n",
-        THEME_LINE_DOC.trim_end(),
-        "word ".repeat(80)
-    );
+    let long_en = format!("{}\n{}\n", THEME_LINE_DOC.trim_end(), "word ".repeat(400));
     let v = create_note(
         &repo_root,
         &path_payload(&sandbox, &long_en, json!({
@@ -671,12 +670,11 @@ fn create_note_missing_source_outside_allow_roots_is_404_not_403() {
 
 const FULL_EN_DOC: &str = r#"# English Title
 
-> 创建时间：2026年6月19日 17:00
-
----
-
 Hello world. This body is English only.
 "#;
+
+const FREEFORM_EN: &str = "# Andrew Ng\n\nReflection is the first pattern.\n";
+const FREEFORM_ZH: &str = "# Andrew Ng\n\n反思是第一种模式。\n";
 
 #[test]
 fn create_note_rejects_full_english_without_zh() {
@@ -699,6 +697,31 @@ fn create_note_rejects_full_english_without_zh() {
             .map(|mut d| d.next().is_none())
             .unwrap_or(true)
     });
+}
+
+#[test]
+fn create_note_writes_source_as_is_with_zh_and_no_separator() {
+    let (sandbox, repo_root) = setup_notes();
+    let zh = stage_source(&sandbox, "zh.md", FREEFORM_ZH);
+    let v = create_note(
+        &repo_root,
+        &path_payload(
+            &sandbox,
+            FREEFORM_EN,
+            json!({
+                "digest": "never",
+                "translations": [{ "lang": "zh", "source_path": zh.to_str().unwrap() }],
+            }),
+        ),
+    );
+    assert_eq!(v.get("ok"), Some(&json!(true)), "{v}");
+    let notes = crate::config::roots::notes_root_path(&repo_root);
+    let common_path = v["common_path"].as_str().unwrap();
+    let raw = fs::read_to_string(notes.join("raw").join(common_path)).unwrap();
+    assert_eq!(raw, FREEFORM_EN);
+    let zh_path = format!("{}-zh.md", common_path.trim_end_matches(".md"));
+    let zh_raw = fs::read_to_string(notes.join("raw").join(zh_path)).unwrap();
+    assert_eq!(zh_raw, FREEFORM_ZH);
 }
 
 #[test]

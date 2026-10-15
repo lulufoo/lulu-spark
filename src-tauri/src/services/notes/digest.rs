@@ -2,7 +2,6 @@ use std::path::{Path, PathBuf};
 
 use serde_json::{json, Value};
 
-use super::create_meta::body_from_source;
 use super::store::{notes_layer_path, write_markdown_atomic};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -48,7 +47,7 @@ pub(super) fn digest_applies(raw: &str, source_type: &str) -> bool {
     if theme_heading_count(raw) >= 2 {
         return true;
     }
-    let body_len = body_from_source(raw).chars().count();
+    let body_len = raw.chars().count();
     if body_len >= 600 {
         return true;
     }

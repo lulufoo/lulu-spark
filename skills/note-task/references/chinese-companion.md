@@ -13,7 +13,7 @@ Run `scripts/detect_full_english.py` on the staged primary.
 
 ## Companion
 
-Chinese `#` title. Translate the full body after `---`. No digest nav line. No stub markers (`SEE_FILE` / `PLACEHOLDER` / `FULL_ZH`).
+Chinese `#` title. Translate the full document. No digest nav line. No stub markers (`SEE_FILE` / `PLACEHOLDER` / `FULL_ZH`).
 
 Keep the same header metadata as the primary when it is present.
 

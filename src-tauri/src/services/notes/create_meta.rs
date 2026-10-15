@@ -1,4 +1,4 @@
-//! Shared create-note metadata: title, path segments, source_type, raw shell.
+//! Shared create-note metadata: title, path segments, source_type.
 
 use chrono::{FixedOffset, Utc};
 use serde_json::{json, Value};
@@ -65,27 +65,6 @@ pub(super) fn parse_create_meta(
         source_type,
         common_path,
     })
-}
-
-pub(super) fn body_from_source(document: &str) -> String {
-    for sep in ["\n---\n", "\n---\r\n"] {
-        if let Some(idx) = document.find(sep) {
-            return document[idx + sep.len()..].trim().to_string();
-        }
-    }
-    document.trim().to_string()
-}
-
-pub(super) fn assemble_raw(title: &str, created_at: &str, body: &str) -> Result<String, Value> {
-    if body.trim().is_empty() {
-        return Err(json!({ "error": "empty body after ---", "_status": 400 }));
-    }
-    let created_zh = format_created_at_zh(created_at).map_err(|e| {
-        json!({ "error": e, "_status": 400 })
-    })?;
-    Ok(format!(
-        "# {title}\n\n> 创建时间：{created_zh}\n\n---\n\n{body}\n"
-    ))
 }
 
 pub(super) fn format_created_at_zh(ts: &str) -> Result<String, String> {

@@ -8,7 +8,7 @@ use crate::services::search_index;
 use crate::services::translation_gate;
 
 use super::assets::{copy_assets, reject_unsupported_asset_paths, resolve_create_assets};
-use super::create_meta::{assemble_raw, body_from_source, parse_create_meta};
+use super::create_meta::parse_create_meta;
 use super::digest::{
     digest_body_from_payload, digest_body_rejects_relative_images, digest_should_write,
     parse_digest_mode, write_digest_file,
@@ -92,12 +92,11 @@ fn write_note(
         Ok(m) => m,
         Err(v) => return v,
     };
-    let body = body_from_source(source);
-    let raw_doc = match assemble_raw(&meta.title, &meta.created_at, &body) {
-        Ok(s) => s,
-        Err(v) => return v,
-    };
-    let want_digest = digest_should_write(digest_mode, &raw_doc, &meta.source_type);
+    if source.trim().is_empty() {
+        return json!({ "error": "empty body", "_status": 400 });
+    }
+    let raw_doc = source;
+    let want_digest = digest_should_write(digest_mode, raw_doc, &meta.source_type);
     let digest_body = digest_body_from_payload(payload);
     if want_digest && digest_body.is_none() {
         return json!({ "error": "Missing digest_body", "_status": 400 });
@@ -113,11 +112,11 @@ fn write_note(
     if let Some(err) = reject_legacy_translation_fields(payload) {
         return err;
     }
-    let translations = match parse_translations(payload, &meta.common_path, source) {
+    let translations = match parse_translations(payload, &meta.common_path, raw_doc) {
         Ok(v) => v,
         Err(v) => return v,
     };
-    if translation_gate::is_full_english(&raw_doc)
+    if translation_gate::is_full_english(raw_doc)
         && !translations.iter().any(|t| t.lang == "zh")
     {
         return json!({
@@ -159,7 +158,7 @@ fn write_note(
     };
 
     let mut written: Vec<PathBuf> = Vec::new();
-    if let Err(e) = write_markdown_atomic(&raw_path, &raw_doc) {
+    if let Err(e) = write_markdown_atomic(&raw_path, raw_doc) {
         return json!({ "error": e, "_status": 500 });
     }
     written.push(raw_path);
@@ -204,6 +203,7 @@ fn write_note(
 
     let mut entry = Map::new();
     entry.insert("common_path".to_string(), json!(meta.common_path));
+    entry.insert("title".to_string(), json!(meta.title));
     entry.insert("created_at".to_string(), json!(meta.created_at));
     let layers = if digest_rel.is_some() {
         json!(["raw", "digest"])
