@@ -42,6 +42,12 @@ fn knowledge_file_path_rejects_slash_in_folder() {
 }
 
 #[test]
+fn kb_dir_name_accepts_folder_and_rejects_owner_name() {
+    assert_eq!(kb_dir_name("myrepo").expect("ok"), "myrepo");
+    assert_eq!(kb_dir_name("lulufoo/myrepo").unwrap_err(), "invalid directory name");
+}
+
+#[test]
 fn knowledge_dir_path_allows_empty_rel_for_topic_root() {
     let dir = tempfile::tempdir().expect("tmp");
     let kb = dir.path().join("kb");

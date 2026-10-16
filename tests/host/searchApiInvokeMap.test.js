@@ -26,9 +26,9 @@ describe('searchApiInvokeMap', () => {
   });
 
   it('resolveReindexInvoke maps kb repo body', () => {
-    expect(resolveReindexInvoke('reindexKbRepo', { repo: 'lulufoo/foo' })).toEqual({
+    expect(resolveReindexInvoke('reindexKbRepo', { repo: 'foo' })).toEqual({
       cmd: 'reindex_kb_repo',
-      args: { repo: 'lulufoo/foo' },
+      args: { repo: 'foo' },
     });
   });
 

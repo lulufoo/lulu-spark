@@ -41,7 +41,7 @@ fn kb_create_file_appends_md_and_writes_empty() {
         |cfg_dir, kb| {
             let v = kb_create(
                 cfg_dir,
-                "lulufoo/myrepo".into(),
+                "myrepo".into(),
                 "docs".into(),
                 "guide".into(),
                 "file".into(),
@@ -63,7 +63,7 @@ fn kb_create_dir_at_repo_root() {
         |cfg_dir, kb| {
             let v = kb_create(
                 cfg_dir,
-                "lulufoo/myrepo".into(),
+                "myrepo".into(),
                 "".into(),
                 "notes".into(),
                 "dir".into(),
@@ -85,7 +85,7 @@ fn kb_create_rejects_non_md_file() {
         |cfg_dir, _| {
             let v = kb_create(
                 cfg_dir,
-                "lulufoo/myrepo".into(),
+                "myrepo".into(),
                 "".into(),
                 "a.txt".into(),
                 "file".into(),
@@ -106,7 +106,7 @@ fn kb_create_rejects_destination_exists() {
         |cfg_dir, _| {
             let v = kb_create(
                 cfg_dir,
-                "lulufoo/myrepo".into(),
+                "myrepo".into(),
                 "".into(),
                 "a.md".into(),
                 "file".into(),
@@ -129,7 +129,7 @@ fn kb_delete_removes_file_and_its_record() {
         |cfg_dir, kb| {
             seed_commented_doc("docs/a.md");
             seed_commented_doc("docs/b.md");
-            let v = kb_delete(cfg_dir, "lulufoo/myrepo".into(), "docs/a.md".into());
+            let v = kb_delete(cfg_dir, "myrepo".into(), "docs/a.md".into());
             assert_eq!(v["ok"], true);
             assert!(!kb.join("myrepo/docs/a.md").exists());
             assert!(!doc_exists("docs/a.md"), "App-side delete removes the record");
@@ -153,7 +153,7 @@ fn kb_delete_removes_directory_and_records_below_it_only() {
             seed_commented_doc("docs/nested/x.md");
             seed_commented_doc("docs/a.md");
             seed_commented_doc("docs2/y.md");
-            let v = kb_delete(cfg_dir, "lulufoo/myrepo".into(), "docs".into());
+            let v = kb_delete(cfg_dir, "myrepo".into(), "docs".into());
             assert_eq!(v["ok"], true);
             assert!(!kb.join("myrepo/docs").exists());
             assert!(!doc_exists("docs/nested/x.md"));
@@ -170,7 +170,7 @@ fn kb_delete_rejects_traversal_path() {
             fs::create_dir_all(kb.join("myrepo")).expect("mkdir");
         },
         |cfg_dir, _| {
-            let v = kb_delete(cfg_dir, "lulufoo/myrepo".into(), "../x.md".into());
+            let v = kb_delete(cfg_dir, "myrepo".into(), "../x.md".into());
             assert_eq!(v["error"], "invalid path");
             assert_eq!(v["_status"], 400);
         },
@@ -186,7 +186,7 @@ fn kb_create_rejects_slash_name() {
         |cfg_dir, _| {
             let v = kb_create(
                 cfg_dir,
-                "lulufoo/myrepo".into(),
+                "myrepo".into(),
                 "".into(),
                 "a/b.md".into(),
                 "file".into(),

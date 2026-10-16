@@ -77,7 +77,7 @@ fn vanished_file_goes_missing_keeps_comments_and_comes_back() {
 }
 
 #[test]
-fn missing_clone_directory_is_not_a_mass_deletion() {
+fn missing_topic_directory_is_not_a_mass_deletion() {
     let sandbox = TestSandbox::new();
     let kb = sandbox.knowledge_root();
     write(&kb, "a.md");
@@ -85,8 +85,8 @@ fn missing_clone_directory_is_not_a_mass_deletion() {
     let conn = spark_data::open().expect("db");
     scan_repo_dir(&conn, &kb, REPO, &no_hide()).expect("scan");
 
-    fs::rename(kb.join(REPO), kb.join("elsewhere")).expect("clone temporarily gone");
-    let stats = scan_repo_dir(&conn, &kb, REPO, &no_hide()).expect("scan without the clone");
+    fs::rename(kb.join(REPO), kb.join("elsewhere")).expect("topic temporarily gone");
+    let stats = scan_repo_dir(&conn, &kb, REPO, &no_hide()).expect("scan without the directory");
     assert_eq!(stats, ReconcileStats::default());
     assert_eq!(status_of(&conn, "a.md"), Some(KnowledgeStatus::Active));
     assert_eq!(status_of(&conn, "b.md"), Some(KnowledgeStatus::Active));

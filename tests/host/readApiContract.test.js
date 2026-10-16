@@ -36,10 +36,10 @@ describe('readApi contract map', () => {
 
   it('resolveInvokeFromPath maps kb list query args', () => {
     expect(
-      resolveInvokeFromPath('/api/kb/list?repo=o/r&path=&mode=flat'),
+      resolveInvokeFromPath('/api/kb/list?repo=myrepo&path=&mode=flat'),
     ).toEqual({
       cmd: 'kb_list',
-      args: { repo: 'o/r', path: '', mode: 'flat' },
+      args: { repo: 'myrepo', path: '', mode: 'flat' },
     });
   });
 
@@ -51,27 +51,27 @@ describe('readApi contract map', () => {
 
   it('resolveInvokeFromPath maps kb doc-count query args', () => {
     expect(
-      resolveInvokeFromPath('/api/kb/doc-count?repo=o/r'),
+      resolveInvokeFromPath('/api/kb/doc-count?repo=myrepo'),
     ).toEqual({
       cmd: 'kb_doc_count',
-      args: { repo: 'o/r' },
+      args: { repo: 'myrepo' },
     });
   });
 
   it('resolveInvokeFromPath maps kb doc-count with repo-only query', () => {
-    const result = resolveInvokeFromPath('/api/kb/doc-count?repo=o/r');
+    const result = resolveInvokeFromPath('/api/kb/doc-count?repo=myrepo');
     expect(result).toEqual({
       cmd: 'kb_doc_count',
-      args: { repo: 'o/r' },
+      args: { repo: 'myrepo' },
     });
   });
 
   it('resolveInvokeFromPath decodes URL-encoded repo for kb doc-count', () => {
     expect(
-      resolveInvokeFromPath('/api/kb/doc-count?repo=o%2Fr'),
+      resolveInvokeFromPath('/api/kb/doc-count?repo=topic%20a'),
     ).toEqual({
       cmd: 'kb_doc_count',
-      args: { repo: 'o/r' },
+      args: { repo: 'topic a' },
     });
   });
 
@@ -91,7 +91,7 @@ describe('readApi contract map', () => {
 
   it('resolveInvokeFromPath 不再映射 kb git status', () => {
     expect(resolveInvokeFromPath('/api/kb/diff-status?_=123')).toBeNull();
-    expect(resolveInvokeFromPath('/api/kb/status?repo=o%2Fr')).toBeNull();
+    expect(resolveInvokeFromPath('/api/kb/status?repo=myrepo')).toBeNull();
   });
 
   it('normalizeForContract drops cached_at', () => {

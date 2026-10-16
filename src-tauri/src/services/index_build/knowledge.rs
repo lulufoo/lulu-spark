@@ -8,17 +8,16 @@ use crate::services::knowledge::scan_registered_repos;
 use crate::services::search_index;
 use crate::services::spark_data::{self, directory_id_for_folder, knowledge_doc_ids_outside_directory};
 
-/// `force_repo = Some("owner/name")` scopes both upsert and ghost deletion to one repo.
+/// `force_repo = Some("folder")` scopes both upsert and ghost deletion to one topic.
 pub fn rebuild(repo_root: &Path, force_repo: Option<&str>) -> Result<String, String> {
     let cache = paths::cache_dir().map_err(|e| format!("{e:?}"))?;
     scan_registered_repos(repo_root, force_repo)?;
     let chunks = search_index::collect_knowledge(repo_root, force_repo)?;
-    // A scoped rebuild must leave the other repos' chunks alone.
+    // A scoped rebuild must leave the other topics' chunks alone.
     let keep_docs = match force_repo {
-        Some(full) => {
-            let dir = full.split('/').next_back().unwrap_or(full);
+        Some(folder) => {
             let conn = spark_data::open()?;
-            let directory_id = directory_id_for_folder(&conn, dir)?;
+            let directory_id = directory_id_for_folder(&conn, folder)?;
             knowledge_doc_ids_outside_directory(&conn, &directory_id)?
         }
         None => HashSet::new(),

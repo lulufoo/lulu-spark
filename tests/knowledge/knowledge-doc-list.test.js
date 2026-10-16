@@ -207,10 +207,10 @@ describe('formatRepoMenuLabel', () => {
 
   it('buildRepoPickerOptions maps counts onto labels', () => {
     const opts = buildRepoPickerOptions(
-      [{ full_name: 'owner/repo' }],
-      new Map([['owner/repo', 7]]),
+      [{ full_name: 'myrepo' }],
+      new Map([['myrepo', 7]]),
     );
-    expect(opts[0].label).toBe('repo · 7');
+    expect(opts[0].label).toBe('myrepo · 7');
   });
 });
 
@@ -232,18 +232,18 @@ describe('mountKnowledgeDocList', () => {
     api.fetchKbDocId.mockImplementation(async (_repo, path) => `id:${path}`);
     api.resolveKnowledgeForOpen.mockImplementation(async (id) => {
       const path = String(id).startsWith('id:') ? String(id).slice(3) : '';
-      return { id, ok: true, topic: 'owner/repo', path };
+      return { id, ok: true, topic: 'myrepo', path };
     });
     api.renameKbEntry.mockResolvedValue({ ok: true, path: 'hello.md' });
     api.fetchSedimentKbRepos.mockResolvedValue({
       repos: [
-        { full_name: 'owner/repo' },
-        { full_name: 'owner/other' },
+        { full_name: 'myrepo' },
+        { full_name: 'other' },
       ],
     });
     api.fetchKbDocCount.mockImplementation((repo) => {
-      if (repo === 'owner/repo') return Promise.resolve(5);
-      if (repo === 'owner/other') return Promise.resolve(12);
+      if (repo === 'myrepo') return Promise.resolve(5);
+      if (repo === 'other') return Promise.resolve(12);
       return Promise.resolve(0);
     });
   });
@@ -262,17 +262,17 @@ describe('mountKnowledgeDocList', () => {
   it('fetches root flat list on mount', async () => {
     api.fetchKbList.mockResolvedValue(sampleRootEntries);
 
-    mountKnowledgeDocList(container, { repo: 'owner/repo', navigate });
+    mountKnowledgeDocList(container, { repo: 'myrepo', navigate });
     await flushPromises();
 
-    expect(api.fetchKbList).toHaveBeenCalledWith('owner/repo', '', 'flat');
+    expect(api.fetchKbList).toHaveBeenCalledWith('myrepo', '', 'flat');
     expect(api.fetchKbList).toHaveBeenCalledTimes(1);
   });
 
   it('renders sidebar and reader pane layout', async () => {
     api.fetchKbList.mockResolvedValue(sampleRootEntries);
 
-    mountKnowledgeDocList(container, { repo: 'owner/repo', navigate });
+    mountKnowledgeDocList(container, { repo: 'myrepo', navigate });
     await flushPromises();
 
     expect(container.querySelector('.knowledge-doc-layout')).not.toBeNull();
@@ -285,7 +285,7 @@ describe('mountKnowledgeDocList', () => {
   it('does not render a directory collapse toggle', async () => {
     api.fetchKbList.mockResolvedValue(sampleRootEntries);
 
-    const unmount = mountKnowledgeDocList(container, { repo: 'owner/repo', navigate });
+    const unmount = mountKnowledgeDocList(container, { repo: 'myrepo', navigate });
     await flushPromises();
 
     expect(container.querySelector('.kb-btn-tree-toggle')).toBeNull();
@@ -302,7 +302,7 @@ describe('mountKnowledgeDocList', () => {
   it('marks directories and files with distinct tree chrome', async () => {
     api.fetchKbList.mockResolvedValue(sampleRootEntries);
 
-    mountKnowledgeDocList(container, { repo: 'owner/repo', navigate });
+    mountKnowledgeDocList(container, { repo: 'myrepo', navigate });
     await flushPromises();
 
     const dirNode = container.querySelector('.knowledge-doc-tree-node[data-relative-path="docs"]');
@@ -323,7 +323,7 @@ describe('mountKnowledgeDocList', () => {
       return [];
     });
 
-    mountKnowledgeDocList(container, { repo: 'owner/repo', navigate });
+    mountKnowledgeDocList(container, { repo: 'myrepo', navigate });
     await flushPromises();
 
     const rootNode = container.querySelector(
@@ -347,7 +347,7 @@ describe('mountKnowledgeDocList', () => {
       return [];
     });
 
-    mountKnowledgeDocList(container, { repo: 'owner/repo', navigate });
+    mountKnowledgeDocList(container, { repo: 'myrepo', navigate });
     await flushPromises();
 
     const dirLabel = container.querySelector(
@@ -357,7 +357,7 @@ describe('mountKnowledgeDocList', () => {
     dirLabel.click();
     await flushPromises();
 
-    expect(api.fetchKbList).toHaveBeenCalledWith('owner/repo', 'docs', 'flat');
+    expect(api.fetchKbList).toHaveBeenCalledWith('myrepo', 'docs', 'flat');
     expect(
       container.querySelector('.knowledge-doc-tree-node[data-relative-path="docs/guide.md"]'),
     ).not.toBeNull();
@@ -370,7 +370,7 @@ describe('mountKnowledgeDocList', () => {
       return [];
     });
 
-    mountKnowledgeDocList(container, { repo: 'owner/repo', navigate });
+    mountKnowledgeDocList(container, { repo: 'myrepo', navigate });
     await flushPromises();
 
     clickDirLabel(container, 'docs');
@@ -391,7 +391,7 @@ describe('mountKnowledgeDocList', () => {
       return [];
     });
 
-    mountKnowledgeDocList(container, { repo: 'owner/repo', navigate });
+    mountKnowledgeDocList(container, { repo: 'myrepo', navigate });
     await flushPromises();
 
     clickDirLabel(container, 'docs');
@@ -414,7 +414,7 @@ describe('mountKnowledgeDocList', () => {
       return [];
     });
 
-    mountKnowledgeDocList(container, { repo: 'owner/repo', navigate });
+    mountKnowledgeDocList(container, { repo: 'myrepo', navigate });
     await flushPromises();
 
     const dirRow = container.querySelector(
@@ -435,7 +435,7 @@ describe('mountKnowledgeDocList', () => {
       { name: 'beta.md', relative_path: 'beta.md', is_dir: false },
     ]);
 
-    mountKnowledgeDocList(container, { repo: 'owner/repo', navigate });
+    mountKnowledgeDocList(container, { repo: 'myrepo', navigate });
     await flushPromises();
 
     const clickFile = (relativePath) => {
@@ -473,7 +473,7 @@ describe('mountKnowledgeDocList', () => {
     api.fetchKbList.mockResolvedValue(sampleRootEntries);
     const replaceState = vi.spyOn(history, 'replaceState');
 
-    mountKnowledgeDocList(container, { repo: 'owner/repo', navigate });
+    mountKnowledgeDocList(container, { repo: 'myrepo', navigate });
     await flushPromises();
 
     const fileRow = container.querySelector(
@@ -495,7 +495,7 @@ describe('mountKnowledgeDocList', () => {
   it('passes fallback GitHub blob URL to reader', async () => {
     api.fetchKbList.mockResolvedValue(sampleRootEntries);
 
-    mountKnowledgeDocList(container, { repo: 'owner/repo', navigate });
+    mountKnowledgeDocList(container, { repo: 'myrepo', navigate });
     await flushPromises();
 
     const fileRow = container.querySelector(
@@ -518,7 +518,7 @@ describe('mountKnowledgeDocList', () => {
       return [];
     });
 
-    mountKnowledgeDocList(container, { repo: 'owner/repo', navigate });
+    mountKnowledgeDocList(container, { repo: 'myrepo', navigate });
     await flushPromises();
 
     clickDirLabel(container, 'docs');
@@ -544,7 +544,7 @@ describe('mountKnowledgeDocList', () => {
       return [];
     });
 
-    const handle = mountKnowledgeDocList(container, { repo: 'owner/repo', navigate });
+    const handle = mountKnowledgeDocList(container, { repo: 'myrepo', navigate });
     await flushPromises();
 
     clickDirLabel(container, 'docs');
@@ -601,19 +601,19 @@ describe('mountKnowledgeDocList', () => {
   });
 
   it('shows error state when fetchKbList rejects', async () => {
-    api.fetchKbList.mockRejectedValue(new Error('repo not cloned'));
+    api.fetchKbList.mockRejectedValue(new Error('directory not found'));
 
-    mountKnowledgeDocList(container, { repo: 'owner/missing', navigate });
+    mountKnowledgeDocList(container, { repo: 'missing', navigate });
     await flushPromises();
 
     expect(container.querySelector('.knowledge-doc-error')).not.toBeNull();
-    expect(container.textContent).toMatch(/repo not cloned|加载失败/);
+    expect(container.textContent).toMatch(/directory not found|加载失败/);
   });
 
   it('does not render duplicate sidebar back button', async () => {
     api.fetchKbList.mockResolvedValue(sampleRootEntries);
 
-    mountKnowledgeDocList(container, { repo: 'owner/repo', navigate });
+    mountKnowledgeDocList(container, { repo: 'myrepo', navigate });
     await flushPromises();
 
     expect(container.querySelector('.corpus-nav-back')).toBeNull();
@@ -624,7 +624,7 @@ describe('mountKnowledgeDocList', () => {
   it('mount attaches knowledge sidebar resizer', async () => {
     api.fetchKbList.mockResolvedValue(sampleRootEntries);
 
-    mountKnowledgeDocList(container, { repo: 'owner/repo', navigate });
+    mountKnowledgeDocList(container, { repo: 'myrepo', navigate });
     await flushPromises();
 
     const resizer = container.querySelector('.knowledge-sidebar-resizer.sidebar-resizer');
@@ -635,7 +635,7 @@ describe('mountKnowledgeDocList', () => {
   it('repo select navigates to chosen repository', async () => {
     api.fetchKbList.mockResolvedValue(sampleRootEntries);
 
-    mountKnowledgeDocList(container, { repo: 'owner/repo', navigate });
+    mountKnowledgeDocList(container, { repo: 'myrepo', navigate });
     await flushPromises();
     await flushPromises();
 
@@ -658,13 +658,13 @@ describe('mountKnowledgeDocList', () => {
     expect(menu).not.toBeNull();
     expect(menu.style.maxHeight).toBe('');
     const labels = Array.from(menu.querySelectorAll('.list-select-option')).map((o) => o.textContent);
-    expect(labels).toEqual(['repo · 5', 'other · 12']);
-    expect(trigger.textContent).toMatch(/repo · 5/);
+    expect(labels).toEqual(['myrepo · 5', 'other · 12']);
+    expect(trigger.textContent).toMatch(/myrepo · 5/);
 
-    menu.querySelector('[data-value="owner/other"]').click();
+    menu.querySelector('[data-value="other"]').click();
     await flushPromises();
     expect(api.saveKbViewerState).toHaveBeenCalledWith('');
-    expect(navigate).toHaveBeenCalledWith('#/knowledge/' + encodeURIComponent('owner/other'));
+    expect(navigate).toHaveBeenCalledWith('#/knowledge/' + encodeURIComponent('other'));
     expect(document.querySelector('.list-select-menu')).toBeNull();
   });
 
@@ -672,7 +672,7 @@ describe('mountKnowledgeDocList', () => {
     mountKnowledgeDocList(container, { repo: '', navigate });
     await flushPromises();
 
-    expect(navigate).toHaveBeenCalledWith('#/knowledge/' + encodeURIComponent('owner/repo'));
+    expect(navigate).toHaveBeenCalledWith('#/knowledge/' + encodeURIComponent('myrepo'));
   });
 
   it('lands on remembered repo and md when route has no repo', async () => {
@@ -680,13 +680,13 @@ describe('mountKnowledgeDocList', () => {
     api.resolveKnowledgeForOpen.mockResolvedValue({
       id: 'id:readme.md',
       ok: true,
-      topic: 'owner/other',
+      topic: 'other',
       path: 'readme.md',
     });
     mountKnowledgeDocList(container, { repo: '', navigate });
     await flushPromises();
     expect(navigate).toHaveBeenCalledWith(
-      '#/knowledge/' + encodeURIComponent('owner/other') + '?id=' + encodeURIComponent('id:readme.md'),
+      '#/knowledge/' + encodeURIComponent('other') + '?id=' + encodeURIComponent('id:readme.md'),
     );
   });
 
@@ -695,12 +695,12 @@ describe('mountKnowledgeDocList', () => {
     api.resolveKnowledgeForOpen.mockResolvedValue({
       id: 'id:a.md',
       ok: true,
-      topic: 'gone/repo',
+      topic: 'gone',
       path: 'a.md',
     });
     mountKnowledgeDocList(container, { repo: '', navigate });
     await flushPromises();
-    expect(navigate).toHaveBeenCalledWith('#/knowledge/' + encodeURIComponent('owner/repo'));
+    expect(navigate).toHaveBeenCalledWith('#/knowledge/' + encodeURIComponent('myrepo'));
   });
 
   it('restores remembered md when opening a repo without path', async () => {
@@ -708,7 +708,7 @@ describe('mountKnowledgeDocList', () => {
     api.resolveKnowledgeForOpen.mockResolvedValue({
       id: 'id:docs/guide.md',
       ok: true,
-      topic: 'owner/repo',
+      topic: 'myrepo',
       path: 'docs/guide.md',
     });
     api.fetchKbList.mockImplementation(async (_repo, path) => {
@@ -716,7 +716,7 @@ describe('mountKnowledgeDocList', () => {
       if (path === 'docs') return sampleDocsEntries;
       return [];
     });
-    mountKnowledgeDocList(container, { repo: 'owner/repo', navigate });
+    mountKnowledgeDocList(container, { repo: 'myrepo', navigate });
     await flushPromises();
     expect(mountKbReader).toHaveBeenCalledWith(
       container.querySelector('.knowledge-doc-reader-pane'),
@@ -734,11 +734,11 @@ describe('mountKnowledgeDocList', () => {
     api.resolveKnowledgeForOpen.mockResolvedValue({
       id: 'id:readme.md',
       ok: true,
-      topic: 'owner/other',
+      topic: 'other',
       path: 'readme.md',
     });
     api.fetchKbList.mockResolvedValue(sampleRootEntries);
-    mountKnowledgeDocList(container, { repo: 'owner/repo', navigate });
+    mountKnowledgeDocList(container, { repo: 'myrepo', navigate });
     await flushPromises();
     expect(mountKbReader).not.toHaveBeenCalled();
     expect(api.saveKbViewerState).toHaveBeenCalledWith('');
@@ -749,7 +749,7 @@ describe('mountKnowledgeDocList', () => {
     api.resolveKnowledgeForOpen.mockResolvedValue({
       id: 'id:docs/gone.md',
       ok: true,
-      topic: 'owner/repo',
+      topic: 'myrepo',
       path: 'docs/gone.md',
     });
     api.fetchKbList.mockImplementation(async (_repo, path) => {
@@ -757,7 +757,7 @@ describe('mountKnowledgeDocList', () => {
       if (path === 'docs') return sampleDocsEntries;
       return [];
     });
-    mountKnowledgeDocList(container, { repo: 'owner/repo', navigate });
+    mountKnowledgeDocList(container, { repo: 'myrepo', navigate });
     await flushPromises();
     expect(mountKbReader).not.toHaveBeenCalled();
     expect(api.saveKbViewerState).toHaveBeenCalledWith('');
@@ -765,7 +765,7 @@ describe('mountKnowledgeDocList', () => {
 
   it('writes current md after clicking a markdown file', async () => {
     api.fetchKbList.mockResolvedValue(sampleRootEntries);
-    mountKnowledgeDocList(container, { repo: 'owner/repo', navigate });
+    mountKnowledgeDocList(container, { repo: 'myrepo', navigate });
     await flushPromises();
     const fileRow = container.querySelector(
       '.knowledge-doc-tree-node[data-relative-path="readme.md"] .knowledge-doc-tree-label',
@@ -781,7 +781,7 @@ describe('mountKnowledgeDocList', () => {
       if (path === 'docs') return sampleDocsEntries;
       return [];
     });
-    mountKnowledgeDocList(container, { repo: 'owner/repo', navigate });
+    mountKnowledgeDocList(container, { repo: 'myrepo', navigate });
     await flushPromises();
     api.saveKbViewerState.mockClear();
     clickDirLabel(container, 'docs');
@@ -795,7 +795,7 @@ describe('mountKnowledgeDocList', () => {
     mountKbReader.mockResolvedValue({ unmount: unmountReader });
 
     const cleanup = mountKnowledgeDocList(container, {
-      repo: 'owner/repo',
+      repo: 'myrepo',
       navigate,
       initialPath: 'readme.md',
     });
@@ -815,7 +815,7 @@ describe('mountKnowledgeDocList', () => {
     });
 
     mountKnowledgeDocList(container, {
-      repo: 'owner/repo',
+      repo: 'myrepo',
       navigate,
       initialPath: 'docs/guide.md',
     });
@@ -836,7 +836,7 @@ describe('mountKnowledgeDocList', () => {
       { name: 'readme.md', relative_path: 'readme.md', is_dir: false },
     ]);
 
-    mountKnowledgeDocList(container, { repo: 'owner/repo', navigate });
+    mountKnowledgeDocList(container, { repo: 'myrepo', navigate });
     await flushPromises();
 
     expect(container.textContent).not.toMatch(/noise\.xxx/);
@@ -851,7 +851,7 @@ describe('mountKnowledgeDocList', () => {
     window.dispatchEvent(new CustomEvent('kb:hide-pattern-changed'));
     await flushPromises();
 
-    expect(api.fetchKbList).toHaveBeenCalledWith('owner/repo', '', 'flat');
+    expect(api.fetchKbList).toHaveBeenCalledWith('myrepo', '', 'flat');
     expect(container.textContent).toMatch(/noise\.xxx/);
   });
 
@@ -860,7 +860,7 @@ describe('mountKnowledgeDocList', () => {
     const addSpy = vi.spyOn(window, 'addEventListener');
     const removeSpy = vi.spyOn(window, 'removeEventListener');
 
-    const cleanup = mountKnowledgeDocList(container, { repo: 'owner/repo', navigate });
+    const cleanup = mountKnowledgeDocList(container, { repo: 'myrepo', navigate });
     await flushPromises();
 
     const addCalls = addSpy.mock.calls.filter(([evt]) => evt === 'kb:hide-pattern-changed');
@@ -882,7 +882,7 @@ describe('mountKnowledgeDocList', () => {
   it('Enter after opening a file still starts rename when focus is in the reader', async () => {
     api.fetchKbList.mockResolvedValue(sampleRootEntries);
 
-    mountKnowledgeDocList(container, { repo: 'owner/repo', navigate });
+    mountKnowledgeDocList(container, { repo: 'myrepo', navigate });
     await flushPromises();
 
     container
@@ -899,7 +899,7 @@ describe('mountKnowledgeDocList', () => {
   it('Enter on a tree label shows an inline rename input', async () => {
     api.fetchKbList.mockResolvedValue(sampleRootEntries);
 
-    mountKnowledgeDocList(container, { repo: 'owner/repo', navigate });
+    mountKnowledgeDocList(container, { repo: 'myrepo', navigate });
     await flushPromises();
 
     const label = container.querySelector(
@@ -917,7 +917,7 @@ describe('mountKnowledgeDocList', () => {
   it('Escape cancels rename without calling the host', async () => {
     api.fetchKbList.mockResolvedValue(sampleRootEntries);
 
-    mountKnowledgeDocList(container, { repo: 'owner/repo', navigate });
+    mountKnowledgeDocList(container, { repo: 'myrepo', navigate });
     await flushPromises();
 
     pressKey(
@@ -940,7 +940,7 @@ describe('mountKnowledgeDocList', () => {
     api.fetchKbList.mockResolvedValue(sampleRootEntries);
     api.renameKbEntry.mockResolvedValue({ ok: true, path: 'hello.md' });
 
-    mountKnowledgeDocList(container, { repo: 'owner/repo', navigate });
+    mountKnowledgeDocList(container, { repo: 'myrepo', navigate });
     await flushPromises();
 
     container
@@ -960,7 +960,7 @@ describe('mountKnowledgeDocList', () => {
     pressKey(input, 'Enter');
     await flushPromises();
 
-    expect(api.renameKbEntry).toHaveBeenCalledWith('owner/repo', 'readme.md', 'hello.md');
+    expect(api.renameKbEntry).toHaveBeenCalledWith('myrepo', 'readme.md', 'hello.md');
     expect(container.querySelector('.knowledge-doc-tree-node[data-relative-path="hello.md"]')).not.toBeNull();
     expect(container.querySelector('.knowledge-doc-tree-node[data-relative-path="readme.md"]')).toBeNull();
     expect(mountKbReader).toHaveBeenLastCalledWith(
@@ -973,7 +973,7 @@ describe('mountKnowledgeDocList', () => {
   it('same name is a no-op and does not call the host', async () => {
     api.fetchKbList.mockResolvedValue(sampleRootEntries);
 
-    mountKnowledgeDocList(container, { repo: 'owner/repo', navigate });
+    mountKnowledgeDocList(container, { repo: 'myrepo', navigate });
     await flushPromises();
 
     pressKey(

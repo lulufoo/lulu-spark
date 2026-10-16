@@ -17,41 +17,41 @@ describe('knowledge viewer-state', () => {
 
   it('normalizeViewerState keeps id', () => {
     expect(normalizeViewerState({ id: ' abc ' })).toEqual({ id: 'abc' });
-    expect(normalizeViewerState({ repo: 'o/r', path: 'a.md' })).toEqual({ id: '' });
+    expect(normalizeViewerState({ repo: 'myrepo', path: 'a.md' })).toEqual({ id: '' });
   });
 
   it('resolveKnowledgeLanding prefers URL id', () => {
     expect(
-      resolveKnowledgeLanding('o/r', 'url-id', ['o/r'], { id: 'old-id' }, 'o/r'),
-    ).toEqual({ topic: 'o/r', id: 'url-id' });
+      resolveKnowledgeLanding('myrepo', 'url-id', ['myrepo'], { id: 'old-id' }, 'myrepo'),
+    ).toEqual({ topic: 'myrepo', id: 'url-id' });
   });
 
   it('resolveKnowledgeLanding restores remembered id when URL has topic only', () => {
     expect(
-      resolveKnowledgeLanding('o/r', '', ['o/r', 'o/x'], { id: 'a-id' }, 'o/r'),
-    ).toEqual({ topic: 'o/r', id: 'a-id' });
+      resolveKnowledgeLanding('myrepo', '', ['myrepo', 'other'], { id: 'a-id' }, 'myrepo'),
+    ).toEqual({ topic: 'myrepo', id: 'a-id' });
   });
 
   it('resolveKnowledgeLanding clears id when remembered topic differs', () => {
     expect(
-      resolveKnowledgeLanding('o/x', '', ['o/r', 'o/x'], { id: 'a-id' }, 'o/r'),
-    ).toEqual({ topic: 'o/x', id: '' });
+      resolveKnowledgeLanding('other', '', ['myrepo', 'other'], { id: 'a-id' }, 'myrepo'),
+    ).toEqual({ topic: 'other', id: '' });
   });
 
   it('resolveKnowledgeLanding uses remembered topic when URL has none', () => {
     expect(
-      resolveKnowledgeLanding('', '', ['o/r', 'o/x'], { id: 'b-id' }, 'o/x'),
-    ).toEqual({ topic: 'o/x', id: 'b-id' });
+      resolveKnowledgeLanding('', '', ['myrepo', 'other'], { id: 'b-id' }, 'other'),
+    ).toEqual({ topic: 'other', id: 'b-id' });
     expect(
-      resolveKnowledgeLanding('', '', ['o/r', 'o/x'], { id: 'b-id' }, 'gone/r'),
-    ).toEqual({ topic: 'o/r', id: '' });
+      resolveKnowledgeLanding('', '', ['myrepo', 'other'], { id: 'b-id' }, 'gone'),
+    ).toEqual({ topic: 'myrepo', id: '' });
   });
 
   it('knowledgeDocHash encodes topic and optional id', () => {
-    expect(knowledgeTopicHash('o/r')).toBe('#/knowledge/' + encodeURIComponent('o/r'));
-    expect(knowledgeDocHash('o/r')).toBe('#/knowledge/' + encodeURIComponent('o/r'));
-    expect(knowledgeDocHash('o/r', 'abc')).toBe(
-      '#/knowledge/' + encodeURIComponent('o/r') + '?id=' + encodeURIComponent('abc'),
+    expect(knowledgeTopicHash('myrepo')).toBe('#/knowledge/' + encodeURIComponent('myrepo'));
+    expect(knowledgeDocHash('myrepo')).toBe('#/knowledge/' + encodeURIComponent('myrepo'));
+    expect(knowledgeDocHash('myrepo', 'abc')).toBe(
+      '#/knowledge/' + encodeURIComponent('myrepo') + '?id=' + encodeURIComponent('abc'),
     );
   });
 });

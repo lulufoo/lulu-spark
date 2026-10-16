@@ -147,6 +147,34 @@ fn hits_of_a_deleted_note_or_a_missing_knowledge_doc_are_dropped() {
 }
 
 #[test]
+fn desktop_knowledge_hits_have_no_github_url() {
+    crate::test_support::with_sandbox_notes(|_, _| {
+        let data = crate::services::spark_data::open().expect("data");
+        let kb_id = crate::services::spark_data::register_knowledge_doc(&data, "demo", "guide/a.md")
+            .expect("register");
+        let cache = cache_dir_or_err().expect("cache");
+        let conn = open(&cache).expect("open");
+        upsert_chunks(
+            &conn,
+            &[chunk("c:0", &kb_id, "knowledge", "共同关键词出现在知识库里")],
+        )
+        .expect("seed");
+        drop(conn);
+        let out = search_desktop_knowledge(&cache, "共同关键词", Some(5));
+        let hits = out["hits"].as_array().expect("hits");
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0]["id"], kb_id);
+        assert_eq!(hits[0]["topic"], "demo");
+        assert!(hits[0].get("url").is_none());
+        assert!(hits[0].get("path").is_none());
+        assert!(hits[0].get("repo").is_none());
+        let dumped = out.to_string();
+        assert!(!dumped.contains("github.com"), "{dumped}");
+        assert!(!dumped.contains("/blob/"), "{dumped}");
+    });
+}
+
+#[test]
 fn desktop_search_reports_not_indexed_when_sqlite_missing() {
     let (_dir, cache) = temp_cache();
     let wb = search_desktop_spark(&cache, "角色扮演", Some(5));

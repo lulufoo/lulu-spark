@@ -14,7 +14,7 @@ use crate::services::spark_data::{
 fn err_status(msg: &str) -> u16 {
     if msg.contains("invalid") || msg.contains("traversal") {
         400
-    } else if msg.contains("not cloned") || msg.contains("not found") {
+    } else if msg.contains("not found") {
         404
     } else {
         500

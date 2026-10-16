@@ -201,12 +201,11 @@ pub fn sediment_kb_categories_json() -> Result<Value, String> {
     Ok(json!({ "categories": cats.categories }))
 }
 
-fn sediment_kb_local_exists(repo_root: &std::path::Path, full_name: &str) -> bool {
+fn sediment_kb_local_exists(repo_root: &std::path::Path, folder: &str) -> bool {
     let knowledge_root = std::path::PathBuf::from(
         crate::config::roots::knowledge_root_string(repo_root),
     );
-    let name = full_name.split('/').next_back().unwrap_or(full_name);
-    knowledge_root.join(name).is_dir()
+    knowledge_root.join(folder).is_dir()
 }
 
 pub fn sediment_kb_repos_json(repo_root: &std::path::Path) -> Result<Value, String> {

@@ -199,15 +199,15 @@ pub fn collect_knowledge(
                 continue;
             }
         }
-        let repo_name = repo_full.split('/').next_back().unwrap_or(repo_full.as_str());
-        let Ok(local_dir) = knowledge_dir_path(&kb_root, repo_name, "") else {
+        let folder = repo_full.as_str();
+        let Ok(local_dir) = knowledge_dir_path(&kb_root, folder, "") else {
             continue;
         };
         let mut files = Vec::new();
         walk_md(&local_dir, &local_dir, &hide, &mut files);
         files.sort_by(|a, b| a.1.cmp(&b.1));
         for (abs, rel) in files {
-            let Some(doc_id) = doc_ids.get(&(repo_name.to_string(), rel.clone())) else {
+            let Some(doc_id) = doc_ids.get(&(folder.to_string(), rel.clone())) else {
                 continue;
             };
             chunks.extend(chunks_from_file("knowledge", "", &abs, doc_id, ""));

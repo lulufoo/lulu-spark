@@ -39,7 +39,11 @@ export function parseHash(hash?: string): ParsedRoute {
       try {
         const [repoEncoded, ...queryParts] = repoPart.split('?');
         const queryString = queryParts.length > 0 ? queryParts.join('?') : '';
-        const params: Record<string, string> = { repo: decodeURIComponent(repoEncoded) };
+        const repo = decodeURIComponent(repoEncoded);
+        if (!repo || repo.includes('/') || repo.includes('\\')) {
+          return { name: 'unknown', params: {} };
+        }
+        const params: Record<string, string> = { repo };
         if (queryString) {
           const searchParams = new URLSearchParams(queryString);
           if (searchParams.has('id')) {

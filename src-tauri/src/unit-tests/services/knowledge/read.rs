@@ -64,7 +64,7 @@ fn kb_list_json_root_listing() {
             fs::write(repo_dir.join("readme.md"), "# hi").expect("w");
         },
         |cfg_dir, _| {
-            let v = kb_list_json(cfg_dir, "lulufoo/myrepo", "", "flat");
+            let v = kb_list_json(cfg_dir, "myrepo", "", "flat");
             let arr = v.as_array().expect("array");
             assert_eq!(arr.len(), 2);
             let names: Vec<_> = arr.iter().map(|e| e["name"].as_str().unwrap()).collect();
@@ -87,7 +87,7 @@ fn kb_list_json_empty_directory() {
             fs::create_dir_all(kb.join("myrepo").join("empty")).expect("mkdir");
         },
         |cfg_dir, _| {
-            let v = kb_list_json(cfg_dir, "lulufoo/myrepo", "empty", "flat");
+            let v = kb_list_json(cfg_dir, "myrepo", "empty", "flat");
             assert_eq!(v.as_array().map(|a| a.len()), Some(0));
         },
     );
@@ -100,7 +100,7 @@ fn kb_list_json_rejects_traversal() {
             fs::create_dir_all(kb.join("myrepo")).expect("mkdir");
         },
         |cfg_dir, _| {
-            let v = kb_list_json(cfg_dir, "lulufoo/myrepo", "..", "flat");
+            let v = kb_list_json(cfg_dir, "myrepo", "..", "flat");
             assert_eq!(v["error"], "invalid path");
             assert_eq!(v["_status"], 400);
         },
@@ -112,9 +112,23 @@ fn kb_list_json_directory_not_found() {
     with_kb_repo(
         |_, _kb| {},
         |cfg_dir, _| {
-            let v = kb_list_json(cfg_dir, "lulufoo/missing", "", "flat");
+            let v = kb_list_json(cfg_dir, "missing", "", "flat");
             assert!(v["error"].as_str().unwrap().contains("directory not found"));
             assert_eq!(v["_status"], 404);
+        },
+    );
+}
+
+#[test]
+fn kb_list_json_rejects_owner_name() {
+    with_kb_repo(
+        |_, kb| {
+            fs::create_dir_all(kb.join("myrepo")).expect("mkdir");
+        },
+        |cfg_dir, _| {
+            let v = kb_list_json(cfg_dir, "lulufoo/myrepo", "", "flat");
+            assert_eq!(v["error"], "invalid directory name");
+            assert_eq!(v["_status"], 400);
         },
     );
 }
@@ -138,7 +152,7 @@ fn kb_list_json_rejects_tree_mode() {
             fs::create_dir_all(kb.join("myrepo")).expect("mkdir");
         },
         |cfg_dir, _| {
-            let v = kb_list_json(cfg_dir, "lulufoo/myrepo", "", "tree");
+            let v = kb_list_json(cfg_dir, "myrepo", "", "tree");
             assert_eq!(v["error"], "mode tree not implemented");
             assert_eq!(v["_status"], 400);
         },
@@ -156,7 +170,7 @@ fn kb_doc_count_json_counts_md_recursively() {
             fs::write(repo_dir.join("docs/c.md"), "c").expect("w");
         },
         |cfg_dir, _| {
-            let v = kb_doc_count_json(cfg_dir, "lulufoo/myrepo", None);
+            let v = kb_doc_count_json(cfg_dir, "myrepo", None);
             assert_eq!(v["count"], 3);
             assert!(v.get("error").is_none());
         },
@@ -170,7 +184,7 @@ fn kb_doc_count_json_empty_repo() {
             fs::create_dir_all(kb.join("myrepo")).expect("mkdir");
         },
         |cfg_dir, _| {
-            let v = kb_doc_count_json(cfg_dir, "lulufoo/myrepo", None);
+            let v = kb_doc_count_json(cfg_dir, "myrepo", None);
             assert_eq!(v["count"], 0);
         },
     );
@@ -189,7 +203,7 @@ fn kb_doc_count_json_hide_pattern_excludes_matching() {
         },
         |cfg_dir, _| {
             crate::services::knowledge::add_kb_hide_pattern("^draft").expect("add");
-            let v = kb_doc_count_json(cfg_dir, "lulufoo/myrepo", None);
+            let v = kb_doc_count_json(cfg_dir, "myrepo", None);
             assert_eq!(v["count"], 2);
         },
     );
@@ -205,7 +219,7 @@ fn kb_doc_count_json_skips_hidden_directory() {
             fs::write(repo_dir.join(".cache/hidden.md"), "h").expect("w");
         },
         |cfg_dir, _| {
-            let v = kb_doc_count_json(cfg_dir, "lulufoo/myrepo", None);
+            let v = kb_doc_count_json(cfg_dir, "myrepo", None);
             assert_eq!(v["count"], 1);
         },
     );
@@ -223,7 +237,7 @@ fn kb_doc_count_json_only_counts_md() {
             fs::write(repo_dir.join("docs/image.png"), "png").expect("w");
         },
         |cfg_dir, _| {
-            let v = kb_doc_count_json(cfg_dir, "lulufoo/myrepo", None);
+            let v = kb_doc_count_json(cfg_dir, "myrepo", None);
             assert_eq!(v["count"], 2);
         },
     );
@@ -262,7 +276,7 @@ fn kb_doc_count_json_directory_not_found() {
     with_kb_repo(
         |_, _kb| {},
         |cfg_dir, _| {
-            let v = kb_doc_count_json(cfg_dir, "lulufoo/missing", None);
+            let v = kb_doc_count_json(cfg_dir, "missing", None);
             assert!(v["error"].as_str().unwrap().contains("directory not found"));
             assert_eq!(v["_status"], 404);
         },

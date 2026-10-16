@@ -211,8 +211,7 @@ describe('mountKbReader', () => {
 
     for (let i = 0; i < 10; i += 1) {
       const { unmount } = await mountKbReader(container, {
-        repo: 'owner/repo',
-        path: `file-${i}.md`,
+        id: `file-${i}.md`,
       });
       unmount();
     }

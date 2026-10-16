@@ -1,4 +1,4 @@
-//! Filesystem side of the knowledge registry: walk clones and reconcile `knowledge_doc`.
+//! Filesystem side of the knowledge registry: walk topic directories and reconcile `knowledge_doc`.
 
 use std::collections::HashSet;
 use std::fs;
@@ -33,10 +33,10 @@ fn walk_md(dir: &Path, base: &Path, hide: &[Regex], out: &mut HashSet<String>) {
     }
 }
 
-/// Reconcile one clone directory (`kb_root/<repo_dir>`) with its records.
+/// Reconcile one topic directory (`kb_root/<folder>`) with its records.
 ///
-/// A clone directory that does not exist right now changes nothing: it may be a
-/// clone in progress or an unmounted disk, not proof that every file was deleted.
+/// A topic directory that does not exist right now changes nothing: it may be
+/// unmounted, not proof that every file was deleted.
 /// Files and folders matching a hide rule are neither registered nor marked missing.
 pub fn scan_repo_dir(
     conn: &rusqlite::Connection,
@@ -59,7 +59,7 @@ pub fn scan_repo_dir(
     )
 }
 
-/// Scan every registered knowledge repo (or only `force_repo`, an `owner/name`).
+/// Scan every registered topic directory (or only `force_repo`, a folder name).
 pub fn scan_registered_repos(repo_root: &Path, force_repo: Option<&str>) -> Result<(), String> {
     let kb_root = std::path::PathBuf::from(knowledge_root_string(repo_root));
     let repos = sediment_kb::load_repos().map_err(|e| e.to_string())?;
@@ -67,8 +67,7 @@ pub fn scan_registered_repos(repo_root: &Path, force_repo: Option<&str>) -> Resu
     let conn = spark_data::open()?;
     for repo in repos.repos {
         let folder = repo.full_name.as_str();
-        if force_repo.is_some_and(|force| force != folder && force.split('/').next_back() != Some(folder))
-        {
+        if force_repo.is_some_and(|force| force != folder) {
             continue;
         }
         scan_repo_dir(&conn, &kb_root, folder, &hide)?;
