@@ -12,11 +12,11 @@ pub fn catalog() -> ToolCatalog {
     ToolCatalog::from_local_tools(vec![
         local_tool(
             "stage",
-            "Add an external file to this Chat's Stage. Grants read and write for that file and shows it to the user. Use it when the user gives an absolute path to a file outside Spark's own data. Notes and knowledge documents are not staged: use get_note_file or get_knowledge_file.",
+            "Add an external file to this Chat's Stage. Asks the user first. After allow, grants read and write for that path and shows it to the user. The path may not exist yet. Spark's own data and .git cannot be requested. Notes and knowledge documents are not staged: use get_note_file or get_knowledge_file.",
             json!({
                 "type": "object",
                 "properties": {
-                    "path": { "type": "string", "description": "Absolute existing regular file. Must be outside SESSION_WORKSPACE_DIR." },
+                    "path": { "type": "string", "description": "Absolute file path. May not exist yet. Must be outside SESSION_WORKSPACE_DIR." },
                     "title": { "type": "string", "description": "Optional display title." }
                 },
                 "required": ["path"],
@@ -104,6 +104,12 @@ fn entry_json(entry: &StagedEntry) -> Result<String, String> {
 pub struct CheckedStage {
     path: String,
     title: Option<String>,
+}
+
+impl CheckedStage {
+    pub(crate) fn path_for_gate(&self) -> &str {
+        &self.path
+    }
 }
 
 /// The part of `stage` that reads the disk. It owns everything it returns, so it can run

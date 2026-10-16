@@ -462,7 +462,12 @@ pub(crate) fn run_loop_with_progress(
             if (!result.is_error || stopped.is_some()) && catalog.is_mutating(&call.name) {
                 wrote = true;
             }
-            if !result.is_error && call.name == "stage" {
+            if !result.is_error
+                && matches!(
+                    call.name.as_str(),
+                    "stage" | "write" | "str_replace" | "copy"
+                )
+            {
                 turn_fence = turn_fence_for_session(session);
             }
             let _ = diagnostics::log(

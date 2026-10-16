@@ -247,7 +247,18 @@ fn run_loop_offers_host_file_tools_and_keeps_scratch_writes_inside_cache() {
     register_test_mcp("spark", mcp_port);
 
     r#loop::try_set_binding_json(&json!({ "key": "spark" })).expect("Set spark binding");
+    crate::agent::approval::reset_for_tests();
     let mut session = session::create_session().expect("session");
+    let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let denier = {
+        let stop = stop.clone();
+        std::thread::spawn(move || {
+            while !stop.load(std::sync::atomic::Ordering::SeqCst) {
+                crate::agent::approval::deny_all_pending();
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
+        })
+    };
     let scratch = sandbox
         .cache_dir()
         .join("agent-workspace")
@@ -296,6 +307,8 @@ fn run_loop_offers_host_file_tools_and_keeps_scratch_writes_inside_cache() {
         assistant_text("已读文件并写入草稿。"),
     ]);
     let outcome = r#loop::run_loop(&mut session, "读文件并写草稿", &cfg_for(&mock));
+    stop.store(true, std::sync::atomic::Ordering::SeqCst);
+    let _ = denier.join();
 
     assert_outcome(&outcome, "none", true);
     assert!(!forbidden.exists(), "Host write must not touch $WB");
@@ -379,8 +392,8 @@ fn run_loop_offers_host_file_tools_and_keeps_scratch_writes_inside_cache() {
         tool_turns[1]
             .content
             .as_deref()
-            .is_some_and(|content| content.contains("outside the write fence")),
-        "Host write outside scratch must be denied"
+            .is_some_and(|content| content.contains("approval denied")),
+        "Host write outside scratch must be denied after approval"
     );
     let log = fs::read_to_string(
         crate::agent::diagnostics::session_log_path(&session.session_id).expect("session log"),

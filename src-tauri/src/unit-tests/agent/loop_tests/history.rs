@@ -31,6 +31,9 @@ fn spark_host_system_prompt_closes_data_and_teaches_file_copies() {
     }
     assert!(prompt.contains("external files"), "Stage is for external files");
     assert!(prompt.contains("`stage`"), "model stages external files itself");
+    assert!(prompt.contains("The user is asked"), "outside paths ask first");
+    assert!(prompt.contains("cannot be requested"), "hard deny cannot be asked");
+    assert!(prompt.contains("`.git`"), "hard deny names .git");
     assert!(prompt.contains("SESSION_WORKSPACE_DIR"), "copies go to the session workspace");
     assert!(prompt.contains("[Title](note:<id>)"), "note link rule");
     assert!(prompt.contains("[Title](knowledge:<id>)"), "knowledge link rule");

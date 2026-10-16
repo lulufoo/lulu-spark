@@ -10,6 +10,7 @@ import { packageDebugStore } from './state/package-debug.ts';
 import { hydrateHomeChatMarkdown, renderHomeChatMarkdown } from './ui/chat-render.ts';
 import { ChatTurn } from './ui/chat-turn.tsx';
 import { AboutDialog } from './ui/about-dialog.tsx';
+import { ApprovalDialog } from './ui/approval-dialog.tsx';
 import { AccountBar } from './ui/account-bar.tsx';
 import { HelpMenu } from './ui/help-menu.tsx';
 import { HomeNavIcon } from './ui/nav-icons.tsx';
@@ -485,6 +486,7 @@ export function HomePage({
         </form>
       </section>
       <AboutDialog />
+      <ApprovalDialog />
     </div>
   );
 }

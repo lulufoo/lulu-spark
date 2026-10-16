@@ -100,10 +100,18 @@ fn existing_regular_file(path: &str) -> Result<PathBuf, String> {
     Ok(canon)
 }
 
-/// Absolute existing regular file eligible to register on Stage (never a directory).
-/// Rejects the session write root and read_deny. Does not require current read allow.
+/// Absolute file eligible to register on Stage (never a directory).
+/// The file may not exist yet. Rejects the session write root and read_deny.
+/// Does not require current read allow.
 pub fn validate_stage_file(path: &str, fence: &PathFence) -> Result<PathBuf, String> {
-    let canon = existing_regular_file(path)?;
+    let abs = require_absolute(path)?;
+    let canon = match std::fs::symlink_metadata(&abs) {
+        Ok(meta) if meta.file_type().is_dir() => {
+            return Err("path must be a regular file".into());
+        }
+        Ok(_) => std::fs::canonicalize(&abs).map_err(|_| "path does not exist".to_string())?,
+        Err(_) => resolve_existing_prefix(&abs),
+    };
     if fence.is_session_workspace(&canon) {
         return Err("path must be outside SESSION_WORKSPACE_DIR".into());
     }
@@ -150,7 +158,7 @@ fn lexical_abs(path: &Path) -> PathBuf {
     out
 }
 
-fn in_any(path: &Path, roots: &[PathBuf]) -> bool {
+pub(crate) fn in_any(path: &Path, roots: &[PathBuf]) -> bool {
     roots.iter().any(|root| is_under(path, root))
 }
 

@@ -2,6 +2,7 @@
 
 pub mod catalog;
 pub mod fs;
+mod gate;
 pub mod host;
 mod local;
 pub mod stage;

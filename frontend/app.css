@@ -6840,6 +6840,60 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   margin: 0;
   line-height: 1.5;
 }
+#approval-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-rgba-000000-55);
+}
+#approval-dialog.open { display: flex; }
+#approval-dialog-box {
+  background: var(--bg-surface);
+  border-radius: 8px;
+  padding: 16px 16px 20px;
+  width: min(420px, 90vw);
+  box-shadow: 0 8px 32px var(--shadow-rgba-010409-18), 0 0 0 1px var(--shadow-rgba-1f2328-08);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+#approval-dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+#approval-dialog-box h3 {
+  font-size: 16px;
+  color: var(--fg-default);
+  margin: 0;
+  font-weight: 600;
+}
+#approval-dialog-box p {
+  font-size: 13px;
+  color: var(--fg-default);
+  margin: 0;
+  line-height: 1.5;
+  word-break: break-all;
+}
+#approval-dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+#approval-dialog-actions button {
+  border: 1px solid var(--border-muted);
+  background: var(--bg-canvas);
+  color: var(--fg-default);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 13px;
+  cursor: pointer;
+}
 .home-account-bar-trigger {
   display: flex;
   align-items: center;

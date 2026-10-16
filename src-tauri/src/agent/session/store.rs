@@ -269,9 +269,21 @@ pub fn unstage_entry(session_id: &str, staged_id: &str) -> Result<Session, Strin
     }
     let mut session = load_session(session_id)?;
     let before = session.staged.len();
+    let removed = session
+        .staged
+        .iter()
+        .find(|entry| entry.id == staged_id)
+        .cloned();
     session.staged.retain(|entry| entry.id != staged_id);
     if session.staged.len() == before {
         return Err("staged id not found".into());
+    }
+    if let Some(entry) = removed {
+        crate::agent::permission::store_revoke(
+            &session_file_path(session_id)?,
+            session_id,
+            std::path::Path::new(&entry.path),
+        )?;
     }
     save_session(&session)?;
     Ok(session)
