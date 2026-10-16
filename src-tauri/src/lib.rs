@@ -236,6 +236,32 @@ pub fn run() {
                     return;
                 };
                 let _ = crate::services::knowledge_layout::ensure_knowledge_registry_layout(&data);
+                {
+                    use crate::services::app_log::{log, Level, Side};
+                    match crate::services::legacy_copy::copy_legacy_files_at_startup(&data) {
+                        Ok(report) if report.already_done => {}
+                        Ok(report) => log(
+                            "workspaces",
+                            "legacy_copy_done",
+                            None,
+                            Some(serde_json::json!({
+                                "copied": report.copied,
+                                "skipped_existing": report.skipped_existing,
+                                "missing_folders": report.missing_folders,
+                            })),
+                            Side::Host,
+                            Level::Info,
+                        ),
+                        Err(error) => log(
+                            "workspaces",
+                            "legacy_copy_failed",
+                            None,
+                            Some(serde_json::json!({ "error": error })),
+                            Side::Host,
+                            Level::Error,
+                        ),
+                    }
+                }
                 if let Err(error) = crate::services::spark_data::backup_daily() {
                     use crate::services::app_log::{log, Level, Side};
                     log(

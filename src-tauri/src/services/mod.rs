@@ -24,6 +24,7 @@ pub mod auth_login_landing;
 pub mod os_notify_trace;
 pub mod reindex;
 pub mod knowledge_layout;
+pub mod legacy_copy;
 pub mod sediment_kb;
 pub mod tag_write;
 pub mod tags_registry;

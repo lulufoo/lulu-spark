@@ -1,4 +1,3 @@
-use super::db::{open_with_steps, MIGRATIONS};
 use super::*;
 
 use rusqlite::Connection;
@@ -38,20 +37,9 @@ fn insert_doc(conn: &Connection, table: &str, doc_id: &str, project_id: &str) ->
 }
 
 #[test]
-fn v6_file_upgrades_to_workspaces_and_keeps_note_and_knowledge_rows() {
+fn seed_registry_rows_and_modes_are_right() {
     let (_dir, path) = temp_db();
-    let old = open_with_steps(&path, &MIGRATIONS[..6]).expect("v6");
-    insert_note(&old, &NoteRow::new("n1", "a.md")).expect("note");
-    insert_knowledge_doc(&old, &KnowledgeDocRow::new("k1", "demo", "b.md")).expect("knowledge");
-    drop(old);
-
-    let conn = open_at(&path).expect("v6 → v7");
-    assert_eq!(count(&conn, "note"), 1);
-    assert_eq!(count(&conn, "knowledge_doc"), 1);
-    assert_eq!(count(&conn, "doc_default"), 0);
-    assert_eq!(count(&conn, "doc_knowledge"), 0);
-    assert_eq!(count(&conn, "project"), 0);
-
+    let conn = open_at(&path).expect("open");
     let rows = list_workspaces(&conn).expect("list");
     let seen: Vec<_> = rows.iter().map(|w| (w.id.as_str(), w.name.as_str(), w.view_mode, w.is_default)).collect();
     assert_eq!(
@@ -203,25 +191,27 @@ fn registry_rejects_a_doc_table_that_does_not_match_the_id() {
 fn projects_are_unique_per_workspace_and_need_a_real_workspace() {
     let (_dir, path) = temp_db();
     let conn = open_at(&path).expect("open");
-    insert_project(&conn, &ProjectRow::new("p1", "default", "inbox", "Inbox", "")).expect("p1");
+    // A fresh database already carries the migrated `inbox` note category in `default`.
+    let before = list_projects(&conn, "default").expect("list").len();
+    insert_project(&conn, &ProjectRow::new("p1", "default", "work", "Work", "")).expect("p1");
     assert!(
-        insert_project(&conn, &ProjectRow::new("p2", "default", "inbox", "Again", "")).is_err(),
+        insert_project(&conn, &ProjectRow::new("p2", "default", "work", "Again", "")).is_err(),
         "UNIQUE(workspace_id, folder)"
     );
-    insert_project(&conn, &ProjectRow::new("p3", "knowledge", "inbox", "Inbox", "")).expect("same folder elsewhere");
+    insert_project(&conn, &ProjectRow::new("p3", "knowledge", "work", "Work", "")).expect("same folder elsewhere");
     assert!(
         insert_project(&conn, &ProjectRow::new("p4", "nope", "x", "X", "")).is_err(),
         "FK to workspace"
     );
 
-    let found = get_project_by_folder(&conn, "knowledge", "inbox").expect("get").expect("row");
+    let found = get_project_by_folder(&conn, "knowledge", "work").expect("get").expect("row");
     assert_eq!(found.id, "p3");
     let mut changed = found.clone();
     changed.title = "Renamed".into();
     changed.description = "分组：AI".into();
     assert!(update_project(&conn, &changed).expect("update"));
     assert_eq!(get_project(&conn, "p3").expect("get"), Some(changed));
-    assert_eq!(list_projects(&conn, "default").expect("list").len(), 1);
+    assert_eq!(list_projects(&conn, "default").expect("list").len(), before + 1);
     assert!(!update_project(&conn, &ProjectRow::new("none", "default", "f", "F", "")).expect("missing"));
 }
 
@@ -229,7 +219,7 @@ fn projects_are_unique_per_workspace_and_need_a_real_workspace() {
 fn doc_tables_need_a_real_project_and_block_its_deletion() {
     let (_dir, path) = temp_db();
     let conn = open_at(&path).expect("open");
-    insert_project(&conn, &ProjectRow::new("p1", "default", "inbox", "Inbox", "")).expect("project");
+    insert_project(&conn, &ProjectRow::new("p1", "default", "work", "Work", "")).expect("project");
     assert!(insert_doc(&conn, "doc_default", "d1", "missing").is_err(), "FK to project");
     insert_doc(&conn, "doc_default", "d1", "p1").expect("doc");
     assert!(insert_doc(&conn, "doc_default", "d1", "p1").is_err(), "primary key");

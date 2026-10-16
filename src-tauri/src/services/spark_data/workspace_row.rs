@@ -8,6 +8,11 @@ use rusqlite::{params, Connection, OptionalExtension, Row};
 use super::doc_table::{create_doc_table, doc_table_for_id, validate_doc_table_name};
 use crate::services::id::random_alnum6;
 
+/// Id of the built-in default workspace (the former Notes).
+pub const DEFAULT_WORKSPACE_ID: &str = "default";
+/// Id of the seeded workspace that took over the former Knowledge.
+pub const KNOWLEDGE_WORKSPACE_ID: &str = "knowledge";
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ViewMode {
     Directory,

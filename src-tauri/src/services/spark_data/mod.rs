@@ -4,6 +4,7 @@ mod backup;
 mod db;
 mod doc_table;
 mod json_column;
+mod legacy_rows_step;
 mod knowledge_directory_row;
 mod knowledge_doc_row;
 mod knowledge_registry;
@@ -52,7 +53,7 @@ pub use tag_rows::{
 };
 pub use workspace_row::{
     create_workspace, delete_workspace, get_workspace, list_workspaces, rename_workspace,
-    set_workspace_view_mode, ViewMode, WorkspaceRow,
+    set_workspace_view_mode, ViewMode, WorkspaceRow, DEFAULT_WORKSPACE_ID, KNOWLEDGE_WORKSPACE_ID,
 };
 
 #[cfg(test)]
@@ -62,3 +63,7 @@ mod tests;
 #[cfg(test)]
 #[path = "../../unit-tests/services/spark_data_workspace.rs"]
 mod workspace_tests;
+
+#[cfg(test)]
+#[path = "../../unit-tests/services/spark_data_legacy_copy.rs"]
+mod legacy_copy_tests;
