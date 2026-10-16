@@ -7,7 +7,8 @@ use std::path::{Path, PathBuf};
 use lulu_spark_lib::services::sediment_kb::generate_directory_id;
 use lulu_spark_lib::services::spark_data::{
     get_knowledge_directory, get_knowledge_directory_by_folder, insert_knowledge_directory,
-    list_knowledge_directories, open_at, KnowledgeDirectoryRow, DB_FILE, UNCATEGORIZED,
+    list_knowledge_directories, open_at, update_knowledge_directory, KnowledgeDirectoryRow,
+    DB_FILE, UNCATEGORIZED,
 };
 use rusqlite::Connection;
 use serde::Deserialize;
@@ -130,7 +131,12 @@ fn import_item(
         {
             Ok(())
         }
-        Some(_) => Err(format!("directory {folder} already exists with different fields")),
+        Some(existing) => {
+            let mut row = existing;
+            row.category = category.to_string();
+            row.description = description.to_string();
+            update_knowledge_directory(conn, &row).map(|_| ())
+        }
         None => {
             let id = mint_id(conn)?;
             insert_knowledge_directory(
@@ -166,13 +172,7 @@ pub fn run_migration(data_dir: &Path) -> Result<Outcome, String> {
     for (folder, category, description) in &imported {
         import_item(&tx, folder, category, description)?;
     }
-    let row_count = list_knowledge_directories(&tx)?.len();
-    if row_count != imported.len() {
-        return Err(format!(
-            "row count {row_count} != expected {}; nothing was written or deleted",
-            imported.len()
-        ));
-    }
+    let row_count = imported.len();
     for (folder, category, description) in &imported {
         let row = get_knowledge_directory_by_folder(&tx, folder)?
             .ok_or_else(|| format!("imported folder {folder} missing after write"))?;

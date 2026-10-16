@@ -21,7 +21,7 @@ pub use knowledge_directory_row::{
     KnowledgeDirectoryRow, UNCATEGORIZED,
 };
 pub use knowledge_doc_row::{
-    active_knowledge_doc_ids, delete_knowledge_doc, knowledge_doc_ids_outside_repo, find_knowledge_doc_id, get_knowledge_doc, insert_knowledge_doc,
+    active_knowledge_doc_ids, delete_knowledge_doc, directory_id_for_repo, knowledge_doc_ids_outside_repo, find_knowledge_doc_id, get_knowledge_doc, insert_knowledge_doc,
     update_knowledge_doc, KnowledgeDocRow, KnowledgeStatus,
 };
 pub use knowledge_registry::{

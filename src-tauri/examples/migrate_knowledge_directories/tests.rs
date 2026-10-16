@@ -115,18 +115,32 @@ fn missing_json_is_refused_and_writes_nothing() {
 }
 
 #[test]
-fn a_field_mismatch_deletes_nothing() {
+fn seeded_folders_are_overlaid_without_dropping_extras() {
     let tmp = fixture();
     let conn = open_at(&tmp.path().join(DB_FILE)).expect("db");
     insert_knowledge_directory(
         &conn,
-        &KnowledgeDirectoryRow::new("d1", "android-dev-docs", UNCATEGORIZED, "other"),
+        &KnowledgeDirectoryRow::new("android-dev-docs", "android-dev-docs", UNCATEGORIZED, ""),
     )
-    .expect("seed clash");
+    .expect("v5 seed");
+    insert_knowledge_directory(
+        &conn,
+        &KnowledgeDirectoryRow::new("extra", "extra", UNCATEGORIZED, ""),
+    )
+    .expect("extra");
     drop(conn);
 
-    let json_path = tmp.path().join("knowledge/repos.json");
-    let err = run_migration(tmp.path()).err().expect("must stop");
-    assert!(err.contains("android-dev-docs"), "{err}");
-    assert!(json_path.is_file());
+    let outcome = run_migration(tmp.path()).expect("migrate");
+    assert_eq!(outcome.row_count, 2);
+    assert!(!tmp.path().join("knowledge/repos.json").exists());
+
+    let conn = open_at(&tmp.path().join(DB_FILE)).expect("db");
+    let android = get_knowledge_directory_by_folder(&conn, "android-dev-docs")
+        .expect("get")
+        .expect("android");
+    assert_eq!(android.id, "android-dev-docs");
+    assert_eq!(android.description, "Android");
+    assert!(get_knowledge_directory_by_folder(&conn, "extra")
+        .expect("get")
+        .is_some());
 }

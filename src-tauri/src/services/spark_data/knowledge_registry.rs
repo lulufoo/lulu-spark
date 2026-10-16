@@ -10,7 +10,7 @@ use rusqlite::{params, Connection, OptionalExtension};
 
 use crate::services::id::random_entry_id;
 
-use super::knowledge_doc_row::{insert_knowledge_doc, KnowledgeDocRow};
+use super::knowledge_doc_row::{directory_id_for_repo, insert_knowledge_doc, KnowledgeDocRow};
 
 /// Return the `doc_id` of `(repo, path)`, creating the record when there is none and
 /// bringing a `missing` record back to `active`.
@@ -32,7 +32,9 @@ pub fn register_knowledge_doc(conn: &Connection, repo: &str, path: &str) -> Resu
         return Ok(doc_id);
     }
     let doc_id = random_entry_id();
-    insert_knowledge_doc(conn, &KnowledgeDocRow::new(&doc_id, repo, path))?;
+    let mut row = KnowledgeDocRow::new(&doc_id, repo, path);
+    row.directory_id = directory_id_for_repo(conn, repo)?;
+    insert_knowledge_doc(conn, &row)?;
     Ok(doc_id)
 }
 
