@@ -4,7 +4,7 @@ use std::fs;
 use serde_json::json;
 
 use crate::services::annotation::read_annotation_object;
-use crate::services::spark_data::{get_note, open};
+use crate::services::spark_data::{find_doc, open};
 use crate::services::tags_registry::read_registry;
 use crate::test_support::{seed_note_entries, with_sandbox_notes};
 
@@ -151,10 +151,10 @@ fn delete_entry_prunes_the_tag_it_was_the_last_to_use() {
         let attached = tag_attach(dir, entry_id, &json!({ "value": "t" }));
         let key = attached["key"].as_str().unwrap().to_string();
 
-        let v = crate::services::entry_admin::delete_entry(&json!({ "id": entry_id }));
+        let v = crate::services::docs::delete_doc(&json!({ "id": entry_id }));
         assert_eq!(v["ok"], true);
 
         assert!(read_registry()["keys"].get(&key).is_none());
-        assert!(get_note(&open().expect("db"), entry_id).expect("get").is_none());
+        assert!(find_doc(&open().expect("db"), entry_id).expect("get").is_none());
     });
 }

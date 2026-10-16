@@ -1,7 +1,6 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use rusqlite::Connection;
 use serde_json::{json, Value};
 
 use crate::services::archive_parse::expected_lang_common_path;
@@ -76,10 +75,6 @@ pub(crate) fn write_markdown_atomic(path: &Path, content: &str) -> Result<(), St
     fs::write(&tmp, content).map_err(|e| e.to_string())?;
     fs::rename(&tmp, path).map_err(|e| e.to_string())?;
     Ok(())
-}
-
-pub(crate) fn open_data() -> Result<Connection, Value> {
-    spark_data::open().map_err(|e| json!({ "error": e, "_status": 500 }))
 }
 
 pub(crate) fn reject_legacy_translation_fields(payload: &Value) -> Option<Value> {

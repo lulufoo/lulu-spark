@@ -25,25 +25,8 @@ pub(crate) struct CreateMeta {
     pub common_path: String,
 }
 
-pub(crate) fn parse_create_meta(
-    payload: &Value,
-    source_basename: Option<&str>,
-) -> Result<CreateMeta, Value> {
-    let meta = parse_create_meta_unchecked(payload, source_basename)?;
-    if !super::categories::known_ids()
-        .map(|ids| ids.contains(&meta.project))
-        .unwrap_or(false)
-    {
-        return Err(json!({
-            "error": format!("Unknown project: {}", meta.project),
-            "_status": 400
-        }));
-    }
-    Ok(meta)
-}
-
-/// Everything [`parse_create_meta`] checks except that `project` exists; the caller
-/// resolves the project itself (per workspace).
+/// Title, path, `created_at` and `source_type` checks. The caller resolves the project
+/// itself (per workspace).
 pub(crate) fn parse_create_meta_unchecked(
     payload: &Value,
     source_basename: Option<&str>,

@@ -100,9 +100,13 @@ const TODO_TASK_CATEGORY_COMMANDS: &[&str] = &[
 
 const NOTE_WRITE_COMMANDS: &[&str] = &[
     "create_note",
-    "create_notes_category",
-    "update_notes_category",
-    "delete_notes_category",
+    "create_workspace",
+    "rename_workspace",
+    "set_workspace_view_mode",
+    "delete_workspace",
+    "create_project",
+    "update_project",
+    "delete_project",
 ];
 
 const DOC_HIGHLIGHTS_WRITE_COMMANDS: &[&str] = &["update_doc_highlights"];

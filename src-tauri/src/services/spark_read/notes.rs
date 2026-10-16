@@ -2,16 +2,18 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use base64::Engine;
-use serde_json::{json, Map, Value};
+use serde_json::{json, Value};
 
-use crate::config::roots::notes_root_path;
 use crate::services::archive_parse::expected_lang_common_path;
+use crate::services::docs::workspace_root;
 use crate::services::notes::doc_file_path;
-use crate::services::spark_data::{self, category_folder, get_note, NoteRow};
+use crate::services::spark_data::{
+    self, find_doc, get_workspace, list_doc_entries, project_folder, DocRow, FoundDoc,
+};
 
 const NOTES_LAYERS: &[&str] = &["raw", "digest"];
 
-fn is_valid_entry_id(id: &str) -> bool {
+pub(super) fn is_valid_entry_id(id: &str) -> bool {
     id.len() == 32 && id.chars().all(|c| c.is_ascii_hexdigit())
 }
 
@@ -25,43 +27,37 @@ fn is_under_root(root: &Path, target: &Path) -> bool {
     target.to_string_lossy().starts_with(&prefix)
 }
 
-/// Notes sidebar index: `{ "entries": { doc_id: entry } }`, built from the `note` table.
-pub fn get_notes_index(_repo_root: &Path) -> Value {
-    let entries = spark_data::open().and_then(|conn| spark_data::list_note_entries(&conn));
-    match entries {
-        Ok(entries) => json!({ "entries": entries }),
-        Err(e) => json!({ "error": format!("notes index: {e}"), "_status": 500 }),
-    }
+/// Sidebar index of one workspace: `{ "workspace": id, "entries": { doc_id: entry } }`.
+/// `workspace` is an id; the default workspace when absent.
+pub fn get_notes_index(workspace: Option<&str>) -> Value {
+    let result = spark_data::open().and_then(|conn| {
+        let row = match workspace.map(str::trim).filter(|s| !s.is_empty()) {
+            Some(id) => get_workspace(&conn, id)?.ok_or_else(|| format!("Unknown workspace: {id}"))?,
+            None => spark_data::list_workspaces(&conn)?
+                .into_iter()
+                .find(|w| w.is_default)
+                .ok_or_else(|| "default workspace missing".to_string())?,
+        };
+        let entries = list_doc_entries(&conn, &row)?;
+        Ok(json!({ "workspace": row.id, "entries": entries }))
+    });
+    result.unwrap_or_else(|e| json!({ "error": format!("notes index: {e}"), "_status": 500 }))
 }
 
-pub fn load_notes_index_entries(repo_root: &Path) -> Result<Map<String, Value>, Value> {
-    let value = get_notes_index(repo_root);
-    if value.get("_status").is_some() {
-        return Err(value);
-    }
-    let entries = value
-        .get("entries")
-        .and_then(|v| v.as_object())
-        .cloned()
-        .or_else(|| value.as_object().cloned())
-        .ok_or_else(|| json!({ "error": "invalid index entries", "_status": 500 }))?;
-    Ok(entries)
-}
-
-fn load_note(id: &str) -> Result<(rusqlite::Connection, NoteRow), Value> {
+fn load_note(id: &str) -> Result<(rusqlite::Connection, FoundDoc), Value> {
     let id = id.trim();
     if !is_valid_entry_id(id) {
         return Err(json!({ "error": "Invalid id", "_status": 400 }));
     }
     let conn = spark_data::open().map_err(|e| json!({ "error": e, "_status": 500 }))?;
-    match get_note(&conn, id) {
-        Ok(Some(note)) => Ok((conn, note)),
+    match find_doc(&conn, id) {
+        Ok(Some(found)) => Ok((conn, found)),
         Ok(None) => Err(json!({ "error": "File not found", "_status": 404 })),
         Err(e) => Err(json!({ "error": e, "_status": 500 })),
     }
 }
 
-fn note_rel(note: &NoteRow, layer: &str, lang: Option<&str>) -> Result<String, Value> {
+fn note_rel(note: &DocRow, layer: &str, lang: Option<&str>) -> Result<String, Value> {
     match (layer, lang.map(str::trim).filter(|s| !s.is_empty())) {
         ("raw", Some(lang)) => expected_lang_common_path(&note.raw_path, lang)
             .ok_or_else(|| json!({ "error": "Invalid path", "_status": 400 })),
@@ -71,32 +67,32 @@ fn note_rel(note: &NoteRow, layer: &str, lang: Option<&str>) -> Result<String, V
 }
 
 fn note_disk_path(
-    repo_root: &Path,
     conn: &rusqlite::Connection,
-    note: &NoteRow,
+    found: &FoundDoc,
     layer: &str,
     lang: Option<&str>,
 ) -> Result<PathBuf, Value> {
-    let folder = category_folder(conn, &note.category_id)
+    let note = &found.doc;
+    let folder = project_folder(conn, &note.project_id)
         .map_err(|e| json!({ "error": e, "_status": 500 }))?;
     let rel = note_rel(note, layer, lang)?;
     if rel.is_empty() || rel.contains("..") {
         return Err(json!({ "error": "Invalid path", "_status": 400 }));
     }
-    doc_file_path(&notes_root_path(repo_root), layer, &folder, &rel)
+    doc_file_path(&workspace_root(&found.workspace)?, layer, &folder, &rel)
 }
 
 /// Notes markdown body by doc id (`{layer}/{folder}/{rel}` on disk).
-pub fn get_notes_file(repo_root: &Path, layer: &str, id: &str, lang: Option<&str>) -> Value {
+pub fn get_notes_file(layer: &str, id: &str, lang: Option<&str>) -> Value {
     let layer = layer.trim();
     if !NOTES_LAYERS.contains(&layer) {
         return json!({ "error": format!("Invalid layer: {layer}"), "_status": 400 });
     }
-    let (conn, note) = match load_note(id) {
+    let (conn, found) = match load_note(id) {
         Ok(v) => v,
         Err(v) => return v,
     };
-    let target = match note_disk_path(repo_root, &conn, &note, layer, lang) {
+    let target = match note_disk_path(&conn, &found, layer, lang) {
         Ok(p) => p,
         Err(v) => return v,
     };
@@ -156,20 +152,24 @@ fn notes_asset_rel(base_rel: &str, href: &str) -> Result<String, Value> {
 }
 
 /// Notes binary asset next to the note file, base64 in JSON for invoke.
-pub fn get_notes_asset(repo_root: &Path, layer: &str, id: &str, href: &str, lang: Option<&str>) -> Value {
+pub fn get_notes_asset(layer: &str, id: &str, href: &str, lang: Option<&str>) -> Value {
     let layer = layer.trim();
     if !NOTES_LAYERS.contains(&layer) {
         return json!({ "error": format!("Invalid layer: {layer}"), "_status": 400 });
     }
-    let (conn, note) = match load_note(id) {
+    let (conn, found) = match load_note(id) {
         Ok(v) => v,
         Err(v) => return v,
     };
-    let folder = match category_folder(&conn, &note.category_id) {
+    let folder = match project_folder(&conn, &found.doc.project_id) {
         Ok(f) => f,
         Err(e) => return json!({ "error": e, "_status": 500 }),
     };
-    let base_rel = match note_rel(&note, layer, lang) {
+    let root = match workspace_root(&found.workspace) {
+        Ok(root) => root,
+        Err(v) => return v,
+    };
+    let base_rel = match note_rel(&found.doc, layer, lang) {
         Ok(p) => p,
         Err(v) => return v,
     };
@@ -177,11 +177,11 @@ pub fn get_notes_asset(repo_root: &Path, layer: &str, id: &str, href: &str, lang
         Ok(p) => p,
         Err(v) => return v,
     };
-    let target = match doc_file_path(&notes_root_path(repo_root), layer, &folder, &rel) {
+    let target = match doc_file_path(&root, layer, &folder, &rel) {
         Ok(p) => p,
         Err(v) => return v,
     };
-    let notes_canon = match notes_root_path(repo_root).canonicalize() {
+    let notes_canon = match root.canonicalize() {
         Ok(p) => p,
         Err(e) => return json!({ "error": e.to_string(), "_status": 500 }),
     };
@@ -226,7 +226,7 @@ pub fn get_draft(_repo_root: &Path, id: &str) -> Value {
 }
 
 /// Locate the raw note file. Success is `{id, ok, path}` only — no body text.
-pub fn get_note_path_by_id(repo_root: &Path, id: &str) -> Value {
+pub fn get_note_path_by_id(id: &str) -> Value {
     let id = id.trim();
     if id.is_empty() {
         return json!({ "error": "Missing id", "_status": 400 });
@@ -238,18 +238,22 @@ pub fn get_note_path_by_id(repo_root: &Path, id: &str) -> Value {
         Ok(c) => c,
         Err(e) => return json!({ "error": e, "_status": 500 }),
     };
-    let Some(note) = (match get_note(&conn, id) {
+    let Some(found) = (match find_doc(&conn, id) {
         Ok(n) => n,
         Err(e) => return json!({ "id": id, "ok": false, "error": e }),
     }) else {
         return json!({ "id": id, "ok": false, "error": "Entry not found" });
     };
-    let folder = match category_folder(&conn, &note.category_id) {
+    let note = &found.doc;
+    let folder = match project_folder(&conn, &note.project_id) {
         Ok(f) => f,
         Err(e) => return json!({ "id": id, "ok": false, "error": e }),
     };
-    let notes = notes_root_path(repo_root);
-    let target = match doc_file_path(&notes, "raw", &folder, &note.raw_path) {
+    let root = match workspace_root(&found.workspace) {
+        Ok(root) => root,
+        Err(v) => return v,
+    };
+    let target = match doc_file_path(&root, "raw", &folder, &note.raw_path) {
         Ok(p) => p,
         Err(v) => {
             let msg = v.get("error").and_then(|e| e.as_str()).unwrap_or("Invalid path");

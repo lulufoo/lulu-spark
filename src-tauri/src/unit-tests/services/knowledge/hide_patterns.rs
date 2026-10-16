@@ -69,21 +69,6 @@ fn update_and_remove_by_id() {
 }
 
 #[test]
-fn collect_notes_reads_the_note_table_not_the_directory() {
-    let sandbox = TestSandbox::new();
-    let notes = sandbox.data_dir().join("notes").join("raw");
-    fs::create_dir_all(notes.join(".cache")).expect("mkdir");
-    fs::create_dir_all(notes.join("inbox")).expect("mkdir inbox");
-    fs::write(notes.join("inbox/keep.md"), "# k").expect("w");
-    fs::write(notes.join(".cache/stray.md"), "# s").expect("w");
-    crate::test_support::seed_note_entries(&serde_json::json!({ "n1": { "common_path": "keep.md" } }));
-    let chunks = crate::services::search_index::collect_notes(sandbox.config_dir()).expect("collect");
-    assert_eq!(chunks.len(), 1);
-    assert_eq!(chunks[0].doc_id, "n1");
-    assert_eq!(chunks[0].layer, "raw");
-}
-
-#[test]
 fn corrupt_file_reads_empty_without_overwrite() {
     let sandbox = TestSandbox::new();
     let path = sandbox.cache_dir().join("knowledge-hide-patterns.json");

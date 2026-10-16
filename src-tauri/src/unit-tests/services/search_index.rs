@@ -24,6 +24,11 @@ fn chunk(id: &str, doc: &str, category: &str, body: &str) -> SourceChunk {
     )
 }
 
+/// A chunk of a document of the default workspace.
+fn doc_chunk(id: &str, doc: &str, body: &str) -> SourceChunk {
+    chunk(id, doc, "docs", body).in_workspace("default")
+}
+
 #[test]
 fn open_drops_tables_from_older_schema_version() {
     let (_dir, cache) = temp_cache();
@@ -85,14 +90,15 @@ fn desktop_spark_hits_always_expose_raw_layer() {
         let cache = cache_dir_or_err().expect("cache");
         let conn = open(&cache).expect("open");
         let digest_only = SourceChunk::from_text(
-            "notes",
+            "docs",
             "digest",
             "doc-n",
             "Note N",
             "摘要里提到角色扮演的设计",
             "",
             0,
-        );
+        )
+        .in_workspace("default");
         upsert_chunks(&conn, &[digest_only]).expect("seed");
         drop(conn);
         let out = search_desktop_spark(&cache, "角色扮演", Some(5));
@@ -119,8 +125,8 @@ fn hits_of_a_deleted_note_or_a_missing_knowledge_doc_are_dropped() {
         let cache = cache_dir_or_err().expect("cache");
         let conn = open(&cache).expect("open");
         upsert_chunks(&conn, &[
-            chunk("a:0", "doc-live", "notes", "共同关键词出现在笔记里"),
-            chunk("b:0", "doc-gone", "notes", "共同关键词出现在已删除笔记里"),
+            doc_chunk("a:0", "doc-live", "共同关键词出现在笔记里"),
+            doc_chunk("b:0", "doc-gone", "共同关键词出现在已删除笔记里"),
             chunk("c:0", &kb_id, "knowledge", "共同关键词出现在知识库里"),
         ])
         .expect("seed");

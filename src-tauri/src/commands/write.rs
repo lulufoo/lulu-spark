@@ -3,7 +3,7 @@ use tauri::AppHandle;
 
 use crate::config::paths;
 use crate::services::sediment_kb::{self, SedimentKbError};
-use crate::services::{annotation, knowledge, doc_highlights, entry_write, notes, tag_write};
+use crate::services::{annotation, docs, knowledge, doc_highlights, entry_write, notes, tag_write};
 
 fn repo_root() -> Result<std::path::PathBuf, String> {
     paths::repo_root().map_err(|e| format!("{e:?}"))
@@ -354,12 +354,12 @@ pub fn tag_update_value(
     Ok(tag_write::tag_update_value(&repo_root()?, &key, &value))
 }
 
-/// Thin Tauri/HTTP-parity wrapper around `notes::create_note`.
+/// Thin Tauri wrapper around the docs service: `workspace` + `project` in the payload locate
+/// the new document (default workspace, `inbox`).
 /// Business errors stay in the Value (`error` + `_status`); do not convert to Err.
 /// App jot-create may pass `{ body, source_type: "jot" }` (no `source_path`) → Host synthesis.
-/// MCP/HTTP path create uses `source_path` + `title`; `document` is rejected.
+/// Path create uses `source_path` + `title`; `document` is rejected.
 pub fn create_note_json(payload: Value) -> Result<Value, String> {
-    let root = repo_root()?;
     if payload.get("document").is_some() {
         return Ok(serde_json::json!({
             "error": "document is not supported; use source_path",
@@ -372,11 +372,8 @@ pub fn create_note_json(payload: Value) -> Result<Value, String> {
             .and_then(|v| v.as_str())
             .unwrap_or("");
         if source_type == "jot" {
-            return match notes::create_jot(
-                &root,
-                body,
-                &notes::JotCreateOpts::default(),
-            ) {
+            let workspace = payload.get("workspace").and_then(|v| v.as_str());
+            return match notes::create_jot(workspace, body, &notes::JotCreateOpts::default()) {
                 Ok(v) => Ok(v),
                 Err(msg) => {
                     let (status, error) = match msg.split_once(':') {
@@ -391,7 +388,11 @@ pub fn create_note_json(payload: Value) -> Result<Value, String> {
             };
         }
     }
-    Ok(notes::create_note(&root, &payload))
+    Ok(if payload.get("source_path").is_some() {
+        docs::create_doc(&payload)
+    } else {
+        docs::create_doc_content(&payload)
+    })
 }
 
 #[tauri::command]

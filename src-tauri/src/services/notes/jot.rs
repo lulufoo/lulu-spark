@@ -1,11 +1,9 @@
-use std::path::Path;
-
 use serde_json::{json, Value};
 
+use crate::services::docs;
 use crate::services::translation_gate;
 
 use super::create_meta::format_created_at_zh;
-use super::document::create_note_from_markdown;
 
 /// Options for Host-side jot shell synthesis.
 /// Topic is always `inbox`; `source_type` is always `jot` — callers cannot override either.
@@ -39,9 +37,10 @@ pub fn synthesize_jot_document(body: &str, opts: &JotCreateOpts) -> Result<Strin
     ))
 }
 
-/// Write a jot via create-note-content rules (`inbox/notes/{ts}-{rand}.md`).
+/// Write a jot through the docs service (`inbox/notes/{ts}-{rand}.md`) into `workspace`
+/// (the default workspace when `None`).
 pub fn create_jot(
-    repo_root: &Path,
+    workspace: Option<&str>,
     body: &str,
     opts: &JotCreateOpts,
 ) -> Result<Value, String> {
@@ -69,11 +68,15 @@ pub fn create_jot(
         "project": "inbox",
         "folder": "notes",
         "digest": "never",
+        "content": doc,
     });
+    if let Some(workspace) = workspace {
+        payload["workspace"] = json!(workspace);
+    }
     if !ts.is_empty() {
         payload["created_at"] = json!(ts);
     }
-    let result = create_note_from_markdown(repo_root, &doc, &payload);
+    let result = docs::create_doc_content(&payload);
     if result.get("ok") == Some(&json!(true)) {
         Ok(result)
     } else {

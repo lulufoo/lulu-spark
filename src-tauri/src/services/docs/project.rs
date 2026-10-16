@@ -6,7 +6,9 @@
 use rusqlite::Connection;
 use serde_json::{json, Value};
 
-use crate::services::notes::generate_category_id;
+use chrono::{FixedOffset, Utc};
+
+use crate::services::id::random_alnum6;
 use crate::services::spark_data::{
     count_docs_in_project, delete_project as delete_project_row, get_project,
     get_project_by_folder, insert_project,
@@ -36,9 +38,21 @@ fn is_valid_folder(folder: &str) -> bool {
         && folder.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
 }
 
+/// `YYYYMMDDHHMMSSmmm` (UTC+8) plus six random characters.
+fn generate_project_id() -> String {
+    let tz = FixedOffset::east_opt(8 * 3600).expect("UTC+8");
+    let now = Utc::now().with_timezone(&tz);
+    format!(
+        "{}{:03}{}",
+        now.format("%Y%m%d%H%M%S"),
+        now.timestamp_subsec_millis(),
+        random_alnum6()
+    )
+}
+
 fn mint_project_id(conn: &Connection) -> Result<String, String> {
     for _ in 0..8 {
-        let id = generate_category_id();
+        let id = generate_project_id();
         if get_project(conn, &id)?.is_none() {
             return Ok(id);
         }

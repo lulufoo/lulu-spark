@@ -1,5 +1,5 @@
 //! Notes annotation write handlers: done, importance, links, comments, highlights.
-//! They live on the `note` row; comments and highlights belong to the raw layer.
+//! They live on the document row; comments and highlights belong to the raw layer.
 
 use serde_json::{json, Map, Value};
 
@@ -38,7 +38,7 @@ pub fn read_annotation_object(id: &str) -> Value {
         return json!({});
     };
     let found = spark_data::open().ok().and_then(|conn| find_note(&conn, id).ok());
-    found.map_or_else(|| json!({}), |note| annotation_object(&note))
+    found.map_or_else(|| json!({}), |found| annotation_object(&found.doc))
 }
 
 pub fn set_done(_repo_root: &std::path::Path, id: &str, done: bool) -> Value {

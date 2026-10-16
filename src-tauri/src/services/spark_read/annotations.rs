@@ -37,7 +37,13 @@ fn resolve_tags(registry: &Value, tag_keys: &[Value]) -> Value {
 
 pub fn get_annotations_summary(_repo_root: &Path) -> Value {
     let registry = read_registry();
-    let notes = match spark_data::open().and_then(|conn| spark_data::list_notes(&conn)) {
+    let notes = match spark_data::open().and_then(|conn| {
+        let mut all = Vec::new();
+        for workspace in spark_data::list_workspaces(&conn)? {
+            all.extend(spark_data::list_docs(&conn, &workspace.doc_table)?);
+        }
+        Ok(all)
+    }) {
         Ok(notes) => notes,
         Err(e) => return json!({ "error": format!("annotations: {e}"), "_status": 500 }),
     };

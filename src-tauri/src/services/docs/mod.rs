@@ -1,11 +1,11 @@
 //! One document service for every workspace: `workspace` + `project` locate a document,
 //! the `workspace` registry resolves the document table and the folder on disk.
 //!
-//! This replaces the separate `notes` and `knowledge` services. Until the MCP tools and the
-//! Tauri commands switch over (later issues), the old services keep serving the old tables.
+//! This replaces the separate `notes` and `knowledge` services.
 
 mod create;
 mod delete;
+mod move_doc;
 mod project;
 mod read;
 mod resolve;
@@ -15,8 +15,10 @@ mod workspace;
 
 pub use create::{create_doc, create_doc_content};
 pub use delete::delete_doc;
+pub use move_doc::move_doc;
 pub use project::{create_project, delete_project, list_projects, update_project};
 pub use read::{export_file, get_digest, get_file, get_path};
+pub(crate) use resolve::workspace_root;
 pub use resolve::DEFAULT_PROJECT_FOLDER;
 pub use search::search;
 pub use update::{update_doc, update_doc_content};
@@ -27,3 +29,11 @@ pub use workspace::{
 #[cfg(test)]
 #[path = "../../unit-tests/services/docs.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "../../unit-tests/services/docs_create.rs"]
+mod create_tests;
+
+#[cfg(test)]
+#[path = "../../unit-tests/services/docs_assets.rs"]
+mod assets_tests;

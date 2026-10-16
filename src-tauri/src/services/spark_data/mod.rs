@@ -2,6 +2,8 @@
 
 mod backup;
 mod db;
+mod doc_annotation;
+mod doc_entry;
 mod doc_row;
 mod doc_table;
 mod json_column;
@@ -9,9 +11,7 @@ mod legacy_rows_step;
 mod knowledge_directory_row;
 mod knowledge_doc_row;
 mod knowledge_registry;
-mod note_annotation;
 mod note_category_row;
-mod note_entry;
 mod note_row;
 mod project_row;
 mod tag_rows;
@@ -38,12 +38,12 @@ pub use knowledge_registry::{
     move_knowledge_paths, reconcile_knowledge_directory, register_knowledge_doc, remove_knowledge_paths,
     ReconcileStats,
 };
-pub use note_annotation::annotation_object;
+pub use doc_annotation::annotation_object;
+pub use doc_entry::{entry_from_doc, find_doc, list_doc_entries, project_folder, translation_common_paths, FoundDoc};
 pub use note_category_row::{
     category_folder, delete_note_category, get_note_category, get_note_category_by_folder,
     insert_note_category, list_note_categories, update_note_category, NoteCategoryRow,
 };
-pub use note_entry::{entry_from_note, list_note_entries, translation_common_paths};
 pub use note_row::{
     delete_note, find_note_ids_by_path, get_note, insert_note, list_notes, update_note, NoteRow,
 };

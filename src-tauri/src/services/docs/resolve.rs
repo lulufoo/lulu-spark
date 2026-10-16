@@ -119,7 +119,7 @@ pub(super) fn remove_empty_tree(dir: &Path) -> bool {
 }
 
 /// The workspace folder on disk, created when missing.
-pub(super) fn workspace_root(workspace: &WorkspaceRow) -> Result<PathBuf, Value> {
+pub(crate) fn workspace_root(workspace: &WorkspaceRow) -> Result<PathBuf, Value> {
     let root = paths::workspaces_root().map_err(|e| internal(format!("{e:?}")))?;
     let dir = workspace_dir(&root, &workspace.id)?;
     std::fs::create_dir_all(&dir).map_err(|e| internal(e.to_string()))?;

@@ -9,7 +9,6 @@ pub mod file_export;
 pub mod id;
 pub mod draft;
 pub mod doc_highlights;
-pub mod entry_admin;
 pub mod search_index;
 pub mod spark_data;
 pub mod knowledge;

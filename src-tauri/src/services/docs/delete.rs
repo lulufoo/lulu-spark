@@ -7,7 +7,7 @@ use serde_json::{json, Value};
 use crate::services::archive_parse::expected_lang_common_path;
 use crate::services::notes::store::doc_file_path;
 use crate::services::search_index;
-use crate::services::spark_data::delete_doc as delete_doc_row;
+use crate::services::spark_data::{delete_doc as delete_doc_row, delete_unused_tags};
 
 use super::resolve::{
     bad_request, doc_id_field, internal, open_data, resolve_doc, resolve_workspace, text_field,
@@ -56,7 +56,9 @@ pub fn delete_doc(payload: &Value) -> Value {
             removed += 1;
         }
     }
-    if let Err(e) = delete_doc_row(&conn, &workspace.doc_table, &id) {
+    if let Err(e) = delete_doc_row(&conn, &workspace.doc_table, &id)
+        .and_then(|_| delete_unused_tags(&conn).map(|_| ()))
+    {
         return internal(e);
     }
     search_index::sync_workspace_docs_best_effort(&workspace.id, &[id.as_str()]);

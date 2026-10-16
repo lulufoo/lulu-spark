@@ -142,8 +142,8 @@ pub async fn fetch_link_title(_app: AppHandle, url: String) -> Result<Value, Str
 }
 
 #[tauri::command]
-pub fn get_notes_index(_app: AppHandle) -> Result<Value, String> {
-    Ok(spark_read::get_notes_index(&repo_root()?))
+pub fn get_notes_index(_app: AppHandle, workspace: Option<String>) -> Result<Value, String> {
+    Ok(spark_read::get_notes_index(workspace.as_deref()))
 }
 
 #[tauri::command]
@@ -153,18 +153,13 @@ pub fn get_notes_file(
     id: String,
     lang: Option<String>,
 ) -> Result<Value, String> {
-    Ok(spark_read::get_notes_file(
-        &repo_root()?,
-        &layer,
-        &id,
-        lang.as_deref(),
-    ))
+    Ok(spark_read::get_notes_file(&layer, &id, lang.as_deref()))
 }
 
 /// Validate and resolve a `note:<id>` link target. Index entry only; no body, no absolute path.
 #[tauri::command]
 pub fn resolve_note_for_open(_app: AppHandle, id: String) -> Result<Value, String> {
-    Ok(spark_read::resolve_note_for_open(&repo_root()?, &id))
+    Ok(spark_read::resolve_note_for_open(&id))
 }
 
 /// Resolve a `knowledge:<id>` link target. `{id, topic, path}` only; no body, no absolute path.
@@ -186,13 +181,7 @@ pub fn get_notes_asset(
     href: String,
     lang: Option<String>,
 ) -> Result<Value, String> {
-    Ok(spark_read::get_notes_asset(
-        &repo_root()?,
-        &layer,
-        &id,
-        &href,
-        lang.as_deref(),
-    ))
+    Ok(spark_read::get_notes_asset(&layer, &id, &href, lang.as_deref()))
 }
 
 pub fn sediment_kb_categories_json() -> Result<Value, String> {

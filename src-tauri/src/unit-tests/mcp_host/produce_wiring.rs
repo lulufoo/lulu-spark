@@ -268,7 +268,7 @@ fn other_note_and_tauri_writes_are_not_wired() {
         assert_eq!(channel_record_count("notes"), notes_before);
 
         let jot = create_jot(
-            &paths::repo_root().expect("repo_root"),
+            None,
             "随手记一行",
             &Default::default(),
         )

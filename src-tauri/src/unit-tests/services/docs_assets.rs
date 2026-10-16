@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use serde_json::json;
 
-use crate::services::notes::{create_note, create_note_content, update_note};
+use crate::services::docs::{create_doc, create_doc_content, update_doc};
 use crate::services::spark_read::get_notes_asset;
 use crate::test_support::TestSandbox;
 
@@ -18,13 +18,12 @@ const SAMPLE_DOC: &str = r#"# Test Title
 
 const PNG: &[u8] = b"\x89PNG\r\n";
 
-fn setup_notes() -> (TestSandbox, PathBuf) {
+fn setup_notes() -> TestSandbox {
     let sandbox = TestSandbox::new();
-    let notes = sandbox.data_dir().join("notes");
+    let notes = sandbox.data_dir().join("workspaces").join("default");
     fs::create_dir_all(notes.join("raw")).expect("raw dir");
     fs::create_dir_all(notes.join("digest")).expect("digest dir");
-    let repo_root = sandbox.config_dir().to_path_buf();
-    (sandbox, repo_root)
+    sandbox
 }
 
 fn stage_md(sandbox: &TestSandbox) -> PathBuf {
@@ -39,15 +38,13 @@ fn stage_bytes(sandbox: &TestSandbox, name: &str, bytes: &[u8]) -> PathBuf {
     p.canonicalize().expect("canon")
 }
 
-fn create_with_assets(sandbox: &TestSandbox, repo_root: &std::path::Path, assets: Vec<PathBuf>) -> serde_json::Value {
+fn create_with_assets(sandbox: &TestSandbox, assets: Vec<PathBuf>) -> serde_json::Value {
     let source = stage_md(sandbox);
     let paths: Vec<String> = assets
         .iter()
         .map(|p| p.to_str().unwrap().to_string())
         .collect();
-    create_note(
-        repo_root,
-        &json!({
+    create_doc(&json!({
             "source_path": source.to_str().unwrap(),
             "title": "Test Title",
             "digest": "never",
@@ -56,8 +53,8 @@ fn create_with_assets(sandbox: &TestSandbox, repo_root: &std::path::Path, assets
     )
 }
 
-fn theme_dir(repo_root: &std::path::Path) -> PathBuf {
-    crate::config::roots::notes_root_path(repo_root)
+fn theme_dir() -> PathBuf {
+    crate::config::paths::workspaces_root().expect("workspaces root").join("default")
         .join("raw")
         .join("inbox")
         .join("notes")
@@ -65,28 +62,28 @@ fn theme_dir(repo_root: &std::path::Path) -> PathBuf {
 
 #[test]
 fn create_note_copies_png_beside_raw() {
-    let (sandbox, repo_root) = setup_notes();
+    let sandbox = setup_notes();
     let png = stage_bytes(&sandbox, "overview-diagram.png", PNG);
-    let v = create_with_assets(&sandbox, &repo_root, vec![png]);
+    let v = create_with_assets(&sandbox, vec![png]);
     assert_eq!(v.get("ok"), Some(&json!(true)), "{v}");
     let id = v["id"].as_str().unwrap();
     assert_eq!(
         v["asset_paths"],
         json!(["raw/notes/overview-diagram.png"])
     );
-    let dest = theme_dir(&repo_root).join("overview-diagram.png");
+    let dest = theme_dir().join("overview-diagram.png");
     assert_eq!(fs::read(&dest).unwrap(), PNG);
-    let loaded = get_notes_asset(&repo_root, "raw", id, "overview-diagram.png", None);
+    let loaded = get_notes_asset("raw", id, "overview-diagram.png", None);
     assert_eq!(loaded["mime_type"], "image/png");
     assert!(loaded.get("data_b64").and_then(|x| x.as_str()).is_some());
 }
 
 #[test]
 fn create_note_accepts_jpg_and_jpeg() {
-    let (sandbox, repo_root) = setup_notes();
+    let sandbox = setup_notes();
     let jpg = stage_bytes(&sandbox, "a.jpg", b"jpeg");
     let jpeg = stage_bytes(&sandbox, "b.jpeg", b"jpeg");
-    let v = create_with_assets(&sandbox, &repo_root, vec![jpg, jpeg]);
+    let v = create_with_assets(&sandbox, vec![jpg, jpeg]);
     assert_eq!(v.get("ok"), Some(&json!(true)), "{v}");
     assert_eq!(
         v["asset_paths"],
@@ -96,31 +93,29 @@ fn create_note_accepts_jpg_and_jpeg() {
 
 #[test]
 fn create_note_rejects_svg_and_gif() {
-    let (sandbox, repo_root) = setup_notes();
+    let sandbox = setup_notes();
     let svg = create_with_assets(
         &sandbox,
-        &repo_root,
         vec![stage_bytes(&sandbox, "x.svg", b"<svg")],
     );
     assert_eq!(svg.get("_status"), Some(&json!(400)));
     assert_eq!(svg["error"], "Unsupported media type");
     let gif = create_with_assets(
         &sandbox,
-        &repo_root,
         vec![stage_bytes(&sandbox, "x.gif", b"GIF89")],
     );
     assert_eq!(gif.get("_status"), Some(&json!(400)));
-    assert!(theme_dir(&repo_root).join("x.svg").exists() == false);
-    assert!(!theme_dir(&repo_root).exists() || theme_dir(&repo_root).read_dir().unwrap().count() == 0);
+    assert!(theme_dir().join("x.svg").exists() == false);
+    assert!(!theme_dir().exists() || theme_dir().read_dir().unwrap().count() == 0);
 }
 
 #[test]
 fn create_note_rejects_too_many_or_too_large() {
-    let (sandbox, repo_root) = setup_notes();
+    let sandbox = setup_notes();
     let many: Vec<PathBuf> = (0..9)
         .map(|i| stage_bytes(&sandbox, &format!("n{i}.png"), PNG))
         .collect();
-    let over = create_with_assets(&sandbox, &repo_root, many);
+    let over = create_with_assets(&sandbox, many);
     assert_eq!(over.get("_status"), Some(&json!(400)));
     assert!(
         over["error"].as_str().unwrap_or("").contains("max"),
@@ -129,7 +124,6 @@ fn create_note_rejects_too_many_or_too_large() {
     let huge = vec![0u8; 4 * 1024 * 1024 + 1];
     let big = create_with_assets(
         &sandbox,
-        &repo_root,
         vec![stage_bytes(&sandbox, "big.png", &huge)],
     );
     assert_eq!(big.get("_status"), Some(&json!(413)));
@@ -138,20 +132,18 @@ fn create_note_rejects_too_many_or_too_large() {
 
 #[test]
 fn create_note_collision_is_409_and_does_not_write() {
-    let (sandbox, repo_root) = setup_notes();
+    let sandbox = setup_notes();
     let first = create_with_assets(
         &sandbox,
-        &repo_root,
         vec![stage_bytes(&sandbox, "overview-diagram.png", PNG)],
     );
     assert_eq!(first.get("ok"), Some(&json!(true)), "{first}");
     let second = create_with_assets(
         &sandbox,
-        &repo_root,
         vec![stage_bytes(&sandbox, "overview-diagram.png", PNG)],
     );
     assert_eq!(second.get("_status"), Some(&json!(409)), "{second}");
-    let dir = theme_dir(&repo_root);
+    let dir = theme_dir();
     let mds: Vec<_> = fs::read_dir(&dir)
         .unwrap()
         .filter_map(|e| e.ok())
@@ -164,25 +156,23 @@ fn create_note_collision_is_409_and_does_not_write() {
 
 #[test]
 fn create_note_duplicate_basenames_are_409() {
-    let (sandbox, repo_root) = setup_notes();
+    let sandbox = setup_notes();
     let a = stage_bytes(&sandbox, "dup.png", PNG);
     let nested = sandbox.cache_dir().join("archive_source_stage").join("sub");
     fs::create_dir_all(&nested).unwrap();
     let b = nested.join("dup.png");
     fs::write(&b, PNG).unwrap();
-    let v = create_with_assets(&sandbox, &repo_root, vec![a, b.canonicalize().unwrap()]);
+    let v = create_with_assets(&sandbox, vec![a, b.canonicalize().unwrap()]);
     assert_eq!(v.get("_status"), Some(&json!(409)), "{v}");
-    assert!(!theme_dir(&repo_root).exists() || !theme_dir(&repo_root).join("dup.png").exists());
+    assert!(!theme_dir().exists() || !theme_dir().join("dup.png").exists());
 }
 
 #[test]
 fn create_note_digest_relative_image_is_400() {
-    let (sandbox, repo_root) = setup_notes();
+    let sandbox = setup_notes();
     let source = stage_md(&sandbox);
     let png = stage_bytes(&sandbox, "overview-diagram.png", PNG);
-    let v = create_note(
-        &repo_root,
-        &json!({
+    let v = create_doc(&json!({
             "source_path": source.to_str().unwrap(),
             "title": "Test Title",
             "digest": "always",
@@ -195,17 +185,15 @@ fn create_note_digest_relative_image_is_400() {
         v["error"].as_str().unwrap_or("").contains("relative images"),
         "{v}"
     );
-    assert!(!theme_dir(&repo_root).exists() || theme_dir(&repo_root).read_dir().unwrap().count() == 0);
+    assert!(!theme_dir().exists() || theme_dir().read_dir().unwrap().count() == 0);
 }
 
 #[test]
 fn create_note_digest_allows_https_image() {
-    let (sandbox, repo_root) = setup_notes();
+    let sandbox = setup_notes();
     let source = stage_md(&sandbox);
     let digest_body = "# Test — 摘要\n\n> 创建时间：2026年6月19日 14:30\n\n## 概述\n\n![x](https://example.com/a.png)";
-    let v = create_note(
-        &repo_root,
-        &json!({
+    let v = create_doc(&json!({
             "source_path": source.to_str().unwrap(),
             "title": "Test Title",
             "digest": "always",
@@ -217,10 +205,8 @@ fn create_note_digest_allows_https_image() {
 
 #[test]
 fn create_note_content_and_update_reject_asset_paths() {
-    let (sandbox, repo_root) = setup_notes();
-    let content = create_note_content(
-        &repo_root,
-        &json!({
+    let sandbox = setup_notes();
+    let content = create_doc_content(&json!({
             "content": SAMPLE_DOC,
             "title": "Test Title",
             "digest": "never",
@@ -232,9 +218,7 @@ fn create_note_content_and_update_reject_asset_paths() {
         content["error"].as_str().unwrap_or("").contains("asset_paths"),
         "{content}"
     );
-    let created = create_note_content(
-        &repo_root,
-        &json!({
+    let created = create_doc_content(&json!({
             "content": SAMPLE_DOC,
             "title": "Test Title",
             "digest": "never",
@@ -242,9 +226,7 @@ fn create_note_content_and_update_reject_asset_paths() {
     );
     let id = created["id"].as_str().unwrap();
     let path = stage_md(&sandbox);
-    let updated = update_note(
-        &repo_root,
-        &json!({
+    let updated = update_doc(&json!({
             "id": id,
             "source_path": path.to_str().unwrap(),
             "digest": "never",
