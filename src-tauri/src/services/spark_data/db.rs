@@ -18,11 +18,56 @@ pub const DB_FILE: &str = "spark-data.sqlite";
 
 const BUSY_TIMEOUT: Duration = Duration::from_secs(5);
 
+/// Columns of every per-workspace document table (`doc_<workspace id>`).
+///
+/// A macro so one literal feeds both the static migration step below (via
+/// `concat!`) and the runtime table template in `doc_table.rs`. Same columns as
+/// `note`, with `category_id` replaced by `project_id` and no `status` (the
+/// scan-and-reconcile mode is retired).
+macro_rules! doc_table_columns {
+    () => {
+        "doc_id       TEXT PRIMARY KEY,
+  raw_path     TEXT NOT NULL,
+  digest_path  TEXT,
+  source_type  TEXT,
+  created_at   TEXT,
+  importance   TEXT CHECK (importance IS NULL OR importance IN ('high', 'medium', 'low')),
+  done         INTEGER NOT NULL DEFAULT 0 CHECK (done IN (0, 1)),
+  links        TEXT NOT NULL DEFAULT '[]' CHECK (json_type(links) = 'array'),
+  comments     TEXT NOT NULL DEFAULT '[]' CHECK (json_type(comments) = 'array'),
+  tags         TEXT NOT NULL DEFAULT '[]' CHECK (json_type(tags) = 'array'),
+  highlights   TEXT NOT NULL DEFAULT '[]' CHECK (json_type(highlights) = 'array'),
+  translations TEXT NOT NULL DEFAULT '[]' CHECK (json_type(translations) = 'array'),
+  title        TEXT,
+  project_id   TEXT NOT NULL REFERENCES project(id)"
+    };
+}
+pub(crate) use doc_table_columns;
+
+/// DDL for one document table with a literal name.
+macro_rules! doc_table_sql {
+    ($table:literal) => {
+        concat!(
+            "CREATE TABLE ",
+            $table,
+            " (",
+            doc_table_columns!(),
+            ");\nCREATE INDEX ",
+            $table,
+            "_raw_path ON ",
+            $table,
+            "(raw_path);\n"
+        )
+    };
+}
+
 /// `MIGRATIONS[n]` upgrades a file from `user_version = n` to `n + 1`.
 /// Append a step to change the schema; never edit an existing one.
 /// Step 2 rebuilds `note` instead of `ADD COLUMN … REFERENCES`: SQLite rejects a
 /// NOT NULL default plus FK when the table already has rows.
-pub(crate) const MIGRATIONS: [&str; 6] = [r#"
+/// Step 6 adds the workspace / project containers: empty tables plus the two seed
+/// registry rows. Moving notes and knowledge into them is a later step.
+pub(crate) const MIGRATIONS: [&str; 7] = [r#"
 CREATE TABLE IF NOT EXISTS note (
   doc_id       TEXT PRIMARY KEY,
   raw_path     TEXT NOT NULL,
@@ -142,7 +187,32 @@ SELECT doc_id, path, directory_id, status, comments, links, highlights
 FROM knowledge_doc;
 DROP TABLE knowledge_doc;
 ALTER TABLE knowledge_doc__no_repo RENAME TO knowledge_doc;
-"#];
+"#, concat!(r#"
+CREATE TABLE workspace (
+  id         TEXT PRIMARY KEY CHECK (id <> '' AND id NOT GLOB '*[^a-z0-9_]*'),
+  name       TEXT NOT NULL UNIQUE CHECK (name <> ''),
+  doc_table  TEXT NOT NULL UNIQUE CHECK (doc_table = 'doc_' || id),
+  view_mode  TEXT NOT NULL DEFAULT 'directory' CHECK (view_mode IN ('directory', 'timeline')),
+  is_default INTEGER NOT NULL DEFAULT 0 CHECK (is_default IN (0, 1)),
+  created_at TEXT
+);
+CREATE UNIQUE INDEX workspace_one_default ON workspace(is_default) WHERE is_default = 1;
+CREATE TRIGGER workspace_keys_immutable BEFORE UPDATE OF id, doc_table, is_default ON workspace
+BEGIN SELECT RAISE(ABORT, 'workspace id, doc_table and is_default cannot change'); END;
+CREATE TRIGGER workspace_default_undeletable BEFORE DELETE ON workspace WHEN OLD.is_default = 1
+BEGIN SELECT RAISE(ABORT, 'the default workspace cannot be deleted'); END;
+CREATE TABLE project (
+  id           TEXT PRIMARY KEY,
+  workspace_id TEXT NOT NULL REFERENCES workspace(id),
+  folder       TEXT NOT NULL CHECK (folder <> ''),
+  title        TEXT NOT NULL,
+  description  TEXT NOT NULL DEFAULT '',
+  UNIQUE (workspace_id, folder)
+);
+INSERT INTO workspace (id, name, doc_table, view_mode, is_default, created_at) VALUES
+  ('default',   'Default',   'doc_default',   'directory', 1, strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+  ('knowledge', 'Knowledge', 'doc_knowledge', 'timeline',  0, strftime('%Y-%m-%dT%H:%M:%SZ', 'now'));
+"#, doc_table_sql!("doc_default"), doc_table_sql!("doc_knowledge"))];
 
 pub fn db_path() -> Result<PathBuf, String> {
     paths::spark_data_db_path().map_err(|e| format!("{e:?}"))
