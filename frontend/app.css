@@ -5030,12 +5030,10 @@
   box-sizing: border-box;
   background: var(--bg-surface);
 }
-#knowledge-root-path,
-#notes-root-path {
+#workspaces-root-path {
   font-family: ui-monospace, SFMono-Regular, monospace;
 }
-#knowledge-root-path.settings-input-readonly,
-#notes-root-path.settings-input-readonly,
+#workspaces-root-path.settings-input-readonly,
 #settings-llm-platform.settings-input-readonly,
 #settings-llm-base-url.settings-input-readonly,
 #notes-cat-edit-id.settings-input-readonly {

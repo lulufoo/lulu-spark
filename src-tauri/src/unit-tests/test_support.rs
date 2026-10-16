@@ -235,7 +235,6 @@ fn sandbox_config_writes_leave_machine_config_content_unchanged() {
             settings::write_test_config_with_cache(
                 &sandbox_config_path,
                 sandbox.config_dir(),
-                Some(sandbox.config_dir()),
                 Some(&sandbox.config_dir().join("cache")),
                 http_port,
                 mcp_port,

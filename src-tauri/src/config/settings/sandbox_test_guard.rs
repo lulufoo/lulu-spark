@@ -153,14 +153,10 @@ pub(crate) fn atomic_write_test_config(
 pub fn write_test_config_with_cache(
     config_path: &Path,
     spark_root: &Path,
-    knowledge_root: Option<&Path>,
     cache_dir: Option<&Path>,
     http_port: u16,
     mcp_port: u16,
 ) -> Result<(), SettingsError> {
-    let knowledge = knowledge_root
-        .map(|p| p.display().to_string())
-        .unwrap_or_else(|| spark_root.display().to_string());
     let cache = cache_dir
         .map(|p| p.to_path_buf())
         .or_else(|| config_path.parent().map(|parent| parent.join("cache")))
@@ -173,9 +169,8 @@ pub fn write_test_config_with_cache(
     reject_test_write_to_machine_config(config_path)?;
     fs::create_dir_all(&cache)?;
     let text = format!(
-        "spark_root = \"{}\"\nknowledge_root = \"{}\"\ncache_dir = \"{}\"\nhttp_port = {http_port}\nmcp_port = {mcp_port}\n",
+        "spark_root = \"{}\"\ncache_dir = \"{}\"\nhttp_port = {http_port}\nmcp_port = {mcp_port}\n",
         spark_root.display(),
-        knowledge,
         cache.display()
     );
     atomic_write_test_config(config_path, &text)

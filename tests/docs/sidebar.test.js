@@ -90,7 +90,6 @@ beforeEach(() => {
   state.ui.activeTopic = null;
   state.ui.activeDate = null;
   state.ui.sparkRoot = '';
-  state.ui.knowledgeRoot = '';
 });
 
 describe('selectTopic', () => {

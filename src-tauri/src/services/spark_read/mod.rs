@@ -5,9 +5,7 @@ mod config;
 mod note_open;
 mod notes;
 
-pub use crate::config::roots::{
-    knowledge_root_string, spark_root_path,
-};
+pub use crate::config::roots::spark_root_path;
 pub use annotations::*;
 pub use config::*;
 pub use note_open::resolve_note_for_open;

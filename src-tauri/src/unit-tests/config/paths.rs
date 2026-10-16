@@ -112,48 +112,22 @@ fn todo_tasks_path_under_spark_root() {
 }
 
 #[test]
-fn knowledge_root_is_runtime_knowledge_dir() {
-    let sandbox = TestSandbox::new();
-    let kb = knowledge_root().expect("knowledge_root");
-    assert_eq!(kb, sandbox.knowledge_root());
-    assert_eq!(kb, runtime_knowledge_dir().expect("runtime knowledge"));
-    assert_eq!(kb, sandbox.data_dir().join("knowledge"));
-    assert_ne!(
-        kb,
-        crate::config::settings::load()
-            .expect("load")
-            .knowledge_root
-    );
-}
-
-#[test]
-fn notes_root_is_runtime_data_notes() {
-    let sandbox = TestSandbox::new();
-    let notes = notes_root().expect("notes_root");
-    assert_eq!(notes, sandbox.data_dir().join("notes"));
-    assert_ne!(notes, sandbox.spark_root().join("notes"));
-}
-
-#[test]
 fn ssot_paths_use_configured_spark_root_not_cache() {
     let sandbox = TestSandbox::new();
     let wb = sandbox.spark_root();
-    let sediment = knowledge_root().expect("knowledge");
+    let workspaces = workspaces_root().expect("workspaces");
     let read_later = read_later_path().expect("read_later");
-    let notes = notes_root().expect("notes");
     let todo_tasks = todo_tasks_path().expect("todo_tasks");
     let message_center = message_center_path().expect("message_center");
     let data = sandbox.data_dir();
-    assert!(sediment.starts_with(&data));
+    assert!(workspaces.starts_with(&data));
     assert!(read_later.starts_with(&data));
-    assert!(notes.starts_with(&data));
     assert!(todo_tasks.starts_with(&wb));
     // One sandbox = one dir: runtime data and message center live under `<id>/cache`.
     let cache = sandbox.sandbox_dir().join("cache");
-    assert!(!sediment.starts_with(&wb));
+    assert!(!workspaces.starts_with(&wb));
     assert!(!read_later.starts_with(&wb));
-    assert!(!notes.starts_with(&wb));
-    assert!(sediment.starts_with(&cache));
+    assert!(workspaces.starts_with(&cache));
     assert!(read_later.starts_with(&cache));
     assert!(!message_center.starts_with(&wb));
     assert!(message_center.starts_with(&cache));
@@ -246,7 +220,7 @@ fn todo_tasks_categories_path_under_todo_tasks_dir_not_knowledge() {
     assert_eq!(cats, wb.join("todo_tasks").join("categories.json"));
     assert_ne!(
         cats,
-        knowledge_root().expect("knowledge").join("categories.json"),
-        "todo categories registry must not reuse the knowledge path"
+        workspaces_root().expect("workspaces").join("categories.json"),
+        "todo categories registry must not reuse the workspaces path"
     );
 }

@@ -230,22 +230,33 @@ fn to_config_json_includes_gateway_port() {
 }
 
 #[test]
-fn to_config_json_exposes_fixed_notes_root() {
+fn to_config_json_exposes_fixed_workspaces_root() {
     let sandbox = TestSandbox::new();
     let settings = AppSettings::default();
     let json = to_config_json(&settings, &[]).expect("json");
     assert_eq!(
-        json["notes_root"],
-        sandbox.data_dir().join("notes").to_string_lossy().as_ref()
+        json["workspaces_root"],
+        sandbox.data_dir().join("workspaces").to_string_lossy().as_ref()
     );
+    assert!(json.get("notes_root").is_none());
+    assert!(json.get("knowledge_root").is_none());
     let mut next = settings;
     apply_config_payload(
         &mut next,
-        &serde_json::json!({ "notes_root": "/tmp/should-not-stick" }),
+        &serde_json::json!({ "workspaces_root": "/tmp/should-not-stick" }),
     )
     .expect("apply");
     let after = to_config_json(&next, &[]).expect("json");
-    assert_eq!(after["notes_root"], json["notes_root"]);
+    assert_eq!(after["workspaces_root"], json["workspaces_root"]);
+}
+
+#[test]
+fn legacy_knowledge_root_key_in_settings_toml_is_ignored() {
+    let loaded: AppSettings = toml::from_str(
+        "spark_root = \"/tmp/wb\"\nknowledge_root = \"/tmp/old-kb\"\ncache_dir = \"/tmp/cache\"\n",
+    )
+    .expect("older settings.toml still parses");
+    assert_eq!(loaded.spark_root, std::path::PathBuf::from("/tmp/wb"));
 }
 
 #[test]

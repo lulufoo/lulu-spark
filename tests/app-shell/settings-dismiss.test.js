@@ -49,7 +49,6 @@ function seedNotesEditor({ busy = false } = {}) {
 function baseConfig() {
   return {
     spark_root: '',
-    knowledge_root: '',
     assistant_engine: 'host',
     mcp_port: 19876,
     llm: {

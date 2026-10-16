@@ -136,8 +136,7 @@ pub fn to_config_json(
     }
     Ok(serde_json::json!({
         "spark_root": settings.spark_root.to_string_lossy(),
-        "knowledge_root": data_dir.join("knowledge").to_string_lossy(),
-        "notes_root": data_dir.join("notes").to_string_lossy(),
+        "workspaces_root": data_dir.join("workspaces").to_string_lossy(),
         "cache_dir": cache_dir.to_string_lossy(),
         "assistant_engine": settings.assistant_engine,
         "theme": settings.theme,
@@ -180,9 +179,6 @@ pub fn apply_config_payload(
     }
     if let Some(v) = payload.get("spark_root").and_then(|x| x.as_str()) {
         settings.spark_root = std::path::PathBuf::from(v);
-    }
-    if let Some(v) = payload.get("knowledge_root").and_then(|x| x.as_str()) {
-        settings.knowledge_root = std::path::PathBuf::from(v);
     }
     if let Some(llm) = payload.get("llm").and_then(|x| x.as_object()) {
         let model = llm.get("model").and_then(|x| x.as_str());

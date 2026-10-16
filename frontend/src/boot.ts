@@ -97,7 +97,6 @@ watchSystemTheme();
 api.fetchConfig().then((d) => {
   const cfg = d as SettingsConfig;
   state.ui.sparkRoot = cfg.spark_root || '';
-  state.ui.knowledgeRoot = cfg.knowledge_root || '';
   const theme = parseThemeId(cfg.theme);
   if (theme) applyTheme(theme);
 }).catch(() => {});

@@ -51,21 +51,6 @@ pub fn workspaces_root() -> Result<PathBuf, PathsError> {
     Ok(runtime_data_dir()?.join("workspaces"))
 }
 
-/// Notes files live at `{runtime_data_dir}/notes/`.
-pub fn notes_root() -> Result<PathBuf, PathsError> {
-    Ok(runtime_data_dir()?.join("notes"))
-}
-
-/// Knowledge clones: `{runtime_data_dir}/knowledge`.
-/// Does not follow `knowledge_root` or `cache_dir` in config.
-pub fn runtime_knowledge_dir() -> Result<PathBuf, PathsError> {
-    Ok(runtime_data_dir()?.join("knowledge"))
-}
-
-pub fn knowledge_root() -> Result<PathBuf, PathsError> {
-    runtime_knowledge_dir()
-}
-
 pub fn read_later_path() -> Result<PathBuf, PathsError> {
     Ok(runtime_data_dir()?.join("read_later").join("read_later.json"))
 }

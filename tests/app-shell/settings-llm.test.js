@@ -57,7 +57,6 @@ function llmMap(saved = {}) {
 function baseConfig(overrides = {}) {
   return {
     spark_root: '',
-    knowledge_root: '',
     assistant_engine: 'host',
     llm: llmMap(),
     ...overrides,

@@ -33,7 +33,7 @@ fn expand_spark_has_no_default_read_roots() {
     with_sandbox(|_sandbox| {
         let fence = expand_for_business_key(SEEDED_BUSINESS_KEY).expect("spark fence");
         let wb = paths::spark_root().expect("wb");
-        let clone = paths::knowledge_root().expect("knowledge_root").join("demo");
+        let clone = paths::workspaces_root().expect("workspaces_root").join("demo");
         let cache = paths::cache_dir().expect("cache");
 
         let data = paths::runtime_data_dir().expect("data dir");
@@ -54,7 +54,7 @@ fn expand_spark_has_no_default_read_roots() {
         assert!(!fence
             .read_allow
             .iter()
-            .any(|p| same_path(p, &paths::knowledge_root().expect("knowledge_root"))));
+            .any(|p| same_path(p, &paths::workspaces_root().expect("workspaces_root"))));
         assert!(!fence.allows_read(&clone), "SPARK_DATA_DIR is closed to the LLM");
         assert!(!fence.allows_read(&wb.join("readable.md")));
         assert!(fence

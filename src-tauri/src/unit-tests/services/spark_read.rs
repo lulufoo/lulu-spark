@@ -15,8 +15,9 @@ fn get_config_has_frontend_contract_keys() {
         .to_path_buf();
     let v = get_config(&root);
     assert!(v.get("spark_root").is_some());
-    assert!(v.get("knowledge_root").is_some());
-    assert!(v.get("notes_root").is_some());
+    assert!(v.get("workspaces_root").is_some());
+    assert!(v.get("knowledge_root").is_none());
+    assert!(v.get("notes_root").is_none());
     assert!(v.get("github_user_url").is_none());
     assert!(v.get("spark_github_repo_url").is_none());
     assert!(v.get("assistant_engine").is_some());

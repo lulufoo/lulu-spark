@@ -5,8 +5,7 @@ export type AppRoute = {
 
 export type SettingsConfig = {
   spark_root?: string;
-  knowledge_root?: string;
-  notes_root?: string;
+  workspaces_root?: string;
   mcp_port?: number;
   assistant_engine?: string;
   theme?: string;

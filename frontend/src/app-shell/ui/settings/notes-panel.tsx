@@ -25,9 +25,9 @@ export function NotesSettingsPanel() {
         data-tab="directory"
       >
         <div className="settings-field">
-          <label htmlFor="notes-root-path">Notes directory</label>
+          <label htmlFor="workspaces-root-path">Workspaces directory</label>
           <input
-            id="notes-root-path"
+            id="workspaces-root-path"
             type="text"
             spellCheck={false}
             autoComplete="off"
@@ -35,7 +35,7 @@ export function NotesSettingsPanel() {
             className="settings-input-readonly"
           />
           <span className="settings-field-hint">
-            Fixed notes root. Not configurable.
+            Fixed workspaces root. Not configurable.
           </span>
         </div>
       </div>

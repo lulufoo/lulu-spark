@@ -8,11 +8,11 @@ export async function loadSettingsSnapshot() {
   try {
     const cfg = (await api.fetchConfig()) as SettingsConfig;
 
-    const notesInput = document.getElementById('notes-root-path') as HTMLInputElement | null;
-    const notesRoot = cfg?.notes_root ?? '';
-    if (notesInput) {
-      notesInput.value = notesRoot;
-      if (notesRoot) notesInput.placeholder = notesRoot;
+    const rootInput = document.getElementById('workspaces-root-path') as HTMLInputElement | null;
+    const workspacesRoot = cfg?.workspaces_root ?? '';
+    if (rootInput) {
+      rootInput.value = workspacesRoot;
+      if (workspacesRoot) rootInput.placeholder = workspacesRoot;
     }
 
     loadAssistantEnginePanel(cfg ?? {});

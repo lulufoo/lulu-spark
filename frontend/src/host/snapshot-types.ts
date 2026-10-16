@@ -61,7 +61,6 @@ export type HostIndex = {
 export type HostUi = {
   activeDate: string | null;
   sparkRoot: string;
-  knowledgeRoot: string;
   activeTopic: string | null;
   loadError: string | null;
 };

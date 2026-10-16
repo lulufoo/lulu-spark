@@ -77,7 +77,6 @@ function mountSettingsDom() {
 function baseConfig(overrides = {}) {
   return {
     spark_root: '',
-    knowledge_root: '',
     assistant_engine: 'host',
     mcp_port: MCP_PORT,
     llm: {

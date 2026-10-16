@@ -225,8 +225,8 @@ fn plant_todo_migration_gate() {
 }
 
 fn plant_empty_notes_index() {
-    let notes = crate::config::paths::notes_root().expect("notes dir");
-    fs::create_dir_all(&notes).expect("notes root");
+    let root = crate::config::paths::workspaces_root().expect("workspaces dir");
+    fs::create_dir_all(&root).expect("workspaces root");
 }
 
 /// Boundary: Cargo must pin `rmcp` on the 3.1.x line (decision verify point 3.1.0).
