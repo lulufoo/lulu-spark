@@ -133,10 +133,7 @@ pub fn kb_doc_count_json(
             .repos
             .iter()
             .filter(|r| r.category_id == cat_id)
-            .map(|r| {
-                let repo_name = r.full_name.split('/').next_back().unwrap_or("");
-                count_md_in_repo_dir(kb_root, repo_name, &hide)
-            })
+            .map(|r| count_md_in_repo_dir(kb_root, &r.full_name, &hide))
             .sum();
         return json!({ "count": count });
     }

@@ -222,13 +222,7 @@ fn sediment_kb_local_exists(repo_root: &std::path::Path, full_name: &str) -> boo
 
 pub fn sediment_kb_repos_json(repo_root: &std::path::Path) -> Result<Value, String> {
     sediment_kb::ensure_uncategorized().map_err(|e| e.to_string())?;
-    let categories = sediment_kb::load_categories().map_err(|e| e.to_string())?;
     let repos = sediment_kb::load_repos().map_err(|e| e.to_string())?;
-    let name_by_id: std::collections::HashMap<&str, &str> = categories
-        .categories
-        .iter()
-        .map(|c| (c.id.as_str(), c.name.as_str()))
-        .collect();
     let enriched: Vec<Value> = repos
         .repos
         .iter()
@@ -237,10 +231,7 @@ pub fn sediment_kb_repos_json(repo_root: &std::path::Path) -> Result<Value, Stri
                 "full_name": r.full_name,
                 "description": r.description,
                 "category_id": r.category_id,
-                "category_name": name_by_id
-                    .get(r.category_id.as_str())
-                    .copied()
-                    .unwrap_or(crate::services::sediment_kb::UNCATEGORIZED_NAME),
+                "category_name": r.category_id,
                 "local_exists": sediment_kb_local_exists(repo_root, &r.full_name),
             })
         })

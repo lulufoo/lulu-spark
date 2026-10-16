@@ -113,21 +113,13 @@ fn hidden_paths_are_not_registered_and_never_marked_missing() {
 #[test]
 fn scan_registered_repos_reads_the_repo_list_and_honours_force_repo() {
     let sandbox = TestSandbox::new();
-    let data = sandbox.data_dir().join("knowledge");
-    fs::create_dir_all(&data).expect("knowledge dir");
-    fs::write(
-        data.join("repos.json"),
-        r#"{"version":1,"repos":[
-            {"full_name":"acme/myrepo","category_id":"uncategorized"},
-            {"full_name":"acme/other","category_id":"uncategorized"}]}"#,
-    )
-    .expect("repos.json");
+    crate::services::sediment_kb::add_directory("myrepo").expect("myrepo");
+    crate::services::sediment_kb::add_directory("other").expect("other");
     let kb = sandbox.knowledge_root();
     write(&kb, "a.md");
-    fs::create_dir_all(kb.join("other")).expect("other clone");
     fs::write(kb.join("other/z.md"), "z").expect("z");
 
-    scan_registered_repos(sandbox.config_dir(), Some("acme/myrepo")).expect("forced scan");
+    scan_registered_repos(sandbox.config_dir(), Some("myrepo")).expect("forced scan");
     let conn = spark_data::open().expect("db");
     assert!(spark_data::find_knowledge_doc_id(&conn, "myrepo", "a.md").expect("find").is_some());
     assert!(spark_data::find_knowledge_doc_id(&conn, "other", "z.md").expect("find").is_none());

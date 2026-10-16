@@ -56,7 +56,7 @@ pub fn get_topics(_repo_root: &Path) -> Value {
         "topics": topics_list,
     });
 
-    if let Ok(cache_path) = crate::config::paths::sediment_kb_repos_path() {
+    if let Ok(cache_path) = crate::config::paths::spark_data_db_path() {
         if let Ok(meta) = cache_path.metadata().and_then(|m| m.modified()) {
             let dur = meta.duration_since(UNIX_EPOCH).unwrap_or_default();
             if let chrono::LocalResult::Single(dt) =

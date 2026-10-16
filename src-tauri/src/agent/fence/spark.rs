@@ -23,19 +23,13 @@ pub fn expand_for_business_key(key: &str) -> Option<PathFence> {
     let read_allow = vec![];
     let mut read_deny = vec![data, wb.join(".git")];
 
-    let repos_file = paths::sediment_kb_repos_path().ok();
-    if repos_file.as_ref().is_some_and(|path| path.is_file()) {
-        if let Ok(repos) = sediment_kb::load_repos() {
-            for repo in repos.repos {
-                let Some(name) = repo.full_name.split('/').next_back() else {
-                    continue;
-                };
-                if name.is_empty() {
-                    continue;
-                }
-                let dir = stored_path(knowledge.join(name));
-                read_deny.push(dir.join(".git"));
+    if let Ok(repos) = sediment_kb::load_repos() {
+        for repo in repos.repos {
+            if repo.full_name.is_empty() {
+                continue;
             }
+            let dir = stored_path(knowledge.join(&repo.full_name));
+            read_deny.push(dir.join(".git"));
         }
     }
 

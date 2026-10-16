@@ -22,7 +22,7 @@ const BUSY_TIMEOUT: Duration = Duration::from_secs(5);
 /// Append a step to change the schema; never edit an existing one.
 /// Step 2 rebuilds `note` instead of `ADD COLUMN … REFERENCES`: SQLite rejects a
 /// NOT NULL default plus FK when the table already has rows.
-pub(crate) const MIGRATIONS: [&str; 3] = [r#"
+pub(crate) const MIGRATIONS: [&str; 4] = [r#"
 CREATE TABLE IF NOT EXISTS note (
   doc_id       TEXT PRIMARY KEY,
   raw_path     TEXT NOT NULL,
@@ -91,6 +91,13 @@ FROM note;
 DROP TABLE note;
 ALTER TABLE note__with_category RENAME TO note;
 CREATE INDEX IF NOT EXISTS note_raw_path ON note(raw_path);
+"#, r#"
+CREATE TABLE knowledge_directory (
+  id TEXT PRIMARY KEY,
+  folder TEXT NOT NULL UNIQUE,
+  category TEXT NOT NULL DEFAULT 'Uncategorized' CHECK (category <> ''),
+  description TEXT NOT NULL DEFAULT ''
+);
 "#];
 
 pub fn db_path() -> Result<PathBuf, String> {

@@ -111,6 +111,8 @@ fn sediment_kb_add_repo_json_duplicate_returns_error_json() {
 
 #[test]
 fn sediment_kb_description_source_constraints_hold() {
-    crate::services::sediment_kb::validate_description_source_constraints();
+    let src = include_str!("../../commands/write.rs");
+    assert!(!src.contains("README"));
+    assert!(!src.contains("frontmatter"));
 }
 

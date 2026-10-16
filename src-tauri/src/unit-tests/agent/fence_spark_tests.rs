@@ -28,15 +28,8 @@ fn with_sandbox<F: FnOnce(&TestSandbox)>(f: F) {
     f(&sandbox);
 }
 
-fn plant_demo_repo(sandbox: &TestSandbox) {
-    let kb = sandbox.data_dir().join("knowledge");
-    fs::create_dir_all(&kb).expect("knowledge");
-    fs::write(
-        kb.join("repos.json"),
-        r#"{"version":1,"repos":[{"full_name":"acme/demo","category_id":"uncategorized"}]}"#,
-    )
-    .expect("repos.json");
-    fs::create_dir_all(sandbox.knowledge_root().join("demo")).expect("clone dir");
+fn plant_demo_repo(_sandbox: &TestSandbox) {
+    crate::services::sediment_kb::add_directory("demo").expect("demo");
 }
 
 #[test]

@@ -3,6 +3,7 @@
 mod backup;
 mod db;
 mod json_column;
+mod knowledge_directory_row;
 mod knowledge_doc_row;
 mod knowledge_registry;
 mod note_annotation;
@@ -13,6 +14,12 @@ mod tag_rows;
 
 pub use backup::{backup_daily, backup_dir, backup_for_day, BACKUP_DIR};
 pub use db::{db_path, open, open_at, DB_FILE};
+pub use knowledge_directory_row::{
+    clear_knowledge_category, delete_knowledge_directory, directory_folder, get_knowledge_directory,
+    get_knowledge_directory_by_folder, insert_knowledge_directory, list_knowledge_category_names,
+    list_knowledge_directories, rename_knowledge_category, update_knowledge_directory,
+    KnowledgeDirectoryRow, UNCATEGORIZED,
+};
 pub use knowledge_doc_row::{
     active_knowledge_doc_ids, delete_knowledge_doc, knowledge_doc_ids_outside_repo, find_knowledge_doc_id, get_knowledge_doc, insert_knowledge_doc,
     update_knowledge_doc, KnowledgeDocRow, KnowledgeStatus,

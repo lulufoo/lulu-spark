@@ -25,13 +25,16 @@ fn user_version(conn: &Connection) -> i64 {
 }
 
 #[test]
-fn first_open_creates_four_tables_and_reopen_changes_nothing() {
+fn first_open_creates_five_tables_and_reopen_changes_nothing() {
     let (_dir, path) = temp_db();
     let first = open_at(&path).expect("first open");
     let tables = table_names(&first);
-    assert_eq!(tables, vec!["knowledge_doc", "note", "note_category", "tag"]);
+    assert_eq!(
+        tables,
+        vec!["knowledge_directory", "knowledge_doc", "note", "note_category", "tag"]
+    );
     let version = user_version(&first);
-    assert_eq!(version, 3);
+    assert_eq!(version, 4);
     let cols: Vec<String> = first
         .prepare("PRAGMA table_info(note)")
         .expect("pragma")
@@ -55,7 +58,7 @@ fn v2_creates_note_category_and_reopen_keeps_data() {
     let (_dir, path) = temp_db();
     let first = open_at(&path).expect("first open");
     assert!(table_names(&first).contains(&"note_category".to_string()));
-    assert_eq!(user_version(&first), 3);
+    assert_eq!(user_version(&first), 4);
     let inbox = get_note_category(&first, "inbox").expect("get").expect("v3 seeds inbox");
     assert_eq!(inbox.folder, "inbox");
     let extra = NoteCategoryRow::new("ops", "ops", "Ops", "");
@@ -63,7 +66,7 @@ fn v2_creates_note_category_and_reopen_keeps_data() {
     drop(first);
 
     let second = open_at(&path).expect("reopen");
-    assert_eq!(user_version(&second), 3);
+    assert_eq!(user_version(&second), 4);
     assert_eq!(get_note_category(&second, "ops").expect("get"), Some(extra));
     assert!(get_note_category(&second, "inbox").expect("get").is_some());
 }
@@ -82,7 +85,7 @@ fn open_uses_wal_and_foreign_keys() {
 fn note_category_id_fk_rejects_unknown_and_accepts_inbox() {
     let (_dir, path) = temp_db();
     let conn = open_at(&path).expect("open");
-    assert_eq!(user_version(&conn), 3);
+    assert_eq!(user_version(&conn), 4);
     let mut bad = NoteRow::new("n1", "a.md");
     bad.category_id = "missing".into();
     assert!(insert_note(&conn, &bad).is_err(), "FK to note_category(id)");
@@ -100,8 +103,8 @@ fn v2_note_rows_gain_inbox_category_id() {
         .expect("seed populated v2");
     drop(v2);
 
-    let conn = open_at(&path).expect("v2 → v3");
-    assert_eq!(user_version(&conn), 3);
+    let conn = open_at(&path).expect("v2 → v4");
+    assert_eq!(user_version(&conn), 4);
     let got = get_note(&conn, "n1").expect("get").expect("row");
     assert_eq!(got.category_id, "inbox");
     assert_eq!(got.raw_path, "ai/x.md");
@@ -116,6 +119,30 @@ fn note_primary_key_rejects_duplicate_doc_id() {
     let conn = open_at(&path).expect("open");
     insert_note(&conn, &NoteRow::new("n1", "a.md")).expect("first");
     assert!(insert_note(&conn, &NoteRow::new("n1", "b.md")).is_err());
+}
+
+#[test]
+fn v3_gains_knowledge_directory() {
+    let (_dir, path) = temp_db();
+    let v3 = open_with_steps(&path, &MIGRATIONS[..3]).expect("v3");
+    assert_eq!(user_version(&v3), 3);
+    assert!(!table_names(&v3).contains(&"knowledge_directory".to_string()));
+    drop(v3);
+
+    let conn = open_at(&path).expect("v3 → v4");
+    assert_eq!(user_version(&conn), 4);
+    assert!(table_names(&conn).contains(&"knowledge_directory".to_string()));
+    insert_knowledge_directory(&conn, &KnowledgeDirectoryRow::new("d1", "demo", UNCATEGORIZED, "desc"))
+        .expect("insert");
+    assert_eq!(
+        get_knowledge_directory_by_folder(&conn, "demo").expect("get").expect("row").category,
+        UNCATEGORIZED
+    );
+    assert!(insert_knowledge_directory(
+        &conn,
+        &KnowledgeDirectoryRow::new("d2", "demo", UNCATEGORIZED, "")
+    )
+    .is_err());
 }
 
 #[test]

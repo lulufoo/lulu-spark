@@ -86,7 +86,7 @@ fn get_topics_reads_from_sediment_kb_with_category_fields() {
             .expect("sediment-kb repo topic");
         assert_eq!(kb["description"], "");
         assert_eq!(kb["category_id"], UNCATEGORIZED_ID);
-        assert_eq!(kb["category_name"], "Uncategorized");
+        assert_eq!(kb["category_name"], UNCATEGORIZED_ID);
         assert!(
             !topics
                 .iter()
@@ -97,31 +97,16 @@ fn get_topics_reads_from_sediment_kb_with_category_fields() {
 }
 
 #[test]
-fn load_repos_deserializes_legacy_entry_without_description_field() {
-    use crate::config::paths;
-    use crate::services::sediment_kb::{ensure_uncategorized, load_repos, UNCATEGORIZED_ID};
-
-    with_sediment_kb_topics_cache(|_, _| {
-        ensure_uncategorized().expect("ensure");
-        let repos_path = paths::sediment_kb_repos_path().expect("repos path");
-        fs::write(
-            &repos_path,
-            format!(
-                r#"{{"version":1,"repos":[{{"full_name":"legacy/repo","category_id":"{UNCATEGORIZED_ID}"}}]}}"#
-            ),
-        )
-        .expect("write legacy repos.json");
-
-        let repos = load_repos().expect("load legacy repos");
-        assert_eq!(repos.repos.len(), 1);
-        assert_eq!(repos.repos[0].full_name, "legacy/repo");
-        assert_eq!(repos.repos[0].description, "");
-    });
-}
-
-#[test]
 fn description_source_constraints_hold() {
-    crate::services::sediment_kb::validate_description_source_constraints();
+    let src = include_str!("../../services/spark_read/config.rs");
+    let get_topics = src
+        .split("pub fn get_topics")
+        .nth(1)
+        .and_then(|s| s.split("\npub fn ").next())
+        .expect("get_topics");
+    assert!(!get_topics.contains("index.json"));
+    assert!(!get_topics.contains("README"));
+    assert!(!get_topics.contains("frontmatter"));
 }
 
 #[test]

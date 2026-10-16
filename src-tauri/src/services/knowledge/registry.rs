@@ -65,13 +65,12 @@ pub fn scan_registered_repos(repo_root: &Path, force_repo: Option<&str>) -> Resu
     let hide = super::compiled_hide_regexes();
     let conn = spark_data::open()?;
     for repo in repos.repos {
-        if force_repo.is_some_and(|force| force != repo.full_name) {
+        let folder = repo.full_name.as_str();
+        if force_repo.is_some_and(|force| force != folder && force.split('/').next_back() != Some(folder))
+        {
             continue;
         }
-        let Some(repo_dir) = repo.full_name.split('/').next_back().filter(|n| !n.is_empty()) else {
-            continue;
-        };
-        scan_repo_dir(&conn, &kb_root, repo_dir, &hide)?;
+        scan_repo_dir(&conn, &kb_root, folder, &hide)?;
     }
     Ok(())
 }
