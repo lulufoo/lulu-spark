@@ -22,7 +22,7 @@ const BUSY_TIMEOUT: Duration = Duration::from_secs(5);
 /// Append a step to change the schema; never edit an existing one.
 /// Step 2 rebuilds `note` instead of `ADD COLUMN … REFERENCES`: SQLite rejects a
 /// NOT NULL default plus FK when the table already has rows.
-pub(crate) const MIGRATIONS: [&str; 5] = [r#"
+pub(crate) const MIGRATIONS: [&str; 6] = [r#"
 CREATE TABLE IF NOT EXISTS note (
   doc_id       TEXT PRIMARY KEY,
   raw_path     TEXT NOT NULL,
@@ -124,6 +124,24 @@ FROM knowledge_doc d
 INNER JOIN knowledge_directory k ON k.folder = d.repo;
 DROP TABLE knowledge_doc;
 ALTER TABLE knowledge_doc__with_dir RENAME TO knowledge_doc;
+"#, r#"
+CREATE TABLE knowledge_doc__no_repo (
+  doc_id       TEXT PRIMARY KEY,
+  path         TEXT NOT NULL,
+  directory_id TEXT NOT NULL REFERENCES knowledge_directory(id),
+  status       TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'missing')),
+  comments     TEXT NOT NULL DEFAULT '[]' CHECK (json_type(comments) = 'array'),
+  links        TEXT NOT NULL DEFAULT '[]' CHECK (json_type(links) = 'array'),
+  highlights   TEXT NOT NULL DEFAULT '[]' CHECK (json_type(highlights) = 'array'),
+  UNIQUE (directory_id, path)
+);
+INSERT INTO knowledge_doc__no_repo (
+  doc_id, path, directory_id, status, comments, links, highlights
+)
+SELECT doc_id, path, directory_id, status, comments, links, highlights
+FROM knowledge_doc;
+DROP TABLE knowledge_doc;
+ALTER TABLE knowledge_doc__no_repo RENAME TO knowledge_doc;
 "#];
 
 pub fn db_path() -> Result<PathBuf, String> {

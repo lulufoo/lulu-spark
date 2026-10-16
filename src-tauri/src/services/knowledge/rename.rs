@@ -8,7 +8,7 @@ use serde_json::{json, Value};
 use crate::config::roots::knowledge_root_string;
 use crate::repositories::knowledge::{kb_dir_name, kb_safe_path};
 use crate::services::id::random_hex12;
-use crate::services::spark_data::{self, move_knowledge_paths};
+use crate::services::spark_data::{self, directory_id_for_folder, move_knowledge_paths};
 
 fn err_status(msg: &str) -> u16 {
     if msg.contains("invalid") || msg.contains("traversal") {
@@ -96,9 +96,10 @@ pub fn kb_rename(repo_root: &Path, repo: String, path: String, name: String) -> 
     }
     // File first, record second (decision 11). A crash in between is not repaired:
     // the old record turns `missing` on the next scan and the file registers anew.
-    let moved = kb_dir_name(&repo).and_then(|repo_dir| {
+    let moved = kb_dir_name(&repo).and_then(|folder| {
         let conn = spark_data::open()?;
-        move_knowledge_paths(&conn, repo_dir, src_rel, &dest_rel)
+        let directory_id = directory_id_for_folder(&conn, folder)?;
+        move_knowledge_paths(&conn, &directory_id, src_rel, &dest_rel)
     });
     if let Err(e) = moved {
         return json!({ "error": e, "_status": 500 });

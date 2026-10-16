@@ -5,7 +5,9 @@
 use std::collections::HashMap;
 
 use crate::services::sediment_kb;
-use crate::services::spark_data::{self, category_folder, get_knowledge_doc, get_note, KnowledgeStatus};
+use crate::services::spark_data::{
+    self, category_folder, directory_folder, get_knowledge_doc, get_note, KnowledgeStatus,
+};
 
 use super::query::QueryHit;
 
@@ -35,12 +37,16 @@ fn locate(
             let folder = category_folder(conn, &note.category_id).unwrap_or_default();
             Ok(Some((note.raw_path, String::new(), folder)))
         }
-        "knowledge" => Ok(get_knowledge_doc(conn, doc_id)?
-            .filter(|doc| doc.status == KnowledgeStatus::Active)
-            .map(|doc| {
-                let repo = repos.get(&doc.repo).cloned().unwrap_or(doc.repo);
-                (doc.path, repo, String::new())
-            })),
+        "knowledge" => {
+            let Some(doc) = get_knowledge_doc(conn, doc_id)?
+                .filter(|doc| doc.status == KnowledgeStatus::Active)
+            else {
+                return Ok(None);
+            };
+            let folder = directory_folder(conn, &doc.directory_id)?;
+            let repo = repos.get(&folder).cloned().unwrap_or(folder);
+            Ok(Some((doc.path, repo, String::new())))
+        }
         _ => Ok(None),
     }
 }

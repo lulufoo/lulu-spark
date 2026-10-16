@@ -7,7 +7,9 @@ use serde_json::{json, Value};
 
 use crate::config::roots::knowledge_root_string;
 use crate::repositories::knowledge::{kb_dir_name, kb_list_dir, kb_safe_path};
-use crate::services::spark_data::{self, register_knowledge_doc, remove_knowledge_paths};
+use crate::services::spark_data::{
+    self, directory_id_for_folder, register_knowledge_doc, remove_knowledge_paths,
+};
 
 fn err_status(msg: &str) -> u16 {
     if msg.contains("invalid") || msg.contains("traversal") {
@@ -55,12 +57,14 @@ fn join_parent(parent: &str, name: &str) -> String {
 /// Records follow the files: written only after the file operation succeeded.
 fn register_doc(repo: &str, rel: &str) -> Result<(), String> {
     let conn = spark_data::open()?;
-    register_knowledge_doc(&conn, kb_dir_name(repo)?, rel).map(|_| ())
+    let directory_id = directory_id_for_folder(&conn, kb_dir_name(repo)?)?;
+    register_knowledge_doc(&conn, &directory_id, rel).map(|_| ())
 }
 
 fn remove_docs(repo: &str, rel: &str) -> Result<(), String> {
     let conn = spark_data::open()?;
-    remove_knowledge_paths(&conn, kb_dir_name(repo)?, rel).map(|_| ())
+    let directory_id = directory_id_for_folder(&conn, kb_dir_name(repo)?)?;
+    remove_knowledge_paths(&conn, &directory_id, rel).map(|_| ())
 }
 
 fn resolve_parent_dir(kb_root: &Path, repo: &str, parent: &str) -> Result<PathBuf, String> {

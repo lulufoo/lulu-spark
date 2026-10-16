@@ -3,7 +3,7 @@ use std::fs;
 
 use super::*;
 use crate::services::sediment_kb;
-use crate::services::spark_data::{self, find_knowledge_doc_id};
+use crate::services::spark_data::{self, find_knowledge_doc_id, get_knowledge_directory_by_folder};
 use crate::test_support::TestSandbox;
 
 fn write(sandbox: &TestSandbox, rel: &str) -> std::path::PathBuf {
@@ -30,8 +30,12 @@ fn indexed_doc_ids_are_the_registry_ids_of_active_files_only() {
     let gone = write(&sandbox, "b.md");
     scan_registered_repos(sandbox.config_dir(), None).expect("scan");
     let conn = spark_data::open().expect("db");
-    let a = find_knowledge_doc_id(&conn, "demo", "a.md").expect("find").expect("a");
-    let b = find_knowledge_doc_id(&conn, "demo", "b.md").expect("find").expect("b");
+    let demo = get_knowledge_directory_by_folder(&conn, "demo")
+        .expect("dir")
+        .expect("demo")
+        .id;
+    let a = find_knowledge_doc_id(&conn, &demo, "a.md").expect("find").expect("a");
+    let b = find_knowledge_doc_id(&conn, &demo, "b.md").expect("find").expect("b");
     assert_eq!(indexed_doc_ids(&sandbox), HashSet::from([a.clone(), b.clone()]));
 
     fs::remove_file(&gone).expect("remove");

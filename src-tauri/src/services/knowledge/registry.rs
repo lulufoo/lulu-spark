@@ -8,7 +8,7 @@ use regex::Regex;
 
 use crate::config::roots::knowledge_root_string;
 use crate::services::sediment_kb;
-use crate::services::spark_data::{self, ReconcileStats};
+use crate::services::spark_data::{self, directory_id_for_folder, ReconcileStats};
 
 use super::name_is_hidden;
 
@@ -49,9 +49,10 @@ pub fn scan_repo_dir(
     }
     let mut found = HashSet::new();
     walk_md(&local, &local, hide, &mut found);
-    spark_data::reconcile_knowledge_repo(
+    let directory_id = directory_id_for_folder(conn, repo_dir)?;
+    spark_data::reconcile_knowledge_directory(
         conn,
-        repo_dir,
+        &directory_id,
         &found,
         |rel| local.join(rel).is_file(),
         |rel| rel.split('/').any(|part| name_is_hidden(part, hide)),

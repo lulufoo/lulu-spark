@@ -1,5 +1,5 @@
 use super::*;
-use crate::services::spark_data::{self, get_knowledge_doc, KnowledgeStatus};
+use crate::services::spark_data::{self, get_knowledge_directory_by_folder, get_knowledge_doc, KnowledgeStatus};
 use crate::test_support::TestSandbox;
 use serde_json::json;
 use std::fs;
@@ -121,9 +121,17 @@ fn scan_registered_repos_reads_the_repo_list_and_honours_force_repo() {
 
     scan_registered_repos(sandbox.config_dir(), Some("myrepo")).expect("forced scan");
     let conn = spark_data::open().expect("db");
-    assert!(spark_data::find_knowledge_doc_id(&conn, "myrepo", "a.md").expect("find").is_some());
-    assert!(spark_data::find_knowledge_doc_id(&conn, "other", "z.md").expect("find").is_none());
+    let myrepo = get_knowledge_directory_by_folder(&conn, "myrepo")
+        .expect("dir")
+        .expect("myrepo")
+        .id;
+    let other = get_knowledge_directory_by_folder(&conn, "other")
+        .expect("dir")
+        .expect("other")
+        .id;
+    assert!(spark_data::find_knowledge_doc_id(&conn, &myrepo, "a.md").expect("find").is_some());
+    assert!(spark_data::find_knowledge_doc_id(&conn, &other, "z.md").expect("find").is_none());
 
     scan_registered_repos(sandbox.config_dir(), None).expect("full scan");
-    assert!(spark_data::find_knowledge_doc_id(&conn, "other", "z.md").expect("find").is_some());
+    assert!(spark_data::find_knowledge_doc_id(&conn, &other, "z.md").expect("find").is_some());
 }

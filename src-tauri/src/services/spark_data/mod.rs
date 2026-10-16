@@ -21,11 +21,12 @@ pub use knowledge_directory_row::{
     KnowledgeDirectoryRow, UNCATEGORIZED,
 };
 pub use knowledge_doc_row::{
-    active_knowledge_doc_ids, delete_knowledge_doc, directory_id_for_repo, knowledge_doc_ids_outside_repo, find_knowledge_doc_id, get_knowledge_doc, insert_knowledge_doc,
+    active_knowledge_doc_ids, delete_knowledge_doc, directory_id_for_folder,
+    knowledge_doc_ids_outside_directory, find_knowledge_doc_id, get_knowledge_doc, insert_knowledge_doc,
     update_knowledge_doc, KnowledgeDocRow, KnowledgeStatus,
 };
 pub use knowledge_registry::{
-    move_knowledge_paths, reconcile_knowledge_repo, register_knowledge_doc, remove_knowledge_paths,
+    move_knowledge_paths, reconcile_knowledge_directory, register_knowledge_doc, remove_knowledge_paths,
     ReconcileStats,
 };
 pub use note_annotation::annotation_object;

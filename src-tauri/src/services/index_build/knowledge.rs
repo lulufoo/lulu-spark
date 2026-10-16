@@ -6,7 +6,7 @@ use std::path::Path;
 use crate::config::paths;
 use crate::services::knowledge::scan_registered_repos;
 use crate::services::search_index;
-use crate::services::spark_data::{self, knowledge_doc_ids_outside_repo};
+use crate::services::spark_data::{self, directory_id_for_folder, knowledge_doc_ids_outside_directory};
 
 /// `force_repo = Some("owner/name")` scopes both upsert and ghost deletion to one repo.
 pub fn rebuild(repo_root: &Path, force_repo: Option<&str>) -> Result<String, String> {
@@ -17,7 +17,9 @@ pub fn rebuild(repo_root: &Path, force_repo: Option<&str>) -> Result<String, Str
     let keep_docs = match force_repo {
         Some(full) => {
             let dir = full.split('/').next_back().unwrap_or(full);
-            knowledge_doc_ids_outside_repo(&spark_data::open()?, dir)?
+            let conn = spark_data::open()?;
+            let directory_id = directory_id_for_folder(&conn, dir)?;
+            knowledge_doc_ids_outside_directory(&conn, &directory_id)?
         }
         None => HashSet::new(),
     };

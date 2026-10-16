@@ -34,7 +34,7 @@ fn first_open_creates_five_tables_and_reopen_changes_nothing() {
         vec!["knowledge_directory", "knowledge_doc", "note", "note_category", "tag"]
     );
     let version = user_version(&first);
-    assert_eq!(version, 5);
+    assert_eq!(version, 6);
     let cols: Vec<String> = first
         .prepare("PRAGMA table_info(note)")
         .expect("pragma")
@@ -66,7 +66,7 @@ fn v2_creates_note_category_and_reopen_keeps_data() {
     let (_dir, path) = temp_db();
     let first = open_at(&path).expect("first open");
     assert!(table_names(&first).contains(&"note_category".to_string()));
-    assert_eq!(user_version(&first), 5);
+    assert_eq!(user_version(&first), 6);
     let inbox = get_note_category(&first, "inbox").expect("get").expect("v3 seeds inbox");
     assert_eq!(inbox.folder, "inbox");
     let extra = NoteCategoryRow::new("ops", "ops", "Ops", "");
@@ -74,7 +74,7 @@ fn v2_creates_note_category_and_reopen_keeps_data() {
     drop(first);
 
     let second = open_at(&path).expect("reopen");
-    assert_eq!(user_version(&second), 5);
+    assert_eq!(user_version(&second), 6);
     assert_eq!(get_note_category(&second, "ops").expect("get"), Some(extra));
     assert!(get_note_category(&second, "inbox").expect("get").is_some());
 }
@@ -93,7 +93,7 @@ fn open_uses_wal_and_foreign_keys() {
 fn note_category_id_fk_rejects_unknown_and_accepts_inbox() {
     let (_dir, path) = temp_db();
     let conn = open_at(&path).expect("open");
-    assert_eq!(user_version(&conn), 5);
+    assert_eq!(user_version(&conn), 6);
     let mut bad = NoteRow::new("n1", "a.md");
     bad.category_id = "missing".into();
     assert!(insert_note(&conn, &bad).is_err(), "FK to note_category(id)");
@@ -111,8 +111,8 @@ fn v2_note_rows_gain_inbox_category_id() {
         .expect("seed populated v2");
     drop(v2);
 
-    let conn = open_at(&path).expect("v2 → v5");
-    assert_eq!(user_version(&conn), 5);
+    let conn = open_at(&path).expect("v2 → v6");
+    assert_eq!(user_version(&conn), 6);
     let got = get_note(&conn, "n1").expect("get").expect("row");
     assert_eq!(got.category_id, "inbox");
     assert_eq!(got.raw_path, "ai/x.md");
@@ -137,8 +137,8 @@ fn v3_gains_knowledge_directory() {
     assert!(!table_names(&v3).contains(&"knowledge_directory".to_string()));
     drop(v3);
 
-    let conn = open_at(&path).expect("v3 → v5");
-    assert_eq!(user_version(&conn), 5);
+    let conn = open_at(&path).expect("v3 → v6");
+    assert_eq!(user_version(&conn), 6);
     assert!(table_names(&conn).contains(&"knowledge_directory".to_string()));
     insert_knowledge_directory(&conn, &KnowledgeDirectoryRow::new("d1", "demo", UNCATEGORIZED, "desc"))
         .expect("insert");
@@ -180,8 +180,8 @@ fn v4_knowledge_docs_gain_directory_id() {
     .expect("deprecated");
     drop(v4);
 
-    let conn = open_at(&path).expect("v4 → v5");
-    assert_eq!(user_version(&conn), 5);
+    let conn = open_at(&path).expect("v4 → v6");
+    assert_eq!(user_version(&conn), 6);
     let kept = get_knowledge_doc(&conn, "k1").expect("get").expect("k1");
     assert_eq!(kept.directory_id, "minted");
     let fresh = get_knowledge_doc(&conn, "k2").expect("get").expect("k2");
@@ -194,13 +194,54 @@ fn v4_knowledge_docs_gain_directory_id() {
         "fresh"
     );
     assert!(get_knowledge_doc(&conn, "k3").expect("get").is_none());
-    let mut bad = KnowledgeDocRow::new("k4", "kept", "z.md");
-    bad.directory_id = "missing".into();
-    assert!(insert_knowledge_doc(&conn, &bad).is_err(), "FK after rebuild");
+    assert!(
+        conn.execute(
+            "INSERT INTO knowledge_doc(doc_id, path, directory_id) VALUES ('k4', 'z.md', 'missing')",
+            [],
+        )
+        .is_err(),
+        "FK after rebuild"
+    );
 }
 
 #[test]
-fn knowledge_doc_rejects_duplicate_id_and_duplicate_repo_path() {
+fn v5_knowledge_docs_drop_repo() {
+    let (_dir, path) = temp_db();
+    let v5 = open_with_steps(&path, &MIGRATIONS[..5]).expect("v5");
+    assert_eq!(user_version(&v5), 5);
+    insert_knowledge_directory(
+        &v5,
+        &KnowledgeDirectoryRow::new("minted", "kept", UNCATEGORIZED, ""),
+    )
+    .expect("dir");
+    v5.execute(
+        "INSERT INTO knowledge_doc(doc_id, repo, path, directory_id) VALUES ('k1', 'kept', 'a.md', 'minted')",
+        [],
+    )
+    .expect("k1");
+    drop(v5);
+
+    let conn = open_at(&path).expect("v5 → v6");
+    assert_eq!(user_version(&conn), 6);
+    let cols: Vec<String> = conn
+        .prepare("PRAGMA table_info(knowledge_doc)")
+        .expect("pragma")
+        .query_map([], |r| r.get(1))
+        .expect("cols")
+        .collect::<Result<_, _>>()
+        .expect("rows");
+    assert!(!cols.contains(&"repo".to_string()));
+    let kept = get_knowledge_doc(&conn, "k1").expect("get").expect("k1");
+    assert_eq!(kept.directory_id, "minted");
+    assert_eq!(kept.path, "a.md");
+    assert!(
+        insert_knowledge_doc(&conn, &KnowledgeDocRow::new("k2", "minted", "a.md")).is_err(),
+        "UNIQUE(directory_id, path)"
+    );
+}
+
+#[test]
+fn knowledge_doc_rejects_duplicate_id_and_duplicate_directory_path() {
     let (_dir, path) = temp_db();
     let conn = open_at(&path).expect("open");
     insert_knowledge_doc(&conn, &KnowledgeDocRow::new("k1", "demo", "a.md")).expect("first");
@@ -210,13 +251,18 @@ fn knowledge_doc_rejects_duplicate_id_and_duplicate_repo_path() {
     );
     assert!(
         insert_knowledge_doc(&conn, &KnowledgeDocRow::new("k2", "demo", "a.md")).is_err(),
-        "UNIQUE(repo, path)"
+        "UNIQUE(directory_id, path)"
     );
     insert_knowledge_doc(&conn, &KnowledgeDocRow::new("k3", "other", "a.md"))
-        .expect("same path in another repo is fine");
-    let mut dangling = KnowledgeDocRow::new("k4", "demo", "c.md");
-    dangling.directory_id = "missing".into();
-    assert!(insert_knowledge_doc(&conn, &dangling).is_err(), "FK to knowledge_directory(id)");
+        .expect("same path in another directory is fine");
+    assert!(
+        conn.execute(
+            "INSERT INTO knowledge_doc(doc_id, path, directory_id) VALUES ('k4', 'c.md', 'missing')",
+            [],
+        )
+        .is_err(),
+        "FK to knowledge_directory(id)"
+    );
 }
 
 #[test]
@@ -272,7 +318,6 @@ fn knowledge_doc_round_trip_lookup_and_delete() {
     doc.comments = json!([{ "id": "c1", "text": "t", "ts": "x" }]);
     doc.links = json!([{ "url": "https://example.com" }]);
     insert_knowledge_doc(&conn, &doc).expect("insert");
-    doc.directory_id = "demo".into();
     assert_eq!(get_knowledge_doc(&conn, "k1").expect("get"), Some(doc.clone()));
     assert_eq!(
         find_knowledge_doc_id(&conn, "demo", "docs/a.md").expect("find").as_deref(),
@@ -300,7 +345,7 @@ fn schema_rejects_bad_values() {
     assert!(insert_note(&conn, &note).is_err(), "JSON columns must be arrays");
     assert!(
         conn.execute(
-            "INSERT INTO knowledge_doc(doc_id, repo, path, status) VALUES ('k', 'r', 'p', 'gone')",
+            "INSERT INTO knowledge_doc(doc_id, path, directory_id, status) VALUES ('k', 'p', 'r', 'gone')",
             []
         )
         .is_err(),
@@ -357,8 +402,11 @@ fn newer_file_is_refused_and_failed_step_leaves_version_unchanged() {
         .expect("exists"));
 }
 
-fn path_of(conn: &Connection, repo: &str, doc_id: &str) -> Option<String> {
-    get_knowledge_doc(conn, doc_id).expect("get").filter(|d| d.repo == repo).map(|d| d.path)
+fn path_of(conn: &Connection, directory_id: &str, doc_id: &str) -> Option<String> {
+    get_knowledge_doc(conn, doc_id)
+        .expect("get")
+        .filter(|d| d.directory_id == directory_id)
+        .map(|d| d.path)
 }
 
 #[test]

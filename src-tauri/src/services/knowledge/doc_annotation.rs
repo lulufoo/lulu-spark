@@ -9,8 +9,8 @@ use serde_json::{json, Map, Value};
 use crate::config::roots::knowledge_root_string;
 use crate::repositories::knowledge::{kb_dir_name, kb_safe_path};
 use crate::services::spark_data::{
-    self, find_knowledge_doc_id, get_knowledge_doc, register_knowledge_doc, update_knowledge_doc,
-    KnowledgeDocRow,
+    self, directory_id_for_folder, find_knowledge_doc_id, get_knowledge_directory_by_folder,
+    get_knowledge_doc, register_knowledge_doc, update_knowledge_doc, KnowledgeDocRow,
 };
 
 pub(super) fn err_status(msg: &str) -> u16 {
@@ -45,12 +45,14 @@ pub(super) fn edit_doc(
         return error_value(&format!("file not found: {}", path.trim()), 404);
     }
     let result = (|| -> Result<Value, Value> {
-        let repo_dir = kb_dir_name(repo).map_err(|e| error_value(&e, 400))?;
+        let folder = kb_dir_name(repo).map_err(|e| error_value(&e, 400))?;
         let mut conn = spark_data::open().map_err(|e| error_value(&e, 500))?;
         let tx = conn
             .transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(|e| error_value(&e.to_string(), 500))?;
-        let doc_id = register_knowledge_doc(&tx, repo_dir, path.trim()).map_err(|e| error_value(&e, 500))?;
+        let directory_id = directory_id_for_folder(&tx, folder).map_err(|e| error_value(&e, 500))?;
+        let doc_id = register_knowledge_doc(&tx, &directory_id, path.trim())
+            .map_err(|e| error_value(&e, 500))?;
         let mut row = get_knowledge_doc(&tx, &doc_id)
             .map_err(|e| error_value(&e, 500))?
             .ok_or_else(|| error_value("knowledge record vanished", 500))?;
@@ -70,8 +72,10 @@ pub fn kb_annotation_json(repo_root: &Path, repo: &str, path: &str) -> Value {
     }
     let lookup = || -> Result<Option<KnowledgeDocRow>, String> {
         let conn = spark_data::open()?;
-        let repo_dir = kb_dir_name(repo)?;
-        match find_knowledge_doc_id(&conn, repo_dir, path.trim())? {
+        let Some(dir) = get_knowledge_directory_by_folder(&conn, kb_dir_name(repo)?)? else {
+            return Ok(None);
+        };
+        match find_knowledge_doc_id(&conn, &dir.id, path.trim())? {
             Some(id) => get_knowledge_doc(&conn, &id),
             None => Ok(None),
         }

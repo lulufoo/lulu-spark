@@ -84,7 +84,11 @@ pub fn read_tags(conn: &Connection) -> Result<BTreeMap<String, (String, i64)>, S
 /// `(repo, path) → annotation` of every knowledge record.
 pub fn read_knowledge(conn: &Connection) -> Result<BTreeMap<(String, String), KnowledgeAnnotation>, String> {
     let mut stmt = conn
-        .prepare("SELECT repo, path, comments, links, highlights FROM knowledge_doc")
+        .prepare(
+            "SELECT k.folder, d.path, d.comments, d.links, d.highlights
+             FROM knowledge_doc d
+             INNER JOIN knowledge_directory k ON k.id = d.directory_id",
+        )
         .map_err(|e| e.to_string())?;
     let rows = stmt
         .query_map([], |row| {
