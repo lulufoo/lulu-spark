@@ -53,14 +53,14 @@ fn attach_key(note_tags: &mut Value, key: &str) -> Value {
     json!({ "ok": true, "key": key })
 }
 
-pub fn tag_attach(_repo_root: &Path, common_path: &str, payload: &Value) -> Value {
+pub fn tag_attach(_repo_root: &Path, id: &str, payload: &Value) -> Value {
     let key_opt = payload.get("key").and_then(|v| v.as_str()).map(str::trim);
     let value_opt = payload.get("value").and_then(|v| v.as_str());
     if let Some(key) = key_opt {
         if key.is_empty() {
             return json!({ "error": "Invalid key", "_status": 400 });
         }
-        return edit_note(common_path, |conn, note| {
+        return edit_note(id, |conn, note| {
             if !has_tag(conn, key).map_err(internal)? {
                 return Err(json!({ "error": "Unknown tag key", "_status": 400 }));
             }
@@ -74,7 +74,7 @@ pub fn tag_attach(_repo_root: &Path, common_path: &str, payload: &Value) -> Valu
         },
         None => return json!({ "error": "value required when key omitted", "_status": 400 }),
     };
-    edit_note(common_path, |conn, note| {
+    edit_note(id, |conn, note| {
         let key = match find_tag_key_by_value(conn, &value).map_err(internal)? {
             Some(existing) => existing,
             None => {
@@ -87,13 +87,13 @@ pub fn tag_attach(_repo_root: &Path, common_path: &str, payload: &Value) -> Valu
     })
 }
 
-pub fn tag_detach(_repo_root: &Path, common_path: &str, key: &str) -> Value {
+pub fn tag_detach(_repo_root: &Path, id: &str, key: &str) -> Value {
     let key = key.trim();
     if key.is_empty() {
         return json!({ "error": "Invalid key", "_status": 400 });
     }
     // A tag no note references any more is dropped by `edit_note` once the row is written.
-    edit_note(common_path, |_, note| {
+    edit_note(id, |_, note| {
         let mut keys = note_keys(&note.tags);
         keys.retain(|k| k != key);
         set_note_keys(&mut note.tags, keys);

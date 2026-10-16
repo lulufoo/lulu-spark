@@ -67,16 +67,18 @@ fn move_entry_project_moves_zh_translation() {
             let old_zh = "inbox/topic/slug-zh.md";
             let v = move_entry_project(&json!({ "id": id, "new_project": "learning-ai-llm" }));
             assert_eq!(v["ok"], true);
-            let new_zh = "learning-ai-llm/topic/slug-zh.md";
+            assert_eq!(v["id"], json!(id));
+            assert!(v.get("new_common_path").is_none());
             assert!(notes.join("raw/learning-ai-llm/topic/slug.md").exists());
-            assert!(notes.join("raw").join(new_zh).exists());
+            assert!(notes.join("raw/learning-ai-llm/topic/slug-zh.md").exists());
             assert!(!notes.join("raw/inbox/topic/slug.md").exists());
             assert!(!notes.join("raw").join(old_zh).exists());
             let idx: Value =
                 read_note_entries();
+            assert_eq!(idx["entries"][&id]["folder"], json!("learning-ai-llm"));
             assert_eq!(
                 idx["entries"][&id]["translations"]["zh"],
-                json!(new_zh)
+                json!("topic/slug-zh.md")
             );
         },
     );
@@ -118,8 +120,8 @@ fn move_entry_project_moves_the_files_before_the_row() {
             assert_eq!(v["_status"], 500, "{v}");
             assert!(notes.join("raw/learning-ai-llm/topic/slug.md").exists(), "the file step already ran");
             assert_eq!(
-                read_note_entries()["entries"][&id]["common_path"],
-                json!("inbox/topic/slug.md")
+                read_note_entries()["entries"][&id]["folder"],
+                json!("inbox")
             );
         },
     );
@@ -151,9 +153,10 @@ fn move_entry_project_moves_every_translation_and_the_digest_path() {
             }
             assert!(notes.join("digest/learning-ai-llm/topic/slug.md").exists());
             let entry = read_note_entries()["entries"][&id].clone();
-            assert_eq!(entry["common_path"], json!("learning-ai-llm/topic/slug.md"));
+            assert_eq!(entry["folder"], json!("learning-ai-llm"));
+            assert!(entry.get("common_path").is_none());
             assert_eq!(entry["layers"], json!(["raw", "digest"]));
-            assert_eq!(entry["translations"]["ja"], json!("learning-ai-llm/topic/slug-ja.md"));
+            assert_eq!(entry["translations"]["ja"], json!("topic/slug-ja.md"));
         },
     );
 }

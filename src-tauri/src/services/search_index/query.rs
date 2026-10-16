@@ -35,6 +35,8 @@ pub struct QueryHit {
     pub common_path: String,
     /// Filled by `resolve_hits`: `owner/name` for knowledge, empty for notes.
     pub repo: String,
+    /// Notes: category folder. Knowledge: unused.
+    pub topic: String,
     pub title: String,
     pub body: String,
     pub snippet: String,
@@ -190,6 +192,7 @@ fn row_to_hit(row: &rusqlite::Row<'_>) -> rusqlite::Result<QueryHit> {
         layer: row.get(2)?,
         common_path: String::new(),
         repo: String::new(),
+        topic: String::new(),
         title: row.get(3)?,
         body: row.get(4)?,
         snippet: row.get::<_, String>(5).unwrap_or_default(),
@@ -274,13 +277,12 @@ pub fn search_desktop_spark(cache_dir: &Path, q: &str, limit: Option<u32>) -> Va
                 .into_iter()
                 .filter(|h| h.category == "notes")
                 .map(|h| {
-                    let topic = h.common_path.split('/').next().unwrap_or("").to_string();
                     // digest chunks only help recall; the UI always opens the note itself.
                     json!({
                         "title": h.title,
-                        "common_path": h.common_path,
+                        "id": h.doc_id,
                         "layer": "raw",
-                        "topic": topic,
+                        "topic": h.topic,
                         "body": h.snippet,
                         "_formatted": { "body": h.snippet },
                     })

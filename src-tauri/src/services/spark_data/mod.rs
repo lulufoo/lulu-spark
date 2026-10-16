@@ -23,8 +23,8 @@ pub use knowledge_registry::{
 };
 pub use note_annotation::annotation_object;
 pub use note_category_row::{
-    delete_note_category, get_note_category, get_note_category_by_folder, insert_note_category,
-    list_note_categories, update_note_category, NoteCategoryRow,
+    category_folder, delete_note_category, get_note_category, get_note_category_by_folder,
+    insert_note_category, list_note_categories, update_note_category, NoteCategoryRow,
 };
 pub use note_entry::{entry_from_note, list_note_entries, translation_common_paths};
 pub use note_row::{

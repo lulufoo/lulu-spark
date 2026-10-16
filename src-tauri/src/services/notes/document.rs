@@ -15,7 +15,7 @@ use super::digest::{
     parse_digest_mode, write_digest_file,
 };
 use super::store::{
-    notes_layer_path, open_data, parse_translations, reject_legacy_translation_fields,
+    notes_file_path, open_data, parse_translations, reject_legacy_translation_fields,
     resolve_archive_source_markdown, rollback_written, write_markdown_atomic,
 };
 
@@ -126,7 +126,8 @@ fn write_note(
     }
 
     let notes = notes_root_path(repo_root);
-    let raw_path = match notes_layer_path(&notes, "raw", &meta.common_path) {
+    let folder = meta.project.as_str();
+    let raw_path = match notes_file_path(&notes, "raw", folder, &meta.common_path) {
         Ok(p) => p,
         Err(v) => return v,
     };
@@ -139,7 +140,7 @@ fn write_note(
 
     let mut extra_paths: Vec<PathBuf> = Vec::new();
     for t in &translations {
-        let path = match notes_layer_path(&notes, "raw", &t.common_path) {
+        let path = match notes_file_path(&notes, "raw", folder, &t.common_path) {
             Ok(p) => p,
             Err(v) => return v,
         };
@@ -177,7 +178,7 @@ fn write_note(
             rollback_written(&written);
             return json!({ "error": "Missing digest_body", "_status": 400 });
         };
-        match write_digest_file(&notes, &meta.common_path, digest_md, &mut written) {
+        match write_digest_file(&notes, folder, &meta.common_path, digest_md, &mut written) {
             Ok(rel) => digest_rel = Some(rel),
             Err(v) => {
                 rollback_written(&written);
@@ -198,7 +199,6 @@ fn write_note(
     row.source_type = Some(meta.source_type.clone());
     row.digest_path = digest_rel.as_ref().map(|_| meta.common_path.clone());
     row.translations = json!(translations.iter().map(|t| t.lang.as_str()).collect::<Vec<_>>());
-    let folder = meta.common_path.split('/').next().unwrap_or("inbox");
     let stored = open_data().and_then(|conn| {
         let cat = get_note_category_by_folder(&conn, folder)
             .map_err(|e| json!({ "error": e, "_status": 500 }))?
@@ -217,8 +217,6 @@ fn write_note(
     let mut response = json!({
         "ok": true,
         "id": id,
-        "common_path": meta.common_path,
-        "raw_path": format!("raw/{}", meta.common_path),
         "created_at": meta.created_at
     });
     if !extra_rel_paths.is_empty() {

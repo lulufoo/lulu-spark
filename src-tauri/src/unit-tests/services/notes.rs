@@ -55,6 +55,24 @@ fn path_payload(sandbox: &TestSandbox, content: &str, mut base: serde_json::Valu
     base
 }
 
+fn note_row(id: &str) -> crate::services::spark_data::NoteRow {
+    crate::services::spark_data::get_note(
+        &crate::services::spark_data::open().expect("db"),
+        id,
+    )
+    .expect("get")
+    .expect("row")
+}
+
+fn note_disk(notes: &std::path::Path, layer: &str, id: &str) -> PathBuf {
+    let conn = crate::services::spark_data::open().expect("db");
+    let note = crate::services::spark_data::get_note(&conn, id)
+        .expect("get")
+        .expect("row");
+    let folder = crate::services::spark_data::category_folder(&conn, &note.category_id).expect("folder");
+    crate::services::notes::notes_file_path(notes, layer, &folder, &note.raw_path).expect("path")
+}
+
 fn filename_has_ts_rand(common_path: &str) -> bool {
     let file = common_path.rsplit('/').next().unwrap_or("");
     file.len() >= 19
@@ -107,11 +125,11 @@ fn create_note_writes_raw_and_index() {
     let id = v["id"].as_str().expect("id");
     assert_eq!(id.len(), 32);
     let notes = crate::config::roots::notes_root_path(&repo_root);
-    let common_path = v["common_path"].as_str().expect("common_path");
-    assert!(common_path.starts_with("inbox/notes/"), "{common_path}");
-    assert!(common_path.ends_with("-source.md"), "{common_path}");
-    assert!(filename_has_ts_rand(common_path), "{common_path}");
-    let raw = notes.join("raw").join(common_path);
+    let rel = note_row(id).raw_path;
+    assert!(rel.starts_with("notes/"), "{rel}");
+    assert!(rel.ends_with("-source.md"), "{rel}");
+    assert!(filename_has_ts_rand(&rel), "{rel}");
+    let raw = note_disk(&notes, "raw", id);
     assert!(raw.is_file());
     let raw_text = fs::read_to_string(&raw).unwrap();
     assert_eq!(raw_text, SAMPLE_DOC);
@@ -122,14 +140,9 @@ fn create_note_writes_raw_and_index() {
         .as_array()
         .unwrap()
         .contains(&json!("raw")));
-    let row = crate::services::spark_data::get_note(
-        &crate::services::spark_data::open().expect("db"),
-        id,
-    )
-    .expect("get")
-    .expect("row");
+    let row = note_row(id);
     assert_eq!(row.category_id, "inbox");
-    assert_eq!(row.raw_path, common_path);
+    assert_eq!(row.raw_path, rel);
 }
 
 #[test]
@@ -140,7 +153,10 @@ fn create_note_second_write_gets_new_filename() {
     let second = create_note(&repo_root, &payload);
     assert_eq!(first.get("ok"), Some(&json!(true)));
     assert_eq!(second.get("ok"), Some(&json!(true)));
-    assert_ne!(first["common_path"], second["common_path"]);
+    assert_ne!(
+        note_row(first["id"].as_str().unwrap()).raw_path,
+        note_row(second["id"].as_str().unwrap()).raw_path
+    );
 }
 
 #[test]
@@ -161,10 +177,10 @@ fn create_note_always_writes_digest_and_updates_layers() {
     assert_eq!(v.get("ok"), Some(&json!(true)), "create_note failed: {v}");
     let id = v["id"].as_str().unwrap();
     let notes = crate::config::roots::notes_root_path(&repo_root);
-    let common_path = v["common_path"].as_str().unwrap();
-    let digest = notes.join("digest").join(common_path);
+    let rel = note_row(id).raw_path;
+    let digest = note_disk(&notes, "digest", id);
     assert!(digest.is_file());
-    assert_eq!(v["digest_path"], json!(format!("digest/{common_path}")));
+    assert_eq!(v["digest_path"], json!(rel));
     let index: serde_json::Value =
         read_note_entries();
     assert_eq!(
@@ -213,8 +229,8 @@ fn create_note_auto_skips_short_summary() {
     assert_eq!(v.get("ok"), Some(&json!(true)), "{v}");
     assert!(v.get("digest_path").is_none());
     let notes = crate::config::roots::notes_root_path(&repo_root);
-    let common_path = v["common_path"].as_str().unwrap();
-    assert!(!notes.join("digest").join(common_path).is_file());
+    let id = v["id"].as_str().unwrap();
+    assert!(!note_disk(&notes, "digest", id).is_file());
 }
 
 #[test]
@@ -279,23 +295,18 @@ fn create_note_theme_line_with_zh_translation() {
     );
     assert_eq!(v.get("ok"), Some(&json!(true)), "failed: {v}");
     let notes = crate::config::roots::notes_root_path(&repo_root);
-    let common_path = v["common_path"].as_str().unwrap();
-    assert!(common_path.starts_with("learning-ai-agent/waymo-interview/202606191700-"));
-    let zh_path = format!("{}-zh.md", common_path.trim_end_matches(".md"));
-    assert!(notes.join(format!("raw/{zh_path}")).is_file());
-    assert_eq!(v["extra_paths"], json!([format!("raw/{zh_path}")]));
     let id = v["id"].as_str().unwrap();
+    let rel = note_row(id).raw_path;
+    assert!(rel.starts_with("waymo-interview/202606191700-"), "{rel}");
+    let zh_rel = format!("{}-zh.md", rel.trim_end_matches(".md"));
+    assert!(notes.join("raw/learning-ai-agent").join(&zh_rel).is_file());
+    assert_eq!(v["extra_paths"], json!([format!("raw/{zh_rel}")]));
     let index: serde_json::Value =
         read_note_entries();
-    assert_eq!(index["entries"][id]["translations"]["zh"], json!(zh_path));
-    let row = crate::services::spark_data::get_note(
-        &crate::services::spark_data::open().expect("db"),
-        id,
-    )
-    .expect("get")
-    .expect("row");
+    assert_eq!(index["entries"][id]["translations"]["zh"], json!(zh_rel));
+    let row = note_row(id);
     assert_eq!(row.category_id, "learning-ai-agent");
-    assert_eq!(row.raw_path, common_path);
+    assert_eq!(row.raw_path, rel);
 }
 
 #[test]
@@ -315,8 +326,8 @@ fn create_note_zh_from_source_path() {
         })),
     );
     assert_eq!(v.get("ok"), Some(&json!(true)), "failed: {v}");
-    let common_path = v["common_path"].as_str().unwrap();
-    let zh_path = format!("raw/{}-zh.md", common_path.trim_end_matches(".md"));
+    let rel = note_row(v["id"].as_str().unwrap()).raw_path;
+    let zh_path = format!("raw/{}-zh.md", rel.trim_end_matches(".md"));
     assert_eq!(v["extra_paths"], json!([zh_path]));
 }
 
@@ -384,7 +395,7 @@ fn create_note_multi_lang_translations() {
     assert_eq!(v.get("ok"), Some(&json!(true)), "failed: {v}");
     let id = v["id"].as_str().unwrap();
     let index: serde_json::Value = read_note_entries();
-    let stem = v["common_path"].as_str().unwrap().trim_end_matches(".md");
+    let stem = note_row(id).raw_path.trim_end_matches(".md").to_string();
     assert_eq!(
         index["entries"][id]["translations"]["zh"],
         json!(format!("{stem}-zh.md"))
@@ -517,13 +528,13 @@ fn create_jot_writes_raw_index_with_source_type_jot() {
         .expect("create_jot");
     assert_eq!(v.get("ok"), Some(&json!(true)), "failed: {v}");
     let id = v["id"].as_str().expect("id");
-    let common_path = v["common_path"].as_str().expect("common_path");
-    assert!(common_path.starts_with("inbox/notes/202607101433-"), "{common_path}");
-    assert!(common_path.ends_with(".md"), "{common_path}");
-    assert!(filename_has_ts_rand(common_path), "{common_path}");
+    let rel = note_row(id).raw_path;
+    assert!(rel.starts_with("notes/202607101433-"), "{rel}");
+    assert!(rel.ends_with(".md"), "{rel}");
+    assert!(filename_has_ts_rand(&rel), "{rel}");
 
     let notes = crate::config::roots::notes_root_path(&repo_root);
-    let raw = notes.join("raw").join(common_path);
+    let raw = note_disk(&notes, "raw", id);
     assert!(raw.is_file(), "raw must exist at {raw:?}");
     let raw_text = fs::read_to_string(&raw).expect("read raw");
     assert!(raw_text.starts_with("# 快速记录\n"));
@@ -534,7 +545,7 @@ fn create_jot_writes_raw_index_with_source_type_jot() {
         read_note_entries();
     let entry = &index["entries"][id];
     assert_eq!(entry["source_type"], json!("jot"));
-    assert_eq!(entry["common_path"], json!(common_path));
+    assert_eq!(entry["folder"], json!("inbox"));
     assert!(entry["layers"]
         .as_array()
         .unwrap()
@@ -550,7 +561,10 @@ fn create_jot_second_write_gets_new_filename() {
     let second = create_jot(&repo_root, body, &opts).expect("second create");
     assert_eq!(first.get("ok"), Some(&json!(true)));
     assert_eq!(second.get("ok"), Some(&json!(true)));
-    assert_ne!(first["common_path"], second["common_path"]);
+    assert_ne!(
+        note_row(first["id"].as_str().unwrap()).raw_path,
+        note_row(second["id"].as_str().unwrap()).raw_path
+    );
 }
 
 #[test]
@@ -587,12 +601,13 @@ fn create_note_content_writes_from_markdown_body() {
         }),
     );
     assert_eq!(v.get("ok"), Some(&json!(true)), "create_note_content failed: {v}");
-    assert_eq!(v["id"].as_str().expect("id").len(), 32);
-    let common_path = v["common_path"].as_str().expect("common_path");
-    assert!(common_path.starts_with("inbox/notes/"), "{common_path}");
-    assert!(common_path.ends_with(".md"), "{common_path}");
-    assert!(!common_path.ends_with("-source.md"), "{common_path}");
-    assert!(filename_has_ts_rand(common_path), "{common_path}");
+    let id = v["id"].as_str().expect("id");
+    assert_eq!(id.len(), 32);
+    let rel = note_row(id).raw_path;
+    assert!(rel.starts_with("notes/"), "{rel}");
+    assert!(rel.ends_with(".md"), "{rel}");
+    assert!(!rel.ends_with("-source.md"), "{rel}");
+    assert!(filename_has_ts_rand(&rel), "{rel}");
 }
 
 #[test]
@@ -757,11 +772,12 @@ fn create_note_writes_source_as_is_with_zh_and_no_separator() {
     );
     assert_eq!(v.get("ok"), Some(&json!(true)), "{v}");
     let notes = crate::config::roots::notes_root_path(&repo_root);
-    let common_path = v["common_path"].as_str().unwrap();
-    let raw = fs::read_to_string(notes.join("raw").join(common_path)).unwrap();
+    let id = v["id"].as_str().unwrap();
+    let raw = fs::read_to_string(note_disk(&notes, "raw", id)).unwrap();
     assert_eq!(raw, FREEFORM_EN);
-    let zh_path = format!("{}-zh.md", common_path.trim_end_matches(".md"));
-    let zh_raw = fs::read_to_string(notes.join("raw").join(zh_path)).unwrap();
+    let rel = note_row(id).raw_path;
+    let zh_path = format!("{}-zh.md", rel.trim_end_matches(".md"));
+    let zh_raw = fs::read_to_string(notes.join("raw/inbox").join(zh_path)).unwrap();
     assert_eq!(zh_raw, FREEFORM_ZH);
 }
 
@@ -811,16 +827,15 @@ fn update_note_overwrites_raw_and_keeps_id_path() {
     );
     assert_eq!(created.get("ok"), Some(&json!(true)), "{created}");
     let id = created["id"].as_str().unwrap().to_string();
-    let common_path = created["common_path"].as_str().unwrap().to_string();
     let v = update_note(
         &repo_root,
         &update_path_payload(&sandbox, &id, "# New\n\n---\n\n改过的正文\n", json!({})),
     );
     assert_eq!(v.get("ok"), Some(&json!(true)), "{v}");
     assert_eq!(v["id"], json!(id));
-    assert_eq!(v["common_path"], json!(common_path));
+    assert!(v.get("common_path").is_none());
     let notes = crate::config::roots::notes_root_path(&repo_root);
-    let raw = fs::read_to_string(notes.join("raw").join(&common_path)).unwrap();
+    let raw = fs::read_to_string(note_disk(&notes, "raw", &id)).unwrap();
     assert!(raw.contains("改过的正文"), "{raw}");
     assert!(!raw.contains("enough content"), "{raw}");
 }
@@ -838,9 +853,8 @@ fn update_note_never_leaves_existing_digest() {
         ),
     );
     let id = created["id"].as_str().unwrap();
-    let common_path = created["common_path"].as_str().unwrap();
     let notes = crate::config::roots::notes_root_path(&repo_root);
-    let digest = notes.join("digest").join(common_path);
+    let digest = note_disk(&notes, "digest", id);
     let v = update_note(
         &repo_root,
         &update_path_payload(&sandbox, id, "# New\n\n---\n\n只改正文\n", json!({})),
@@ -858,7 +872,6 @@ fn update_note_always_overwrites_digest_and_adds_layer() {
         &path_payload(&sandbox, SAMPLE_DOC, json!({})),
     );
     let id = created["id"].as_str().unwrap().to_string();
-    let common_path = created["common_path"].as_str().unwrap().to_string();
     let digest_body = "# 新摘要\n\n> 创建时间：2026年6月19日 14:30\n\n## 概述\n\nupdated";
     let v = update_note(
         &repo_root,
@@ -870,16 +883,17 @@ fn update_note_always_overwrites_digest_and_adds_layer() {
         ),
     );
     assert_eq!(v.get("ok"), Some(&json!(true)), "{v}");
-    assert_eq!(v["digest_path"], json!(format!("digest/{common_path}")));
+    let rel = note_row(&id).raw_path;
+    assert_eq!(v["digest_path"], json!(rel));
     let notes = crate::config::roots::notes_root_path(&repo_root);
     assert_eq!(
-        fs::read_to_string(notes.join("digest").join(&common_path)).unwrap(),
+        fs::read_to_string(note_disk(&notes, "digest", &id)).unwrap(),
         digest_body
     );
     let index: serde_json::Value =
         read_note_entries();
     assert_eq!(index["entries"][&id]["layers"], json!(["raw", "digest"]));
-    assert_eq!(index["entries"][&id]["common_path"], json!(common_path));
+    assert_eq!(index["entries"][&id]["folder"], json!("inbox"));
 }
 
 #[test]
@@ -965,7 +979,6 @@ fn update_note_content_overwrites_and_rejects_source_path() {
     );
     assert_eq!(created.get("ok"), Some(&json!(true)), "{created}");
     let id = created["id"].as_str().unwrap();
-    let common_path = created["common_path"].as_str().unwrap();
     let v = update_note_content(
         &repo_root,
         &json!({
@@ -976,7 +989,7 @@ fn update_note_content_overwrites_and_rejects_source_path() {
     );
     assert_eq!(v.get("ok"), Some(&json!(true)), "{v}");
     let notes = crate::config::roots::notes_root_path(&repo_root);
-    let raw = fs::read_to_string(notes.join("raw").join(common_path)).unwrap();
+    let raw = fs::read_to_string(note_disk(&notes, "raw", id)).unwrap();
     assert!(raw.contains("手机改正文"), "{raw}");
     let mixed = update_note_content(
         &repo_root,

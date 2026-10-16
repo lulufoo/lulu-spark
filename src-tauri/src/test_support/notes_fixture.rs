@@ -12,8 +12,18 @@ fn text(entry: &Value, key: &str) -> Option<String> {
     entry.get(key).and_then(Value::as_str).map(String::from)
 }
 
-fn path_folder(raw_path: &str) -> &str {
-    raw_path.split('/').next().filter(|s| !s.is_empty()).expect("common_path folder")
+/// Seed `common_path` is stored rel. Optional `folder` (default: first path
+/// segment, or `inbox` when the path has no slash).
+fn seed_folder_and_rel(entry: &Value, raw_path: &str) -> (String, String) {
+    if let Some(folder) = text(entry, "folder") {
+        return (folder, raw_path.to_string());
+    }
+    match raw_path.split_once('/') {
+        Some((folder, rel)) if !folder.is_empty() && !rel.is_empty() => {
+            (folder.to_string(), rel.to_string())
+        }
+        _ => ("inbox".into(), raw_path.to_string()),
+    }
 }
 
 fn ensure_folder_category(conn: &Connection, folder: &str) -> String {
@@ -24,13 +34,15 @@ fn ensure_folder_category(conn: &Connection, folder: &str) -> String {
     folder.to_string()
 }
 
-/// `entries` is `{ "<id>": { common_path, created_at, layers, source_type, translations, title } }`.
+/// `entries` is `{ "<id>": { common_path, folder?, created_at, layers, ... } }`.
+/// Stored `raw_path` never includes the category folder.
 pub fn seed_note_entries(entries: &Value) {
     let conn = spark_data::open().expect("open spark-data");
     for (id, entry) in entries.as_object().expect("entries object") {
-        let raw_path = text(entry, "common_path").expect("common_path");
+        let raw_in = text(entry, "common_path").expect("common_path");
+        let (folder, raw_path) = seed_folder_and_rel(entry, &raw_in);
         let mut note = NoteRow::new(id, &raw_path);
-        note.category_id = ensure_folder_category(&conn, path_folder(&raw_path));
+        note.category_id = ensure_folder_category(&conn, &folder);
         let has_digest = entry
             .get("layers")
             .and_then(Value::as_array)

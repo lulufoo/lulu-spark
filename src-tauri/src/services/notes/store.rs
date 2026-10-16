@@ -33,12 +33,17 @@ pub(super) fn resolve_archive_source_markdown(source_path: &str) -> Result<Strin
     }
 }
 
-pub(super) fn notes_layer_path(
+/// Disk path: `{notes}/{layer}/{folder}/{rel}` where `folder` is the category folder.
+pub fn notes_file_path(
     notes: &Path,
     layer: &str,
-    common_path: &str,
+    folder: &str,
+    rel: &str,
 ) -> Result<PathBuf, Value> {
-    if common_path.is_empty() || common_path.contains("..") {
+    if folder.is_empty() || folder.contains("..") || folder.contains('/') || folder.contains('\\') {
+        return Err(json!({ "error": "Invalid folder", "_status": 400 }));
+    }
+    if rel.is_empty() || rel.contains("..") {
         return Err(json!({ "error": "Invalid path", "_status": 400 }));
     }
     if layer != "raw" && layer != "digest" {
@@ -51,7 +56,7 @@ pub(super) fn notes_layer_path(
         Ok(p) => p,
         Err(e) => return Err(json!({ "error": e.to_string(), "_status": 500 })),
     };
-    Ok(notes_canon.join(layer).join(common_path))
+    Ok(notes_canon.join(layer).join(folder).join(rel))
 }
 
 pub(super) fn write_markdown_atomic(path: &Path, content: &str) -> Result<(), String> {

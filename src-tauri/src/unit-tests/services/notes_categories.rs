@@ -66,7 +66,7 @@ fn add_and_delete_do_not_touch_notes_or_raw() {
     create_notes_category("ai-software-dev", "AI", "").expect("add existing slug");
     delete_notes_category("ai-software-dev").expect("delete");
 
-    assert!(read_note_entries()["entries"][id]["common_path"] == "inbox/theme/n.md");
+    assert_eq!(read_note_entries()["entries"][id]["folder"], "inbox");
     assert!(notes.join("raw/ai-software-dev/theme/n.md").is_file());
     assert!(!known_ids().unwrap().contains("ai-software-dev"));
     assert!(known_ids().unwrap().contains("research"));
@@ -108,7 +108,7 @@ fn update_title_does_not_touch_notes_or_id() {
     let row = table_rows().into_iter().find(|r| r.id == "ops").expect("row");
     assert_eq!(row.title, "Operations");
     assert_eq!(row.description, "runbooks");
-    assert_eq!(read_note_entries()["entries"][id]["common_path"], "ops/theme/n.md");
+    assert_eq!(read_note_entries()["entries"][id]["folder"], "ops");
 }
 
 #[test]

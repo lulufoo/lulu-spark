@@ -11,12 +11,13 @@ fn with_cache<F: FnOnce()>(f: F) {
 #[test]
 fn save_draft_writes_under_cache_dir() {
     with_cache(|| {
+        let id = "cccccccccccccccccccccccccccccccc";
         let v = save_comment_draft(&json!({
-            "common_path": "proj/note.md",
+            "id": id,
             "content": "hello"
         }));
         assert_eq!(v["ok"], true);
-        let p = paths::draft_path("proj/note.md").expect("path");
+        let p = paths::draft_path(id).expect("path");
         assert_eq!(fs::read_to_string(&p).expect("read"), "hello");
     });
 }
@@ -48,12 +49,13 @@ fn clear_note_draft_removes_file_after_success_or_empty_exit() {
 #[test]
 fn note_draft_is_isolated_from_comment_draft() {
     with_cache(|| {
+        let id = "dddddddddddddddddddddddddddddddd";
         let comment = save_comment_draft(&json!({
-            "common_path": "proj/existing.md",
+            "id": id,
             "content": "comment draft stays"
         }));
         assert_eq!(comment["ok"], true);
-        let comment_path = paths::draft_path("proj/existing.md").expect("comment path");
+        let comment_path = paths::draft_path(id).expect("comment path");
         let before = fs::read_to_string(&comment_path).expect("read comment");
 
         save_note_draft("tmp-iso", "notes only").expect("save note");

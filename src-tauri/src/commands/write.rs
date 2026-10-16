@@ -163,19 +163,19 @@ pub fn sediment_kb_remove_category(_app: AppHandle, payload: Value) -> Result<Va
 }
 
 #[tauri::command]
-pub fn set_done(_app: AppHandle, common_path: String, done: bool) -> Result<Value, String> {
-    Ok(annotation::set_done(&repo_root()?, &common_path, done))
+pub fn set_done(_app: AppHandle, id: String, done: bool) -> Result<Value, String> {
+    Ok(annotation::set_done(&repo_root()?, &id, done))
 }
 
 #[tauri::command]
 pub fn set_importance(
     _app: AppHandle,
-    common_path: String,
+    id: String,
     importance: Option<String>,
 ) -> Result<Value, String> {
     Ok(annotation::set_importance(
         &repo_root()?,
-        &common_path,
+        &id,
         importance,
     ))
 }
@@ -183,23 +183,23 @@ pub fn set_importance(
 #[tauri::command]
 pub fn update_links(
     _app: AppHandle,
-    common_path: String,
+    id: String,
     links: Value,
 ) -> Result<Value, String> {
-    Ok(annotation::update_links(&repo_root()?, &common_path, links))
+    Ok(annotation::update_links(&repo_root()?, &id, links))
 }
 
 #[tauri::command]
 pub fn update_comments(
     _app: AppHandle,
-    common_path: String,
+    id: String,
     layer: String,
     comment: Value,
     ts: String,
 ) -> Result<Value, String> {
     Ok(annotation::update_comments(
         &repo_root()?,
-        &common_path,
+        &id,
         &layer,
         comment,
         ts,
@@ -209,13 +209,13 @@ pub fn update_comments(
 #[tauri::command]
 pub fn reorder_comments(
     _app: AppHandle,
-    common_path: String,
+    id: String,
     layer: String,
     ids: Vec<String>,
 ) -> Result<Value, String> {
     Ok(annotation::reorder_comments(
         &repo_root()?,
-        &common_path,
+        &id,
         &layer,
         ids,
     ))
@@ -224,14 +224,14 @@ pub fn reorder_comments(
 #[tauri::command]
 pub fn update_highlights(
     _app: AppHandle,
-    common_path: String,
+    id: String,
     layer: String,
     highlight: Value,
     ts: String,
 ) -> Result<Value, String> {
     Ok(annotation::update_highlights(
         &repo_root()?,
-        &common_path,
+        &id,
         &layer,
         highlight,
         ts,
@@ -252,14 +252,16 @@ pub fn update_doc_highlights(
 pub fn save_entry(
     _app: AppHandle,
     layer: String,
-    common_path: String,
+    id: String,
     content: String,
+    lang: Option<String>,
 ) -> Result<Value, String> {
     Ok(entry_write::save_entry(
         &repo_root()?,
         layer,
-        common_path,
+        id,
         content,
+        lang,
     ))
 }
 
@@ -345,7 +347,7 @@ pub fn kb_update_links(
 #[tauri::command]
 pub fn tag_attach(
     _app: AppHandle,
-    common_path: String,
+    id: String,
     key: Option<String>,
     value: Option<String>,
 ) -> Result<Value, String> {
@@ -358,7 +360,7 @@ pub fn tag_attach(
     }
     Ok(tag_write::tag_attach(
         &repo_root()?,
-        &common_path,
+        &id,
         &Value::Object(payload),
     ))
 }
@@ -366,10 +368,10 @@ pub fn tag_attach(
 #[tauri::command]
 pub fn tag_detach(
     _app: AppHandle,
-    common_path: String,
+    id: String,
     key: String,
 ) -> Result<Value, String> {
-    Ok(tag_write::tag_detach(&repo_root()?, &common_path, &key))
+    Ok(tag_write::tag_detach(&repo_root()?, &id, &key))
 }
 
 #[tauri::command]

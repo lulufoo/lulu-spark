@@ -14,10 +14,10 @@ pub fn expected_zh_common_path(primary_common_path: &str) -> Option<String> {
 
 pub fn is_valid_common_path(common_path: &str) -> bool {
     let parts: Vec<&str> = common_path.split('/').collect();
-    if parts.len() != 3 {
+    if parts.len() != 2 {
         return false;
     }
-    let filename = parts[2];
+    let filename = parts[1];
     if !filename.ends_with(".md") {
         return false;
     }

@@ -47,7 +47,7 @@ fn create_note_json_success_returns_entry_handle() {
     assert_eq!(v.get("ok"), Some(&json!(true)), "archive failed: {v}");
     let id = v["id"].as_str().expect("id");
     assert_eq!(id.len(), 32);
-    assert!(v.get("common_path").and_then(|c| c.as_str()).is_some());
+    assert!(v.get("common_path").is_none());
     assert!(v.get("error").is_none());
 }
 
@@ -94,5 +94,5 @@ fn create_note_json_second_write_gets_new_filename() {
     let second = create_note_json(payload).expect("second");
     assert_eq!(first.get("ok"), Some(&json!(true)));
     assert_eq!(second.get("ok"), Some(&json!(true)));
-    assert_ne!(first["common_path"], second["common_path"]);
+    assert_ne!(first["id"], second["id"]);
 }

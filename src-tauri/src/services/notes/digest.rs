@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use serde_json::{json, Value};
 
-use super::store::{notes_layer_path, write_markdown_atomic};
+use super::store::{notes_file_path, write_markdown_atomic};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum DigestMode {
@@ -62,11 +62,12 @@ pub(super) fn digest_applies(raw: &str, source_type: &str) -> bool {
 
 pub(super) fn write_digest_file(
     notes: &Path,
-    common_path: &str,
+    folder: &str,
+    rel: &str,
     digest_body: &str,
     written: &mut Vec<PathBuf>,
 ) -> Result<String, Value> {
-    let digest_path = notes_layer_path(notes, "digest", common_path)?;
+    let digest_path = notes_file_path(notes, "digest", folder, rel)?;
     if digest_path.is_file() {
         return Err(json!({
             "error": "File already exists",
@@ -77,21 +78,22 @@ pub(super) fn write_digest_file(
         return Err(json!({ "error": e, "_status": 500 }));
     }
     written.push(digest_path);
-    Ok(format!("digest/{common_path}"))
+    Ok(rel.to_string())
 }
 
 /// Overwrite digest if it already exists (update_note). Create-note stays on
 /// [`write_digest_file`] and still 409s when the digest file is present.
 pub(super) fn write_digest_file_overwrite(
     notes: &Path,
-    common_path: &str,
+    folder: &str,
+    rel: &str,
     digest_body: &str,
 ) -> Result<String, Value> {
-    let digest_path = notes_layer_path(notes, "digest", common_path)?;
+    let digest_path = notes_file_path(notes, "digest", folder, rel)?;
     if let Err(e) = write_markdown_atomic(&digest_path, digest_body) {
         return Err(json!({ "error": e, "_status": 500 }));
     }
-    Ok(format!("digest/{common_path}"))
+    Ok(rel.to_string())
 }
 
 fn turn_block_count(raw: &str) -> usize {

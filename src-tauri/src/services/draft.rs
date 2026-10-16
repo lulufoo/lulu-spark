@@ -8,8 +8,8 @@ use serde_json::{json, Value};
 use crate::config::paths;
 
 pub fn save_comment_draft(payload: &Value) -> Value {
-    let common_path = payload
-        .get("common_path")
+    let id = payload
+        .get("id")
         .and_then(|v| v.as_str())
         .unwrap_or("")
         .trim();
@@ -17,10 +17,10 @@ pub fn save_comment_draft(payload: &Value) -> Value {
         .get("content")
         .and_then(|v| v.as_str())
         .unwrap_or("");
-    if common_path.is_empty() || common_path.contains("..") {
-        return json!({ "error": "Invalid path", "_status": 400 });
+    if id.len() != 32 || !id.chars().all(|c| c.is_ascii_hexdigit()) {
+        return json!({ "error": "Invalid id", "_status": 400 });
     }
-    let draft_file = match paths::draft_path(common_path) {
+    let draft_file = match paths::draft_path(id) {
         Ok(p) => p,
         Err(_) => return json!({ "error": "Path traversal not allowed", "_status": 400 }),
     };

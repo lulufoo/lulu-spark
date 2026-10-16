@@ -73,7 +73,8 @@ fn collect_notes_reads_the_note_table_not_the_directory() {
     let sandbox = TestSandbox::new();
     let notes = sandbox.data_dir().join("notes").join("raw");
     fs::create_dir_all(notes.join(".cache")).expect("mkdir");
-    fs::write(notes.join("keep.md"), "# k").expect("w");
+    fs::create_dir_all(notes.join("inbox")).expect("mkdir inbox");
+    fs::write(notes.join("inbox/keep.md"), "# k").expect("w");
     fs::write(notes.join(".cache/stray.md"), "# s").expect("w");
     crate::test_support::seed_note_entries(&serde_json::json!({ "n1": { "common_path": "keep.md" } }));
     let chunks = crate::services::search_index::collect_notes(sandbox.config_dir()).expect("collect");

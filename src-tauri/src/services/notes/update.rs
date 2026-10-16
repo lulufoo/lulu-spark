@@ -7,14 +7,16 @@ use serde_json::{json, Value};
 
 use crate::config::roots::notes_root_path;
 use crate::services::search_index;
-use crate::services::spark_data::{get_note, update_note as update_note_row, NoteRow};
+use crate::services::spark_data::{
+    category_folder, get_note, update_note as update_note_row, NoteRow,
+};
 use crate::services::translation_gate;
 
 use super::digest::{
     digest_body_from_payload, digest_should_write, parse_digest_mode, write_digest_file_overwrite,
 };
 use super::store::{
-    notes_layer_path, open_data, reject_legacy_translation_fields, resolve_archive_source_markdown,
+    notes_file_path, open_data, reject_legacy_translation_fields, resolve_archive_source_markdown,
     write_markdown_atomic,
 };
 
@@ -100,10 +102,14 @@ fn update_note_from_body(repo_root: &Path, payload: &Value, source: &str) -> Val
         Ok(None) => return json!({ "error": "Entry not found", "_status": 404 }),
         Err(e) => return json!({ "error": e, "_status": 500 }),
     };
-    let common_path = note.raw_path.trim().to_string();
-    if common_path.is_empty() || common_path.contains("..") {
+    let rel = note.raw_path.trim().to_string();
+    if rel.is_empty() || rel.contains("..") {
         return json!({ "error": "Invalid path", "_status": 400 });
     }
+    let folder = match category_folder(&conn, &note.category_id) {
+        Ok(f) => f,
+        Err(e) => return json!({ "error": e, "_status": 500 }),
+    };
     let source_type = note.source_type.clone().unwrap_or_else(|| "summary".to_string());
 
     if translation_gate::is_full_english(source) && !note_has_zh(&note) {
@@ -120,7 +126,7 @@ fn update_note_from_body(repo_root: &Path, payload: &Value, source: &str) -> Val
     }
 
     let notes = notes_root_path(repo_root);
-    let raw_path = match notes_layer_path(&notes, "raw", &common_path) {
+    let raw_path = match notes_file_path(&notes, "raw", &folder, &rel) {
         Ok(p) => p,
         Err(v) => return v,
     };
@@ -145,7 +151,7 @@ fn update_note_from_body(repo_root: &Path, payload: &Value, source: &str) -> Val
             let _ = write_markdown_atomic(&raw_path, &prev_raw);
             return json!({ "error": "Missing digest_body", "_status": 400 });
         };
-        match write_digest_file_overwrite(&notes, &common_path, digest_md) {
+        match write_digest_file_overwrite(&notes, &folder, &rel, digest_md) {
             Ok(rel) => digest_rel = Some(rel),
             Err(v) => {
                 let _ = write_markdown_atomic(&raw_path, &prev_raw);
@@ -156,7 +162,7 @@ fn update_note_from_body(repo_root: &Path, payload: &Value, source: &str) -> Val
 
     if digest_rel.is_some() && note.digest_path.is_none() {
         let mut updated = note.clone();
-        updated.digest_path = Some(common_path.clone());
+        updated.digest_path = Some(rel.clone());
         if let Err(e) = update_note_row(&conn, &updated) {
             let _ = write_markdown_atomic(&raw_path, &prev_raw);
             return json!({ "error": e, "_status": 500 });
@@ -168,8 +174,6 @@ fn update_note_from_body(repo_root: &Path, payload: &Value, source: &str) -> Val
     let mut response = json!({
         "ok": true,
         "id": id,
-        "common_path": common_path,
-        "raw_path": format!("raw/{common_path}"),
     });
     if let Some(rel) = digest_rel {
         response["digest_path"] = json!(rel);

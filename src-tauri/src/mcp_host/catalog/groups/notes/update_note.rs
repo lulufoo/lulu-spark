@@ -17,9 +17,6 @@ pub(crate) fn produce_notes_if_ok(result: &Value) {
         if let Some(id) = result.get("id") {
             params.insert("archive_id".to_string(), id.clone());
         }
-        if let Some(path) = result.get("common_path") {
-            params.insert("common_path".to_string(), path.clone());
-        }
         let _ = message_center::produce(message_center::Envelope {
             business: "notes".to_string(),
             action: "update".to_string(),

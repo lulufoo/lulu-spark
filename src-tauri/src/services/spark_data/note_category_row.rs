@@ -61,6 +61,12 @@ pub fn get_note_category(conn: &Connection, id: &str) -> Result<Option<NoteCateg
     .map_err(|e| e.to_string())
 }
 
+pub fn category_folder(conn: &Connection, category_id: &str) -> Result<String, String> {
+    get_note_category(conn, category_id)?
+        .map(|row| row.folder)
+        .ok_or_else(|| format!("unknown category_id: {category_id}"))
+}
+
 pub fn get_note_category_by_folder(
     conn: &Connection,
     folder: &str,

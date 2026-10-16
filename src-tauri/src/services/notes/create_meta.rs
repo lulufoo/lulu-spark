@@ -19,6 +19,9 @@ pub(super) struct CreateMeta {
     pub title: String,
     pub created_at: String,
     pub source_type: String,
+    /// Category folder on disk; not part of the stored path.
+    pub project: String,
+    /// Stored rel: `{theme}/{filename}` — no category folder prefix.
     pub common_path: String,
 }
 
@@ -52,7 +55,7 @@ pub(super) fn parse_create_meta(
         Some(name) => format!("{created_at}-{rand}-{}", sanitize_basename(name)?),
         None => format!("{created_at}-{rand}.md"),
     };
-    let common_path = format!("{project}/{theme}/{filename}");
+    let common_path = format!("{theme}/{filename}");
     if !is_valid_common_path(&common_path) {
         return Err(json!({
             "error": format!("invalid common_path: {common_path}"),
@@ -63,6 +66,7 @@ pub(super) fn parse_create_meta(
         title,
         created_at,
         source_type,
+        project,
         common_path,
     })
 }
