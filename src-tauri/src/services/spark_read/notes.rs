@@ -6,7 +6,7 @@ use serde_json::{json, Value};
 
 use crate::services::archive_parse::expected_lang_common_path;
 use crate::services::docs::workspace_root;
-use crate::services::notes::doc_file_path;
+use crate::services::docs::doc_file_path;
 use crate::services::spark_data::{
     self, find_doc, get_workspace, list_doc_entries, project_folder, DocRow, FoundDoc,
 };

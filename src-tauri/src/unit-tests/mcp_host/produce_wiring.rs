@@ -10,7 +10,7 @@ use crate::mcp_host::catalog::groups::docs::{
     produce_update_doc_if_ok, update_doc_from_content, update_doc_from_source,
 };
 use crate::services::message_center::last_changed_envelope;
-use crate::services::notes::create_jot;
+use crate::services::docs::create_jot;
 use crate::test_support::TestSandbox;
 
 const SAMPLE_DOC: &str = "# Title\n\n---\n\n正文 Body.\n";
@@ -246,7 +246,7 @@ fn other_note_and_tauri_writes_are_not_wired() {
         assert_file_has_no_message_center(&path);
     }
     assert_file_has_no_message_center_produce(&src("commands/write.rs"));
-    assert_file_has_no_message_center(&src("services/notes/jot.rs"));
+    assert_file_has_no_message_center(&src("services/docs/jot.rs"));
 
     with_host_sandbox(|sandbox| {
         let notes_before = channel_record_count("notes");

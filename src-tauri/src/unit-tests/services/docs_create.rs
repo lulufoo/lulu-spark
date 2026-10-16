@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use serde_json::json;
 
 use crate::services::docs::{create_doc, create_doc_content, update_doc, update_doc_content};
-use crate::services::notes::{create_jot, synthesize_jot_document, JotCreateOpts};
+use crate::services::docs::{create_jot, synthesize_jot_document, JotCreateOpts};
 use crate::test_support::{block_note_writes, read_note_entries, TestSandbox};
 
 const SAMPLE_DOC: &str = r#"# Test Title
@@ -82,7 +82,7 @@ fn note_disk(notes: &std::path::Path, layer: &str, id: &str) -> PathBuf {
         .expect("row")
         .doc;
     let folder = crate::services::spark_data::project_folder(&conn, &note.project_id).expect("folder");
-    crate::services::notes::doc_file_path(notes, layer, &folder, &note.raw_path).expect("path")
+    crate::services::docs::doc_file_path(notes, layer, &folder, &note.raw_path).expect("path")
 }
 
 fn filename_has_ts_rand(common_path: &str) -> bool {

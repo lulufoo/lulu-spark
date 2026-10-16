@@ -169,5 +169,5 @@ pub(crate) fn rollback_written(paths: &[PathBuf]) {
 }
 
 #[cfg(test)]
-#[path = "../../unit-tests/services/notes_store.rs"]
+#[path = "../../unit-tests/services/docs_store.rs"]
 mod tests;

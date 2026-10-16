@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use rusqlite::Connection;
 
 use crate::config::paths;
-use crate::services::notes::doc_file_path;
+use crate::services::docs::doc_file_path;
 use crate::services::spark_data::{
     self, get_doc, get_project, get_workspace, list_docs, list_projects, list_workspaces, DocRow,
     WorkspaceRow,

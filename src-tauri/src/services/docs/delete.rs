@@ -5,7 +5,7 @@ use std::fs;
 use serde_json::{json, Value};
 
 use crate::services::archive_parse::expected_lang_common_path;
-use crate::services::notes::store::doc_file_path;
+use crate::services::docs::store::doc_file_path;
 use crate::services::search_index;
 use crate::services::spark_data::{delete_doc as delete_doc_row, delete_unused_tags};
 

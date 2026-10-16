@@ -10,7 +10,7 @@ use rusqlite::Connection;
 use serde_json::{json, Value};
 
 use crate::config::paths;
-use crate::services::notes::workspace_dir;
+use crate::services::docs::workspace_dir;
 use crate::services::spark_data::{
     self, get_doc, get_project, get_project_by_folder, get_workspace, list_workspaces, DocRow,
     ProjectRow, WorkspaceRow,

@@ -7,14 +7,14 @@ use serde_json::{json, Value};
 
 use crate::services::spark_data::{self, delete_unused_tags, find_doc, update_doc, DocRow, FoundDoc};
 
-pub fn invalid_note_id() -> Value {
+pub fn invalid_doc_id() -> Value {
     json!({ "error": "Invalid id", "_status": 400 })
 }
 
-pub fn clean_note_id(id: &str) -> Result<&str, Value> {
+pub fn clean_doc_id(id: &str) -> Result<&str, Value> {
     let id = id.trim();
     if id.len() != 32 || !id.chars().all(|c| c.is_ascii_hexdigit()) {
-        return Err(invalid_note_id());
+        return Err(invalid_doc_id());
     }
     Ok(id)
 }
@@ -24,7 +24,7 @@ fn internal(error: impl ToString) -> Value {
 }
 
 /// The document with this doc id and the workspace it lives in.
-pub fn find_note(conn: &Connection, id: &str) -> Result<FoundDoc, Value> {
+pub fn require_doc(conn: &Connection, id: &str) -> Result<FoundDoc, Value> {
     find_doc(conn, id)
         .map_err(internal)?
         .ok_or_else(|| json!({ "error": "Entry not found", "_status": 404 }))
@@ -33,17 +33,17 @@ pub fn find_note(conn: &Connection, id: &str) -> Result<FoundDoc, Value> {
 /// Run `edit` on the document `id`. `edit` returns the reply; an `Err` reply
 /// leaves the row and everything else it touched unchanged. Tags no document references
 /// any more are dropped in the same transaction.
-pub fn edit_note(
+pub fn edit_doc(
     id: &str,
     edit: impl FnOnce(&Connection, &mut DocRow) -> Result<Value, Value>,
 ) -> Value {
     let result = (|| -> Result<Value, Value> {
-        let id = clean_note_id(id)?;
+        let id = clean_doc_id(id)?;
         let mut conn = spark_data::open().map_err(internal)?;
         let tx = conn
             .transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(internal)?;
-        let mut found = find_note(&tx, id)?;
+        let mut found = require_doc(&tx, id)?;
         let reply = edit(&tx, &mut found.doc)?;
         update_doc(&tx, &found.workspace.doc_table, &found.doc).map_err(internal)?;
         delete_unused_tags(&tx).map_err(internal)?;

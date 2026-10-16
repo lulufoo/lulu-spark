@@ -8,13 +8,13 @@ use std::path::{Path, PathBuf};
 use serde_json::{json, Value};
 
 use crate::services::id::random_entry_id;
-use crate::services::notes::assets::{copy_assets, reject_unsupported_asset_paths, resolve_create_assets};
-use crate::services::notes::create_meta::parse_create_meta_unchecked;
-use crate::services::notes::digest::{
+use crate::services::docs::assets::{copy_assets, reject_unsupported_asset_paths, resolve_create_assets};
+use crate::services::docs::create_meta::parse_create_meta_unchecked;
+use crate::services::docs::digest::{
     digest_body_from_payload, digest_body_rejects_relative_images, digest_should_write,
     parse_digest_mode, write_digest_file,
 };
-use crate::services::notes::store::{
+use crate::services::docs::store::{
     doc_file_path, parse_translations, reject_legacy_translation_fields,
     resolve_archive_source_markdown, rollback_written, write_markdown_atomic,
 };

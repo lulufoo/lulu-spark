@@ -2,7 +2,7 @@ use serde_json::Value;
 use tauri::AppHandle;
 
 use crate::config::paths;
-use crate::services::{annotation, docs, doc_highlights, entry_write, notes, tag_write};
+use crate::services::{annotation, docs, doc_highlights, entry_write, tag_write};
 
 fn repo_root() -> Result<std::path::PathBuf, String> {
     paths::repo_root().map_err(|e| format!("{e:?}"))
@@ -174,7 +174,7 @@ pub fn create_note_json(payload: Value) -> Result<Value, String> {
             .unwrap_or("");
         if source_type == "jot" {
             let workspace = payload.get("workspace").and_then(|v| v.as_str());
-            return match notes::create_jot(workspace, body, &notes::JotCreateOpts::default()) {
+            return match docs::create_jot(workspace, body, &docs::JotCreateOpts::default()) {
                 Ok(v) => Ok(v),
                 Err(msg) => {
                     let (status, error) = match msg.split_once(':') {

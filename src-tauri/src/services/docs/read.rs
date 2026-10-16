@@ -8,7 +8,7 @@ use serde_json::{json, Value};
 
 use crate::services::archive_parse::expected_lang_common_path;
 use crate::services::file_export::{copy_into_dir_versioned, copy_result};
-use crate::services::notes::store::doc_file_path;
+use crate::services::docs::store::doc_file_path;
 use crate::services::spark_data::{DocRow, ProjectRow, WorkspaceRow};
 
 use super::resolve::{

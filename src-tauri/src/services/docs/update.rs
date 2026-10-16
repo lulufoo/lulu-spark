@@ -6,10 +6,10 @@ use std::path::Path;
 
 use serde_json::{json, Value};
 
-use crate::services::notes::digest::{
+use crate::services::docs::digest::{
     digest_body_from_payload, digest_should_write, parse_digest_mode, write_digest_file_overwrite,
 };
-use crate::services::notes::store::{
+use crate::services::docs::store::{
     doc_file_path, reject_legacy_translation_fields, resolve_archive_source_markdown,
     write_markdown_atomic,
 };

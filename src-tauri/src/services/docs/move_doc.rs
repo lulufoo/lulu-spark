@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use serde_json::{json, Value};
 
 use crate::services::archive_parse::expected_lang_common_path;
-use crate::services::notes::store::doc_file_path;
+use crate::services::docs::store::doc_file_path;
 use crate::services::search_index;
 use crate::services::spark_data::{translation_common_paths, update_doc as update_doc_row};
 
