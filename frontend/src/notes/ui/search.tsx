@@ -8,7 +8,7 @@ const HIST_MAX = 10;
 
 type WbHit = {
   title?: string;
-  common_path?: string;
+  id?: string;
   layer?: string;
   topic?: string;
   body?: string;
@@ -86,16 +86,16 @@ function GsStatus({ children, color }: { children: ReactNode; color?: string }) 
 }
 
 function GsHitRow({ hit, onOpen }: { hit: WbHit; onOpen: (hit: WbHit) => void }) {
-  const cp = hit.common_path || '';
+  const id = hit.id || '';
 
   return (
     <div
       className="gs-hit gs-hit-wb"
-      data-common-path={cp}
+      data-note-id={id}
       data-layer={hit.layer || ''}
       onClick={() => onOpen(hit)}
     >
-      <div className="gs-hit-title">{hit.title || hit.common_path || ''}</div>
+      <div className="gs-hit-title">{hit.title || hit.id || ''}</div>
       <span className="gs-hit-repo">{hit.topic || ''}</span>
       <div className="gs-hit-snippet" dangerouslySetInnerHTML={{ __html: getSnippet(hit) }} />
     </div>
@@ -180,9 +180,9 @@ export function SparkSearchFields() {
   }
 
   function openHit(hit: WbHit) {
-    const cp = hit.common_path;
-    if (cp) {
-      document.dispatchEvent(new CustomEvent('cta:open-entry', { detail: { common_path: cp } }));
+    const id = hit.id;
+    if (id) {
+      document.dispatchEvent(new CustomEvent('cta:open-entry', { detail: { id } }));
     }
     addHistory(query);
     close();
@@ -219,7 +219,7 @@ export function SparkSearchFields() {
         {view.kind === 'status' ? <GsStatus color={view.color}>{view.text}</GsStatus> : null}
         {view.kind === 'hits'
           ? view.hits.map((hit, i) => (
-              <GsHitRow key={`${hit.common_path || ''}-${hit.layer || ''}-${i}`} hit={hit} onOpen={openHit} />
+              <GsHitRow key={`${hit.id || ''}-${hit.layer || ''}-${i}`} hit={hit} onOpen={openHit} />
             ))
           : null}
         {view.kind === 'history' ? (

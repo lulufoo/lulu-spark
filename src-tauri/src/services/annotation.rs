@@ -3,7 +3,7 @@
 
 use serde_json::{json, Map, Value};
 
-use crate::services::note_edit::{clean_common_path, edit_note, find_note};
+use crate::services::note_edit::{clean_note_id, edit_note, find_note};
 use crate::services::spark_data::{self, annotation_object};
 
 use super::id::random_hex12;
@@ -32,36 +32,36 @@ fn invalid_state() -> Value {
     json!({ "error": "Invalid annotation state", "_status": 500 })
 }
 
-/// The annotation object of the note at `common_path`; `{}` when there is none.
-pub fn read_annotation_object(common_path: &str) -> Value {
-    let Ok(cp) = clean_common_path(common_path) else {
+/// The annotation object of the note `id`; `{}` when there is none.
+pub fn read_annotation_object(id: &str) -> Value {
+    let Ok(id) = clean_note_id(id) else {
         return json!({});
     };
-    let found = spark_data::open().ok().and_then(|conn| find_note(&conn, cp).ok());
+    let found = spark_data::open().ok().and_then(|conn| find_note(&conn, id).ok());
     found.map_or_else(|| json!({}), |note| annotation_object(&note))
 }
 
-pub fn set_done(_repo_root: &std::path::Path, common_path: &str, done: bool) -> Value {
-    edit_note(common_path, |_, note| {
+pub fn set_done(_repo_root: &std::path::Path, id: &str, done: bool) -> Value {
+    edit_note(id, |_, note| {
         note.done = done;
         Ok(json!({ "ok": true }))
     })
 }
 
-pub fn set_importance(_repo_root: &std::path::Path, common_path: &str, importance: Option<String>) -> Value {
+pub fn set_importance(_repo_root: &std::path::Path, id: &str, importance: Option<String>) -> Value {
     let imp = importance.as_deref().map(str::trim).filter(|s| !s.is_empty());
     if let Some(v) = imp {
         if !matches!(v, "high" | "medium" | "low") {
             return json!({ "error": format!("Invalid importance: {v}"), "_status": 400 });
         }
     }
-    edit_note(common_path, |_, note| {
+    edit_note(id, |_, note| {
         note.importance = imp.map(String::from);
         Ok(json!({ "ok": true }))
     })
 }
 
-pub fn update_links(_repo_root: &std::path::Path, common_path: &str, links: Value) -> Value {
+pub fn update_links(_repo_root: &std::path::Path, id: &str, links: Value) -> Value {
     let Value::Array(links_arr) = links else {
         return json!({ "error": "links must be array", "_status": 400 });
     };
@@ -71,7 +71,7 @@ pub fn update_links(_repo_root: &std::path::Path, common_path: &str, links: Valu
             return json!({ "error": format!("Invalid url: {url}"), "_status": 400 });
         }
     }
-    edit_note(common_path, |_, note| {
+    edit_note(id, |_, note| {
         note.links = Value::Array(links_arr);
         Ok(json!({ "ok": true }))
     })
@@ -83,7 +83,7 @@ fn text_of(value: &Value, key: &str) -> String {
 
 pub fn update_comments(
     _repo_root: &std::path::Path,
-    common_path: &str,
+    id: &str,
     layer: &str,
     comment: Value,
     ts: String,
@@ -92,7 +92,7 @@ pub fn update_comments(
         return reply;
     }
     let (cid, text, ts) = (text_of(&comment, "id"), text_of(&comment, "text"), ts.trim().to_string());
-    edit_note(common_path, |_, note| {
+    edit_note(id, |_, note| {
         let Value::Array(comments) = &mut note.comments else {
             return Err(invalid_state());
         };
@@ -123,14 +123,14 @@ pub fn update_comments(
 
 pub fn reorder_comments(
     _repo_root: &std::path::Path,
-    common_path: &str,
+    id: &str,
     layer: &str,
     ids: Vec<String>,
 ) -> Value {
     if let Err(reply) = check_layer(layer) {
         return reply;
     }
-    edit_note(common_path, |_, note| {
+    edit_note(id, |_, note| {
         let comments = note.comments.as_array().cloned().unwrap_or_default();
         let by_id: Map<String, Value> = comments
             .into_iter()
@@ -154,7 +154,7 @@ fn occurrence_of(highlight: &Value) -> Option<i64> {
 
 pub fn update_highlights(
     _repo_root: &std::path::Path,
-    common_path: &str,
+    id: &str,
     layer: &str,
     highlight: Value,
     ts: String,
@@ -164,7 +164,7 @@ pub fn update_highlights(
     }
     let (hid, text, ts) = (text_of(&highlight, "id"), text_of(&highlight, "text"), ts.trim().to_string());
     let occurrence = occurrence_of(&highlight);
-    edit_note(common_path, |_, note| {
+    edit_note(id, |_, note| {
         let Value::Array(highlights) = &mut note.highlights else {
             return Err(invalid_state());
         };

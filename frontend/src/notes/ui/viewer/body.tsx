@@ -1,4 +1,4 @@
-import { state } from '../../state/host.ts';
+import { getEntryId, state } from '../../state/host.ts';
 import * as api from '../../../host/api.ts';
 import { notesDocKey } from '../../../doc-editor/identity.ts';
 import { applyCachedHighlights, initDocHighlightOverlay } from '../../../doc-editor/highlights.ts';
@@ -29,14 +29,14 @@ function isExternalOrSpecialImgSrc(src: string) {
   return /^(https?:|data:|blob:|\/)/i.test(src);
 }
 
-async function postProcessImages(container: Element, layer: string, commonPath: string) {
+async function postProcessImages(container: Element, layer: string, id: string) {
   const imgs = [...container.querySelectorAll('img[src]')];
   await Promise.all(
     imgs.map(async (img) => {
       const href = img.getAttribute('src');
       if (!href || href.startsWith('#') || isExternalOrSpecialImgSrc(href)) return;
       try {
-        const blobUrl = (await api.fetchNotesAssetAsBlobUrl(layer, commonPath, href)) as string;
+        const blobUrl = (await api.fetchNotesAssetAsBlobUrl(layer, id, href)) as string;
         _notesBlobUrls.add(blobUrl);
         (img as HTMLImageElement).src = blobUrl;
       } catch {
@@ -47,8 +47,8 @@ async function postProcessImages(container: Element, layer: string, commonPath: 
 }
 
 function notesIdentityKey() {
-  const path = state.viewer.entry?.common_path;
-  return path ? notesDocKey(path) : '';
+  const id = getEntryId(state.viewer.entry);
+  return id ? notesDocKey(id) : '';
 }
 
 function applyHighlights() {
@@ -72,13 +72,13 @@ export function initHighlightUI() {
   });
 }
 
-export async function renderDocBody(text: string, layer: string, commonPath: string) {
+export async function renderDocBody(text: string, layer: string, id: string) {
   const body = document.getElementById('md-body');
   if (!body) return;
   renderDocMarkdown(body, text);
   postProcessLinks(body);
   revokeNotesBlobUrls();
-  await postProcessImages(body, layer, commonPath);
+  await postProcessImages(body, layer, id);
   await renderMermaidBlocks(body);
   void applyHighlights();
 }

@@ -69,14 +69,14 @@ fn create_note_copies_png_beside_raw() {
     let png = stage_bytes(&sandbox, "overview-diagram.png", PNG);
     let v = create_with_assets(&sandbox, &repo_root, vec![png]);
     assert_eq!(v.get("ok"), Some(&json!(true)), "{v}");
-    let common_path = v["common_path"].as_str().unwrap();
+    let id = v["id"].as_str().unwrap();
     assert_eq!(
         v["asset_paths"],
-        json!(["raw/inbox/notes/overview-diagram.png"])
+        json!(["raw/notes/overview-diagram.png"])
     );
     let dest = theme_dir(&repo_root).join("overview-diagram.png");
     assert_eq!(fs::read(&dest).unwrap(), PNG);
-    let loaded = get_notes_asset(&repo_root, "raw", common_path, "overview-diagram.png");
+    let loaded = get_notes_asset(&repo_root, "raw", id, "overview-diagram.png", None);
     assert_eq!(loaded["mime_type"], "image/png");
     assert!(loaded.get("data_b64").and_then(|x| x.as_str()).is_some());
 }
@@ -90,7 +90,7 @@ fn create_note_accepts_jpg_and_jpeg() {
     assert_eq!(v.get("ok"), Some(&json!(true)), "{v}");
     assert_eq!(
         v["asset_paths"],
-        json!(["raw/inbox/notes/a.jpg", "raw/inbox/notes/b.jpeg"])
+        json!(["raw/notes/a.jpg", "raw/notes/b.jpeg"])
     );
 }
 
@@ -145,7 +145,6 @@ fn create_note_collision_is_409_and_does_not_write() {
         vec![stage_bytes(&sandbox, "overview-diagram.png", PNG)],
     );
     assert_eq!(first.get("ok"), Some(&json!(true)), "{first}");
-    let first_md = first["common_path"].as_str().unwrap().to_string();
     let second = create_with_assets(
         &sandbox,
         &repo_root,
@@ -160,8 +159,7 @@ fn create_note_collision_is_409_and_does_not_write() {
         .collect();
     assert_eq!(mds.len(), 1);
     assert!(dir.join("overview-diagram.png").is_file());
-    let notes = crate::config::roots::notes_root_path(&repo_root);
-    assert!(notes.join("raw").join(&first_md).is_file());
+    assert!(mds[0].path().is_file());
 }
 
 #[test]

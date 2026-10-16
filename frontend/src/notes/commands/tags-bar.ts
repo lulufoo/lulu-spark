@@ -25,7 +25,7 @@ export function findTagKeyByValue(registry: HostTagsRegistry | null | undefined,
 }
 
 function syncEntryTagsFromAnn(entry: NoteEntry) {
-  const ann = state.index.annotations?.[entry.common_path];
+  const ann = state.index.annotations?.[entry._id || entry.id || ''];
   if (ann?.tags) {
     entry.tags = ann.tags;
     entry.tag_keys = ann.tag_keys;
@@ -65,7 +65,7 @@ export async function refreshTagDisplayGlobally() {
 export async function detachNoteTag(key: string) {
   const entry = state.viewer.entry;
   if (!entry) return { ok: false, error: 'No entry' };
-  const data = (await api.tagDetach(entry.common_path, key)) as OkResult;
+  const data = (await api.tagDetach(entry._id || entry.id || '', key)) as OkResult;
   if (!data.ok) return data;
   await refreshTagDisplayGlobally();
   syncEntryTagsFromAnn(entry);
@@ -83,7 +83,7 @@ export async function attachNoteTag(payload: { key?: string; value?: string }) {
       return { ok: false, error: `Cannot exceed ${TAG_VALUE_MAX_LEN} characters` };
     }
   }
-  const data = (await api.tagAttach(entry.common_path, payload)) as OkResult;
+  const data = (await api.tagAttach(entry._id || entry.id || '', payload)) as OkResult;
   if (!data.ok) return data;
   await refreshTagDisplayGlobally();
   syncEntryTagsFromAnn(entry);

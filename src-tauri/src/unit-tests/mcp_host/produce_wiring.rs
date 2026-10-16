@@ -123,16 +123,10 @@ fn assert_produced_envelope(business: &str, action: &str, params: Value) {
 fn assert_notes_produced(action: &str, result: &Value, before: usize) {
     assert_note_ok(result);
     assert_mcp_write_hides_internal_paths(result);
-    let mut params = notes_identity_params(result);
+    let params = notes_identity_params(result);
     let envelope = last_changed_envelope().expect("envelope");
-    if let Some(path) = envelope.params.get("common_path") {
-        params
-            .as_object_mut()
-            .expect("params object")
-            .insert("common_path".to_string(), path.clone());
-    }
     assert!(
-        params.get("archive_id").is_some() && params.get("common_path").is_some(),
+        params.get("archive_id").is_some() && params.get("common_path").is_none(),
         "{result} envelope={envelope:?}"
     );
     let note_id = result.get("id").and_then(|v| v.as_str()).expect("note id");
@@ -314,7 +308,7 @@ fn produce_notes_if_ok_keeps_timing_when_identity_fields_missing() {
         let cases = [
             (produce_create_note_if_ok as fn(&Value), json!({"ok": true}), "create", json!({})),
             (produce_create_note_if_ok, json!({"ok": true, "id": "only-id"}), "create", json!({"archive_id": "only-id"})),
-            (produce_create_note_if_ok, json!({"ok": true, "common_path": "only/path.md"}), "create", json!({"common_path": "only/path.md"})),
+            (produce_create_note_if_ok, json!({"ok": true, "common_path": "only/path.md"}), "create", json!({})),
             (produce_update_note_if_ok, json!({"ok": true, "id": "u1"}), "update", json!({"archive_id": "u1"})),
         ];
         let produced = cases.len();

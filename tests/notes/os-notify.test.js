@@ -36,7 +36,7 @@ const NOTE_CREATE = {
   action: 'create',
   params: { id: HOP_ID, archive_id: 'abc', common_path: 'inbox/x.md' },
 };
-const NOTES_OPEN = `spark://notes/open?id=abc&path=inbox%2Fx.md&${PASS_QUERY}=${encodePassBag(HOP_ID)}`;
+const NOTES_OPEN = `spark://notes/open?id=abc&${PASS_QUERY}=${encodePassBag(HOP_ID)}`;
 
 describe('handleNotesOsNotifyEnvelope', () => {
   /** @type {import('vitest').MockInstance} */

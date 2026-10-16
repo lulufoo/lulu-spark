@@ -92,7 +92,8 @@ export function mergeAnnotations(
   summary: Record<string, HostIndexAnnotation>,
 ) {
   for (const entry of Object.values(indexData)) {
-    const ann = summary[entry.common_path]
+    const key = entry._id || entry.id || ''
+    const ann = summary[key]
     entry.done = ann?.done || undefined
     entry.importance = ann?.importance || undefined
     entry.links = ann?.links || undefined
@@ -108,5 +109,5 @@ export function mergeAnnotations(
 }
 
 export function getEntryId(entry: HostNoteEntry | null | undefined) {
-  return entry?._id || null
+  return entry?._id || entry?.id || null
 }

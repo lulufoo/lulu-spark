@@ -269,7 +269,7 @@ describe('create session exit', () => {
     vi.useRealTimers();
   });
 
-  it('trim-nonempty exit: Primary create via createNote, then navigate note=common_path', async () => {
+  it('trim-nonempty exit: Primary create via createNote, then navigate note=id', async () => {
     makeEl('md-edit-area').value = '  hello note\n';
     locationStub.hash = '#/spark?date=20260710';
 
@@ -282,7 +282,7 @@ describe('create session exit', () => {
     expect(api.clearNoteDraft).toHaveBeenCalledWith('tmp-exit');
     expect(navigateToNoteMock).toHaveBeenCalledWith({
       date: '20260710',
-      note: 'inbox/notes/202607101431-body.md',
+      note: 'b'.repeat(32),
     });
     // Pass via navigate + outlet state — not modal.display alone (chap-vf)
     expect(makeEl('note-outlet').hidden).toBe(false);

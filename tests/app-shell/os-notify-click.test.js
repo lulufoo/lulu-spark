@@ -20,7 +20,7 @@ const NOTE_PATH = 'inbox/x.md';
 const NOTE_DATE = '20260719';
 const HOP_ID = 'trace_12345678';
 const PASS = encodePassBag(HOP_ID);
-const NOTES_OPEN = `spark://notes/open?id=${NOTE_ID}&path=${encodeURIComponent(NOTE_PATH)}&${PASS_QUERY}=${PASS}`;
+const NOTES_OPEN = `spark://notes/open?id=${NOTE_ID}&${PASS_QUERY}=${PASS}`;
 const READ_LATER_LIST = `spark://read-later/list?${PASS_QUERY}=${PASS}`;
 
 function readRel(rel) {
@@ -44,7 +44,7 @@ function extractFunctionBody(source, name) {
 
 function seedIndex(entry = {
   _id: NOTE_ID,
-  common_path: NOTE_PATH,
+  folder: 'inbox',
   created_at: `${NOTE_DATE}120000`,
 }) {
   state.index.data = { [NOTE_ID]: entry };
@@ -82,7 +82,7 @@ describe('handleOsNotifyClicked', () => {
     expect(openSpy).toHaveBeenCalledWith(NOTES_OPEN);
     expect(parseHash(window.location.hash)).toEqual({
       name: 'spark',
-      params: { date: NOTE_DATE, note: NOTE_PATH },
+      params: { date: NOTE_DATE, note: NOTE_ID },
     });
   });
 
@@ -126,7 +126,7 @@ describe('handleOsNotifyClicked', () => {
     vi.spyOn(api, 'fetchIndex').mockResolvedValue({
       entries: {
         [NOTE_ID]: {
-          common_path: NOTE_PATH,
+          folder: 'inbox',
           created_at: `${NOTE_DATE}120000`,
         },
       },
@@ -134,7 +134,7 @@ describe('handleOsNotifyClicked', () => {
     await expect(handleOsNotifyClicked({ scheme: NOTES_OPEN })).resolves.toBe(true);
     expect(parseHash(window.location.hash)).toEqual({
       name: 'spark',
-      params: { date: NOTE_DATE, note: NOTE_PATH },
+      params: { date: NOTE_DATE, note: NOTE_ID },
     });
   });
 });
@@ -160,7 +160,7 @@ describe('startOsNotifyClickHub', () => {
     expect(openSpy).toHaveBeenCalledWith(NOTES_OPEN);
     expect(parseHash(window.location.hash)).toEqual({
       name: 'spark',
-      params: { date: NOTE_DATE, note: NOTE_PATH },
+      params: { date: NOTE_DATE, note: NOTE_ID },
     });
   });
 

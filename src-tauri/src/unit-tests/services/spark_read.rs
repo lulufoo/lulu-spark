@@ -157,10 +157,10 @@ fn list_repos_for_topics_resolves_uncategorized_name() {
 }
 
 #[test]
-fn get_draft_invalid_path() {
+fn get_draft_invalid_id() {
     let dir = tempfile::tempdir().expect("tmp");
     let v = get_draft(dir.path(), "..%2Fsecret");
-    assert_eq!(v["error"], "Invalid path");
+    assert_eq!(v["error"], "Invalid id");
 }
 
 #[test]
@@ -190,11 +190,15 @@ fn get_notes_index_is_built_from_the_note_table_in_the_old_entry_shape() {
                 v,
                 json!({ "entries": {
                     "n1": {
-                        "common_path": "ai/topic/20260101-a.md", "created_at": "202601010000",
+                        "id": "n1", "category_id": "ai", "folder": "ai",
+                        "created_at": "202601010000",
                         "layers": ["raw", "digest"], "source_type": "article", "title": "A",
-                        "translations": { "zh": "ai/topic/20260101-a-zh.md" }
+                        "translations": { "zh": "topic/20260101-a-zh.md" }
                     },
-                    "n2": { "common_path": "ai/topic/20260102-b.md", "layers": ["raw"] },
+                    "n2": {
+                        "id": "n2", "category_id": "ai", "folder": "ai",
+                        "layers": ["raw"]
+                    },
                 }})
             );
         },
@@ -216,8 +220,8 @@ fn get_notes_file_rejects_traversal() {
             fs::create_dir_all(notes.join("raw")).expect("mkdir");
         },
         |cfg_dir| {
-            let v = get_notes_file(cfg_dir, "raw", "../index.json");
-            assert_eq!(v["error"], "Invalid path");
+            let v = get_notes_file(cfg_dir, "raw", "../index.json", None);
+            assert_eq!(v["error"], "Invalid id");
         },
     );
 }
@@ -232,7 +236,7 @@ fn get_annotations_summary_includes_resolved_tags() {
         let cp = "ai/tags.md";
         let id = format!("{:0>32}", "e1");
         seed_note_entries(&serde_json::json!({ id.clone(): { "common_path": cp } }));
-        let known = tag_attach(dir, cp, &serde_json::json!({ "value": "Known" }));
+        let known = tag_attach(dir, &id, &serde_json::json!({ "value": "Known" }));
         let known = known["key"].as_str().expect("key").to_string();
         // A row can reference a key the tag table does not have.
         let conn = open().expect("db");
@@ -241,7 +245,7 @@ fn get_annotations_summary_includes_resolved_tags() {
         update_note(&conn, &note).expect("update");
 
         let summary = get_annotations_summary(dir);
-        let entry = summary[cp].as_object().expect("entry");
+        let entry = summary[&id].as_object().expect("entry");
         let tags = entry["tags"].as_array().expect("tags");
         assert_eq!(tags.len(), 2);
         assert!(tags.iter().any(|t| t["key"] == known && t["value"] == "Known"));
@@ -253,44 +257,17 @@ fn get_annotations_summary_includes_resolved_tags() {
 }
 
 #[test]
-fn get_notes_file_reads_abs_path_under_knowledge_root() {
-    let sandbox = TestSandbox::new();
-    let file = sandbox.knowledge_root().join("demo").join("doc.md");
-    fs::create_dir_all(file.parent().unwrap()).expect("mkdir");
-    fs::write(&file, b"kb body").expect("write");
-    let v = get_notes_file(
-        sandbox.config_dir(),
-        "raw",
-        &file.to_string_lossy(),
-    );
-    assert_eq!(v["content"], "kb body", "{v}");
-}
-
-#[test]
-fn get_notes_file_rejects_abs_path_outside_notes_and_knowledge() {
-    let sandbox = TestSandbox::new();
-    fs::create_dir_all(sandbox.data_dir().join("notes")).expect("notes");
-    let file = sandbox.cache_dir().join("outside.md");
-    fs::create_dir_all(file.parent().unwrap()).expect("mkdir");
-    fs::write(&file, b"nope").expect("write");
-    let v = get_notes_file(
-        sandbox.config_dir(),
-        "raw",
-        &file.to_string_lossy(),
-    );
-    assert_eq!(v["error"], "Path traversal not allowed", "{v}");
-}
-
-#[test]
 fn get_notes_file_returns_content() {
+    let id = "cccccccccccccccccccccccccccccccc";
     with_notes_repo(
-        |_, notes| {
-            let raw = notes.join("raw").join("a.md");
+        move |_, notes| {
+            let raw = notes.join("raw").join("inbox").join("a.md");
             fs::create_dir_all(raw.parent().unwrap()).expect("mkdir");
             fs::write(&raw, b"hello").expect("write");
+            seed_note_entries(&json!({ id: { "common_path": "a.md" } }));
         },
-        |cfg_dir| {
-            let v = get_notes_file(cfg_dir, "raw", "a.md");
+        move |cfg_dir| {
+            let v = get_notes_file(cfg_dir, "raw", id, None);
             assert_eq!(v["content"], "hello");
         },
     );
@@ -298,15 +275,17 @@ fn get_notes_file_returns_content() {
 
 #[test]
 fn get_notes_asset_returns_png_bytes() {
+    let id = "dddddddddddddddddddddddddddddddd";
     with_notes_repo(
-        |_, notes| {
+        move |_, notes| {
             let png = notes.join("raw").join("ai").join("note.png");
             fs::create_dir_all(png.parent().unwrap()).expect("mkdir");
             fs::write(&png, b"\x89PNG\r\n").expect("write");
             fs::write(notes.join("raw").join("ai").join("note.md"), b"# x").expect("md");
+            seed_note_entries(&json!({ id: { "common_path": "ai/note.md" } }));
         },
-        |cfg_dir| {
-            let v = get_notes_asset(cfg_dir, "raw", "ai/note.md", "note.png");
+        move |cfg_dir| {
+            let v = get_notes_asset(cfg_dir, "raw", id, "note.png", None);
             assert!(v.get("data_b64").and_then(|x| x.as_str()).is_some());
             assert_eq!(v["mime_type"], "image/png");
         },
@@ -315,12 +294,15 @@ fn get_notes_asset_returns_png_bytes() {
 
 #[test]
 fn get_notes_asset_rejects_traversal() {
+    let id = "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
     with_notes_repo(
-        |_, notes| {
-            fs::create_dir_all(notes.join("raw")).expect("mkdir");
+        move |_, notes| {
+            fs::create_dir_all(notes.join("raw").join("ai")).expect("mkdir");
+            fs::write(notes.join("raw").join("ai").join("note.md"), b"# x").expect("md");
+            seed_note_entries(&json!({ id: { "common_path": "ai/note.md" } }));
         },
-        |cfg_dir| {
-            let v = get_notes_asset(cfg_dir, "raw", "ai/note.md", "../index.json");
+        move |cfg_dir| {
+            let v = get_notes_asset(cfg_dir, "raw", id, "../index.json", None);
             assert_eq!(v["error"], "Invalid path");
         },
     );
@@ -328,15 +310,17 @@ fn get_notes_asset_rejects_traversal() {
 
 #[test]
 fn get_notes_asset_rejects_non_whitelist_ext() {
+    let id = "ffffffffffffffffffffffffffffffff";
     with_notes_repo(
-        |_, notes| {
-            let svg = notes.join("raw").join("x.svg");
+        move |_, notes| {
+            let svg = notes.join("raw").join("inbox").join("x.svg");
             fs::create_dir_all(svg.parent().unwrap()).expect("mkdir");
             fs::write(&svg, b"<svg").expect("write");
-            fs::write(notes.join("raw").join("x.md"), b"#").expect("md");
+            fs::write(notes.join("raw").join("inbox").join("x.md"), b"#").expect("md");
+            seed_note_entries(&json!({ id: { "common_path": "x.md" } }));
         },
-        |cfg_dir| {
-            let v = get_notes_asset(cfg_dir, "raw", "x.md", "x.svg");
+        move |cfg_dir| {
+            let v = get_notes_asset(cfg_dir, "raw", id, "x.svg", None);
             assert_eq!(v["error"], "Unsupported media type");
         },
     );
@@ -474,32 +458,32 @@ fn get_note_content_truncates_over_10kb() {
 #[test]
 fn notes_search_hit_projection() {
     let id = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-    let mut path_index = std::collections::HashMap::new();
-    path_index.insert(
-        "ai/note.md".to_string(),
-        (id.to_string(), "202606190004".to_string()),
+    let mut entries = serde_json::Map::new();
+    entries.insert(
+        id.to_string(),
+        json!({ "folder": "ai", "created_at": "202606190004" }),
     );
     let hits = vec![
         json!({
             "layer": "digest",
-            "common_path": "ai/note.md",
+            "note_id": id,
             "title": "digest title",
             "_formatted": { "body": "digest <em>hit</em>" }
         }),
         json!({
             "layer": "raw",
-            "common_path": "ai/note.md",
+            "note_id": id,
             "title": "raw title",
             "_formatted": { "body": "raw <em>hit</em>" }
         }),
         json!({
             "layer": "raw",
-            "common_path": "orphan.md",
+            "note_id": "orphanorphanorphanorphanorphanx",
             "title": "orphan",
             "body": "no index"
         }),
     ];
-    let items = project_raw_search_hits(&hits, &path_index);
+    let items = project_raw_search_hits(&hits, &entries);
     assert_eq!(items.len(), 1);
     assert_eq!(items[0]["note_id"], id);
     assert_eq!(items[0]["catalog"], "ai");
@@ -525,12 +509,14 @@ fn search_notes_rejects_empty_q() {
 fn get_annotation_decodes_percent_encoding() {
     with_notes_repo(
         |_, _| {
-            seed_note_entries(&json!({ "e1": { "common_path": "ai/note.md" } }));
+            let id = "a".repeat(32);
+            seed_note_entries(&json!({ id.clone(): { "common_path": "ai/note.md" } }));
             let dir = std::path::Path::new("");
-            assert_eq!(crate::services::annotation::set_done(dir, "ai/note.md", true)["ok"], json!(true));
+            assert_eq!(crate::services::annotation::set_done(dir, &id, true)["ok"], json!(true));
         },
         |cfg_dir| {
-            let v = get_annotation(cfg_dir, "ai%2Fnote.md");
+            let id = "a".repeat(32);
+            let v = get_annotation(cfg_dir, &id);
             assert_eq!(v["done"], json!(true));
         },
     );

@@ -8,7 +8,10 @@ use sha2::{Digest, Sha256};
 use crate::config::roots::{knowledge_root_string, notes_root_path};
 use crate::services::index_build::common::{extract_spark_title, should_skip_md};
 use crate::services::knowledge::{compiled_hide_regexes, name_is_hidden};
-use crate::services::spark_data::{self, active_knowledge_doc_ids, get_note, list_notes, NoteRow};
+use crate::services::notes::notes_file_path;
+use crate::services::spark_data::{
+    self, active_knowledge_doc_ids, category_folder, get_note, list_notes, NoteRow,
+};
 use crate::services::spark_read::get_topics;
 
 use super::chunk::{chunk_markdown, first_heading_title};
@@ -115,7 +118,7 @@ fn chunks_from_file(
 
 /// Chunks of one note: its raw file, plus its digest file when the row says there is one.
 /// A file that is missing or unreadable contributes no chunks.
-pub fn note_chunks(notes: &Path, note: &NoteRow) -> Vec<SourceChunk> {
+pub fn note_chunks(notes: &Path, note: &NoteRow, folder: &str) -> Vec<SourceChunk> {
     let created_at = note.created_at.as_deref().unwrap_or("");
     let mut layers = vec![("raw", note.raw_path.as_str())];
     if let Some(digest) = note.digest_path.as_deref().filter(|p| !p.is_empty()) {
@@ -125,7 +128,10 @@ pub fn note_chunks(notes: &Path, note: &NoteRow) -> Vec<SourceChunk> {
         .into_iter()
         .filter(|(_, rel)| !rel.is_empty() && !rel.contains(".."))
         .flat_map(|(layer, rel)| {
-            let abs = notes.join(layer).join(rel);
+            let abs = match notes_file_path(notes, layer, folder, rel) {
+                Ok(p) => p,
+                Err(_) => return Vec::new(),
+            };
             chunks_from_file("notes", layer, &abs, &note.doc_id, created_at)
         })
         .collect()
@@ -134,15 +140,27 @@ pub fn note_chunks(notes: &Path, note: &NoteRow) -> Vec<SourceChunk> {
 /// Chunks of every note in the `note` table.
 pub fn collect_notes(repo_root: &Path) -> Result<Vec<SourceChunk>, String> {
     let notes = notes_root_path(repo_root);
-    let rows = list_notes(&spark_data::open()?)?;
-    Ok(rows.iter().flat_map(|note| note_chunks(&notes, note)).collect())
+    let conn = spark_data::open()?;
+    let rows = list_notes(&conn)?;
+    let mut chunks = Vec::new();
+    for note in rows {
+        let folder = category_folder(&conn, &note.category_id)?;
+        chunks.extend(note_chunks(&notes, &note, &folder));
+    }
+    Ok(chunks)
 }
 
 /// Chunks of the note `doc_id`; empty when the row is gone (a deleted note).
 pub fn note_doc_chunks(repo_root: &Path, doc_id: &str) -> Result<Vec<SourceChunk>, String> {
     let notes = notes_root_path(repo_root);
-    let row = get_note(&spark_data::open()?, doc_id)?;
-    Ok(row.map_or_else(Vec::new, |note| note_chunks(&notes, &note)))
+    let conn = spark_data::open()?;
+    let row = get_note(&conn, doc_id)?;
+    Ok(row.map_or_else(Vec::new, |note| {
+        match category_folder(&conn, &note.category_id) {
+            Ok(folder) => note_chunks(&notes, &note, &folder),
+            Err(_) => Vec::new(),
+        }
+    }))
 }
 
 /// Chunks of every `active` knowledge document found on disk. A file the registry has

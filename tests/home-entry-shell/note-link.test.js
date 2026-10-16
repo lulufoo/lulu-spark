@@ -48,7 +48,7 @@ beforeEach(() => {
   vi.mocked(resolveNoteForOpen).mockReset();
   vi.mocked(refreshNotesIndex).mockReset();
   vi.mocked(showActionError).mockReset();
-  state.index.data = { [ID]: { common_path: 'ai/note.md' } };
+  state.index.data = { [ID]: { folder: 'ai', id: ID } };
 });
 
 afterEach(() => {
@@ -68,12 +68,12 @@ describe('noteIdFromHref', () => {
 
 describe('onNoteLinkClick', () => {
   it('intercepts a note: link, resolves it in Rust, then opens the entry', async () => {
-    vi.mocked(resolveNoteForOpen).mockResolvedValue({ id: ID, ok: true, common_path: 'ai/note.md' });
+    vi.mocked(resolveNoteForOpen).mockResolvedValue({ id: ID, ok: true, folder: 'ai' });
     const event = clickOn(`<p><a href="note:${ID}"><b>Title</b></a></p>`, 'b');
     expect(event.preventDefault).toHaveBeenCalledOnce();
     await flush();
     expect(resolveNoteForOpen).toHaveBeenCalledWith(ID);
-    expect(opened).toEqual([{ common_path: 'ai/note.md' }]);
+    expect(opened).toEqual([{ id: ID }]);
     expect(showActionError).not.toHaveBeenCalled();
   });
 
@@ -107,20 +107,20 @@ describe('onNoteLinkClick', () => {
 
   it('refreshes a stale list once, then opens', async () => {
     state.index.data = {};
-    vi.mocked(resolveNoteForOpen).mockResolvedValue({ id: ID, ok: true, common_path: 'ai/note.md' });
+    vi.mocked(resolveNoteForOpen).mockResolvedValue({ id: ID, ok: true, folder: 'ai' });
     vi.mocked(refreshNotesIndex).mockImplementation(async () => {
-      state.index.data = { [ID]: { common_path: 'ai/note.md' } };
+      state.index.data = { [ID]: { folder: 'ai', id: ID } };
       return true;
     });
     clickOn(`<a href="note:${ID}">x</a>`, 'a');
     await flush();
     expect(refreshNotesIndex).toHaveBeenCalledOnce();
-    expect(opened).toEqual([{ common_path: 'ai/note.md' }]);
+    expect(opened).toEqual([{ id: ID }]);
   });
 
   it('reports instead of staying silent when the list still lacks the note', async () => {
     state.index.data = {};
-    vi.mocked(resolveNoteForOpen).mockResolvedValue({ id: ID, ok: true, common_path: 'ai/note.md' });
+    vi.mocked(resolveNoteForOpen).mockResolvedValue({ id: ID, ok: true, folder: 'ai' });
     vi.mocked(refreshNotesIndex).mockResolvedValue(true);
     clickOn(`<a href="note:${ID}">x</a>`, 'a');
     await flush();

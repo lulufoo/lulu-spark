@@ -46,7 +46,7 @@ export function NotesTagsBar() {
     setAddPreview('');
     setEditValue('');
     setEditError('');
-  }, [entry?.common_path]);
+  }, [entry?._id || entry?.id]);
 
   if (!entry || creating) {
     return <div id="md-tags-bar" className="viewer-chrome-persisted" style={{ display: 'none', ...barStyle }} />;

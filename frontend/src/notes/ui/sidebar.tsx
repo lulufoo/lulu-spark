@@ -32,7 +32,7 @@ function _renderTopicFilter(parent: HTMLElement) {
   if (allEntries.length === 0) return;
   const topicCounts: Record<string, number> = {};
   for (const entry of allEntries) {
-    const topic = entry.common_path?.split('/')[0] || 'unknown';
+    const topic = entry.folder || 'unknown';
     topicCounts[topic] = (topicCounts[topic] || 0) + 1;
   }
   const total = allEntries.length;
@@ -55,7 +55,7 @@ function _renderTopicFilter(parent: HTMLElement) {
     options.push({
       value: 'unknown',
       label: `unknown (${topicCounts['unknown']})`,
-      title: 'Entries with invalid common_path',
+      title: 'Entries with no category folder',
     });
   }
 
@@ -84,7 +84,7 @@ function _entriesInTagCountScope() {
   const allEntries = Object.values(state.index.data || {});
   const topic = state.ui.activeTopic;
   if (!topic) return allEntries;
-  return allEntries.filter((entry) => (entry.common_path?.split('/')[0] || 'unknown') === topic);
+  return allEntries.filter((entry) => (entry.folder || 'unknown') === topic);
 }
 
 function _tagLabel(key: string) {

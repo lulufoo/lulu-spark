@@ -1,19 +1,48 @@
 //! Seed and read the `note` table in the shape the old `index.json` had.
 
+use rusqlite::Connection;
 use serde_json::{json, Value};
 
-use crate::services::spark_data::{self, insert_note, list_note_entries, NoteRow};
+use crate::services::spark_data::{
+    self, get_note_category_by_folder, insert_note, insert_note_category, list_note_entries,
+    NoteCategoryRow, NoteRow,
+};
 
 fn text(entry: &Value, key: &str) -> Option<String> {
     entry.get(key).and_then(Value::as_str).map(String::from)
 }
 
-/// `entries` is `{ "<id>": { common_path, created_at, layers, source_type, translations, title } }`.
+/// Seed `common_path` is stored rel. Optional `folder` (default: first path
+/// segment, or `inbox` when the path has no slash).
+fn seed_folder_and_rel(entry: &Value, raw_path: &str) -> (String, String) {
+    if let Some(folder) = text(entry, "folder") {
+        return (folder, raw_path.to_string());
+    }
+    match raw_path.split_once('/') {
+        Some((folder, rel)) if !folder.is_empty() && !rel.is_empty() => {
+            (folder.to_string(), rel.to_string())
+        }
+        _ => ("inbox".into(), raw_path.to_string()),
+    }
+}
+
+fn ensure_folder_category(conn: &Connection, folder: &str) -> String {
+    if let Some(row) = get_note_category_by_folder(conn, folder).expect("lookup") {
+        return row.id;
+    }
+    insert_note_category(conn, &NoteCategoryRow::new(folder, folder, folder, "")).expect("cat");
+    folder.to_string()
+}
+
+/// `entries` is `{ "<id>": { common_path, folder?, created_at, layers, ... } }`.
+/// Stored `raw_path` never includes the category folder.
 pub fn seed_note_entries(entries: &Value) {
     let conn = spark_data::open().expect("open spark-data");
     for (id, entry) in entries.as_object().expect("entries object") {
-        let raw_path = text(entry, "common_path").expect("common_path");
+        let raw_in = text(entry, "common_path").expect("common_path");
+        let (folder, raw_path) = seed_folder_and_rel(entry, &raw_in);
         let mut note = NoteRow::new(id, &raw_path);
+        note.category_id = ensure_folder_category(&conn, &folder);
         let has_digest = entry
             .get("layers")
             .and_then(Value::as_array)

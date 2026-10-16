@@ -1,21 +1,23 @@
-//! Notes category registry (`notes/categories.json`).
+//! Notes category registry (`note_category` in spark-data).
 //! Add/delete changes the allow-list for switch-project and new notes only.
 
 use std::collections::HashSet;
-use std::fs;
 use std::sync::Mutex;
 
 use chrono::{FixedOffset, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
-use crate::config::paths;
-use crate::repositories::atomic_json;
+use rusqlite::Connection;
+
 use crate::services::id::random_alnum6;
+use crate::services::spark_data::{
+    self, delete_note_category, get_note_category, insert_note_category, list_note_categories,
+    update_note_category, NoteCategoryRow,
+};
 
 pub const INBOX_ID: &str = "inbox";
 const INBOX_TITLE: &str = "Inbox";
-const CATEGORIES_VERSION: u32 = 1;
 const ID_MAX_LEN: usize = 64;
 
 static WRITE_LOCK: Mutex<()> = Mutex::new(());
@@ -29,12 +31,6 @@ pub struct NotesCategory {
     /// First path segment for notes. Empty in old files means `id`.
     #[serde(default)]
     pub folder: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct NotesCategoriesFile {
-    pub version: u32,
-    pub categories: Vec<NotesCategory>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -66,12 +62,16 @@ impl NotesCatError {
     }
 }
 
-fn inbox_category() -> NotesCategory {
+fn inbox_row() -> NoteCategoryRow {
+    NoteCategoryRow::new(INBOX_ID, INBOX_ID, INBOX_TITLE, "")
+}
+
+fn from_row(row: NoteCategoryRow) -> NotesCategory {
     NotesCategory {
-        id: INBOX_ID.to_string(),
-        title: INBOX_TITLE.to_string(),
-        description: String::new(),
-        folder: INBOX_ID.to_string(),
+        id: row.id,
+        title: row.title,
+        description: row.description,
+        folder: row.folder,
     }
 }
 
@@ -104,13 +104,6 @@ fn mint_unique_id(used: &HashSet<String>) -> Result<String, NotesCatError> {
     Err(NotesCatError::Io("Could not allocate category id".into()))
 }
 
-fn default_file() -> NotesCategoriesFile {
-    NotesCategoriesFile {
-        version: CATEGORIES_VERSION,
-        categories: vec![inbox_category()],
-    }
-}
-
 pub fn is_valid_category_id(id: &str) -> bool {
     let raw = id.trim();
     !raw.is_empty()
@@ -129,69 +122,44 @@ where
     f()
 }
 
-fn registry_path() -> Result<std::path::PathBuf, NotesCatError> {
-    paths::notes_categories_path().map_err(|e| NotesCatError::Io(format!("{e:?}")))
+fn db_err(e: String) -> NotesCatError {
+    NotesCatError::Io(e)
 }
 
-fn load_file_unlocked() -> Result<NotesCategoriesFile, NotesCatError> {
-    let path = registry_path()?;
-    if !path.is_file() {
-        return Ok(default_file());
+fn ensure_inbox(conn: &Connection) -> Result<(), NotesCatError> {
+    if get_note_category(conn, INBOX_ID).map_err(db_err)?.is_none() {
+        insert_note_category(conn, &inbox_row()).map_err(db_err)?;
     }
-    let text = fs::read_to_string(&path).map_err(|e| NotesCatError::Io(e.to_string()))?;
-    serde_json::from_str(&text).map_err(|e| NotesCatError::Io(e.to_string()))
+    Ok(())
 }
 
-fn save_file_unlocked(data: &NotesCategoriesFile) -> Result<(), NotesCatError> {
-    let path = registry_path()?;
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|e| NotesCatError::Io(e.to_string()))?;
-    }
-    let value = serde_json::to_value(data).map_err(|e| NotesCatError::Io(e.to_string()))?;
-    atomic_json::write_json(&path, &value).map_err(NotesCatError::Io)
+fn load_all(conn: &Connection) -> Result<Vec<NotesCategory>, NotesCatError> {
+    ensure_inbox(conn)?;
+    Ok(list_note_categories(conn)
+        .map_err(db_err)?
+        .into_iter()
+        .map(from_row)
+        .collect())
 }
 
-fn ensure_inbox(file: &mut NotesCategoriesFile) -> bool {
-    if file.categories.iter().any(|c| c.id == INBOX_ID) {
-        return false;
-    }
-    file.categories.insert(0, inbox_category());
-    true
+fn ensure_unlocked() -> Result<Vec<NotesCategory>, NotesCatError> {
+    let conn = spark_data::open().map_err(db_err)?;
+    load_all(&conn)
 }
 
-fn sort_categories(file: &mut NotesCategoriesFile) {
-    file.categories.sort_by(|a, b| match (a.id.as_str(), b.id.as_str()) {
-        (INBOX_ID, _) => std::cmp::Ordering::Less,
-        (_, INBOX_ID) => std::cmp::Ordering::Greater,
-        _ => a.title.to_lowercase().cmp(&b.title.to_lowercase()),
-    });
-}
-
-fn ensure_unlocked() -> Result<NotesCategoriesFile, NotesCatError> {
-    let mut file = load_file_unlocked()?;
-    let dirty = ensure_inbox(&mut file);
-    if dirty || !registry_path()?.is_file() {
-        sort_categories(&mut file);
-        save_file_unlocked(&file)?;
-    }
-    Ok(file)
-}
-
-pub fn ensure_categories() -> Result<NotesCategoriesFile, NotesCatError> {
+pub fn ensure_categories() -> Result<Vec<NotesCategory>, NotesCatError> {
     with_write_lock(ensure_unlocked)
 }
 
 pub fn known_ids() -> Result<HashSet<String>, NotesCatError> {
     Ok(ensure_categories()?
-        .categories
         .iter()
         .map(|c| category_folder(c).to_string())
         .collect())
 }
 
 pub fn list_notes_categories() -> Result<Value, NotesCatError> {
-    let categories =
-        serde_json::to_value(&ensure_categories()?.categories).unwrap_or_else(|_| json!([]));
+    let categories = serde_json::to_value(&ensure_categories()?).unwrap_or_else(|_| json!([]));
     Ok(json!({ "categories": categories }))
 }
 
@@ -206,8 +174,10 @@ pub fn create_notes_category(id: &str, title: &str, description: &str) -> Result
         return Err(NotesCatError::BadRequest("Missing title".into()));
     }
     with_write_lock(|| {
-        let mut file = ensure_unlocked()?;
-        let used: HashSet<String> = file.categories.iter().map(|c| c.id.clone()).collect();
+        let conn = spark_data::open().map_err(db_err)?;
+        let existing = load_all(&conn)?;
+        let mut used: HashSet<String> = existing.iter().map(|c| c.id.clone()).collect();
+        used.extend(existing.iter().map(|c| category_folder(c).to_string()));
         let id = if requested.is_empty() {
             mint_unique_id(&used)?
         } else if used.contains(requested) {
@@ -215,16 +185,9 @@ pub fn create_notes_category(id: &str, title: &str, description: &str) -> Result
         } else {
             requested.to_string()
         };
-        let category = NotesCategory {
-            id: id.clone(),
-            title: title.to_string(),
-            description: description.to_string(),
-            folder: id,
-        };
-        file.categories.push(category.clone());
-        sort_categories(&mut file);
-        save_file_unlocked(&file)?;
-        Ok(json!({ "ok": true, "category": category }))
+        let row = NoteCategoryRow::new(&id, &id, title, description);
+        insert_note_category(&conn, &row).map_err(db_err)?;
+        Ok(json!({ "ok": true, "category": from_row(row) }))
     })
 }
 
@@ -239,15 +202,17 @@ pub fn update_notes_category(id: &str, title: &str, description: &str) -> Result
         return Err(NotesCatError::BadRequest("Missing title".into()));
     }
     with_write_lock(|| {
-        let mut file = ensure_unlocked()?;
-        let Some(cat) = file.categories.iter_mut().find(|c| c.id == id) else {
+        let conn = spark_data::open().map_err(db_err)?;
+        ensure_inbox(&conn)?;
+        let Some(mut row) = get_note_category(&conn, id).map_err(db_err)? else {
             return Err(NotesCatError::NotFound("Category not found".into()));
         };
-        cat.title = title.to_string();
-        cat.description = description.to_string();
-        let category = cat.clone();
-        save_file_unlocked(&file)?;
-        Ok(json!({ "ok": true, "category": category }))
+        row.title = title.to_string();
+        row.description = description.to_string();
+        if !update_note_category(&conn, &row).map_err(db_err)? {
+            return Err(NotesCatError::NotFound("Category not found".into()));
+        }
+        Ok(json!({ "ok": true, "category": from_row(row) }))
     })
 }
 
@@ -260,13 +225,11 @@ pub fn delete_notes_category(id: &str) -> Result<Value, NotesCatError> {
         return Err(NotesCatError::BadRequest("Cannot delete inbox".into()));
     }
     with_write_lock(|| {
-        let mut file = ensure_unlocked()?;
-        let before = file.categories.len();
-        file.categories.retain(|c| c.id != id);
-        if file.categories.len() == before {
+        let conn = spark_data::open().map_err(db_err)?;
+        ensure_inbox(&conn)?;
+        if !delete_note_category(&conn, id).map_err(db_err)? {
             return Err(NotesCatError::NotFound("Category not found".into()));
         }
-        save_file_unlocked(&file)?;
         Ok(json!({ "ok": true }))
     })
 }

@@ -79,12 +79,12 @@ describe('writeApiInvokeMap', () => {
   it('resolveWriteInvoke maps set-done body to set_done command', () => {
     expect(
       resolveWriteInvoke('/api/set-done', {
-        common_path: 'ai/note.md',
+        id: 'ai/note.md',
         done: true,
       })
     ).toEqual({
       cmd: 'set_done',
-      args: { commonPath: 'ai/note.md', done: true },
+      args: { id: 'ai/note.md', done: true },
     });
   });
 
@@ -97,12 +97,12 @@ describe('writeApiInvokeMap', () => {
     expect(
       resolveWriteInvoke('/api/save', {
         layer: 'digest',
-        common_path: 'x/y.md',
+        id: 'x/y.md',
         content: '# hi',
       })
     ).toEqual({
       cmd: 'save_entry',
-      args: { layer: 'digest', commonPath: 'x/y.md', content: '# hi' },
+      args: { layer: 'digest', id: 'x/y.md', content: '# hi' },
     });
   });
 

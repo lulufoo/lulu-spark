@@ -6,8 +6,8 @@
 
 type Body = Record<string, unknown>;
 
-function commonPathArg(body: Body) {
-  return { commonPath: body.common_path };
+function noteIdArg(body: Body) {
+  return { id: body.id };
 }
 
 type WriteInvokeEntry = {
@@ -26,14 +26,15 @@ export const WRITE_API_INVOKE_MAP: Record<string, WriteInvokeEntry> = {
     cmd: 'save_entry',
     args: (body) => ({
       layer: body.layer,
-      ...commonPathArg(body),
+      ...noteIdArg(body),
       content: body.content,
+      ...(body.lang != null && body.lang !== '' ? { lang: body.lang } : {}),
     }),
   },
   '/api/update-comments': {
     cmd: 'update_comments',
     args: (body) => ({
-      ...commonPathArg(body),
+      ...noteIdArg(body),
       layer: body.layer,
       comment: body.comment,
       ts: body.ts,
@@ -42,7 +43,7 @@ export const WRITE_API_INVOKE_MAP: Record<string, WriteInvokeEntry> = {
   '/api/reorder-comments': {
     cmd: 'reorder_comments',
     args: (body) => ({
-      ...commonPathArg(body),
+      ...noteIdArg(body),
       layer: body.layer,
       ids: body.ids,
     }),
@@ -50,7 +51,7 @@ export const WRITE_API_INVOKE_MAP: Record<string, WriteInvokeEntry> = {
   '/api/update-highlights': {
     cmd: 'update_highlights',
     args: (body) => ({
-      ...commonPathArg(body),
+      ...noteIdArg(body),
       layer: body.layer,
       highlight: body.highlight,
       ts: body.ts,
@@ -67,21 +68,21 @@ export const WRITE_API_INVOKE_MAP: Record<string, WriteInvokeEntry> = {
   '/api/update-links': {
     cmd: 'update_links',
     args: (body) => ({
-      ...commonPathArg(body),
+      ...noteIdArg(body),
       links: body.links,
     }),
   },
   '/api/set-done': {
     cmd: 'set_done',
     args: (body) => ({
-      ...commonPathArg(body),
+      ...noteIdArg(body),
       done: body.done,
     }),
   },
   '/api/set-importance': {
     cmd: 'set_importance',
     args: (body) => ({
-      ...commonPathArg(body),
+      ...noteIdArg(body),
       importance: body.importance,
     }),
   },
@@ -161,7 +162,7 @@ export const WRITE_API_INVOKE_MAP: Record<string, WriteInvokeEntry> = {
   '/api/tag/attach': {
     cmd: 'tag_attach',
     args: (body) => ({
-      commonPath: body.common_path,
+      id: body.id,
       ...(body.key != null && body.key !== '' ? { key: body.key } : {}),
       ...(body.value != null && body.value !== '' ? { value: body.value } : {}),
     }),
@@ -169,7 +170,7 @@ export const WRITE_API_INVOKE_MAP: Record<string, WriteInvokeEntry> = {
   '/api/tag/detach': {
     cmd: 'tag_detach',
     args: (body) => ({
-      commonPath: body.common_path,
+      id: body.id,
       key: body.key,
     }),
   },

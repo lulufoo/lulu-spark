@@ -88,7 +88,7 @@ describe('removeKbComment', () => {
 });
 
 describe('removeNoteComment', () => {
-  const entry = { common_path: 'ai/note.md' };
+  const entry = { id: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' };
   const layer = 'raw';
   const comment = { id: 'c1', text: 'note' };
 
@@ -102,7 +102,7 @@ describe('removeNoteComment', () => {
     api.updateComments.mockResolvedValue({ ok: true });
     await removeNoteComment(comment, layer, entry);
     expect(api.updateComments).toHaveBeenCalledWith(
-      'ai/note.md',
+      'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
       'raw',
       { id: 'c1', text: '' },
       expect.any(String),

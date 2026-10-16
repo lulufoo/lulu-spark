@@ -26,7 +26,7 @@ export function applyListFilters() {
     groups = groups
       .map(({ date, entries }) => ({
         date,
-        entries: entries.filter(({ entry }) => (entry.common_path?.split('/')[0] || 'unknown') === topic),
+        entries: entries.filter(({ entry }) => (entry.folder || 'unknown') === topic),
       }))
       .filter(({ entries }) => entries.length > 0);
   }

@@ -6,13 +6,13 @@ use crate::services::annotation::read_annotation_object;
 use crate::services::spark_data;
 use crate::services::tags_registry::read_registry;
 
-pub fn get_annotation(_repo_root: &Path, path: &str) -> Value {
-    let decoded = urlencoding::decode(path).unwrap_or_else(|_| path.into());
-    let common_path = decoded.trim();
-    if common_path.is_empty() || common_path.contains("..") {
-        return json!({ "error": "Invalid path" });
+pub fn get_annotation(_repo_root: &Path, id: &str) -> Value {
+    let decoded = urlencoding::decode(id).unwrap_or_else(|_| id.into());
+    let id = decoded.trim();
+    if id.is_empty() {
+        return json!({ "error": "Invalid id" });
     }
-    read_annotation_object(common_path)
+    read_annotation_object(id)
 }
 
 fn resolve_tags(registry: &Value, tag_keys: &[Value]) -> Value {
@@ -43,8 +43,7 @@ pub fn get_annotations_summary(_repo_root: &Path) -> Value {
     };
     let mut result = Map::new();
     for note in notes {
-        let common_path = note.raw_path.clone();
-        if common_path.is_empty() {
+        if note.doc_id.is_empty() {
             continue;
         }
         let ann = spark_data::annotation_object(&note);
@@ -91,7 +90,7 @@ pub fn get_annotations_summary(_repo_root: &Path) -> Value {
             }
         }
         if !summary.is_empty() {
-            result.insert(common_path, Value::Object(summary));
+            result.insert(note.doc_id, Value::Object(summary));
         }
     }
     Value::Object(result)

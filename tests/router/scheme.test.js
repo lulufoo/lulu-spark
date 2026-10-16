@@ -27,9 +27,9 @@ const NOTE_PATH = 'inbox/x.md';
 const NOTE_DATE = '20260719';
 const HOP_ID = 'trace_12345678';
 const PASS = encodePassBag(HOP_ID);
-const NOTES_OPEN = `spark://notes/open?id=${NOTE_ID}&path=${encodeURIComponent(NOTE_PATH)}&${PASS_QUERY}=${PASS}`;
+const NOTES_OPEN = `spark://notes/open?id=${NOTE_ID}&${PASS_QUERY}=${PASS}`;
 const READ_LATER_LIST = `spark://read-later/list?${PASS_QUERY}=${PASS}`;
-const NOTES_OPEN_NO_PASS = `spark://notes/open?id=${NOTE_ID}&path=${encodeURIComponent(NOTE_PATH)}`;
+const NOTES_OPEN_NO_PASS = `spark://notes/open?id=${NOTE_ID}`;
 const NOTES_OPEN_TRACE_ONLY = `${NOTES_OPEN_NO_PASS}&trace=trace_12345678`;
 const NOTES_OPEN_BAD_PASS = `${NOTES_OPEN_NO_PASS}&${PASS_QUERY}=not-json`;
 const READ_LATER_TRACE_ONLY = 'spark://read-later/list?trace=trace_12345678';
@@ -50,7 +50,7 @@ function collectBundleUrlSchemes(node, found = []) {
 
 function seedIndex(entry = {
   _id: NOTE_ID,
-  common_path: NOTE_PATH,
+  folder: 'inbox',
   created_at: `${NOTE_DATE}120000`,
 }) {
   state.index.data = { [NOTE_ID]: entry };
@@ -64,7 +64,7 @@ function notesEnvelope(action = 'create', params = {}) {
   return {
     business: 'notes',
     action,
-    params: { id: HOP_ID, archive_id: NOTE_ID, common_path: NOTE_PATH, ...params },
+    params: { id: HOP_ID, archive_id: NOTE_ID, ...params },
   };
 }
 
@@ -93,10 +93,10 @@ afterEach(() => {
 });
 
 describe('composeSparkScheme', () => {
-  it('encodes notes create as notes/open with id, path, and a pass bag from hop id', () => {
+  it('encodes notes create as notes/open with id and a pass bag from hop id', () => {
     const scheme = composeSparkScheme(notesEnvelope('create'));
     expect(scheme).toBe(NOTES_OPEN);
-    expect(queryKeys(scheme)).toEqual(['id', 'path', 'pass']);
+    expect(queryKeys(scheme)).toEqual(['id', 'pass']);
     expect(scheme).not.toMatch(/trace=/);
     expect(scheme).not.toMatch(/archive_id=/);
     expect(scheme).not.toMatch(/date=/);
@@ -141,10 +141,8 @@ describe('composeSparkScheme', () => {
     [{ business: 'notes', action: 'changed', params: { id: HOP_ID, archive_id: NOTE_ID, common_path: NOTE_PATH } }],
     [{ business: 'notes', action: 'create', params: { archive_id: NOTE_ID, common_path: NOTE_PATH } }],
     [{ business: 'notes', action: 'create', params: { id: HOP_ID, common_path: NOTE_PATH } }],
-    [{ business: 'notes', action: 'create', params: { id: HOP_ID, archive_id: NOTE_ID } }],
     [{ business: 'notes', action: 'create', params: { id: '', archive_id: NOTE_ID, common_path: NOTE_PATH } }],
     [{ business: 'notes', action: 'create', params: { id: HOP_ID, archive_id: '', common_path: NOTE_PATH } }],
-    [{ business: 'notes', action: 'create', params: { id: HOP_ID, archive_id: NOTE_ID, common_path: '' } }],
     [{ business: 'notes', action: 'create', params: { id: NOTE_ID, common_path: NOTE_PATH } }],
     [{ business: 'read_later', action: 'update', params: { id: HOP_ID } }],
     [{ business: 'read_later', action: 'create', params: {} }],
@@ -154,11 +152,10 @@ describe('composeSparkScheme', () => {
 });
 
 describe('parseSparkScheme', () => {
-  it('parses notes/open id and path when pass is valid', () => {
+  it('parses notes/open id when pass is valid', () => {
     expect(parseSparkScheme(NOTES_OPEN)).toEqual({
       kind: 'notes-open',
       id: NOTE_ID,
-      path: NOTE_PATH,
     });
   });
 
@@ -192,19 +189,14 @@ describe('parseSparkScheme', () => {
     });
   });
 
-  it('round-trips a path that contains spaces and non-ASCII', () => {
-    const path = 'inbox/my 笔记.md';
-    const scheme = composeSparkScheme(notesEnvelope('create', { common_path: path }));
-    expect(scheme).toBe(
-      `spark://notes/open?id=${NOTE_ID}&path=${encodeURIComponent(path)}&${PASS_QUERY}=${PASS}`,
-    );
-    expect(scheme).not.toMatch(/ /);
-    expect(scheme).not.toMatch(/笔记/);
+  it('round-trips notes open by id without a path query', () => {
+    const scheme = composeSparkScheme(notesEnvelope('create'));
+    expect(scheme).toBe(NOTES_OPEN);
+    expect(scheme).not.toMatch(/path=/);
     expect(scheme).not.toMatch(/trace=/);
     expect(parseSparkScheme(scheme)).toEqual({
       kind: 'notes-open',
       id: NOTE_ID,
-      path,
     });
   });
 
@@ -236,23 +228,16 @@ describe('parseSparkScheme', () => {
 });
 
 describe('resolveNotesLanding', () => {
-  it('resolves date and common_path from index id', () => {
-    expect(resolveNotesLanding(NOTE_ID, 'other/path.md')).toEqual({
+  it('resolves date and note id from the index', () => {
+    expect(resolveNotesLanding(NOTE_ID)).toEqual({
       date: NOTE_DATE,
-      note: NOTE_PATH,
+      note: NOTE_ID,
     });
   });
 
-  it('resolves date and common_path from index common_path', () => {
-    expect(resolveNotesLanding('missing-id', NOTE_PATH)).toEqual({
-      date: NOTE_DATE,
-      note: NOTE_PATH,
-    });
-  });
-
-  it('returns null when index cannot resolve date and common_path', () => {
+  it('returns null when the index cannot resolve the id', () => {
     state.index.data = {};
-    expect(resolveNotesLanding(NOTE_ID, NOTE_PATH)).toBeNull();
+    expect(resolveNotesLanding(NOTE_ID)).toBeNull();
   });
 });
 
@@ -262,7 +247,7 @@ describe('openSparkScheme', () => {
     expect(openSparkScheme(NOTES_OPEN)).toBe(true);
     expect(parseHash(window.location.hash)).toEqual({
       name: 'spark',
-      params: { date: NOTE_DATE, note: NOTE_PATH },
+      params: { date: NOTE_DATE, note: NOTE_ID },
     });
     expect(dialogEl()?.classList.contains('open')).toBe(false);
     expect(logSpy).toHaveBeenCalledWith(

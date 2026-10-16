@@ -1,25 +1,24 @@
 import { describe, it, expect } from 'vitest'
-import { getActivePath } from '../../frontend/src/knowledge/state/path.ts'
+import { noteFileLang } from '../../frontend/src/knowledge/state/path.ts'
 
-describe('getActivePath', () => {
+describe('noteFileLang', () => {
   const entry = {
-    common_path: 'proj/doc.md',
     translations: { zh: 'proj/zh/doc.md' },
   }
 
-  it('raw 层 zh 时返回 translations.zh', () => {
-    expect(getActivePath(entry, 'zh', 'raw')).toBe('proj/zh/doc.md')
+  it('raw 层 zh 时返回 zh', () => {
+    expect(noteFileLang(entry, 'zh', 'raw')).toBe('zh')
   })
 
-  it('digest 层 zh 时仍返回 common_path', () => {
-    expect(getActivePath(entry, 'zh', 'digest')).toBe('proj/doc.md')
+  it('digest 层 zh 时不带 lang', () => {
+    expect(noteFileLang(entry, 'zh', 'digest')).toBeUndefined()
   })
 
-  it('raw 层 en 时返回 common_path', () => {
-    expect(getActivePath(entry, null, 'raw')).toBe('proj/doc.md')
+  it('raw 层 en 时不带 lang', () => {
+    expect(noteFileLang(entry, 'en', 'raw')).toBeUndefined()
   })
 
-  it('无 zh 翻译时返回 common_path', () => {
-    expect(getActivePath({ common_path: 'a/b.md' }, 'zh', 'raw')).toBe('a/b.md')
+  it('无 zh 翻译时不带 lang', () => {
+    expect(noteFileLang({}, 'zh', 'raw')).toBeUndefined()
   })
 })

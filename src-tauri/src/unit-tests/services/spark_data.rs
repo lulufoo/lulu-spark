@@ -1,4 +1,4 @@
-use super::db::{migrate, open_with_steps};
+use super::db::{migrate, open_with_steps, MIGRATIONS};
 use super::*;
 
 use rusqlite::Connection;
@@ -25,20 +25,47 @@ fn user_version(conn: &Connection) -> i64 {
 }
 
 #[test]
-fn first_open_creates_three_tables_and_reopen_changes_nothing() {
+fn first_open_creates_four_tables_and_reopen_changes_nothing() {
     let (_dir, path) = temp_db();
     let first = open_at(&path).expect("first open");
     let tables = table_names(&first);
-    assert_eq!(tables, vec!["knowledge_doc", "note", "tag"]);
+    assert_eq!(tables, vec!["knowledge_doc", "note", "note_category", "tag"]);
     let version = user_version(&first);
-    assert_eq!(version, 1);
+    assert_eq!(version, 3);
+    let cols: Vec<String> = first
+        .prepare("PRAGMA table_info(note)")
+        .expect("pragma")
+        .query_map([], |r| r.get(1))
+        .expect("cols")
+        .collect::<Result<_, _>>()
+        .expect("rows");
+    assert!(cols.contains(&"category_id".to_string()));
     insert_note(&first, &NoteRow::new("n1", "a/b.md")).expect("seed");
     drop(first);
 
     let second = open_at(&path).expect("reopen");
     assert_eq!(table_names(&second), tables);
     assert_eq!(user_version(&second), version);
-    assert!(get_note(&second, "n1").expect("get").is_some(), "reopen must keep data");
+    let kept = get_note(&second, "n1").expect("get").expect("row");
+    assert_eq!(kept.category_id, "inbox");
+}
+
+#[test]
+fn v2_creates_note_category_and_reopen_keeps_data() {
+    let (_dir, path) = temp_db();
+    let first = open_at(&path).expect("first open");
+    assert!(table_names(&first).contains(&"note_category".to_string()));
+    assert_eq!(user_version(&first), 3);
+    let inbox = get_note_category(&first, "inbox").expect("get").expect("v3 seeds inbox");
+    assert_eq!(inbox.folder, "inbox");
+    let extra = NoteCategoryRow::new("ops", "ops", "Ops", "");
+    insert_note_category(&first, &extra).expect("seed");
+    drop(first);
+
+    let second = open_at(&path).expect("reopen");
+    assert_eq!(user_version(&second), 3);
+    assert_eq!(get_note_category(&second, "ops").expect("get"), Some(extra));
+    assert!(get_note_category(&second, "inbox").expect("get").is_some());
 }
 
 #[test]
@@ -49,6 +76,38 @@ fn open_uses_wal_and_foreign_keys() {
     assert_eq!(mode, "wal");
     let fk: i64 = conn.query_row("PRAGMA foreign_keys", [], |r| r.get(0)).expect("fk");
     assert_eq!(fk, 1);
+}
+
+#[test]
+fn note_category_id_fk_rejects_unknown_and_accepts_inbox() {
+    let (_dir, path) = temp_db();
+    let conn = open_at(&path).expect("open");
+    assert_eq!(user_version(&conn), 3);
+    let mut bad = NoteRow::new("n1", "a.md");
+    bad.category_id = "missing".into();
+    assert!(insert_note(&conn, &bad).is_err(), "FK to note_category(id)");
+    insert_note(&conn, &NoteRow::new("n2", "a.md")).expect("inbox");
+    let got = get_note(&conn, "n2").expect("get").expect("row");
+    assert_eq!(got.category_id, "inbox");
+}
+
+#[test]
+fn v2_note_rows_gain_inbox_category_id() {
+    let (_dir, path) = temp_db();
+    let v2 = open_with_steps(&path, &MIGRATIONS[..2]).expect("v2");
+    assert_eq!(user_version(&v2), 2);
+    v2.execute("INSERT INTO note (doc_id, raw_path) VALUES ('n1', 'ai/x.md')", [])
+        .expect("seed populated v2");
+    drop(v2);
+
+    let conn = open_at(&path).expect("v2 → v3");
+    assert_eq!(user_version(&conn), 3);
+    let got = get_note(&conn, "n1").expect("get").expect("row");
+    assert_eq!(got.category_id, "inbox");
+    assert_eq!(got.raw_path, "ai/x.md");
+    let mut bad = NoteRow::new("n2", "a.md");
+    bad.category_id = "missing".into();
+    assert!(insert_note(&conn, &bad).is_err(), "FK after rebuild");
 }
 
 #[test]
@@ -92,8 +151,11 @@ fn note_round_trips_every_column() {
     note.highlights = json!([{ "id": "h1", "text": "片段", "occurrence": 1 }]);
     note.translations = json!(["zh"]);
     note.title = Some("标题".into());
+    assert_eq!(note.category_id, "inbox");
     insert_note(&conn, &note).expect("insert");
     assert_eq!(get_note(&conn, "n1").expect("get"), Some(note.clone()));
+    insert_note_category(&conn, &NoteCategoryRow::new("topic", "topic", "Topic", "")).expect("cat");
+    note.category_id = "topic".into();
 
     note.done = false;
     note.importance = None;

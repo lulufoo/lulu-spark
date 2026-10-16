@@ -255,23 +255,19 @@ document.addEventListener('cta:filter-tag', (event) => {
 
 // ── Global search navigation ───────────────────────────────────────────────
 document.addEventListener('cta:open-entry', (event) => {
-  const detail = (event as CustomEvent<{ common_path?: string; layer?: string }>).detail;
+  const detail = (event as CustomEvent<{ id?: string; layer?: string }>).detail;
   closeNoteAssistantPanel();
-  if (!detail?.common_path) return;
-  const allEntries = Object.values(state.index.data || {});
-  let entry = allEntries.find((e) => e.common_path === detail.common_path);
-  // Fallback: detail.common_path may be a zh translation file (e.g. from a
-  // stale index). Resolve it to the main entry via translations.zh.
-  if (!entry) entry = allEntries.find((e) => e.translations?.zh === detail.common_path);
+  const id = detail?.id;
+  if (!id) return;
+  const data = state.index.data || {};
+  const entry = data[id] ?? Object.values(data).find((e) => e._id === id || e.id === id);
   if (!entry) return;
   const date = entry.created_at
     ? entry.created_at.slice(0, 8)
     : (state.ui?.activeDate || '');
   if (!date) return;
   selectDate(date);
-  // Main-layer resolution pinned here: explicit detail.layer (deep-link compat)
-  // wins; otherwise resolve from the index entry (raw first, digest-only falls back).
-  const params: { date: string; note: string; layer?: string } = { date, note: entry.common_path };
+  const params: { date: string; note: string; layer?: string } = { date, note: id };
   params.layer = detail.layer || (LAYERS.find((l) => entry.layers?.includes(l)) ?? 'raw');
   navigateToNote(params);
 });

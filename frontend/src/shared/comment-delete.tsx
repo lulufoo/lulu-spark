@@ -45,9 +45,9 @@ export async function removeKbComment(comment: { id: string }) {
 export async function removeNoteComment(
   c: { id: string },
   layer: string,
-  entry: { common_path: string },
+  entry: { _id?: string; id?: string },
 ) {
-  const data = (await api.updateComments(entry.common_path, layer, { id: c.id, text: '' }, nowTs())) as WriteResult;
+  const data = (await api.updateComments(entry._id || entry.id || '', layer, { id: c.id, text: '' }, nowTs())) as WriteResult;
   if (!data.ok) throw new Error(data.error || 'failed');
   const annotation = state.viewer.annotation as Annotation;
   const ld = (annotation[layer] || {}) as LayerData;

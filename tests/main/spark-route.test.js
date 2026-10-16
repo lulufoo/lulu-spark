@@ -255,13 +255,13 @@ describe('T2 mountSpark three-branch routing', () => {
   });
 
   it('resolved note → note outlet open state (not Dialog)', () => {
-    const entry = { common_path: 'inbox/notes/a.md', layers: ['raw'] };
+    const entry = { id: 'e1', folder: 'inbox', layers: ['raw'] };
     const env = stubSparkMountEnv({
       state: { index: { data: { e1: entry } } },
     });
     const mount = compileMountSpark(env);
 
-    mount({ params: { date: '20260719', note: 'inbox/notes/a.md', layer: 'raw' } });
+    mount({ params: { date: '20260719', note: 'e1', layer: 'raw' } });
 
     expect(env.openDoc).toHaveBeenCalledWith(entry, 'raw');
     expect(env.state.viewer.outletMode).toBe('open');

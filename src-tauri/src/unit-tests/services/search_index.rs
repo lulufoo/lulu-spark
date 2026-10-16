@@ -99,7 +99,8 @@ fn desktop_spark_hits_always_expose_raw_layer() {
         let hits = out["hits"].as_array().expect("hits");
         assert_eq!(hits.len(), 1);
         assert_eq!(hits[0]["layer"], "raw");
-        assert_eq!(hits[0]["common_path"], "proj/n.md");
+        assert_eq!(hits[0]["id"], "doc-n");
+        assert!(hits[0].get("common_path").is_none());
         assert_eq!(hits[0]["topic"], "proj");
     });
 }
@@ -130,7 +131,8 @@ fn hits_of_a_deleted_note_or_a_missing_knowledge_doc_are_dropped() {
         want.sort_unstable();
         assert_eq!(ids, want, "the deleted note has no row, so no hit");
         let note = all.iter().find(|h| h.doc_id == "doc-live").expect("note hit");
-        assert_eq!(note.common_path, "proj/live.md");
+        assert_eq!(note.common_path, "live.md");
+        assert_eq!(note.topic, "proj");
         let kb = all.iter().find(|h| h.doc_id == kb_id).expect("kb hit");
         assert_eq!((kb.common_path.as_str(), kb.repo.as_str()), ("guide/a.md", "demo"));
 

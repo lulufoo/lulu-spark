@@ -5,12 +5,12 @@
 use std::collections::HashMap;
 
 use crate::services::sediment_kb;
-use crate::services::spark_data::{self, get_knowledge_doc, get_note, KnowledgeStatus};
+use crate::services::spark_data::{self, category_folder, get_knowledge_doc, get_note, KnowledgeStatus};
 
 use super::query::QueryHit;
 
-/// Where one document lives: `(path relative to its root, repo as owner/name)`.
-type Location = Option<(String, String)>;
+/// Where one document lives: `(path relative to its root, repo as owner/name, topic folder)`.
+type Location = Option<(String, String, String)>;
 
 /// Directory name (last segment of `owner/name`) → `owner/name`, for registered repos.
 fn full_repo_names() -> HashMap<String, String> {
@@ -28,12 +28,18 @@ fn locate(
     doc_id: &str,
 ) -> Result<Location, String> {
     match category {
-        "notes" => Ok(get_note(conn, doc_id)?.map(|note| (note.raw_path, String::new()))),
+        "notes" => {
+            let Some(note) = get_note(conn, doc_id)? else {
+                return Ok(None);
+            };
+            let folder = category_folder(conn, &note.category_id).unwrap_or_default();
+            Ok(Some((note.raw_path, String::new(), folder)))
+        }
         "knowledge" => Ok(get_knowledge_doc(conn, doc_id)?
             .filter(|doc| doc.status == KnowledgeStatus::Active)
             .map(|doc| {
                 let repo = repos.get(&doc.repo).cloned().unwrap_or(doc.repo);
-                (doc.path, repo)
+                (doc.path, repo, String::new())
             })),
         _ => Ok(None),
     }
@@ -57,9 +63,10 @@ pub fn resolve_hits(hits: Vec<QueryHit>) -> Result<Vec<QueryHit>, String> {
             let found = locate(&conn, &repos, &hit.category, &hit.doc_id)?;
             seen.insert(hit.doc_id.clone(), found);
         }
-        if let Some(Some((path, repo))) = seen.get(&hit.doc_id) {
+        if let Some(Some((path, repo, topic))) = seen.get(&hit.doc_id) {
             hit.common_path = path.clone();
             hit.repo = repo.clone();
+            hit.topic = topic.clone();
             out.push(hit);
         }
     }

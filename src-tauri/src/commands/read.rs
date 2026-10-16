@@ -59,13 +59,13 @@ pub fn get_tags_registry(_app: AppHandle) -> Result<Value, String> {
 }
 
 #[tauri::command]
-pub fn get_annotation(_app: AppHandle, path: String) -> Result<Value, String> {
-    Ok(spark_read::get_annotation(&repo_root()?, &path))
+pub fn get_annotation(_app: AppHandle, id: String) -> Result<Value, String> {
+    Ok(spark_read::get_annotation(&repo_root()?, &id))
 }
 
 #[tauri::command]
-pub fn get_draft(_app: AppHandle, path: String) -> Result<Value, String> {
-    Ok(spark_read::get_draft(&repo_root()?, &path))
+pub fn get_draft(_app: AppHandle, id: String) -> Result<Value, String> {
+    Ok(spark_read::get_draft(&repo_root()?, &id))
 }
 
 #[tauri::command]
@@ -160,9 +160,15 @@ pub fn get_notes_index(_app: AppHandle) -> Result<Value, String> {
 pub fn get_notes_file(
     _app: AppHandle,
     layer: String,
-    path: String,
+    id: String,
+    lang: Option<String>,
 ) -> Result<Value, String> {
-    Ok(spark_read::get_notes_file(&repo_root()?, &layer, &path))
+    Ok(spark_read::get_notes_file(
+        &repo_root()?,
+        &layer,
+        &id,
+        lang.as_deref(),
+    ))
 }
 
 /// Validate and resolve a `note:<id>` link target. Index entry only; no body, no absolute path.
@@ -187,14 +193,16 @@ pub fn read_abs_file(_app: AppHandle, path: String) -> Result<Value, String> {
 pub fn get_notes_asset(
     _app: AppHandle,
     layer: String,
-    base: String,
+    id: String,
     href: String,
+    lang: Option<String>,
 ) -> Result<Value, String> {
     Ok(spark_read::get_notes_asset(
         &repo_root()?,
         &layer,
-        &base,
+        &id,
         &href,
+        lang.as_deref(),
     ))
 }
 

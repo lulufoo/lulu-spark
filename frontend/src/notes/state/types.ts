@@ -7,7 +7,8 @@ export type {
 
 export type AssistantNote = {
   title?: string;
-  common_path?: string;
+  _id?: string;
+  id?: string;
   source_type?: string;
   created_at?: string;
 };

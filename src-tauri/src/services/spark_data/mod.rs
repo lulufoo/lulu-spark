@@ -6,6 +6,7 @@ mod json_column;
 mod knowledge_doc_row;
 mod knowledge_registry;
 mod note_annotation;
+mod note_category_row;
 mod note_entry;
 mod note_row;
 mod tag_rows;
@@ -21,6 +22,10 @@ pub use knowledge_registry::{
     ReconcileStats,
 };
 pub use note_annotation::annotation_object;
+pub use note_category_row::{
+    category_folder, delete_note_category, get_note_category, get_note_category_by_folder,
+    insert_note_category, list_note_categories, update_note_category, NoteCategoryRow,
+};
 pub use note_entry::{entry_from_note, list_note_entries, translation_common_paths};
 pub use note_row::{
     delete_note, find_note_ids_by_path, get_note, insert_note, list_notes, update_note, NoteRow,

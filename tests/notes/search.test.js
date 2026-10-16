@@ -94,11 +94,11 @@ describe('notes search module', () => {
     expect(apiMocks.searchSpark).toHaveBeenCalledWith('topic-name', 8);
   });
 
-  it('hit click dispatches cta:open-entry with common_path only (no layer)', async () => {
+  it('hit click dispatches cta:open-entry with id only (no layer)', async () => {
     apiMocks.searchSpark.mockResolvedValue({
       hits: [{
         title: 'Entry',
-        common_path: '2024/01/entry.md',
+        id: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
         layer: 'raw',
         topic: 'demo',
         body: 'snippet body',
@@ -122,7 +122,7 @@ describe('notes search module', () => {
 
     expect(handler).toHaveBeenCalledTimes(1);
     expect(handler.mock.calls[0][0].detail).toEqual({
-      common_path: '2024/01/entry.md',
+      id: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
     });
     expect('layer' in handler.mock.calls[0][0].detail).toBe(false);
   });
@@ -138,7 +138,7 @@ describe('notes search module', () => {
     apiMocks.searchSpark.mockResolvedValue({
       hits: [{
         title: 'Hit',
-        common_path: 'path/a.md',
+        id: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
         layer: 'digest',
         topic: 't',
         body: 'body',
@@ -258,7 +258,7 @@ describe('notes search module', () => {
 
   it('hit row hover does not show digest tooltip or fetch digest', async () => {
     apiMocks.searchSpark.mockResolvedValue({
-      hits: [{ title: 'Tip', common_path: 'inbox/notes/tip.md', topic: 't', body: 'b' }],
+      hits: [{ title: 'Tip', id: 'cccccccccccccccccccccccccccccccc', topic: 't', body: 'b' }],
     });
     apiMocks.fetchFileContent.mockResolvedValueOnce('# Tip **preview**');
 

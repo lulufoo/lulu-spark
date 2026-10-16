@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { flushSync } from 'react-dom';
-import { getActivePath } from '../knowledge/state/path.ts';
+import { getEntryId } from '../host/state.ts';
 import { useHostState } from './state/host.ts';
 import { getHomeEntryShell } from '../home-entry-shell/access.ts';
 import { OverlayDismissButton } from '../shared/overlay-dismiss-button.tsx';
@@ -137,8 +137,8 @@ function NotesReaderBody() {
       body.innerHTML = '';
       return;
     }
-    const activePath = getActivePath(entry, viewer.lang || '', layer) || entry.common_path;
-    void renderDocBody(rawText, layer, activePath);
+    const id = getEntryId(entry) || '';
+    void renderDocBody(rawText, layer, id);
   }, [paintKey, rawText, layer, entry, loading, loadError, creating, editing, viewer.lang]);
 
   return (

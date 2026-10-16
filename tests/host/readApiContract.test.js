@@ -125,11 +125,16 @@ describe('readApi contract map', () => {
   it('resolveInvokeFromPath maps notes-asset query args', () => {
     expect(
       resolveInvokeFromPath(
-        '/api/notes-asset?layer=raw&base=ai/note.md&href=note.png',
+        '/api/notes-asset?layer=raw&id=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa&href=note.png',
       ),
     ).toEqual({
       cmd: 'get_notes_asset',
-      args: { layer: 'raw', base: 'ai/note.md', href: 'note.png' },
+      args: {
+        layer: 'raw',
+        id: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        href: 'note.png',
+        lang: undefined,
+      },
     });
   });
 

@@ -6,16 +6,23 @@ use std::path::Path;
 use serde_json::{json, Value};
 
 use crate::config::roots::notes_root_path;
+use crate::services::archive_parse::expected_lang_common_path;
+use crate::services::notes::notes_file_path;
 use crate::services::search_index;
-use crate::services::spark_data;
+use crate::services::spark_data::{self, category_folder, get_note};
 
 const EDITABLE_LAYERS: &[&str] = &["raw", "digest"];
+
+fn is_valid_entry_id(id: &str) -> bool {
+    id.len() == 32 && id.chars().all(|c| c.is_ascii_hexdigit())
+}
 
 pub fn save_entry(
     repo_root: &Path,
     layer: String,
-    common_path: String,
+    id: String,
     content: String,
+    lang: Option<String>,
 ) -> Value {
     let layer = layer.trim();
     if !EDITABLE_LAYERS.contains(&layer) {
@@ -24,42 +31,53 @@ pub fn save_entry(
             "_status": 400
         });
     }
-    let common_path = common_path.trim();
-    if common_path.is_empty() || common_path.contains("..") {
+    let id = id.trim();
+    if !is_valid_entry_id(id) {
+        return json!({ "error": "Invalid id", "_status": 400 });
+    }
+
+    let conn = match spark_data::open() {
+        Ok(c) => c,
+        Err(e) => return json!({ "error": e, "_status": 500 }),
+    };
+    let note = match get_note(&conn, id) {
+        Ok(Some(n)) => n,
+        Ok(None) => return json!({ "error": "File not found", "_status": 404 }),
+        Err(e) => return json!({ "error": e, "_status": 500 }),
+    };
+    let folder = match category_folder(&conn, &note.category_id) {
+        Ok(f) => f,
+        Err(e) => return json!({ "error": e, "_status": 500 }),
+    };
+    let rel = match (layer, lang.as_deref().map(str::trim).filter(|s| !s.is_empty())) {
+        ("raw", Some(lang)) => match expected_lang_common_path(&note.raw_path, lang) {
+            Some(p) => p,
+            None => return json!({ "error": "Invalid path", "_status": 400 }),
+        },
+        ("digest", _) => note.digest_path.clone().unwrap_or_else(|| note.raw_path.clone()),
+        _ => note.raw_path.clone(),
+    };
+    if rel.is_empty() || rel.contains("..") {
         return json!({ "error": "Invalid path", "_status": 400 });
     }
 
     let notes = notes_root_path(repo_root);
-    let target = notes.join(layer).join(common_path);
-    let notes_canon = match notes.canonicalize() {
+    let target = match notes_file_path(&notes, layer, &folder, &rel) {
         Ok(p) => p,
-        Err(e) => return json!({ "error": e.to_string(), "_status": 500 }),
+        Err(v) => return v,
     };
-    let target_canon = target.canonicalize().unwrap_or(target.clone());
-    let prefix = format!(
-        "{}{}",
-        notes_canon.to_string_lossy(),
-        std::path::MAIN_SEPARATOR
-    );
-    if !target_canon.to_string_lossy().starts_with(&prefix) {
-        return json!({ "error": "Path traversal not allowed", "_status": 400 });
-    }
 
-    if !target_canon.is_file() {
+    if !target.is_file() {
         return json!({
-            "error": format!("File not found: {layer}/{common_path}"),
+            "error": format!("File not found: {layer}/{folder}/{rel}"),
             "_status": 404
         });
     }
 
-    if let Err(e) = fs::write(&target_canon, content) {
+    if let Err(e) = fs::write(&target, content) {
         return json!({ "error": e.to_string(), "_status": 500 });
     }
-    let ids = spark_data::open()
-        .and_then(|conn| spark_data::find_note_ids_by_path(&conn, common_path))
-        .unwrap_or_default();
-    let ids: Vec<&str> = ids.iter().map(String::as_str).collect();
-    search_index::sync_note_docs_best_effort(repo_root, &ids);
+    search_index::sync_note_docs_best_effort(repo_root, &[id]);
     json!({ "ok": true })
 }
 

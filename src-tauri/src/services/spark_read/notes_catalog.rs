@@ -4,7 +4,6 @@ use std::path::Path;
 use serde_json::{json, Map, Value};
 
 use crate::config::paths;
-use crate::config::roots::notes_root_path;
 use crate::services::search_index::{index_exists, search_in_cache, SearchFilter};
 
 use super::notes::{get_notes_file, load_notes_index_entries};
@@ -14,8 +13,8 @@ const NOTES_SEARCH_MAX_LIMIT: u32 = 50;
 
 pub const RAW_CONTENT_MAX_BYTES: usize = 10 * 1024;
 
-fn catalog_from_common_path(common_path: &str) -> &str {
-    common_path.split('/').next().unwrap_or(common_path)
+fn entry_folder(entry: &Value) -> Option<&str> {
+    entry.get("folder").and_then(|v| v.as_str()).filter(|s| !s.is_empty())
 }
 
 pub(super) fn is_valid_entry_id(id: &str) -> bool {
@@ -52,34 +51,24 @@ pub fn get_latest_digest_per_catalog(repo_root: &Path) -> Value {
         Err(v) => return v,
     };
 
-    let mut best_by_catalog: HashMap<String, (String, String, String)> = HashMap::new();
+    let mut best_by_catalog: HashMap<String, (String, String)> = HashMap::new();
     for (id, entry) in &entries {
         if !is_valid_entry_id(id) || !entry_has_digest_layer(entry) {
             continue;
         }
-        let Some(common_path) = entry.get("common_path").and_then(|v| v.as_str()) else {
+        let Some(catalog) = entry_folder(entry) else {
             continue;
         };
-        if common_path.is_empty() {
-            continue;
-        }
         let created_at = entry
             .get("created_at")
             .and_then(|v| v.as_str())
             .unwrap_or("");
-        let catalog = catalog_from_common_path(common_path).to_string();
-        match best_by_catalog.get(&catalog) {
+        match best_by_catalog.get(catalog) {
             None => {
-                best_by_catalog.insert(
-                    catalog,
-                    (id.clone(), created_at.to_string(), common_path.to_string()),
-                );
+                best_by_catalog.insert(catalog.to_string(), (id.clone(), created_at.to_string()));
             }
-            Some((_, prev_created, _)) if created_at > prev_created.as_str() => {
-                best_by_catalog.insert(
-                    catalog,
-                    (id.clone(), created_at.to_string(), common_path.to_string()),
-                );
+            Some((_, prev_created)) if created_at > prev_created.as_str() => {
+                best_by_catalog.insert(catalog.to_string(), (id.clone(), created_at.to_string()));
             }
             _ => {}
         }
@@ -87,8 +76,8 @@ pub fn get_latest_digest_per_catalog(repo_root: &Path) -> Value {
 
     let mut items: Vec<Value> = best_by_catalog
         .into_iter()
-        .map(|(catalog, (note_id, created_at, common_path))| {
-            let file_value = get_notes_file(repo_root, "digest", &common_path);
+        .map(|(catalog, (note_id, created_at))| {
+            let file_value = get_notes_file(repo_root, "digest", &note_id, None);
             if let Some(status) = file_value.get("_status").and_then(|v| v.as_u64()) {
                 let msg = file_value
                     .get("error")
@@ -136,10 +125,7 @@ pub fn list_notes_by_catalog(repo_root: &Path, catalog: &str) -> Value {
         if !is_valid_entry_id(id) {
             continue;
         }
-        let Some(common_path) = entry.get("common_path").and_then(|v| v.as_str()) else {
-            continue;
-        };
-        if catalog_from_common_path(common_path) != want {
+        if entry_folder(entry) != Some(want) {
             continue;
         }
         let created_at = entry
@@ -161,49 +147,6 @@ pub fn get_note_content_by_id(repo_root: &Path, id: &str) -> Value {
     read_note_layer(repo_root, id, "raw", true)
 }
 
-/// Locate the raw note file. Success is `{id, ok, path}` only — no body text.
-pub fn get_note_path_by_id(repo_root: &Path, id: &str) -> Value {
-    let id = id.trim();
-    if id.is_empty() {
-        return json!({ "error": "Missing id", "_status": 400 });
-    }
-    if !is_valid_entry_id(id) {
-        return json!({ "id": id, "ok": false, "error": "Invalid id" });
-    }
-    let entries = match load_notes_index_entries(repo_root) {
-        Ok(e) => e,
-        Err(v) => return v,
-    };
-    let Some(entry) = entries.get(id) else {
-        return json!({ "id": id, "ok": false, "error": "Entry not found" });
-    };
-    let Some(common_path) = entry.get("common_path").and_then(|v| v.as_str()) else {
-        return json!({ "id": id, "ok": false, "error": "Missing path" });
-    };
-    let common_path = common_path.trim();
-    if common_path.is_empty() || common_path.contains("..") {
-        return json!({ "id": id, "ok": false, "error": "Invalid path" });
-    }
-    let notes = notes_root_path(repo_root);
-    let target = notes.join("raw").join(common_path);
-    let Ok(notes_canon) = notes.canonicalize() else {
-        return json!({ "id": id, "ok": false, "error": "Notes root missing" });
-    };
-    let target_canon = target.canonicalize().unwrap_or(target);
-    let prefix = format!("{}{}", notes_canon.to_string_lossy(), std::path::MAIN_SEPARATOR);
-    if !target_canon.to_string_lossy().starts_with(&prefix) {
-        return json!({ "id": id, "ok": false, "error": "Path traversal not allowed" });
-    }
-    if !target_canon.is_file() {
-        return json!({ "id": id, "ok": false, "error": "File not found" });
-    }
-    json!({
-        "id": id,
-        "ok": true,
-        "path": target_canon.to_string_lossy(),
-    })
-}
-
 fn read_note_layer(repo_root: &Path, id: &str, layer: &str, truncate_raw: bool) -> Value {
     let id = id.trim();
     if id.is_empty() {
@@ -216,25 +159,7 @@ fn read_note_layer(repo_root: &Path, id: &str, layer: &str, truncate_raw: bool) 
             "error": "Invalid id",
         });
     }
-    let entries = match load_notes_index_entries(repo_root) {
-        Ok(e) => e,
-        Err(v) => return v,
-    };
-    let Some(entry) = entries.get(id) else {
-        return json!({
-            "id": id,
-            "ok": false,
-            "error": "Entry not found",
-        });
-    };
-    let Some(common_path) = entry.get("common_path").and_then(|v| v.as_str()) else {
-        return json!({
-            "id": id,
-            "ok": false,
-            "error": "Missing path",
-        });
-    };
-    let file_value = get_notes_file(repo_root, layer, common_path);
+    let file_value = get_notes_file(repo_root, layer, id, None);
     if let Some(status) = file_value.get("_status").and_then(|v| v.as_u64()) {
         let msg = file_value
             .get("error")
@@ -281,32 +206,9 @@ fn snippet_from_hit(hit: &Value) -> String {
         .to_string()
 }
 
-fn index_by_common_path(entries: &Map<String, Value>) -> HashMap<String, (String, String)> {
-    let mut map = HashMap::new();
-    for (id, entry) in entries {
-        if !is_valid_entry_id(id) {
-            continue;
-        }
-        let Some(common_path) = entry.get("common_path").and_then(|v| v.as_str()) else {
-            continue;
-        };
-        if common_path.is_empty() {
-            continue;
-        }
-        let created_at = entry
-            .get("created_at")
-            .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .to_string();
-        map.entry(common_path.to_string())
-            .or_insert((id.clone(), created_at));
-    }
-    map
-}
-
 pub(crate) fn project_raw_search_hits(
     hits: &[Value],
-    path_index: &HashMap<String, (String, String)>,
+    entries: &Map<String, Value>,
 ) -> Vec<Value> {
     let mut items = Vec::new();
     let mut seen = HashSet::new();
@@ -314,20 +216,20 @@ pub(crate) fn project_raw_search_hits(
         if hit.get("layer").and_then(|v| v.as_str()) != Some("raw") {
             continue;
         }
-        let Some(common_path) = hit.get("common_path").and_then(|v| v.as_str()) else {
+        let Some(note_id) = hit.get("note_id").and_then(|v| v.as_str()) else {
             continue;
         };
-        if !seen.insert(common_path.to_string()) {
+        if !seen.insert(note_id.to_string()) {
             continue;
         }
-        let Some((note_id, created_at)) = path_index.get(common_path) else {
+        let Some(entry) = entries.get(note_id) else {
             continue;
         };
         items.push(json!({
             "note_id": note_id,
-            "catalog": catalog_from_common_path(common_path),
+            "catalog": entry_folder(entry).unwrap_or(""),
             "title": hit.get("title").and_then(|v| v.as_str()).unwrap_or(""),
-            "created_at": created_at,
+            "created_at": entry.get("created_at").and_then(|v| v.as_str()).unwrap_or(""),
             "matches": [{ "snippet": snippet_from_hit(hit) }],
         }));
     }
@@ -369,11 +271,11 @@ pub fn search_notes(
         .map(|h| {
             json!({
                 "layer": "raw",
-                "common_path": h.common_path,
+                "note_id": h.doc_id,
                 "title": h.title,
                 "_formatted": { "body": h.snippet },
             })
         })
         .collect();
-    json!({ "items": project_raw_search_hits(&projected, &index_by_common_path(&entries)) })
+    json!({ "items": project_raw_search_hits(&projected, &entries) })
 }

@@ -121,11 +121,11 @@ describe('T6 behavioral: main-layer open (spark-search hits + card title)', () =
     document.body.innerHTML = '';
   });
 
-  it('hit click dispatches cta:open-entry with common_path only (no layer passthrough)', async () => {
+  it('hit click dispatches cta:open-entry with id only (no layer passthrough)', async () => {
     apiMocks.searchSpark.mockResolvedValue({
       hits: [{
         title: 'Entry',
-        common_path: 'inbox/notes/entry.md',
+        id: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
         layer: 'digest',
         topic: 'demo',
         body: 'snippet body',
@@ -151,7 +151,7 @@ describe('T6 behavioral: main-layer open (spark-search hits + card title)', () =
 
     expect(handler).toHaveBeenCalledTimes(1);
     expect(handler.mock.calls[0][0].detail).toEqual({
-      common_path: 'inbox/notes/entry.md',
+      id: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
     });
     expect('layer' in handler.mock.calls[0][0].detail).toBe(false);
     document.removeEventListener('cta:open-entry', handler);
@@ -161,7 +161,7 @@ describe('T6 behavioral: main-layer open (spark-search hits + card title)', () =
     apiMocks.searchSpark.mockResolvedValue({
       hits: [{
         title: 'No layer',
-        common_path: 'inbox/notes/n.md',
+        id: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
         topic: 'demo',
         body: 'x',
       }],
@@ -182,7 +182,7 @@ describe('T6 behavioral: main-layer open (spark-search hits + card title)', () =
 
     expect(handler).toHaveBeenCalledTimes(1);
     const detail = handler.mock.calls[0][0].detail;
-    expect(detail.common_path).toBe('inbox/notes/n.md');
+    expect(detail.id).toBe('bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
     if (detail.layer !== undefined) {
       expect(detail.layer).toBe('');
     }
@@ -191,7 +191,7 @@ describe('T6 behavioral: main-layer open (spark-search hits + card title)', () =
 
   it('card title click emits cta:open-entry with main layer raw (layer badges removed)', () => {
     const entry = {
-      common_path: 'inbox/notes/202607191200-a.md',
+      folder: 'inbox',
       created_at: '202607191200',
       layers: ['raw', 'digest'],
     };
@@ -204,7 +204,7 @@ describe('T6 behavioral: main-layer open (spark-search hits + card title)', () =
     card.querySelector('.doc-title-btn').click();
     expect(handler).toHaveBeenCalledTimes(1);
     expect(handler.mock.calls[0][0].detail).toEqual({
-      common_path: entry.common_path,
+      id: 'id1',
       layer: 'raw',
     });
     document.removeEventListener('cta:open-entry', handler);
@@ -212,7 +212,7 @@ describe('T6 behavioral: main-layer open (spark-search hits + card title)', () =
 
   it('digest-only entry: title click emits cta:open-entry falling back to layer digest', () => {
     const entry = {
-      common_path: 'inbox/notes/202607191300-d.md',
+      folder: 'inbox',
       created_at: '202607191300',
       layers: ['digest'],
     };
@@ -223,7 +223,7 @@ describe('T6 behavioral: main-layer open (spark-search hits + card title)', () =
     card.querySelector('.doc-title-btn').click();
     expect(handler).toHaveBeenCalledTimes(1);
     expect(handler.mock.calls[0][0].detail).toEqual({
-      common_path: entry.common_path,
+      id: 'id2',
       layer: 'digest',
     });
     document.removeEventListener('cta:open-entry', handler);
