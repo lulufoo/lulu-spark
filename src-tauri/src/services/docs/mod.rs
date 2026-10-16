@@ -9,14 +9,16 @@ mod delete;
 mod project;
 mod read;
 mod resolve;
+mod search;
 mod update;
 mod workspace;
 
 pub use create::{create_doc, create_doc_content};
 pub use delete::delete_doc;
 pub use project::{create_project, delete_project, list_projects, update_project};
-pub use read::{export_file, get_digest, get_file};
+pub use read::{export_file, get_digest, get_file, get_path};
 pub use resolve::DEFAULT_PROJECT_FOLDER;
+pub use search::search;
 pub use update::{update_doc, update_doc_content};
 pub use workspace::{
     create_workspace, delete_workspace, list_workspaces, rename_workspace, set_view_mode,

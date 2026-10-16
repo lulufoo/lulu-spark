@@ -55,7 +55,7 @@ fn run_loop_uses_mcp_tools_and_feeds_tool_result_back_to_model() {
                 "id": "selection_1",
                 "type": "function",
                 "function": {
-                    "name": "list_notes_categories",
+                    "name": "list_projects",
                     "arguments": "{}"
                 }
             }]),
@@ -83,7 +83,7 @@ fn run_loop_uses_mcp_tools_and_feeds_tool_result_back_to_model() {
         hits[0]["tools"]
             .as_array()
             .is_some_and(|tools| tools.iter().any(|tool| {
-                tool.pointer("/function/name") == Some(&json!("list_notes_categories"))
+                tool.pointer("/function/name") == Some(&json!("list_projects"))
             })),
         "active spark MCP tools must be sent to the model"
     );
@@ -93,7 +93,7 @@ fn run_loop_uses_mcp_tools_and_feeds_tool_result_back_to_model() {
             .is_some_and(|messages| messages.iter().any(|message| {
                 message["role"] == "tool"
                     && message["tool_call_id"] == "selection_1"
-                    && message["name"] == "list_notes_categories"
+                    && message["name"] == "list_projects"
             })),
         "the model follow-up must receive the MCP result"
     );
@@ -137,7 +137,7 @@ fn run_loop_marks_successful_note_mcp_mutation_as_wrote() {
                 "id": "create_1",
                 "type": "function",
                 "function": {
-                    "name": "create_notes_category",
+                    "name": "create_project",
                     "arguments": "{\"title\":\"MCP 分类\"}"
                 }
             }]),
@@ -155,7 +155,7 @@ fn run_loop_marks_successful_note_mcp_mutation_as_wrote() {
         hits[0]["tools"]
             .as_array()
             .is_some_and(|tools| tools.iter().any(|tool| {
-                tool.pointer("/function/name") == Some(&json!("create_notes_category"))
+                tool.pointer("/function/name") == Some(&json!("create_project"))
             })),
         "Notes tool definition must reach the model"
     );
@@ -181,7 +181,7 @@ fn run_loop_returns_argument_and_allowlist_failures_to_the_model_as_tool_turns()
                     "id": "invalid_args",
                     "type": "function",
                     "function": {
-                        "name": "get_note_digest",
+                        "name": "get_doc_digest",
                         "arguments": "{}"
                     }
                 },
@@ -324,7 +324,7 @@ fn run_loop_offers_host_file_tools_and_keeps_scratch_writes_inside_cache() {
                     .iter()
                     .any(|tool| tool.pointer("/function/name") == Some(&json!(name)))
             }) && tools.iter().any(|tool| {
-                tool.pointer("/function/name") == Some(&json!("list_notes_categories"))
+                tool.pointer("/function/name") == Some(&json!("list_projects"))
             })
         }),
         "model tools must include Host file tools and MCP tools"

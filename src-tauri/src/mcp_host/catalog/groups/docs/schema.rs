@@ -1,4 +1,4 @@
-//! Shared JSON Schema fragments for notes MCP tools.
+//! Shared JSON Schema fragments for the docs MCP tools.
 
 use serde_json::{json, Value};
 
@@ -10,15 +10,27 @@ pub fn source_type_schema() -> Value {
     })
 }
 
-pub fn create_note_properties(include_source_path: bool) -> Value {
+fn workspace_schema() -> Value {
+    json!({
+        "type": "string",
+        "description": "Optional workspace id from list_workspaces. Defaults to the Default workspace."
+    })
+}
+
+pub fn workspace_property() -> Value {
+    json!({ "workspace": workspace_schema() })
+}
+
+pub fn create_doc_properties(include_source_path: bool) -> Value {
     let mut props = json!({
         "title": {
             "type": "string",
             "description": "Required display title. May be Chinese."
         },
+        "workspace": workspace_schema(),
         "project": {
             "type": "string",
-            "description": "Optional notes category folder (first path segment). Must exist in notes/categories.json. Defaults to inbox."
+            "description": "Optional project folder (from list_projects) inside the workspace. Defaults to inbox."
         },
         "folder": {
             "type": "string",
@@ -36,7 +48,7 @@ pub fn create_note_properties(include_source_path: bool) -> Value {
         },
         "digest_body": {
             "type": "string",
-            "description": "Digest Markdown. Required when digest is always, or auto and the note meets Host digest rules."
+            "description": "Digest Markdown. Required when digest is always, or auto and the document meets Host digest rules."
         },
         "translations": {
             "type": "array",
@@ -61,12 +73,12 @@ pub fn create_note_properties(include_source_path: bool) -> Value {
         props["asset_paths"] = json!({
             "type": "array",
             "items": { "type": "string" },
-            "description": "Absolute paths to companion images referenced by relative ![]() or <img src> in the source Markdown. Required on this call when the body has such images; omit when it has none. Host copies each into the same directory as the raw note .md, keeping only the source basename; reference each image in the Markdown by that sibling basename (png/jpg/jpeg; max 8 files, 4 MiB each). Existing dest → 409. Never send image bytes. Host does not scan the Markdown."
+            "description": "Absolute paths to companion images referenced by relative ![]() or <img src> in the source Markdown. Required on this call when the body has such images; omit when it has none. Host copies each into the same directory as the raw document .md, keeping only the source basename; reference each image in the Markdown by that sibling basename (png/jpg/jpeg; max 8 files, 4 MiB each). Existing dest → 409. Never send image bytes. Host does not scan the Markdown."
         });
     } else {
         props["content"] = json!({
             "type": "string",
-            "description": "Markdown note body. Host writes this text; do not send source_path."
+            "description": "Markdown document body. Host writes this text; do not send source_path."
         });
         if let Some(items) = props
             .get_mut("translations")
@@ -80,11 +92,12 @@ pub fn create_note_properties(include_source_path: bool) -> Value {
     props
 }
 
-pub fn update_note_properties(include_source_path: bool) -> Value {
+pub fn update_doc_properties(include_source_path: bool) -> Value {
     let mut props = json!({
+        "workspace": workspace_schema(),
         "id": {
             "type": "string",
-            "description": "Archive entry id (32-char hex) from search or create_note."
+            "description": "Document id (32-char hex) from search or create_doc."
         },
         "digest": {
             "type": "string",
@@ -93,13 +106,13 @@ pub fn update_note_properties(include_source_path: bool) -> Value {
         },
         "digest_body": {
             "type": "string",
-            "description": "Digest Markdown. Required when digest is always, or auto and the note meets Host digest rules."
+            "description": "Digest Markdown. Required when digest is always, or auto and the document meets Host digest rules."
         }
     });
     if include_source_path {
         props["source_path"] = json!({
             "type": "string",
-            "description": "Absolute path to an allow-listed Markdown file. Host reads this as the new raw body; destination is the existing note for id. Never send document text."
+            "description": "Absolute path to an allow-listed Markdown file. Host reads this as the new raw body; destination is the existing document for id. Never send document text."
         });
     } else {
         props["content"] = json!({

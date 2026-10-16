@@ -223,3 +223,72 @@ fn export_file_copies_the_raw_file() {
     assert_eq!(fs::read_to_string(path).expect("copy"), BODY);
     assert_eq!(status(&export_file(&json!({ "id": id }))), 400);
 }
+
+#[test]
+fn get_path_points_at_the_raw_file_without_its_body() {
+    let sandbox = TestSandbox::new();
+    let created = write(None, None);
+    let id = text(ok(&created), "id");
+    let got = get_path(&json!({ "id": id }));
+    let path = PathBuf::from(text(ok(&got), "path"));
+    let expected = workspaces_dir(&sandbox).join("default/raw/inbox").canonicalize().expect("dir");
+    assert!(path.canonicalize().expect("file").starts_with(expected), "{path:?}");
+    assert_eq!(fs::read_to_string(path).expect("read"), BODY);
+    assert!(got.get("content").is_none());
+    assert_eq!(status(&get_path(&json!({ "id": "ffffffffffffffffffffffffffffffff" }))), 404);
+}
+
+fn write_text(workspace: &str, body: &str) -> String {
+    let created = create_doc_content(&json!({
+        "workspace": workspace,
+        "title": "Searchable",
+        "content": body,
+        "digest": "never",
+    }));
+    text(ok(&created), "id")
+}
+
+#[test]
+fn search_spans_workspaces_or_narrows_to_one() {
+    let _sandbox = TestSandbox::new();
+    let ws = new_workspace("Memory");
+    let in_default = write_text("default", "# Searchable\n\n这是默认空间里的迁移笔记 zebrafish 内容。");
+    let in_ws = write_text(&ws, "# Searchable\n\n这是记忆空间里保存的偏好 zebrafish 内容。");
+
+    crate::services::index_build::rebuild_spark_index(&crate::config::paths::repo_root().expect("root")).expect("index");
+    let all = search(&json!({ "q": "zebrafish" }));
+    let ids: Vec<String> = all["items"].as_array().expect("items").iter().map(|i| text(i, "id")).collect();
+    assert!(ids.contains(&in_default) && ids.contains(&in_ws), "{all}");
+
+    let only = search(&json!({ "q": "zebrafish", "workspace": ws }));
+    let items = only["items"].as_array().expect("items");
+    assert_eq!(items.len(), 1, "{only}");
+    assert_eq!(text(&items[0], "id"), in_ws);
+    assert_eq!(text(&items[0], "workspace"), ws);
+    assert_eq!(text(&items[0], "project"), "inbox");
+}
+
+#[test]
+fn search_checks_its_arguments() {
+    let _sandbox = TestSandbox::new();
+    assert_eq!(status(&search(&json!({}))), 400);
+    assert_eq!(status(&search(&json!({ "q": "x", "workspace": "nope" }))), 404);
+}
+
+#[test]
+fn a_full_rebuild_indexes_every_workspace_and_drops_chunks_of_deleted_documents() {
+    let _sandbox = TestSandbox::new();
+    let ws = new_workspace("Memory");
+    let kept = write_text(&ws, "# Searchable\n\n这是重建后保留的文档 platypus 内容。");
+    let gone = write_text("default", "# Searchable\n\n这是重建后消失的文档 platypus 内容。");
+    let root = crate::config::paths::repo_root().expect("root");
+
+    // Remove the row behind the index's back, then rebuild from the tables.
+    let conn = spark_data::open().expect("db");
+    spark_data::delete_doc(&conn, "doc_default", &gone).expect("delete row");
+    crate::services::index_build::rebuild_spark_index(&root).expect("rebuild");
+
+    let found = search(&json!({ "q": "platypus" }));
+    let ids: Vec<String> = found["items"].as_array().expect("items").iter().map(|i| text(i, "id")).collect();
+    assert_eq!(ids, vec![kept], "{found}");
+}

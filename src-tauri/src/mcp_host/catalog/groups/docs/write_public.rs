@@ -1,4 +1,4 @@
-//! MCP-facing success shape for create_note / update_note.
+//! MCP-facing success shape for create_doc / update_doc.
 //!
 //! Host write functions still return internal paths for the app, message
 //! center, and tests. MCP strips those paths after produce.
@@ -10,7 +10,7 @@ fn nonempty_array(value: &Value) -> bool {
 }
 
 /// Success becomes `{ok, id}` plus written-flags. Failures pass through.
-pub(super) fn mcp_note_write_public(result: Value) -> Value {
+pub(super) fn mcp_doc_write_public(result: Value) -> Value {
     if result.get("error").is_some() || result.get("ok") != Some(&json!(true)) {
         return result;
     }
@@ -39,7 +39,7 @@ mod tests {
 
     #[test]
     fn strips_paths_and_keeps_written_flags() {
-        let public = mcp_note_write_public(json!({
+        let public = mcp_doc_write_public(json!({
             "ok": true,
             "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
             "common_path": "inbox/notes/n.md",
@@ -63,7 +63,7 @@ mod tests {
 
     #[test]
     fn omits_flags_when_optional_layers_absent() {
-        let public = mcp_note_write_public(json!({
+        let public = mcp_doc_write_public(json!({
             "ok": true,
             "id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
             "common_path": "inbox/notes/n.md",
@@ -81,6 +81,6 @@ mod tests {
     #[test]
     fn passes_errors_through() {
         let err = json!({ "error": "Missing id", "_status": 400 });
-        assert_eq!(mcp_note_write_public(err.clone()), err);
+        assert_eq!(mcp_doc_write_public(err.clone()), err);
     }
 }

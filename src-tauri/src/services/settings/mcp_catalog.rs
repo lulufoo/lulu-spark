@@ -9,8 +9,7 @@ use super::mcp_channel_tools;
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct GroupedEnabledCatalog {
-    pub notes: Vec<String>,
-    pub knowledge: Vec<String>,
+    pub docs: Vec<String>,
     pub global: Vec<String>,
 }
 
@@ -18,8 +17,7 @@ pub struct GroupedEnabledCatalog {
 pub fn enabled_grouped(channel: &str) -> GroupedEnabledCatalog {
     let grouped = mcp_channel_tools::enabled_by_group(channel);
     GroupedEnabledCatalog {
-        notes: grouped.notes,
-        knowledge: grouped.knowledge,
+        docs: grouped.docs,
         global: grouped.global,
     }
 }

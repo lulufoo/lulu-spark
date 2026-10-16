@@ -16,8 +16,7 @@ pub fn build_routes_for_channel(
     let mut seen = HashSet::new();
 
     for (group, keys) in [
-        ("notes", &enabled.notes),
-        ("knowledge", &enabled.knowledge),
+        ("docs", &enabled.docs),
         ("global", &enabled.global),
     ] {
         for key in keys {

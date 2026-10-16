@@ -80,6 +80,21 @@ pub fn get_digest(payload: &Value) -> Value {
     get_file(&request)
 }
 
+/// `{ workspace?, id }` → `{ id, ok, path }`: where the raw file is on this machine. No body.
+pub fn get_path(payload: &Value) -> Value {
+    let (workspace, project, doc) = match find(payload) {
+        Ok(found) => found,
+        Err(v) => return v,
+    };
+    match locate(&workspace, &project, &doc, "raw", None) {
+        Ok(path) if path.is_file() => {
+            json!({ "id": doc.doc_id, "ok": true, "path": path.to_string_lossy() })
+        }
+        Ok(_) => not_found("File not found"),
+        Err(v) => v,
+    }
+}
+
 /// `{ workspace?, id, dest_dir }` → `{ id, ok, path }`: a versioned copy of the raw file.
 pub fn export_file(payload: &Value) -> Value {
     let Some(dest_dir) = text_field(payload, "dest_dir") else {

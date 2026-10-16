@@ -1,4 +1,4 @@
-//! Classify flat/grouped MCP tool names and rewrite retired search APIs.
+//! Classify flat/grouped MCP tool names and rewrite retired tool names.
 
 use std::collections::HashSet;
 
@@ -6,15 +6,31 @@ use crate::mcp_host::catalog::catalog_groups;
 
 use super::mcp_channel_tools::EnabledByGroup;
 
-const RETIRED_SEARCH_TOOLS: &[&str] = &["search_notes", "search_knowledge", "search_document"];
-const SEARCH: &str = "search";
-const RETIRED_NOTE_CONTENT: &str = "get_note_content_by_id";
-const NOTE_CONTENT: &str = "get_note_content";
-const RETIRED_NOTE_DIGEST: &str = "get_note_digest_by_id";
-const NOTE_DIGEST: &str = "get_note_digest";
-const NOTE_FILE: &str = "get_note_file";
-const KNOWLEDGE_CONTENT: &str = "get_knowledge_content";
-const KNOWLEDGE_FILE: &str = "get_knowledge_file";
+const DOC_CONTENT: &str = "get_doc_content";
+const DOC_FILE: &str = "get_doc_file";
+
+/// Tool names that existed before workspaces and projects, and what replaced them.
+/// Saved settings and callers still using an old name keep working through this table.
+const RETIRED_TOOLS: &[(&str, &str)] = &[
+    ("search_notes", "search"),
+    ("search_knowledge", "search"),
+    ("search_document", "search"),
+    ("get_note_content_by_id", "get_doc_content"),
+    ("get_note_content", "get_doc_content"),
+    ("get_knowledge_content", "get_doc_content"),
+    ("get_note_digest_by_id", "get_doc_digest"),
+    ("get_note_digest", "get_doc_digest"),
+    ("get_note_file", "get_doc_file"),
+    ("get_knowledge_file", "get_doc_file"),
+    ("create_note", "create_doc"),
+    ("update_note", "update_doc"),
+    ("delete_note", "delete_doc"),
+    ("list_notes_categories", "list_projects"),
+    ("list_knowledge_categories", "list_projects"),
+    ("create_notes_category", "create_project"),
+    ("update_notes_category", "update_project"),
+    ("delete_notes_category", "delete_project"),
+];
 
 fn push_unique(out: &mut Vec<String>, name: &str) {
     if !out.iter().any(|n| n == name) {
@@ -22,73 +38,49 @@ fn push_unique(out: &mut Vec<String>, name: &str) {
     }
 }
 
-pub fn rewrite_retired_search_names(names: impl IntoIterator<Item = String>) -> Vec<String> {
+fn current_name(name: &str) -> &str {
+    RETIRED_TOOLS
+        .iter()
+        .find(|(old, _)| *old == name)
+        .map_or(name, |(_, new)| *new)
+}
+
+pub fn rewrite_retired_tool_names(names: impl IntoIterator<Item = String>) -> Vec<String> {
     let mut out = Vec::new();
-    let mut add_search = false;
     for name in names {
-        if RETIRED_SEARCH_TOOLS.contains(&name.as_str()) {
-            add_search = true;
-            continue;
-        }
-        if name == RETIRED_NOTE_CONTENT {
-            push_unique(&mut out, NOTE_CONTENT);
-            continue;
-        }
-        if name == RETIRED_NOTE_DIGEST {
-            push_unique(&mut out, NOTE_DIGEST);
-            continue;
-        }
-        out.push(name);
-    }
-    if add_search {
-        push_unique(&mut out, SEARCH);
+        push_unique(&mut out, current_name(&name));
     }
     out
 }
 
-/// Desktop channels moved from `get_*_content` to `get_*_file`; mobile keeps the old tools.
+/// Desktop channels moved from `get_doc_content` to `get_doc_file`; mobile keeps the old tool.
 pub fn migrate_content_tools_to_file(channel: &str, mut groups: EnabledByGroup) -> EnabledByGroup {
     if channel == "mobile" {
         return groups;
     }
-    swap_name(&mut groups.notes, NOTE_CONTENT, NOTE_FILE);
-    swap_name(&mut groups.knowledge, KNOWLEDGE_CONTENT, KNOWLEDGE_FILE);
+    if groups.docs.iter().any(|n| n == DOC_CONTENT) {
+        groups.docs.retain(|n| n != DOC_CONTENT);
+        push_unique(&mut groups.docs, DOC_FILE);
+    }
     groups
 }
 
-fn swap_name(names: &mut Vec<String>, old: &str, new: &str) {
-    if names.iter().any(|n| n == old) {
-        names.retain(|n| n != old);
-        push_unique(names, new);
+/// Saved grouped settings from before the `docs` group: `notes` and `knowledge` fold into
+/// `docs`, and every retired tool name is rewritten.
+pub fn migrate_retired_groups(
+    docs: Vec<String>,
+    notes: Vec<String>,
+    knowledge: Vec<String>,
+    global: Vec<String>,
+) -> EnabledByGroup {
+    EnabledByGroup {
+        docs: rewrite_retired_tool_names(docs.into_iter().chain(notes).chain(knowledge)),
+        global: rewrite_retired_tool_names(global),
     }
-}
-
-pub fn migrate_retired_search_groups(mut groups: EnabledByGroup) -> EnabledByGroup {
-    let had_old = groups.notes.iter().any(|n| n == "search_notes")
-        || groups.knowledge.iter().any(|n| n == "search_knowledge")
-        || groups.global.iter().any(|n| n == "search_document");
-    groups.notes.retain(|n| n != "search_notes");
-    groups.knowledge.retain(|n| n != "search_knowledge");
-    groups.global.retain(|n| n != "search_document");
-    if had_old {
-        push_unique(&mut groups.global, SEARCH);
-    }
-    let had_old_note = groups.notes.iter().any(|n| n == RETIRED_NOTE_CONTENT);
-    groups.notes.retain(|n| n != RETIRED_NOTE_CONTENT);
-    if had_old_note {
-        push_unique(&mut groups.notes, NOTE_CONTENT);
-    }
-    let had_old_digest = groups.notes.iter().any(|n| n == RETIRED_NOTE_DIGEST);
-    groups.notes.retain(|n| n != RETIRED_NOTE_DIGEST);
-    if had_old_digest {
-        push_unique(&mut groups.notes, NOTE_DIGEST);
-    }
-    groups
 }
 
 fn sort_groups(groups: &mut EnabledByGroup) {
-    groups.notes.sort();
-    groups.knowledge.sort();
+    groups.docs.sort();
     groups.global.sort();
 }
 
@@ -106,13 +98,12 @@ pub fn classify_flat(
     catalog: &HashSet<String>,
 ) -> EnabledByGroup {
     let mut groups = EnabledByGroup::default();
-    for name in rewrite_retired_search_names(names) {
+    for name in rewrite_retired_tool_names(names) {
         if !catalog.contains(&name) {
             continue;
         }
         match group_for_tool(&name) {
-            Some("notes") => groups.notes.push(name),
-            Some("knowledge") => groups.knowledge.push(name),
+            Some("docs") => groups.docs.push(name),
             Some("global") => groups.global.push(name),
             _ => {}
         }
@@ -122,31 +113,18 @@ pub fn classify_flat(
 }
 
 pub fn filter_groups(groups: EnabledByGroup, catalog: &HashSet<String>) -> EnabledByGroup {
-    let mut filtered = EnabledByGroup::default();
-    for name in groups.notes {
-        if catalog.contains(&name) {
-            filtered.notes.push(name);
-        }
-    }
-    for name in groups.knowledge {
-        if catalog.contains(&name) {
-            filtered.knowledge.push(name);
-        }
-    }
-    for name in groups.global {
-        if catalog.contains(&name) {
-            filtered.global.push(name);
-        }
-    }
+    let mut filtered = EnabledByGroup {
+        docs: groups.docs.into_iter().filter(|n| catalog.contains(n)).collect(),
+        global: groups.global.into_iter().filter(|n| catalog.contains(n)).collect(),
+    };
     sort_groups(&mut filtered);
     filtered
 }
 
 pub fn groups_to_flat(groups: &EnabledByGroup) -> HashSet<String> {
     groups
-        .notes
+        .docs
         .iter()
-        .chain(groups.knowledge.iter())
         .chain(groups.global.iter())
         .cloned()
         .collect()

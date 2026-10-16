@@ -13,8 +13,7 @@ use crate::mcp_host::ToolRoute;
 /// Grouped catalog for Settings checkboxes. Not a slot table.
 pub fn catalog_groups() -> Vec<(&'static str, Vec<ToolRoute>)> {
     vec![
-        ("notes", groups::notes::catalog_snapshot_routes()),
-        ("knowledge", groups::knowledge::catalog_snapshot_routes()),
+        ("docs", groups::docs::catalog_snapshot_routes()),
         ("global", groups::global::catalog_snapshot_routes()),
     ]
 }

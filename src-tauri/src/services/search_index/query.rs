@@ -8,6 +8,7 @@ use serde_json::{json, Value};
 
 use super::chunk::char_len;
 use super::hit_meta::resolve_hits;
+use crate::services::spark_data::{DEFAULT_WORKSPACE_ID, KNOWLEDGE_WORKSPACE_ID};
 use super::store::{index_exists, open};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -277,14 +278,13 @@ pub fn search_desktop_spark(cache_dir: &Path, q: &str, limit: Option<u32>) -> Va
         return json!({ "hits": [], "error": "not_indexed" });
     }
     let filter = SearchFilter {
-        category: Some("notes".into()),
+        workspace: Some(DEFAULT_WORKSPACE_ID.into()),
         ..SearchFilter::default()
     };
     match search_in_cache(cache_dir, q, &filter, limit) {
         Ok(hits) => json!({
             "hits": hits
                 .into_iter()
-                .filter(|h| h.category == "notes")
                 .map(|h| {
                     // digest chunks only help recall; the UI always opens the note itself.
                     json!({
@@ -312,7 +312,7 @@ pub fn search_desktop_knowledge(cache_dir: &Path, q: &str, limit: Option<u32>) -
         return json!({ "hits": [], "error": "not_indexed" });
     }
     let filter = SearchFilter {
-        category: Some("knowledge".into()),
+        workspace: Some(KNOWLEDGE_WORKSPACE_ID.into()),
         ..SearchFilter::default()
     };
     match search_in_cache(cache_dir, q, &filter, limit) {

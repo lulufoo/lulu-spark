@@ -259,7 +259,7 @@ pub fn search_notes(
         return json!({ "error": "not_indexed", "_status": 503 });
     }
     let fts_filter = SearchFilter {
-        category: Some("notes".into()),
+        workspace: Some(crate::services::spark_data::DEFAULT_WORKSPACE_ID.into()),
         layer: Some("raw".into()),
         ..SearchFilter::default()
     };

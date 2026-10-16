@@ -14,7 +14,6 @@ mod hide_patterns;
 mod viewer_state;
 mod mcp;
 mod open;
-mod search_document;
 
 pub use asset::*;
 pub use read::*;
@@ -26,7 +25,6 @@ pub use registry::{scan_registered_repos, scan_repo_dir};
 pub use export_file::get_knowledge_file;
 pub use mcp::*;
 pub use open::resolve_knowledge_for_open;
-pub use search_document::*;
 pub use hide_patterns::{
     add as add_kb_hide_pattern, compiled_hide_regexes, list_json as kb_hide_patterns_json,
     name_is_hidden, remove as remove_kb_hide_pattern, update as update_kb_hide_pattern,

@@ -2,6 +2,7 @@ use std::collections::HashSet;
 use std::fs;
 
 use super::*;
+use crate::services::search_index;
 use crate::services::sediment_kb;
 use crate::services::spark_data::{self, find_knowledge_doc_id, get_knowledge_directory_by_folder};
 use crate::test_support::TestSandbox;

@@ -5,12 +5,12 @@ use super::*;
 /// Tools a channel never exposes: desktop-only file copies off mobile, mobile-only reads on desktop, Spark-only tools elsewhere.
 fn hidden_on(channel: &str) -> Vec<&'static str> {
     let mut hidden = if channel == "mobile" {
-        vec!["get_note_file", "get_knowledge_file"]
+        vec!["get_doc_file"]
     } else {
-        vec!["get_note_content", "get_knowledge_content"]
+        vec!["get_doc_content"]
     };
     if channel != "spark" {
-        hidden.push("delete_note");
+        hidden.push("delete_doc");
         hidden.push("get_read_later");
     }
     hidden
@@ -26,54 +26,48 @@ fn missing_file_enables_every_tool_the_channel_exposes() {
             expected.remove(name);
         }
         assert_eq!(enabled_names(channel), expected, "{channel}");
-        assert_eq!(is_enabled(channel, "delete_note"), *channel == "spark", "{channel} delete_note");
-        assert!(is_enabled(channel, "create_note"), "{channel} create_note");
-        assert!(is_enabled(channel, "update_note"), "{channel} update_note");
+        assert_eq!(is_enabled(channel, "delete_doc"), *channel == "spark", "{channel} delete_doc");
+        assert!(is_enabled(channel, "create_doc"), "{channel} create_doc");
+        assert!(is_enabled(channel, "update_doc"), "{channel} update_doc");
     }
     assert!(enabled_names("not-a-channel").is_empty());
-    assert!(!is_enabled("not-a-channel", "create_note"));
+    assert!(!is_enabled("not-a-channel", "create_doc"));
 }
 
 #[test]
 fn load_migrates_content_tools_to_file_tools_on_desktop_channels_only() {
     let _sandbox = TestSandbox::new();
     let saved = serde_json::json!({
-        "notes": ["list_notes_categories", "get_note_content"],
-        "knowledge": ["get_knowledge_content"]
+        "docs": ["list_projects", "get_doc_content"]
     });
     write_channels(serde_json::json!({
         "spark": saved, "cursor": saved, "codex": saved, "claude": saved, "mobile": saved
     }));
     for channel in ["spark", "cursor", "codex", "claude"] {
-        assert!(is_enabled(channel, "get_note_file"), "{channel} get_note_file");
-        assert!(is_enabled(channel, "get_knowledge_file"), "{channel} get_knowledge_file");
-        assert!(!is_enabled(channel, "get_note_content"), "{channel} get_note_content");
-        assert!(!is_enabled(channel, "get_knowledge_content"), "{channel} get_knowledge_content");
+        assert!(is_enabled(channel, "get_doc_file"), "{channel} get_doc_file");
+        assert!(!is_enabled(channel, "get_doc_content"), "{channel} get_doc_content");
     }
-    assert!(is_enabled("mobile", "get_note_content"));
-    assert!(is_enabled("mobile", "get_knowledge_content"));
-    assert!(!is_enabled("mobile", "get_note_file"));
-    assert!(!is_enabled("mobile", "get_knowledge_file"));
+    assert!(is_enabled("mobile", "get_doc_content"));
+    assert!(!is_enabled("mobile", "get_doc_file"));
 }
 
 #[test]
 fn migration_keeps_a_user_who_had_content_tools_switched_off_switched_off() {
     let _sandbox = TestSandbox::new();
     write_channels(serde_json::json!({
-        "cursor": { "notes": ["list_notes_categories"], "knowledge": [] }
+        "cursor": { "docs": ["list_projects"] }
     }));
-    assert!(!is_enabled("cursor", "get_note_file"));
-    assert!(!is_enabled("cursor", "get_knowledge_file"));
+    assert!(!is_enabled("cursor", "get_doc_file"));
 }
 
 #[test]
 fn set_enabled_drops_tools_the_channel_does_not_expose() {
     let _sandbox = TestSandbox::new();
-    set_enabled("cursor", vec!["create_note".into(), "get_note_content".into()]).expect("cursor");
-    assert!(is_enabled("cursor", "create_note"));
-    assert!(!is_enabled("cursor", "get_note_content"));
-    set_enabled("mobile", vec!["create_note".into(), "get_note_file".into()]).expect("mobile");
-    assert!(!is_enabled("mobile", "get_note_file"));
+    set_enabled("cursor", vec!["create_doc".into(), "get_doc_content".into()]).expect("cursor");
+    assert!(is_enabled("cursor", "create_doc"));
+    assert!(!is_enabled("cursor", "get_doc_content"));
+    set_enabled("mobile", vec!["create_doc".into(), "get_doc_file".into()]).expect("mobile");
+    assert!(!is_enabled("mobile", "get_doc_file"));
 }
 
 #[test]
@@ -87,7 +81,7 @@ fn snapshot_lists_tools_each_channel_does_not_expose() {
             .iter()
             .filter_map(|n| n.as_str())
             .collect();
-        for name in ["get_note_file", "get_knowledge_file", "get_note_content", "get_knowledge_content", "delete_note"] {
+        for name in ["get_doc_file", "get_doc_content", "delete_doc"] {
             assert_eq!(
                 listed.contains(&name),
                 hidden_on(channel).contains(&name),
