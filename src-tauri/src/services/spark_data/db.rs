@@ -20,7 +20,9 @@ const BUSY_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// `MIGRATIONS[n]` upgrades a file from `user_version = n` to `n + 1`.
 /// Append a step to change the schema; never edit an existing one.
-const MIGRATIONS: [&str; 3] = [r#"
+/// Step 2 rebuilds `note` instead of `ADD COLUMN … REFERENCES`: SQLite rejects a
+/// NOT NULL default plus FK when the table already has rows.
+pub(crate) const MIGRATIONS: [&str; 3] = [r#"
 CREATE TABLE IF NOT EXISTS note (
   doc_id       TEXT PRIMARY KEY,
   raw_path     TEXT NOT NULL,
@@ -62,7 +64,33 @@ CREATE TABLE note_category (
 );
 "#, r#"
 INSERT OR IGNORE INTO note_category(id, folder, title, description) VALUES ('inbox', 'inbox', 'Inbox', '');
-ALTER TABLE note ADD COLUMN category_id TEXT NOT NULL DEFAULT 'inbox' REFERENCES note_category(id);
+CREATE TABLE note__with_category (
+  doc_id       TEXT PRIMARY KEY,
+  raw_path     TEXT NOT NULL,
+  digest_path  TEXT,
+  source_type  TEXT,
+  created_at   TEXT,
+  importance   TEXT CHECK (importance IS NULL OR importance IN ('high', 'medium', 'low')),
+  done         INTEGER NOT NULL DEFAULT 0 CHECK (done IN (0, 1)),
+  links        TEXT NOT NULL DEFAULT '[]' CHECK (json_type(links) = 'array'),
+  comments     TEXT NOT NULL DEFAULT '[]' CHECK (json_type(comments) = 'array'),
+  tags         TEXT NOT NULL DEFAULT '[]' CHECK (json_type(tags) = 'array'),
+  highlights   TEXT NOT NULL DEFAULT '[]' CHECK (json_type(highlights) = 'array'),
+  translations TEXT NOT NULL DEFAULT '[]' CHECK (json_type(translations) = 'array'),
+  title        TEXT,
+  category_id  TEXT NOT NULL DEFAULT 'inbox' REFERENCES note_category(id)
+);
+INSERT INTO note__with_category (
+  doc_id, raw_path, digest_path, source_type, created_at, importance, done,
+  links, comments, tags, highlights, translations, title, category_id
+)
+SELECT
+  doc_id, raw_path, digest_path, source_type, created_at, importance, done,
+  links, comments, tags, highlights, translations, title, 'inbox'
+FROM note;
+DROP TABLE note;
+ALTER TABLE note__with_category RENAME TO note;
+CREATE INDEX IF NOT EXISTS note_raw_path ON note(raw_path);
 "#];
 
 pub fn db_path() -> Result<PathBuf, String> {

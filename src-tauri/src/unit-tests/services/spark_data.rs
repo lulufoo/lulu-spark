@@ -1,4 +1,4 @@
-use super::db::{migrate, open_with_steps};
+use super::db::{migrate, open_with_steps, MIGRATIONS};
 use super::*;
 
 use rusqlite::Connection;
@@ -89,6 +89,25 @@ fn note_category_id_fk_rejects_unknown_and_accepts_inbox() {
     insert_note(&conn, &NoteRow::new("n2", "a.md")).expect("inbox");
     let got = get_note(&conn, "n2").expect("get").expect("row");
     assert_eq!(got.category_id, "inbox");
+}
+
+#[test]
+fn v2_note_rows_gain_inbox_category_id() {
+    let (_dir, path) = temp_db();
+    let v2 = open_with_steps(&path, &MIGRATIONS[..2]).expect("v2");
+    assert_eq!(user_version(&v2), 2);
+    v2.execute("INSERT INTO note (doc_id, raw_path) VALUES ('n1', 'ai/x.md')", [])
+        .expect("seed populated v2");
+    drop(v2);
+
+    let conn = open_at(&path).expect("v2 → v3");
+    assert_eq!(user_version(&conn), 3);
+    let got = get_note(&conn, "n1").expect("get").expect("row");
+    assert_eq!(got.category_id, "inbox");
+    assert_eq!(got.raw_path, "ai/x.md");
+    let mut bad = NoteRow::new("n2", "a.md");
+    bad.category_id = "missing".into();
+    assert!(insert_note(&conn, &bad).is_err(), "FK after rebuild");
 }
 
 #[test]
