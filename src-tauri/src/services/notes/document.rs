@@ -5,7 +5,7 @@ use serde_json::{json, Value};
 use crate::config::roots::notes_root_path;
 use crate::services::id::random_entry_id;
 use crate::services::search_index;
-use crate::services::spark_data::{insert_note, NoteRow};
+use crate::services::spark_data::{get_note_category_by_folder, insert_note, NoteRow};
 use crate::services::translation_gate;
 
 use super::assets::{copy_assets, reject_unsupported_asset_paths, resolve_create_assets};
@@ -198,7 +198,12 @@ fn write_note(
     row.source_type = Some(meta.source_type.clone());
     row.digest_path = digest_rel.as_ref().map(|_| meta.common_path.clone());
     row.translations = json!(translations.iter().map(|t| t.lang.as_str()).collect::<Vec<_>>());
+    let folder = meta.common_path.split('/').next().unwrap_or("inbox");
     let stored = open_data().and_then(|conn| {
+        let cat = get_note_category_by_folder(&conn, folder)
+            .map_err(|e| json!({ "error": e, "_status": 500 }))?
+            .ok_or_else(|| json!({ "error": format!("Unknown project: {folder}"), "_status": 400 }))?;
+        row.category_id = cat.id;
         insert_note(&conn, &row).map_err(|e| json!({ "error": e, "_status": 500 }))
     });
     if let Err(v) = stored {

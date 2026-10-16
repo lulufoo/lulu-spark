@@ -20,7 +20,7 @@ const BUSY_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// `MIGRATIONS[n]` upgrades a file from `user_version = n` to `n + 1`.
 /// Append a step to change the schema; never edit an existing one.
-const MIGRATIONS: [&str; 2] = [r#"
+const MIGRATIONS: [&str; 3] = [r#"
 CREATE TABLE IF NOT EXISTS note (
   doc_id       TEXT PRIMARY KEY,
   raw_path     TEXT NOT NULL,
@@ -60,6 +60,9 @@ CREATE TABLE note_category (
   title TEXT NOT NULL,
   description TEXT NOT NULL DEFAULT ''
 );
+"#, r#"
+INSERT OR IGNORE INTO note_category(id, folder, title, description) VALUES ('inbox', 'inbox', 'Inbox', '');
+ALTER TABLE note ADD COLUMN category_id TEXT NOT NULL DEFAULT 'inbox' REFERENCES note_category(id);
 "#];
 
 pub fn db_path() -> Result<PathBuf, String> {

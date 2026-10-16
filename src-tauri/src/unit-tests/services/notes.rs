@@ -122,6 +122,14 @@ fn create_note_writes_raw_and_index() {
         .as_array()
         .unwrap()
         .contains(&json!("raw")));
+    let row = crate::services::spark_data::get_note(
+        &crate::services::spark_data::open().expect("db"),
+        id,
+    )
+    .expect("get")
+    .expect("row");
+    assert_eq!(row.category_id, "inbox");
+    assert_eq!(row.raw_path, common_path);
 }
 
 #[test]
@@ -280,6 +288,14 @@ fn create_note_theme_line_with_zh_translation() {
     let index: serde_json::Value =
         read_note_entries();
     assert_eq!(index["entries"][id]["translations"]["zh"], json!(zh_path));
+    let row = crate::services::spark_data::get_note(
+        &crate::services::spark_data::open().expect("db"),
+        id,
+    )
+    .expect("get")
+    .expect("row");
+    assert_eq!(row.category_id, "learning-ai-agent");
+    assert_eq!(row.raw_path, common_path);
 }
 
 #[test]

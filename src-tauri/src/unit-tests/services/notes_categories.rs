@@ -38,7 +38,7 @@ fn list_uses_note_category_table_not_json() {
 fn ensure_writes_inbox_only_and_does_not_scan_notes() {
     let sandbox = setup();
     seed_note_entries(&json!({
-        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": { "common_path": "ai-software-dev/theme/a.md" }
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": { "common_path": "inbox/theme/a.md" }
     }));
 
     let listed = list_notes_categories().expect("list");
@@ -60,13 +60,13 @@ fn add_and_delete_do_not_touch_notes_or_raw() {
     let id = "cccccccccccccccccccccccccccccccc";
     fs::create_dir_all(notes.join("raw/ai-software-dev/theme")).expect("dir");
     fs::write(notes.join("raw/ai-software-dev/theme/n.md"), "# n").expect("raw");
-    seed_note_entries(&json!({ id: { "common_path": "ai-software-dev/theme/n.md" } }));
+    seed_note_entries(&json!({ id: { "common_path": "inbox/theme/n.md" } }));
 
     create_notes_category("research", "Research", "desc").expect("add");
     create_notes_category("ai-software-dev", "AI", "").expect("add existing slug");
     delete_notes_category("ai-software-dev").expect("delete");
 
-    assert!(read_note_entries()["entries"][id]["common_path"] == "ai-software-dev/theme/n.md");
+    assert!(read_note_entries()["entries"][id]["common_path"] == "inbox/theme/n.md");
     assert!(notes.join("raw/ai-software-dev/theme/n.md").is_file());
     assert!(!known_ids().unwrap().contains("ai-software-dev"));
     assert!(known_ids().unwrap().contains("research"));
@@ -94,7 +94,6 @@ fn update_title_does_not_touch_notes_or_id() {
     fs::create_dir_all(notes.join("raw/ops/theme")).expect("dir");
     fs::write(notes.join("raw/ops/theme/n.md"), "# n").expect("raw");
     seed_note_entries(&json!({ id: { "common_path": "ops/theme/n.md" } }));
-    create_notes_category("ops", "Ops", "").expect("add");
     update_notes_category("ops", "Operations", "runbooks").expect("update");
     let listed = list_notes_categories().expect("list");
     let ops = listed["categories"]

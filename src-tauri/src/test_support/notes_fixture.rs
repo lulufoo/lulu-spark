@@ -1,11 +1,27 @@
 //! Seed and read the `note` table in the shape the old `index.json` had.
 
+use rusqlite::Connection;
 use serde_json::{json, Value};
 
-use crate::services::spark_data::{self, insert_note, list_note_entries, NoteRow};
+use crate::services::spark_data::{
+    self, get_note_category_by_folder, insert_note, insert_note_category, list_note_entries,
+    NoteCategoryRow, NoteRow,
+};
 
 fn text(entry: &Value, key: &str) -> Option<String> {
     entry.get(key).and_then(Value::as_str).map(String::from)
+}
+
+fn path_folder(raw_path: &str) -> &str {
+    raw_path.split('/').next().filter(|s| !s.is_empty()).expect("common_path folder")
+}
+
+fn ensure_folder_category(conn: &Connection, folder: &str) -> String {
+    if let Some(row) = get_note_category_by_folder(conn, folder).expect("lookup") {
+        return row.id;
+    }
+    insert_note_category(conn, &NoteCategoryRow::new(folder, folder, folder, "")).expect("cat");
+    folder.to_string()
 }
 
 /// `entries` is `{ "<id>": { common_path, created_at, layers, source_type, translations, title } }`.
@@ -14,6 +30,7 @@ pub fn seed_note_entries(entries: &Value) {
     for (id, entry) in entries.as_object().expect("entries object") {
         let raw_path = text(entry, "common_path").expect("common_path");
         let mut note = NoteRow::new(id, &raw_path);
+        note.category_id = ensure_folder_category(&conn, path_folder(&raw_path));
         let has_digest = entry
             .get("layers")
             .and_then(Value::as_array)

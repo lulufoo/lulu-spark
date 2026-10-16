@@ -20,6 +20,7 @@ pub struct NoteRow {
     pub highlights: Value,
     pub translations: Value,
     pub title: Option<String>,
+    pub category_id: String,
 }
 
 impl NoteRow {
@@ -38,12 +39,13 @@ impl NoteRow {
             highlights: Value::Array(Vec::new()),
             translations: Value::Array(Vec::new()),
             title: None,
+            category_id: "inbox".to_string(),
         }
     }
 }
 
 const COLUMNS: &str = "doc_id, raw_path, digest_path, source_type, created_at, importance, done,
-                       links, comments, tags, highlights, translations, title";
+                       links, comments, tags, highlights, translations, title, category_id";
 
 fn map_row(row: &Row<'_>) -> rusqlite::Result<NoteRow> {
     Ok(NoteRow {
@@ -60,12 +62,13 @@ fn map_row(row: &Row<'_>) -> rusqlite::Result<NoteRow> {
         highlights: read_array(row, 10)?,
         translations: read_array(row, 11)?,
         title: row.get(12)?,
+        category_id: row.get(13)?,
     })
 }
 
 pub fn insert_note(conn: &Connection, note: &NoteRow) -> Result<(), String> {
     conn.execute(
-        &format!("INSERT INTO note({COLUMNS}) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)"),
+        &format!("INSERT INTO note({COLUMNS}) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)"),
         params![
             note.doc_id,
             note.raw_path,
@@ -80,6 +83,7 @@ pub fn insert_note(conn: &Connection, note: &NoteRow) -> Result<(), String> {
             write_array(&note.highlights)?,
             write_array(&note.translations)?,
             note.title,
+            note.category_id,
         ],
     )
     .map_err(|e| e.to_string())?;
@@ -92,7 +96,7 @@ pub fn update_note(conn: &Connection, note: &NoteRow) -> Result<bool, String> {
         .execute(
             "UPDATE note SET raw_path = ?2, digest_path = ?3, source_type = ?4, created_at = ?5,
                     importance = ?6, done = ?7, links = ?8, comments = ?9, tags = ?10,
-                    highlights = ?11, translations = ?12, title = ?13
+                    highlights = ?11, translations = ?12, title = ?13, category_id = ?14
              WHERE doc_id = ?1",
             params![
                 note.doc_id,
@@ -108,6 +112,7 @@ pub fn update_note(conn: &Connection, note: &NoteRow) -> Result<bool, String> {
                 write_array(&note.highlights)?,
                 write_array(&note.translations)?,
                 note.title,
+                note.category_id,
             ],
         )
         .map_err(|e| e.to_string())?;
