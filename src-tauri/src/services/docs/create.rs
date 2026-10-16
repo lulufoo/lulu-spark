@@ -18,6 +18,7 @@ use crate::services::notes::store::{
     doc_file_path, parse_translations, reject_legacy_translation_fields,
     resolve_archive_source_markdown, rollback_written, write_markdown_atomic,
 };
+use crate::services::search_index;
 use crate::services::spark_data::{insert_doc, DocRow};
 use crate::services::translation_gate;
 
@@ -172,6 +173,8 @@ fn write_doc(source: &str, payload: &Value, source_basename: Option<&str>) -> Va
         rollback_written(&written);
         return internal(e);
     }
+
+    search_index::sync_workspace_docs_best_effort(&workspace.id, &[id.as_str()]);
 
     let mut response = json!({
         "ok": true,

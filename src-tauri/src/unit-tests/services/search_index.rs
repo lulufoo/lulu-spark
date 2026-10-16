@@ -352,8 +352,8 @@ fn chunk_table_has_no_location_columns() {
 fn chunk_unique_key_is_enforced_by_the_database() {
     let (_dir, cache) = temp_cache();
     let conn = open(&cache).expect("open");
-    let insert = "INSERT INTO chunk(doc_id, layer, idx, category, title, content_hash, created_at)
-                  VALUES ('d', 'raw', 0, 'notes', '', 'h', '')";
+    let insert = "INSERT INTO chunk(doc_id, layer, idx, category, workspace_id, title, content_hash, created_at)
+                  VALUES ('d', 'raw', 0, 'notes', 'default', '', 'h', '')";
     conn.execute(insert, []).expect("first insert");
     assert!(conn.execute(insert, []).is_err(), "duplicate (doc_id, layer, idx) must fail");
 }

@@ -261,6 +261,7 @@ pub fn search_notes(
     let fts_filter = SearchFilter {
         category: Some("notes".into()),
         layer: Some("raw".into()),
+        ..SearchFilter::default()
     };
     let hits = match search_in_cache(&cache, q, &fts_filter, limit) {
         Ok(h) => h,

@@ -13,6 +13,7 @@ use crate::services::notes::store::{
     doc_file_path, reject_legacy_translation_fields, resolve_archive_source_markdown,
     write_markdown_atomic,
 };
+use crate::services::search_index;
 use crate::services::spark_data::{update_doc as update_doc_row, DocRow};
 use crate::services::translation_gate;
 
@@ -144,6 +145,8 @@ fn update_from_body(payload: &Value, source: &str) -> Value {
             return restore_raw(&raw_path, &prev_raw, internal(e));
         }
     }
+
+    search_index::sync_workspace_docs_best_effort(&workspace.id, &[id.as_str()]);
 
     let mut response = json!({ "ok": true, "id": id, "workspace": workspace.id });
     if let Some(rel) = digest_rel {

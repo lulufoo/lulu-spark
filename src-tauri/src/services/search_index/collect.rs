@@ -12,6 +12,7 @@ use crate::services::knowledge::{compiled_hide_regexes, name_is_hidden};
 use crate::services::notes::doc_file_path;
 use crate::services::spark_data::{
     self, active_knowledge_doc_ids, category_folder, get_note, list_notes, NoteRow,
+    DEFAULT_WORKSPACE_ID, KNOWLEDGE_WORKSPACE_ID,
 };
 use crate::services::spark_read::get_topics;
 
@@ -25,6 +26,8 @@ pub type ChunkKey = (String, String, usize);
 pub struct SourceChunk {
     pub doc_id: String,
     pub category: String,
+    /// The workspace the document lives in.
+    pub workspace_id: String,
     pub layer: String,
     pub title: String,
     pub body: String,
@@ -34,7 +37,21 @@ pub struct SourceChunk {
     pub idx: usize,
 }
 
+/// `category` of chunks collected from the per-workspace document tables.
+pub const DOCS_CATEGORY: &str = "docs";
+
+/// The workspace a legacy `category` was migrated into.
+fn legacy_workspace(category: &str) -> &'static str {
+    match category {
+        "notes" => DEFAULT_WORKSPACE_ID,
+        "knowledge" => KNOWLEDGE_WORKSPACE_ID,
+        _ => "",
+    }
+}
+
 impl SourceChunk {
+    /// A chunk of a legacy `notes` / `knowledge` document; its workspace follows from the
+    /// category. Use [`SourceChunk::in_workspace`] for any other workspace.
     #[allow(clippy::too_many_arguments)]
     pub fn from_text(
         category: &str,
@@ -48,6 +65,7 @@ impl SourceChunk {
         Self {
             doc_id: doc_id.to_string(),
             category: category.to_string(),
+            workspace_id: legacy_workspace(category).to_string(),
             layer: layer.to_string(),
             title: title.to_string(),
             body: body.to_string(),
@@ -55,6 +73,11 @@ impl SourceChunk {
             created_at: created_at.to_string(),
             idx,
         }
+    }
+
+    pub fn in_workspace(mut self, workspace_id: &str) -> Self {
+        self.workspace_id = workspace_id.to_string();
+        self
     }
 
     pub fn to_key(&self) -> ChunkKey {
@@ -96,7 +119,7 @@ fn walk_md(dir: &Path, base: &Path, hide: &[Regex], out: &mut Vec<(PathBuf, Stri
     }
 }
 
-fn chunks_from_file(
+pub(super) fn chunks_from_file(
     category: &str,
     layer: &str,
     abs: &Path,

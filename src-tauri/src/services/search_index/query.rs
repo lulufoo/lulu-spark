@@ -23,6 +23,8 @@ pub enum QueryRoute {
 #[derive(Debug, Clone, Default)]
 pub struct SearchFilter {
     pub category: Option<String>,
+    /// Only chunks of this workspace; every workspace when `None`.
+    pub workspace: Option<String>,
     pub layer: Option<String>,
 }
 
@@ -30,6 +32,7 @@ pub struct SearchFilter {
 pub struct QueryHit {
     pub doc_id: String,
     pub category: String,
+    pub workspace_id: String,
     pub layer: String,
     /// Filled from `spark-data.sqlite` by `resolve_hits`: note `raw_path` or knowledge `path`.
     pub common_path: String,
@@ -124,6 +127,10 @@ fn apply_filters(sql: &mut String, args: &mut Vec<String>, filter: &SearchFilter
         sql.push_str(" AND chunk.category = ?");
         args.push(c.clone());
     }
+    if let Some(w) = &filter.workspace {
+        sql.push_str(" AND chunk.workspace_id = ?");
+        args.push(w.clone());
+    }
     if let Some(l) = &filter.layer {
         sql.push_str(" AND chunk.layer = ?");
         args.push(l.clone());
@@ -139,7 +146,8 @@ fn query_tri(
 ) -> Result<Vec<QueryHit>, String> {
     let mut sql = String::from(
         "SELECT chunk.doc_id, chunk.category, chunk.layer, chunk.title, docs_tri.body,
-                snippet(docs_tri, 0, '<em>', '</em>', '…', 16), bm25(docs_tri), chunk.created_at
+                snippet(docs_tri, 0, '<em>', '</em>', '…', 16), bm25(docs_tri), chunk.created_at,
+                chunk.workspace_id
          FROM docs_tri JOIN chunk ON chunk.id = docs_tri.rowid
          WHERE docs_tri MATCH ?",
     );
@@ -166,7 +174,7 @@ fn query_bi(
     let mut sql = String::from(
         "SELECT chunk.doc_id, chunk.category, chunk.layer, chunk.title,
                 COALESCE((SELECT body FROM docs_tri WHERE rowid = chunk.id), ''),
-                '', bm25(docs_bi), chunk.created_at
+                '', bm25(docs_bi), chunk.created_at, chunk.workspace_id
          FROM docs_bi JOIN chunk ON chunk.id = docs_bi.rowid
          WHERE docs_bi MATCH ?",
     );
@@ -189,6 +197,7 @@ fn row_to_hit(row: &rusqlite::Row<'_>) -> rusqlite::Result<QueryHit> {
     Ok(QueryHit {
         doc_id: row.get(0)?,
         category: row.get(1)?,
+        workspace_id: row.get(8)?,
         layer: row.get(2)?,
         common_path: String::new(),
         repo: String::new(),

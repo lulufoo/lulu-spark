@@ -1,4 +1,4 @@
-//! App-internal note write paths → keep the index in step without a full rebuild.
+//! App-internal write paths → keep the index in step without a full rebuild.
 //!
 //! Scope (2026-09-05 /converge): create / save / delete done by the App itself. Moving
 //! a note needs no sync: chunks carry no path. Files edited outside the App still rely
@@ -8,6 +8,7 @@ use std::path::Path;
 
 use super::chunk_rows::replace_doc_chunks;
 use super::collect::note_doc_chunks;
+use super::collect_docs::workspace_doc_chunks;
 use super::query::cache_dir_or_err;
 use super::store::{index_exists, open};
 
@@ -29,6 +30,27 @@ pub fn sync_note_docs(repo_root: &Path, doc_ids: &[&str]) -> Result<usize, Strin
 /// Same as [`sync_note_docs`] but never fails the caller's write response.
 pub fn sync_note_docs_best_effort(repo_root: &Path, doc_ids: &[&str]) {
     if let Err(e) = sync_note_docs(repo_root, doc_ids) {
+        eprintln!("search index sync skipped: {e}");
+    }
+}
+
+/// [`sync_note_docs`] for documents of the per-workspace tables.
+pub fn sync_workspace_docs(workspace_id: &str, doc_ids: &[&str]) -> Result<usize, String> {
+    let cache = cache_dir_or_err()?;
+    if !index_exists(&cache) {
+        return Ok(0);
+    }
+    let conn = open(&cache)?;
+    for doc_id in doc_ids {
+        let chunks = workspace_doc_chunks(workspace_id, doc_id)?;
+        replace_doc_chunks(&conn, doc_id, &chunks)?;
+    }
+    Ok(doc_ids.len())
+}
+
+/// Same as [`sync_workspace_docs`] but never fails the caller's write response.
+pub fn sync_workspace_docs_best_effort(workspace_id: &str, doc_ids: &[&str]) {
+    if let Err(e) = sync_workspace_docs(workspace_id, doc_ids) {
         eprintln!("search index sync skipped: {e}");
     }
 }
