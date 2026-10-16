@@ -1,6 +1,5 @@
 import { openFilePopup } from '../../file-popup/index.ts';
 import * as api from '../../host/api.ts';
-import { stagedIdentityKey } from '../state/identity.ts';
 import {
   contextPercentFrom,
   contextUsageFrom,
@@ -14,11 +13,7 @@ import {
 export function openStagedFile(item: HubStagedEntry) {
   const path = String(item?.path || '').trim();
   if (!path) return;
-  openFilePopup({
-    path,
-    title: item.title,
-    identityKey: stagedIdentityKey(item.source?.kind, path),
-  });
+  openFilePopup({ path, title: item.title });
 }
 
 export async function refreshStagedFromBinding(

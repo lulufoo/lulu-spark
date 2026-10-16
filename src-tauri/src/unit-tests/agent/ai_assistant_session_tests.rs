@@ -357,7 +357,6 @@ fn staged_entry(id: &str, path: &str, title: &str) -> session::StagedEntry {
         id: id.into(),
         path: path.into(),
         title: title.into(),
-        source: None,
     }
 }
 

@@ -171,7 +171,7 @@ fn unstage_asks_that_path_and_allows_other_new_paths() {
         let mut sess = session::create_session().expect("session");
         let staged = outside_file(sandbox, "was-staged.md");
         let entry = sess
-            .register_staged(staged.to_str().unwrap(), None, None)
+            .register_staged(staged.to_str().unwrap(), None)
             .expect("stage");
         session::save_session(&sess).expect("save");
         grant_session(&sess.session_id);

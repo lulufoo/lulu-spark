@@ -136,7 +136,7 @@ pub fn register_stage(session: &mut Session, checked: CheckedStage) -> ToolResul
 }
 
 fn register(session: &mut Session, checked: CheckedStage) -> Result<String, String> {
-    let entry = session.register_staged(&checked.path, checked.title.as_deref(), None)?;
+    let entry = session.register_staged(&checked.path, checked.title.as_deref())?;
     entry_json(&entry)
 }
 

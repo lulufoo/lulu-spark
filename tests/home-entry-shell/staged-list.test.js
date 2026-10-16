@@ -52,22 +52,15 @@ describe('StagedList', () => {
     expect(rows).toEqual([{ id: 'F2', path: '/tmp/b.md', title: 'Mesa' }]);
   });
 
-  it('hydrates optional stage source', () => {
+  it('drops any source field from stored staged rows', () => {
     const rows = hydrateStaged([
       {
         id: 'F1',
-        path: '/kb/notes/raw/a.md',
+        path: '/tmp/a.md',
         title: 'A',
         source: { kind: 'notes', id: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' },
       },
     ]);
-    expect(rows).toEqual([
-      {
-        id: 'F1',
-        path: '/kb/notes/raw/a.md',
-        title: 'A',
-        source: { kind: 'notes', id: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' },
-      },
-    ]);
+    expect(rows).toEqual([{ id: 'F1', path: '/tmp/a.md', title: 'A' }]);
   });
 });
