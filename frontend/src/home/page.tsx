@@ -4,6 +4,8 @@ import { createRoot, type Root } from 'react-dom/client';
 import { flushSync } from 'react-dom';
 import { getAuthUser, signOutAuth, startAuthLogin } from '../auth/oauth.ts';
 import { authUserStore } from '../auth/state/user.ts';
+import { state } from '../host/state.ts';
+import { switchWorkspace } from '../notes/commands/workspace-switch.ts';
 import { openAbout } from './commands/about.ts';
 import { loadPackageDebug } from './commands/package-debug.ts';
 import { packageDebugStore } from './state/package-debug.ts';
@@ -133,6 +135,9 @@ const MessageThread = memo(function MessageThread({
   );
 });
 
+/** Built-in workspace that the Home "Knowledge" shortcut opens. */
+const KNOWLEDGE_WORKSPACE_ID = 'knowledge';
+
 function goHomeEntry(
   dest: string | undefined,
   navigateFn?: (hash: string) => void,
@@ -142,7 +147,10 @@ function goHomeEntry(
   else if (dest === 'read-later') {
     if (typeof openReadLater === 'function') openReadLater();
     else navigateFn?.('#/read-later');
-  } else if (dest === 'knowledge') navigateFn?.('#/knowledge');
+  } else if (dest === 'knowledge') {
+    if (state.workspaces.list.some((w) => w.id === KNOWLEDGE_WORKSPACE_ID)) switchWorkspace(KNOWLEDGE_WORKSPACE_ID);
+    navigateFn?.('#/spark');
+  }
 }
 
 function unreadProps(unread: boolean) {

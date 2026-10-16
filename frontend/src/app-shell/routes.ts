@@ -2,7 +2,6 @@ import { notifyState, state } from '../host/state.ts';
 import type { AppRoute } from './state/types.ts';
 import { applySearchNavChrome } from './ui/nav-chrome.ts';
 import { initSparkSearch } from '../notes/ui/search.tsx';
-import { initKnowledgeSearch } from '../knowledge/ui/search.tsx';
 import { openReadLaterDialog } from '../read-later/commands/dialog.ts';
 import { openDoc } from '../notes/viewer.ts';
 import { selectDate } from '../notes/commands/sidebar.ts';
@@ -22,14 +21,11 @@ export function wrapRouteMount(routeName: string, mountFn: (route: AppRoute) => 
     getHomeEntryShell()?.forceRecoverA('leave-route');
     updateNavChrome(routeName);
     if (routeName === 'spark') initSparkSearch();
-    if (routeName === 'knowledge-doc') initKnowledgeSearch();
     return mountFn(route);
   };
 }
 
 export function mountHomeRoute() {}
-
-export function mountKnowledgeDocRoute() {}
 
 export function mountReadLaterRoute() {
   mountHomeRoute();

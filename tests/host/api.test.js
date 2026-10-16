@@ -12,7 +12,8 @@ import {
   saveFile,
   updateComments, updateLinks, setImportance, setDone,
   deleteEntry,
-  fetchTopics, fetchNotesCategories, createNotesCategory, updateNotesCategory, deleteNotesCategory, moveToProject,
+  fetchTopics, fetchWorkspaces, createWorkspace, renameWorkspace, setWorkspaceViewMode, deleteWorkspace,
+  fetchProjects, createProject, updateProject, deleteProject, moveToProject,
 } from '../../frontend/src/host/api.ts'
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..')
@@ -246,37 +247,57 @@ test('moveToProject 服务器返回 HTML 时不抛出 JSON 解析异常', async 
   expect(err.message).toBe('not found')
 })
 
-test('fetchNotesCategories calls /api/notes-categories', async () => {
-  mockFetch({ categories: [{ id: 'inbox', title: 'Inbox', description: '' }] })
-  const result = await fetchNotesCategories()
-  expect(fetch.mock.calls[0][0]).toMatch(new RegExp(`^${API_READ_PREFIX}/notes-categories\\?_=\\d+$`))
-  expect(result.categories[0].id).toBe('inbox')
+test('fetchWorkspaces calls /api/workspaces', async () => {
+  mockFetch({ workspaces: [{ id: 'default', name: 'Default', view_mode: 'directory', is_default: true }] })
+  const result = await fetchWorkspaces()
+  expect(fetch.mock.calls[0][0]).toMatch(new RegExp(`^${API_READ_PREFIX}/workspaces\\?_=\\d+$`))
+  expect(result.workspaces[0].id).toBe('default')
 })
 
-test('createNotesCategory posts title description', async () => {
+test('createWorkspace posts name and view mode', async () => {
   mockFetch({ ok: true })
-  await createNotesCategory('Ops', 'desc')
-  expect(fetch.mock.calls[0][0]).toBe(`${DEFAULT_DEV_BASE}/api/notes-category-create`)
-  expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({
-    title: 'Ops',
-    description: 'desc',
-  })
+  await createWorkspace('Research', 'timeline')
+  expect(fetch.mock.calls[0][0]).toBe(`${DEFAULT_DEV_BASE}/api/workspace-create`)
+  expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({ name: 'Research', view_mode: 'timeline' })
 })
 
-test('updateNotesCategory posts id title description', async () => {
+test('renameWorkspace, setWorkspaceViewMode and deleteWorkspace post the workspace id', async () => {
   mockFetch({ ok: true })
-  await updateNotesCategory('ops', 'Operations', 'runbooks')
-  expect(fetch.mock.calls[0][0]).toBe(`${DEFAULT_DEV_BASE}/api/notes-category-update`)
-  expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({
-    id: 'ops',
-    title: 'Operations',
-    description: 'runbooks',
-  })
+  await renameWorkspace('ws1', 'Notes')
+  await setWorkspaceViewMode('ws1', 'timeline')
+  await deleteWorkspace('ws1')
+  expect(fetch.mock.calls.map((call) => call[0])).toEqual([
+    `${DEFAULT_DEV_BASE}/api/workspace-rename`,
+    `${DEFAULT_DEV_BASE}/api/workspace-view-mode`,
+    `${DEFAULT_DEV_BASE}/api/workspace-delete`,
+  ])
+  expect(fetch.mock.calls.map((call) => JSON.parse(call[1].body))).toEqual([
+    { id: 'ws1', name: 'Notes' },
+    { id: 'ws1', view_mode: 'timeline' },
+    { id: 'ws1' },
+  ])
 })
 
-test('deleteNotesCategory posts id', async () => {
+test('fetchProjects calls /api/projects for one workspace', async () => {
+  mockFetch({ projects: [{ folder: 'inbox', title: 'Inbox', description: '' }] })
+  const result = await fetchProjects('ws1')
+  expect(fetch.mock.calls[0][0]).toMatch(new RegExp(`^${API_READ_PREFIX}/projects\\?workspace=ws1&_=\\d+$`))
+  expect(result.projects[0].folder).toBe('inbox')
+})
+
+test('project writes post workspace, project, title and description', async () => {
   mockFetch({ ok: true })
-  await deleteNotesCategory('ops')
-  expect(fetch.mock.calls[0][0]).toBe(`${DEFAULT_DEV_BASE}/api/notes-category-delete`)
-  expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({ id: 'ops' })
+  await createProject('ws1', 'Ops', 'desc')
+  await updateProject('ws1', 'ops', 'Operations', 'runbooks')
+  await deleteProject('ws1', 'ops')
+  expect(fetch.mock.calls.map((call) => call[0])).toEqual([
+    `${DEFAULT_DEV_BASE}/api/project-create`,
+    `${DEFAULT_DEV_BASE}/api/project-update`,
+    `${DEFAULT_DEV_BASE}/api/project-delete`,
+  ])
+  expect(fetch.mock.calls.map((call) => JSON.parse(call[1].body))).toEqual([
+    { workspace: 'ws1', title: 'Ops', description: 'desc' },
+    { workspace: 'ws1', project: 'ops', title: 'Operations', description: 'runbooks' },
+    { workspace: 'ws1', project: 'ops' },
+  ])
 })

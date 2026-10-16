@@ -94,7 +94,6 @@ export async function openCreateNote({ temp_id }: { temp_id?: string } = {}) {
     state.viewer.lang = null;
     state.viewer.annotation = {};
     state.viewer.rawText = content;
-    state.viewer.isKb = false;
     state.viewer.editing = true;
     state.viewer.createSession = { tempId: temp_id, status: 'creating' };
     state.viewer.bodyPaintKey += 1;
@@ -136,7 +135,7 @@ export async function finalizeCreateSession() {
   session.status = 'saving';
   try {
     await api.saveNoteDraft(session.tempId, trimmed);
-    const archived = (await api.createNote({ body: trimmed, source_type: 'jot' })) as {
+    const archived = (await api.createNote({ body: trimmed, source_type: 'jot', workspace: state.workspaces.current })) as {
       id?: string;
     };
     const id = archived?.id;

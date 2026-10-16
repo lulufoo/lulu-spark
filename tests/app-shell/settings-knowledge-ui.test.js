@@ -54,8 +54,8 @@ describe('Settings Knowledge UI', () => {
     expect(indexHtml).toContain('id="settings-tab-notes-add"');
     expect(indexHtml).toContain('id="settings-tab-notes-edit"');
     expect(indexHtml).toMatch(/data-tab="directory"[^>]*>\s*Directory\s*</);
-    expect(indexHtml).toMatch(/data-tab="add"[^>]*>\s*Add category\s*</);
-    expect(indexHtml).toMatch(/data-tab="edit"[^>]*>\s*Edit &amp; Delete category\s*</);
+    expect(indexHtml).toMatch(/data-tab="add"[^>]*>\s*Add project\s*</);
+    expect(indexHtml).toMatch(/data-tab="edit"[^>]*>\s*Edit &amp; Delete project\s*</);
     const notesTabs = indexHtml.match(/id="settings-panel-notes"[\s\S]*?role="tablist">([\s\S]*?)<\/div>/)?.[1] ?? '';
     expect(notesTabs.indexOf('data-tab="directory"')).toBeGreaterThan(-1);
     expect(notesTabs.indexOf('data-tab="directory"')).toBeLessThan(

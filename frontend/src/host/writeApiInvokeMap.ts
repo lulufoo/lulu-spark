@@ -222,16 +222,32 @@ export const WRITE_API_INVOKE_MAP: Record<string, WriteInvokeEntry> = {
     cmd: 'create_note',
     args: (body) => ({ payload: body ?? {} }),
   },
-  '/api/notes-category-create': {
-    cmd: 'create_notes_category',
+  '/api/workspace-create': {
+    cmd: 'create_workspace',
     args: (body) => ({ payload: body ?? {} }),
   },
-  '/api/notes-category-update': {
-    cmd: 'update_notes_category',
+  '/api/workspace-rename': {
+    cmd: 'rename_workspace',
     args: (body) => ({ payload: body ?? {} }),
   },
-  '/api/notes-category-delete': {
-    cmd: 'delete_notes_category',
+  '/api/workspace-view-mode': {
+    cmd: 'set_workspace_view_mode',
+    args: (body) => ({ payload: body ?? {} }),
+  },
+  '/api/workspace-delete': {
+    cmd: 'delete_workspace',
+    args: (body) => ({ payload: body ?? {} }),
+  },
+  '/api/project-create': {
+    cmd: 'create_project',
+    args: (body) => ({ payload: body ?? {} }),
+  },
+  '/api/project-update': {
+    cmd: 'update_project',
+    args: (body) => ({ payload: body ?? {} }),
+  },
+  '/api/project-delete': {
+    cmd: 'delete_project',
     args: (body) => ({ payload: body ?? {} }),
   },
   '/api/note-draft': {

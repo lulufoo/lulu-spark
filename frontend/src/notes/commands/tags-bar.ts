@@ -53,7 +53,7 @@ export async function refreshTagDisplayGlobally() {
         else selectDate(state.index.filteredGroups[0].date);
       }
     }
-    if (state.viewer.entry && !state.viewer.isKb) {
+    if (state.viewer.entry) {
       syncEntryTagsFromAnn(state.viewer.entry);
     }
     notifyState();

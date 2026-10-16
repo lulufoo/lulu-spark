@@ -1,4 +1,5 @@
 import { NotesCategoriesAddHost } from './notes-categories-add.tsx';
+import { NotesWorkspacesHost } from './notes-workspaces.tsx';
 import { NotesCategoriesEditHost } from './notes-categories-edit.tsx';
 
 export function NotesSettingsPanel() {
@@ -8,11 +9,14 @@ export function NotesSettingsPanel() {
         <button type="button" className="settings-tab active" data-tab="directory" role="tab">
           Directory
         </button>
+        <button type="button" className="settings-tab" data-tab="workspaces" role="tab">
+          Workspaces
+        </button>
         <button type="button" className="settings-tab" data-tab="add" role="tab">
-          Add category
+          Add project
         </button>
         <button type="button" className="settings-tab" data-tab="edit" role="tab">
-          Edit &amp; Delete category
+          Edit &amp; Delete project
         </button>
       </div>
       <div
@@ -34,6 +38,13 @@ export function NotesSettingsPanel() {
             Fixed notes root. Not configurable.
           </span>
         </div>
+      </div>
+      <div
+        id="settings-tab-notes-workspaces"
+        className="settings-tab-panel"
+        data-tab="workspaces"
+      >
+        <NotesWorkspacesHost />
       </div>
       <div id="settings-tab-notes-add" className="settings-tab-panel" data-tab="add">
         <NotesCategoriesAddHost />

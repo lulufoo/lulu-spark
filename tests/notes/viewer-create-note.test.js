@@ -101,10 +101,6 @@ vi.mock('../../frontend/src/doc-editor/highlights.ts', () => ({
   initDocHighlightOverlay: vi.fn(),
   cleanupDocHighlightOverlay: vi.fn(),
 }));
-vi.mock('../../frontend/src/knowledge/viewer.ts', () => ({
-  openKbDoc: vi.fn(),
-  saveKbDoc: vi.fn(),
-}));
 vi.mock('../../frontend/src/host/constants.ts', () => ({
   notesFileRelPath: (layer, path) => `notes/${layer}/${path}`,
 }));
@@ -278,6 +274,7 @@ describe('create session exit', () => {
     expect(api.createNote).toHaveBeenCalledWith({
       body: 'hello note',
       source_type: 'jot',
+      workspace: 'default',
     });
     expect(api.clearNoteDraft).toHaveBeenCalledWith('tmp-exit');
     expect(navigateToNoteMock).toHaveBeenCalledWith({

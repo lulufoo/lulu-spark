@@ -20,7 +20,6 @@ function seedOld() {
   state.index.groupedByDate = [];
   state.index.filteredGroups = [];
   state.ui.activeTopic = 'inbox';
-  state.ui.activeTagKey = 'tag-a';
   state.ui.activeDate = '20260101';
 }
 
@@ -33,13 +32,12 @@ afterEach(() => {
   state.index.groupedByDate = [];
   state.index.filteredGroups = [];
   state.ui.activeTopic = null;
-  state.ui.activeTagKey = null;
   state.ui.activeDate = null;
   vi.restoreAllMocks();
 });
 
 describe('refreshNotesIndex', () => {
-  it('replaces the snapshot from Host index.json and keeps topic/tag/date', async () => {
+  it('replaces the snapshot from Host index.json and keeps topic/date', async () => {
     vi.spyOn(api, 'fetchIndex').mockResolvedValue({
       entries: {
         [NEW_ID]: {
@@ -55,7 +53,6 @@ describe('refreshNotesIndex', () => {
     expect(state.index.data?.[OLD_ID]).toBeUndefined();
     expect(state.index.groupedByDate.map((g) => g.date)).toEqual([NEW_DATE]);
     expect(state.ui.activeTopic).toBe('inbox');
-    expect(state.ui.activeTagKey).toBe('tag-a');
     expect(state.ui.activeDate).toBe('20260101');
   });
 

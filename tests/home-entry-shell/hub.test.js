@@ -77,11 +77,11 @@ describe('mountHomeHub', () => {
     expect(navigate).toHaveBeenCalledWith('#/spark');
   });
 
-  it('navigates to #/knowledge when knowledge entry is clicked', () => {
+  it('opens the Notes page when knowledge entry is clicked', () => {
     cleanup = mountHomeHub(container, { navigate });
 
     container.querySelector('[data-home-entry="knowledge"]').click();
-    expect(navigate).toHaveBeenCalledWith('#/knowledge');
+    expect(navigate).toHaveBeenCalledWith('#/spark');
   });
 
   it('opens read-later dialog when read-later entry is clicked', () => {

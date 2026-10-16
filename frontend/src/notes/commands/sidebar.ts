@@ -1,5 +1,6 @@
 import { notifyState, state } from '../state/host.ts';
 import { loadTitles } from './cards.ts';
+import { isTimelineView } from './workspace.ts';
 import { parseHash, navigateToDateList } from '../../router/index.ts';
 import type { NoteEntry } from '../state/types.ts';
 
@@ -19,10 +20,11 @@ export function buildGroups(indexData: Record<string, NoteEntry>) {
     }));
 }
 
+/** Directory view filters by project; the timeline view lists every document of the workspace. */
 export function applyListFilters() {
   let groups = state.index.groupedByDate;
   const topic = state.ui.activeTopic;
-  if (topic) {
+  if (topic && !isTimelineView()) {
     groups = groups
       .map(({ date, entries }) => ({
         date,
@@ -30,44 +32,7 @@ export function applyListFilters() {
       }))
       .filter(({ entries }) => entries.length > 0);
   }
-  const tagKey = state.ui.activeTagKey;
-  if (tagKey) {
-    groups = groups
-      .map(({ date, entries }) => ({
-        date,
-        entries: entries.filter(({ entry }) => entry.tag_keys?.includes(tagKey)),
-      }))
-      .filter(({ entries }) => entries.length > 0);
-  }
   state.index.filteredGroups = groups;
-}
-
-export function renderTagFilterChip() {
-  notifyState();
-}
-
-export function selectTag(key: string) {
-  if (state.ui.activeTagKey === key) {
-    clearTagFilter();
-    return;
-  }
-  state.ui.activeTagKey = key;
-  _refreshFilteredList();
-}
-
-export function clearTagFilter() {
-  state.ui.activeTagKey = null;
-  _refreshFilteredList();
-}
-
-function _refreshFilteredList() {
-  applyListFilters();
-  if (state.index.filteredGroups.length > 0) {
-    selectDate(state.index.filteredGroups[0].date);
-  } else {
-    state.ui.activeDate = null;
-    notifyState();
-  }
 }
 
 export function selectDate(date: string) {

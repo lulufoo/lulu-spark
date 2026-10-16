@@ -7,7 +7,6 @@ import { readFrontendJs } from '../helpers/read-frontend-js.js';
 import { state } from '../../frontend/src/host/state.ts';
 
 vi.mock('../../frontend/src/host/api.ts', () => ({
-  updateKbComment: vi.fn(),
   updateComments: vi.fn(),
 }));
 
@@ -15,7 +14,6 @@ import * as api from '../../frontend/src/host/api.ts';
 import {
   CommentDeleteDialog,
   confirmDeleteComment,
-  removeKbComment,
   removeNoteComment,
 } from '../../frontend/src/shared/comment-delete.tsx';
 
@@ -44,7 +42,6 @@ describe('confirmDeleteComment', () => {
     const pending = confirmDeleteComment();
     document.getElementById('btn-comment-delete-cancel').click();
     await expect(pending).resolves.toBe(false);
-    expect(api.updateKbComment).not.toHaveBeenCalled();
     expect(api.updateComments).not.toHaveBeenCalled();
     expect(document.getElementById('comment-delete-dialog').classList.contains('open')).toBe(false);
   });
@@ -63,25 +60,6 @@ describe('confirmDeleteComment', () => {
     Object.defineProperty(ev, 'target', { value: dialog });
     dialog.dispatchEvent(ev);
     await expect(pending).resolves.toBe(false);
-  });
-});
-
-describe('removeKbComment', () => {
-  it('成功时从 annotation.comments 移除对应项', async () => {
-    api.updateKbComment.mockResolvedValue({ ok: true });
-    await removeKbComment({ id: 'a17b9efe22cf' });
-    expect(api.updateKbComment).toHaveBeenCalledWith(
-      state.viewer.kbId,
-      { id: 'a17b9efe22cf', text: '' },
-      expect.any(String),
-    );
-    expect(state.viewer.annotation.comments).toEqual([]);
-  });
-
-  it('API 返回 ok:false 时抛出错误', async () => {
-    api.updateKbComment.mockResolvedValue({ ok: false, error: 'repo not found' });
-    await expect(removeKbComment({ id: 'a17b9efe22cf' })).rejects.toThrow('repo not found');
-    expect(state.viewer.annotation.comments).toHaveLength(1);
   });
 });
 
@@ -123,11 +101,8 @@ describe('removeNoteComment', () => {
 });
 
 describe('note delete does not use window.confirm', () => {
-  it('knowledge comments and notes comments source do not use window.confirm', () => {
-    const kbSrc = readFrontendJs('frontend/src/knowledge/ui/comments.tsx');
+  it('notes comments source do not use window.confirm', () => {
     const notesSrc = readFrontendJs('frontend/src/notes/ui/comments.tsx');
-    expect(kbSrc).not.toContain('window.confirm');
-    expect(kbSrc).toContain('confirmDeleteComment');
     expect(notesSrc).not.toContain('window.confirm');
     expect(notesSrc).toContain('confirmDeleteComment');
   });

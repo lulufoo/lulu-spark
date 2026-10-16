@@ -39,7 +39,7 @@ export function NotesCategoriesEditHost() {
   return (
     <>
       <p className="notes-cat-lead">
-        Click a category to change its title or description. Existing notes keep their path.
+        Click a project to change its title or description. Existing notes keep their path.
       </p>
       {snap.error && !snap.editorOpen ? (
         <div id="notes-cat-list-error" className="settings-result notes-cat-error">
@@ -88,7 +88,7 @@ export function NotesCategoriesEditHost() {
           >
             <div id="notes-cat-edit-dialog-header">
               <h3 id="notes-cat-edit-dialog-title">
-                {snap.confirmDelete ? 'Remove category' : 'Edit category'}
+                {snap.confirmDelete ? 'Remove project' : 'Edit project'}
               </h3>
               <OverlayDismissButton
                 id="btn-notes-cat-edit-close"
@@ -100,8 +100,7 @@ export function NotesCategoriesEditHost() {
             {snap.confirmDelete ? (
               <div id="notes-cat-edit-dialog-body">
                 <p className="notes-cat-confirm-copy">
-                  Remove <strong>{selected.title || selected.id}</strong> from the switch list?
-                  Existing notes stay on disk.
+                  Remove <strong>{selected.title || selected.id}</strong> from this workspace? A project that still holds documents cannot be removed.
                 </p>
                 <div id="notes-cat-edit-error" className="settings-result notes-cat-error">
                   {snap.error}
@@ -122,7 +121,7 @@ export function NotesCategoriesEditHost() {
                     disabled={snap.busy}
                     onClick={() => void removeNotesCategory(selected.id)}
                   >
-                    {snap.busy ? 'Removing…' : 'Remove category'}
+                    {snap.busy ? 'Removing…' : 'Remove project'}
                   </button>
                 </div>
               </div>

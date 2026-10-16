@@ -9,19 +9,17 @@ const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const indexHtml = [
   readShellHtml(),
   readFileSync(join(fixtureRoot, 'frontend/src/notes/ui/search.tsx'), 'utf8'),
-  readFileSync(join(fixtureRoot, 'frontend/src/knowledge/ui/search.tsx'), 'utf8'),
 ].join('\n');
 const appCss = readFileSync(join(fixtureRoot, 'frontend/app.css'), 'utf8');
 
 describe('dual search markup (index.html)', () => {
-  it('replaces legacy #gs-wrap with #gs-wb-wrap and #gs-kb-wrap', () => {
+  it('replaces legacy #gs-wrap with #gs-wb-wrap', () => {
     expect(indexHtml).not.toMatch(/id="gs-wrap"/);
     expect(indexHtml).toMatch(/id="gs-wb-wrap"/);
-    expect(indexHtml).toMatch(/id="gs-kb-wrap"/);
   });
 
   it('each wrap has input and dropdown; no per-field rebuild button', () => {
-    for (const prefix of ['wb', 'kb']) {
+    for (const prefix of ['wb']) {
       expect(indexHtml).toMatch(new RegExp(`id="gs-${prefix}-input"`));
       expect(indexHtml).toMatch(new RegExp(`id="gs-${prefix}-dropdown"`));
       expect(indexHtml).not.toMatch(new RegExp(`id="gs-${prefix}-rebuild-btn"`));
@@ -36,9 +34,8 @@ describe('dual search markup (index.html)', () => {
     expect(indexHtml).toMatch(/className="[^"]*gs-search-dropdown/);
   });
 
-  it('both wraps default to hidden', () => {
+  it('the notes wrap defaults to hidden', () => {
     expect(indexHtml).toMatch(/id="gs-wb-wrap"[^>]*\bhidden\b/);
-    expect(indexHtml).toMatch(/id="gs-kb-wrap"[^>]*\bhidden\b/);
   });
 });
 

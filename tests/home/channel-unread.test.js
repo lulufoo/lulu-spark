@@ -151,7 +151,7 @@ describe('home three-entry boolean unread', () => {
     expect(knowledge).not.toBeNull();
     expect(knowledge.getAttribute('data-home-unread')).not.toBe('true');
     knowledge.click();
-    expect(navigate).toHaveBeenCalledWith('#/knowledge');
+    expect(navigate).toHaveBeenCalledWith('#/spark');
     expect(markSpy).not.toHaveBeenCalled();
   });
 });

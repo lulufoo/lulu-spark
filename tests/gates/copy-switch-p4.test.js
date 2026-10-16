@@ -19,7 +19,6 @@ const KEY_PATH_FILES = [
   'frontend/src/shell.tsx',
   'frontend/src/home/page.tsx',
   'frontend/src/notes/viewer.ts',
-  'frontend/src/knowledge/viewer.ts',
   'frontend/src/notes/ui/sidebar.tsx',
   'frontend/src/notes/ui/cards.tsx',
   'frontend/src/notes/commands/cards.ts',

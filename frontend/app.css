@@ -824,8 +824,10 @@
   }
   .sidebar-channel-zone {
     flex-shrink: 0;
-    max-height: 140px;
+    max-height: 200px;
     overflow-y: auto;
+    border-bottom: 1px solid var(--border-muted);
+    padding-bottom: 10px;
   }
   .sidebar-date-zone {
     flex: 1;
@@ -934,16 +936,29 @@
     text-align: right;
   }
 
-  /* ── Tag Filter ──────────────────────────────────────────────────────────── */
-  .tag-filter {
-    padding: 8px var(--notes-rail) 16px;
-    border-bottom: 1px solid var(--border-muted);
+  /* ── Workspace switch ───────────────────────────────────────────────────── */
+  .workspace-filter {
+    padding: 8px var(--notes-rail) 6px;
   }
-  .tag-count {
-    font-size: 11px;
+  .view-mode-switch {
+    display: flex;
+    gap: 4px;
+    margin-top: 6px;
+  }
+  .view-mode-btn {
+    flex: 1;
+    padding: 3px 0;
+    font-size: 12px;
     color: var(--fg-muted);
-    margin-top: 4px;
-    text-align: right;
+    background: var(--bg-canvas);
+    border: 1px solid var(--border-muted);
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .view-mode-btn.active {
+    color: var(--fg-accent-emphasis);
+    background: var(--bg-hex-b6e3ff);
+    border-color: transparent;
   }
 
   /* ── Floating list select (sidebar filters, knowledge repo picker) ── */
@@ -4820,27 +4835,6 @@
     border-color: var(--border-default);
   }
 
-  .tag-filter-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    margin: 0 0 8px 4px;
-    padding: 2px 8px;
-    font-size: 12px;
-    background: var(--bg-hex-fff8e6);
-    border: 1px solid var(--border-hex-e8c547);
-    border-radius: 12px;
-    color: var(--fg-hex-6a4c00);
-  }
-  .tag-filter-chip-clear {
-    border: none;
-    background: transparent;
-    cursor: pointer;
-    font-size: 14px;
-    line-height: 1;
-    color: var(--fg-hex-6a4c00);
-    padding: 0 2px;
-  }
   .empty-filter-msg {
     padding: 24px;
     color: var(--fg-neutral-emphasis);

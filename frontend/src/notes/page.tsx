@@ -11,7 +11,6 @@ import { NotesDocList } from './ui/cards.tsx';
 import { NotesLinksBar } from './ui/links-bar.tsx';
 import { NotesSidebar } from './ui/sidebar.tsx';
 import { NotesTagsBar } from './ui/tags-bar.tsx';
-import { clearTagFilter } from './commands/sidebar.ts';
 import { copyNoteReference, openNoteInChat } from './commands/open-in-chat.ts';
 import type { HostNoteEntry } from '../host/state.ts';
 import { closeModal, enterEditMode, exitEditMode, saveDoc, switchLang } from './viewer.ts';
@@ -73,22 +72,6 @@ function NotesStatus() {
 
 function NotesDateHeading({ text }: { text: string }) {
   return <div id="date-heading">{text}</div>;
-}
-
-function NotesTagChip() {
-  const host = useHostState();
-  const key = host.ui.activeTagKey;
-  if (!key) return null;
-  const registry = host.index.tagsRegistry;
-  const label = registry.keys?.[key]?.value || key;
-  return (
-    <span id="tag-filter-chip" className="tag-filter-chip">
-      <span>{`Tag: ${label} `}</span>
-      <button type="button" className="tag-filter-chip-clear" title="Clear tag filter" onClick={() => clearTagFilter()}>
-        ×
-      </button>
-    </span>
-  );
 }
 
 function copyReference(entry: HostNoteEntry | null) {
@@ -339,9 +322,7 @@ export function NotesMain({ routeParams }: { routeParams: Record<string, string>
   }, [host.ui.activeDate, showOutlet]);
 
   const { date, group } = resolveNotesListDate(host.ui.activeDate, routeParams.date);
-  const emptyFilter = Boolean(
-    !group && (host.ui.activeTopic || host.ui.activeTagKey),
-  );
+  const emptyFilter = Boolean(!group && host.ui.activeTopic);
   const headingText = emptyFilter
     ? 'No matching items'
     : notesDateHeadingText(date, group);
@@ -372,7 +353,6 @@ export function NotesMain({ routeParams }: { routeParams: Record<string, string>
         + New note
       </button>
       <NotesStatus />
-      <NotesTagChip />
       <div
         id="doc-list"
         ref={listRef}
@@ -383,7 +363,7 @@ export function NotesMain({ routeParams }: { routeParams: Record<string, string>
           <NotesDocList
             entries={group?.entries || []}
             date={date || ''}
-            empty={Boolean(!group && (host.ui.activeTopic || host.ui.activeTagKey))}
+            empty={Boolean(!group && host.ui.activeTopic)}
           />
         ) : null}
       </div>

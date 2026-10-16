@@ -142,21 +142,6 @@ export function readNotesViewerSource() {
   ].join('\n');
 }
 
-export function readKnowledgeViewerSource() {
-  const viewerDirs = [
-    join(repoRoot, 'frontend/src/knowledge/ui/viewer'),
-    join(repoRoot, 'frontend/src/knowledge/commands/viewer'),
-  ];
-  return [
-    readFrontendJs('frontend/src/knowledge/viewer.ts'),
-    ...viewerDirs.flatMap((dir) =>
-      listFrontendSourceFiles(dir)
-        .sort()
-        .map((abs) => readFileSync(abs, 'utf8')),
-    ),
-  ].join('\n');
-}
-
 /**
  * Desktop chrome: React shell + hash-router page slots + files they import.
  * One hop only — do not walk the whole src graph into source-scan tests.

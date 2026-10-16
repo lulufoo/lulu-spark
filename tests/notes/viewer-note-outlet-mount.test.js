@@ -100,10 +100,6 @@ vi.mock('../../frontend/src/doc-editor/highlights.ts', () => ({
   initDocHighlightOverlay: vi.fn(),
   cleanupDocHighlightOverlay: vi.fn(),
 }));
-vi.mock('../../frontend/src/knowledge/viewer.ts', () => ({
-  openKbDoc: vi.fn(),
-  saveKbDoc: vi.fn(),
-}));
 vi.mock('../../frontend/src/host/constants.ts', () => ({
   notesFileRelPath: (layer, path) => `notes/${layer}/${path}`,
 }));
@@ -255,6 +251,7 @@ describe('T5 openCreateNote / finalizeCreateSession on note outlet', () => {
     expect(api.createNote).toHaveBeenCalledWith({
       body: 'hello archived note',
       source_type: 'jot',
+      workspace: 'default',
     });
     expect(navigateToNoteMock).toHaveBeenCalledWith({
       date: '20260710',

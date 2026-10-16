@@ -15,6 +15,8 @@ export type {
   HostUi,
   HostViewer,
   HostViewerAnnotation,
+  HostWorkspace,
+  HostWorkspaces,
 } from './snapshot-types.ts'
 
 let stateVersion = 0
@@ -43,6 +45,7 @@ export function useHostState() {
 }
 
 export const state: HostState = {
+  workspaces: { current: 'default', list: [] },
   index: {
     data: null,
     groupedByDate: [],
@@ -60,7 +63,6 @@ export const state: HostState = {
     sparkRoot: '',
     knowledgeRoot: '',
     activeTopic: null,
-    activeTagKey: null,
     loadError: null,
   },
   viewer: {
@@ -71,8 +73,6 @@ export const state: HostState = {
     annotation: {},
     commentEditCtx: null,
     scrollCache: {},
-    isKb: false,
-    kbId: null,
     createSession: null,
     outletMode: '',
     outletMessage: '',

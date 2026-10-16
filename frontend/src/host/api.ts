@@ -22,11 +22,17 @@ export { getPackageSnapshot } from './api/package-snapshot.ts';
 export type { PackageSnapshot } from './api/package-snapshot.ts';
 
 export {
-  createNotesCategory,
-  deleteNotesCategory,
-  fetchNotesCategories,
-  updateNotesCategory,
-} from './api/notes-categories.ts';
+  createProject,
+  createWorkspace,
+  deleteProject,
+  deleteWorkspace,
+  fetchProjects,
+  fetchWorkspaces,
+  renameWorkspace,
+  setWorkspaceViewMode,
+  updateProject,
+} from './api/workspaces.ts';
+export type { ViewMode } from './api/workspaces.ts';
 
 export {
   createNote,

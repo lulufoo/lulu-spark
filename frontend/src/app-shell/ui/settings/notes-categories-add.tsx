@@ -36,7 +36,7 @@ export function NotesCategoriesAddHost() {
   return (
     <div className="notes-cat-add">
       <p className="notes-cat-lead">
-        Adding a category does not move existing notes. Title and description are display only.
+        A project groups documents inside the current workspace. Title and description are display only.
       </p>
       <div className="settings-field">
         <label htmlFor="notes-cat-new-title">Title</label>
@@ -54,7 +54,7 @@ export function NotesCategoriesAddHost() {
         <textarea
           id="notes-cat-new-description"
           rows={3}
-          placeholder="Optional. Shown on the category list and note cards."
+          placeholder="Optional. Shown on the project list and note cards."
           autoComplete="off"
           spellCheck={false}
           disabled={snap.busy}
@@ -71,7 +71,7 @@ export function NotesCategoriesAddHost() {
           disabled={snap.busy}
           onClick={() => void onAdd()}
         >
-          {snap.busy ? 'Adding…' : 'Add category'}
+          {snap.busy ? 'Adding…' : 'Add project'}
         </button>
       </div>
     </div>

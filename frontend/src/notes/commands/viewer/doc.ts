@@ -3,7 +3,6 @@ import { noteFileLang } from '../../../knowledge/state/path.ts';
 import { resetEditAreaScroll } from '../../../shared/utils.ts';
 import * as api from '../../../host/api.ts';
 import { setDocEditMode } from '../../../doc-editor/view.tsx';
-import { saveKbDoc } from '../../../knowledge/viewer.ts';
 import { initHighlightUI } from '../../ui/viewer/body.tsx';
 import { setNotePanelTitle, showNoteOutlet } from './outlet.ts';
 import type { HostViewerAnnotation } from '../../../host/snapshot-types.ts';
@@ -159,10 +158,6 @@ export function exitEditMode(rerender = true) {
 }
 
 export async function saveDoc() {
-  if (state.viewer.isKb) {
-    await saveKbDoc();
-    return;
-  }
   if (!state.viewer.entry) return;
   const editArea = asTextArea(document.getElementById('md-edit-area'));
   const newContent = editArea?.value ?? state.viewer.rawText;

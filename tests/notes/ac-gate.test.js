@@ -18,7 +18,7 @@ function read(rel) {
 
 describe('Note AC gate (tech-doc VF / T-13)', () => {
   it('AC-1: conflict / history probes lock Primary raw+index non-mutation', () => {
-    const rust = read('src-tauri/src/unit-tests/services/notes.rs');
+    const rust = read('src-tauri/src/unit-tests/services/docs_create.rs');
     expect(rust).toMatch(/fn create_jot_second_write_gets_new_filename/);
     expect(rust).toMatch(/fn create_jot_rejects_empty_body_without_writing/);
     expect(rust).toMatch(/fn create_note_second_write_gets_new_filename/);
@@ -48,7 +48,7 @@ describe('Note AC gate (tech-doc VF / T-13)', () => {
     // Read create.js alone (no re-export follow) so comment write APIs elsewhere do not pollute.
     const create = readFileSync(join(repoRoot, 'frontend/src/notes/commands/viewer/create.ts'), 'utf8');
     expect(create).toMatch(
-      /createNote\(\{\s*body:\s*trimmed,\s*source_type:\s*'jot'\s*\}\)/,
+      /createNote\(\{\s*body:\s*trimmed,\s*source_type:\s*'jot',\s*workspace:\s*state\.workspaces\.current\s*\}\)/,
     );
     // finalizeCreateSession must not call Annotation write APIs
     expect(create).not.toMatch(/updateComments|update_comments|saveAnnotation/);
@@ -56,7 +56,7 @@ describe('Note AC gate (tech-doc VF / T-13)', () => {
     expect(writeMap).toMatch(/\/api\/create-note/);
     expect(writeMap).toMatch(/create_note/);
 
-    const rust = read('src-tauri/src/unit-tests/services/notes.rs');
+    const rust = read('src-tauri/src/unit-tests/services/docs_create.rs');
     expect(rust).toMatch(/fn create_jot_writes_raw_index_with_source_type_jot/);
     expect(rust).toMatch(/assert_eq!\(entry\["source_type"\], json!\("jot"\)\)/);
     expect(rust).toMatch(/contains\(&json!\("raw"\)\)/);
@@ -103,7 +103,6 @@ describe('Note AC gate (tech-doc VF / T-13)', () => {
   it('AC-6: Overlay user-visible copy is 批注 (not 添加笔记)', () => {
     for (const rel of [
       'frontend/src/notes/ui/comments.tsx',
-      'frontend/src/knowledge/ui/comments.tsx',
     ]) {
       const src = read(rel);
       expect(src, rel).toMatch(/Comment/);

@@ -1,6 +1,7 @@
 import { resolveNoteForOpen } from '../../host/api.ts';
 import { state } from '../../host/state.ts';
 import { refreshNotesIndex } from '../../notes/commands/reload-index.ts';
+import { showWorkspace } from '../../notes/commands/workspace-switch.ts';
 import { showActionError } from './hub.ts';
 
 /** Chat links that open a note: `[title](note:<32-hex id>)`. Written by the model. */
@@ -25,7 +26,10 @@ function reportOpenFailure(reason: unknown) {
 export async function openNoteById(id: string): Promise<void> {
   try {
     const note = await resolveNoteForOpen(id);
-    if (!hasEntry(id)) await refreshNotesIndex();
+    if (!hasEntry(id)) {
+      if (note.workspace && note.workspace !== state.workspaces.current) await showWorkspace(note.workspace);
+      else await refreshNotesIndex();
+    }
     if (!hasEntry(id)) throw new Error('not in the notes list yet');
     document.dispatchEvent(
       new CustomEvent('cta:open-entry', { detail: { id: note.id || id } }),

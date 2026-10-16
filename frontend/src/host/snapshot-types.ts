@@ -9,7 +9,8 @@ export type HostNoteTag = {
 export type HostNoteEntry = {
   _id?: string;
   id?: string;
-  category_id?: string;
+  workspace?: string;
+  project_id?: string;
   folder?: string;
   created_at?: string;
   layers?: string[];
@@ -62,7 +63,6 @@ export type HostUi = {
   sparkRoot: string;
   knowledgeRoot: string;
   activeTopic: string | null;
-  activeTagKey: string | null;
   loadError: string | null;
 };
 
@@ -84,8 +84,6 @@ export type HostViewer = {
   annotation: HostViewerAnnotation;
   commentEditCtx: unknown | null;
   scrollCache: Record<string, number>;
-  isKb: boolean;
-  kbId: string | null;
   createSession: HostCreateSession | null;
   outletMode: HostOutletMode;
   outletMessage: string;
@@ -98,7 +96,21 @@ export type HostViewer = {
   panelTitle: string;
 };
 
+export type HostWorkspace = {
+  id: string;
+  name: string;
+  view_mode: 'directory' | 'timeline';
+  is_default: boolean;
+};
+
+export type HostWorkspaces = {
+  /** Id of the workspace the page shows. */
+  current: string;
+  list: HostWorkspace[];
+};
+
 export type HostState = {
+  workspaces: HostWorkspaces;
   index: HostIndex;
   ui: HostUi;
   viewer: HostViewer;

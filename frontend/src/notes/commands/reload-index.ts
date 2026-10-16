@@ -7,7 +7,7 @@ import { applyListFilters, buildGroups } from './sidebar.ts';
 /** Replace the notes snapshot from the Host notes index. Keeps topic/tag/date. */
 export async function refreshNotesIndex(): Promise<boolean> {
   try {
-    const data = await api.fetchIndex();
+    const data = await api.fetchIndex(state.workspaces.current);
     state.index.data = normalizeKnowledgeIndex(data) as Record<string, HostNoteEntry>;
     state.index.groupedByDate = buildGroups(state.index.data);
     applyListFilters();

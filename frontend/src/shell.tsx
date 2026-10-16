@@ -3,7 +3,6 @@ import { SettingsDialog } from './app-shell/ui/settings/dialog.tsx';
 import { SettingsDialogChrome } from './app-shell/ui/settings/chrome.tsx';
 
 void SettingsDialogChrome;
-import { KbCommentDialog } from './knowledge/ui/comments.tsx';
 import { NoteCommentDialog } from './notes/ui/comments.tsx';
 import { DeleteDialog } from './notes/ui/delete-dialog.tsx';
 import { MoveProjectDialog } from './notes/ui/move-project-dialog.tsx';
@@ -17,13 +16,8 @@ export function Shell() {
       {/* <!-- Bind device dialog --> */}
       <BindDialog />
 
-      {/* <!-- KB Comment dialog --> */}
-      <KbCommentDialog />
-
       {/* <!-- Floating highlight button --> */}
       <button id="highlight-add-btn" className="viewer-highlight-btn" style={{ display: 'none', position: 'fixed', zIndex: 9999 }}>Highlight</button>
-      {/* <!-- KB Floating highlight button --> */}
-      <button id="kb-highlight-add-btn" className="viewer-highlight-btn" style={{ display: 'none', position: 'fixed', zIndex: 9999 }}>Highlight</button>
       {/* <!-- Comment preview tooltip --> */}
       <div id="comment-preview-tip"></div>
 

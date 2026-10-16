@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { readKnowledgeViewerSource, readFrontendJs, readNotesViewerSource } from '../helpers/read-frontend-js.js';
+import { readFrontendJs, readNotesViewerSource } from '../helpers/read-frontend-js.js';
 import * as identity from '../../frontend/src/doc-editor/identity.ts';
 import * as docEditor from '../../frontend/src/doc-editor/index.ts';
 import {
@@ -44,15 +44,11 @@ describe('doc-editor identity and comment cut', () => {
     expect(src).not.toMatch(/updateHighlight\(|updateKbHighlight\(/);
   });
 
-  it('Notes / Knowledge wire the common view and overlay', () => {
+  it('Notes wire the common view and overlay', () => {
     expect(readNotesViewerSource()).toMatch(/renderDocMarkdown/);
     expect(readNotesViewerSource()).toMatch(/setDocEditMode/);
     expect(readNotesViewerSource()).toMatch(/applyCachedHighlights|initDocHighlightOverlay/);
     expect(readNotesViewerSource()).not.toMatch(/updateHighlight\(/);
-    expect(readKnowledgeViewerSource()).toMatch(/renderDocMarkdown/);
-    expect(readKnowledgeViewerSource()).toMatch(/setDocEditMode/);
-    expect(readKnowledgeViewerSource()).toMatch(/applyCachedHighlights|initDocHighlightOverlay/);
-    expect(readKnowledgeViewerSource()).not.toMatch(/updateKbHighlight\(/);
     expect(existsSync(join(repoRoot, 'frontend/src/todo-task/page.tsx'))).toBe(false);
   });
 });

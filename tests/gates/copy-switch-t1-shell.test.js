@@ -16,8 +16,6 @@ const indexHtml = [
   readFileSync(join(repoRoot, 'frontend/src/notes/page.tsx'), 'utf8'),
   readFileSync(join(repoRoot, 'frontend/src/notes/ui/sidebar.tsx'), 'utf8'),
   readFileSync(join(repoRoot, 'frontend/src/notes/ui/search.tsx'), 'utf8'),
-  readFileSync(join(repoRoot, 'frontend/src/knowledge/ui/sidebar.tsx'), 'utf8'),
-  readFileSync(join(repoRoot, 'frontend/src/knowledge/ui/search.tsx'), 'utf8'),
 ].join('\n');
 
 function extractTagOuter(html, id) {
@@ -103,14 +101,7 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
     expect(css).toMatch(/#md-header\.viewer-header \{[\s\S]*?padding: 20px 24px 16px;/);
     expect(css).not.toMatch(/\.viewer-panel-title \{\s*display:\s*none/);
     const notesSidebar = readFileSync(join(repoRoot, 'frontend/src/notes/ui/sidebar.tsx'), 'utf8');
-    const knowledgeSidebar = readFileSync(join(repoRoot, 'frontend/src/knowledge/ui/sidebar.tsx'), 'utf8');
     expect(notesSidebar).toMatch(/<WindowDragStrip>\s*<PageBackHome \/>\s*<\/WindowDragStrip>/);
-    expect(knowledgeSidebar).toMatch(/<WindowDragStrip>\s*<PageBackHome \/>\s*<\/WindowDragStrip>/);
-    expect(knowledgeSidebar).not.toMatch(/knowledge-page-toolbar/);
-    expect(knowledgeSidebar).not.toMatch(/page-toolbar-title/);
-    expect(knowledgeSidebar).toMatch(/M20 20a2 2 0 0 0 2-2V8/);
-    expect(knowledgeSidebar).toMatch(/M15 2H6a2 2 0 0 0-2 2v16/);
-    expect(knowledgeSidebar).toMatch(/fill: 'none'/);
     expect(css).toMatch(/\.knowledge-doc-tree-icon \{[\s\S]*?color: var\(--fg-muted\);/);
     expect(css).not.toMatch(/\.knowledge-doc-tree-icon \{[^}]*#54aeff/);
     expect(css).toMatch(/\.knowledge-doc-tree-label\.selected \.knowledge-doc-tree-icon \{[\s\S]*?color: var\(--fg-muted\);/);
@@ -147,14 +138,6 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
     expect(css).toMatch(
       /\.kb-reader-header-actions,[\s\S]*?\.kb-reader-header \.gs-search-dropdown \{[\s\S]*?-webkit-app-region: no-drag;/,
     );
-    const knowledgeShell = readFileSync(join(repoRoot, 'frontend/src/knowledge/ui/viewer/shell.tsx'), 'utf8');
-    expect(knowledgeShell).toMatch(/class="kb-reader-header viewer-header" data-tauri-drag-region="deep"/);
-    expect(knowledgeShell).toMatch(/className="kb-reader-header viewer-header" data-tauri-drag-region="deep"/);
-    expect(knowledgeShell).toMatch(/<KnowledgeSearch hidden=\{false\} \/>/);
-    expect(knowledgeShell).not.toMatch(/viewer-header-rule/);
-    expect(knowledgeShell).toMatch(/kb-reader-header-actions[\s\S]*<KnowledgeSearch hidden=\{false\} \/>/);
-    expect(knowledgeShell).toMatch(/className="viewer-header-actions kb-reader-header-actions"/);
-    expect(knowledgeShell).toMatch(/kb-btn-add-comment/);
     expect(notesPage).toMatch(/className="viewer-header-actions"/);
     expect(notesPage).toMatch(/id="btn-add-comment"/);
     expect(notesPage).toMatch(/<ViewerHeaderIcon name="copy" \/>/);
@@ -166,14 +149,6 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
     expect(notesPage).toMatch(/id="btn-save"[\s\S]*?\{viewer\.saving \? 'Saving…' : 'Save'\}/);
     expect(notesPage).not.toMatch(/id="btn-save"[\s\S]*?primary/);
     expect(notesPage).not.toMatch(/💾 Save/);
-    expect(knowledgeShell).not.toMatch(/kb-btn-save[\s\S]*?primary/);
-    expect(knowledgeShell).not.toMatch(/💾 Save/);
-    expect(knowledgeShell).toMatch(/<ViewerHeaderIcon name="copy" \/>/);
-    expect(knowledgeShell).toMatch(/<ViewerHeaderIcon name="chat" filled \/>/);
-    expect(knowledgeShell).toMatch(/<ViewerHeaderIcon name="edit" \/>/);
-    expect(knowledgeShell).toMatch(/<ViewerHeaderIcon name="comment" \/>/);
-    expect(knowledgeShell).not.toMatch(/<ViewerHeaderIcon name="copy" \/> Copy/);
-    expect(knowledgeShell).toMatch(/kb-btn-cancel-edit[\s\S]*?kb-btn-open-in-chat/);
     expect(notesPage).not.toMatch(/📁|🗨️|✏️|💬/);
     expect(css).toMatch(/\.viewer-header-actions \.md-header-btn \{[\s\S]*?padding: 5px 10px;/);
     expect(css).toMatch(/\.viewer-header-actions \.md-header-btn \{[\s\S]*?gap: 6px;/);
@@ -188,15 +163,10 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
     expect(headerIcons).toMatch(/M21\.174 6\.812/);
     expect(headerIcons).toMatch(/M21 15a2 2 0 0 1-2 2H7l-4 4V5/);
     const notesLinks = readFileSync(join(repoRoot, 'frontend/src/notes/ui/links-bar.tsx'), 'utf8');
-    const kbLinks = readFileSync(join(repoRoot, 'frontend/src/knowledge/ui/links-bar.tsx'), 'utf8');
     const notesLinkCmd = readFileSync(join(repoRoot, 'frontend/src/notes/commands/links-bar.ts'), 'utf8');
-    const kbLinkCmd = readFileSync(join(repoRoot, 'frontend/src/knowledge/commands/links-bar.ts'), 'utf8');
     expect(notesLinks).not.toMatch(/Add link/);
-    expect(kbLinks).not.toMatch(/Add link/);
     expect(notesLinks).not.toMatch(/add-link/);
-    expect(kbLinks).not.toMatch(/kb-link-add/);
     expect(notesLinkCmd).not.toMatch(/export async function addNoteLink/);
-    expect(kbLinkCmd).not.toMatch(/export async function addKbLink/);
     expect(css).not.toMatch(/kb-btn-tree-toggle/);
     expect(css).not.toMatch(/is-tree-collapsed/);
     const homeMark = readFileSync(join(repoRoot, 'frontend/src/shared/home-mark.tsx'), 'utf8');
@@ -220,14 +190,13 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
     expect(css).toMatch(/#sidebar \{[\s\S]*?--notes-rail: 16px;/);
     expect(css).toMatch(/\.topic-filter \{[\s\S]*?padding: 8px var\(--notes-rail\) 6px;/);
     expect(css).toMatch(/\.topic-count \{[\s\S]*?text-align: right;/);
-    expect(css).toMatch(/\.tag-count \{[\s\S]*?text-align: right;/);
     expect(notesSidebar).not.toMatch(/\/ \$\{total\} items/);
     expect(css).toMatch(/\.badge-done \{[\s\S]*?border-color: transparent;/);
     expect(css).toMatch(/\.doc-card\.done \.badge-done \{[\s\S]*?border-color: transparent;/);
     expect(css).not.toMatch(/\.badge-done \{[^}]*border-color: #e2e8ee/);
     expect(css).not.toMatch(/\.topic-filter \{[^}]*border-bottom:/);
-    expect(css).toMatch(/\.tag-filter \{[\s\S]*?padding: 8px var\(--notes-rail\) 16px;/);
-    expect(css).toMatch(/\.tag-filter \{[\s\S]*?border-bottom: 1px solid var\(--border-muted\);/);
+    expect(css).toMatch(/\.workspace-filter \{[\s\S]*?padding: 8px var\(--notes-rail\) 6px;/);
+    expect(css).toMatch(/\.sidebar-channel-zone \{[\s\S]*?border-bottom: 1px solid var\(--border-muted\);/);
     expect(css).toMatch(/\.knowledge-doc-sidebar-header \{[\s\S]*?padding: 8px 16px 16px;/);
     expect(css).toMatch(/\.knowledge-doc-sidebar-header \{[\s\S]*?border-bottom: 1px solid var\(--border-muted\);/);
     expect(css).toMatch(/\.list-select-trigger \{[\s\S]*?border: 1px solid var\(--border-muted\);/);
@@ -295,9 +264,7 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
 
   it('search placeholders use table B; the header has no index rebuild control', () => {
     expect(indexHtml).toMatch(/id="gs-wb-input"[^>]*placeholder="Search notes…"/);
-    expect(indexHtml).toMatch(/id="gs-kb-input"[^>]*placeholder="Search knowledge…"/);
     expect(indexHtml).not.toMatch(/id="gs-wb-rebuild-btn"/);
-    expect(indexHtml).not.toMatch(/id="gs-kb-rebuild-btn"/);
     expect(indexHtml).not.toMatch(/IndexRebuildStatus|IndexRebuildButton|header-index-status|btn-index-rebuild/);
   });
 

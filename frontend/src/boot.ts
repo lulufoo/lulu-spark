@@ -2,9 +2,10 @@ import { state, mergeAnnotations, notifyState } from './host/state.ts';
 import { LAYERS } from './host/constants.ts';
 import * as api from './host/api.ts';
 import type { HostIndexAnnotation, HostNoteEntry } from './host/snapshot-types.ts';
-import { buildGroups, selectDate, applyListFilters, selectTag } from './notes/commands/sidebar.ts';
+import { buildGroups, selectDate, applyListFilters } from './notes/commands/sidebar.ts';
+import { loadProjects, loadWorkspaces } from './notes/commands/workspace.ts';
+import { showWorkspaceOf } from './notes/commands/workspace-switch.ts';
 import './notes/ui/comments.tsx';
-import './knowledge/viewer.ts';
 import { navigate, navigateToNote } from './router/index.ts';
 import { setRouteHandlers } from './route-handlers.ts';
 import { setSparkBinding } from './app-shell/commands/spark-binding.ts';
@@ -13,7 +14,6 @@ import './app-shell/ui/settings/sediment-kb.tsx';
 import { initTooltip } from './app-shell/ui/tooltip.ts';
 import {
   getHomeEntryShell,
-  mountKnowledgeDocRoute,
   mountHomeRoute,
   mountReadLaterRoute,
   mountSpark,
@@ -28,10 +28,6 @@ import { handleNotesOsNotifyEnvelope } from './notes/commands/os-notify.ts';
 import { handleReadLaterOsNotifyEnvelope } from './read-later/commands/os-notify.ts';
 import { logNotifyHop, parseTraceId, TRACE_PARAM } from './router/notify-trace.ts';
 
-type NotesCategoriesPayload = {
-  categories?: Array<{ id?: string; folder?: string; title?: string; description?: string }>;
-};
-
 type TagsRegistryPayload = {
   keys?: Record<string, { value?: string; refs?: number }>;
 };
@@ -41,11 +37,12 @@ type TagsRegistryPayload = {
 async function loadIndex({ managedBtn = false }: { managedBtn?: boolean } = {}) {
   void managedBtn;
   try {
-    const data = await api.fetchIndex();
+    await loadWorkspaces();
+    await loadProjects();
+    const data = await api.fetchIndex(state.workspaces.current);
     state.index.data = normalizeKnowledgeIndex(data) as Record<string, HostNoteEntry>;
     state.index.groupedByDate = buildGroups(state.index.data);
     state.ui.activeTopic = null;
-    state.ui.activeTagKey = null;
     state.ui.loadError = null;
     applyListFilters();
     await Promise.all([loadAnnotationsSummary(), loadTagsRegistry()]);
@@ -59,6 +56,8 @@ async function loadIndex({ managedBtn = false }: { managedBtn?: boolean } = {}) 
   } catch (e) {
     // @ts-expect-error boot copy scan uses e.message
     showError(`Could not load notes: ${e.message}`);
+  } finally {
+    document.dispatchEvent(new CustomEvent('cta:index-loaded'));
   }
 }
 
@@ -103,29 +102,12 @@ api.fetchConfig().then((d) => {
   const theme = parseThemeId(cfg.theme);
   if (theme) applyTheme(theme);
 }).catch(() => {});
-api.fetchNotesCategories().then((data) => {
-  const payload = data as NotesCategoriesPayload;
-  const descMap: Record<string, string> = {};
-  const titleMap: Record<string, string> = {};
-  for (const c of payload.categories || []) {
-    const id = typeof c.id === 'string' ? c.id.trim() : '';
-    const folder =
-      typeof c.folder === 'string' && c.folder.trim() ? c.folder.trim() : id;
-    if (!folder) continue;
-    titleMap[folder] = typeof c.title === 'string' ? c.title : folder;
-    descMap[folder] = typeof c.description === 'string' ? c.description : '';
-  }
-  state.index.topicTitles = titleMap;
-  state.index.topicDescriptions = descMap;
-  state.index.topicRepos = {};
-}).catch(() => {});
 initTooltip();
 loadIndex();
 
 setRouteHandlers({
   spark: wrapRouteMount('spark', (route) => mountSpark(route)),
   home: wrapRouteMount('home', mountHomeRoute),
-  'knowledge-doc': wrapRouteMount('knowledge-doc', mountKnowledgeDocRoute),
   'read-later': wrapRouteMount('read-later', mountReadLaterRoute),
 }, '#/home');
 
@@ -265,11 +247,6 @@ function startSparkSchemeOpenedHubWhenReady() {
 
 startSparkSchemeOpenedHubWhenReady();
 
-document.addEventListener('cta:filter-tag', (event) => {
-  const detail = (event as CustomEvent<{ key?: string }>).detail;
-  if (detail?.key) selectTag(detail.key);
-});
-
 // ── Global search navigation ───────────────────────────────────────────────
 document.addEventListener('cta:open-entry', (event) => {
   const detail = (event as CustomEvent<{ id?: string; layer?: string }>).detail;
@@ -278,7 +255,12 @@ document.addEventListener('cta:open-entry', (event) => {
   if (!id) return;
   const data = state.index.data || {};
   const entry = data[id] ?? Object.values(data).find((e) => e._id === id || e.id === id);
-  if (!entry) return;
+  if (!entry) {
+    void showWorkspaceOf(id).then((switched) => {
+      if (switched) document.dispatchEvent(new CustomEvent('cta:open-entry', { detail }));
+    });
+    return;
+  }
   const date = entry.created_at
     ? entry.created_at.slice(0, 8)
     : (state.ui?.activeDate || '');
@@ -287,10 +269,4 @@ document.addEventListener('cta:open-entry', (event) => {
   const params: { date: string; note: string; layer?: string } = { date, note: id };
   params.layer = detail.layer || (LAYERS.find((l) => entry.layers?.includes(l)) ?? 'raw');
   navigateToNote(params);
-});
-
-document.addEventListener('cta:open-kb-doc', (event) => {
-  const detail = (event as CustomEvent<{ id?: string; topic?: string }>).detail;
-  if (!detail?.id || !detail.topic) return;
-  navigate('#/knowledge/' + encodeURIComponent(detail.topic) + '?id=' + encodeURIComponent(detail.id));
 });

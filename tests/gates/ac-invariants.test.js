@@ -14,17 +14,4 @@ describe('AC invariants', () => {
     expect(existsSync(join(repoRoot, 'frontend/src/components/note-editor.js'))).toBe(false);
     expect(existsSync(join(repoRoot, 'frontend/src/note-editor.js'))).toBe(false);
   });
-
-  it('router tests include knowledge ?id= deep link coverage', async () => {
-    const { readFileSync } = await import('node:fs');
-    const routerTest = readFileSync(join(repoRoot, 'tests/router/index.test.js'), 'utf8');
-    expect(routerTest).toMatch(/parseHash\('#\/knowledge\/owner\/repo\?id=abcdefabcdefabcdefabcdefabcdefab'\)/);
-  });
-
-  it('knowledge-doc-list tests cover in-tree open + mountKbReader mock', async () => {
-    const { readFileSync } = await import('node:fs');
-    const knowledgeTest = readFileSync(join(repoRoot, 'tests/knowledge/knowledge-doc-list.test.js'), 'utf8');
-    expect(knowledgeTest).toMatch(/mountKbReader/);
-    expect(knowledgeTest).toMatch(/replaceState|syncKnowledgeHash/);
-  });
 });

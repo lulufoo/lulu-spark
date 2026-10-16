@@ -14,10 +14,6 @@ vi.mock('../../frontend/src/host/api.ts', () => ({
   searchKnowledge: (...args) => apiMocks.searchKnowledge(...args),
 }));
 
-vi.mock('../../frontend/src/knowledge/ui/search.tsx', () => ({
-  closeKnowledgeSearch: vi.fn(),
-  initKnowledgeSearch: vi.fn(),
-}));
 
 import { applySearchNavChrome } from '../../frontend/src/app-shell/ui/nav-chrome.ts';
 import { readMainSource } from '../helpers/read-frontend-js.js';

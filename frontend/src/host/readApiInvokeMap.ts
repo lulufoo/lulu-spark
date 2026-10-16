@@ -13,6 +13,7 @@ type ReadInvokeEntry = {
 export const READ_API_INVOKE_MAP: Record<string, ReadInvokeEntry> = {
   '/api/notes-index': {
     cmd: 'get_notes_index',
+    args: (url) => ({ workspace: url.searchParams.get('workspace') || undefined }),
   },
   '/api/notes-file': {
     cmd: 'get_notes_file',
@@ -32,7 +33,11 @@ export const READ_API_INVOKE_MAP: Record<string, ReadInvokeEntry> = {
     }),
   },
   '/api/topics': { cmd: 'get_topics' },
-  '/api/notes-categories': { cmd: 'list_notes_categories' },
+  '/api/workspaces': { cmd: 'list_workspaces' },
+  '/api/projects': {
+    cmd: 'list_projects',
+    args: (url) => ({ payload: { workspace: url.searchParams.get('workspace') || undefined } }),
+  },
   '/api/search-knowledge': {
     cmd: 'search_knowledge',
     args: (url) => ({

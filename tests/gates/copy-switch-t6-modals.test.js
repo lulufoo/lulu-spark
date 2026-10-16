@@ -16,7 +16,6 @@ const deleteDialogJs = readFileSync(
 );
 const modalSources = [
   deleteDialogJs,
-  readFrontendJs('frontend/src/knowledge/ui/tree-delete-dialog.tsx'),
   readFrontendJs('frontend/src/notes/ui/move-project-dialog.tsx'),
   readFrontendJs('frontend/src/notes/commands/move-project-dialog.ts'),
 ].join('\n');
@@ -44,13 +43,6 @@ describe('P2 copy-switch — main.js & modals (tech-doc T6)', () => {
     expect(mainJs).not.toContain('重试');
     expect(mainJs).not.toContain('沉淀知识库列表');
     expect(mainJs).not.toContain('加载中');
-  });
-
-  it('knowledge tree delete requires CONFIRM in English', () => {
-    const src = readFrontendJs('frontend/src/knowledge/ui/tree-delete-dialog.tsx');
-    expect(src).toContain('Type <code>CONFIRM</code> to delete');
-    expect(src).toContain('Confirm delete');
-    expect(src).not.toContain('确认删除');
   });
 
   it('delete-dialog.js uses table B/B2 delete copy', () => {

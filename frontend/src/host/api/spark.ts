@@ -1,8 +1,10 @@
 import { asRecord, type PathArg } from '../api-types.ts';
 import { getReadDriver, readGet, writePost } from './transport.ts';
 
-export async function fetchIndex() {
-  return readGet('/api/notes-index?_=' + Date.now());
+/** Sidebar index of one workspace (the default workspace when `workspace` is omitted). */
+export async function fetchIndex(workspace?: string) {
+  const ws = workspace ? `workspace=${encodeURIComponent(workspace)}&` : '';
+  return readGet(`/api/notes-index?${ws}_=${Date.now()}`);
 }
 
 export async function fetchAnnotationsSummary() {

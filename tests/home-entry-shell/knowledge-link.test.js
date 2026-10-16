@@ -5,9 +5,6 @@ import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { marked } from 'marked';
 
-vi.mock('../../frontend/src/host/api/knowledge-open.ts', () => ({
-  resolveKnowledgeForOpen: vi.fn(),
-}));
 vi.mock('../../frontend/src/host/api/note-open.ts', () => ({
   resolveNoteForOpen: vi.fn(),
 }));
@@ -18,8 +15,8 @@ vi.mock('../../frontend/src/home/commands/hub.ts', () => ({
   showActionError: vi.fn(),
 }));
 
-import { resolveKnowledgeForOpen } from '../../frontend/src/host/api/knowledge-open.ts';
 import { resolveNoteForOpen } from '../../frontend/src/host/api/note-open.ts';
+import { state } from '../../frontend/src/host/state.ts';
 import { showActionError } from '../../frontend/src/home/commands/hub.ts';
 import {
   knowledgeIdFromHref,
@@ -48,14 +45,15 @@ const onOpen = (e) => opened.push(e.detail);
 
 beforeEach(() => {
   opened = [];
-  document.addEventListener('cta:open-kb-doc', onOpen);
-  vi.mocked(resolveKnowledgeForOpen).mockReset();
+  document.addEventListener('cta:open-entry', onOpen);
   vi.mocked(resolveNoteForOpen).mockReset();
   vi.mocked(showActionError).mockReset();
+  state.index.data = { [ID]: { folder: 'guide', id: ID }, [LEGACY_ID]: { folder: 'guide', id: LEGACY_ID } };
 });
 
 afterEach(() => {
-  document.removeEventListener('cta:open-kb-doc', onOpen);
+  document.removeEventListener('cta:open-entry', onOpen);
+  state.index.data = null;
 });
 
 describe('knowledgeIdFromHref', () => {
@@ -73,22 +71,22 @@ describe('knowledgeIdFromHref', () => {
 });
 
 describe('onKnowledgeLinkClick', () => {
-  it('intercepts a knowledge: link, resolves it in Rust, then opens the document', async () => {
-    vi.mocked(resolveKnowledgeForOpen).mockResolvedValue({ id: ID, ok: true, topic: 'demo', path: 'guide/intro.md' });
+  it('intercepts a knowledge: link and opens it as a workspace document', async () => {
+    vi.mocked(resolveNoteForOpen).mockResolvedValue({ id: ID, ok: true, workspace: 'default' });
     const event = clickOn(onKnowledgeLinkClick, `<p><a href="knowledge:${ID}"><b>Title</b></a></p>`, 'b');
     expect(event.preventDefault).toHaveBeenCalledOnce();
     await flush();
-    expect(resolveKnowledgeForOpen).toHaveBeenCalledWith(ID);
-    expect(opened).toEqual([{ id: ID, topic: 'demo' }]);
+    expect(resolveNoteForOpen).toHaveBeenCalledWith(ID);
+    expect(opened).toEqual([{ id: ID }]);
     expect(showActionError).not.toHaveBeenCalled();
   });
 
   it('opens a legacy 12-char id the same way', async () => {
-    vi.mocked(resolveKnowledgeForOpen).mockResolvedValue({ id: LEGACY_ID, ok: true, topic: 'demo', path: 'old.md' });
+    vi.mocked(resolveNoteForOpen).mockResolvedValue({ id: LEGACY_ID, ok: true, workspace: 'default' });
     clickOn(onKnowledgeLinkClick, `<a href="knowledge:${LEGACY_ID}">x</a>`, 'a');
     await flush();
-    expect(resolveKnowledgeForOpen).toHaveBeenCalledWith(LEGACY_ID);
-    expect(opened).toEqual([{ id: LEGACY_ID, topic: 'demo' }]);
+    expect(resolveNoteForOpen).toHaveBeenCalledWith(LEGACY_ID);
+    expect(opened).toEqual([{ id: LEGACY_ID }]);
   });
 
   it('leaves every other link alone', async () => {
@@ -97,7 +95,7 @@ describe('onKnowledgeLinkClick', () => {
     const plain = clickOn(onKnowledgeLinkClick, '<span>no link</span>', 'span');
     for (const event of [web, note, plain]) expect(event.preventDefault).not.toHaveBeenCalled();
     await flush();
-    expect(resolveKnowledgeForOpen).not.toHaveBeenCalled();
+    expect(resolveNoteForOpen).not.toHaveBeenCalled();
     expect(opened).toEqual([]);
   });
 
@@ -105,37 +103,27 @@ describe('onKnowledgeLinkClick', () => {
     const event = clickOn(onKnowledgeLinkClick, '<a href="knowledge:zzz">x</a>', 'a');
     expect(event.preventDefault).toHaveBeenCalledOnce();
     await flush();
-    expect(resolveKnowledgeForOpen).not.toHaveBeenCalled();
+    expect(resolveNoteForOpen).not.toHaveBeenCalled();
     expect(vi.mocked(showActionError).mock.calls[0][0].message).toMatch(/Cannot open knowledge document/);
     expect(opened).toEqual([]);
   });
 
   it('reports the Rust error when the id is unknown', async () => {
-    vi.mocked(resolveKnowledgeForOpen).mockRejectedValue(new Error('Unknown document id'));
+    vi.mocked(resolveNoteForOpen).mockRejectedValue(new Error('Unknown document id'));
     clickOn(onKnowledgeLinkClick, `<a href="knowledge:${ID}">x</a>`, 'a');
     await flush();
-    expect(vi.mocked(showActionError).mock.calls[0][0].message).toBe(
-      'Cannot open knowledge document: Unknown document id',
-    );
+    expect(vi.mocked(showActionError).mock.calls[0][0].message).toBe('Cannot open note: Unknown document id');
     expect(opened).toEqual([]);
-  });
-
-  it('does not open anything when Rust returns no topic', async () => {
-    vi.mocked(resolveKnowledgeForOpen).mockResolvedValue({ id: ID, ok: true });
-    clickOn(onKnowledgeLinkClick, `<a href="knowledge:${ID}">x</a>`, 'a');
-    await flush();
-    expect(opened).toEqual([]);
-    expect(showActionError).toHaveBeenCalledOnce();
   });
 });
 
 describe('onChatLinkClick', () => {
-  it('routes knowledge: links to the knowledge flow and never to notes', async () => {
-    vi.mocked(resolveKnowledgeForOpen).mockResolvedValue({ id: ID, ok: true, topic: 'demo', path: 'a.md' });
+  it('routes knowledge: links through the shared document opener', async () => {
+    vi.mocked(resolveNoteForOpen).mockResolvedValue({ id: ID, ok: true, workspace: 'default' });
     clickOn(onChatLinkClick, `<a href="knowledge:${ID}">x</a>`, 'a');
     await flush();
-    expect(resolveKnowledgeForOpen).toHaveBeenCalledWith(ID);
-    expect(resolveNoteForOpen).not.toHaveBeenCalled();
+    expect(resolveNoteForOpen).toHaveBeenCalledWith(ID);
+    expect(opened).toEqual([{ id: ID }]);
   });
 
   it('keeps routing note: links to the notes flow', async () => {
@@ -143,7 +131,6 @@ describe('onChatLinkClick', () => {
     clickOn(onChatLinkClick, `<a href="note:${ID}">x</a>`, 'a');
     await flush();
     expect(resolveNoteForOpen).toHaveBeenCalledWith(ID);
-    expect(resolveKnowledgeForOpen).not.toHaveBeenCalled();
   });
 });
 

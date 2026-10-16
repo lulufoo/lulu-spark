@@ -1,5 +1,5 @@
-import { resolveKnowledgeForOpen } from '../../host/api.ts';
 import { showActionError } from './hub.ts';
+import { openNoteById } from './open-note-link.ts';
 
 /** Chat links that open a knowledge document: `[title](knowledge:<hex id>)`. Written by the model.
  * The id length is not checked here; Rust decides whether the id exists. */
@@ -10,22 +10,9 @@ export function knowledgeIdFromHref(href: string | null | undefined): string | n
   return match ? match[1] : null;
 }
 
-function reportOpenFailure(reason: unknown) {
-  const detail = reason instanceof Error ? reason.message : String(reason);
-  showActionError({ message: `Cannot open knowledge document: ${detail}` });
-}
-
-/** Rust resolves the id; the page opens through the shared event. */
+/** Knowledge documents are workspace documents now, so they open like any other document. */
 export async function openKnowledgeById(id: string): Promise<void> {
-  try {
-    const doc = await resolveKnowledgeForOpen(id);
-    if (!doc.topic) throw new Error('missing library location');
-    document.dispatchEvent(
-      new CustomEvent('cta:open-kb-doc', { detail: { id, topic: doc.topic } }),
-    );
-  } catch (err) {
-    reportOpenFailure(err);
-  }
+  await openNoteById(id);
 }
 
 /** Delegated click for rendered chat markdown. Only `knowledge:` links are intercepted. */
@@ -40,7 +27,7 @@ export function onKnowledgeLinkClick(event: {
   event.preventDefault();
   const id = knowledgeIdFromHref(anchor.getAttribute('href'));
   if (!id) {
-    reportOpenFailure('invalid knowledge link');
+    showActionError({ message: 'Cannot open knowledge document: invalid knowledge link' });
     return;
   }
   void openKnowledgeById(id);

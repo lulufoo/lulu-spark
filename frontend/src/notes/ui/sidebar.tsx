@@ -4,28 +4,14 @@ import { flushSync } from 'react-dom';
 import { state, useHostState } from '../state/host.ts';
 import { formatDate } from '../../shared/utils.ts';
 import { closeFloatingListSelect, createFloatingListSelect } from '../../shared/floating-list-select.ts';
-import {
-  applyListFilters,
-  buildGroups,
-  clearTagFilter,
-  renderTagFilterChip,
-  selectDate,
-  selectTag,
-  selectTopic,
-} from '../commands/sidebar.ts';
+import { applyListFilters, buildGroups, selectDate, selectTopic } from '../commands/sidebar.ts';
+import { isTimelineView } from '../commands/workspace.ts';
+import { changeViewMode, switchWorkspace } from '../commands/workspace-switch.ts';
 import { PageBackHome } from '../../shared/home-mark.tsx';
 import { WindowDragStrip } from '../../shared/window-drag-strip.tsx';
 import { attachNotesSidebarResize } from './sidebar-resize.ts';
 
-export {
-  applyListFilters,
-  buildGroups,
-  clearTagFilter,
-  renderTagFilterChip,
-  selectDate,
-  selectTag,
-  selectTopic,
-};
+export { applyListFilters, buildGroups, selectDate, selectTopic };
 
 function _renderTopicFilter(parent: HTMLElement) {
   const allEntries = Object.values(state.index.data || {});
@@ -60,7 +46,7 @@ function _renderTopicFilter(parent: HTMLElement) {
   }
 
   const { picker } = createFloatingListSelect({
-    ariaLabel: 'Filter by topic',
+    ariaLabel: 'Filter by project',
     pickerClass: 'topic-select',
     value: state.ui.activeTopic || '',
     options,
@@ -80,64 +66,36 @@ function _renderTopicFilter(parent: HTMLElement) {
   parent.appendChild(wrap);
 }
 
-function _entriesInTagCountScope() {
-  const allEntries = Object.values(state.index.data || {});
-  const topic = state.ui.activeTopic;
-  if (!topic) return allEntries;
-  return allEntries.filter((entry) => (entry.folder || 'unknown') === topic);
-}
-
-function _tagLabel(key: string) {
-  return state.index.tagsRegistry?.keys?.[key]?.value || key;
-}
-
-function _renderTagFilter(parent: HTMLElement) {
-  const scopeEntries = _entriesInTagCountScope();
-  if (scopeEntries.length === 0) return;
-
-  const tagCounts: Record<string, number> = {};
-  for (const entry of scopeEntries) {
-    for (const key of entry.tag_keys || []) {
-      tagCounts[key] = (tagCounts[key] || 0) + 1;
-    }
-  }
-
-  const total = scopeEntries.length;
-  const activeKey = state.ui.activeTagKey;
-
+function _renderWorkspaceSwitch(parent: HTMLElement) {
+  const { current, list } = state.workspaces;
+  if (list.length === 0) return;
   const wrap = document.createElement('div');
-  wrap.className = 'tag-filter';
-
-  const options: { value: string; label: string }[] = [{ value: '', label: `All (${total})` }];
-  const sortedKeys = Object.keys(tagCounts).sort((a, b) => _tagLabel(a).localeCompare(_tagLabel(b)));
-  for (const key of sortedKeys) {
-    options.push({ value: key, label: `${_tagLabel(key)} (${tagCounts[key]})` });
-  }
-  if (activeKey && !tagCounts[activeKey]) {
-    options.push({ value: activeKey, label: `${_tagLabel(activeKey)} (0)` });
-  }
+  wrap.className = 'workspace-filter';
 
   const { picker } = createFloatingListSelect({
-    ariaLabel: 'Filter by tag',
-    pickerClass: 'tag-select',
-    value: activeKey || '',
-    options,
-    onSelect: (v: string) => {
-      if (v) selectTag(v);
-      else clearTagFilter();
-    },
+    ariaLabel: 'Select workspace',
+    pickerClass: 'workspace-select',
+    value: current,
+    options: list.map((w) => ({ value: w.id, label: w.name })),
+    onSelect: (id: string) => switchWorkspace(id),
   });
   wrap.appendChild(picker);
 
-  const countEl = document.createElement('div');
-  countEl.className = 'tag-count';
-  if (activeKey) {
-    countEl.textContent = `${tagCounts[activeKey] || 0} / ${total}`;
-    countEl.style.display = '';
-  } else {
-    countEl.style.display = 'none';
+  const modes = document.createElement('div');
+  modes.className = 'view-mode-switch';
+  const active = isTimelineView() ? 'timeline' : 'directory';
+  for (const mode of ['directory', 'timeline'] as const) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = `view-mode-btn${mode === active ? ' active' : ''}`;
+    button.dataset.viewMode = mode;
+    button.textContent = mode === 'directory' ? 'Directory' : 'Timeline';
+    button.addEventListener('click', () => {
+      void changeViewMode(mode).catch((err) => alert(err instanceof Error ? err.message : String(err)));
+    });
+    modes.appendChild(button);
   }
-  wrap.appendChild(countEl);
+  wrap.appendChild(modes);
   parent.appendChild(wrap);
 }
 
@@ -168,8 +126,7 @@ export function NotesSidebar() {
   const channelRef = useRef<HTMLDivElement | null>(null);
   const data = host.index.data;
   const topic = host.ui.activeTopic;
-  const tag = host.ui.activeTagKey;
-  const registry = host.index.tagsRegistry;
+  const workspaces = host.workspaces;
   const groups = host.index.filteredGroups || [];
   const activeDate = host.ui.activeDate;
 
@@ -178,15 +135,15 @@ export function NotesSidebar() {
     if (!parent) return;
     const sidebar = parent.closest('#sidebar') || document.getElementById('sidebar');
     closeFloatingListSelect();
-    sidebar?.querySelectorAll('.topic-filter, .tag-filter').forEach((el) => el.remove());
+    sidebar?.querySelectorAll('.workspace-filter, .topic-filter').forEach((el) => el.remove());
     parent.replaceChildren();
-    _renderTopicFilter(parent);
-    _renderTagFilter(parent);
+    _renderWorkspaceSwitch(parent);
+    if (!isTimelineView()) _renderTopicFilter(parent);
     return () => {
       closeFloatingListSelect();
       parent.replaceChildren();
     };
-  }, [data, topic, tag, registry]);
+  }, [data, topic, workspaces.current, workspaces.list]);
 
   useLayoutEffect(() => {
     const aside = document.getElementById('sidebar');
