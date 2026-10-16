@@ -9,4 +9,4 @@ Lulu Spark 的 Agent Skills。本目录是 [lulu-spark](https://github.com/luluf
 | Skill | 指令 | 说明 |
 |-------|------|------|
 | 安装 / 配置 | `lulu-spark-skills` | 见 [SKILL.md](SKILL.md) |
-| 笔记写入 | `note-task` | [note-task/](note-task/) — 笔记 MCP 地图：`create_note` / catalog / files |
+| 文档写入 | `note-task` | [note-task/](note-task/) — 文档 MCP 地图：`create_doc` / workspace / project / files |
