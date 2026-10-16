@@ -61,15 +61,16 @@ describe('parseHash', () => {
     expect(parseHash('#/knowledge/pick')).toEqual({ name: 'knowledge-doc', params: { repo: '' } });
   });
 
-  it('parses #/knowledge/:repo with slash in repo', () => {
-    expect(parseHash('#/knowledge/lulufoo/myrepo')).toEqual({
+  it('parses #/knowledge/:topic as a folder name', () => {
+    expect(parseHash('#/knowledge/myrepo')).toEqual({
       name: 'knowledge-doc',
-      params: { repo: 'lulufoo/myrepo' },
+      params: { repo: 'myrepo' },
     });
-    expect(parseHash('#/knowledge/lulufoo%2Fmyrepo')).toEqual({
-      name: 'knowledge-doc',
-      params: { repo: 'lulufoo/myrepo' },
-    });
+  });
+
+  it('rejects leftover owner/name knowledge hashes', () => {
+    expect(parseHash('#/knowledge/lulufoo/myrepo')).toEqual({ name: 'unknown', params: {} });
+    expect(parseHash('#/knowledge/lulufoo%2Fmyrepo')).toEqual({ name: 'unknown', params: {} });
   });
 
   it('parses #/home', () => {
@@ -84,45 +85,46 @@ describe('parseHash', () => {
     expect(parseHash('#/read-later/')).toEqual({ name: 'read-later', params: {} });
   });
 
-  it('parses #/knowledge/:repo?path= for deep link', () => {
-    expect(parseHash('#/knowledge/owner/repo?path=docs/guide.md')).toEqual({
+  it('parses #/knowledge/:topic?id= for deep link', () => {
+    expect(parseHash('#/knowledge/myrepo?id=abcdefabcdefabcdefabcdefabcdefab')).toEqual({
       name: 'knowledge-doc',
-      params: { repo: 'owner/repo', path: 'docs/guide.md' },
+      params: { repo: 'myrepo', id: 'abcdefabcdefabcdefabcdefabcdefab' },
     });
   });
 
-  it('decodes repo and path when encoded', () => {
-    expect(parseHash('#/knowledge/lulufoo%2Fmyrepo?path=readme.md')).toEqual({
+  it('decodes topic and id when encoded', () => {
+    expect(parseHash('#/knowledge/my%20repo?id=readme')).toEqual({
       name: 'knowledge-doc',
-      params: { repo: 'lulufoo/myrepo', path: 'readme.md' },
+      params: { repo: 'my repo', id: 'readme' },
     });
   });
 
-  it('omits path when ?path= query is absent', () => {
-    const result = parseHash('#/knowledge/lulufoo/myrepo');
+  it('omits id when ?id= query is absent', () => {
+    const result = parseHash('#/knowledge/myrepo');
     expect(result).toEqual({
       name: 'knowledge-doc',
-      params: { repo: 'lulufoo/myrepo' },
+      params: { repo: 'myrepo' },
     });
+    expect(result.params).not.toHaveProperty('id');
     expect(result.params).not.toHaveProperty('path');
   });
 
-  it('handles empty ?path= value', () => {
-    expect(parseHash('#/knowledge/owner/repo?path=')).toEqual({
+  it('handles empty ?id= value', () => {
+    expect(parseHash('#/knowledge/myrepo?id=')).toEqual({
       name: 'knowledge-doc',
-      params: { repo: 'owner/repo', path: '' },
+      params: { repo: 'myrepo', id: '' },
     });
   });
 
-  it('does not merge query into repo when repo contains slash', () => {
-    expect(parseHash('#/knowledge/lulufoo/myrepo?path=a.md')).toEqual({
+  it('keeps query off the topic folder', () => {
+    expect(parseHash('#/knowledge/myrepo?id=a.md')).toEqual({
       name: 'knowledge-doc',
-      params: { repo: 'lulufoo/myrepo', path: 'a.md' },
+      params: { repo: 'myrepo', id: 'a.md' },
     });
   });
 
   it('returns unknown for invalid repo encoding with query', () => {
-    expect(parseHash('#/knowledge/%?path=foo.md')).toEqual({
+    expect(parseHash('#/knowledge/%?id=foo.md')).toEqual({
       name: 'unknown',
       params: {},
     });
@@ -240,7 +242,7 @@ describe('hash navigation', () => {
     expect(handlers.home).toHaveBeenCalledTimes(1);
 
     handlers.home.mockClear();
-    hashValue = '#/knowledge/owner/repo';
+    hashValue = '#/knowledge/myrepo';
     listeners.popstate();
     expect(handlers['knowledge-doc']).toHaveBeenCalledTimes(1);
   });
@@ -249,7 +251,7 @@ describe('hash navigation', () => {
     initRouter(handlers, { fallback: '#/spark' });
     expect(handlers.spark).toHaveBeenCalledTimes(1);
 
-    hashValue = '#/knowledge/owner/repo';
+    hashValue = '#/knowledge/myrepo';
     listeners.hashchange();
     expect(handlers['knowledge-doc']).toHaveBeenCalledTimes(1);
 
@@ -398,7 +400,7 @@ describe('Phase2 fallback via initRouter (library API; app entry uses mountHashR
     initRouter(handlers);
     expect(handlers.home).toHaveBeenCalledTimes(1);
 
-    hashValue = '#/knowledge/owner/repo';
+    hashValue = '#/knowledge/myrepo';
     listeners.hashchange();
     expect(handlers['knowledge-doc']).toHaveBeenCalledTimes(1);
 

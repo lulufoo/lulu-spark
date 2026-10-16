@@ -1,11 +1,10 @@
 import { asRecord, type InvokeResponse, type PathArg } from '../api-types.ts';
-import { getReadDriver, normalizeReadError, readGet, writePost } from './transport.ts';
+import { getReadDriver, invoke, normalizeReadError, readGet, writePost } from './transport.ts';
 
 /** Load knowledge raster asset via invoke; returns blob: URL (caller may revoke). */
-export async function fetchKbAssetAsBlobUrl(repo: PathArg, base: PathArg, href: string) {
+export async function fetchKbAssetAsBlobUrl(id: PathArg, href: string) {
   const params = new URLSearchParams({
-    repo: String(repo ?? ''),
-    base: String(base ?? ''),
+    id: String(id ?? ''),
     href,
     _: String(Date.now()),
   });
@@ -23,9 +22,19 @@ export async function fetchKbAssetAsBlobUrl(repo: PathArg, base: PathArg, href: 
   return URL.createObjectURL(blob);
 }
 
-export async function fetchKbFileContent(repo: PathArg, path: PathArg) {
+export async function fetchKbDocId(repo: PathArg, path: PathArg): Promise<string> {
+  const data = (await invoke('kb_doc_id', {
+    repo: String(repo ?? ''),
+    path: String(path ?? ''),
+  })) as { id?: string };
+  const id = String(data?.id || '').trim();
+  if (!id) throw new Error('Missing document id');
+  return id;
+}
+
+export async function fetchKbFileContent(id: PathArg) {
   const res = await getReadDriver().fetchGet(
-    `/api/kb/read?repo=${encodeURIComponent(String(repo ?? ''))}&path=${encodeURIComponent(String(path ?? ''))}`
+    `/api/kb/read?id=${encodeURIComponent(String(id ?? ''))}`
   );
   if (!res.ok) {
     let msg = `HTTP ${res.status}`;
@@ -67,8 +76,8 @@ export async function fetchKbViewerState() {
   return readGet('/api/kb/viewer-state');
 }
 
-export async function saveKbViewerState(repo: string, path: string) {
-  return writePost('/api/kb/viewer-state', { repo, path });
+export async function saveKbViewerState(id: string) {
+  return writePost('/api/kb/viewer-state', { id });
 }
 
 export async function fetchKbDocCount(repo: string): Promise<number> {
@@ -115,37 +124,32 @@ export async function fetchKbDocCount(repo: string): Promise<number> {
   }
 }
 
-export async function fetchKbAnnotation(repo: PathArg, path: PathArg) {
+export async function fetchKbAnnotation(id: PathArg) {
   const res = await getReadDriver().fetchGet(
-    `/api/kb/annotation?repo=${encodeURIComponent(String(repo ?? ''))}&path=${encodeURIComponent(String(path ?? ''))}`
+    `/api/kb/annotation?id=${encodeURIComponent(String(id ?? ''))}`
   );
   if (!res.ok) return {};
   return res.json();
 }
 
-export async function updateKbComment(repo: PathArg, path: PathArg, comment: unknown, ts?: unknown) {
-  return writePost('/api/kb/update-comments', { repo, path, comment, ts });
+export async function updateKbComment(id: PathArg, comment: unknown, ts?: unknown) {
+  return writePost('/api/kb/update-comments', { id, comment, ts });
 }
 
-export async function reorderKbComments(repo: PathArg, path: PathArg, ids: unknown) {
-  return writePost('/api/kb/reorder-comments', { repo, path, ids });
+export async function reorderKbComments(id: PathArg, ids: unknown) {
+  return writePost('/api/kb/reorder-comments', { id, ids });
 }
 
-export async function updateKbHighlight(
-  repo: PathArg,
-  path: PathArg,
-  highlight: unknown,
-  ts?: unknown,
-) {
-  return writePost('/api/kb/update-highlights', { repo, path, highlight, ts });
+export async function updateKbHighlight(id: PathArg, highlight: unknown, ts?: unknown) {
+  return writePost('/api/kb/update-highlights', { id, highlight, ts });
 }
 
-export async function updateKbLinks(repo: PathArg, path: PathArg, links: unknown) {
-  return writePost('/api/kb/update-links', { repo, path, links });
+export async function updateKbLinks(id: PathArg, links: unknown) {
+  return writePost('/api/kb/update-links', { id, links });
 }
 
-export async function saveKbFile(repo: PathArg, path: PathArg, content: string) {
-  return writePost('/api/kb/save', { repo, path, content });
+export async function saveKbFile(id: PathArg, content: string) {
+  return writePost('/api/kb/save', { id, content });
 }
 
 export async function renameKbEntry(repo: PathArg, path: PathArg, name: string) {

@@ -1,7 +1,8 @@
 //! Write the plan into the database. Strict inserts: a clash is an error.
 
 use lulu_spark_lib::services::spark_data::{
-    get_knowledge_doc, insert_note, register_knowledge_doc, update_knowledge_doc,
+    directory_id_for_folder, get_knowledge_doc, insert_note, register_knowledge_doc,
+    update_knowledge_doc,
 };
 use rusqlite::{params, Connection};
 use serde_json::json;
@@ -17,7 +18,8 @@ pub fn write_plan(conn: &Connection, plan: &Plan) -> Result<(), String> {
             .map_err(|e| format!("tag {key}: {e}"))?;
     }
     for item in &plan.knowledge {
-        let doc_id = register_knowledge_doc(conn, &item.repo, &item.path)?;
+        let directory_id = directory_id_for_folder(conn, &item.repo)?;
+        let doc_id = register_knowledge_doc(conn, &directory_id, &item.path)?;
         let mut row = get_knowledge_doc(conn, &doc_id)?.ok_or("registered document vanished")?;
         let empty = json!([]);
         if row.comments != empty || row.links != empty || row.highlights != empty {

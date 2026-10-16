@@ -32,8 +32,7 @@ beforeAll(() => {
 beforeEach(() => {
   vi.clearAllMocks();
   state.viewer = {
-    kbRepo: 'lulufoo/ai-collaboration-framework',
-    kbPath: 'ai-dialogue-collab-framework/human-cognitive-prerequisites/2026-05-08-cognitive-abilities.md',
+    kbId: 'abcdefabcdefabcdefabcdefabcdefab',
     annotation: {
       comments: [{ id: 'a17b9efe22cf', text: '是的', ts: '202605210050' }],
     },
@@ -72,8 +71,7 @@ describe('removeKbComment', () => {
     api.updateKbComment.mockResolvedValue({ ok: true });
     await removeKbComment({ id: 'a17b9efe22cf' });
     expect(api.updateKbComment).toHaveBeenCalledWith(
-      state.viewer.kbRepo,
-      state.viewer.kbPath,
+      state.viewer.kbId,
       { id: 'a17b9efe22cf', text: '' },
       expect.any(String),
     );

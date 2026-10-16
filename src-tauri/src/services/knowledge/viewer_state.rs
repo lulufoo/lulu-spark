@@ -1,6 +1,6 @@
 //! Knowledge viewer current state: `{cache_dir}/knowledge-viewer-state.json`.
 //!
-//! File missing or corrupt → empty `{ repo, path }`, no overwrite.
+//! File missing or corrupt → empty `{ id }`, no overwrite.
 
 use std::fs;
 use std::path::PathBuf;
@@ -19,9 +19,7 @@ struct ViewerStateFile {
     #[serde(default = "default_version")]
     version: u32,
     #[serde(default)]
-    repo: String,
-    #[serde(default)]
-    path: String,
+    id: String,
 }
 
 fn default_version() -> u32 {
@@ -32,21 +30,10 @@ fn file_path() -> Result<PathBuf, String> {
     paths::knowledge_viewer_state_path().map_err(|e| format!("{e:?}"))
 }
 
-fn is_md_path(path: &str) -> bool {
-    path.trim().to_ascii_lowercase().ends_with(".md")
-}
-
-fn sanitize(repo: &str, path: &str) -> ViewerStateFile {
-    let repo = repo.trim().to_string();
-    let path = path.trim();
+fn sanitize(id: &str) -> ViewerStateFile {
     ViewerStateFile {
         version: 1,
-        path: if repo.is_empty() || !is_md_path(path) {
-            String::new()
-        } else {
-            path.to_string()
-        },
-        repo,
+        id: id.trim().to_string(),
     }
 }
 
@@ -54,8 +41,7 @@ fn save_unlocked(data: &ViewerStateFile) -> Result<(), String> {
     let path = file_path()?;
     let value = json!({
         "version": data.version,
-        "repo": data.repo,
-        "path": data.path,
+        "id": data.id,
     });
     atomic_json::write_json(&path, &value)
 }
@@ -66,18 +52,18 @@ fn load_unlocked() -> ViewerStateFile {
     };
     if !path.is_file() {
         return ViewerStateFile::default();
-    }
+    };
     let Ok(text) = fs::read_to_string(&path) else {
         return ViewerStateFile::default();
     };
     match serde_json::from_str::<ViewerStateFile>(&text) {
-        Ok(data) => sanitize(&data.repo, &data.path),
+        Ok(data) => sanitize(&data.id),
         Err(_) => ViewerStateFile::default(),
     }
 }
 
 fn as_json(data: &ViewerStateFile) -> serde_json::Value {
-    json!({ "repo": data.repo, "path": data.path })
+    json!({ "id": data.id })
 }
 
 pub fn get_json() -> Result<serde_json::Value, String> {
@@ -85,9 +71,9 @@ pub fn get_json() -> Result<serde_json::Value, String> {
     Ok(as_json(&load_unlocked()))
 }
 
-pub fn set_json(repo: &str, path: &str) -> Result<serde_json::Value, String> {
+pub fn set_json(id: &str) -> Result<serde_json::Value, String> {
     let _guard = WRITE_LOCK.lock().map_err(|e| e.to_string())?;
-    let data = sanitize(repo, path);
+    let data = sanitize(id);
     save_unlocked(&data)?;
     Ok(as_json(&data))
 }

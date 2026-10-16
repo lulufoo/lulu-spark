@@ -34,7 +34,7 @@ fn get_sediment_kb_repos_resolves_category_names() {
         let repos = v["repos"].as_array().expect("array");
         assert_eq!(repos.len(), 1);
         assert_eq!(repos[0]["full_name"], "demo");
-        assert_eq!(repos[0]["category_id"], cat_id);
+        assert_eq!(repos[0]["category_id"], "Research");
         assert_eq!(repos[0]["category_name"], "Research");
     });
 }

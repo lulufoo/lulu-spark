@@ -271,13 +271,8 @@ pub fn write_abs_file(_app: AppHandle, path: String, content: String) -> Result<
 }
 
 #[tauri::command]
-pub fn kb_save(
-    _app: AppHandle,
-    repo: String,
-    path: String,
-    content: String,
-) -> Result<Value, String> {
-    Ok(knowledge::kb_save(&repo_root()?, repo, path, content))
+pub fn kb_save(_app: AppHandle, id: String, content: String) -> Result<Value, String> {
+    Ok(knowledge::kb_save(id, content))
 }
 
 #[tauri::command]
@@ -293,55 +288,31 @@ pub fn kb_rename(
 #[tauri::command]
 pub fn kb_update_comments(
     _app: AppHandle,
-    repo: String,
-    path: String,
+    id: String,
     comment: Value,
     ts: String,
 ) -> Result<Value, String> {
-    Ok(knowledge::kb_update_comments(
-        &repo_root()?,
-        repo,
-        path,
-        comment,
-        ts,
-    ))
+    Ok(knowledge::kb_update_comments(id, comment, ts))
 }
 
 #[tauri::command]
-pub fn kb_reorder_comments(
-    _app: AppHandle,
-    repo: String,
-    path: String,
-    ids: Vec<String>,
-) -> Result<Value, String> {
-    Ok(knowledge::kb_reorder_comments(&repo_root()?, repo, path, ids))
+pub fn kb_reorder_comments(_app: AppHandle, id: String, ids: Vec<String>) -> Result<Value, String> {
+    Ok(knowledge::kb_reorder_comments(id, ids))
 }
 
 #[tauri::command]
 pub fn kb_update_highlights(
     _app: AppHandle,
-    repo: String,
-    path: String,
+    id: String,
     highlight: Value,
     ts: String,
 ) -> Result<Value, String> {
-    Ok(knowledge::kb_update_highlights(
-        &repo_root()?,
-        repo,
-        path,
-        highlight,
-        ts,
-    ))
+    Ok(knowledge::kb_update_highlights(id, highlight, ts))
 }
 
 #[tauri::command]
-pub fn kb_update_links(
-    _app: AppHandle,
-    repo: String,
-    path: String,
-    links: Value,
-) -> Result<Value, String> {
-    Ok(knowledge::kb_update_links(&repo_root()?, repo, path, links))
+pub fn kb_update_links(_app: AppHandle, id: String, links: Value) -> Result<Value, String> {
+    Ok(knowledge::kb_update_links(id, links))
 }
 
 #[tauri::command]

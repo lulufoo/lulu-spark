@@ -16,9 +16,9 @@ const KB_HIGHLIGHT_BTN_ID = 'kb-highlight-add-btn'
 let _kbHighlightRoot: HTMLElement | null = null
 
 export function kbIdentityKey() {
-  const { kbRepo, kbPath } = state.viewer
-  if (!kbRepo || !kbPath) return ''
-  return knowledgeDocKey(kbRepo, kbPath)
+  const { kbId } = state.viewer
+  if (!kbId) return ''
+  return knowledgeDocKey(kbId)
 }
 
 export function kbBodyEl(root?: Element | null) {

@@ -5,10 +5,12 @@ use std::path::{Component, Path, PathBuf};
 use serde_json::{json, Value};
 
 use crate::config::paths;
-use crate::repositories::knowledge::kb_safe_path;
+use crate::repositories::knowledge::{kb_dir_name, knowledge_file_path};
 use crate::services::search_index::{index_exists, search_in_cache, SearchFilter};
 use crate::services::sediment_kb;
-use crate::services::spark_data::{self, get_knowledge_doc, register_knowledge_doc};
+use crate::services::spark_data::{
+    self, directory_folder, directory_id_for_folder, get_knowledge_doc, register_knowledge_doc,
+};
 
 pub fn list_knowledge_categories_value() -> Value {
     match sediment_kb::load_categories() {
@@ -88,6 +90,37 @@ fn library_location(root: &Path, file: &Path) -> Option<(String, String)> {
     Some((repo, parts.join("/")))
 }
 
+/// Tree listing → document id. `repo` is the topic folder; `rel` is the path inside it.
+pub fn knowledge_doc_id_value(repo: &str, rel: &str) -> Value {
+    let rel = rel.trim();
+    if rel.is_empty() {
+        return json!({ "error": "Missing path", "_status": 400 });
+    }
+    let folder = match kb_dir_name(repo) {
+        Ok(name) => name.to_string(),
+        Err(e) => return json!({ "error": e, "_status": 400 }),
+    };
+    let root = match paths::knowledge_root() {
+        Ok(root) => root,
+        Err(e) => return json!({ "error": format!("{e:?}"), "_status": 500 }),
+    };
+    let file = match knowledge_file_path(&root, &folder, rel) {
+        Ok(path) => path,
+        Err(e) => return json!({ "error": e, "_status": 400 }),
+    };
+    if !file.is_file() {
+        return json!({ "error": "File not found", "_status": 404 });
+    }
+    let registered = spark_data::open().and_then(|conn| {
+        let directory_id = directory_id_for_folder(&conn, &folder)?;
+        register_knowledge_doc(&conn, &directory_id, rel)
+    });
+    match registered {
+        Ok(id) => json!({ "ok": true, "id": id }),
+        Err(e) => json!({ "error": e, "_status": 500 }),
+    }
+}
+
 /// Look up, or register, the `doc_id` of an absolute knowledge file.
 pub fn remember_knowledge_doc_value(path: &str) -> Value {
     let path = path.trim();
@@ -106,7 +139,10 @@ pub fn remember_knowledge_doc_value(path: &str) -> Value {
     if !file.is_file() {
         return json!({ "error": "File not found", "_status": 404 });
     }
-    let registered = spark_data::open().and_then(|conn| register_knowledge_doc(&conn, &repo, &rel));
+    let registered = spark_data::open().and_then(|conn| {
+        let directory_id = directory_id_for_folder(&conn, &repo)?;
+        register_knowledge_doc(&conn, &directory_id, &rel)
+    });
     match registered {
         Ok(id) => json!({ "ok": true, "id": id }),
         Err(e) => json!({ "error": e, "_status": 500 }),
@@ -126,18 +162,25 @@ pub(super) fn locate_knowledge_doc(id: &str) -> Result<LocatedDoc, Value> {
     if id.is_empty() {
         return Err(json!({ "error": "Missing id", "_status": 400 }));
     }
-    let row = spark_data::open()
-        .and_then(|conn| get_knowledge_doc(&conn, id))
+    let (row, folder) = spark_data::open()
+        .and_then(|conn| {
+            let row = get_knowledge_doc(&conn, id)?;
+            let folder = match &row {
+                Some(row) => Some(directory_folder(&conn, &row.directory_id)?),
+                None => None,
+            };
+            Ok((row, folder))
+        })
         .map_err(|e| json!({ "error": e, "_status": 500 }))?;
-    let Some(row) = row else {
+    let (Some(row), Some(folder)) = (row, folder) else {
         return Err(json!({ "id": id, "ok": false, "error": "Unknown document id" }));
     };
     let root = paths::knowledge_root().map_err(|e| json!({ "error": format!("{e:?}"), "_status": 500 }))?;
-    let file = kb_safe_path(&root, &row.repo, &row.path)
+    let file = knowledge_file_path(&root, &folder, &row.path)
         .ok()
         .filter(|p| p.is_file());
     match file {
-        Some(file) => Ok(LocatedDoc { repo: row.repo, path: row.path, file }),
+        Some(file) => Ok(LocatedDoc { repo: folder, path: row.path, file }),
         None => Err(json!({ "id": id, "ok": false, "error": "File not found" })),
     }
 }

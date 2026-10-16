@@ -33,9 +33,9 @@ pub struct QueryHit {
     pub layer: String,
     /// Filled from `spark-data.sqlite` by `resolve_hits`: note `raw_path` or knowledge `path`.
     pub common_path: String,
-    /// Filled by `resolve_hits`: `owner/name` for knowledge, empty for notes.
+    /// Filled by `resolve_hits`. Knowledge no longer uses this as identity.
     pub repo: String,
-    /// Notes: category folder. Knowledge: unused.
+    /// Notes: category folder. Knowledge: topic folder.
     pub topic: String,
     pub title: String,
     pub body: String,
@@ -311,16 +311,10 @@ pub fn search_desktop_knowledge(cache_dir: &Path, q: &str, limit: Option<u32>) -
             "hits": hits
                 .into_iter()
                 .map(|h| {
-                    let url = if h.repo.is_empty() {
-                        String::new()
-                    } else {
-                        format!("https://github.com/{}/blob/main/{}", h.repo, h.common_path)
-                    };
                     json!({
                         "title": h.title,
-                        "path": h.common_path,
-                        "repo": h.repo,
-                        "url": url,
+                        "id": h.doc_id,
+                        "topic": h.topic,
                         "body": h.snippet,
                         "_formatted": { "body": h.snippet },
                     })

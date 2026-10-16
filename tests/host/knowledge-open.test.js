@@ -19,8 +19,8 @@ beforeEach(() => {
 });
 
 describe('resolveKnowledgeForOpen host api', () => {
-  it('invokes resolve_knowledge_for_open with the id and returns repo and path', async () => {
-    const doc = { id: ID, ok: true, repo: 'demo', path: 'guide/intro.md' };
+  it('invokes resolve_knowledge_for_open with the id and returns topic and path', async () => {
+    const doc = { id: ID, ok: true, topic: 'demo', path: 'guide/intro.md' };
     vi.mocked(invokeCommand).mockResolvedValue(doc);
     await expect(resolveKnowledgeForOpen(ID)).resolves.toEqual(doc);
     expect(invokeCommand).toHaveBeenCalledWith('resolve_knowledge_for_open', { id: ID });

@@ -1,5 +1,5 @@
 use super::*;
-use crate::services::spark_data::{self, get_knowledge_doc, KnowledgeStatus};
+use crate::services::spark_data::{self, get_knowledge_directory_by_folder, get_knowledge_doc, KnowledgeStatus};
 use crate::test_support::TestSandbox;
 use serde_json::json;
 use std::fs;
@@ -77,7 +77,7 @@ fn vanished_file_goes_missing_keeps_comments_and_comes_back() {
 }
 
 #[test]
-fn missing_clone_directory_is_not_a_mass_deletion() {
+fn missing_topic_directory_is_not_a_mass_deletion() {
     let sandbox = TestSandbox::new();
     let kb = sandbox.knowledge_root();
     write(&kb, "a.md");
@@ -85,8 +85,8 @@ fn missing_clone_directory_is_not_a_mass_deletion() {
     let conn = spark_data::open().expect("db");
     scan_repo_dir(&conn, &kb, REPO, &no_hide()).expect("scan");
 
-    fs::rename(kb.join(REPO), kb.join("elsewhere")).expect("clone temporarily gone");
-    let stats = scan_repo_dir(&conn, &kb, REPO, &no_hide()).expect("scan without the clone");
+    fs::rename(kb.join(REPO), kb.join("elsewhere")).expect("topic temporarily gone");
+    let stats = scan_repo_dir(&conn, &kb, REPO, &no_hide()).expect("scan without the directory");
     assert_eq!(stats, ReconcileStats::default());
     assert_eq!(status_of(&conn, "a.md"), Some(KnowledgeStatus::Active));
     assert_eq!(status_of(&conn, "b.md"), Some(KnowledgeStatus::Active));
@@ -113,25 +113,25 @@ fn hidden_paths_are_not_registered_and_never_marked_missing() {
 #[test]
 fn scan_registered_repos_reads_the_repo_list_and_honours_force_repo() {
     let sandbox = TestSandbox::new();
-    let data = sandbox.data_dir().join("knowledge");
-    fs::create_dir_all(&data).expect("knowledge dir");
-    fs::write(
-        data.join("repos.json"),
-        r#"{"version":1,"repos":[
-            {"full_name":"acme/myrepo","category_id":"uncategorized"},
-            {"full_name":"acme/other","category_id":"uncategorized"}]}"#,
-    )
-    .expect("repos.json");
+    crate::services::sediment_kb::add_directory("myrepo").expect("myrepo");
+    crate::services::sediment_kb::add_directory("other").expect("other");
     let kb = sandbox.knowledge_root();
     write(&kb, "a.md");
-    fs::create_dir_all(kb.join("other")).expect("other clone");
     fs::write(kb.join("other/z.md"), "z").expect("z");
 
-    scan_registered_repos(sandbox.config_dir(), Some("acme/myrepo")).expect("forced scan");
+    scan_registered_repos(sandbox.config_dir(), Some("myrepo")).expect("forced scan");
     let conn = spark_data::open().expect("db");
-    assert!(spark_data::find_knowledge_doc_id(&conn, "myrepo", "a.md").expect("find").is_some());
-    assert!(spark_data::find_knowledge_doc_id(&conn, "other", "z.md").expect("find").is_none());
+    let myrepo = get_knowledge_directory_by_folder(&conn, "myrepo")
+        .expect("dir")
+        .expect("myrepo")
+        .id;
+    let other = get_knowledge_directory_by_folder(&conn, "other")
+        .expect("dir")
+        .expect("other")
+        .id;
+    assert!(spark_data::find_knowledge_doc_id(&conn, &myrepo, "a.md").expect("find").is_some());
+    assert!(spark_data::find_knowledge_doc_id(&conn, &other, "z.md").expect("find").is_none());
 
     scan_registered_repos(sandbox.config_dir(), None).expect("full scan");
-    assert!(spark_data::find_knowledge_doc_id(&conn, "other", "z.md").expect("find").is_some());
+    assert!(spark_data::find_knowledge_doc_id(&conn, &other, "z.md").expect("find").is_some());
 }

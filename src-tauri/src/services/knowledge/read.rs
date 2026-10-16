@@ -4,7 +4,7 @@ use std::path::Path;
 use regex::Regex;
 use serde_json::{json, Value};
 
-use crate::repositories::knowledge::{kb_list_dir, kb_safe_path};
+use crate::repositories::knowledge::{kb_dir_name, knowledge_dir_path};
 use crate::services::sediment_kb;
 use crate::services::spark_read::knowledge_root_string;
 
@@ -16,19 +16,13 @@ fn err_status_code(msg: &str) -> u16 {
     }
 }
 
-pub fn kb_read_json(repo_root: &Path, repo: &str, path: &str) -> Value {
-    let kb_root_str = knowledge_root_string(repo_root);
-    let kb_root = Path::new(&kb_root_str);
-    match kb_safe_path(kb_root, repo, path) {
-        Err(e) => json!({ "error": e, "_status": err_status_code(&e) }),
-        Ok(target) => {
-            if !target.is_file() {
-                let e = format!("file not found: {}", path.trim());
-                return json!({ "error": e, "_status": 404 });
-            }
-            let content = fs::read_to_string(&target).unwrap_or_default();
-            json!({ "content": content })
-        }
+pub fn kb_read_json(id: &str) -> Value {
+    match super::mcp::locate_knowledge_doc(id) {
+        Err(reply) => reply,
+        Ok(doc) => match fs::read_to_string(&doc.file) {
+            Ok(content) => json!({ "content": content }),
+            Err(e) => json!({ "error": e.to_string(), "_status": 500 }),
+        },
     }
 }
 
@@ -41,7 +35,7 @@ pub fn kb_list_json(repo_root: &Path, repo: &str, path: &str, mode: &str) -> Val
     }
     let kb_root_str = knowledge_root_string(repo_root);
     let kb_root = Path::new(&kb_root_str);
-    match kb_list_dir(kb_root, repo, path) {
+    match kb_dir_name(repo).and_then(|folder| knowledge_dir_path(kb_root, folder, path)) {
         Err(e) => json!({ "error": e, "_status": err_status_code(&e) }),
         Ok(dir) => {
             let mut entries: Vec<Value> = Vec::new();
@@ -87,11 +81,10 @@ pub fn kb_list_json(repo_root: &Path, repo: &str, path: &str, mode: &str) -> Val
     }
 }
 
-fn count_md_in_repo_dir(kb_root: &Path, repo_name: &str, hide: &[Regex]) -> usize {
-    let local_dir = kb_root.join(repo_name);
-    if !local_dir.is_dir() {
+fn count_md_in_repo_dir(kb_root: &Path, folder: &str, hide: &[Regex]) -> usize {
+    let Ok(local_dir) = knowledge_dir_path(kb_root, folder, "") else {
         return 0;
-    }
+    };
     count_md_recursive(&local_dir, hide)
 }
 
@@ -133,31 +126,24 @@ pub fn kb_doc_count_json(
             .repos
             .iter()
             .filter(|r| r.category_id == cat_id)
-            .map(|r| {
-                let repo_name = r.full_name.split('/').next_back().unwrap_or("");
-                count_md_in_repo_dir(kb_root, repo_name, &hide)
-            })
+            .filter_map(|r| kb_dir_name(&r.full_name).ok())
+            .map(|folder| count_md_in_repo_dir(kb_root, folder, &hide))
             .sum();
         return json!({ "count": count });
     }
 
-    let repo = repo.trim();
-    if repo.is_empty() || repo.contains("..") || repo.contains('\\') || repo.contains('\0') {
-        return json!({ "error": "invalid directory name", "_status": 400 });
-    }
-    let repo_name = repo.split('/').next_back().unwrap_or("");
-    if repo_name.is_empty() || repo_name == "." || repo_name == ".." {
-        return json!({ "error": "invalid directory name", "_status": 400 });
-    }
-    let local_dir = kb_root.join(repo_name);
-    if !local_dir.is_dir() {
+    let folder = match kb_dir_name(repo) {
+        Ok(name) => name,
+        Err(e) => return json!({ "error": e, "_status": 400 }),
+    };
+    if knowledge_dir_path(kb_root, folder, "").is_err() {
         return json!({
-            "error": format!("directory not found: {repo_name}"),
+            "error": format!("directory not found: {folder}"),
             "_status": 404,
         });
     }
     json!({
-        "count": count_md_in_repo_dir(kb_root, repo_name, &hide),
+        "count": count_md_in_repo_dir(kb_root, folder, &hide),
     })
 }
 

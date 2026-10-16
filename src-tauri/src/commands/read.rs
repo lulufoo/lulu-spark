@@ -84,23 +84,13 @@ pub fn get_config(_app: AppHandle) -> Result<Value, String> {
 }
 
 #[tauri::command]
-pub fn kb_read(_app: AppHandle, repo: String, path: String) -> Result<Value, String> {
-    Ok(crate::services::knowledge::kb_read_json(&repo_root()?, &repo, &path))
+pub fn kb_read(_app: AppHandle, id: String) -> Result<Value, String> {
+    Ok(crate::services::knowledge::kb_read_json(&id))
 }
 
 #[tauri::command]
-pub fn get_kb_asset(
-    _app: AppHandle,
-    repo: String,
-    base: String,
-    href: String,
-) -> Result<Value, String> {
-    Ok(crate::services::knowledge::kb_asset_json(
-        &repo_root()?,
-        &repo,
-        &base,
-        &href,
-    ))
+pub fn get_kb_asset(_app: AppHandle, id: String, href: String) -> Result<Value, String> {
+    Ok(crate::services::knowledge::kb_asset_json(&id, &href))
 }
 
 #[tauri::command]
@@ -138,8 +128,8 @@ pub fn get_kb_hide_patterns(_app: AppHandle) -> Result<Value, String> {
 }
 
 #[tauri::command]
-pub fn kb_annotation(_app: AppHandle, repo: String, path: String) -> Result<Value, String> {
-    Ok(crate::services::knowledge::kb_annotation_json(&repo_root()?, &repo, &path))
+pub fn kb_annotation(_app: AppHandle, id: String) -> Result<Value, String> {
+    Ok(crate::services::knowledge::kb_annotation_json(&id))
 }
 
 #[tauri::command]
@@ -177,8 +167,7 @@ pub fn resolve_note_for_open(_app: AppHandle, id: String) -> Result<Value, Strin
     Ok(spark_read::resolve_note_for_open(&repo_root()?, &id))
 }
 
-/// Resolve a `knowledge:<id>` link target to the knowledge page route parameters.
-/// `{repo, path}` only; no body, no absolute path.
+/// Resolve a `knowledge:<id>` link target. `{id, topic, path}` only; no body, no absolute path.
 #[tauri::command]
 pub fn resolve_knowledge_for_open(_app: AppHandle, id: String) -> Result<Value, String> {
     Ok(crate::services::knowledge::resolve_knowledge_for_open(&id))
@@ -212,23 +201,16 @@ pub fn sediment_kb_categories_json() -> Result<Value, String> {
     Ok(json!({ "categories": cats.categories }))
 }
 
-fn sediment_kb_local_exists(repo_root: &std::path::Path, full_name: &str) -> bool {
+fn sediment_kb_local_exists(repo_root: &std::path::Path, folder: &str) -> bool {
     let knowledge_root = std::path::PathBuf::from(
         crate::config::roots::knowledge_root_string(repo_root),
     );
-    let name = full_name.split('/').next_back().unwrap_or(full_name);
-    knowledge_root.join(name).is_dir()
+    knowledge_root.join(folder).is_dir()
 }
 
 pub fn sediment_kb_repos_json(repo_root: &std::path::Path) -> Result<Value, String> {
     sediment_kb::ensure_uncategorized().map_err(|e| e.to_string())?;
-    let categories = sediment_kb::load_categories().map_err(|e| e.to_string())?;
     let repos = sediment_kb::load_repos().map_err(|e| e.to_string())?;
-    let name_by_id: std::collections::HashMap<&str, &str> = categories
-        .categories
-        .iter()
-        .map(|c| (c.id.as_str(), c.name.as_str()))
-        .collect();
     let enriched: Vec<Value> = repos
         .repos
         .iter()
@@ -237,10 +219,7 @@ pub fn sediment_kb_repos_json(repo_root: &std::path::Path) -> Result<Value, Stri
                 "full_name": r.full_name,
                 "description": r.description,
                 "category_id": r.category_id,
-                "category_name": name_by_id
-                    .get(r.category_id.as_str())
-                    .copied()
-                    .unwrap_or(crate::services::sediment_kb::UNCATEGORIZED_NAME),
+                "category_name": r.category_id,
                 "local_exists": sediment_kb_local_exists(repo_root, &r.full_name),
             })
         })

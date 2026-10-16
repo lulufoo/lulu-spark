@@ -51,12 +51,23 @@ function RepoListItem({
           data-repo={repo.full_name}
           value={repo.category_id}
           onChange={(e) => {
-            void onInlineCategoryChange(repo.full_name, (e.target as HTMLSelectElement).value);
+            const selected = (e.target as HTMLSelectElement).value;
+            if (selected === '__new__') {
+              const name = window.prompt('Category name')?.trim();
+              if (!name) {
+                (e.target as HTMLSelectElement).value = repo.category_id;
+                return;
+              }
+              void onInlineCategoryChange(repo.full_name, name);
+              return;
+            }
+            void onInlineCategoryChange(repo.full_name, selected);
           }}
         >
           {categories.map((c) => (
             <option key={c.id} value={c.id}>{c.name}</option>
           ))}
+          <option value="__new__">New…</option>
         </select>
         <button
           type="button"
@@ -227,7 +238,7 @@ function ManageList({ categories }: { categories: SedimentKbCategory[] }) {
   return (
     <>
       {categories.map((c) => {
-        const isProtected = c.id === 'uncategorized';
+        const isProtected = c.id === 'Uncategorized' || c.name === 'Uncategorized';
         return (
           <div className="sediment-kb-manage-row" key={c.id}>
             {isProtected
@@ -363,7 +374,11 @@ export async function onSedimentKbManageAdd() {
     if (res?.error) throw new Error(res.error);
     if (input) input.value = '';
     const data = (await api.fetchSedimentKbCategories()) as { categories?: SedimentKbCategory[] };
-    _renderSedimentKbManageList(data.categories || []);
+    const listed = data.categories || [];
+    if (!listed.some((c) => c.name === name)) {
+      listed.push({ id: name, name });
+    }
+    _renderSedimentKbManageList(listed);
     _setSedimentKbError('sediment-kb-manage-error', '');
   } catch (e) {
     _setSedimentKbError('sediment-kb-manage-error', (e as Error).message);

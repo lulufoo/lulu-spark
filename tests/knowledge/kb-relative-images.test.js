@@ -18,8 +18,7 @@ describe('hydrateKbRelativeImages', () => {
   beforeEach(() => {
     container = document.createElement('div');
     document.body.appendChild(container);
-    state.viewer.kbRepo = 'owner/repo';
-    state.viewer.kbPath = 'docs/a.md';
+    state.viewer.kbId = 'doc-a';
     fetchKbAssetAsBlobUrl.mockReset();
     fetchKbAssetAsBlobUrl.mockResolvedValue('blob:http://local/kb-img');
   });
@@ -27,21 +26,20 @@ describe('hydrateKbRelativeImages', () => {
   afterEach(() => {
     revokeKbBlobUrls();
     container.remove();
-    state.viewer.kbRepo = null;
-    state.viewer.kbPath = null;
+    state.viewer.kbId = null;
   });
 
   it('rewrites relative img src to blob URL', async () => {
     container.innerHTML = '<img src="note.png" alt="n">';
     await hydrateKbRelativeImages(container);
-    expect(fetchKbAssetAsBlobUrl).toHaveBeenCalledWith('owner/repo', 'docs/a.md', 'note.png');
+    expect(fetchKbAssetAsBlobUrl).toHaveBeenCalledWith('doc-a', 'note.png');
     expect(container.querySelector('img').getAttribute('src')).toBe('blob:http://local/kb-img');
   });
 
   it('rewrites ./ relative img src', async () => {
     container.innerHTML = '<img src="./note.png" alt="n">';
     await hydrateKbRelativeImages(container);
-    expect(fetchKbAssetAsBlobUrl).toHaveBeenCalledWith('owner/repo', 'docs/a.md', './note.png');
+    expect(fetchKbAssetAsBlobUrl).toHaveBeenCalledWith('doc-a', './note.png');
     expect(container.querySelector('img').getAttribute('src')).toBe('blob:http://local/kb-img');
   });
 

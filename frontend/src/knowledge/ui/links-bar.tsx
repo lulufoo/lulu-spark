@@ -12,12 +12,12 @@ export function KbLinksBar() {
   const annotation = host.viewer.annotation as { links?: { url: string }[] } | null;
   const links = annotation?.links || [];
   const linksKey = links.map((l) => l.url).join('\0');
-  const hasDoc = Boolean(host.viewer.kbRepo && host.viewer.kbPath);
+  const hasDoc = Boolean(host.viewer.kbId);
   const [confirmIndex, setConfirmIndex] = useState<number | null>(null);
 
   useEffect(() => {
     setConfirmIndex(null);
-  }, [host.viewer.kbRepo, host.viewer.kbPath]);
+  }, [host.viewer.kbId]);
 
   useEffect(() => {
     if (!hasDoc) return;

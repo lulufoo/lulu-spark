@@ -1,4 +1,4 @@
-import { knowledgeDocKey, notesDocKey } from '../../doc-editor/identity.ts';
+import { notesDocKey } from '../../doc-editor/identity.ts';
 import { state } from '../../host/state.ts';
 
 const NOTES_MARKERS = ['/notes/raw/', '/notes/digest/'] as const;
@@ -34,11 +34,7 @@ export function stagedIdentityKey(kind: string | undefined, path: string): strin
   }
   if (k === 'knowledge') {
     const rel = knowledgeRelFromAbs(abs);
-    if (!rel) return undefined;
-    const segs = rel.split('/').filter(Boolean);
-    if (segs.length === 0) return undefined;
-    if (segs.length === 1) return `knowledge:${segs[0]}`;
-    return knowledgeDocKey(segs[0], segs.slice(1).join('/'));
+    return rel ? `knowledge:${rel}` : undefined;
   }
   return undefined;
 }

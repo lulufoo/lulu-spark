@@ -74,21 +74,21 @@ describe('knowledgeIdFromHref', () => {
 
 describe('onKnowledgeLinkClick', () => {
   it('intercepts a knowledge: link, resolves it in Rust, then opens the document', async () => {
-    vi.mocked(resolveKnowledgeForOpen).mockResolvedValue({ id: ID, ok: true, repo: 'demo', path: 'guide/intro.md' });
+    vi.mocked(resolveKnowledgeForOpen).mockResolvedValue({ id: ID, ok: true, topic: 'demo', path: 'guide/intro.md' });
     const event = clickOn(onKnowledgeLinkClick, `<p><a href="knowledge:${ID}"><b>Title</b></a></p>`, 'b');
     expect(event.preventDefault).toHaveBeenCalledOnce();
     await flush();
     expect(resolveKnowledgeForOpen).toHaveBeenCalledWith(ID);
-    expect(opened).toEqual([{ repo: 'demo', path: 'guide/intro.md' }]);
+    expect(opened).toEqual([{ id: ID, topic: 'demo' }]);
     expect(showActionError).not.toHaveBeenCalled();
   });
 
   it('opens a legacy 12-char id the same way', async () => {
-    vi.mocked(resolveKnowledgeForOpen).mockResolvedValue({ id: LEGACY_ID, ok: true, repo: 'demo', path: 'old.md' });
+    vi.mocked(resolveKnowledgeForOpen).mockResolvedValue({ id: LEGACY_ID, ok: true, topic: 'demo', path: 'old.md' });
     clickOn(onKnowledgeLinkClick, `<a href="knowledge:${LEGACY_ID}">x</a>`, 'a');
     await flush();
     expect(resolveKnowledgeForOpen).toHaveBeenCalledWith(LEGACY_ID);
-    expect(opened).toEqual([{ repo: 'demo', path: 'old.md' }]);
+    expect(opened).toEqual([{ id: LEGACY_ID, topic: 'demo' }]);
   });
 
   it('leaves every other link alone', async () => {
@@ -120,7 +120,7 @@ describe('onKnowledgeLinkClick', () => {
     expect(opened).toEqual([]);
   });
 
-  it('does not open anything when Rust returns no repo or path', async () => {
+  it('does not open anything when Rust returns no topic', async () => {
     vi.mocked(resolveKnowledgeForOpen).mockResolvedValue({ id: ID, ok: true });
     clickOn(onKnowledgeLinkClick, `<a href="knowledge:${ID}">x</a>`, 'a');
     await flush();
@@ -131,7 +131,7 @@ describe('onKnowledgeLinkClick', () => {
 
 describe('onChatLinkClick', () => {
   it('routes knowledge: links to the knowledge flow and never to notes', async () => {
-    vi.mocked(resolveKnowledgeForOpen).mockResolvedValue({ id: ID, ok: true, repo: 'demo', path: 'a.md' });
+    vi.mocked(resolveKnowledgeForOpen).mockResolvedValue({ id: ID, ok: true, topic: 'demo', path: 'a.md' });
     clickOn(onChatLinkClick, `<a href="knowledge:${ID}">x</a>`, 'a');
     await flush();
     expect(resolveKnowledgeForOpen).toHaveBeenCalledWith(ID);

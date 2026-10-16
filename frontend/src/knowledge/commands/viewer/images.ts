@@ -15,9 +15,8 @@ function isExternalOrSpecialImgSrc(src: string) {
 }
 
 export async function hydrateKbRelativeImages(container: Element) {
-  const repo = state.viewer.kbRepo;
-  const base = state.viewer.kbPath;
-  if (!repo || !base) return;
+  const id = state.viewer.kbId;
+  if (!id) return;
   const imgs = [...container.querySelectorAll('img[src]')];
   revokeKbBlobUrls();
   await Promise.all(
@@ -25,7 +24,7 @@ export async function hydrateKbRelativeImages(container: Element) {
       const href = img.getAttribute('src');
       if (!href || href.startsWith('#') || isExternalOrSpecialImgSrc(href)) return;
       try {
-        const blobUrl = (await api.fetchKbAssetAsBlobUrl(repo, base, href)) as string;
+        const blobUrl = (await api.fetchKbAssetAsBlobUrl(id, href)) as string;
         kbBlobUrls.add(blobUrl);
         (img as HTMLImageElement).src = blobUrl;
       } catch {

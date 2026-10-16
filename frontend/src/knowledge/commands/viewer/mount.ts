@@ -36,12 +36,12 @@ export function formatFileSize(text: string) {
 
 /**
  * @param {HTMLElement} container
- * @param {{ repo: string, path: string, url?: string }} opts
+ * @param {{ id: string }} opts
  * @returns {Promise<{ unmount: () => void }>}
  */
 export async function mountKbReader(
   container: KbReaderHost,
-  { repo, path }: { repo: string; path: string; url?: string },
+  { id }: { id: string },
 ) {
   if (container._kbUnmount) {
     container._kbUnmount();
@@ -52,8 +52,7 @@ export async function mountKbReader(
 
   state.viewer.entry = null;
   state.viewer.isKb = true;
-  state.viewer.kbRepo = repo;
-  state.viewer.kbPath = path;
+  state.viewer.kbId = id;
   state.viewer.layer = 'raw';
   state.viewer.rawText = '';
   state.viewer.annotation = {};
@@ -75,9 +74,6 @@ export async function mountKbReader(
 
   const listeners: ReaderListener[] = [];
 
-  const localPath = state.ui.knowledgeRoot
-    ? `${state.ui.knowledgeRoot}/${(repo || '').split('/').pop()}/${path}`
-    : `${(repo || '').split('/').pop()}/${path}`;
   ui.fileSize.textContent = '';
 
   function enterEditMode() {
@@ -105,7 +101,7 @@ export async function mountKbReader(
     ui.btnSave.disabled = true;
     ui.btnSave.textContent = 'Saving…';
     try {
-      const data = await api.saveKbFile(state.viewer.kbRepo, state.viewer.kbPath, newContent);
+      const data = await api.saveKbFile(state.viewer.kbId, newContent);
       if (data.error) throw new Error(data.error);
       state.viewer.rawText = newContent;
       exitEditMode();
@@ -143,8 +139,7 @@ export async function mountKbReader(
     }
     delete container._kbUnmount;
     state.viewer.isKb = false;
-    state.viewer.kbRepo = null;
-    state.viewer.kbPath = null;
+    state.viewer.kbId = null;
     state.viewer.annotation = {};
   }
 
@@ -156,13 +151,13 @@ export async function mountKbReader(
   });
   bindReaderListener(listeners, ui.btnCancelEdit, 'click', exitEditMode);
   bindReaderListener(listeners, ui.btnOpenInChat, 'click', () => {
-    void openKnowledgeInChat(localPath, ui.btnOpenInChat).catch((err) => {
+    void openKnowledgeInChat(id, ui.btnOpenInChat).catch((err) => {
       alert(err instanceof Error ? err.message : String(err));
     });
   });
   bindReaderListener(listeners, ui.btnCopyPath, 'click', (e) => {
     const btn = e.currentTarget as HTMLButtonElement;
-    copyKnowledgeReference(localPath)
+    copyKnowledgeReference(id)
       .then((copied) => {
         if (!copied) return;
         const icon = btn.innerHTML;
@@ -179,8 +174,8 @@ export async function mountKbReader(
   void (async () => {
     try {
       const [mdResult, annResult] = await Promise.allSettled([
-        api.fetchKbFileContent(repo, path),
-        api.fetchKbAnnotation(repo, path),
+        api.fetchKbFileContent(id),
+        api.fetchKbAnnotation(id),
       ]);
 
       if (token !== loadToken) return;

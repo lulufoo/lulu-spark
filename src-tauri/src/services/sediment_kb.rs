@@ -1,17 +1,23 @@
-//! Sediment knowledge-base SSOT (`paths::sediment_kb_*` under `spark_root`).
+//! Knowledge topic directories (`knowledge_directory` in spark-data).
 
+use std::collections::HashSet;
 use std::fs;
 use std::sync::Mutex;
 
+use chrono::{FixedOffset, Utc};
+use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 
 use crate::config::paths;
-use crate::repositories::atomic_json;
+use crate::services::id::random_alnum6;
+use crate::services::spark_data::{
+    self, clear_knowledge_category, delete_knowledge_directory, get_knowledge_directory_by_folder,
+    insert_knowledge_directory, list_knowledge_category_names, list_knowledge_directories,
+    rename_knowledge_category, update_knowledge_directory, KnowledgeDirectoryRow, UNCATEGORIZED,
+};
 
-use super::id::random_hex12;
-
-pub const UNCATEGORIZED_ID: &str = "uncategorized";
-pub const UNCATEGORIZED_NAME: &str = "Uncategorized";
+pub const UNCATEGORIZED_ID: &str = UNCATEGORIZED;
+pub const UNCATEGORIZED_NAME: &str = UNCATEGORIZED;
 
 static WRITE_LOCK: Mutex<()> = Mutex::new(());
 
@@ -65,27 +71,21 @@ impl SedimentKbError {
     pub fn invalid_format() -> Self {
         Self::InvalidFormat
     }
-
     pub fn not_accessible(message: impl Into<String>) -> Self {
         Self::NotAccessible(message.into())
     }
-
     pub fn is_duplicate(&self) -> bool {
         matches!(self, Self::Duplicate)
     }
-
     pub fn is_invalid_format(&self) -> bool {
         matches!(self, Self::InvalidFormat)
     }
-
     pub fn is_not_accessible(&self) -> bool {
         matches!(self, Self::NotAccessible(_))
     }
-
     pub fn is_invalid_name(&self) -> bool {
         matches!(self, Self::InvalidName)
     }
-
     pub fn is_protected_category(&self) -> bool {
         matches!(self, Self::ProtectedCategory)
     }
@@ -95,13 +95,12 @@ impl std::fmt::Display for SedimentKbError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::InvalidFormat => write!(f, "invalid repo format"),
-            Self::NotAccessible(msg) => write!(f, "{msg}"),
+            Self::NotAccessible(msg) | Self::Io(msg) => write!(f, "{msg}"),
             Self::Duplicate => write!(f, "duplicate repo"),
             Self::InvalidName => write!(f, "invalid category name"),
             Self::ProtectedCategory => write!(f, "protected category"),
             Self::CategoryNotFound => write!(f, "category not found"),
             Self::RepoNotFound => write!(f, "repo not found"),
-            Self::Io(msg) => write!(f, "{msg}"),
         }
     }
 }
@@ -114,375 +113,184 @@ where
     f()
 }
 
-fn default_categories_file() -> CategoriesFile {
-    CategoriesFile {
-        version: 1,
-        categories: vec![Category {
-            id: UNCATEGORIZED_ID.to_string(),
-            name: UNCATEGORIZED_NAME.to_string(),
-        }],
-    }
+fn db_err(e: String) -> SedimentKbError {
+    SedimentKbError::Io(e)
 }
 
-fn default_repos_file() -> ReposFile {
-    ReposFile {
-        version: 1,
-        repos: vec![],
-    }
+fn open_db() -> Result<Connection, SedimentKbError> {
+    spark_data::open().map_err(db_err)
 }
 
-fn ensure_storage_dir() -> Result<(), SedimentKbError> {
+fn ensure_knowledge_dir() -> Result<(), SedimentKbError> {
     let data = paths::runtime_data_dir().map_err(|e| SedimentKbError::Io(format!("{e:?}")))?;
     crate::services::knowledge_layout::ensure_knowledge_registry_layout(&data)
         .map_err(SedimentKbError::Io)?;
-    let dir = paths::sediment_kb_dir().map_err(|e| SedimentKbError::Io(format!("{e:?}")))?;
+    let dir = paths::knowledge_root().map_err(|e| SedimentKbError::Io(format!("{e:?}")))?;
     fs::create_dir_all(&dir).map_err(|e| SedimentKbError::Io(e.to_string()))
 }
 
-fn read_json_file<T: for<'de> Deserialize<'de>>(path: &std::path::Path) -> Result<T, SedimentKbError> {
-    let text = fs::read_to_string(path).map_err(|e| SedimentKbError::Io(e.to_string()))?;
-    serde_json::from_str(&text).map_err(|e| SedimentKbError::Io(e.to_string()))
+fn entry_from_row(row: KnowledgeDirectoryRow) -> RepoEntry {
+    RepoEntry { full_name: row.folder, description: row.description, category_id: row.category }
 }
 
-fn write_json_file<T: Serialize>(path: &std::path::Path, data: &T) -> Result<(), SedimentKbError> {
-    let value = serde_json::to_value(data).map_err(|e| SedimentKbError::Io(e.to_string()))?;
-    atomic_json::write_json(path, &value).map_err(SedimentKbError::Io)
-}
-
-pub fn load_categories() -> Result<CategoriesFile, SedimentKbError> {
-    ensure_storage_dir()?;
-    let path = paths::sediment_kb_categories_path().map_err(|e| SedimentKbError::Io(format!("{e:?}")))?;
-    if !path.is_file() {
-        return Ok(default_categories_file());
+fn category_list(names: Vec<String>) -> CategoriesFile {
+    CategoriesFile {
+        version: 1,
+        categories: names.into_iter().map(|name| Category { id: name.clone(), name }).collect(),
     }
-    read_json_file(&path)
 }
 
-pub fn save_categories(data: &CategoriesFile) -> Result<(), SedimentKbError> {
-    with_write_lock(|| save_categories_unlocked(data))
+pub fn generate_directory_id() -> String {
+    let tz = FixedOffset::east_opt(8 * 3600).expect("UTC+8");
+    let now = Utc::now().with_timezone(&tz);
+    format!("{}{:03}{}", now.format("%Y%m%d%H%M%S"), now.timestamp_subsec_millis(), random_alnum6())
 }
 
-fn save_categories_unlocked(data: &CategoriesFile) -> Result<(), SedimentKbError> {
-    ensure_storage_dir()?;
-    let path =
-        paths::sediment_kb_categories_path().map_err(|e| SedimentKbError::Io(format!("{e:?}")))?;
-    write_json_file(&path, data)
-}
-
-pub fn load_repos() -> Result<ReposFile, SedimentKbError> {
-    ensure_storage_dir()?;
-    let path = paths::sediment_kb_repos_path().map_err(|e| SedimentKbError::Io(format!("{e:?}")))?;
-    if !path.is_file() {
-        return Ok(default_repos_file());
-    }
-    read_json_file(&path)
-}
-
-pub fn save_repos(data: &ReposFile) -> Result<(), SedimentKbError> {
-    with_write_lock(|| save_repos_unlocked(data))
-}
-
-fn save_repos_unlocked(data: &ReposFile) -> Result<(), SedimentKbError> {
-    ensure_storage_dir()?;
-    let path = paths::sediment_kb_repos_path().map_err(|e| SedimentKbError::Io(format!("{e:?}")))?;
-    write_json_file(&path, data)
-}
-
-pub fn ensure_uncategorized() -> Result<(), SedimentKbError> {
-    with_write_lock(ensure_uncategorized_unlocked)
-}
-
-pub fn list_repos_for_topics() -> Result<Vec<TopicRow>, SedimentKbError> {
-    ensure_uncategorized()?;
-    let categories = load_categories()?;
-    let repos = load_repos()?;
-    let name_by_id: std::collections::HashMap<&str, &str> = categories
-        .categories
-        .iter()
-        .map(|c| (c.id.as_str(), c.name.as_str()))
+fn mint_directory_id(conn: &Connection) -> Result<String, SedimentKbError> {
+    let used: HashSet<String> = list_knowledge_directories(conn)
+        .map_err(db_err)?
+        .into_iter()
+        .map(|row| row.id)
         .collect();
-    Ok(repos
-        .repos
-        .iter()
-        .map(|r| TopicRow {
-            repo: r.full_name.clone(),
-            description: r.description.clone(),
-            category_id: r.category_id.clone(),
-            category_name: name_by_id
-                .get(r.category_id.as_str())
-                .copied()
-                .unwrap_or(UNCATEGORIZED_NAME)
-                .to_string(),
-        })
-        .collect())
-}
-
-fn ensure_uncategorized_unlocked() -> Result<(), SedimentKbError> {
-    ensure_storage_dir()?;
-    let cat_path =
-        paths::sediment_kb_categories_path().map_err(|e| SedimentKbError::Io(format!("{e:?}")))?;
-    let repo_path =
-        paths::sediment_kb_repos_path().map_err(|e| SedimentKbError::Io(format!("{e:?}")))?;
-
-    if !cat_path.is_file() {
-        save_categories_unlocked(&default_categories_file())?;
-    } else {
-        let mut cats = load_categories()?;
-        let mut changed = false;
-        if let Some(cat) = cats.categories.iter_mut().find(|c| c.id == UNCATEGORIZED_ID) {
-            if cat.name == "未分类" {
-                cat.name = UNCATEGORIZED_NAME.to_string();
-                changed = true;
-            }
-        } else {
-            cats.categories.insert(
-                0,
-                Category {
-                    id: UNCATEGORIZED_ID.to_string(),
-                    name: UNCATEGORIZED_NAME.to_string(),
-                },
-            );
-            changed = true;
-        }
-        if changed {
-            save_categories_unlocked(&cats)?;
+    for _ in 0..8 {
+        let id = generate_directory_id();
+        if !used.contains(&id) {
+            return Ok(id);
         }
     }
-
-    if !repo_path.is_file() {
-        save_repos_unlocked(&default_repos_file())?;
-    }
-    Ok(())
-}
-
-fn normalize_full_name(input: &str) -> Result<String, SedimentKbError> {
-    let trimmed = input.trim();
-    if trimmed.is_empty() {
-        return Err(SedimentKbError::invalid_format());
-    }
-    if let Some(rest) = trimmed.strip_prefix("https://github.com/") {
-        let parts: Vec<&str> = rest.trim_end_matches('/').split('/').collect();
-        if parts.len() == 2 && !parts[0].is_empty() && !parts[1].is_empty() {
-            return Ok(format!("{}/{}", parts[0], parts[1]));
-        }
-        return Err(SedimentKbError::invalid_format());
-    }
-    let parts: Vec<&str> = trimmed.split('/').collect();
-    if parts.len() == 2 && !parts[0].is_empty() && !parts[1].is_empty() {
-        return Ok(format!("{}/{}", parts[0], parts[1]));
-    }
-    Err(SedimentKbError::invalid_format())
-}
-
-fn category_exists(categories: &CategoriesFile, category_id: &str) -> bool {
-    categories.categories.iter().any(|c| c.id == category_id)
-}
-
-fn repo_dir_name(full_name: &str) -> &str {
-    full_name.rsplit('/').next().unwrap_or(full_name)
+    Err(SedimentKbError::Io("Could not allocate directory id".into()))
 }
 
 fn normalize_dir_name(input: &str) -> Result<String, SedimentKbError> {
     let name = input.trim();
-    if name.is_empty() || name == "." || name == ".." {
-        return Err(SedimentKbError::invalid_format());
-    }
-    if name.contains('/') || name.contains('\\') || name.contains('\0') {
+    if name.is_empty() || name == "." || name == ".." || name.contains('/') || name.contains('\\') || name.contains('\0')
+    {
         return Err(SedimentKbError::invalid_format());
     }
     Ok(name.to_string())
 }
 
-fn normalize_repo_key(input: &str) -> Result<String, SedimentKbError> {
-    let trimmed = input.trim();
-    if trimmed.contains('/') {
-        normalize_full_name(trimmed)
-    } else {
-        normalize_dir_name(trimmed)
-    }
+fn normalize_category_name(input: &str) -> Result<String, SedimentKbError> {
+    let name = input.trim();
+    if name.is_empty() { Err(SedimentKbError::InvalidName) } else { Ok(name.to_string()) }
+}
+
+pub fn ensure_uncategorized() -> Result<(), SedimentKbError> {
+    with_write_lock(|| {
+        ensure_knowledge_dir()?;
+        open_db().map(|_| ())
+    })
+}
+
+pub fn load_categories() -> Result<CategoriesFile, SedimentKbError> {
+    ensure_uncategorized()?;
+    let conn = open_db()?;
+    Ok(category_list(
+        list_knowledge_category_names(&conn).map_err(db_err)?,
+    ))
+}
+
+pub fn load_repos() -> Result<ReposFile, SedimentKbError> {
+    ensure_uncategorized()?;
+    let conn = open_db()?;
+    let repos = list_knowledge_directories(&conn)
+        .map_err(db_err)?
+        .into_iter()
+        .map(entry_from_row)
+        .collect();
+    Ok(ReposFile { version: 1, repos })
+}
+
+pub fn list_repos_for_topics() -> Result<Vec<TopicRow>, SedimentKbError> {
+    Ok(load_repos()?
+        .repos
+        .into_iter()
+        .map(|r| TopicRow {
+            repo: r.full_name,
+            description: r.description,
+            category_id: r.category_id.clone(),
+            category_name: r.category_id,
+        })
+        .collect())
 }
 
 pub fn add_directory(name: &str) -> Result<(), SedimentKbError> {
     with_write_lock(|| {
-        ensure_uncategorized_unlocked()?;
+        ensure_knowledge_dir()?;
         let dir_name = normalize_dir_name(name)?;
-        let mut repos = load_repos()?;
-        if repos
-            .repos
-            .iter()
-            .any(|r| repo_dir_name(&r.full_name) == dir_name)
+        let conn = open_db()?;
+        if get_knowledge_directory_by_folder(&conn, &dir_name)
+            .map_err(db_err)?
+            .is_some()
         {
             return Err(SedimentKbError::Duplicate);
         }
         let root = paths::knowledge_root().map_err(|e| SedimentKbError::Io(format!("{e:?}")))?;
-        let dir = root.join(&dir_name);
-        fs::create_dir_all(&dir).map_err(|e| SedimentKbError::Io(e.to_string()))?;
-        repos.repos.push(RepoEntry {
-            full_name: dir_name,
-            description: String::new(),
-            category_id: UNCATEGORIZED_ID.to_string(),
-        });
-        save_repos_unlocked(&repos)?;
-        Ok(())
+        fs::create_dir_all(root.join(&dir_name)).map_err(|e| SedimentKbError::Io(e.to_string()))?;
+        let id = mint_directory_id(&conn)?;
+        insert_knowledge_directory(&conn, &KnowledgeDirectoryRow::new(&id, &dir_name, UNCATEGORIZED, ""))
+            .map_err(db_err)
     })
 }
 
 pub fn remove_repo(full_name: &str) -> Result<(), SedimentKbError> {
     with_write_lock(|| {
-        ensure_uncategorized_unlocked()?;
-        let key = normalize_repo_key(full_name)?;
-        let mut repos = load_repos()?;
-        let before = repos.repos.len();
-        repos.repos.retain(|r| r.full_name != key);
-        if repos.repos.len() == before {
+        let folder = normalize_dir_name(full_name)?;
+        let conn = open_db()?;
+        let Some(row) = get_knowledge_directory_by_folder(&conn, &folder).map_err(db_err)? else {
             return Err(SedimentKbError::RepoNotFound);
-        }
-        save_repos_unlocked(&repos)
+        };
+        if delete_knowledge_directory(&conn, &row.id).map_err(db_err)? { Ok(()) } else { Err(SedimentKbError::RepoNotFound) }
     })
 }
 
 pub fn update_repo_category(full_name: &str, category_id: &str) -> Result<(), SedimentKbError> {
     with_write_lock(|| {
-        ensure_uncategorized_unlocked()?;
-        let key = normalize_repo_key(full_name)?;
-        let categories = load_categories()?;
-        if !category_exists(&categories, category_id) {
-            return Err(SedimentKbError::CategoryNotFound);
-        }
-        let mut repos = load_repos()?;
-        let Some(entry) = repos.repos.iter_mut().find(|r| r.full_name == key) else {
+        let folder = normalize_dir_name(full_name)?;
+        let category = normalize_category_name(category_id)?;
+        let conn = open_db()?;
+        let Some(mut row) = get_knowledge_directory_by_folder(&conn, &folder).map_err(db_err)? else {
             return Err(SedimentKbError::RepoNotFound);
         };
-        entry.category_id = category_id.to_string();
-        save_repos_unlocked(&repos)
+        row.category = category;
+        if !update_knowledge_directory(&conn, &row).map_err(db_err)? {
+            return Err(SedimentKbError::RepoNotFound);
+        }
+        Ok(())
     })
 }
 
 pub fn add_category(name: &str) -> Result<String, SedimentKbError> {
-    with_write_lock(|| {
-        ensure_uncategorized_unlocked()?;
-        let trimmed = name.trim();
-        if trimmed.is_empty() {
-            return Err(SedimentKbError::InvalidName);
-        }
-        let mut categories = load_categories()?;
-        let id = format!("cat{}", random_hex12());
-        categories.categories.push(Category {
-            id: id.clone(),
-            name: trimmed.to_string(),
-        });
-        save_categories_unlocked(&categories)?;
-        Ok(id)
-    })
+    normalize_category_name(name)
 }
 
 pub fn rename_category(id: &str, name: &str) -> Result<(), SedimentKbError> {
     with_write_lock(|| {
-        ensure_uncategorized_unlocked()?;
-        let trimmed = name.trim();
-        if trimmed.is_empty() {
-            return Err(SedimentKbError::InvalidName);
+        let from = normalize_category_name(id)?;
+        let to = normalize_category_name(name)?;
+        if from == UNCATEGORIZED {
+            return Err(SedimentKbError::ProtectedCategory);
         }
-        let mut categories = load_categories()?;
-        let Some(entry) = categories.categories.iter_mut().find(|c| c.id == id) else {
+        let conn = open_db()?;
+        if rename_knowledge_category(&conn, &from, &to).map_err(db_err)? == 0 {
             return Err(SedimentKbError::CategoryNotFound);
-        };
-        entry.name = trimmed.to_string();
-        save_categories_unlocked(&categories)
+        }
+        Ok(())
     })
 }
 
 pub fn remove_category(id: &str) -> Result<(), SedimentKbError> {
     with_write_lock(|| {
-        ensure_uncategorized_unlocked()?;
-        if id == UNCATEGORIZED_ID {
+        let name = normalize_category_name(id)?;
+        if name == UNCATEGORIZED {
             return Err(SedimentKbError::ProtectedCategory);
         }
-        let mut categories = load_categories()?;
-        let before = categories.categories.len();
-        categories.categories.retain(|c| c.id != id);
-        if categories.categories.len() == before {
+        let conn = open_db()?;
+        if clear_knowledge_category(&conn, &name).map_err(db_err)? == 0 {
             return Err(SedimentKbError::CategoryNotFound);
         }
-
-        let mut repos = load_repos()?;
-        for repo in &mut repos.repos {
-            if repo.category_id == id {
-                repo.category_id = UNCATEGORIZED_ID.to_string();
-            }
-        }
-        save_categories_unlocked(&categories)?;
-        save_repos_unlocked(&repos)
+        Ok(())
     })
-}
-
-#[cfg(test)]
-pub fn validate_paths_ssot_constraints() {
-    let src = include_str!("sediment_kb.rs");
-    let prod = src
-        .split("pub fn validate_paths_ssot_constraints")
-        .next()
-        .expect("prod section");
-    for forbidden in [".cache/sediment-kb", "cache_dir()", r#"join("sediment-kb")"#] {
-        assert!(
-            !prod.contains(forbidden),
-            "sediment_kb must resolve paths via paths::sediment_kb_* (found {forbidden:?})"
-        );
-    }
-    for required in [
-        "paths::sediment_kb_dir",
-        "paths::sediment_kb_categories_path",
-        "paths::sediment_kb_repos_path",
-        "atomic_json::write_json",
-    ] {
-        assert!(
-            prod.contains(required),
-            "sediment_kb must use {required}"
-        );
-    }
-}
-
-#[cfg(test)]
-pub fn validate_description_source_constraints() {
-    let sediment_kb = include_str!("sediment_kb.rs");
-    let sediment_prod = sediment_kb
-        .split("pub fn validate_description_source_constraints")
-        .next()
-        .expect("sediment prod");
-    let write_cmd = include_str!("../commands/write.rs");
-    let spark_read = include_str!("spark_read/config.rs");
-
-    assert!(
-        !sediment_prod.contains("validate_repo_access"),
-        "sediment_kb must not call GitHub to validate repos"
-    );
-    assert!(
-        !sediment_prod.contains("integrations::github"),
-        "sediment_kb must not import the GitHub client"
-    );
-
-    for (label, src) in [
-        ("sediment_kb", sediment_prod),
-        ("write", write_cmd),
-        ("spark_read", spark_read),
-    ] {
-        for forbidden in ["README", "frontmatter"] {
-            assert!(
-                !src.contains(forbidden),
-                "{label} must not use {forbidden} for description"
-            );
-        }
-    }
-
-    let get_topics = spark_read
-        .split("pub fn get_topics")
-        .nth(1)
-        .and_then(|s| s.split("\npub fn ").next())
-        .expect("get_topics");
-    assert!(
-        !get_topics.contains("index.json"),
-        "get_topics must not read index.json for description"
-    );
 }
 
 #[cfg(test)]

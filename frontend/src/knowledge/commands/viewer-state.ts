@@ -2,8 +2,8 @@ import * as api from '../../host/api.ts';
 import {
   isKnowledgeMdPath,
   knowledgeDocHash,
+  knowledgeTopicHash,
   normalizeViewerState,
-  resolveKnowledgeLanding,
   type KnowledgeViewerState,
 } from '../state/viewer-state.ts';
 
@@ -11,53 +11,75 @@ export async function loadKbViewerState(): Promise<KnowledgeViewerState> {
   try {
     return normalizeViewerState(await api.fetchKbViewerState());
   } catch {
-    return { repo: '', path: '' };
+    return { id: '' };
   }
 }
 
-export async function saveKbViewerState(repo: string, path: string): Promise<void> {
+export async function saveKbViewerState(id: string): Promise<void> {
   try {
-    await api.saveKbViewerState(repo, path);
+    await api.saveKbViewerState(id);
   } catch {
     /* cache write is best-effort */
   }
 }
 
-export async function knowledgeLandingHash(repos: string[]): Promise<string> {
+export async function knowledgeLandingHash(topics: string[]): Promise<string> {
   const remembered = await loadKbViewerState();
-  const landing = resolveKnowledgeLanding('', '', repos, remembered);
-  return landing.repo ? knowledgeDocHash(landing.repo, landing.path) : '';
+  if (remembered.id) {
+    try {
+      const doc = await api.resolveKnowledgeForOpen(remembered.id);
+      if (doc.topic && topics.includes(doc.topic)) {
+        return knowledgeDocHash(doc.topic, remembered.id);
+      }
+    } catch {
+      /* fall through to the first topic */
+    }
+  }
+  return topics[0] ? knowledgeTopicHash(topics[0]) : '';
 }
 
 export async function applyKbViewerRestore({
-  repo,
-  selectedPath,
+  topic,
+  docId,
   ensureVisible,
   hasFile,
-  openPath,
+  openDoc,
   syncHash,
 }: {
-  repo: string;
-  selectedPath: string;
+  topic: string;
+  docId: string;
   ensureVisible: (path: string) => Promise<void>;
   hasFile: (path: string) => boolean;
-  openPath: (path: string) => Promise<void>;
-  syncHash: (path: string) => void;
+  openDoc: (id: string) => Promise<void>;
+  syncHash: (id: string) => void;
 }): Promise<void> {
-  if (selectedPath) {
-    await openPath(selectedPath);
-    if (isKnowledgeMdPath(selectedPath)) await saveKbViewerState(repo, selectedPath);
+  if (docId) {
+    await openDoc(docId);
+    await saveKbViewerState(docId);
     return;
   }
   const remembered = await loadKbViewerState();
-  if (remembered.repo === repo && remembered.path) {
-    await ensureVisible(remembered.path);
-    if (hasFile(remembered.path)) {
-      await openPath(remembered.path);
-      syncHash(remembered.path);
-      await saveKbViewerState(repo, remembered.path);
+  if (!remembered.id) {
+    await saveKbViewerState('');
+    return;
+  }
+  try {
+    const doc = await api.resolveKnowledgeForOpen(remembered.id);
+    if (doc.topic !== topic) {
+      await saveKbViewerState('');
       return;
     }
+    if (doc.path) await ensureVisible(doc.path);
+    if (doc.path && !hasFile(doc.path)) {
+      await saveKbViewerState('');
+      return;
+    }
+    await openDoc(remembered.id);
+    syncHash(remembered.id);
+    await saveKbViewerState(remembered.id);
+  } catch {
+    await saveKbViewerState('');
   }
-  await saveKbViewerState(repo, '');
 }
+
+export { isKnowledgeMdPath };

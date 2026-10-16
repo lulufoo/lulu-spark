@@ -134,13 +134,43 @@ fn hits_of_a_deleted_note_or_a_missing_knowledge_doc_are_dropped() {
         assert_eq!(note.common_path, "live.md");
         assert_eq!(note.topic, "proj");
         let kb = all.iter().find(|h| h.doc_id == kb_id).expect("kb hit");
-        assert_eq!((kb.common_path.as_str(), kb.repo.as_str()), ("guide/a.md", "demo"));
+        assert_eq!(kb.common_path, "guide/a.md");
+        assert_eq!(kb.topic, "demo");
+        assert_eq!(kb.repo, "");
 
         let mut row = get_knowledge_doc(&data, &kb_id).expect("get").expect("row");
         row.status = KnowledgeStatus::Missing;
         update_knowledge_doc(&data, &row).expect("update");
         let after = search_in_cache(&cache, "共同关键词", &SearchFilter::default(), 10).expect("search");
         assert!(after.iter().all(|h| h.doc_id != kb_id), "a missing document is not a hit");
+    });
+}
+
+#[test]
+fn desktop_knowledge_hits_have_no_github_url() {
+    crate::test_support::with_sandbox_notes(|_, _| {
+        let data = crate::services::spark_data::open().expect("data");
+        let kb_id = crate::services::spark_data::register_knowledge_doc(&data, "demo", "guide/a.md")
+            .expect("register");
+        let cache = cache_dir_or_err().expect("cache");
+        let conn = open(&cache).expect("open");
+        upsert_chunks(
+            &conn,
+            &[chunk("c:0", &kb_id, "knowledge", "共同关键词出现在知识库里")],
+        )
+        .expect("seed");
+        drop(conn);
+        let out = search_desktop_knowledge(&cache, "共同关键词", Some(5));
+        let hits = out["hits"].as_array().expect("hits");
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0]["id"], kb_id);
+        assert_eq!(hits[0]["topic"], "demo");
+        assert!(hits[0].get("url").is_none());
+        assert!(hits[0].get("path").is_none());
+        assert!(hits[0].get("repo").is_none());
+        let dumped = out.to_string();
+        assert!(!dumped.contains("github.com"), "{dumped}");
+        assert!(!dumped.contains("/blob/"), "{dumped}");
     });
 }
 

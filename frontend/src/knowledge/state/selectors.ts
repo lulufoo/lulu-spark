@@ -1,4 +1,3 @@
-import { repoShortName } from '../../shared/utils.ts';
 import { getKbHidePatternStrings, shouldHideEntry } from './hide-pattern.ts';
 import type { RepoPickerOption, TreeNode } from './types.ts';
 
@@ -13,11 +12,10 @@ export function buildRepoPickerOptions(
 ): RepoPickerOption[] {
   return repos.map((r) => {
     const fullName = r.full_name || '';
-    const short = repoShortName(fullName);
     const count = countByRepo.has(fullName) ? countByRepo.get(fullName) : null;
     return {
       value: fullName,
-      label: formatRepoMenuLabel(short, count ?? null),
+      label: formatRepoMenuLabel(fullName, count ?? null),
       title: fullName,
     };
   });

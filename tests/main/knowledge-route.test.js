@@ -101,7 +101,7 @@ describe('main.js knowledge-doc route init wiring (source)', () => {
   it('cta:open-kb-doc navigates to knowledge deep link instead of openKbDoc', () => {
     expect(mainJs).toMatch(/document\.addEventListener\(\s*['"]cta:open-kb-doc['"]/);
     expect(mainJs).toMatch(
-      /navigate\s*\(\s*['"`]#\/knowledge\/['"`]\s*\+\s*encodeURIComponent\(detail\.repo\)\s*\+\s*['"`]\?path=['"`]\s*\+\s*encodeURIComponent\(detail\.path\)\s*\)/,
+      /navigate\s*\(\s*['"`]#\/knowledge\/['"`]\s*\+\s*encodeURIComponent\(detail\.topic\)\s*\+\s*['"`]\?id=['"`]\s*\+\s*encodeURIComponent\(detail\.id\)\s*\)/,
     );
     expect(mainJs).not.toMatch(/openKbDoc\s*\(\s*detail\s*\)/);
   });

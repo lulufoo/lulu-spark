@@ -1,6 +1,5 @@
 export type KnowledgeViewerState = {
-  repo: string;
-  path: string;
+  id: string;
 };
 
 export function isKnowledgeMdPath(path: string) {
@@ -9,29 +8,33 @@ export function isKnowledgeMdPath(path: string) {
 
 export function normalizeViewerState(raw: unknown): KnowledgeViewerState {
   const rec = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
-  const repo = typeof rec.repo === 'string' ? rec.repo.trim() : '';
-  const path = typeof rec.path === 'string' ? rec.path.trim() : '';
-  return { repo, path: isKnowledgeMdPath(path) ? path : '' };
+  const id = typeof rec.id === 'string' ? rec.id.trim() : '';
+  return { id };
 }
 
-export function knowledgeDocHash(repo: string, path = '') {
-  const base = `#/knowledge/${encodeURIComponent(repo)}`;
-  return path ? `${base}?path=${encodeURIComponent(path)}` : base;
+export function knowledgeTopicHash(topic: string) {
+  return `#/knowledge/${encodeURIComponent(topic)}`;
+}
+
+export function knowledgeDocHash(topic: string, id = '') {
+  const base = knowledgeTopicHash(topic);
+  return id ? `${base}?id=${encodeURIComponent(id)}` : base;
 }
 
 export function resolveKnowledgeLanding(
-  urlRepo: string,
-  urlPath: string,
-  repos: string[],
+  urlTopic: string,
+  urlId: string,
+  topics: string[],
   remembered: KnowledgeViewerState,
-): KnowledgeViewerState {
-  if (urlRepo) {
-    if (urlPath) return { repo: urlRepo, path: urlPath };
-    if (remembered.repo === urlRepo) return { repo: urlRepo, path: remembered.path };
-    return { repo: urlRepo, path: '' };
+  rememberedTopic = '',
+): { topic: string; id: string } {
+  if (urlTopic) {
+    if (urlId) return { topic: urlTopic, id: urlId };
+    if (rememberedTopic === urlTopic) return { topic: urlTopic, id: remembered.id };
+    return { topic: urlTopic, id: '' };
   }
-  if (remembered.repo && repos.includes(remembered.repo)) {
-    return { repo: remembered.repo, path: remembered.path };
+  if (rememberedTopic && topics.includes(rememberedTopic)) {
+    return { topic: rememberedTopic, id: remembered.id };
   }
-  return { repo: repos[0] || '', path: '' };
+  return { topic: topics[0] || '', id: rememberedTopic ? '' : remembered.id };
 }

@@ -4,16 +4,11 @@ use std::path::Path;
 use base64::Engine;
 use serde_json::{json, Value};
 
-use crate::repositories::knowledge::kb_safe_path;
-use crate::services::spark_read::{knowledge_root_string, mime_from_extension};
+use crate::config::paths;
+use crate::repositories::knowledge::knowledge_file_path;
+use crate::services::spark_read::mime_from_extension;
 
-fn err_status_code(msg: &str) -> u16 {
-    if msg.contains("invalid") || msg.contains("traversal") || msg.contains("required") {
-        400
-    } else {
-        404
-    }
-}
+use super::mcp::locate_knowledge_doc;
 
 fn kb_asset_rel_path(base: &str, href: &str) -> Result<String, Value> {
     let base = base.trim();
@@ -43,16 +38,22 @@ fn kb_asset_rel_path(base: &str, href: &str) -> Result<String, Value> {
     Ok(joined_str)
 }
 
-/// Knowledge binary asset (`{dirname(base)}/{relative_href}`), base64 in JSON for invoke.
-pub fn kb_asset_json(repo_root: &Path, repo: &str, base: &str, href: &str) -> Value {
-    let rel = match kb_asset_rel_path(base, href) {
+/// Knowledge binary asset next to document `id`, base64 in JSON for invoke.
+pub fn kb_asset_json(id: &str, href: &str) -> Value {
+    let doc = match locate_knowledge_doc(id) {
+        Ok(doc) => doc,
+        Err(reply) => return reply,
+    };
+    let rel = match kb_asset_rel_path(&doc.path, href) {
         Ok(p) => p,
         Err(v) => return v,
     };
-    let kb_root_str = knowledge_root_string(repo_root);
-    let kb_root = Path::new(&kb_root_str);
-    match kb_safe_path(kb_root, repo, &rel) {
-        Err(e) => json!({ "error": e, "_status": err_status_code(&e) }),
+    let root = match paths::knowledge_root() {
+        Ok(root) => root,
+        Err(e) => return json!({ "error": format!("{e:?}"), "_status": 500 }),
+    };
+    match knowledge_file_path(&root, &doc.repo, &rel) {
+        Err(e) => json!({ "error": e, "_status": 400 }),
         Ok(target) => {
             let mime = match mime_from_extension(&target) {
                 Some(m) => m,

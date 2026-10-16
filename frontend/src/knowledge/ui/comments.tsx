@@ -221,7 +221,7 @@ export function KbCommentFloatNav() {
     });
     observer.observe(bar);
     return () => observer.disconnect();
-  }, [comments.length, host.viewer.kbPath]);
+  }, [comments.length, host.viewer.kbId]);
 
   const show = Boolean(comments.length && visible);
   return (
@@ -280,7 +280,7 @@ export function renderKbComments(_annotation?: KbAnnotation | null) {
 }
 
 async function moveKbComment(index: number, delta: number) {
-  const { kbRepo, kbPath } = state.viewer;
+  const { kbId } = state.viewer;
   const annotation = viewerAnnotation();
   const arr = ensureKbComments(annotation) as KbComment[];
   if (!swapAdjacent(arr, index, delta)) return;
@@ -291,7 +291,7 @@ async function moveKbComment(index: number, delta: number) {
     return;
   }
   try {
-    const data = (await reorderKbComments(kbRepo, kbPath, check.ids)) as ApiOk;
+    const data = (await reorderKbComments(kbId, check.ids)) as ApiOk;
     if (data?.ok !== true) throw new Error(data?.error || 'failed');
   } catch (err) {
     alert(`Reorder save failed: ${err instanceof Error ? err.message : String(err)}`);
@@ -350,13 +350,13 @@ export async function saveKbComment() {
   const text = prepareCommentMarkdown((content.textContent || '').trim());
   if (!text) return;
 
-  const { kbRepo, kbPath } = state.viewer;
+  const { kbId } = state.viewer;
   const annotation = viewerAnnotation();
-  if (!kbRepo || !kbPath) return;
+  if (!kbId) return;
 
   try {
     if (_editingComment) {
-      const data = (await api.updateKbComment(kbRepo, kbPath, { id: _editingComment.id, text }, nowTs())) as ApiOk;
+      const data = (await api.updateKbComment(kbId, { id: _editingComment.id, text }, nowTs())) as ApiOk;
       if (!data.ok) throw new Error(data.error || 'failed');
       const found = annotation.comments?.find((c) => c.id === _editingComment?.id);
       if (found) {
@@ -364,7 +364,7 @@ export async function saveKbComment() {
         found.ts = nowTs();
       }
     } else {
-      const data = (await api.updateKbComment(kbRepo, kbPath, { text }, nowTs())) as ApiOk;
+      const data = (await api.updateKbComment(kbId, { text }, nowTs())) as ApiOk;
       if (!data.ok) throw new Error(data.error || 'failed');
       if (!annotation.comments) annotation.comments = [];
       annotation.comments.push({ id: String(data.id), text, ts: nowTs() });

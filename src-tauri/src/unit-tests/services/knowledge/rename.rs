@@ -47,7 +47,7 @@ fn kb_rename_moves_file_and_keeps_record_id_and_comments() {
         },
         |cfg_dir, kb| {
             let id = seed_commented_doc("docs/a.md");
-            let v = kb_rename(cfg_dir, "lulufoo/myrepo".into(), "docs/a.md".into(), "b.md".into());
+            let v = kb_rename(cfg_dir, "myrepo".into(), "docs/a.md".into(), "b.md".into());
             assert_eq!(v["ok"], true);
             assert_eq!(v["path"], "docs/b.md");
             let repo_dir = kb.join("myrepo");
@@ -75,7 +75,7 @@ fn kb_rename_moves_records_below_a_directory_only() {
             let nested = seed_commented_doc("docs/nested/x.md");
             let top = seed_commented_doc("docs/a.md");
             let sibling = seed_commented_doc("docs2/y.md");
-            let v = kb_rename(cfg_dir, "lulufoo/myrepo".into(), "docs".into(), "guides".into());
+            let v = kb_rename(cfg_dir, "myrepo".into(), "docs".into(), "guides".into());
             assert_eq!(v["ok"], true);
             assert_eq!(v["path"], "guides");
             assert!(kb.join("myrepo/guides/nested/x.md").is_file());
@@ -98,7 +98,7 @@ fn kb_rename_replaces_a_stale_record_at_the_destination() {
         |cfg_dir, _| {
             let moving = seed_commented_doc("a.md");
             let stale = seed_commented_doc("b.md");
-            let v = kb_rename(cfg_dir, "lulufoo/myrepo".into(), "a.md".into(), "b.md".into());
+            let v = kb_rename(cfg_dir, "myrepo".into(), "a.md".into(), "b.md".into());
             assert_eq!(v["ok"], true);
             assert_eq!(doc_id_at("b.md").as_deref(), Some(moving.as_str()));
             let conn = spark_data::open().expect("db");
@@ -115,7 +115,7 @@ fn kb_rename_rejects_slash_name() {
             fs::write(kb.join("myrepo/a.md"), "a").expect("w");
         },
         |cfg_dir, _| {
-            let v = kb_rename(cfg_dir, "lulufoo/myrepo".into(), "a.md".into(), "b/c.md".into());
+            let v = kb_rename(cfg_dir, "myrepo".into(), "a.md".into(), "b/c.md".into());
             assert_eq!(v["error"], "invalid name");
             assert_eq!(v["_status"], 400);
         },
@@ -132,7 +132,7 @@ fn kb_rename_rejects_destination_exists() {
             fs::write(repo_dir.join("b.md"), "b").expect("w");
         },
         |cfg_dir, _| {
-            let v = kb_rename(cfg_dir, "lulufoo/myrepo".into(), "a.md".into(), "b.md".into());
+            let v = kb_rename(cfg_dir, "myrepo".into(), "a.md".into(), "b.md".into());
             assert_eq!(v["error"], "destination exists");
             assert_eq!(v["_status"], 409);
         },
@@ -147,7 +147,7 @@ fn kb_rename_same_name_is_noop() {
             fs::write(kb.join("myrepo/a.md"), "a").expect("w");
         },
         |cfg_dir, kb| {
-            let v = kb_rename(cfg_dir, "lulufoo/myrepo".into(), "a.md".into(), "a.md".into());
+            let v = kb_rename(cfg_dir, "myrepo".into(), "a.md".into(), "a.md".into());
             assert_eq!(v["ok"], true);
             assert_eq!(v["path"], "a.md");
             assert_eq!(fs::read_to_string(kb.join("myrepo/a.md")).expect("r"), "a");
@@ -162,7 +162,7 @@ fn kb_rename_rejects_missing_source() {
             fs::create_dir_all(kb.join("myrepo")).expect("mkdir");
         },
         |cfg_dir, _| {
-            let v = kb_rename(cfg_dir, "lulufoo/myrepo".into(), "gone.md".into(), "a.md".into());
+            let v = kb_rename(cfg_dir, "myrepo".into(), "gone.md".into(), "a.md".into());
             assert_eq!(v["error"], "not found: gone.md");
             assert_eq!(v["_status"], 404);
         },
@@ -178,7 +178,7 @@ fn kb_rename_rejects_traversal_path() {
         |cfg_dir, _| {
             let v = kb_rename(
                 cfg_dir,
-                "lulufoo/myrepo".into(),
+                "myrepo".into(),
                 "../x.md".into(),
                 "a.md".into(),
             );

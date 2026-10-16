@@ -20,7 +20,9 @@ function read(rel) {
 describe('doc-editor identity and comment cut', () => {
   it('builds prefixed keys for Notes / Knowledge only', () => {
     expect(notesDocKey('20260827/why-cache.md')).toBe('notes:20260827/why-cache.md');
-    expect(knowledgeDocKey('acme/docs', 'foo.md')).toBe('knowledge:acme/docs/foo.md');
+    expect(knowledgeDocKey('abcdefabcdefabcdefabcdefabcdefab')).toBe(
+      'knowledge:abcdefabcdefabcdefabcdefabcdefab',
+    );
     expect(identity).not.toHaveProperty('todosDocKey');
     expect(docEditor).not.toHaveProperty('todosDocKey');
     expect(docEditor).not.toHaveProperty('bindTodoDocHighlights');

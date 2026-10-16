@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 use sha2::{Digest, Sha256};
 
 use crate::config::roots::{knowledge_root_string, notes_root_path};
+use crate::repositories::knowledge::knowledge_dir_path;
 use crate::services::index_build::common::{extract_spark_title, should_skip_md};
 use crate::services::knowledge::{compiled_hide_regexes, name_is_hidden};
 use crate::services::notes::notes_file_path;
@@ -198,16 +199,15 @@ pub fn collect_knowledge(
                 continue;
             }
         }
-        let repo_name = repo_full.split('/').next_back().unwrap_or(repo_full.as_str());
-        let local_dir = kb_root.join(repo_name);
-        if !local_dir.is_dir() {
+        let folder = repo_full.as_str();
+        let Ok(local_dir) = knowledge_dir_path(&kb_root, folder, "") else {
             continue;
-        }
+        };
         let mut files = Vec::new();
         walk_md(&local_dir, &local_dir, &hide, &mut files);
         files.sort_by(|a, b| a.1.cmp(&b.1));
         for (abs, rel) in files {
-            let Some(doc_id) = doc_ids.get(&(repo_name.to_string(), rel.clone())) else {
+            let Some(doc_id) = doc_ids.get(&(folder.to_string(), rel.clone())) else {
                 continue;
             };
             chunks.extend(chunks_from_file("knowledge", "", &abs, doc_id, ""));

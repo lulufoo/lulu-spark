@@ -79,6 +79,19 @@ fn remember_knowledge_doc_rejects_files_outside_the_library() {
 }
 
 #[test]
+fn knowledge_doc_id_registers_from_folder_and_rel() {
+    let sandbox = TestSandbox::new();
+    plant(&sandbox, "demo/docs/open.md", "body");
+    let first = knowledge_doc_id_value("demo", "docs/open.md");
+    assert_eq!(first["ok"], true, "{first}");
+    let id = first["id"].as_str().expect("id");
+    assert_eq!(id.len(), 32);
+    assert_eq!(knowledge_doc_id_value("demo", "docs/open.md")["id"], id);
+    assert_eq!(id, register("demo", "docs/open.md"));
+    assert_eq!(knowledge_doc_id_value("demo", "")["error"], "Missing path");
+}
+
+#[test]
 fn get_unknown_id_fails() {
     let _sandbox = TestSandbox::new();
     let v = get_knowledge_path_by_id("not-issued");

@@ -1,4 +1,4 @@
-import { escHtml, formatDate, timeFromTs, slugToTitle, nowTs, importanceBadgeHtml, filenameFromPath, topicFromPath, repoShortName } from '../../frontend/src/shared/utils.ts'
+import { escHtml, formatDate, timeFromTs, slugToTitle, nowTs, importanceBadgeHtml, filenameFromPath, topicFromPath } from '../../frontend/src/shared/utils.ts'
 import { test, expect } from 'vitest'
 
 // escHtml
@@ -29,14 +29,6 @@ test('filenameFromPath 去除路径和 .md', () => {
 })
 test('filenameFromPath 根目录文件', () => {
   expect(filenameFromPath('note.md')).toBe('note')
-})
-
-// repoShortName
-test('repoShortName strips owner prefix', () => {
-  expect(repoShortName('lulufoo/my-kb')).toBe('my-kb')
-})
-test('repoShortName returns input when no slash', () => {
-  expect(repoShortName('standalone')).toBe('standalone')
 })
 
 // topicFromPath

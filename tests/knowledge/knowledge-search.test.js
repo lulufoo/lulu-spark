@@ -74,13 +74,12 @@ describe('knowledge-search module', () => {
     expect(apiMocks.searchSpark).not.toHaveBeenCalled();
   });
 
-  it('hit click dispatches cta:open-kb-doc with repo, path, url, title', async () => {
+  it('hit click dispatches cta:open-kb-doc with id, topic, title', async () => {
     apiMocks.searchKnowledge.mockResolvedValue({
       hits: [{
         title: 'Doc Title',
-        repo: 'org/repo',
-        path: 'docs/readme.md',
-        url: 'https://example.com/doc',
+        id: 'abcdefabcdefabcdefabcdefabcdefab',
+        topic: 'org-repo',
         body: 'snippet body',
       }],
     });
@@ -102,9 +101,8 @@ describe('knowledge-search module', () => {
 
     expect(handler).toHaveBeenCalledTimes(1);
     expect(handler.mock.calls[0][0].detail).toEqual({
-      repo: 'org/repo',
-      path: 'docs/readme.md',
-      url: 'https://example.com/doc',
+      id: 'abcdefabcdefabcdefabcdefabcdefab',
+      topic: 'org-repo',
       title: 'Doc Title',
     });
   });
