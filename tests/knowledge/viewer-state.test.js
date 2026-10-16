@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   isKnowledgeMdPath,
   knowledgeDocHash,
+  knowledgeTopicHash,
   normalizeViewerState,
   resolveKnowledgeLanding,
 } from '../../frontend/src/knowledge/state/viewer-state.ts';
@@ -14,48 +15,43 @@ describe('knowledge viewer-state', () => {
     expect(isKnowledgeMdPath('docs')).toBe(false);
   });
 
-  it('normalizeViewerState drops non-md path', () => {
-    expect(normalizeViewerState({ repo: ' o/r ', path: ' notes.txt ' })).toEqual({
-      repo: 'o/r',
-      path: '',
-    });
-    expect(normalizeViewerState({ repo: 'o/r', path: 'a.md' })).toEqual({
-      repo: 'o/r',
-      path: 'a.md',
-    });
+  it('normalizeViewerState keeps id', () => {
+    expect(normalizeViewerState({ id: ' abc ' })).toEqual({ id: 'abc' });
+    expect(normalizeViewerState({ repo: 'o/r', path: 'a.md' })).toEqual({ id: '' });
   });
 
-  it('resolveKnowledgeLanding prefers URL path', () => {
+  it('resolveKnowledgeLanding prefers URL id', () => {
     expect(
-      resolveKnowledgeLanding('o/r', 'url.md', ['o/r'], { repo: 'o/r', path: 'old.md' }),
-    ).toEqual({ repo: 'o/r', path: 'url.md' });
+      resolveKnowledgeLanding('o/r', 'url-id', ['o/r'], { id: 'old-id' }, 'o/r'),
+    ).toEqual({ topic: 'o/r', id: 'url-id' });
   });
 
-  it('resolveKnowledgeLanding restores remembered md when URL has repo only', () => {
+  it('resolveKnowledgeLanding restores remembered id when URL has topic only', () => {
     expect(
-      resolveKnowledgeLanding('o/r', '', ['o/r', 'o/x'], { repo: 'o/r', path: 'a.md' }),
-    ).toEqual({ repo: 'o/r', path: 'a.md' });
+      resolveKnowledgeLanding('o/r', '', ['o/r', 'o/x'], { id: 'a-id' }, 'o/r'),
+    ).toEqual({ topic: 'o/r', id: 'a-id' });
   });
 
-  it('resolveKnowledgeLanding clears path when remembered repo differs', () => {
+  it('resolveKnowledgeLanding clears id when remembered topic differs', () => {
     expect(
-      resolveKnowledgeLanding('o/x', '', ['o/r', 'o/x'], { repo: 'o/r', path: 'a.md' }),
-    ).toEqual({ repo: 'o/x', path: '' });
+      resolveKnowledgeLanding('o/x', '', ['o/r', 'o/x'], { id: 'a-id' }, 'o/r'),
+    ).toEqual({ topic: 'o/x', id: '' });
   });
 
-  it('resolveKnowledgeLanding uses remembered repo when URL has none', () => {
+  it('resolveKnowledgeLanding uses remembered topic when URL has none', () => {
     expect(
-      resolveKnowledgeLanding('', '', ['o/r', 'o/x'], { repo: 'o/x', path: 'b.md' }),
-    ).toEqual({ repo: 'o/x', path: 'b.md' });
+      resolveKnowledgeLanding('', '', ['o/r', 'o/x'], { id: 'b-id' }, 'o/x'),
+    ).toEqual({ topic: 'o/x', id: 'b-id' });
     expect(
-      resolveKnowledgeLanding('', '', ['o/r', 'o/x'], { repo: 'gone/r', path: 'b.md' }),
-    ).toEqual({ repo: 'o/r', path: '' });
+      resolveKnowledgeLanding('', '', ['o/r', 'o/x'], { id: 'b-id' }, 'gone/r'),
+    ).toEqual({ topic: 'o/r', id: '' });
   });
 
-  it('knowledgeDocHash encodes repo and optional path', () => {
+  it('knowledgeDocHash encodes topic and optional id', () => {
+    expect(knowledgeTopicHash('o/r')).toBe('#/knowledge/' + encodeURIComponent('o/r'));
     expect(knowledgeDocHash('o/r')).toBe('#/knowledge/' + encodeURIComponent('o/r'));
-    expect(knowledgeDocHash('o/r', 'a.md')).toBe(
-      '#/knowledge/' + encodeURIComponent('o/r') + '?path=' + encodeURIComponent('a.md'),
+    expect(knowledgeDocHash('o/r', 'abc')).toBe(
+      '#/knowledge/' + encodeURIComponent('o/r') + '?id=' + encodeURIComponent('abc'),
     );
   });
 });

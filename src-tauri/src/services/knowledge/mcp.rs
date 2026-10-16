@@ -5,7 +5,7 @@ use std::path::{Component, Path, PathBuf};
 use serde_json::{json, Value};
 
 use crate::config::paths;
-use crate::repositories::knowledge::knowledge_file_path;
+use crate::repositories::knowledge::{kb_dir_name, knowledge_file_path};
 use crate::services::search_index::{index_exists, search_in_cache, SearchFilter};
 use crate::services::sediment_kb;
 use crate::services::spark_data::{
@@ -88,6 +88,37 @@ fn library_location(root: &Path, file: &Path) -> Option<(String, String)> {
     }
     let repo = parts.remove(0);
     Some((repo, parts.join("/")))
+}
+
+/// Tree listing → document id. `repo` is the topic folder; `rel` is the path inside it.
+pub fn knowledge_doc_id_value(repo: &str, rel: &str) -> Value {
+    let rel = rel.trim();
+    if rel.is_empty() {
+        return json!({ "error": "Missing path", "_status": 400 });
+    }
+    let folder = match kb_dir_name(repo) {
+        Ok(name) => name.to_string(),
+        Err(e) => return json!({ "error": e, "_status": 400 }),
+    };
+    let root = match paths::knowledge_root() {
+        Ok(root) => root,
+        Err(e) => return json!({ "error": format!("{e:?}"), "_status": 500 }),
+    };
+    let file = match knowledge_file_path(&root, &folder, rel) {
+        Ok(path) => path,
+        Err(e) => return json!({ "error": e, "_status": 400 }),
+    };
+    if !file.is_file() {
+        return json!({ "error": "File not found", "_status": 404 });
+    }
+    let registered = spark_data::open().and_then(|conn| {
+        let directory_id = directory_id_for_folder(&conn, &folder)?;
+        register_knowledge_doc(&conn, &directory_id, rel)
+    });
+    match registered {
+        Ok(id) => json!({ "ok": true, "id": id }),
+        Err(e) => json!({ "error": e, "_status": 500 }),
+    }
 }
 
 /// Look up, or register, the `doc_id` of an absolute knowledge file.

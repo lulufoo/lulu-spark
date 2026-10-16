@@ -28,3 +28,8 @@ pub fn kb_delete(_app: AppHandle, repo: String, path: String) -> Result<Value, S
 pub fn remember_knowledge_doc(path: String) -> Result<Value, String> {
     Ok(knowledge::remember_knowledge_doc_value(&path))
 }
+
+#[tauri::command]
+pub fn kb_doc_id(_app: AppHandle, repo: String, path: String) -> Result<Value, String> {
+    Ok(knowledge::knowledge_doc_id_value(&repo, &path))
+}

@@ -42,8 +42,8 @@ export function parseHash(hash?: string): ParsedRoute {
         const params: Record<string, string> = { repo: decodeURIComponent(repoEncoded) };
         if (queryString) {
           const searchParams = new URLSearchParams(queryString);
-          if (searchParams.has('path')) {
-            params.path = searchParams.get('path') ?? '';
+          if (searchParams.has('id')) {
+            params.id = searchParams.get('id') ?? '';
           }
         }
         return { name: 'knowledge-doc', params };

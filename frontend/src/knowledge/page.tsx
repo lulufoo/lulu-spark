@@ -10,7 +10,7 @@ import type { RepoPickerOption, RepoRecord, TreeNode } from './state/types.ts';
 import { publishKnowledgeTree } from './state/tree.ts';
 import { setKbHidePatternsCache, type KbHidePatternRow } from './state/hide-pattern.ts';
 import { buildRepoPickerOptions, buildTreeNodes } from './state/selectors.ts';
-import { isKnowledgeMdPath, knowledgeDocHash } from './state/viewer-state.ts';
+import { isKnowledgeMdPath, knowledgeDocHash, knowledgeTopicHash } from './state/viewer-state.ts';
 import {
   applyKbViewerRestore,
   knowledgeLandingHash,
@@ -57,7 +57,8 @@ function startKnowledgeDocSession(
     repo,
     navigate,
     initialPath,
-  }: { repo: string; navigate: (hash: string) => void; initialPath?: string },
+    initialDocId,
+  }: { repo: string; navigate: (hash: string) => void; initialPath?: string; initialDocId?: string },
   renderPage: (node: ReactNode) => void,
 ) {
   let disposed = false;
@@ -65,6 +66,7 @@ function startKnowledgeDocSession(
   let rootNodes: TreeNode[] = [];
   let selectedPath = initialPath || '';
   let openedPath = '';
+  let openedId = initialDocId || '';
   let renamingPath = '';
   let creatingParent = '';
   let creatingKind: CreateKind | '' = '';
@@ -110,24 +112,24 @@ function startKnowledgeDocSession(
     renderSidebar();
   }
 
-  async function mountReaderAt(path: string) {
+  async function mountReaderAt(id: string) {
     if (unmountReader) {
       unmountReader();
       unmountReader = null;
     }
     const pane = container.querySelector('.knowledge-doc-reader-pane');
-    if (!pane || !path) return;
-    const { unmount } = await mountKbReader(pane as HTMLElement, { repo, path });
+    if (!pane || !id) return;
+    const { unmount } = await mountKbReader(pane as HTMLElement, { id });
     if (disposed) {
       unmount();
       return;
     }
     unmountReader = unmount;
-    openedPath = path;
+    openedId = id;
   }
 
-  function syncKnowledgeHash(relativePath: string) {
-    const hash = knowledgeDocHash(repo, relativePath);
+  function syncKnowledgeHash(id: string) {
+    const hash = knowledgeDocHash(repo, id);
     if (window.location.hash === hash) return;
     const href = `${window.location.pathname || ''}${window.location.search || ''}${hash}`;
     history.replaceState(null, '', href);
@@ -169,8 +171,8 @@ function startKnowledgeDocSession(
       options: buildRepoPickerOptions(repos),
       onSelect: (fullName: string) => {
         if (fullName && fullName !== repo) {
-          void saveKbViewerState(fullName, '').then(() => {
-            if (!disposed) navigate(knowledgeDocHash(fullName));
+          void saveKbViewerState('').then(() => {
+            if (!disposed) navigate(knowledgeTopicHash(fullName));
           });
         }
       },
@@ -240,6 +242,7 @@ function startKnowledgeDocSession(
     if (!next) {
       selectedPath = '';
       openedPath = '';
+      openedId = '';
       if (unmountReader) {
         unmountReader();
         unmountReader = null;
@@ -247,14 +250,15 @@ function startKnowledgeDocSession(
       renderSidebar();
       return;
     }
-    if (next === openedPath && unmountReader) {
-      renderSidebar();
-      return;
-    }
     selectedPath = next;
     await ensurePathVisible(next);
     renderSidebar();
-    await mountReaderAt(next);
+    if (!isKnowledgeMdPath(next)) return;
+    const id = await api.fetchKbDocId(repo, next);
+    if (disposed) return;
+    if (id === openedId && unmountReader) return;
+    openedPath = next;
+    await mountReaderAt(id);
   }
 
   function clearCreateDraft() {
@@ -317,9 +321,9 @@ function startKnowledgeDocSession(
       renderSidebar();
       if (result.openedPath) {
         await navigateToPath(result.openedPath);
-        syncKnowledgeHash(result.openedPath);
-        if (isKnowledgeMdPath(result.openedPath)) {
-          await saveKbViewerState(repo, result.openedPath);
+        if (openedId) {
+          syncKnowledgeHash(openedId);
+          await saveKbViewerState(openedId);
         }
       }
     } catch (err) {
@@ -341,8 +345,12 @@ function startKnowledgeDocSession(
       renderSidebar();
       if (result.openedChanged) {
         await navigateToPath(openedPath);
-        syncKnowledgeHash(openedPath);
-        await saveKbViewerState(repo, isKnowledgeMdPath(openedPath) ? openedPath : '');
+        if (openedId) {
+          syncKnowledgeHash(openedId);
+          await saveKbViewerState(openedId);
+        } else {
+          await saveKbViewerState('');
+        }
       }
     } catch (err) {
       alert(`Delete failed: ${errorMessage(err, 'unknown error')}`);
@@ -380,10 +388,10 @@ function startKnowledgeDocSession(
       renamingPath = '';
       renderSidebar();
       if (result.openedChanged && openedPath) {
-        await mountReaderAt(openedPath);
-        syncKnowledgeHash(openedPath);
-        if (isKnowledgeMdPath(openedPath)) {
-          await saveKbViewerState(repo, openedPath);
+        await navigateToPath(openedPath);
+        if (openedId) {
+          syncKnowledgeHash(openedId);
+          await saveKbViewerState(openedId);
         }
       }
     } catch (err) {
@@ -450,9 +458,9 @@ function startKnowledgeDocSession(
     selectedPath = relativePath;
     void (async () => {
       await navigateToPath(relativePath);
-      syncKnowledgeHash(relativePath);
-      if (isKnowledgeMdPath(relativePath)) {
-        await saveKbViewerState(repo, relativePath);
+      if (openedId) {
+        syncKnowledgeHash(openedId);
+        await saveKbViewerState(openedId);
       }
     })();
   };
@@ -526,17 +534,34 @@ function startKnowledgeDocSession(
       treeEl?.addEventListener('contextmenu', onTreeContextMenu);
       shelled = true;
       renderSidebar();
-      await applyKbViewerRestore({
-        repo,
-        selectedPath,
-        ensureVisible: ensurePathVisible,
-        hasFile: (path) => {
-          const node = findNode(rootNodes, path);
-          return Boolean(node && !node.is_dir);
-        },
-        openPath: navigateToPath,
-        syncHash: syncKnowledgeHash,
-      });
+      if (initialPath) {
+        await navigateToPath(initialPath);
+      } else {
+        await applyKbViewerRestore({
+          topic: repo,
+          docId: openedId,
+          ensureVisible: ensurePathVisible,
+          hasFile: (path) => {
+            const node = findNode(rootNodes, path);
+            return Boolean(node && !node.is_dir);
+          },
+          openDoc: async (id) => {
+            try {
+              const doc = await api.resolveKnowledgeForOpen(id);
+              if (doc.path) {
+                selectedPath = doc.path;
+                await ensurePathVisible(doc.path);
+                renderSidebar();
+                openedPath = doc.path;
+              }
+            } catch {
+              /* still open the reader by id */
+            }
+            await mountReaderAt(id);
+          },
+          syncHash: syncKnowledgeHash,
+        });
+      }
     } catch (err) {
       if (disposed) return;
       paint(<div className="knowledge-doc-error">{errorMessage(err, 'Failed to load')}</div>);
@@ -570,14 +595,14 @@ function startKnowledgeDocSession(
 
 export type KnowledgeDocPageProps = {
   repo?: string;
-  path?: string;
+  docId?: string;
   navigate?: (hash: string) => void;
 };
 
 /** Knowledge page. Production child of ShellPages; does not createRoot the page slot. */
 export function KnowledgeDocPage({
   repo = '',
-  path = '',
+  docId = '',
   navigate,
 }: KnowledgeDocPageProps = {}) {
   const hostRef = useRef<HTMLDivElement | null>(null);
@@ -587,7 +612,7 @@ export function KnowledgeDocPage({
   useLayoutEffect(() => {
     const host = hostRef.current;
     if (!host || typeof navigate !== 'function') return undefined;
-    const session = startKnowledgeDocSession(host, { repo, navigate, initialPath: path }, setView);
+    const session = startKnowledgeDocSession(host, { repo, navigate, initialDocId: docId }, setView);
     sessionRef.current = session;
     return () => {
       session.dispose();
@@ -596,8 +621,16 @@ export function KnowledgeDocPage({
   }, [repo, navigate]);
 
   useLayoutEffect(() => {
-    void sessionRef.current?.navigateToPath(path);
-  }, [repo, path]);
+    if (!docId) return;
+    void (async () => {
+      try {
+        const doc = await api.resolveKnowledgeForOpen(docId);
+        if (doc.path) await sessionRef.current?.navigateToPath(doc.path);
+      } catch {
+        /* keep the current tree selection */
+      }
+    })();
+  }, [repo, docId]);
 
   return (
     <div ref={hostRef} className="knowledge-doc-react-host">

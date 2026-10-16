@@ -84,23 +84,13 @@ pub fn get_config(_app: AppHandle) -> Result<Value, String> {
 }
 
 #[tauri::command]
-pub fn kb_read(_app: AppHandle, repo: String, path: String) -> Result<Value, String> {
-    Ok(crate::services::knowledge::kb_read_json(&repo_root()?, &repo, &path))
+pub fn kb_read(_app: AppHandle, id: String) -> Result<Value, String> {
+    Ok(crate::services::knowledge::kb_read_json(&id))
 }
 
 #[tauri::command]
-pub fn get_kb_asset(
-    _app: AppHandle,
-    repo: String,
-    base: String,
-    href: String,
-) -> Result<Value, String> {
-    Ok(crate::services::knowledge::kb_asset_json(
-        &repo_root()?,
-        &repo,
-        &base,
-        &href,
-    ))
+pub fn get_kb_asset(_app: AppHandle, id: String, href: String) -> Result<Value, String> {
+    Ok(crate::services::knowledge::kb_asset_json(&id, &href))
 }
 
 #[tauri::command]
@@ -138,8 +128,8 @@ pub fn get_kb_hide_patterns(_app: AppHandle) -> Result<Value, String> {
 }
 
 #[tauri::command]
-pub fn kb_annotation(_app: AppHandle, repo: String, path: String) -> Result<Value, String> {
-    Ok(crate::services::knowledge::kb_annotation_json(&repo_root()?, &repo, &path))
+pub fn kb_annotation(_app: AppHandle, id: String) -> Result<Value, String> {
+    Ok(crate::services::knowledge::kb_annotation_json(&id))
 }
 
 #[tauri::command]
@@ -177,8 +167,7 @@ pub fn resolve_note_for_open(_app: AppHandle, id: String) -> Result<Value, Strin
     Ok(spark_read::resolve_note_for_open(&repo_root()?, &id))
 }
 
-/// Resolve a `knowledge:<id>` link target to the knowledge page route parameters.
-/// `{repo, path}` only; no body, no absolute path.
+/// Resolve a `knowledge:<id>` link target. `{id, topic, path}` only; no body, no absolute path.
 #[tauri::command]
 pub fn resolve_knowledge_for_open(_app: AppHandle, id: String) -> Result<Value, String> {
     Ok(crate::services::knowledge::resolve_knowledge_for_open(&id))

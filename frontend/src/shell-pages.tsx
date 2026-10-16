@@ -51,7 +51,7 @@ export function ShellPages({
           <KnowledgeDocPage
             key={routeParams.repo ?? ''}
             repo={routeParams.repo ?? ''}
-            path={routeParams.path ?? ''}
+            docId={routeParams.id ?? ''}
             navigate={navigate}
           />
         ) : null}

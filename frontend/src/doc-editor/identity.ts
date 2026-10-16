@@ -4,6 +4,6 @@ export function notesDocKey(commonPath: unknown): string {
   return `notes:${String(commonPath || '').trim()}`;
 }
 
-export function knowledgeDocKey(repo: unknown, relativePath: unknown): string {
-  return `knowledge:${String(repo || '').trim()}/${String(relativePath || '').trim()}`;
+export function knowledgeDocKey(id: unknown): string {
+  return `knowledge:${String(id || '').trim()}`;
 }

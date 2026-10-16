@@ -273,7 +273,7 @@ document.addEventListener('cta:open-entry', (event) => {
 });
 
 document.addEventListener('cta:open-kb-doc', (event) => {
-  const detail = (event as CustomEvent<{ repo?: string; path?: string }>).detail;
-  if (!detail || !detail.repo || !detail.path) return;
-  navigate('#/knowledge/' + encodeURIComponent(detail.repo) + '?path=' + encodeURIComponent(detail.path));
+  const detail = (event as CustomEvent<{ id?: string; topic?: string }>).detail;
+  if (!detail?.id || !detail.topic) return;
+  navigate('#/knowledge/' + encodeURIComponent(detail.topic) + '?id=' + encodeURIComponent(detail.id));
 });

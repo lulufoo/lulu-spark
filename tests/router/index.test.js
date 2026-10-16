@@ -84,45 +84,46 @@ describe('parseHash', () => {
     expect(parseHash('#/read-later/')).toEqual({ name: 'read-later', params: {} });
   });
 
-  it('parses #/knowledge/:repo?path= for deep link', () => {
-    expect(parseHash('#/knowledge/owner/repo?path=docs/guide.md')).toEqual({
+  it('parses #/knowledge/:repo?id= for deep link', () => {
+    expect(parseHash('#/knowledge/owner/repo?id=abcdefabcdefabcdefabcdefabcdefab')).toEqual({
       name: 'knowledge-doc',
-      params: { repo: 'owner/repo', path: 'docs/guide.md' },
+      params: { repo: 'owner/repo', id: 'abcdefabcdefabcdefabcdefabcdefab' },
     });
   });
 
-  it('decodes repo and path when encoded', () => {
-    expect(parseHash('#/knowledge/lulufoo%2Fmyrepo?path=readme.md')).toEqual({
+  it('decodes repo and id when encoded', () => {
+    expect(parseHash('#/knowledge/lulufoo%2Fmyrepo?id=readme')).toEqual({
       name: 'knowledge-doc',
-      params: { repo: 'lulufoo/myrepo', path: 'readme.md' },
+      params: { repo: 'lulufoo/myrepo', id: 'readme' },
     });
   });
 
-  it('omits path when ?path= query is absent', () => {
+  it('omits id when ?id= query is absent', () => {
     const result = parseHash('#/knowledge/lulufoo/myrepo');
     expect(result).toEqual({
       name: 'knowledge-doc',
       params: { repo: 'lulufoo/myrepo' },
     });
+    expect(result.params).not.toHaveProperty('id');
     expect(result.params).not.toHaveProperty('path');
   });
 
-  it('handles empty ?path= value', () => {
-    expect(parseHash('#/knowledge/owner/repo?path=')).toEqual({
+  it('handles empty ?id= value', () => {
+    expect(parseHash('#/knowledge/owner/repo?id=')).toEqual({
       name: 'knowledge-doc',
-      params: { repo: 'owner/repo', path: '' },
+      params: { repo: 'owner/repo', id: '' },
     });
   });
 
   it('does not merge query into repo when repo contains slash', () => {
-    expect(parseHash('#/knowledge/lulufoo/myrepo?path=a.md')).toEqual({
+    expect(parseHash('#/knowledge/lulufoo/myrepo?id=a.md')).toEqual({
       name: 'knowledge-doc',
-      params: { repo: 'lulufoo/myrepo', path: 'a.md' },
+      params: { repo: 'lulufoo/myrepo', id: 'a.md' },
     });
   });
 
   it('returns unknown for invalid repo encoding with query', () => {
-    expect(parseHash('#/knowledge/%?path=foo.md')).toEqual({
+    expect(parseHash('#/knowledge/%?id=foo.md')).toEqual({
       name: 'unknown',
       params: {},
     });

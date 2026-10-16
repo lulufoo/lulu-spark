@@ -58,8 +58,7 @@ describe('mountKbReader', () => {
     document.body.appendChild(container);
     document.body.style.overflow = '';
     state.viewer.isKb = false;
-    state.viewer.kbRepo = null;
-    state.viewer.kbPath = null;
+    state.viewer.kbId = null;
     state.viewer.rawText = '';
     state.viewer.annotation = {};
     vi.clearAllMocks();
@@ -80,10 +79,7 @@ describe('mountKbReader', () => {
   }
 
   it('renders toolbar and body inside container', async () => {
-    const { unmount } = await mountKbReader(container, {
-      repo: 'owner/repo',
-      path: 'docs/guide.md',
-    });
+    const { unmount } = await mountKbReader(container, { id: 'id:docs/guide.md' });
 
     expect(container.querySelector('.kb-reader-header')).toBeTruthy();
     expect(container.querySelector('.kb-reader-title')).toBeNull();
@@ -119,24 +115,17 @@ describe('mountKbReader', () => {
   });
 
   it('sets isKb and shows content after fetch', async () => {
-    const { unmount } = await mountKbReader(container, {
-      repo: 'owner/repo',
-      path: 'readme.md',
-    });
+    const { unmount } = await mountKbReader(container, { id: 'id:readme.md' });
     await flushPromises();
 
     expect(state.viewer.isKb).toBe(true);
-    expect(state.viewer.kbRepo).toBe('owner/repo');
-    expect(state.viewer.kbPath).toBe('readme.md');
+    expect(state.viewer.kbId).toBe('id:readme.md');
     expect(container.querySelector('.kb-reader-body').innerHTML).toContain('Hello');
     unmount();
   });
 
   it('shows file size without git commit time or GitHub copy', async () => {
-    const { unmount } = await mountKbReader(container, {
-      repo: 'owner/repo',
-      path: 'readme.md',
-    });
+    const { unmount } = await mountKbReader(container, { id: 'id:readme.md' });
     await flushPromises();
 
     const header = container.querySelector('.kb-reader-header');
@@ -161,30 +150,21 @@ describe('mountKbReader', () => {
   });
 
   it('unmount clears container and resets isKb', async () => {
-    const { unmount } = await mountKbReader(container, {
-      repo: 'owner/repo',
-      path: 'readme.md',
-    });
+    const { unmount } = await mountKbReader(container, { id: 'id:readme.md' });
     unmount();
     expect(container.innerHTML).toBe('');
     expect(state.viewer.isKb).toBe(false);
   });
 
   it('does not lock body overflow', async () => {
-    const { unmount } = await mountKbReader(container, {
-      repo: 'owner/repo',
-      path: 'readme.md',
-    });
+    const { unmount } = await mountKbReader(container, { id: 'id:readme.md' });
     expect(document.body.style.overflow).toBe('');
     unmount();
   });
 
   it('shows error message when fetch fails', async () => {
     fetchKbFileContent.mockRejectedValue(new Error('network down'));
-    const { unmount } = await mountKbReader(container, {
-      repo: 'owner/repo',
-      path: 'missing.md',
-    });
+    const { unmount } = await mountKbReader(container, { id: 'id:missing.md' });
     await flushPromises();
     expect(container.textContent).toContain('Could not load file');
     expect(container.textContent).toContain('network down');
@@ -194,10 +174,7 @@ describe('mountKbReader', () => {
   it('ignores stale fetch after unmount', async () => {
     const pending = deferred();
     fetchKbFileContent.mockReturnValue(pending.promise);
-    const first = await mountKbReader(container, {
-      repo: 'owner/repo',
-      path: 'a.md',
-    });
+    const first = await mountKbReader(container, { id: 'id:a.md' });
     first.unmount();
     pending.resolve({ content: 'stale' });
     await Promise.resolve();
@@ -205,10 +182,7 @@ describe('mountKbReader', () => {
   });
 
   it('hides viewer-body in edit mode so the textarea fills the row', async () => {
-    const { unmount } = await mountKbReader(container, {
-      repo: 'owner/repo',
-      path: 'a.md',
-    });
+    const { unmount } = await mountKbReader(container, { id: 'id:a.md' });
     await flushPromises();
     container.querySelector('.kb-btn-edit').click();
     expect(container.querySelector('.viewer-body').style.display).toBe('none');
@@ -220,17 +194,11 @@ describe('mountKbReader', () => {
   });
 
   it('exits edit mode before loading a new file', async () => {
-    const { unmount } = await mountKbReader(container, {
-      repo: 'owner/repo',
-      path: 'a.md',
-    });
+    const { unmount } = await mountKbReader(container, { id: 'id:a.md' });
     container.querySelector('.kb-btn-edit').click();
     expect(container.querySelector('.kb-reader-edit-area').style.display).not.toBe('none');
 
-    const second = await mountKbReader(container, {
-      repo: 'owner/repo',
-      path: 'b.md',
-    });
+    const second = await mountKbReader(container, { id: 'id:b.md' });
     await flushPromises();
     expect(container.querySelector('.kb-reader-edit-area').style.display).toBe('none');
     second.unmount();

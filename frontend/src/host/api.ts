@@ -65,6 +65,7 @@ export {
   addSedimentKbCategory,
   addSedimentKbRepo,
   fetchKbAnnotation,
+  fetchKbDocId,
   addKbHidePattern,
   fetchKbDocCount,
   fetchKbHidePatterns,

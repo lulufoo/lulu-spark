@@ -16,15 +16,16 @@ fn register(repo: &str, rel: &str) -> String {
 }
 
 #[test]
-fn resolves_id_to_repo_and_relative_path_without_absolute_path() {
+fn resolves_id_to_topic_and_tree_path_without_absolute_path() {
     let sandbox = TestSandbox::new();
     plant(&sandbox, "demo/guide/intro.md");
     let id = register("demo", "guide/intro.md");
     let out = resolve_knowledge_for_open(&id);
     assert_eq!(out["ok"], true, "{out}");
     assert_eq!(out["id"], id);
-    assert_eq!(out["repo"], "demo");
+    assert_eq!(out["topic"], "demo");
     assert_eq!(out["path"], "guide/intro.md");
+    assert!(out.get("repo").is_none());
     let text = out.to_string();
     assert!(
         !text.contains(sandbox.cache_dir().to_string_lossy().as_ref()),
@@ -73,4 +74,6 @@ fn a_renamed_document_keeps_opening_under_the_same_id() {
     let out = resolve_knowledge_for_open(&id);
     assert_eq!(out["ok"], true, "{out}");
     assert_eq!(out["path"], "b.md");
+    assert_eq!(out["topic"], "demo");
+    assert_eq!(out["id"], id);
 }

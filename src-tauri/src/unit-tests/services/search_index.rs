@@ -134,7 +134,9 @@ fn hits_of_a_deleted_note_or_a_missing_knowledge_doc_are_dropped() {
         assert_eq!(note.common_path, "live.md");
         assert_eq!(note.topic, "proj");
         let kb = all.iter().find(|h| h.doc_id == kb_id).expect("kb hit");
-        assert_eq!((kb.common_path.as_str(), kb.repo.as_str()), ("guide/a.md", "demo"));
+        assert_eq!(kb.common_path, "guide/a.md");
+        assert_eq!(kb.topic, "demo");
+        assert_eq!(kb.repo, "");
 
         let mut row = get_knowledge_doc(&data, &kb_id).expect("get").expect("row");
         row.status = KnowledgeStatus::Missing;

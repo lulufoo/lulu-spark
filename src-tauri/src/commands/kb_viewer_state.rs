@@ -9,6 +9,6 @@ pub fn get_kb_viewer_state(_app: AppHandle) -> Result<Value, String> {
 }
 
 #[tauri::command]
-pub fn set_kb_viewer_state(_app: AppHandle, repo: String, path: String) -> Result<Value, String> {
-    knowledge::set_kb_viewer_state(&repo, &path)
+pub fn set_kb_viewer_state(_app: AppHandle, id: String) -> Result<Value, String> {
+    knowledge::set_kb_viewer_state(&id)
 }

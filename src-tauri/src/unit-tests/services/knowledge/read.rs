@@ -28,25 +28,29 @@ fn kb_read_returns_content() {
             fs::create_dir_all(repo_dir.join("docs")).expect("mkdir");
             fs::write(repo_dir.join("docs/a.md"), "hello").expect("w");
         },
-        |cfg_dir, _| {
-            let v = kb_read_json(cfg_dir, "lulufoo/myrepo", "docs/a.md");
+        |_, _| {
+            let id = crate::services::spark_data::register_knowledge_doc(
+                &crate::services::spark_data::open().expect("db"),
+                "myrepo",
+                "docs/a.md",
+            )
+            .expect("register");
+            let v = kb_read_json(&id);
             assert_eq!(v["content"], "hello");
             assert!(v.get("committed_at").is_none());
-            let by_dir = kb_read_json(cfg_dir, "myrepo", "docs/a.md");
-            assert_eq!(by_dir["content"], "hello");
         },
     );
 }
 
 #[test]
-fn kb_read_rejects_traversal() {
+fn kb_read_unknown_id_is_an_error() {
     with_kb_repo(
         |_, kb| {
             fs::create_dir_all(kb.join("myrepo")).expect("mkdir");
         },
-        |cfg_dir, _| {
-            let v = kb_read_json(cfg_dir, "lulufoo/myrepo", "../x.md");
-            assert_eq!(v["error"], "invalid path");
+        |_, _| {
+            let v = kb_read_json("ffffffffffffffffffffffffffffffff");
+            assert_eq!(v["error"], "Unknown document id");
         },
     );
 }

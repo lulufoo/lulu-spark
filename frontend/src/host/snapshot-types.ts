@@ -85,8 +85,7 @@ export type HostViewer = {
   commentEditCtx: unknown | null;
   scrollCache: Record<string, number>;
   isKb: boolean;
-  kbRepo: string | null;
-  kbPath: string | null;
+  kbId: string | null;
   createSession: HostCreateSession | null;
   outletMode: HostOutletMode;
   outletMessage: string;

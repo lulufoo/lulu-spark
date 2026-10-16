@@ -120,6 +120,7 @@ pub fn run() {
             commands::kb_entry::kb_create,
             commands::kb_entry::kb_delete,
             commands::kb_entry::remember_knowledge_doc,
+            commands::kb_entry::kb_doc_id,
             commands::write::kb_update_comments,
             commands::write::kb_reorder_comments,
             commands::write::kb_update_highlights,

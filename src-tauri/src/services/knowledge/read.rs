@@ -4,7 +4,7 @@ use std::path::Path;
 use regex::Regex;
 use serde_json::{json, Value};
 
-use crate::repositories::knowledge::{kb_dir_name, knowledge_dir_path, knowledge_file_path};
+use crate::repositories::knowledge::{kb_dir_name, knowledge_dir_path};
 use crate::services::sediment_kb;
 use crate::services::spark_read::knowledge_root_string;
 
@@ -16,19 +16,13 @@ fn err_status_code(msg: &str) -> u16 {
     }
 }
 
-pub fn kb_read_json(repo_root: &Path, repo: &str, path: &str) -> Value {
-    let kb_root_str = knowledge_root_string(repo_root);
-    let kb_root = Path::new(&kb_root_str);
-    match kb_dir_name(repo).and_then(|folder| knowledge_file_path(kb_root, folder, path)) {
-        Err(e) => json!({ "error": e, "_status": err_status_code(&e) }),
-        Ok(target) => {
-            if !target.is_file() {
-                let e = format!("file not found: {}", path.trim());
-                return json!({ "error": e, "_status": 404 });
-            }
-            let content = fs::read_to_string(&target).unwrap_or_default();
-            json!({ "content": content })
-        }
+pub fn kb_read_json(id: &str) -> Value {
+    match super::mcp::locate_knowledge_doc(id) {
+        Err(reply) => reply,
+        Ok(doc) => match fs::read_to_string(&doc.file) {
+            Ok(content) => json!({ "content": content }),
+            Err(e) => json!({ "error": e.to_string(), "_status": 500 }),
+        },
     }
 }
 

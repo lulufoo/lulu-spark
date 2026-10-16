@@ -8,9 +8,8 @@ const HIST_MAX = 10;
 
 type KbHit = {
   title?: string;
-  path?: string;
-  repo?: string;
-  url?: string;
+  id?: string;
+  topic?: string;
   body?: string;
   _formatted?: { body?: string };
 };
@@ -154,12 +153,12 @@ export function KnowledgeSearchFields() {
   }
 
   function openHit(hit: KbHit) {
-    const repo = hit.repo;
-    const path = hit.path;
-    if (repo && path) {
+    const id = hit.id;
+    const topic = hit.topic;
+    if (id && topic) {
       document.dispatchEvent(
         new CustomEvent('cta:open-kb-doc', {
-          detail: { repo, path, url: hit.url, title: hit.title || path },
+          detail: { id, topic, title: hit.title || id },
         }),
       );
     }
@@ -200,16 +199,15 @@ export function KnowledgeSearchFields() {
         {view.kind === 'hits'
           ? view.hits.map((hit, i) => (
               <div
-                key={`${hit.repo || ''}-${hit.path || ''}-${i}`}
+                key={`${hit.id || ''}-${i}`}
                 className="gs-hit gs-hit-kb"
-                data-repo={hit.repo || ''}
-                data-path={hit.path || ''}
-                data-url={hit.url || ''}
-                data-title={hit.title || hit.path || ''}
+                data-id={hit.id || ''}
+                data-topic={hit.topic || ''}
+                data-title={hit.title || hit.id || ''}
                 onClick={() => openHit(hit)}
               >
-                <div className="gs-hit-title">{hit.title || hit.path || ''}</div>
-                <span className="gs-hit-repo">{(hit.repo || '').split('/').pop()}</span>
+                <div className="gs-hit-title">{hit.title || hit.id || ''}</div>
+                <span className="gs-hit-repo">{hit.topic || ''}</span>
                 <div className="gs-hit-snippet" dangerouslySetInnerHTML={{ __html: getSnippet(hit) }} />
               </div>
             ))

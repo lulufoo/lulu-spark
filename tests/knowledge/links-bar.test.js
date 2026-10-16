@@ -16,8 +16,7 @@ describe('KbLinksBar', () => {
 
   beforeEach(() => {
     document.body.innerHTML = '<div id="host"></div>';
-    state.viewer.kbRepo = null;
-    state.viewer.kbPath = null;
+    state.viewer.kbId = null;
     state.viewer.annotation = {};
     state.index.titleFetchCache = new Map();
     root = createRoot(document.getElementById('host'));
@@ -30,8 +29,7 @@ describe('KbLinksBar', () => {
 
   it('hides the bar when a document has no links', () => {
     flushSync(() => root.render(createElement(KbLinksBar)));
-    state.viewer.kbRepo = 'kb';
-    state.viewer.kbPath = 'doc.md';
+    state.viewer.kbId = 'doc-1';
     state.viewer.annotation = { links: [] };
     flushSync(() => notifyState());
     expect(document.getElementById('kb-md-links-bar')?.style.display).toBe('none');
@@ -39,8 +37,7 @@ describe('KbLinksBar', () => {
   });
 
   it('lists existing links without an Add link control', () => {
-    state.viewer.kbRepo = 'kb';
-    state.viewer.kbPath = 'doc.md';
+    state.viewer.kbId = 'doc-1';
     state.viewer.annotation = { links: [{ url: 'https://example.com' }] };
     flushSync(() => root.render(createElement(KbLinksBar)));
     expect(document.getElementById('kb-md-links-bar')?.style.display).toBe('flex');

@@ -76,15 +76,13 @@ export const READ_API_INVOKE_MAP: Record<string, ReadInvokeEntry> = {
   '/api/kb/read': {
     cmd: 'kb_read',
     args: (url) => ({
-      repo: url.searchParams.get('repo') ?? '',
-      path: url.searchParams.get('path') ?? '',
+      id: url.searchParams.get('id') ?? '',
     }),
   },
   '/api/kb/asset': {
     cmd: 'get_kb_asset',
     args: (url) => ({
-      repo: url.searchParams.get('repo') ?? '',
-      base: url.searchParams.get('base') ?? '',
+      id: url.searchParams.get('id') ?? '',
       href: url.searchParams.get('href') ?? '',
     }),
   },
@@ -112,8 +110,7 @@ export const READ_API_INVOKE_MAP: Record<string, ReadInvokeEntry> = {
   '/api/kb/annotation': {
     cmd: 'kb_annotation',
     args: (url) => ({
-      repo: url.searchParams.get('repo') ?? '',
-      path: url.searchParams.get('path') ?? '',
+      id: url.searchParams.get('id') ?? '',
     }),
   },
   '/api/fetch-title': {

@@ -27,10 +27,10 @@ describe('readApi contract map', () => {
 
   it('resolveInvokeFromPath maps query args', () => {
     expect(
-      resolveInvokeFromPath('/api/kb/read?repo=o/r&path=docs/a.md')
+      resolveInvokeFromPath('/api/kb/read?id=abcdefabcdefabcdefabcdefabcdefab')
     ).toEqual({
       cmd: 'kb_read',
-      args: { repo: 'o/r', path: 'docs/a.md' },
+      args: { id: 'abcdefabcdefabcdefabcdefabcdefab' },
     });
   });
 
@@ -114,11 +114,11 @@ describe('readApi contract map', () => {
   it('resolveInvokeFromPath maps kb-asset query args', () => {
     expect(
       resolveInvokeFromPath(
-        '/api/kb/asset?repo=o/r&base=docs/a.md&href=note.png',
+        '/api/kb/asset?id=abcdefabcdefabcdefabcdefabcdefab&href=note.png',
       ),
     ).toEqual({
       cmd: 'get_kb_asset',
-      args: { repo: 'o/r', base: 'docs/a.md', href: 'note.png' },
+      args: { id: 'abcdefabcdefabcdefabcdefabcdefab', href: 'note.png' },
     });
   });
 

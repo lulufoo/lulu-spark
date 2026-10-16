@@ -33,8 +33,8 @@ export function confirmDeleteComment() {
 }
 
 export async function removeKbComment(comment: { id: string }) {
-  const { kbRepo, kbPath, annotation } = state.viewer;
-  const data = (await api.updateKbComment(kbRepo, kbPath, { id: comment.id, text: '' }, nowTs())) as WriteResult;
+  const { kbId, annotation } = state.viewer;
+  const data = (await api.updateKbComment(kbId, { id: comment.id, text: '' }, nowTs())) as WriteResult;
   if (!data.ok) throw new Error(data.error || 'failed');
   const ann = annotation as Annotation;
   if (Array.isArray(ann.comments)) {

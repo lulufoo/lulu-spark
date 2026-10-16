@@ -5,7 +5,7 @@ type KbLink = { url: string };
 type KbAnnotation = { links?: KbLink[] };
 
 function viewer() {
-  return state.viewer as unknown as { kbRepo: string; kbPath: string; annotation: KbAnnotation };
+  return state.viewer as unknown as { kbId: string; annotation: KbAnnotation };
 }
 
 function fallbackTitle(url: string) {
@@ -35,9 +35,9 @@ export async function fetchAndCacheKbLinkTitle(url: string) {
 }
 
 export async function removeKbLink(index: number) {
-  const { kbRepo, kbPath, annotation } = viewer();
+  const { kbId, annotation } = viewer();
   const newLinks = (annotation.links || []).filter((_, i) => i !== index);
-  const data = (await api.updateKbLinks(kbRepo, kbPath, newLinks)) as { ok?: boolean; error?: string };
+  const data = (await api.updateKbLinks(kbId, newLinks)) as { ok?: boolean; error?: string };
   if (!data.ok) return data;
   annotation.links = newLinks;
   notifyState();

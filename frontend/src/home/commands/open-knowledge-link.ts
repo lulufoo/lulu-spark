@@ -15,13 +15,13 @@ function reportOpenFailure(reason: unknown) {
   showActionError({ message: `Cannot open knowledge document: ${detail}` });
 }
 
-/** Rust resolves the id to the knowledge page route; the page opens through the shared event. */
+/** Rust resolves the id; the page opens through the shared event. */
 export async function openKnowledgeById(id: string): Promise<void> {
   try {
     const doc = await resolveKnowledgeForOpen(id);
-    if (!doc.repo || !doc.path) throw new Error('missing library location');
+    if (!doc.topic) throw new Error('missing library location');
     document.dispatchEvent(
-      new CustomEvent('cta:open-kb-doc', { detail: { repo: doc.repo, path: doc.path } }),
+      new CustomEvent('cta:open-kb-doc', { detail: { id, topic: doc.topic } }),
     );
   } catch (err) {
     reportOpenFailure(err);

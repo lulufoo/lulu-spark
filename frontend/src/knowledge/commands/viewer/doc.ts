@@ -11,8 +11,7 @@ import { paintKbDocError, paintKbDocLoading, paintKbDocPlain } from '../../ui/vi
 type KbViewer = {
   entry: unknown;
   isKb: boolean;
-  kbRepo: string | null;
-  kbPath: string | null;
+  kbId: string | null;
   layer: string;
   rawText: string;
   annotation: Record<string, unknown>;
@@ -23,14 +22,13 @@ function viewer(): KbViewer {
   return state.viewer as KbViewer;
 }
 
-export async function openKbDoc(kbHit: { repo: string; path: string; url?: string }) {
-  const { repo, path } = kbHit;
+export async function openKbDoc(kbHit: { id: string }) {
+  const { id } = kbHit;
   const v = viewer();
 
   v.entry = null;
   v.isKb = true;
-  v.kbRepo = repo;
-  v.kbPath = path;
+  v.kbId = id;
   v.layer = 'raw';
   v.rawText = '';
   v.annotation = {};
@@ -51,8 +49,8 @@ export async function openKbDoc(kbHit: { repo: string; path: string; url?: strin
 
   try {
     const [mdResult, annResult] = await Promise.allSettled([
-      api.fetchKbFileContent(repo, path),
-      api.fetchKbAnnotation(repo, path),
+      api.fetchKbFileContent(id),
+      api.fetchKbAnnotation(id),
     ]);
 
     const ann = annResult.status === 'fulfilled' ? annResult.value || {} : {};
@@ -104,7 +102,7 @@ export async function saveKbDoc() {
   btnSave.textContent = 'Saving…';
   try {
     const v = viewer();
-    const data = (await api.saveKbFile(v.kbRepo, v.kbPath, newContent)) as { error?: string };
+    const data = (await api.saveKbFile(v.kbId, newContent)) as { error?: string };
     if (data.error) throw new Error(data.error);
     v.rawText = newContent;
     _kbExitEditMode();
@@ -133,8 +131,7 @@ export function closeKbModal() {
   revokeKbBlobUrls();
   const v = viewer();
   v.isKb = false;
-  v.kbRepo = null;
-  v.kbPath = null;
+  v.kbId = null;
   v.annotation = {};
   document.body.style.overflow = '';
 }

@@ -96,8 +96,7 @@ export const WRITE_API_INVOKE_MAP: Record<string, WriteInvokeEntry> = {
   '/api/kb/save': {
     cmd: 'kb_save',
     args: (body) => ({
-      repo: body.repo,
-      path: body.path,
+      id: body.id,
       content: body.content,
     }),
   },
@@ -128,8 +127,7 @@ export const WRITE_API_INVOKE_MAP: Record<string, WriteInvokeEntry> = {
   '/api/kb/update-comments': {
     cmd: 'kb_update_comments',
     args: (body) => ({
-      repo: body.repo,
-      path: body.path,
+      id: body.id,
       comment: body.comment,
       ts: body.ts,
     }),
@@ -137,16 +135,14 @@ export const WRITE_API_INVOKE_MAP: Record<string, WriteInvokeEntry> = {
   '/api/kb/reorder-comments': {
     cmd: 'kb_reorder_comments',
     args: (body) => ({
-      repo: body.repo,
-      path: body.path,
+      id: body.id,
       ids: body.ids,
     }),
   },
   '/api/kb/update-highlights': {
     cmd: 'kb_update_highlights',
     args: (body) => ({
-      repo: body.repo,
-      path: body.path,
+      id: body.id,
       highlight: body.highlight,
       ts: body.ts,
     }),
@@ -154,8 +150,7 @@ export const WRITE_API_INVOKE_MAP: Record<string, WriteInvokeEntry> = {
   '/api/kb/update-links': {
     cmd: 'kb_update_links',
     args: (body) => ({
-      repo: body.repo,
-      path: body.path,
+      id: body.id,
       links: body.links,
     }),
   },
@@ -220,8 +215,7 @@ export const WRITE_API_INVOKE_MAP: Record<string, WriteInvokeEntry> = {
   '/api/kb/viewer-state': {
     cmd: 'set_kb_viewer_state',
     args: (body) => ({
-      repo: body.repo ?? '',
-      path: body.path ?? '',
+      id: body.id ?? '',
     }),
   },
   '/api/create-note': {
