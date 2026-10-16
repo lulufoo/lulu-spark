@@ -89,13 +89,13 @@ fn catalog_registers_stage_trio_off_cursor_ide_and_mobile() {
         .expect("stage");
     assert_eq!(
         stage_def.pointer("/function/description").and_then(|v| v.as_str()),
-        Some("Add an external file to this Chat's Stage. Grants read and write for that file and shows it to the user. Use it when the user gives an absolute path to a file outside Spark's own data. Notes and knowledge documents are not staged: use get_note_file or get_knowledge_file.")
+        Some("Add an external file to this Chat's Stage. Asks the user first. After allow, grants read and write for that path and shows it to the user. The path may not exist yet. Spark's own data and .git cannot be requested. Notes and knowledge documents are not staged: use get_note_file or get_knowledge_file.")
     );
     assert_eq!(
         stage_def
             .pointer("/function/parameters/properties/path/description")
             .and_then(|v| v.as_str()),
-        Some("Absolute existing regular file. Must be outside SESSION_WORKSPACE_DIR.")
+        Some("Absolute file path. May not exist yet. Must be outside SESSION_WORKSPACE_DIR.")
     );
     for (slot, channel) in [("cursor_ide", "cursor_ide"), ("spark", "mobile")] {
         let table = crate::mcp_host::build_channel_tool_table(slot, channel)

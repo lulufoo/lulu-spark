@@ -42,11 +42,11 @@ pub fn catalog() -> ToolCatalog {
         ),
         local_tool(
             "write",
-            "Create or overwrite a text file in SESSION_WORKSPACE_DIR or on this Chat's Stage.",
+            "Create or overwrite a text file in SESSION_WORKSPACE_DIR or on this Chat's Stage. A path outside those asks the user through `stage`; after allow it joins Stage. The path may not exist yet. Spark's own data and .git cannot be requested.",
             json!({
                 "type": "object",
                 "properties": {
-                    "path": { "type": "string", "description": "Absolute file path. Must be in SESSION_WORKSPACE_DIR or an existing file on Stage." },
+                    "path": { "type": "string", "description": "Absolute file path." },
                     "content": { "type": "string", "description": "Full file contents." }
                 },
                 "required": ["path", "content"],
@@ -56,11 +56,11 @@ pub fn catalog() -> ToolCatalog {
         ),
         local_tool(
             "str_replace",
-            "Replace exact text in an existing text file in SESSION_WORKSPACE_DIR or on this Chat's Stage.",
+            "Replace exact text in an existing text file in SESSION_WORKSPACE_DIR or on this Chat's Stage. A path outside those asks the user through `stage`; after allow it joins Stage. Spark's own data and .git cannot be requested.",
             json!({
                 "type": "object",
                 "properties": {
-                    "path": { "type": "string", "description": "Absolute file path. Must be in SESSION_WORKSPACE_DIR or an existing file on Stage." },
+                    "path": { "type": "string", "description": "Absolute file path." },
                     "old_string": { "type": "string", "description": "Text to replace. Must match exactly once unless replace_all is true." },
                     "new_string": { "type": "string", "description": "The text to replace it with." },
                     "replace_all": {
@@ -75,12 +75,12 @@ pub fn catalog() -> ToolCatalog {
         ),
         local_tool(
             "copy",
-            "Copy a regular file. Does not modify the source. Overwrites dest_path if it already exists.",
+            "Copy a regular file. Does not modify the source. Overwrites dest_path if it already exists. dest_path in SESSION_WORKSPACE_DIR or on this Chat's Stage writes directly; a dest outside those asks the user through `stage`. Spark's own data and .git cannot be requested.",
             json!({
                 "type": "object",
                 "properties": {
-                    "source_path": { "type": "string", "description": "Absolute readable file in SESSION_WORKSPACE_DIR or on Stage." },
-                    "dest_path": { "type": "string", "description": "Absolute file path in SESSION_WORKSPACE_DIR or an existing file on Stage. Not a directory." }
+                    "source_path": { "type": "string", "description": "Absolute readable file." },
+                    "dest_path": { "type": "string", "description": "Absolute file path. Not a directory." }
                 },
                 "required": ["source_path", "dest_path"],
                 "additionalProperties": false

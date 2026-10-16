@@ -95,6 +95,7 @@ pub fn run() {
             commands::ai_assistant::create_chat_session,
             commands::ai_assistant::delete_chat_session,
             commands::ai_assistant::unstage_chat_staged,
+            commands::approval::resolve_approval,
             commands::ai_assistant::set_binding,
             commands::ai_assistant::reset_binding,
             commands::ai_assistant::defensive_unbound,
@@ -164,6 +165,7 @@ pub fn run() {
             let mut embedded_mcp_handle = None;
             let boot = boot_settings::resolve_boot_settings()?;
             crate::services::app_log::init();
+            crate::commands::approval::install_emitter(app.handle().clone());
             crate::commands::mcp_ide_env::apply_live_ide_ticket_envs();
             let (http_port, mcp_port) = (boot.http_port, boot.mcp_port);
             if let Ok(repo_root) = crate::config::paths::repo_root() {

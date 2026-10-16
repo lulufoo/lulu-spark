@@ -275,4 +275,11 @@ describe('ai-assistant Present shell VF (t7)', () => {
     expect(aiAssistantCmd).not.toMatch(/create_or_focus_ai_assistant_window/);
     expect(libRs).not.toMatch(/fn create_or_focus_ai_assistant_window\s*\(/);
   });
+
+  it('boot listens for approval requests at startup', () => {
+    const approvalJs = readFrontendJs('frontend/src/home/commands/approval.ts');
+    expect(mainJs).toMatch(/startApprovalHub/);
+    expect(approvalJs).toMatch(/ai-assistant:approval-requested/);
+    expect(approvalJs).toMatch(/event\?\.listen/);
+  });
 });

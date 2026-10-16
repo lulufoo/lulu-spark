@@ -136,6 +136,14 @@ fn host_file_tool_descriptions_use_dir_names_not_absolute_paths() {
             "{name} must name Stage"
         );
         assert!(
+            desc.contains("asks the user through `stage`"),
+            "{name} must say outside paths ask via stage"
+        );
+        assert!(
+            desc.contains("cannot be requested"),
+            "{name} must name the hard deny"
+        );
+        assert!(
             !desc.contains("SPARK_DATA_DIR"),
             "{name} must not name SPARK_DATA_DIR"
         );
@@ -149,17 +157,17 @@ fn host_file_tool_descriptions_use_dir_names_not_absolute_paths() {
     let write_desc = tool_description(&catalog, "write");
     assert_eq!(
         write_desc,
-        "Create or overwrite a text file in SESSION_WORKSPACE_DIR or on this Chat's Stage."
+        "Create or overwrite a text file in SESSION_WORKSPACE_DIR or on this Chat's Stage. A path outside those asks the user through `stage`; after allow it joins Stage. The path may not exist yet. Spark's own data and .git cannot be requested."
     );
     let replace_desc = tool_description(&catalog, "str_replace");
     assert_eq!(
         replace_desc,
-        "Replace exact text in an existing text file in SESSION_WORKSPACE_DIR or on this Chat's Stage."
+        "Replace exact text in an existing text file in SESSION_WORKSPACE_DIR or on this Chat's Stage. A path outside those asks the user through `stage`; after allow it joins Stage. Spark's own data and .git cannot be requested."
     );
     let copy_desc = tool_description(&catalog, "copy");
     assert_eq!(
         copy_desc,
-        "Copy a regular file. Does not modify the source. Overwrites dest_path if it already exists."
+        "Copy a regular file. Does not modify the source. Overwrites dest_path if it already exists. dest_path in SESSION_WORKSPACE_DIR or on this Chat's Stage writes directly; a dest outside those asks the user through `stage`. Spark's own data and .git cannot be requested."
     );
 }
 
@@ -174,12 +182,13 @@ fn host_file_tool_params_do_not_repeat_dir_names() {
         tool_param_description(&catalog, "read", "path"),
         "Absolute file path."
     );
-    let write_path =
-        "Absolute file path. Must be in SESSION_WORKSPACE_DIR or an existing file on Stage.";
-    assert_eq!(tool_param_description(&catalog, "write", "path"), write_path);
+    assert_eq!(
+        tool_param_description(&catalog, "write", "path"),
+        "Absolute file path."
+    );
     assert_eq!(
         tool_param_description(&catalog, "str_replace", "path"),
-        write_path
+        "Absolute file path."
     );
     assert_eq!(
         tool_param_description(&catalog, "str_replace", "old_string"),
@@ -187,11 +196,11 @@ fn host_file_tool_params_do_not_repeat_dir_names() {
     );
     assert_eq!(
         tool_param_description(&catalog, "copy", "source_path"),
-        "Absolute readable file in SESSION_WORKSPACE_DIR or on Stage."
+        "Absolute readable file."
     );
     assert_eq!(
         tool_param_description(&catalog, "copy", "dest_path"),
-        "Absolute file path in SESSION_WORKSPACE_DIR or an existing file on Stage. Not a directory."
+        "Absolute file path. Not a directory."
     );
     for name in ["grep", "read"] {
         let blob = catalog

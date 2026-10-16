@@ -152,6 +152,15 @@ fn validate_stage_file_accepts_outside_read_allow_and_rejects_scratch() {
 }
 
 #[test]
+fn validate_stage_file_accepts_missing_outside_file() {
+    let outside = unique_dir("stage-missing").join("new.md");
+    let fence = fence_with(unique_dir("stage-root"), unique_dir("scratch-parent"));
+    let ok = validate_stage_file(&outside.to_string_lossy(), &fence).expect("missing");
+    assert_eq!(ok.file_name(), outside.file_name());
+    assert!(!outside.exists());
+}
+
+#[test]
 fn validate_readable_regular_file_stays_inside_read_allow() {
     let root = unique_dir("readable-root");
     let inside = root.join("ok.md");

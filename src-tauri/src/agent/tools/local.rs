@@ -13,8 +13,9 @@ use crate::agent::prompt::{read_tool_timeout_text, write_tool_crash_text, write_
 use crate::agent::session::Session;
 
 use super::catalog::ToolResult;
+use super::gate::{self, GateError};
 use super::timeout::{run_with_timeout, Waited};
-use super::{host, stage};
+use super::{fs, host, stage};
 
 /// Why a local tool ended without a result of its own. Either way the tool may have changed
 /// something before it stopped.
@@ -46,12 +47,23 @@ pub fn call(
     match name {
         "list_staged" | "get_staged" => Local::Done(stage::call(name, arguments, session, fence)),
         "stage" => {
-            let (arguments, fence) = (arguments.clone(), fence.cloned());
+            let arguments = arguments.clone();
+            let fence = fence.cloned();
+            let fence_for_check = fence.clone();
             let waited = run_with_timeout(limit, is_cancelled, move |_| {
-                stage::check_stage(&arguments, fence.as_ref())
+                stage::check_stage(&arguments, fence_for_check.as_ref())
             });
             match settle(waited, read_only) {
-                Ok(Ok(checked)) => Local::Done(stage::register_stage(session, checked)),
+                Ok(Ok(checked)) => match gate::prepare_outside_write(
+                    checked.path_for_gate(),
+                    session,
+                    fence.as_ref().unwrap_or(&PathFence::default()),
+                    is_cancelled,
+                ) {
+                    Ok(_) => Local::Done(stage::register_stage(session, checked)),
+                    Err(GateError::Cancelled) => Local::Cancelled,
+                    Err(GateError::Denied(content)) => Local::Done(error(content)),
+                },
                 Ok(Err(content)) => Local::Done(error(content)),
                 Err(local) => local,
             }
@@ -62,7 +74,12 @@ pub fn call(
                     "Host tool '{name}' has no path fence for this binding."
                 )));
             };
-            let (name, arguments, fence) = (name.to_string(), arguments.clone(), fence.clone());
+            let fence = match grant_outside_dest(name, arguments, session, fence, is_cancelled) {
+                Ok(next) => next,
+                Err(GateError::Cancelled) => return Local::Cancelled,
+                Err(GateError::Denied(content)) => return Local::Done(error(content)),
+            };
+            let (name, arguments) = (name.to_string(), arguments.clone());
             let waited = run_with_timeout(limit, is_cancelled, move |deadline| {
                 host::call_until(&name, &arguments, &fence, Some(deadline))
             });
@@ -72,6 +89,32 @@ pub fn call(
             }
         }
     }
+}
+
+fn grant_outside_dest(
+    name: &str,
+    arguments: &Value,
+    session: &mut Session,
+    fence: &PathFence,
+    is_cancelled: &dyn Fn() -> bool,
+) -> Result<PathFence, GateError> {
+    if !matches!(name, "write" | "str_replace" | "copy") {
+        return Ok(fence.clone());
+    }
+    let dest = if name == "copy" {
+        fs::arg_str(arguments, "dest_path")
+    } else {
+        fs::arg_str(arguments, "path")
+    }
+    .map_err(GateError::Denied)?;
+    let abs = crate::agent::fence::require_absolute(&dest).map_err(GateError::Denied)?;
+    if fence.allows_write(&abs) {
+        return Ok(fence.clone());
+    }
+    let canon = gate::prepare_outside_write(&dest, session, fence, is_cancelled)?;
+    let mut next = fence.clone();
+    next.grant_staged_file(canon);
+    Ok(next)
 }
 
 fn settle<T>(waited: Waited<T>, read_only: bool) -> Result<T, Local> {

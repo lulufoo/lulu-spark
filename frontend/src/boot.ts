@@ -23,6 +23,7 @@ import type { SettingsConfig } from './app-shell/state/types.ts';
 import { applyTheme, parseThemeId, watchSystemTheme } from './theme.ts';
 import { startSparkSchemeOpenedHub, type SparkEnvelope } from './router/scheme.ts';
 import { startOsNotifyClickHub } from './app-shell/commands/os-notify-click.ts';
+import { startApprovalHub } from './home/commands/approval.ts';
 import { handleNotesOsNotifyEnvelope } from './notes/commands/os-notify.ts';
 import { handleReadLaterOsNotifyEnvelope } from './read-later/commands/os-notify.ts';
 import { logNotifyHop, parseTraceId, TRACE_PARAM } from './router/notify-trace.ts';
@@ -215,6 +216,22 @@ export function startOsNotifyHub() {
 }
 
 startOsNotifyHub();
+
+function startApprovalHubWhenReady() {
+  const tryStart = () => {
+    const listen = typeof window !== 'undefined' && window.__TAURI__?.event?.listen;
+    if (typeof listen !== 'function') return false;
+    startApprovalHub();
+    return true;
+  };
+  if (tryStart()) return;
+  let attempts = 0;
+  const timer = setInterval(() => {
+    if (tryStart() || ++attempts >= 40) clearInterval(timer);
+  }, 50);
+}
+
+startApprovalHubWhenReady();
 
 function startOsNotifyClickHubWhenReady() {
   const tryStart = () => {

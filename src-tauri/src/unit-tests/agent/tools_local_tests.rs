@@ -48,12 +48,26 @@ fn read_fence(root: &std::path::Path) -> PathFence {
 fn with_live_chat<F: FnOnce(&mut Session)>(f: F) {
     let _sandbox = TestSandbox::new();
     r#loop::reset_runtime_for_tests();
+    crate::agent::approval::reset_for_tests();
     let sid = r#loop::create_chat_session_core().expect("chat")["session_id"]
         .as_str()
         .unwrap()
         .to_string();
     let mut sess = session::load_session(&sid).expect("load");
     f(&mut sess);
+}
+
+fn resolve_next_allow() -> std::thread::JoinHandle<()> {
+    std::thread::spawn(|| {
+        for _ in 0..200 {
+            if let Some(id) = crate::agent::approval::pending_ids().into_iter().next() {
+                crate::agent::approval::resolve(&id, crate::agent::approval::ApprovalChoice::AllowOnce);
+                return;
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        panic!("no approval request");
+    })
 }
 
 fn done(local: Local) -> crate::agent::tools::ToolResult {
@@ -176,7 +190,9 @@ fn stage_checks_the_file_in_the_shell_and_registers_it_inline() {
         fs::write(&file, "body").expect("write");
         let fence = read_fence(&root);
         let args = json!({ "path": file.to_string_lossy() });
+        let waiter = resolve_next_allow();
         let result = done(call("stage", &args, sess, Some(&fence), false, LIMIT, &never_cancelled));
+        waiter.join().expect("resolver");
         assert!(!result.is_error, "{}", result.content);
         assert_eq!(sess.staged.len(), 1);
         assert_eq!(sess.staged[0].id, "F1");
@@ -184,14 +200,17 @@ fn stage_checks_the_file_in_the_shell_and_registers_it_inline() {
 }
 
 #[test]
-fn stage_of_a_missing_file_registers_nothing() {
+fn stage_of_a_missing_file_registers_after_allow() {
     with_live_chat(|sess| {
         let root = unique_dir("stage-missing");
         let fence = read_fence(&root);
         let args = json!({ "path": root.join("nope.md").to_string_lossy() });
+        let waiter = resolve_next_allow();
         let result = done(call("stage", &args, sess, Some(&fence), false, LIMIT, &never_cancelled));
-        assert!(result.is_error);
-        assert!(sess.staged.is_empty());
+        waiter.join().expect("resolver");
+        assert!(!result.is_error, "{}", result.content);
+        assert_eq!(sess.staged.len(), 1);
+        assert!(!root.join("nope.md").exists());
     });
 }
 
