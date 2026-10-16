@@ -11,8 +11,9 @@ export function noteIdFromHref(href: string | null | undefined): string | null {
   return match ? match[1] : null;
 }
 
-function hasEntry(commonPath: string): boolean {
-  return Object.values(state.index.data || {}).some((entry) => entry.common_path === commonPath);
+function hasEntry(id: string): boolean {
+  const data = state.index.data || {};
+  return Boolean(data[id] || Object.values(data).some((entry) => entry._id === id || entry.id === id));
 }
 
 function reportOpenFailure(reason: unknown) {
@@ -24,10 +25,10 @@ function reportOpenFailure(reason: unknown) {
 export async function openNoteById(id: string): Promise<void> {
   try {
     const note = await resolveNoteForOpen(id);
-    if (!hasEntry(note.common_path)) await refreshNotesIndex();
-    if (!hasEntry(note.common_path)) throw new Error('not in the notes list yet');
+    if (!hasEntry(id)) await refreshNotesIndex();
+    if (!hasEntry(id)) throw new Error('not in the notes list yet');
     document.dispatchEvent(
-      new CustomEvent('cta:open-entry', { detail: { common_path: note.common_path } }),
+      new CustomEvent('cta:open-entry', { detail: { id: note.id || id } }),
     );
   } catch (err) {
     reportOpenFailure(err);

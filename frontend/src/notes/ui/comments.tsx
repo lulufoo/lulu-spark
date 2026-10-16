@@ -1,5 +1,5 @@
 import { memo, useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { notifyState, state, useHostState } from '../state/host.ts';
+import { getEntryId, notifyState, state, useHostState } from '../state/host.ts';
 import { commentOpenStore } from '../state/dialog-open.ts';
 import * as api from '../../host/api.ts';
 import { reorderComments } from '../../host/api.ts';
@@ -209,7 +209,7 @@ export function NotesCommentFloatNav() {
     );
     observer.observe(bar);
     return () => observer.disconnect();
-  }, [comments.length, entry?.common_path, host.viewer.bodyPaintKey]);
+  }, [comments.length, getEntryId(entry), host.viewer.bodyPaintKey]);
 
   const show = Boolean(entry && !creating && comments.length && visible);
 
@@ -248,7 +248,7 @@ async function moveNoteComment(layer: string, entry: NoteEntry, idx: number, del
     return;
   }
   try {
-    const data = (await reorderComments(entry.common_path, layer, check.ids)) as {
+    const data = (await reorderComments(getEntryId(entry) || '', layer, check.ids)) as {
       ok?: boolean;
       error?: string;
     };
@@ -304,12 +304,12 @@ export async function openCommentDialog(
     _commentEditCtx = { noteIndex };
     const target = entry || state.viewer.entry;
     if (!target) return;
-    const commonPath = target.common_path;
-    _draftKey = commonPath;
+    const id = getEntryId(target) || '';
+    _draftKey = id;
     titleEl.textContent = 'Add comment';
     content.innerText = '';
     try {
-      const draft = (await api.getDraft(commonPath)) as { content?: string };
+      const draft = (await api.getDraft(id)) as { content?: string };
       if (draft.content) content.innerText = draft.content;
     } catch {
       /* ignore */
@@ -352,7 +352,7 @@ export async function saveComment() {
         closeCommentDialog();
         return;
       }
-      const data = (await api.updateComments(entry!.common_path, layer, { id: c.id, text }, ts)) as {
+      const data = (await api.updateComments(getEntryId(entry) || '', layer, { id: c.id, text }, ts)) as {
         ok?: boolean;
         error?: string;
       };
@@ -368,7 +368,7 @@ export async function saveComment() {
       }
     } else {
       if (!state.viewer.entry) return;
-      const data = (await api.updateComments(state.viewer.entry.common_path, COMMENT_LAYER, { text }, ts)) as {
+      const data = (await api.updateComments(getEntryId(state.viewer.entry) || '', COMMENT_LAYER, { text }, ts)) as {
         ok?: boolean;
         error?: string;
         id?: string;

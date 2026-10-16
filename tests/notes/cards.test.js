@@ -80,7 +80,7 @@ describe('buildCard source_type badge', () => {
 
   it('summary 显示黄色「总结」badge', () => {
     const entry = {
-      common_path: 'proj/topic/202605181200-note.md',
+      folder: 'proj',
       created_at: '202605181200',
       layers: ['raw'],
       source_type: 'summary',
@@ -209,7 +209,7 @@ describe('digest tooltip 挂在最底徽章行（buildCard / DocCard）', () => 
 
   function makeEntry(commonPath, overrides = {}) {
     return {
-      common_path: commonPath,
+      folder: String(commonPath).split('/')[0],
       created_at: '202605181200',
       layers: ['raw', 'digest'],
       source_type: 'note',
@@ -263,7 +263,7 @@ describe('digest tooltip 挂在最底徽章行（buildCard / DocCard）', () => 
     expect(tooltipEl()).toBeNull();
 
     await vi.advanceTimersByTimeAsync(1);
-    expect(api.fetchFileContent).toHaveBeenCalledWith('digest', cp);
+    expect(api.fetchFileContent).toHaveBeenCalledWith('digest', 'tip1');
     const tip = tooltipEl();
     expect(tip).not.toBeNull();
     expect(tip.textContent).toBe('Plain digest preview');
@@ -278,7 +278,7 @@ describe('digest tooltip 挂在最底徽章行（buildCard / DocCard）', () => 
 
     hover(card2.querySelector('.badges'));
     await vi.advanceTimersByTimeAsync(300);
-    expect(api.fetchFileContent).toHaveBeenLastCalledWith('digest', cp2);
+    expect(api.fetchFileContent).toHaveBeenLastCalledWith('digest', 'tip2');
     expect(tooltipEl()).toBeNull();
   });
 
@@ -316,7 +316,7 @@ describe('digest tooltip 挂在最底徽章行（buildCard / DocCard）', () => 
     const tip = tooltipEl();
     expect(tip).not.toBeNull();
     expect(tip.textContent).toBe('DocCard digest');
-    expect(api.fetchFileContent).toHaveBeenCalledWith('digest', cp);
+    expect(api.fetchFileContent).toHaveBeenCalledWith('digest', 'dc1');
   });
 
   it('buildCard 没有 .badges：不回退挂到整张卡片', async () => {
@@ -352,7 +352,7 @@ describe('card open-in-chat sits next to the star', () => {
 
   function makeEntry(overrides = {}) {
     return {
-      common_path: 'proj/topic/202605181200-note.md',
+      folder: 'proj',
       created_at: '202605181200',
       layers: ['raw'],
       source_type: 'summary',
@@ -385,7 +385,7 @@ describe('card open-in-chat sits next to the star', () => {
     document.removeEventListener('cta:open-entry', onOpen);
     expect(openNoteInChat).toHaveBeenCalledTimes(1);
     expect(openNoteInChat).toHaveBeenCalledWith(
-      expect.objectContaining({ _id: 'chat2', common_path: 'proj/topic/202605181200-note.md' }),
+      expect.objectContaining({ _id: 'chat2', folder: 'proj' }),
       expect.any(HTMLButtonElement),
     );
     expect(opened).toEqual([]);

@@ -130,9 +130,7 @@ describe('loadAssistantNotes', () => {
     const entries = await loadAssistantNotes();
     expect(fetchIndexMock).toHaveBeenCalled();
     expect(entries.some((e) => e.source_type === 'jot')).toBe(true);
-    expect(entries.find((e) => e._id === 'n_newest')?.common_path).toBe(
-      'inbox/notes/202607061000-newest.md',
-    );
+    expect(entries.find((e) => e._id === 'n_newest')?.title).toBe('Newest Note');
   });
 
   it('throws when index payload is invalid / error', async () => {
@@ -166,9 +164,9 @@ describe('mountNoteAssistant', () => {
       expect(root.querySelectorAll('.note-assistant-item')).toHaveLength(3);
     });
     const items = root.querySelectorAll('.note-assistant-item');
-    expect(items[0].dataset.commonPath).toBe('inbox/notes/202607061000-newest.md');
-    expect(items[1].dataset.commonPath).toBe('inbox/notes/202607041000-extra4.md');
-    expect(items[2].dataset.commonPath).toBe('inbox/notes/202607031000-mid.md');
+    expect(items[0].dataset.noteId).toBe('n_newest');
+    expect(items[1].dataset.noteId).toBe('n_extra4');
+    expect(items[2].dataset.noteId).toBe('n_mid');
     dispose();
   });
 
@@ -194,7 +192,7 @@ describe('mountNoteAssistant', () => {
     dispose();
   });
 
-  it('dispatches cta:open-entry with common_path when item is clicked', async () => {
+  it('dispatches cta:open-entry with id when item is clicked', async () => {
     fetchIndexMock.mockResolvedValue(indexPayload());
     const handler = vi.fn();
     document.addEventListener('cta:open-entry', handler);
@@ -205,7 +203,7 @@ describe('mountNoteAssistant', () => {
     root.querySelector('.note-assistant-item-link').click();
     expect(handler).toHaveBeenCalledTimes(1);
     expect(handler.mock.calls[0][0].detail).toEqual({
-      common_path: 'inbox/notes/202607061000-newest.md',
+      id: 'n_newest',
     });
     document.removeEventListener('cta:open-entry', handler);
     dispose();

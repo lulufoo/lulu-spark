@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { createRoot, type Root } from 'react-dom/client';
-import { filenameFromPath, slugToTitle } from '../../shared/utils.ts';
 import {
   loadAssistantNotes,
   selectTopNotesByCreatedAt,
@@ -14,9 +13,6 @@ const UNAVAILABLE_MSG = 'List temporarily unavailable — try again later';
 
 function noteLabel(entry: AssistantNote) {
   if (entry.title) return String(entry.title);
-  if (entry.common_path) {
-    return slugToTitle(filenameFromPath(entry.common_path));
-  }
   return 'Untitled note';
 }
 
@@ -43,21 +39,21 @@ function NoteList({
   onOpen,
 }: {
   notes: AssistantNote[];
-  onOpen: (commonPath: string) => void;
+  onOpen: (id: string) => void;
 }) {
   return (
     <ul className="note-assistant-list">
       {notes.map((entry) => {
-        const path = entry.common_path ?? '';
+        const id = entry._id || entry.id || '';
         const label = noteLabel(entry);
         return (
-          <li key={path || label} className="note-assistant-item" data-common-path={path}>
+          <li key={id || label} className="note-assistant-item" data-note-id={id}>
             <button
               type="button"
               className="note-assistant-item-link"
-              data-common-path={path}
+              data-note-id={id}
               onClick={() => {
-                if (path) onOpen(path);
+                if (id) onOpen(id);
               }}
             >
               <span className="note-assistant-item-summary">{label}</span>
@@ -176,8 +172,8 @@ export function NoteAssistant({
     <>
       <NoteList
         notes={notes}
-        onOpen={(commonPath) => {
-          document.dispatchEvent(new CustomEvent('cta:open-entry', { detail: { common_path: commonPath } }));
+        onOpen={(id) => {
+          document.dispatchEvent(new CustomEvent('cta:open-entry', { detail: { id } }));
         }}
       />
       {showCreate ? (

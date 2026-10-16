@@ -1,5 +1,4 @@
 import { openDraftInChat } from '../../home/commands/open-in-chat.ts';
-import { slugToTitle, filenameFromPath } from '../../shared/utils.ts';
 import { getEntryId, state } from '../state/host.ts';
 import type { HostNoteEntry } from '../../host/state.ts';
 import { serializeReference } from '../../home/references/index.ts';
@@ -18,7 +17,6 @@ function noteTitle(entry: HostNoteEntry, id: string) {
     ? (String(state.viewer.rawText || '').match(/^#\s+(.+)/m)?.[1]?.trim() || '')
     : '';
   if (fromBody) return fromBody;
-  if (entry.common_path) return slugToTitle(filenameFromPath(entry.common_path));
   return 'Untitled note';
 }
 

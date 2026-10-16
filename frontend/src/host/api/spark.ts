@@ -13,9 +13,9 @@ export async function fetchAnnotationsSummary() {
   }
 }
 
-export async function fetchAnnotation(path: PathArg) {
+export async function fetchAnnotation(id: PathArg) {
   const res = await getReadDriver().fetchGet(
-    `/api/annotation?path=${encodeURIComponent(String(path ?? ''))}`,
+    `/api/annotation?id=${encodeURIComponent(String(id ?? ''))}`,
   );
   return res.json();
 }
@@ -28,9 +28,10 @@ export async function setConfig(payload?: unknown) {
   return writePost('/api/config', payload || {});
 }
 
-export async function fetchFileContent(layer: PathArg, commonPath: PathArg): Promise<string> {
+export async function fetchFileContent(layer: PathArg, id: PathArg, lang?: PathArg): Promise<string> {
+  const langQ = lang ? `&lang=${encodeURIComponent(String(lang))}` : '';
   const data = await readGet(
-    `/api/notes-file?layer=${encodeURIComponent(String(layer ?? ''))}&path=${encodeURIComponent(String(commonPath ?? ''))}&_=${Date.now()}`
+    `/api/notes-file?layer=${encodeURIComponent(String(layer ?? ''))}&id=${encodeURIComponent(String(id ?? ''))}${langQ}&_=${Date.now()}`
   );
   if (typeof data === 'string') return data;
   const content = asRecord(data)?.content;
@@ -40,11 +41,13 @@ export async function fetchFileContent(layer: PathArg, commonPath: PathArg): Pro
 /** Load notes raster asset via invoke; returns blob: URL (caller may revoke). */
 export async function fetchNotesAssetAsBlobUrl(
   layer: string,
-  baseCommonPath: string,
+  id: string,
   href: string,
+  lang?: string,
 ) {
+  const langQ = lang ? `&lang=${encodeURIComponent(lang)}` : '';
   const data = await readGet(
-    `/api/notes-asset?layer=${encodeURIComponent(layer)}&base=${encodeURIComponent(baseCommonPath)}&href=${encodeURIComponent(href)}&_=${Date.now()}`
+    `/api/notes-asset?layer=${encodeURIComponent(layer)}&id=${encodeURIComponent(id)}&href=${encodeURIComponent(href)}${langQ}&_=${Date.now()}`
   );
   const rec = asRecord(data);
   if (rec?.error) {
@@ -66,64 +69,64 @@ export async function fetchLinkTitle(url: string) {
   return readGet(`/api/fetch-title?url=${encodeURIComponent(url)}`);
 }
 
-export async function saveFile(layer: PathArg, commonPath: PathArg, content: string) {
-  return writePost('/api/save', { layer, common_path: commonPath, content });
+export async function saveFile(layer: PathArg, id: PathArg, content: string, lang?: PathArg) {
+  return writePost('/api/save', { layer, id, content, ...(lang ? { lang } : {}) });
 }
 
 export async function updateComments(
-  commonPath: PathArg,
+  id: PathArg,
   layer: PathArg,
   comment: unknown,
   ts?: unknown,
 ) {
   return writePost('/api/update-comments', {
-    common_path: commonPath,
+    id,
     layer,
     comment,
     ts,
   });
 }
 
-export async function reorderComments(commonPath: string, layer: string, ids: unknown) {
+export async function reorderComments(id: string, layer: string, ids: unknown) {
   return writePost('/api/reorder-comments', {
-    common_path: commonPath,
+    id,
     layer,
     ids,
   });
 }
 
-export async function updateLinks(commonPath: string, links: unknown) {
-  return writePost('/api/update-links', { common_path: commonPath, links });
+export async function updateLinks(id: string, links: unknown) {
+  return writePost('/api/update-links', { id, links });
 }
 
 export async function fetchTagsRegistry() {
   return readGet('/api/tags/registry');
 }
 
-export async function tagAttach(commonPath: string, payload?: Record<string, unknown>) {
+export async function tagAttach(id: string, payload?: Record<string, unknown>) {
   return writePost('/api/tag/attach', {
-    common_path: commonPath,
+    id,
     ...payload,
   });
 }
 
-export async function tagDetach(commonPath: string, key: string) {
-  return writePost('/api/tag/detach', { common_path: commonPath, key });
+export async function tagDetach(id: string, key: string) {
+  return writePost('/api/tag/detach', { id, key });
 }
 
 export async function tagUpdateValue(key: string, value: unknown) {
   return writePost('/api/tag/update-value', { key, value });
 }
 
-export async function setImportance(commonPath: string, importance?: unknown) {
+export async function setImportance(id: string, importance?: unknown) {
   return writePost('/api/set-importance', {
-    common_path: commonPath,
+    id,
     importance: importance || null,
   });
 }
 
-export async function setDone(commonPath: string, done: unknown) {
-  return writePost('/api/set-done', { common_path: commonPath, done });
+export async function setDone(id: string, done: unknown) {
+  return writePost('/api/set-done', { id, done });
 }
 
 export async function deleteEntry(id: PathArg) {
@@ -131,13 +134,13 @@ export async function deleteEntry(id: PathArg) {
 }
 
 export async function updateHighlight(
-  commonPath: string,
+  id: string,
   layer: string,
   highlight: unknown,
   ts?: unknown,
 ) {
   return writePost('/api/update-highlights', {
-    common_path: commonPath,
+    id,
     layer,
     highlight,
     ts,
@@ -167,14 +170,14 @@ export async function fetchTopics() {
   return data;
 }
 
-export async function getDraft(commonPath: string) {
-  const res = await getReadDriver().fetchGet(`/api/draft?path=${encodeURIComponent(commonPath)}`);
+export async function getDraft(id: string) {
+  const res = await getReadDriver().fetchGet(`/api/draft?id=${encodeURIComponent(id)}`);
   if (!res.ok) return { content: '' };
   return res.json();
 }
 
-export async function saveDraft(commonPath: PathArg, content: string) {
-  return writePost('/api/draft', { common_path: commonPath, content });
+export async function saveDraft(id: PathArg, content: string) {
+  return writePost('/api/draft', { id, content });
 }
 
 export async function moveToProject(id: string, newProject: string) {

@@ -6,14 +6,14 @@ import {
 
 const P2_PATHS = [
   ['/api/config', 'set_config', ['payload']],
-  ['/api/save', 'save_entry', ['layer', 'commonPath', 'content']],
-  ['/api/update-comments', 'update_comments', ['commonPath', 'layer', 'comment', 'ts']],
-  ['/api/reorder-comments', 'reorder_comments', ['commonPath', 'layer', 'ids']],
-  ['/api/update-highlights', 'update_highlights', ['commonPath', 'layer', 'highlight', 'ts']],
+  ['/api/save', 'save_entry', ['layer', 'id', 'content']],
+  ['/api/update-comments', 'update_comments', ['id', 'layer', 'comment', 'ts']],
+  ['/api/reorder-comments', 'reorder_comments', ['id', 'layer', 'ids']],
+  ['/api/update-highlights', 'update_highlights', ['id', 'layer', 'highlight', 'ts']],
   ['/api/doc-highlights', 'update_doc_highlights', ['key', 'highlight', 'ts']],
-  ['/api/update-links', 'update_links', ['commonPath', 'links']],
-  ['/api/set-done', 'set_done', ['commonPath', 'done']],
-  ['/api/set-importance', 'set_importance', ['commonPath', 'importance']],
+  ['/api/update-links', 'update_links', ['id', 'links']],
+  ['/api/set-done', 'set_done', ['id', 'done']],
+  ['/api/set-importance', 'set_importance', ['id', 'importance']],
   ['/api/kb/save', 'kb_save', ['repo', 'path', 'content']],
   ['/api/kb/rename', 'kb_rename', ['repo', 'path', 'name']],
   ['/api/kb/create', 'kb_create', ['repo', 'parent', 'name', 'kind']],
@@ -22,8 +22,8 @@ const P2_PATHS = [
   ['/api/kb/reorder-comments', 'kb_reorder_comments', ['repo', 'path', 'ids']],
   ['/api/kb/update-highlights', 'kb_update_highlights', ['repo', 'path', 'highlight', 'ts']],
   ['/api/kb/update-links', 'kb_update_links', ['repo', 'path', 'links']],
-  ['/api/tag/attach', 'tag_attach', ['commonPath', 'key', 'value']],
-  ['/api/tag/detach', 'tag_detach', ['commonPath', 'key']],
+  ['/api/tag/attach', 'tag_attach', ['id', 'key', 'value']],
+  ['/api/tag/detach', 'tag_detach', ['id', 'key']],
   ['/api/tag/update-value', 'tag_update_value', ['key', 'value']],
   ['/api/sediment-kb/repos/add', 'sediment_kb_add_repo', ['payload']],
   ['/api/sediment-kb/repos/remove', 'sediment_kb_remove_repo', ['payload']],
@@ -65,12 +65,12 @@ describe('writeApiContract', () => {
   it('set_done invoke args match server.py body', () => {
     expect(
       resolveWriteInvoke('/api/set-done', {
-        common_path: 'ai/x.md',
+        id: 'ai/x.md',
         done: true,
       })
     ).toEqual({
       cmd: 'set_done',
-      args: { commonPath: 'ai/x.md', done: true },
+      args: { id: 'ai/x.md', done: true },
     });
   });
 
@@ -78,57 +78,57 @@ describe('writeApiContract', () => {
     expect(
       resolveWriteInvoke('/api/save', {
         layer: 'digest',
-        common_path: 'a/b.md',
+        id: 'a/b.md',
         content: '# t',
       })
     ).toEqual({
       cmd: 'save_entry',
-      args: { layer: 'digest', commonPath: 'a/b.md', content: '# t' },
+      args: { layer: 'digest', id: 'a/b.md', content: '# t' },
     });
   });
 
-  it('update_links invoke args use commonPath (Tauri 2 IPC)', () => {
+  it('update_links invoke args use id (Tauri 2 IPC)', () => {
     const resolved = resolveWriteInvoke('/api/update-links', {
-      common_path: 'inbox/new-note.md',
+      id: 'inbox/new-note.md',
       links: [{ url: 'https://github.com/foo/bar' }],
     });
     expect(resolved).toEqual({
       cmd: 'update_links',
       args: {
-        commonPath: 'inbox/new-note.md',
+        id: 'inbox/new-note.md',
         links: [{ url: 'https://github.com/foo/bar' }],
       },
     });
     expect(resolved.args).not.toHaveProperty('common_path');
   });
 
-  it('notes annotation endpoints map common_path → commonPath only', () => {
+  it('notes annotation endpoints map id only', () => {
     const cases = [
       [
         '/api/update-comments',
-        { common_path: 'ai/x.md', layer: 'raw', comment: { text: 'a' }, ts: '1' },
-        ['commonPath', 'layer', 'comment', 'ts'],
+        { id: 'ai/x.md', layer: 'raw', comment: { text: 'a' }, ts: '1' },
+        ['id', 'layer', 'comment', 'ts'],
       ],
       [
         '/api/reorder-comments',
-        { common_path: 'ai/x.md', layer: 'raw', ids: ['a'] },
-        ['commonPath', 'layer', 'ids'],
+        { id: 'ai/x.md', layer: 'raw', ids: ['a'] },
+        ['id', 'layer', 'ids'],
       ],
       [
         '/api/update-highlights',
-        { common_path: 'ai/x.md', layer: 'raw', highlight: { id: 'h' }, ts: '1' },
-        ['commonPath', 'layer', 'highlight', 'ts'],
+        { id: 'ai/x.md', layer: 'raw', highlight: { id: 'h' }, ts: '1' },
+        ['id', 'layer', 'highlight', 'ts'],
       ],
       [
         '/api/set-importance',
-        { common_path: 'ai/x.md', importance: 'high' },
-        ['commonPath', 'importance'],
+        { id: 'ai/x.md', importance: 'high' },
+        ['id', 'importance'],
       ],
     ];
     for (const [path, body, keys] of cases) {
       const resolved = resolveWriteInvoke(path, body);
       expect(Object.keys(resolved.args).sort(), path).toEqual(keys.sort());
-      expect(resolved.args.commonPath).toBe('ai/x.md');
+      expect(resolved.args.id).toBe('ai/x.md');
       expect(resolved.args).not.toHaveProperty('common_path');
     }
   });
@@ -161,8 +161,8 @@ describe('writeApiContract', () => {
   });
 
   it('golden error shapes align with P1 kb_read style', () => {
-    expect({ error: 'Invalid common_path', _status: 400 }).toMatchObject({
-      error: 'Invalid common_path',
+    expect({ error: 'Invalid id', _status: 400 }).toMatchObject({
+      error: 'Invalid id',
       _status: 400,
     });
     expect({ error: 'Comment not found', _status: 404 }).toMatchObject({

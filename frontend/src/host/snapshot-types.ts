@@ -8,7 +8,9 @@ export type HostNoteTag = {
 
 export type HostNoteEntry = {
   _id?: string;
-  common_path: string;
+  id?: string;
+  category_id?: string;
+  folder?: string;
   created_at?: string;
   layers?: string[];
   translations?: { zh?: string };

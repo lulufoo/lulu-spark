@@ -1,6 +1,6 @@
 import { state, getEntryId, notifyState } from '../../state/host.ts';
-import { getActivePath } from '../../../knowledge/state/path.ts';
-import { filenameFromPath, slugToTitle, resetEditAreaScroll } from '../../../shared/utils.ts';
+import { noteFileLang } from '../../../knowledge/state/path.ts';
+import { resetEditAreaScroll } from '../../../shared/utils.ts';
 import * as api from '../../../host/api.ts';
 import { setDocEditMode } from '../../../doc-editor/view.tsx';
 import { saveKbDoc } from '../../../knowledge/viewer.ts';
@@ -52,10 +52,11 @@ export async function openDoc(entry: NoteEntry, layer = 'raw') {
   showNoteOutlet('open');
   notifyState();
 
-  const activePath = getActivePath(entry, state.viewer.lang || '', layer);
+  const entryId = getEntryId(entry);
+  const lang = noteFileLang(entry, state.viewer.lang || '', layer);
   const [mdResult, annResult] = await Promise.allSettled([
-    api.fetchFileContent(layer, activePath),
-    api.fetchAnnotation(entry.common_path).catch(() => ({})),
+    api.fetchFileContent(layer, entryId, lang),
+    api.fetchAnnotation(entryId).catch(() => ({})),
   ]);
   if (gen !== openDocGen) return;
 
@@ -97,9 +98,9 @@ export async function switchLang(lang: string | null) {
   state.viewer.bodyPaintKey += 1;
   notifyState();
 
-  const activePath = getActivePath(entry, lang || '', layer);
+  const langKey = noteFileLang(entry, lang || '', layer);
   try {
-    const text = await api.fetchFileContent(layer, activePath);
+    const text = await api.fetchFileContent(layer, getEntryId(entry), langKey);
     if (gen !== openDocGen) return;
     state.viewer.rawText = text;
     state.viewer.fileSize = formatFileSize(text);
@@ -169,14 +170,14 @@ export async function saveDoc() {
   notifyState();
 
   try {
-    const activePath = getActivePath(state.viewer.entry, state.viewer.lang || '', state.viewer.layer);
-    const data = (await api.saveFile(state.viewer.layer, activePath, newContent)) as { error?: string };
+    const lang = noteFileLang(state.viewer.entry, state.viewer.lang || '', state.viewer.layer);
+    const data = (await api.saveFile(state.viewer.layer, getEntryId(state.viewer.entry), newContent, lang)) as { error?: string };
     if (data.error) throw new Error(data.error);
 
     state.viewer.rawText = newContent;
     const date = (state.viewer.entry.created_at || '').slice(0, 8);
     const h1Match = newContent.match(/^#\s+(.+)/m);
-    const newTitle = h1Match ? h1Match[1].trim() : slugToTitle(filenameFromPath(state.viewer.entry.common_path));
+    const newTitle = h1Match ? h1Match[1].trim() : (state.viewer.entry.title || 'Untitled note');
     const entryId = getEntryId(state.viewer.entry);
     const cache = state.index.titleCache.get(date) ?? new Map<string, string>();
     state.index.titleCache.set(date, cache);

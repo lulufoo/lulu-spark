@@ -31,7 +31,7 @@ export const SYNC_API_INVOKE_MAP: Record<string, SyncInvokeEntry> = {
     cmd: 'save_comment_draft',
     args: (body) =>
       syncPayload({
-        common_path: body.common_path,
+        id: body.id,
         content: body.content,
       }),
   },

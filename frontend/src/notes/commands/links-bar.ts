@@ -32,7 +32,7 @@ export async function removeNoteLink(index: number) {
   const entry = state.viewer.entry;
   if (!entry) return { ok: false, error: 'No entry' };
   const newLinks = (entry.links || []).filter((_, i) => i !== index);
-  const data = (await api.updateLinks(entry.common_path, newLinks)) as OkResult;
+  const data = (await api.updateLinks(entry._id || entry.id || '', newLinks)) as OkResult;
   if (!data.ok) return data;
   entry.links = newLinks;
   if (state.viewer.annotation) state.viewer.annotation.links = newLinks;

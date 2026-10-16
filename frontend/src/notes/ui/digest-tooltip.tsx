@@ -41,7 +41,7 @@ function placeTooltip(tip: HTMLDivElement, anchorRect: DOMRect) {
     : `${anchorRect.bottom + TOOLTIP_GAP_PX}px`;
 }
 
-export function attachDigestTooltip(el: HTMLElement, commonPath: string): () => void {
+export function attachDigestTooltip(el: HTMLElement, id: string): () => void {
   let hoverSession = 0;
   let showTimer: ReturnType<typeof setTimeout> | null = null;
   let tooltip: HTMLDivElement | null = null;
@@ -58,16 +58,16 @@ export function attachDigestTooltip(el: HTMLElement, commonPath: string): () => 
   }
 
   async function show(session: number) {
-    let content = digestCache.get(commonPath);
+    let content = digestCache.get(id);
     if (content === undefined) {
       try {
-        const text = await fetchFileContent('digest', commonPath);
+        const text = await fetchFileContent('digest', id);
         content = typeof text === 'string' && text.trim() ? text : null;
       } catch (err) {
-        console.warn('digest tooltip: fetch digest failed for', commonPath, err);
+        console.warn('digest tooltip: fetch digest failed for', id, err);
         content = null;
       }
-      digestCache.set(commonPath, content);
+      digestCache.set(id, content);
     }
     if (session !== hoverSession) return;
     if (content === null) return;

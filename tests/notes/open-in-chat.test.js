@@ -49,9 +49,9 @@ describe('noteReferenceDraft', () => {
     expect(noteReferenceDraft(entry, ID)).toBe(`[Viewer Title](note:${ID}) `);
   });
 
-  it('falls back to a title derived from the path', () => {
-    expect(noteReferenceDraft({ _id: ID, common_path: 'inbox/my-note.md' }, ID)).toBe(
-      `[My Note](note:${ID}) `,
+  it('falls back to Untitled note when no title is available', () => {
+    expect(noteReferenceDraft({ _id: ID, folder: 'inbox' }, ID)).toBe(
+      `[Untitled note](note:${ID}) `,
     );
   });
 

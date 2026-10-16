@@ -22,7 +22,7 @@ describe('Note AC gate (tech-doc VF / T-13)', () => {
     expect(rust).toMatch(/fn create_jot_second_write_gets_new_filename/);
     expect(rust).toMatch(/fn create_jot_rejects_empty_body_without_writing/);
     expect(rust).toMatch(/fn create_note_second_write_gets_new_filename/);
-    expect(rust).toMatch(/assert_ne!\(first\["common_path"\], second\["common_path"\]\)/);
+    expect(rust).toMatch(/note_row\(first\["id"\]\.as_str\(\)\.unwrap\(\)\)\.raw_path/);
     expect(rust).toMatch(/assert_eq!\(index_after, index_before\)/);
   });
 
@@ -138,18 +138,18 @@ describe('Note AC gate (tech-doc VF / T-13)', () => {
     expect(behavioral).toMatch(/create flow has no source_type\/topic mutation controls/);
   });
 
-  it('AC-10: create success navigates note=common_path; empty exit lands list via navigateBackToList', () => {
+  it('AC-10: create success navigates note=id; empty exit lands list via navigateBackToList', () => {
     const viewer = readNotesViewerSource();
-    // create success: navigateToNote with createNote common_path (tech-doc T5 / chap-ar)
+    // create success: navigateToNote with createNote id
     expect(viewer).toMatch(/navigateToNote/);
-    expect(viewer).toMatch(/common_path/);
+    expect(viewer).toMatch(/archived\?\.id/);
     expect(viewer).toMatch(/navigateBackToList/);
     // Empty create exit must leave via navigateBackToList (ban-hash / AC-10 retired — T10 / VF)
     expect(viewer).not.toMatch(/dismissViewerModal\(\{\s*navigate:\s*false/);
     expect(viewer).not.toMatch(/do not mutate hash \(legacy AC-10/);
     expect(viewer).not.toMatch(/navigate\(['"]#\/home['"]\)/);
     const behavioral = read('tests/notes/viewer-create-note.test.js');
-    expect(behavioral).toMatch(/navigate note=common_path/);
+    expect(behavioral).toMatch(/navigate note=id/);
     expect(behavioral).toMatch(
       /empty exit lands list via navigateBackToList \(history\.back or list location\)/,
     );

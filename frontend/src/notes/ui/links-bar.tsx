@@ -25,7 +25,7 @@ export function NotesLinksBar() {
 
   useEffect(() => {
     setConfirmIndex(null);
-  }, [entry?.common_path]);
+  }, [entry?._id || entry?.id]);
 
   useEffect(() => {
     if (!entry) return;

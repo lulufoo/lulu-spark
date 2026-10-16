@@ -35,7 +35,7 @@ const makeGroup = (date, topics, tagKeys = []) => ({
   entries: topics.map((t, i) => ({
     id: `e${i}`,
     entry: {
-      common_path: `${t}/foo`,
+      folder: t,
       created_at: date + '120000',
       tag_keys: tagKeys[i] ? [tagKeys[i]] : undefined,
     },
@@ -66,10 +66,10 @@ function tagOptionTexts(picker) {
 beforeEach(() => {
   seedDom();
   state.index.data = {
-    a: { common_path: 'ai/x', created_at: '202501011200', tag_keys: ['k1'] },
-    b: { common_path: 'ai/y', created_at: '202501021200', tag_keys: ['k1', 'k2'] },
-    c: { common_path: 'common-tech/z', created_at: '202501011200', tag_keys: ['k2'] },
-    d: { common_path: null, created_at: '202501031200' },
+    a: { folder: 'ai', created_at: '202501011200', tag_keys: ['k1'] },
+    b: { folder: 'ai', created_at: '202501021200', tag_keys: ['k1', 'k2'] },
+    c: { folder: 'common-tech', created_at: '202501011200', tag_keys: ['k2'] },
+    d: { created_at: '202501031200' },
   };
   state.index.groupedByDate = [
     makeGroup('20250101', ['ai', 'common-tech'], ['k1', 'k2']),
@@ -95,16 +95,16 @@ describe('selectTopic', () => {
     selectTopic('ai');
     expect(state.ui.activeTopic).toBe('ai');
     for (const g of state.index.filteredGroups) {
-      expect(g.entries.every(({ entry }) => entry.common_path?.split('/')[0] === 'ai')).toBe(true);
+      expect(g.entries.every(({ entry }) => (entry.folder || 'unknown') === 'ai')).toBe(true);
     }
   });
 
-  it('key="unknown" 时过滤 common_path 为 null 的条目', () => {
+  it('key="unknown" 时过滤没有 folder 的条目', () => {
     selectTopic('unknown');
     expect(state.ui.activeTopic).toBe('unknown');
     expect(state.index.filteredGroups.length).toBeGreaterThan(0);
     for (const g of state.index.filteredGroups) {
-      expect(g.entries.every(({ entry }) => (entry.common_path?.split('/')[0] || 'unknown') === 'unknown')).toBe(true);
+      expect(g.entries.every(({ entry }) => (entry.folder || 'unknown') === 'unknown')).toBe(true);
     }
   });
 
@@ -144,7 +144,7 @@ describe('selectTag', () => {
     for (const g of state.index.filteredGroups) {
       expect(
         g.entries.every(
-          ({ entry }) => entry.common_path?.split('/')[0] === 'ai' && entry.tag_keys?.includes('k2'),
+          ({ entry }) => (entry.folder || 'unknown') === 'ai' && entry.tag_keys?.includes('k2'),
         ),
       ).toBe(true);
     }
@@ -188,7 +188,7 @@ describe('renderSidebar tag filter', () => {
 
   it('scope 内无 tag 时仅全部 (N)', () => {
     state.index.data = {
-      a: { common_path: 'ai/x', created_at: '202501011200' },
+      a: { folder: 'ai', created_at: '202501011200' },
     };
     state.index.groupedByDate = [makeGroup('20250101', ['ai'], [])];
     state.index.filteredGroups = state.index.groupedByDate;
@@ -251,7 +251,7 @@ describe('renderSidebar tag filter', () => {
 
   it('orphan activeTagKey 追加 (0) option', () => {
     state.index.data = {
-      a: { common_path: 'ai/x', created_at: '202501011200', tag_keys: ['k1'] },
+      a: { folder: 'ai', created_at: '202501011200', tag_keys: ['k1'] },
     };
     state.index.groupedByDate = [makeGroup('20250101', ['ai'], ['k1'])];
     state.index.filteredGroups = state.index.groupedByDate;

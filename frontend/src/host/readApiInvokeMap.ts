@@ -18,15 +18,17 @@ export const READ_API_INVOKE_MAP: Record<string, ReadInvokeEntry> = {
     cmd: 'get_notes_file',
     args: (url) => ({
       layer: url.searchParams.get('layer') ?? '',
-      path: url.searchParams.get('path') ?? '',
+      id: url.searchParams.get('id') ?? '',
+      lang: url.searchParams.get('lang') || undefined,
     }),
   },
   '/api/notes-asset': {
     cmd: 'get_notes_asset',
     args: (url) => ({
       layer: url.searchParams.get('layer') ?? '',
-      base: url.searchParams.get('base') ?? '',
+      id: url.searchParams.get('id') ?? '',
       href: url.searchParams.get('href') ?? '',
+      lang: url.searchParams.get('lang') || undefined,
     }),
   },
   '/api/topics': { cmd: 'get_topics' },
@@ -53,11 +55,11 @@ export const READ_API_INVOKE_MAP: Record<string, ReadInvokeEntry> = {
   '/api/tags/registry': { cmd: 'get_tags_registry' },
   '/api/annotation': {
     cmd: 'get_annotation',
-    args: (url) => ({ path: url.searchParams.get('path') ?? '' }),
+    args: (url) => ({ id: url.searchParams.get('id') ?? '' }),
   },
   '/api/draft': {
     cmd: 'get_draft',
-    args: (url) => ({ path: url.searchParams.get('path') ?? '' }),
+    args: (url) => ({ id: url.searchParams.get('id') ?? '' }),
   },
   '/api/note-draft': {
     cmd: 'get_note_draft',

@@ -20,7 +20,7 @@ beforeEach(() => {
 
 describe('resolveNoteForOpen host api', () => {
   it('invokes resolve_note_for_open with the id and returns the entry', async () => {
-    const entry = { id: ID, ok: true, common_path: 'ai/note.md', created_at: '202606190004' };
+    const entry = { id: ID, ok: true, folder: 'ai', created_at: '202606190004' };
     vi.mocked(invokeCommand).mockResolvedValue(entry);
     await expect(resolveNoteForOpen(ID)).resolves.toEqual(entry);
     expect(invokeCommand).toHaveBeenCalledWith('resolve_note_for_open', { id: ID });

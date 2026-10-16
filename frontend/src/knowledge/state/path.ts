@@ -1,14 +1,14 @@
 /**
- * Resolve the active file path for an index entry (language + layer aware).
+ * Resolve the translation lang for a notes file read (language + layer aware).
  * Only raw layer uses translations.zh when lang is zh.
  */
-export function getActivePath(
-  entry: { translations?: { zh?: string }; common_path?: string },
+export function noteFileLang(
+  entry: { translations?: { zh?: string } },
   lang: string,
   layer = 'raw',
 ): string | undefined {
   if (lang === 'zh' && entry.translations?.zh && layer === 'raw') {
-    return entry.translations.zh;
+    return 'zh';
   }
-  return entry.common_path;
+  return undefined;
 }

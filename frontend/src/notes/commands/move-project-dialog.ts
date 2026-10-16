@@ -60,7 +60,7 @@ async function loadProjects(currentProject: string) {
 export async function openMoveProjectDialog(entry: NoteEntry | null | undefined) {
   if (!entry) return;
 
-  const currentProject = entry.common_path.split('/')[0];
+  const currentProject = entry.folder || 'unknown';
   currentEntry = entry;
   moveProjectViewStore.set({
     ...emptyMoveProjectView(),

@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { notifyState, state } from '../state/host.ts';
 import { LAYERS } from '../../host/constants.ts';
-import { slugToTitle, filenameFromPath, topicFromPath, timeFromTs } from '../../shared/utils.ts';
+import { timeFromTs } from '../../shared/utils.ts';
 import { openMoveProjectDialog } from './move-project-dialog.tsx';
 import { attachDigestTooltip } from './digest-tooltip.tsx';
 import { renderToHtml } from '../../island.ts';
@@ -12,13 +12,10 @@ import type { NoteEntry, NoteTag } from '../state/types.ts';
 
 export { cycleImportance, loadTitles, toggleDone };
 
-function catalogTopicLabel(commonPath: string): string {
-  const topic = topicFromPath(commonPath);
-  const parts = topic.split('/');
-  const first = parts[0] || '';
-  const title = first ? state.index.topicTitles[first] : '';
-  if (title) parts[0] = title;
-  return parts.join('/');
+function catalogTopicLabel(entry: NoteEntry): string {
+  const folder = entry.folder || 'unknown';
+  const title = state.index.topicTitles[folder];
+  return title && title !== folder ? title : folder;
 }
 
 function asRecord(entry: NoteEntry): Record<string, unknown> {
@@ -236,7 +233,7 @@ function bindCardActions(card: HTMLElement, entry: NoteEntry) {
   card.querySelector('.doc-title-btn')?.addEventListener('click', () => {
     document.dispatchEvent(
       new CustomEvent('cta:open-entry', {
-        detail: { common_path: entry.common_path, layer: firstLayer },
+        detail: { id: entry._id || entry.id, layer: firstLayer },
       }),
     );
   });
@@ -256,10 +253,10 @@ export function buildCard(id: string, entry: NoteEntry, title?: string | null) {
   card.dataset.id = id;
   entry._id = id;
 
-  const topic = catalogTopicLabel(entry.common_path);
+  const topic = catalogTopicLabel(entry);
   const displayTitle = title !== undefined ? title : null;
   const time = timeFromTs(entry.created_at || '');
-  const projectDir = entry.common_path.split('/')[0];
+  const projectDir = entry.folder || 'unknown';
   const topicDesc = state.index.topicDescriptions[projectDir] || '';
 
   card.innerHTML = renderToHtml(
@@ -273,23 +270,23 @@ export function buildCard(id: string, entry: NoteEntry, title?: string | null) {
   );
   if (entry.done) card.classList.add('done');
   if (entry.importance) card.classList.add(`importance-${entry.importance}`);
-  if (entry.common_path.split('/')[0] === 'inbox') card.classList.add('inbox-pending');
+  if ((entry.folder || '') === 'inbox') card.classList.add('inbox-pending');
   bindCardActions(card, entry);
-  attachCardDigestTooltip(card, entry.common_path);
+  attachCardDigestTooltip(card, id);
   return card;
 }
 
-function attachCardDigestTooltip(root: HTMLElement, commonPath: string): (() => void) | undefined {
+function attachCardDigestTooltip(root: HTMLElement, id: string): (() => void) | undefined {
   const badges = root.querySelector('.badges');
   if (!(badges instanceof HTMLElement)) return;
-  return attachDigestTooltip(badges, commonPath);
+  return attachDigestTooltip(badges, id);
 }
 
 function openEntry(entry: NoteEntry) {
   const firstLayer = LAYERS.find((l) => entry.layers?.includes(l)) || 'raw';
   document.dispatchEvent(
     new CustomEvent('cta:open-entry', {
-      detail: { common_path: entry.common_path, layer: firstLayer },
+      detail: { id: entry._id || entry.id, layer: firstLayer },
     }),
   );
 }
@@ -308,13 +305,13 @@ export function DocCard({
   useEffect(() => {
     const el = cardRef.current;
     if (!el) return;
-    return attachCardDigestTooltip(el, entry.common_path);
-  }, [entry.common_path]);
+    return attachCardDigestTooltip(el, id);
+  }, [id]);
 
   entry._id = id;
-  const topic = catalogTopicLabel(entry.common_path);
+  const topic = catalogTopicLabel(entry);
   const time = timeFromTs(entry.created_at || '');
-  const projectDir = entry.common_path.split('/')[0];
+  const projectDir = entry.folder || 'unknown';
   const topicDesc = state.index.topicDescriptions[projectDir] || '';
   const className = [
     'doc-card',
@@ -381,7 +378,7 @@ export function NotesDocList({
     <>
       {entries.map(({ id, entry }) => {
         const cached = date ? state.index.titleCache.get(date)?.get(id) : undefined;
-        const initialTitle = cached ?? slugToTitle(filenameFromPath(entry.common_path));
+        const initialTitle = cached ?? (entry.title || 'Untitled note');
         return <DocCard key={id} id={id} entry={entry} title={initialTitle} />;
       })}
     </>
@@ -396,7 +393,7 @@ export function renderDocList(entries: { id: string; entry: NoteEntry }[], date:
 
   for (const { id, entry } of entries) {
     const cached = state.index.titleCache.get(date)?.get(id);
-    const initialTitle = cached ?? slugToTitle(filenameFromPath(entry.common_path));
+    const initialTitle = cached ?? (entry.title || 'Untitled note');
     const card = buildCard(id, entry, initialTitle);
     list.appendChild(card);
   }
@@ -424,7 +421,7 @@ export function updateTitlesInDOM(date: string) {
     const titleEl = card.querySelector('.doc-title-btn');
     if (titleEl) {
       titleEl.classList.remove('loading');
-      titleEl.textContent = cache.get(id) || slugToTitle(filenameFromPath(entry.common_path));
+      titleEl.textContent = cache.get(id) || (entry.title || 'Untitled note');
     }
 
     const badgesEl = card.querySelector('.badges');

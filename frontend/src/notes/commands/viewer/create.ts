@@ -137,15 +137,15 @@ export async function finalizeCreateSession() {
   try {
     await api.saveNoteDraft(session.tempId, trimmed);
     const archived = (await api.createNote({ body: trimmed, source_type: 'jot' })) as {
-      common_path?: string;
+      id?: string;
     };
-    const commonPath = archived?.common_path;
+    const id = archived?.id;
     await api.clearNoteDraft(session.tempId);
     state.viewer.createSession = null;
     clearCreateChrome();
     const date = locationDate();
-    if (commonPath && date) {
-      navigateToNote({ date, note: commonPath });
+    if (id && date) {
+      navigateToNote({ date, note: id });
     }
     showNoteOutlet('open');
   } catch (err) {

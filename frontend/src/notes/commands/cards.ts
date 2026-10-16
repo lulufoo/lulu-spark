@@ -1,6 +1,5 @@
-import { notifyState, state } from '../state/host.ts';
+import { getEntryId, notifyState, state } from '../state/host.ts';
 import { IMPORTANCE_CYCLE } from '../../host/constants.ts';
-import { slugToTitle, filenameFromPath } from '../../shared/utils.ts';
 import * as api from '../../host/api.ts';
 import type { NoteEntry } from '../state/types.ts';
 
@@ -13,7 +12,7 @@ export async function cycleImportance(entry: NoteEntry) {
   const idx = IMPORTANCE_CYCLE.indexOf(cur);
   const next = IMPORTANCE_CYCLE[(idx + 1) % IMPORTANCE_CYCLE.length];
   try {
-    const data = await api.setImportance(entry.common_path, next);
+    const data = await api.setImportance(getEntryId(entry) || '', next);
     if (!data.ok) return;
     entry.importance = next;
     notifyState();
@@ -25,7 +24,7 @@ export async function cycleImportance(entry: NoteEntry) {
 export async function toggleDone(entry: NoteEntry) {
   const newDone = !entry.done;
   try {
-    const data = await api.setDone(entry.common_path, newDone);
+    const data = await api.setDone(getEntryId(entry) || '', newDone);
     if (!data.ok) return;
     entry.done = newDone || undefined;
     notifyState();
@@ -46,20 +45,20 @@ export async function loadTitles(entries: { id: string; entry: NoteEntry }[], da
   await Promise.all(
     pending.map(async ({ id, entry }) => {
       if (!entry.layers?.includes('raw')) {
-        const title = slugToTitle(filenameFromPath(entry.common_path));
+        const title = entry.title || 'Untitled note';
         cache.set(id, title);
         return;
       }
 
       try {
-        const titlePath = entry.translations?.zh || entry.common_path;
-        const text = await api.fetchFileContent('raw', titlePath);
+        const lang = entry.translations?.zh ? 'zh' : undefined;
+        const text = await api.fetchFileContent('raw', id, lang);
         const h1Match = text.match(/^#\s+(.+)/m);
-        const title = h1Match ? h1Match[1].trim() : slugToTitle(filenameFromPath(entry.common_path));
+        const title = h1Match ? h1Match[1].trim() : (entry.title || 'Untitled note');
         cache.set(id, title);
       } catch {
         asRecord(entry)._unreachable_raw = true;
-        cache.set(id, slugToTitle(filenameFromPath(entry.common_path)));
+        cache.set(id, entry.title || 'Untitled note');
       }
     }),
   );

@@ -8,7 +8,7 @@ import {
 const P4_PATHS = [
   ['/api/delete', 'delete_entry', ['id']],
   ['/api/move-project', 'move_entry_project', ['id', 'new_project']],
-  ['/api/draft', 'save_comment_draft', ['common_path', 'content']],
+  ['/api/draft', 'save_comment_draft', ['id', 'content']],
 ];
 
 describe('syncApiInvokeMap', () => {
@@ -49,12 +49,12 @@ describe('syncApiInvokeMap', () => {
   it('draft maps body into payload for save_comment_draft', () => {
     expect(
       resolveSyncInvoke('/api/draft', {
-        common_path: 'ai/x.md',
+        id: 'ai/x.md',
         content: 'draft',
       })
     ).toEqual({
       cmd: 'save_comment_draft',
-      args: { payload: { common_path: 'ai/x.md', content: 'draft' } },
+      args: { payload: { id: 'ai/x.md', content: 'draft' } },
     });
   });
 

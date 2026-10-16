@@ -18,7 +18,7 @@ export type SparkEnvelope = {
 };
 
 export type ParsedSparkScheme =
-  | { kind: 'notes-open'; id: string; path: string }
+  | { kind: 'notes-open'; id: string }
   | { kind: 'read-later-list' }
   | { kind: 'auth-login-callback'; code: string | null; error: string | null };
 
@@ -45,9 +45,8 @@ export function composeSparkScheme(
 
   if (envelope.business === 'notes' && (envelope.action === 'create' || envelope.action === 'update')) {
     const id = stringParam(params, 'archive_id');
-    const path = stringParam(params, 'common_path');
-    if (!id || !path) return null;
-    return `spark://notes/open?id=${encodeURIComponent(id)}&path=${encodeURIComponent(path)}&${passQuery}`;
+    if (!id) return null;
+    return `spark://notes/open?id=${encodeURIComponent(id)}&${passQuery}`;
   }
 
   if (envelope.business === 'read_later' && envelope.action === 'create') {
@@ -73,9 +72,8 @@ export function parseSparkScheme(scheme: string): ParsedSparkScheme | null {
   if (url.hostname === 'notes' && path === '/open') {
     if (url.searchParams.has(TRACE_QUERY) || !extractPassIdFromScheme(scheme)) return null;
     const id = url.searchParams.get('id') ?? '';
-    const notePath = url.searchParams.get('path') ?? '';
-    if (!id || !notePath) return null;
-    return { kind: 'notes-open', id, path: notePath };
+    if (!id) return null;
+    return { kind: 'notes-open', id };
   }
 
   if (url.hostname === 'read-later' && path === '/list') {
@@ -97,19 +95,15 @@ export function parseSparkScheme(scheme: string): ParsedSparkScheme | null {
   return null;
 }
 
-export function resolveNotesLanding(id: string, path: string): NotesLanding | null {
+export function resolveNotesLanding(id: string): NotesLanding | null {
   const data = state.index.data;
-  if (!data) return null;
+  if (!data || !id) return null;
 
-  const byId = id
-    ? data[id] ?? Object.values(data).find((item) => item._id === id)
-    : undefined;
-  const entry = byId ?? Object.values(data).find((item) => path && item.common_path === path);
+  const entry = data[id] ?? Object.values(data).find((item) => item._id === id || item.id === id);
 
   const created = typeof entry?.created_at === 'string' ? entry.created_at : '';
-  const note = typeof entry?.common_path === 'string' ? entry.common_path : '';
-  if (created.length < 8 || !note) return null;
-  return { date: created.slice(0, 8), note };
+  if (created.length < 8) return null;
+  return { date: created.slice(0, 8), note: id };
 }
 
 function isAuthLoginScheme(scheme: string): boolean {
@@ -160,14 +154,13 @@ export function openSparkScheme(scheme: string): boolean {
     return true;
   }
 
-  const landing = resolveNotesLanding(parsed.id, parsed.path);
+  const landing = resolveNotesLanding(parsed.id);
   const business = businessFromSparkHost(scheme);
   if (!landing) {
     logNotifyHop('route.to_business', hop, {
       outcome: 'landing_miss',
       kind: 'notes-open',
       id: parsed.id,
-      path: parsed.path,
     }, business);
     return false;
   }
@@ -176,7 +169,6 @@ export function openSparkScheme(scheme: string): boolean {
     outcome: ok ? 'ok' : 'nav_fail',
     kind: 'notes-open',
     id: parsed.id,
-    path: parsed.path,
     date: landing.date,
     note: landing.note,
   }, business);

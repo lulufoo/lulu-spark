@@ -76,8 +76,8 @@ test('assertReadPayload 在 Tauri 风格 error 对象上抛出', () => {
 
 test('assertWritePayload 在 Tauri 风格 error 对象上抛出', () => {
   expect(() =>
-    assertWritePayload({ error: 'Invalid common_path', _status: 400 }),
-  ).toThrow('Invalid common_path')
+    assertWritePayload({ error: 'Invalid id', _status: 400 }),
+  ).toThrow('Invalid id')
 })
 
 test('fetchIndex 在 JSON body 含 error 时抛出（Tauri 路径）', async () => {
@@ -94,8 +94,8 @@ test('fetchAnnotationsSummary 调用 /api/annotations', async () => {
 
 test('fetchAnnotation 对 path 做 encodeURIComponent', async () => {
   mockFetch({})
-  await fetchAnnotation('ai/my note.md')
-  expect(fetch.mock.calls[0][0]).toContain(encodeURIComponent('ai/my note.md'))
+  await fetchAnnotation('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')
+  expect(fetch.mock.calls[0][0]).toContain('id=' + encodeURIComponent('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'))
 })
 
 test('fetchConfig 调用 /api/config', async () => {
@@ -116,10 +116,10 @@ test('setConfig 发送 POST 到 /api/config', async () => {
 
 test('fetchFileContent 调用 /api/notes-file 并返回 content', async () => {
   mockFetch({ content: '# Hello' })
-  const text = await fetchFileContent('raw', 'ai/note.md')
+  const text = await fetchFileContent('raw', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')
   expect(fetch.mock.calls[0][0]).toMatch(
     new RegExp(
-      `^${API_READ_PREFIX}/notes-file\\?layer=raw&path=${encodeURIComponent('ai/note.md')}`
+      `^${API_READ_PREFIX}/notes-file\\?layer=raw&id=${encodeURIComponent('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')}`
     )
   )
   expect(text).toBe('# Hello')
@@ -127,7 +127,7 @@ test('fetchFileContent 调用 /api/notes-file 并返回 content', async () => {
 
 test('fetchFileContent 非 2xx 时抛出错误', async () => {
   mockFetch({}, false, 404)
-  await expect(fetchFileContent('raw', 'missing.md')).rejects.toThrow('HTTP 404')
+  await expect(fetchFileContent('raw', 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb')).rejects.toThrow('HTTP 404')
 })
 
 test('fetchLinkTitle 对 url 做 encodeURIComponent', async () => {
@@ -143,18 +143,18 @@ test('fetchLinkTitle 对 url 做 encodeURIComponent', async () => {
 
 test('saveFile 发送正确 body', async () => {
   mockFetch({ ok: true })
-  await saveFile('raw', 'ai/note.md', '# content')
+  await saveFile('raw', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', '# content')
   const body = JSON.parse(fetch.mock.calls[0][1].body)
   expect(body.layer).toBe('raw')
-  expect(body.common_path).toBe('ai/note.md')
+  expect(body.id).toBe('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')
   expect(body.content).toBe('# content')
 })
 
 test('updateComments 发送正确 body', async () => {
   mockFetch({ ok: true })
-  await updateComments('ai/note.md', 'raw', { id: '1', text: 'hi' }, '202605041200')
+  await updateComments('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'raw', { id: '1', text: 'hi' }, '202605041200')
   const body = JSON.parse(fetch.mock.calls[0][1].body)
-  expect(body.common_path).toBe('ai/note.md')
+  expect(body.id).toBe('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')
   expect(body.layer).toBe('raw')
   expect(body.comment).toEqual({ id: '1', text: 'hi' })
   expect(body.ts).toBe('202605041200')
@@ -162,31 +162,31 @@ test('updateComments 发送正确 body', async () => {
 
 test('updateLinks 发送正确 body', async () => {
   mockFetch({ ok: true })
-  await updateLinks('ai/note.md', [{ url: 'https://example.com' }])
+  await updateLinks('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', [{ url: 'https://example.com' }])
   const body = JSON.parse(fetch.mock.calls[0][1].body)
-  expect(body.common_path).toBe('ai/note.md')
+  expect(body.id).toBe('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')
   expect(body.links).toEqual([{ url: 'https://example.com' }])
 })
 
 test('setImportance 发送 importance: null 当值为 undefined', async () => {
   mockFetch({ ok: true })
-  await setImportance('ai/note.md', undefined)
+  await setImportance('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', undefined)
   const body = JSON.parse(fetch.mock.calls[0][1].body)
   expect(body.importance).toBeNull()
 })
 
 test('setImportance 发送 importance: high', async () => {
   mockFetch({ ok: true })
-  await setImportance('ai/note.md', 'high')
+  await setImportance('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'high')
   const body = JSON.parse(fetch.mock.calls[0][1].body)
   expect(body.importance).toBe('high')
 })
 
 test('setDone 发送正确 body', async () => {
   mockFetch({ ok: true })
-  await setDone('ai/note.md', true)
+  await setDone('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', true)
   const body = JSON.parse(fetch.mock.calls[0][1].body)
-  expect(body.common_path).toBe('ai/note.md')
+  expect(body.id).toBe('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')
   expect(body.done).toBe(true)
 })
 
@@ -227,7 +227,7 @@ test('fetchTopics 服务器返回 HTML 时抛出可读错误而非 JSON 解析�
 
 test('moveToProject 发送正确 POST body 并返回响应', async () => {
   const id = 'a'.repeat(32)
-  mockFetch({ ok: true, new_common_path: 'ai/note.md' })
+  mockFetch({ ok: true, id })
   const result = await moveToProject(id, 'ai')
   expect(fetch.mock.calls[0][0]).toBe(`${DEFAULT_DEV_BASE}/api/move-project`)
   expect(fetch.mock.calls[0][1].method).toBe('POST')

@@ -238,7 +238,7 @@ describe('T5 openCreateNote / finalizeCreateSession on note outlet', () => {
     expect(locationStub.hash).toBe('#/spark?date=20260710');
   });
 
-  it('create success: navigate note=common_path from createNote', async () => {
+  it('create success: navigate note=id from createNote', async () => {
     await openCreateNote({ temp_id: 'tmp-ok' });
     makeEl('md-edit-area').value = 'hello archived note';
     vi.clearAllMocks();
@@ -258,7 +258,7 @@ describe('T5 openCreateNote / finalizeCreateSession on note outlet', () => {
     });
     expect(navigateToNoteMock).toHaveBeenCalledWith({
       date: '20260710',
-      note: 'inbox/notes/202607101431-body.md',
+      note: 'b'.repeat(32),
     });
     expect(state.viewer.createSession).toBeNull();
     expect(makeEl('md-modal').style.display).toBe('none');

@@ -106,46 +106,46 @@ test('tauriDriver postJson 通过 invoke 调用写映射命令', async () => {
   invokeMock.mockResolvedValue({ ok: true });
   const driver = createTauriDriver();
   const res = await driver.postJson('/api/set-done', {
-    common_path: 'ai/x.md',
+    id: 'ai/x.md',
     done: true,
   });
   expect(invokeMock).toHaveBeenCalledWith('set_done', {
-    commonPath: 'ai/x.md',
+    id: 'ai/x.md',
     done: true,
   });
   expect(res.ok).toBe(true);
   expect(await res.json()).toEqual({ ok: true });
 });
 
-test('tauriDriver postJson /api/update-links 映射 commonPath + links', async () => {
+test('tauriDriver postJson /api/update-links 映射 id + links', async () => {
   invokeMock.mockResolvedValue({ ok: true });
   const driver = createTauriDriver();
   const links = [{ url: 'https://github.com/foo/bar' }];
   const res = await driver.postJson('/api/update-links', {
-    common_path: 'inbox/new-note.md',
+    id: 'inbox/new-note.md',
     links,
   });
   expect(invokeMock).toHaveBeenCalledWith('update_links', {
-    commonPath: 'inbox/new-note.md',
+    id: 'inbox/new-note.md',
     links,
   });
   expect(invokeMock.mock.calls[0][1]).not.toHaveProperty('common_path');
   expect(res.ok).toBe(true);
 });
 
-test('tauriDriver postJson invoke 返回 Invalid common_path 时透传 400', async () => {
+test('tauriDriver postJson invoke 返回 Invalid id 时透传 400', async () => {
   invokeMock.mockResolvedValue({
-    error: 'Invalid common_path',
+    error: 'Invalid id',
     _status: 400,
   });
   const driver = createTauriDriver();
   const res = await driver.postJson('/api/update-links', {
-    common_path: '../evil.md',
+    id: '../evil.md',
     links: [{ url: 'https://example.com' }],
   });
   expect(res.ok).toBe(false);
   expect(res.status).toBe(400);
-  expect((await res.json()).error).toBe('Invalid common_path');
+  expect((await res.json()).error).toBe('Invalid id');
 });
 
 test('tauriDriver postJson /api/config 映射到 set_config', async () => {
@@ -172,7 +172,7 @@ test('tauriDriver postJson invoke 返回 error+_status 404 时 ok 为 false', as
   invokeMock.mockResolvedValue({ error: 'file not found', _status: 404 });
   const driver = createTauriDriver();
   const res = await driver.postJson('/api/set-done', {
-    common_path: 'missing.md',
+    id: 'missing.md',
     done: true,
   });
   expect(res.ok).toBe(false);
