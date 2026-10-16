@@ -3,7 +3,3 @@
 export function notesDocKey(commonPath: unknown): string {
   return `notes:${String(commonPath || '').trim()}`;
 }
-
-export function knowledgeDocKey(id: unknown): string {
-  return `knowledge:${String(id || '').trim()}`;
-}

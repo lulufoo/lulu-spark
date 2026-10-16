@@ -35,11 +35,11 @@ pub struct QueryHit {
     pub category: String,
     pub workspace_id: String,
     pub layer: String,
-    /// Filled from `spark-data.sqlite` by `resolve_hits`: note `raw_path` or knowledge `path`.
+    /// Filled from `spark-data.sqlite` by `resolve_hits`: the document path inside its project.
     pub common_path: String,
-    /// Filled by `resolve_hits`. Knowledge no longer uses this as identity.
+    /// Filled by `resolve_hits`: the project folder.
     pub repo: String,
-    /// Notes: category folder. Knowledge: topic folder.
+    /// Folder inside the project.
     pub topic: String,
     pub title: String,
     pub body: String,

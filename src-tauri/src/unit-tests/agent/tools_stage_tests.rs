@@ -89,7 +89,7 @@ fn catalog_registers_stage_trio_off_cursor_ide_and_mobile() {
         .expect("stage");
     assert_eq!(
         stage_def.pointer("/function/description").and_then(|v| v.as_str()),
-        Some("Add an external file to this Chat's Stage. Asks the user first. After allow, grants read and write for that path and shows it to the user. The path may not exist yet. Spark's own data and .git cannot be requested. Notes and knowledge documents are not staged: use get_doc_file.")
+        Some("Add an external file to this Chat's Stage. Asks the user first. After allow, grants read and write for that path and shows it to the user. The path may not exist yet. Spark's own data and .git cannot be requested. Workspace documents are not staged: use get_doc_file.")
     );
     assert_eq!(
         stage_def

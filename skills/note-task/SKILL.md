@@ -23,7 +23,7 @@ Before every call, read the live MCP tool `description` / `inputSchema`.
 ## MCP Prerequisite
 
 <HARD-GATE mcp="notes">
-Lulu Spark App **MUST** be running, and the `knowledge-mcp` sidecar spawned.
+Lulu Spark App **MUST** be running, with its Host MCP server reachable.
 
 - If Host is down or HTTP unreachable, document tools will not appear — start Lulu Spark App first.
 </HARD-GATE>

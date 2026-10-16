@@ -56,11 +56,6 @@ pub fn notes_root() -> Result<PathBuf, PathsError> {
     Ok(runtime_data_dir()?.join("notes"))
 }
 
-/// Notes category registry: `{runtime_data_dir}/notes/categories.json`.
-pub fn notes_categories_path() -> Result<PathBuf, PathsError> {
-    Ok(notes_root()?.join("categories.json"))
-}
-
 /// Knowledge clones: `{runtime_data_dir}/knowledge`.
 /// Does not follow `knowledge_root` or `cache_dir` in config.
 pub fn runtime_knowledge_dir() -> Result<PathBuf, PathsError> {
@@ -128,16 +123,6 @@ pub fn todo_tasks_plan_md_path(master_task_id: &str) -> Result<PathBuf, PathsErr
 
 pub fn cache_todo_tasks_v1_path() -> Result<PathBuf, PathsError> {
     Ok(cache_dir()?.join("todo_tasks.json"))
-}
-
-/// Knowledge hide-pattern records: `{cache_dir}/knowledge-hide-patterns.json`.
-pub fn knowledge_hide_patterns_path() -> Result<PathBuf, PathsError> {
-    Ok(cache_dir()?.join("knowledge-hide-patterns.json"))
-}
-
-/// Knowledge viewer current repo + md: `{cache_dir}/knowledge-viewer-state.json`.
-pub fn knowledge_viewer_state_path() -> Result<PathBuf, PathsError> {
-    Ok(cache_dir()?.join("knowledge-viewer-state.json"))
 }
 
 /// Local highlight cache root: `{cache_dir}/doc-highlights`.

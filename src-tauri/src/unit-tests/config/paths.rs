@@ -22,24 +22,6 @@ fn spark_data_db_path_under_runtime_data_dir() {
 }
 
 #[test]
-fn knowledge_hide_patterns_path_under_cache_dir() {
-    let sandbox = TestSandbox::new();
-    let cache = cache_dir().expect("cache");
-    let got = knowledge_hide_patterns_path().expect("hide");
-    assert_eq!(got, cache.join("knowledge-hide-patterns.json"));
-    sandbox.assert_not_prod_path(&got).expect("sandbox hide");
-}
-
-#[test]
-fn knowledge_viewer_state_path_under_cache_dir() {
-    let sandbox = TestSandbox::new();
-    let cache = cache_dir().expect("cache");
-    let got = knowledge_viewer_state_path().expect("viewer");
-    assert_eq!(got, cache.join("knowledge-viewer-state.json"));
-    sandbox.assert_not_prod_path(&got).expect("sandbox viewer");
-}
-
-#[test]
 fn notes_draft_path_resolves_under_cache_drafts_notes() {
     let _sandbox = TestSandbox::new();
     let cache = cache_dir().expect("cache");
@@ -79,14 +61,6 @@ fn repo_root_matches_cargo_manifest_parent() {
         .expect("parent")
         .to_path_buf();
     assert_eq!(root, expected);
-}
-
-#[test]
-fn notes_categories_path_under_notes_not_knowledge() {
-    let sandbox = TestSandbox::new();
-    let data = sandbox.data_dir();
-    let path = notes_categories_path().expect("notes cats");
-    assert_eq!(path, data.join("notes").join("categories.json"));
 }
 
 #[test]

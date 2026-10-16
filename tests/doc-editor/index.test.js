@@ -5,10 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { readFrontendJs, readNotesViewerSource } from '../helpers/read-frontend-js.js';
 import * as identity from '../../frontend/src/doc-editor/identity.ts';
 import * as docEditor from '../../frontend/src/doc-editor/index.ts';
-import {
-  knowledgeDocKey,
-  notesDocKey,
-} from '../../frontend/src/doc-editor/identity.ts';
+import { notesDocKey } from '../../frontend/src/doc-editor/identity.ts';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 
@@ -18,11 +15,9 @@ function read(rel) {
 }
 
 describe('doc-editor identity and comment cut', () => {
-  it('builds prefixed keys for Notes / Knowledge only', () => {
+  it('builds the prefixed notes key only', () => {
     expect(notesDocKey('20260827/why-cache.md')).toBe('notes:20260827/why-cache.md');
-    expect(knowledgeDocKey('abcdefabcdefabcdefabcdefabcdefab')).toBe(
-      'knowledge:abcdefabcdefabcdefabcdefabcdefab',
-    );
+    expect(identity).not.toHaveProperty('knowledgeDocKey');
     expect(identity).not.toHaveProperty('todosDocKey');
     expect(docEditor).not.toHaveProperty('todosDocKey');
     expect(docEditor).not.toHaveProperty('bindTodoDocHighlights');

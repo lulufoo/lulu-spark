@@ -12,7 +12,7 @@ pub fn catalog() -> ToolCatalog {
     ToolCatalog::from_local_tools(vec![
         local_tool(
             "stage",
-            "Add an external file to this Chat's Stage. Asks the user first. After allow, grants read and write for that path and shows it to the user. The path may not exist yet. Spark's own data and .git cannot be requested. Notes and knowledge documents are not staged: use get_doc_file.",
+            "Add an external file to this Chat's Stage. Asks the user first. After allow, grants read and write for that path and shows it to the user. The path may not exist yet. Spark's own data and .git cannot be requested. Workspace documents are not staged: use get_doc_file.",
             json!({
                 "type": "object",
                 "properties": {
