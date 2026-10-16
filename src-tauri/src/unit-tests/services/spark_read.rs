@@ -34,14 +34,6 @@ fn get_config_has_frontend_contract_keys() {
 }
 
 
-fn with_sediment_kb_topics_cache<F: FnOnce(&std::path::Path, &std::path::Path)>(f: F) {
-    let sandbox = TestSandbox::new();
-    let cfg_dir = sandbox.config_dir();
-    let wb = sandbox.spark_root();
-    fs::create_dir_all(&wb).expect("mkdir");
-    f(cfg_dir, wb.as_path());
-}
-
 fn with_notes_repo<F: FnOnce(&std::path::Path)>(
     setup: impl FnOnce(&std::path::Path, &std::path::Path),
     f: F,
@@ -52,93 +44,6 @@ fn with_notes_repo<F: FnOnce(&std::path::Path)>(
     fs::create_dir_all(&notes).expect("workspace dir");
     setup(cfg_dir, notes.as_path());
     f(cfg_dir);
-}
-
-#[test]
-fn get_topics_missing_sediment_kb_inits_and_returns_inbox_only() {
-    with_sediment_kb_topics_cache(|cfg, wb| {
-        let v = get_topics(wb);
-        assert!(v.get("error").is_none(), "expected init fallback, got {v:?}");
-        assert_eq!(v["source"], "sediment-kb");
-        let topics = v["topics"].as_array().expect("topics array");
-        assert_eq!(topics.len(), 1);
-        assert_eq!(topics[0]["dir"], "inbox");
-        assert_eq!(topics[0]["inbox"], true);
-        let _ = cfg;
-    });
-}
-
-#[test]
-fn get_topics_reads_from_sediment_kb_with_category_fields() {
-    use crate::services::sediment_kb::{add_directory, ensure_uncategorized, UNCATEGORIZED_ID};
-
-    with_sediment_kb_topics_cache(|_cfg, wb| {
-        ensure_uncategorized().expect("ensure");
-        add_directory("kb-a").expect("add");
-
-        let v = get_topics(wb);
-        assert!(v.get("error").is_none(), "unexpected error: {v:?}");
-        assert_eq!(v["source"], "sediment-kb");
-        let topics = v["topics"].as_array().expect("topics array");
-        let kb = topics
-            .iter()
-            .find(|t| t.get("repo") == Some(&serde_json::json!("kb-a")))
-            .expect("sediment-kb repo topic");
-        assert_eq!(kb["description"], "");
-        assert_eq!(kb["category_id"], UNCATEGORIZED_ID);
-        assert_eq!(kb["category_name"], UNCATEGORIZED_ID);
-        assert!(
-            !topics
-                .iter()
-                .any(|t| t.get("repo") == Some(&serde_json::json!("lulufoo/ignored")))
-        );
-        assert!(topics.iter().any(|t| t.get("inbox") == Some(&serde_json::json!(true))));
-    });
-}
-
-#[test]
-fn description_source_constraints_hold() {
-    let src = include_str!("../../services/spark_read/config.rs");
-    let get_topics = src
-        .split("pub fn get_topics")
-        .nth(1)
-        .and_then(|s| s.split("\npub fn ").next())
-        .expect("get_topics");
-    assert!(!get_topics.contains("index.json"));
-    assert!(!get_topics.contains("README"));
-    assert!(!get_topics.contains("frontmatter"));
-}
-
-#[test]
-fn get_topics_empty_repos_returns_inbox_only() {
-    use crate::services::sediment_kb::ensure_uncategorized;
-
-    with_sediment_kb_topics_cache(|_, wb| {
-        ensure_uncategorized().expect("ensure");
-        let v = get_topics(wb);
-        assert!(v.get("error").is_none(), "unexpected error: {v:?}");
-        let topics = v["topics"].as_array().expect("topics array");
-        assert_eq!(topics.len(), 1);
-        assert_eq!(topics[0]["inbox"], true);
-    });
-}
-
-#[test]
-fn list_repos_for_topics_resolves_uncategorized_name() {
-    use crate::services::sediment_kb::{
-        add_directory, ensure_uncategorized, list_repos_for_topics, UNCATEGORIZED_ID,
-    };
-
-    with_sediment_kb_topics_cache(|_, _| {
-        ensure_uncategorized().expect("ensure");
-        add_directory("demo").expect("add");
-
-        let rows = list_repos_for_topics().expect("list");
-        assert_eq!(rows.len(), 1);
-        assert_eq!(rows[0].repo, "demo");
-        assert_eq!(rows[0].category_id, UNCATEGORIZED_ID);
-        assert_eq!(rows[0].category_name, "Uncategorized");
-    });
 }
 
 #[test]

@@ -1,20 +1,20 @@
 //! One-time copy of the legacy Notes and Knowledge files into `workspaces/`.
 //!
-//! The database rows are copied by the last migration step; this copies the files they
-//! point at, so the old folders stay untouched until the cleanup issue removes them:
+//! The database rows are copied by a migration step; this copies the files they point at:
 //!
 //! - `notes/{raw,digest}`           → `workspaces/default/{raw,digest}`
-//! - `knowledge/{folder}` (per `knowledge_directory` row) → `workspaces/knowledge/raw/{folder}`
+//! - `knowledge/{folder}` (per knowledge project) → `workspaces/knowledge/raw/{folder}`
 //!
 //! The copy never overwrites an existing destination file, skips `.git` and symlinks, and
 //! writes a marker once it finishes, so an interrupted run is simply resumed on next start.
+//!
+//! Once the marker exists, [`remove_copied_legacy_files`] deletes every legacy file whose
+//! destination holds identical bytes, then the emptied folders. Anything else stays.
 
 use std::fs;
 use std::path::Path;
 
-use crate::services::spark_data::{
-    list_knowledge_directories, DEFAULT_WORKSPACE_ID, KNOWLEDGE_WORKSPACE_ID,
-};
+use crate::services::spark_data::{list_projects, DEFAULT_WORKSPACE_ID, KNOWLEDGE_WORKSPACE_ID};
 
 /// Marker written under `workspaces/` once the copy completed.
 pub const LEGACY_COPY_MARKER: &str = ".legacy_copied";
@@ -28,6 +28,8 @@ pub struct LegacyCopyReport {
     pub skipped_existing: usize,
     /// Knowledge folders that are registered but absent on disk.
     pub missing_folders: Vec<String>,
+    /// Legacy files deleted because the workspace copy holds the same bytes.
+    pub removed: usize,
 }
 
 /// Copy the legacy files under `data_dir` (`{runtime_data_dir}`) for the given knowledge folders.
@@ -62,15 +64,89 @@ pub fn copy_legacy_files(
     Ok(report)
 }
 
-/// Startup entry: read the registered knowledge folders from the database, then copy.
-pub fn copy_legacy_files_at_startup(data_dir: &Path) -> Result<LegacyCopyReport, String> {
-    if data_dir.join("workspaces").join(LEGACY_COPY_MARKER).exists() {
-        return Ok(LegacyCopyReport { already_done: true, ..Default::default() });
+/// One-time move of the oldest layout: `sediment-kb/` was renamed `knowledge/`.
+fn rename_sediment_kb(data_dir: &Path) -> Result<(), String> {
+    let dest = data_dir.join("knowledge");
+    let src = data_dir.join("sediment-kb");
+    if !dest.is_dir() && src.is_dir() {
+        fs::rename(&src, &dest).map_err(|e| e.to_string())?;
     }
+    Ok(())
+}
+
+fn knowledge_folders() -> Result<Vec<String>, String> {
     let conn = crate::services::spark_data::open()?;
-    let folders: Vec<String> =
-        list_knowledge_directories(&conn)?.into_iter().map(|d| d.folder).collect();
-    copy_legacy_files(data_dir, &folders)
+    Ok(list_projects(&conn, KNOWLEDGE_WORKSPACE_ID)?.into_iter().map(|p| p.folder).collect())
+}
+
+/// Startup entry: read the knowledge project folders from the database, copy, then clean up.
+pub fn copy_legacy_files_at_startup(data_dir: &Path) -> Result<LegacyCopyReport, String> {
+    let marker = data_dir.join("workspaces").join(LEGACY_COPY_MARKER);
+    let mut report = if marker.exists() {
+        LegacyCopyReport { already_done: true, ..Default::default() }
+    } else {
+        rename_sediment_kb(data_dir)?;
+        copy_legacy_files(data_dir, &knowledge_folders()?)?
+    };
+    if marker.exists() {
+        report.removed = remove_copied_legacy_files(data_dir, &knowledge_folders()?)?;
+    }
+    Ok(report)
+}
+
+/// Delete the legacy files that the workspace copy already holds, byte for byte, then the
+/// folders that became empty. A file without an identical copy, `.git`, symlinks and
+/// anything unknown stay where they are.
+pub fn remove_copied_legacy_files(
+    data_dir: &Path,
+    knowledge_folders: &[String],
+) -> Result<usize, String> {
+    let workspaces = data_dir.join("workspaces");
+    let default_dir = workspaces.join(DEFAULT_WORKSPACE_ID);
+    let mut removed = 0;
+    for layer in ["raw", "digest"] {
+        removed += remove_copied_tree(&data_dir.join("notes").join(layer), &default_dir.join(layer))?;
+    }
+    let knowledge_raw = workspaces.join(KNOWLEDGE_WORKSPACE_ID).join("raw");
+    for folder in knowledge_folders {
+        removed += remove_copied_tree(&data_dir.join("knowledge").join(folder), &knowledge_raw.join(folder))?;
+    }
+    // Folders that held only the removed files; `remove_dir` refuses a folder that is not empty.
+    for dir in ["notes", "knowledge"] {
+        let _ = fs::remove_dir(data_dir.join(dir));
+    }
+    Ok(removed)
+}
+
+fn remove_copied_tree(src: &Path, dest: &Path) -> Result<usize, String> {
+    if !src.is_dir() {
+        return Ok(0);
+    }
+    let mut removed = 0;
+    for entry in fs::read_dir(src).map_err(|e| format!("{}: {e}", src.display()))? {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let file_type = entry.file_type().map_err(|e| e.to_string())?;
+        if file_type.is_symlink() || entry.file_name() == ".git" {
+            continue;
+        }
+        let to = dest.join(entry.file_name());
+        if file_type.is_dir() {
+            removed += remove_copied_tree(&entry.path(), &to)?;
+        } else if same_bytes(&entry.path(), &to) {
+            fs::remove_file(entry.path()).map_err(|e| format!("{}: {e}", entry.path().display()))?;
+            removed += 1;
+        }
+    }
+    // Only succeeds when nothing is left inside.
+    let _ = fs::remove_dir(src);
+    Ok(removed)
+}
+
+fn same_bytes(a: &Path, b: &Path) -> bool {
+    match (fs::read(a), fs::read(b)) {
+        (Ok(left), Ok(right)) => left == right,
+        _ => false,
+    }
 }
 
 fn copy_tree(src: &Path, dest: &Path, report: &mut LegacyCopyReport) -> Result<(), String> {

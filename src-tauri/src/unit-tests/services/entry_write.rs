@@ -28,7 +28,7 @@ fn save_entry_updates_file() {
 /// vanished file drops its rows — without a full rebuild.
 #[test]
 fn save_entry_syncs_search_index_for_touched_file() {
-    use crate::services::search_index::{open, search, search_desktop_spark, SearchFilter};
+    use crate::services::search_index::{open, search, search_desktop_docs, SearchFilter};
 
     let sandbox = TestSandbox::new();
     let notes = sandbox.data_dir().join("workspaces").join("default");
@@ -47,7 +47,7 @@ fn save_entry_syncs_search_index_for_touched_file() {
         None,
     );
     assert_eq!(v["ok"], json!(true));
-    let out = search_desktop_spark(&sandbox.cache_dir(), "角色扮演", Some(5));
+    let out = search_desktop_docs(&sandbox.cache_dir(), "角色扮演", Some(5), None);
     let hits = out["hits"].as_array().expect("hits");
     assert_eq!(hits.len(), 1, "{out}");
     assert_eq!(hits[0]["id"], id);

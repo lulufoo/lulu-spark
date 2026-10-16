@@ -33,3 +33,12 @@ SELECT doc_id, path, links, comments, highlights, 'knowledge:' || directory_id
 FROM knowledge_doc
 WHERE status = 'active';
 "#;
+
+/// Migration step: drop the four legacy tables once their rows live in the workspace tables.
+/// Children go first so no foreign key points at a table that is already gone.
+pub(super) const DROP_LEGACY_STEP: &str = r#"
+DROP TABLE IF EXISTS knowledge_doc;
+DROP TABLE IF EXISTS knowledge_directory;
+DROP TABLE IF EXISTS note;
+DROP TABLE IF EXISTS note_category;
+"#;

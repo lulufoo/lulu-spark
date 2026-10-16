@@ -14,35 +14,9 @@ const P2_PATHS = [
   ['/api/update-links', 'update_links', ['id', 'links']],
   ['/api/set-done', 'set_done', ['id', 'done']],
   ['/api/set-importance', 'set_importance', ['id', 'importance']],
-  ['/api/kb/save', 'kb_save', ['id', 'content']],
-  ['/api/kb/rename', 'kb_rename', ['repo', 'path', 'name']],
-  ['/api/kb/create', 'kb_create', ['repo', 'parent', 'name', 'kind']],
-  ['/api/kb/delete', 'kb_delete', ['repo', 'path']],
-  ['/api/kb/update-comments', 'kb_update_comments', ['id', 'comment', 'ts']],
-  ['/api/kb/reorder-comments', 'kb_reorder_comments', ['id', 'ids']],
-  ['/api/kb/update-highlights', 'kb_update_highlights', ['id', 'highlight', 'ts']],
-  ['/api/kb/update-links', 'kb_update_links', ['id', 'links']],
   ['/api/tag/attach', 'tag_attach', ['id', 'key', 'value']],
   ['/api/tag/detach', 'tag_detach', ['id', 'key']],
   ['/api/tag/update-value', 'tag_update_value', ['key', 'value']],
-  ['/api/sediment-kb/repos/add', 'sediment_kb_add_repo', ['payload']],
-  ['/api/sediment-kb/repos/remove', 'sediment_kb_remove_repo', ['payload']],
-  [
-    '/api/sediment-kb/repos/update-category',
-    'sediment_kb_update_repo_category',
-    ['payload'],
-  ],
-  ['/api/sediment-kb/categories/add', 'sediment_kb_add_category', ['payload']],
-  [
-    '/api/sediment-kb/categories/rename',
-    'sediment_kb_rename_category',
-    ['payload'],
-  ],
-  [
-    '/api/sediment-kb/categories/remove',
-    'sediment_kb_remove_category',
-    ['payload'],
-  ],
   ['/api/create-note', 'create_note', ['payload']],
   ['/api/workspace-create', 'create_workspace', ['payload']],
   ['/api/workspace-rename', 'rename_workspace', ['payload']],
@@ -51,10 +25,6 @@ const P2_PATHS = [
   ['/api/project-create', 'create_project', ['payload']],
   ['/api/project-update', 'update_project', ['payload']],
   ['/api/project-delete', 'delete_project', ['payload']],
-  ['/api/kb/hide-patterns/add', 'add_kb_hide_pattern', ['payload']],
-  ['/api/kb/hide-patterns/update', 'update_kb_hide_pattern', ['payload']],
-  ['/api/kb/hide-patterns/remove', 'remove_kb_hide_pattern', ['payload']],
-  ['/api/kb/viewer-state', 'set_kb_viewer_state', ['id']],
   ['/api/show-os-notification', 'show_os_notification', ['title', 'body', 'scheme']],
 ];
 
@@ -137,31 +107,10 @@ describe('writeApiContract', () => {
     }
   });
 
-  it('sediment-kb write invoke args pass body as payload', () => {
-    expect(
-      resolveWriteInvoke('/api/sediment-kb/repos/add', {
-        full_name: 'acme/demo',
-        category_id: 'cat-1',
-      }),
-    ).toEqual({
-      cmd: 'sediment_kb_add_repo',
-      args: {
-        payload: { full_name: 'acme/demo', category_id: 'cat-1' },
-      },
-    });
-    expect(
-      resolveWriteInvoke('/api/sediment-kb/categories/rename', {
-        id: 'cat-1',
-        name: 'Docs',
-      }),
-    ).toEqual({
-      cmd: 'sediment_kb_rename_category',
-      args: { payload: { id: 'cat-1', name: 'Docs' } },
-    });
-  });
-
-  it('resolveWriteInvoke returns null for unknown sediment-kb route', () => {
-    expect(resolveWriteInvoke('/api/sediment-kb/repos/unknown', {})).toBeNull();
+  it('resolveWriteInvoke no longer maps the knowledge routes', () => {
+    for (const path of ['/api/kb/save', '/api/sediment-kb/repos/add', '/api/kb/viewer-state']) {
+      expect(resolveWriteInvoke(path, {}), path).toBeNull();
+    }
   });
 
   it('golden error shapes align with P1 kb_read style', () => {

@@ -12,7 +12,7 @@ import {
   saveFile,
   updateComments, updateLinks, setImportance, setDone,
   deleteEntry,
-  fetchTopics, fetchWorkspaces, createWorkspace, renameWorkspace, setWorkspaceViewMode, deleteWorkspace,
+  fetchWorkspaces, createWorkspace, renameWorkspace, setWorkspaceViewMode, deleteWorkspace,
   fetchProjects, createProject, updateProject, deleteProject, moveToProject,
 } from '../../frontend/src/host/api.ts'
 
@@ -47,7 +47,7 @@ test('api.js 无裸 fetch（读路径均经 readGet / writePost）', () => {
     'frontend/src/host/api.ts',
     'frontend/src/host/api/transport.ts',
     'frontend/src/host/api/spark.ts',
-    'frontend/src/host/api/knowledge.ts',
+    'frontend/src/host/api/search.ts',
   ].map((rel) => readFileSync(join(repoRoot, rel), 'utf8')).join('\n')
   expect([...src.matchAll(/await fetch\(/g)]).toHaveLength(0)
 })
@@ -196,32 +196,6 @@ test('deleteEntry 发送 id', async () => {
   await deleteEntry('abc123')
   const body = JSON.parse(fetch.mock.calls[0][1].body)
   expect(body.id).toBe('abc123')
-})
-
-// ── fetchTopics ────────────────────────────────────────────────────────────
-
-test('fetchTopics 调用 /api/topics?_=<timestamp> 并返回数据', async () => {
-  mockFetch({ topics: [{ dir: 'ai', description: 'AI notes' }] })
-  const result = await fetchTopics()
-  expect(fetch.mock.calls[0][0]).toMatch(new RegExp(`^${API_READ_PREFIX}/topics\\?_=\\d+$`))
-  expect(result.topics).toHaveLength(1)
-  expect(result.topics[0].dir).toBe('ai')
-})
-
-test('fetchTopics API 错误时抛出服务器返回的错误信息', async () => {
-  mockFetch({ error: 'sediment-kb repos unavailable' }, false, 404)
-  await expect(fetchTopics()).rejects.toThrow('sediment-kb repos unavailable')
-})
-
-// 回归测试：复现 BUG —— 服务器返回 HTML 404 时 res.json() 在 res.ok 检查前抛出
-// SyntaxError，导致用户看到 "Unexpected token '<'..." 而非可读错误。
-// 修复后此测试应通过；修复前会 FAIL。
-test('fetchTopics 服务器返回 HTML 时抛出可读错误而非 JSON 解析异常', async () => {
-  mockFetchHtml(404)
-  const err = await fetchTopics().catch(e => e)
-  expect(err).toBeInstanceOf(Error)
-  expect(err.message).not.toMatch(/Unexpected token/)
-  expect(err.message).toMatch(/HTTP 404/)
 })
 
 // ── moveToProject ──────────────────────────────────────────────────────────

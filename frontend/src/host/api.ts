@@ -15,8 +15,6 @@ export { showOsNotification } from './api/os-notification.ts';
 export { resolveNoteForOpen } from './api/note-open.ts';
 export type { ResolvedNote } from './api/note-open.ts';
 
-export { resolveKnowledgeForOpen } from './api/knowledge-open.ts';
-export type { ResolvedKnowledgeDoc } from './api/knowledge-open.ts';
 
 export { getPackageSnapshot } from './api/package-snapshot.ts';
 export type { PackageSnapshot } from './api/package-snapshot.ts';
@@ -47,7 +45,6 @@ export {
   fetchIndex,
   fetchLinkTitle,
   fetchTagsRegistry,
-  fetchTopics,
   getDraft,
   getNoteDraft,
   moveToProject,
@@ -67,39 +64,4 @@ export {
   updateLinks,
 } from './api/spark.ts';
 
-export {
-  addSedimentKbCategory,
-  addSedimentKbRepo,
-  fetchKbAnnotation,
-  fetchKbDocId,
-  addKbHidePattern,
-  fetchKbDocCount,
-  fetchKbHidePatterns,
-  fetchKbViewerState,
-  fetchKbAssetAsBlobUrl,
-  fetchKbFileContent,
-  fetchKbList,
-  fetchSedimentKbCategories,
-  fetchSedimentKbRepos,
-  getReindexAllStatus,
-  getReindexStatus,
-  reindexAll,
-  reindexKbRepo,
-  removeKbHidePattern,
-  createKbEntry,
-  deleteKbEntry,
-  renameKbEntry,
-  removeSedimentKbCategory,
-  removeSedimentKbRepo,
-  renameSedimentKbCategory,
-  reorderKbComments,
-  saveKbFile,
-  saveKbViewerState,
-  searchKnowledge,
-  searchSpark,
-  updateKbHidePattern,
-  updateKbComment,
-  updateKbHighlight,
-  updateKbLinks,
-  updateSedimentKbRepoCategory,
-} from './api/knowledge.ts';
+export { getReindexAllStatus, reindexAll, searchSpark } from './api/search.ts';

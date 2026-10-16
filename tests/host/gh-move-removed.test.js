@@ -20,7 +20,6 @@ const KEPT_SPARK_EXPORTS = [
   'fetchLinkTitle',
   'fetchNotesAssetAsBlobUrl',
   'fetchTagsRegistry',
-  'fetchTopics',
   'getDraft',
   'getNoteDraft',
   'moveToProject',

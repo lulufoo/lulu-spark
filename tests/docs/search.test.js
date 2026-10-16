@@ -8,13 +8,11 @@ const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 
 const apiMocks = vi.hoisted(() => ({
   searchSpark: vi.fn(),
-  searchKnowledge: vi.fn(),
   fetchFileContent: vi.fn(),
 }));
 
 vi.mock('../../frontend/src/host/api.ts', () => ({
   searchSpark: (...args) => apiMocks.searchSpark(...args),
-  searchKnowledge: (...args) => apiMocks.searchKnowledge(...args),
   fetchFileContent: (...args) => apiMocks.fetchFileContent(...args),
 }));
 
@@ -67,7 +65,7 @@ describe('notes search module', () => {
     expect(typeof mod.closeSparkSearch).toBe('function');
   });
 
-  it('debounced input calls searchSpark(q, 8) only', async () => {
+  it('debounced input calls searchSpark(q, 8, workspace) only', async () => {
     const { initSparkSearch } = await loadModule();
     initSparkSearch();
 
@@ -77,8 +75,7 @@ describe('notes search module', () => {
 
     await vi.advanceTimersByTimeAsync(300);
 
-    expect(apiMocks.searchSpark).toHaveBeenCalledWith('alpha', 8);
-    expect(apiMocks.searchKnowledge).not.toHaveBeenCalled();
+    expect(apiMocks.searchSpark).toHaveBeenCalledWith('alpha', 8, 'default');
   });
 
   it('strips leading # before calling searchSpark', async () => {
@@ -91,7 +88,7 @@ describe('notes search module', () => {
 
     await vi.advanceTimersByTimeAsync(300);
 
-    expect(apiMocks.searchSpark).toHaveBeenCalledWith('topic-name', 8);
+    expect(apiMocks.searchSpark).toHaveBeenCalledWith('topic-name', 8, 'default');
   });
 
   it('hit click dispatches cta:open-entry with id only (no layer)', async () => {

@@ -4,37 +4,13 @@
 //! a note needs no sync: chunks carry no path. Files edited outside the App still rely
 //! on the startup / manual rebuild.
 
-use std::path::Path;
-
 use super::chunk_rows::replace_doc_chunks;
-use super::collect::note_doc_chunks;
 use super::collect_docs::workspace_doc_chunks;
 use super::query::cache_dir_or_err;
 use super::store::{index_exists, open};
 
-/// Re-chunk each note `doc_id` from the `note` table and replace its rows; a note whose
-/// row is gone has its rows dropped. No-op when no index file exists.
-pub fn sync_note_docs(repo_root: &Path, doc_ids: &[&str]) -> Result<usize, String> {
-    let cache = cache_dir_or_err()?;
-    if !index_exists(&cache) {
-        return Ok(0);
-    }
-    let conn = open(&cache)?;
-    for doc_id in doc_ids {
-        let chunks = note_doc_chunks(repo_root, doc_id)?;
-        replace_doc_chunks(&conn, doc_id, &chunks)?;
-    }
-    Ok(doc_ids.len())
-}
-
-/// Same as [`sync_note_docs`] but never fails the caller's write response.
-pub fn sync_note_docs_best_effort(repo_root: &Path, doc_ids: &[&str]) {
-    if let Err(e) = sync_note_docs(repo_root, doc_ids) {
-        eprintln!("search index sync skipped: {e}");
-    }
-}
-
-/// [`sync_note_docs`] for documents of the per-workspace tables.
+/// Re-chunk each document `doc_id` of `workspace_id` and replace its rows; a document whose row
+/// is gone has its rows dropped. No-op when no index file exists.
 pub fn sync_workspace_docs(workspace_id: &str, doc_ids: &[&str]) -> Result<usize, String> {
     let cache = cache_dir_or_err()?;
     if !index_exists(&cache) {

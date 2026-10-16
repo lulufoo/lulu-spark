@@ -32,25 +32,16 @@ export const READ_API_INVOKE_MAP: Record<string, ReadInvokeEntry> = {
       lang: url.searchParams.get('lang') || undefined,
     }),
   },
-  '/api/topics': { cmd: 'get_topics' },
   '/api/workspaces': { cmd: 'list_workspaces' },
   '/api/projects': {
     cmd: 'list_projects',
     args: (url) => ({ payload: { workspace: url.searchParams.get('workspace') || undefined } }),
   },
-  '/api/search-knowledge': {
-    cmd: 'search_knowledge',
-    args: (url) => ({
-      q: url.searchParams.get('q') ?? '',
-      limit: url.searchParams.has('limit')
-        ? Number(url.searchParams.get('limit'))
-        : undefined,
-    }),
-  },
   '/api/search-spark': {
     cmd: 'search_spark',
     args: (url) => ({
       q: url.searchParams.get('q') ?? '',
+      workspace: url.searchParams.get('workspace') || undefined,
       limit: url.searchParams.has('limit')
         ? Number(url.searchParams.get('limit'))
         : undefined,
@@ -78,55 +69,9 @@ export const READ_API_INVOKE_MAP: Record<string, ReadInvokeEntry> = {
       key: url.searchParams.get('key') ?? '',
     }),
   },
-  '/api/kb/read': {
-    cmd: 'kb_read',
-    args: (url) => ({
-      id: url.searchParams.get('id') ?? '',
-    }),
-  },
-  '/api/kb/asset': {
-    cmd: 'get_kb_asset',
-    args: (url) => ({
-      id: url.searchParams.get('id') ?? '',
-      href: url.searchParams.get('href') ?? '',
-    }),
-  },
-  '/api/kb/list': {
-    cmd: 'kb_list',
-    args: (url) => ({
-      repo: url.searchParams.get('repo') ?? '',
-      path: url.searchParams.get('path') ?? '',
-      mode: url.searchParams.get('mode') ?? 'flat',
-    }),
-  },
-  '/api/kb/doc-count': {
-    cmd: 'kb_doc_count',
-    args: (url) => {
-      const args: InvokeArgs = { repo: url.searchParams.get('repo') ?? '' };
-      const categoryId = url.searchParams.get('category_id');
-      if (categoryId != null && categoryId !== '') {
-        args.category_id = categoryId;
-      }
-      return args;
-    },
-  },
-  '/api/kb/hide-patterns': { cmd: 'get_kb_hide_patterns' },
-  '/api/kb/viewer-state': { cmd: 'get_kb_viewer_state' },
-  '/api/kb/annotation': {
-    cmd: 'kb_annotation',
-    args: (url) => ({
-      id: url.searchParams.get('id') ?? '',
-    }),
-  },
   '/api/fetch-title': {
     cmd: 'fetch_link_title',
     args: (url) => ({ url: url.searchParams.get('url') ?? '' }),
-  },
-  '/api/sediment-kb/categories': {
-    cmd: 'get_sediment_kb_categories',
-  },
-  '/api/sediment-kb/repos': {
-    cmd: 'get_sediment_kb_repos',
   },
   '/api/file': {
     cmd: 'read_abs_file',
@@ -159,7 +104,7 @@ export function normalizeForContract(value: unknown): unknown {
 }
 
 /**
- * @param pathAndQuery e.g. `/api/topics?_=123`
+ * @param pathAndQuery e.g. `/api/workspaces?_=123`
  */
 export function resolveInvokeFromPath(
   pathAndQuery: string,

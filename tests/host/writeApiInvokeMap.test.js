@@ -15,23 +15,9 @@ const P2_WRITE_PATHS = [
   '/api/set-done',
   '/api/set-importance',
   '/api/read-later',
-  '/api/kb/save',
-  '/api/kb/rename',
-  '/api/kb/create',
-  '/api/kb/delete',
-  '/api/kb/update-comments',
-  '/api/kb/reorder-comments',
-  '/api/kb/update-highlights',
-  '/api/kb/update-links',
   '/api/tag/attach',
   '/api/tag/detach',
   '/api/tag/update-value',
-  '/api/sediment-kb/repos/add',
-  '/api/sediment-kb/repos/remove',
-  '/api/sediment-kb/repos/update-category',
-  '/api/sediment-kb/categories/add',
-  '/api/sediment-kb/categories/rename',
-  '/api/sediment-kb/categories/remove',
   '/api/create-note',
   '/api/note-draft',
   '/api/note-draft/clear',
@@ -44,10 +30,6 @@ const P2_WRITE_PATHS = [
   '/api/project-delete',
   '/api/mark-message-channel-read',
   '/api/show-os-notification',
-  '/api/kb/hide-patterns/add',
-  '/api/kb/hide-patterns/update',
-  '/api/kb/hide-patterns/remove',
-  '/api/kb/viewer-state',
 ];
 
 const ANNOTATION_WRITE_CMDS = new Set([
@@ -64,7 +46,7 @@ describe('writeApiInvokeMap', () => {
     for (const p of P2_WRITE_PATHS) {
       expect(WRITE_API_INVOKE_MAP[p]?.cmd, p).toBeTruthy();
     }
-    expect(Object.keys(WRITE_API_INVOKE_MAP)).toHaveLength(44);
+    expect(Object.keys(WRITE_API_INVOKE_MAP)).toHaveLength(26);
   });
 
   it('maps /api/file absolute-path write to write_abs_file', () => {
@@ -94,7 +76,7 @@ describe('writeApiInvokeMap', () => {
 
   it('resolveWriteInvoke returns null for unknown path', () => {
     expect(resolveWriteInvoke('/api/commit', {})).toBeNull();
-    expect(resolveWriteInvoke('/api/sediment-kb/unknown', {})).toBeNull();
+    expect(resolveWriteInvoke('/api/kb/unknown', {})).toBeNull();
   });
 
   it('resolveWriteInvoke maps save_entry fields', () => {

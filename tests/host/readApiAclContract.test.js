@@ -65,11 +65,6 @@ describe('read-api ACL 与前端 invoke 映射一致', () => {
     expect(aclAllow).not.toContain('kb_status')
   })
 
-  it('kb doc count command 已加入 read-api ACL', () => {
-    expect(tomlAllow).toContain('kb_doc_count')
-    expect(aclAllow).toContain('kb_doc_count')
-  })
-
   it('doc highlights read command 已加入 read-api ACL', () => {
     expect(tomlAllow).toContain('get_doc_highlights')
     expect(aclAllow).toContain('get_doc_highlights')

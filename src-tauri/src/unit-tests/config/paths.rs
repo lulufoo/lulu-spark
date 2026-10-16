@@ -87,20 +87,6 @@ fn notes_categories_path_under_notes_not_knowledge() {
     let data = sandbox.data_dir();
     let path = notes_categories_path().expect("notes cats");
     assert_eq!(path, data.join("notes").join("categories.json"));
-    assert_ne!(path, sediment_kb_categories_path().expect("kb cats"));
-}
-
-#[test]
-fn sediment_kb_paths_under_runtime_data_dir() {
-    let sandbox = TestSandbox::new();
-    let data = sandbox.data_dir();
-    let dir = sediment_kb_dir().expect("dir");
-    let cats = sediment_kb_categories_path().expect("cats");
-    let repos = sediment_kb_repos_path().expect("repos");
-    assert_eq!(dir, data.join("knowledge"));
-    assert_eq!(cats, dir.join("categories.json"));
-    assert_eq!(repos, dir.join("repos.json"));
-    assert_ne!(dir, sandbox.spark_root().join("knowledge"));
 }
 
 #[test]
@@ -158,7 +144,6 @@ fn knowledge_root_is_runtime_knowledge_dir() {
     assert_eq!(kb, sandbox.knowledge_root());
     assert_eq!(kb, runtime_knowledge_dir().expect("runtime knowledge"));
     assert_eq!(kb, sandbox.data_dir().join("knowledge"));
-    assert_eq!(kb, sediment_kb_dir().expect("sediment"));
     assert_ne!(
         kb,
         crate::config::settings::load()
@@ -179,7 +164,7 @@ fn notes_root_is_runtime_data_notes() {
 fn ssot_paths_use_configured_spark_root_not_cache() {
     let sandbox = TestSandbox::new();
     let wb = sandbox.spark_root();
-    let sediment = sediment_kb_dir().expect("sediment");
+    let sediment = knowledge_root().expect("knowledge");
     let read_later = read_later_path().expect("read_later");
     let notes = notes_root().expect("notes");
     let todo_tasks = todo_tasks_path().expect("todo_tasks");
@@ -278,16 +263,16 @@ fn todo_tasks_v2_path_helpers_err_when_settings_unavailable() {
 }
 
 #[test]
-fn todo_tasks_categories_path_under_todo_tasks_dir_not_sediment() {
+fn todo_tasks_categories_path_under_todo_tasks_dir_not_knowledge() {
     let sandbox = TestSandbox::new();
     let wb = sandbox.spark_root();
     let dir = todo_tasks_dir().expect("todo_tasks_dir");
     let cats = todo_tasks_categories_path().expect("todo_tasks_categories_path");
     assert_eq!(cats, dir.join("categories.json"));
     assert_eq!(cats, wb.join("todo_tasks").join("categories.json"));
-    let sediment_cats = sediment_kb_categories_path().expect("sediment cats");
     assert_ne!(
-        cats, sediment_cats,
-        "todo categories registry must not reuse sediment_kb path"
+        cats,
+        knowledge_root().expect("knowledge").join("categories.json"),
+        "todo categories registry must not reuse the knowledge path"
     );
 }

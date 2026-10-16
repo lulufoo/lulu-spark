@@ -8,7 +8,7 @@ use serde_json::{json, Value};
 
 use super::chunk::char_len;
 use super::hit_meta::resolve_hits;
-use crate::services::spark_data::{DEFAULT_WORKSPACE_ID, KNOWLEDGE_WORKSPACE_ID};
+use crate::services::spark_data::DEFAULT_WORKSPACE_ID;
 use super::store::{index_exists, open};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -268,7 +268,13 @@ pub fn parse_limit(limit: Option<u32>, default: u32) -> u32 {
     }
 }
 
-pub fn search_desktop_spark(cache_dir: &Path, q: &str, limit: Option<u32>) -> Value {
+/// Search the documents of one workspace (default: the Default workspace) for the page search box.
+pub fn search_desktop_docs(
+    cache_dir: &Path,
+    q: &str,
+    limit: Option<u32>,
+    workspace: Option<&str>,
+) -> Value {
     let q = q.trim();
     if q.is_empty() {
         return json!({ "error": "q parameter required" });
@@ -277,8 +283,9 @@ pub fn search_desktop_spark(cache_dir: &Path, q: &str, limit: Option<u32>) -> Va
     if !index_exists(cache_dir) {
         return json!({ "hits": [], "error": "not_indexed" });
     }
+    let workspace = workspace.map(str::trim).filter(|w| !w.is_empty()).unwrap_or(DEFAULT_WORKSPACE_ID);
     let filter = SearchFilter {
-        workspace: Some(DEFAULT_WORKSPACE_ID.into()),
+        workspace: Some(workspace.into()),
         ..SearchFilter::default()
     };
     match search_in_cache(cache_dir, q, &filter, limit) {
@@ -286,43 +293,11 @@ pub fn search_desktop_spark(cache_dir: &Path, q: &str, limit: Option<u32>) -> Va
             "hits": hits
                 .into_iter()
                 .map(|h| {
-                    // digest chunks only help recall; the UI always opens the note itself.
+                    // digest chunks only help recall; the UI always opens the document itself.
                     json!({
                         "title": h.title,
                         "id": h.doc_id,
                         "layer": "raw",
-                        "topic": h.topic,
-                        "body": h.snippet,
-                        "_formatted": { "body": h.snippet },
-                    })
-                })
-                .collect::<Vec<_>>()
-        }),
-        Err(e) => json!({ "hits": [], "error": e }),
-    }
-}
-
-pub fn search_desktop_knowledge(cache_dir: &Path, q: &str, limit: Option<u32>) -> Value {
-    let q = q.trim();
-    if q.is_empty() {
-        return json!({ "error": "q parameter required" });
-    }
-    let limit = parse_limit(limit, 10);
-    if !index_exists(cache_dir) {
-        return json!({ "hits": [], "error": "not_indexed" });
-    }
-    let filter = SearchFilter {
-        workspace: Some(KNOWLEDGE_WORKSPACE_ID.into()),
-        ..SearchFilter::default()
-    };
-    match search_in_cache(cache_dir, q, &filter, limit) {
-        Ok(hits) => json!({
-            "hits": hits
-                .into_iter()
-                .map(|h| {
-                    json!({
-                        "title": h.title,
-                        "id": h.doc_id,
                         "topic": h.topic,
                         "body": h.snippet,
                         "_formatted": { "body": h.snippet },

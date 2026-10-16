@@ -11,14 +11,10 @@
   main,
   .sidebar-channel-zone,
   .sidebar-date-zone,
-  .knowledge-doc-sidebar,
-  .knowledge-doc-reader-pane,
-  .knowledge-doc-main,
   #feed-view,
   #home-view,
   #todo-tasks-view,
   #md-body,
-  #kb-md-body,
   #file-popup-body,
   .viewer-body,
   #settings-panels,
@@ -96,13 +92,9 @@
 #sidebar .window-drag-strip.is-chrome {
   padding-right: var(--notes-rail);
 }
-#sidebar .window-drag-strip .page-back-home,
-.knowledge-doc-sidebar .window-drag-strip .page-back-home {
+#sidebar .window-drag-strip .page-back-home {
   padding-right: 0;
   padding-left: 0;
-}
-.knowledge-doc-sidebar .window-drag-strip.is-chrome {
-  padding-right: 16px;
 }
 
   /* ── Header ── */
@@ -580,102 +572,24 @@
   }
 
   /* ── Repo list dialog ── */
-  #repo-list-dialog {
-    position: fixed;
-    inset: 0;
-    z-index: 2000;
-    display: none;
-    align-items: center;
-    justify-content: center;
-    background: var(--bg-rgba-000000-55);
-  }
-  #repo-list-dialog.open { display: flex; }
-  #repo-list-dialog-box {
-    background: var(--bg-surface);
-    border-radius: 8px;
-    padding: 24px 24px 20px;
-    width: min(580px, 90vw);
-    max-height: 70vh;
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-    box-shadow: 0 8px 32px var(--shadow-rgba-010409-18), 0 0 0 1px var(--shadow-rgba-1f2328-08);
-  }
-  #repo-list-dialog-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    flex-shrink: 0;
-  }
-  #repo-list-dialog-box h3 { font-size: 15px; color: var(--fg-default); margin: 0; font-weight: 600; }
-  #repo-list-content {
-    overflow-y: auto;
-    flex: 1 1 auto;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-  .repo-list-group-title {
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: .06em;
-    text-transform: uppercase;
-    color: var(--fg-subtle);
-    padding: 10px 0 4px;
-    border-top: 1px solid var(--border-muted);
-    margin-top: 4px;
-  }
-  .repo-list-group-title:first-child { border-top: none; margin-top: 0; padding-top: 0; }
-  .repo-list-item {
-    display: flex;
-    align-items: baseline;
-    gap: 10px;
-    padding: 6px 4px;
-    border-radius: 6px;
-  }
-  .repo-list-item:hover { background: var(--bg-canvas); }
-  .repo-list-item-info { flex: 1 1 auto; min-width: 0; }
-  .repo-list-item-name {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--fg-default);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .repo-list-item-desc {
-    font-size: 12px;
-    color: var(--fg-muted);
-    margin-top: 1px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .repo-list-item-actions {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-shrink: 0;
-  }
-  #repo-list-loading,
-  .repo-list-loading { font-size: 13px; color: var(--fg-subtle); padding: 16px 0; text-align: center; }
-  #repo-list-dialog-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 8px;
-    flex-shrink: 0;
-  }
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
 
-  .sediment-kb-inline-category {
-    font-size: 11px;
-    padding: 2px 4px;
-    border: 1px solid var(--border-default);
-    border-radius: 4px;
-    background: var(--bg-surface);
-    color: var(--fg-default);
-    max-width: 100px;
-  }
+  
   .sediment-kb-delete-btn {
     flex-shrink: 0;
     font-size: 11px;
@@ -690,110 +604,24 @@
   }
   .sediment-kb-delete-btn:hover { background: var(--bg-hex-ffebe9); border-color: var(--border-danger); }
 
-  #sediment-kb-add-dialog,
-  #sediment-kb-manage-dialog {
-    position: fixed;
-    inset: 0;
-    z-index: 2000;
-    display: none;
-    align-items: center;
-    justify-content: center;
-    background: var(--bg-rgba-000000-55);
-  }
-  #sediment-kb-add-dialog.open,
-  #sediment-kb-manage-dialog.open { display: flex; }
-  #sediment-kb-add-dialog-box,
-  #sediment-kb-manage-dialog-box {
-    background: var(--bg-surface);
-    border-radius: 8px;
-    padding: 24px 24px 20px;
-    width: min(480px, 90vw);
-    max-height: 70vh;
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-    box-shadow: 0 8px 32px var(--shadow-rgba-010409-18), 0 0 0 1px var(--shadow-rgba-1f2328-08);
-  }
-  #sediment-kb-add-dialog-box h3,
-  #sediment-kb-manage-dialog-box h3 {
-    font-size: 15px;
-    color: var(--fg-default);
-    margin: 0;
-    font-weight: 600;
-  }
-  .sediment-kb-field {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-  .sediment-kb-field label {
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--fg-muted);
-  }
-  .sediment-kb-field-hint {
-    font-size: 11px;
-    color: var(--fg-subtle);
-    line-height: 1.4;
-  }
-  .sediment-kb-field input,
-  .sediment-kb-field select,
-  #sediment-kb-manage-new-name {
-    font-size: 13px;
-    padding: 6px 8px;
-    border: 1px solid var(--border-default);
-    border-radius: 6px;
-  }
-  .sediment-kb-error {
-    font-size: 12px;
-    color: var(--fg-danger);
-  }
-  #sediment-kb-add-dialog-actions,
-  #sediment-kb-manage-dialog-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 8px;
-  }
-  #sediment-kb-manage-list {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    overflow-y: auto;
-    max-height: 240px;
-  }
-  .sediment-kb-manage-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .sediment-kb-cat-rename-input {
-    flex: 1 1 auto;
-    font-size: 13px;
-    padding: 4px 8px;
-    border: 1px solid var(--border-default);
-    border-radius: 6px;
-  }
-  .sediment-kb-cat-name-readonly {
-    flex: 1 1 auto;
-    font-size: 13px;
-    color: var(--fg-muted);
-  }
-  .sediment-kb-cat-delete-btn {
-    font-size: 11px;
-    padding: 2px 8px;
-    background: var(--bg-surface);
-    border: 1px solid var(--border-default);
-    border-radius: 4px;
-    color: var(--fg-danger);
-    cursor: pointer;
-  }
-  .sediment-kb-cat-delete-btn:hover { background: var(--bg-hex-ffebe9); border-color: var(--border-danger); }
-  #sediment-kb-manage-add-row {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-  }
-  #sediment-kb-manage-new-name { flex: 1 1 auto; }
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
 
   /* ── Layout ── */
   .layout {
@@ -5166,67 +4994,12 @@
   margin-bottom: 8px;
 }
 #settings-panel-knowledge .settings-tabs { flex-wrap: wrap; }
-.kb-hide-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.kb-hide-row-text,
-.kb-hide-row-input {
-  flex: 1;
-  min-width: 0;
-  text-align: left;
-  font: inherit;
-  font-family: ui-monospace, SFMono-Regular, monospace;
-  font-size: 13px;
-  padding: 7px 10px;
-  border: 1px solid var(--border-default);
-  border-radius: 6px;
-  background: var(--bg-surface);
-  color: var(--fg-emphasis);
-}
-.kb-hide-row-text {
-  cursor: pointer;
-}
-.kb-hide-row-text:hover:not(:disabled) { border-color: var(--border-accent); }
-.kb-hide-row-input:focus { outline: none; border-color: var(--border-focus); }
-.kb-hide-row-del {
-  flex-shrink: 0;
-  width: 28px;
-  height: 28px;
-  border: none;
-  background: transparent;
-  color: var(--fg-hex-59636e);
-  cursor: pointer;
-  font-size: 18px;
-  line-height: 1;
-  border-radius: 6px;
-}
-.kb-hide-row-del:hover:not(:disabled) { background: var(--bg-hex-ffebe9); color: var(--fg-danger); }
-#settings-kb-hide-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
+
 #settings-tab-knowledge-list.active {
   flex: 1;
   min-height: 0;
 }
-#settings-tab-knowledge-list #repo-list-content {
-  flex: 1 1 auto;
-  min-height: 0;
-  max-height: none;
-  overflow-y: auto;
-  padding-bottom: 8px;
-  scrollbar-gutter: stable;
-}
-#settings-tab-knowledge-list #repo-list-content::-webkit-scrollbar {
-  width: 8px;
-}
-#settings-tab-knowledge-list #repo-list-content::-webkit-scrollbar-thumb {
-  background: var(--bg-inset);
-  border-radius: 4px;
-}
+
 .settings-field select.settings-native-select {
   position: absolute;
   width: 1px;
@@ -6150,40 +5923,7 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
 }
 
 /* ── Knowledge doc list ── */
-.knowledge-doc-react-host {
-  height: 100%;
-  min-width: 0;
-  min-height: 0;
-  overflow: hidden;
-}
-.knowledge-doc-layout {
-  display: flex;
-  height: 100%;
-  overflow: hidden;
-  background: var(--bg-canvas);
-}
-.knowledge-doc-sidebar {
-  --knowledge-sidebar-width: 360px;
-  position: relative;
-  width: var(--knowledge-sidebar-width);
-  flex: 0 0 var(--knowledge-sidebar-width);
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  overflow: hidden;
-  border-right: 1px solid var(--border-default);
-  background: var(--bg-surface);
-}
-.knowledge-doc-reader-pane {
-  flex: 1;
-  min-width: 0;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: visible;
-  background: var(--bg-surface);
-}
+
 .kb-reader {
   display: flex;
   flex-direction: column;
@@ -6227,25 +5967,7 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   color: var(--fg-subtle);
   flex-shrink: 0;
 }
-.knowledge-doc-sidebar-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-  position: relative;
-  z-index: 2;
-  padding: 8px 16px 16px;
-  font-size: 14px;
-  font-weight: 300;
-  border-bottom: 1px solid var(--border-muted);
-  color: var(--fg-default);
-  background: var(--bg-surface);
-}
-.knowledge-doc-repo-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+
 .knowledge-repo-picker-host {
   flex: 1;
   min-width: 0;
@@ -6278,160 +6000,7 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
 .knowledge-repo-picker-menu::-webkit-scrollbar {
   display: none;
 }
-.knowledge-doc-sync-panel {
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--border-default);
-  background: var(--bg-canvas);
-}
-.knowledge-doc-sync-label {
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  color: var(--fg-muted);
-  margin-bottom: 8px;
-}
-.knowledge-doc-sync-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.knowledge-doc-sidebar-tree {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  padding: 6px 8px 12px;
-  scrollbar-width: thin;
-  scrollbar-color: var(--color-hex-c9d1d9) transparent;
-}
-.knowledge-doc-sidebar-tree::-webkit-scrollbar {
-  width: 6px;
-}
-.knowledge-doc-sidebar-tree::-webkit-scrollbar-thumb {
-  background: var(--bg-hex-c9d1d9);
-  border-radius: 3px;
-}
-.knowledge-doc-tree-node {
-  display: flex;
-  align-items: stretch;
-  min-height: 32px;
-  font-size: 14px;
-}
-.knowledge-doc-tree-node + .knowledge-doc-tree-node,
-.knowledge-doc-tree-children + .knowledge-doc-tree-node {
-  margin-top: 2px;
-}
-.knowledge-doc-tree-children {
-  position: relative;
-  margin-top: 2px;
-}
-.knowledge-doc-tree-children::before {
-  content: "";
-  position: absolute;
-  top: 2px;
-  bottom: 2px;
-  left: var(--knowledge-tree-guide, 12px);
-  width: 1px;
-  background: var(--bg-hex-e6ebf0);
-  pointer-events: none;
-}
-.knowledge-doc-tree-label,
-.knowledge-doc-main-row {
-  background: none;
-  border: none;
-  cursor: pointer;
-  font: inherit;
-  font-size: 14px;
-  color: var(--fg-default);
-  text-align: left;
-}
-.knowledge-doc-tree-label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex: 1;
-  min-width: 0;
-  width: 100%;
-  padding: 7px 8px 7px 4px;
-  border-radius: 6px;
-  line-height: 1.3;
-}
-.knowledge-doc-tree-twist,
-.knowledge-doc-tree-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: 16px;
-}
-.knowledge-doc-tree-twist {
-  flex: 0 0 16px;
-  width: 16px;
-  min-width: 16px;
-  color: var(--fg-neutral-emphasis);
-}
-.knowledge-doc-tree-twist svg {
-  display: block;
-  transform-origin: 50% 50%;
-  transition: transform 120ms ease;
-}
-.knowledge-doc-tree-twist svg.is-expanded {
-  transform: rotate(90deg);
-}
-.knowledge-doc-tree-icon {
-  flex: 0 0 16px;
-  width: 16px;
-  min-width: 16px;
-  color: var(--fg-muted);
-}
-.knowledge-doc-tree-name,
-.knowledge-doc-tree-ext {
-  font-weight: 300;
-  color: var(--fg-default);
-}
-.knowledge-doc-tree-name {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.knowledge-doc-tree-node.is-dir.is-expanded > .knowledge-doc-tree-label:not(.selected) {
-  background: var(--bg-canvas);
-}
-.knowledge-doc-tree-label:hover {
-  background: var(--bg-hex-f3f4f6);
-}
-.knowledge-doc-tree-label:focus-visible {
-  outline: 2px solid var(--border-accent);
-  outline-offset: 1px;
-}
-.knowledge-doc-main-row:hover {
-  background: var(--bg-muted);
-}
-.knowledge-doc-tree-label.selected {
-  background: var(--bg-hex-ddf4ff);
-  color: var(--fg-accent);
-}
-.knowledge-doc-tree-label.selected .knowledge-doc-tree-name,
-.knowledge-doc-tree-label.selected .knowledge-doc-tree-ext,
-.knowledge-doc-tree-label.selected .knowledge-doc-tree-twist {
-  color: var(--fg-accent);
-}
-.knowledge-doc-tree-label.selected .knowledge-doc-tree-icon {
-  color: var(--fg-muted);
-}
-.knowledge-doc-tree-rename {
-  flex: 1;
-  min-width: 0;
-  margin: 0;
-  padding: 1px 4px;
-  border: 1px solid var(--border-accent);
-  border-radius: 4px;
-  background: var(--bg-surface);
-  color: var(--fg-default);
-  font: inherit;
-  font-weight: 300;
-  line-height: 1.3;
-}
+
 #knowledge-tree-menu {
   position: fixed;
   z-index: 2200;
@@ -6530,32 +6099,6 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
 }
 #btn-knowledge-tree-delete-ok:hover:not(:disabled) { background: var(--bg-hex-a40e26); }
 #btn-knowledge-tree-delete-ok:disabled { opacity: .5; cursor: default; }
-.knowledge-doc-main {
-  flex: 1;
-  overflow-y: auto;
-  padding: 12px 16px;
-}
-.knowledge-doc-main-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.knowledge-doc-main-row {
-  display: block;
-  width: 100%;
-  padding: 8px 10px;
-  border-radius: 6px;
-}
-.knowledge-doc-empty,
-.knowledge-doc-error,
-.knowledge-doc-loading {
-  padding: 16px;
-  font-size: 13px;
-  color: var(--fg-subtle);
-}
-.knowledge-doc-error {
-  color: var(--fg-danger);
-}
 
 /* ── Home chat (Assistant on Home) ── */
 .home-chat {

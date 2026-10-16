@@ -28,14 +28,9 @@ fn with_sandbox<F: FnOnce(&TestSandbox)>(f: F) {
     f(&sandbox);
 }
 
-fn plant_demo_repo(_sandbox: &TestSandbox) {
-    crate::services::sediment_kb::add_directory("demo").expect("demo");
-}
-
 #[test]
-fn expand_spark_includes_knowledge_root_and_listed_clone() {
-    with_sandbox(|sandbox| {
-        plant_demo_repo(sandbox);
+fn expand_spark_has_no_default_read_roots() {
+    with_sandbox(|_sandbox| {
         let fence = expand_for_business_key(SEEDED_BUSINESS_KEY).expect("spark fence");
         let wb = paths::spark_root().expect("wb");
         let clone = paths::knowledge_root().expect("knowledge_root").join("demo");
@@ -65,9 +60,6 @@ fn expand_spark_includes_knowledge_root_and_listed_clone() {
         assert!(fence
             .read_deny
             .contains(&stored_path(wb.clone()).join(".git")));
-        assert!(fence
-            .read_deny
-            .contains(&stored_path(clone.clone()).join(".git")));
         assert!(fence.write_allow.is_empty());
         let scratch_parent = fence.scratch_parent.as_ref().expect("scratch_parent");
         assert_eq!(
@@ -106,7 +98,6 @@ fn spark_data_database_is_closed_to_the_agent() {
 #[test]
 fn public_set_attaches_fence_and_reset_clears_it() {
     with_sandbox(|sandbox| {
-        plant_demo_repo(sandbox);
         assert!(r#loop::loaded_path_fence().is_none());
         r#loop::try_set_binding_json(&json!({ "key": SEEDED_BUSINESS_KEY })).expect("Set");
         let fence = r#loop::loaded_path_fence().expect("fence after Set");

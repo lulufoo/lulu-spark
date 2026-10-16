@@ -1,4 +1,3 @@
-import { loadKbHidePatterns } from './kb-hide-patterns.ts';
 import {
   applyEngineCategorySelection,
   clearSavedCredentialPlaceholder,
@@ -68,7 +67,6 @@ export async function openSettingsDialog(opts: SettingsOpenOpts = {}) {
   settingsOpenStore.set(true);
   document.getElementById('settings-dialog')?.classList.add('open');
   ensureWired();
-  setResult('settings-result-knowledge', '');
   setResult('settings-result-llm', '');
   setResult('settings-result-mcp', '');
   setResult('settings-result-mcp-tools', '');
@@ -77,12 +75,10 @@ export async function openSettingsDialog(opts: SettingsOpenOpts = {}) {
   if (keyInput) keyInput.value = '';
   const panelId = opts.panel || 'notes';
   switchSettingsTab('notes', panelId === 'notes' ? (opts.tab || 'directory') : 'directory');
-  switchSettingsTab('knowledge', panelId === 'knowledge' ? (opts.tab || 'directory') : 'directory');
   switchSettingsTab('llm', 'engine');
   switchSettingsTab('mcp', panelId === 'mcp' ? (opts.tab || 'tickets') : 'tickets');
   switchPanel(panelId);
   await loadSettingsSnapshot();
-  await loadKbHidePatterns();
   await loadNotesCategories();
   await loadMcpChannelTools();
   requestAnimationFrame(() => paintMcpToolGroups());

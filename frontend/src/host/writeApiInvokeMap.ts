@@ -93,67 +93,6 @@ export const WRITE_API_INVOKE_MAP: Record<string, WriteInvokeEntry> = {
       ...(body.title != null ? { title: body.title } : {}),
     }),
   },
-  '/api/kb/save': {
-    cmd: 'kb_save',
-    args: (body) => ({
-      id: body.id,
-      content: body.content,
-    }),
-  },
-  '/api/kb/rename': {
-    cmd: 'kb_rename',
-    args: (body) => ({
-      repo: body.repo,
-      path: body.path,
-      name: body.name,
-    }),
-  },
-  '/api/kb/create': {
-    cmd: 'kb_create',
-    args: (body) => ({
-      repo: body.repo,
-      parent: body.parent,
-      name: body.name,
-      kind: body.kind,
-    }),
-  },
-  '/api/kb/delete': {
-    cmd: 'kb_delete',
-    args: (body) => ({
-      repo: body.repo,
-      path: body.path,
-    }),
-  },
-  '/api/kb/update-comments': {
-    cmd: 'kb_update_comments',
-    args: (body) => ({
-      id: body.id,
-      comment: body.comment,
-      ts: body.ts,
-    }),
-  },
-  '/api/kb/reorder-comments': {
-    cmd: 'kb_reorder_comments',
-    args: (body) => ({
-      id: body.id,
-      ids: body.ids,
-    }),
-  },
-  '/api/kb/update-highlights': {
-    cmd: 'kb_update_highlights',
-    args: (body) => ({
-      id: body.id,
-      highlight: body.highlight,
-      ts: body.ts,
-    }),
-  },
-  '/api/kb/update-links': {
-    cmd: 'kb_update_links',
-    args: (body) => ({
-      id: body.id,
-      links: body.links,
-    }),
-  },
   '/api/tag/attach': {
     cmd: 'tag_attach',
     args: (body) => ({
@@ -174,48 +113,6 @@ export const WRITE_API_INVOKE_MAP: Record<string, WriteInvokeEntry> = {
     args: (body) => ({
       key: body.key,
       value: body.value,
-    }),
-  },
-  '/api/sediment-kb/repos/add': {
-    cmd: 'sediment_kb_add_repo',
-    args: (body) => ({ payload: body ?? {} }),
-  },
-  '/api/sediment-kb/repos/remove': {
-    cmd: 'sediment_kb_remove_repo',
-    args: (body) => ({ payload: body ?? {} }),
-  },
-  '/api/sediment-kb/repos/update-category': {
-    cmd: 'sediment_kb_update_repo_category',
-    args: (body) => ({ payload: body ?? {} }),
-  },
-  '/api/sediment-kb/categories/add': {
-    cmd: 'sediment_kb_add_category',
-    args: (body) => ({ payload: body ?? {} }),
-  },
-  '/api/sediment-kb/categories/rename': {
-    cmd: 'sediment_kb_rename_category',
-    args: (body) => ({ payload: body ?? {} }),
-  },
-  '/api/sediment-kb/categories/remove': {
-    cmd: 'sediment_kb_remove_category',
-    args: (body) => ({ payload: body ?? {} }),
-  },
-  '/api/kb/hide-patterns/add': {
-    cmd: 'add_kb_hide_pattern',
-    args: (body) => ({ payload: body ?? {} }),
-  },
-  '/api/kb/hide-patterns/update': {
-    cmd: 'update_kb_hide_pattern',
-    args: (body) => ({ payload: body ?? {} }),
-  },
-  '/api/kb/hide-patterns/remove': {
-    cmd: 'remove_kb_hide_pattern',
-    args: (body) => ({ payload: body ?? {} }),
-  },
-  '/api/kb/viewer-state': {
-    cmd: 'set_kb_viewer_state',
-    args: (body) => ({
-      id: body.id ?? '',
     }),
   },
   '/api/create-note': {

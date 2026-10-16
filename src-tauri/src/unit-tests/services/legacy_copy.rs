@@ -72,3 +72,56 @@ fn nothing_to_copy_still_finishes_and_writes_the_marker() {
     assert_eq!(report, LegacyCopyReport::default());
     assert!(dir.path().join("workspaces").join(LEGACY_COPY_MARKER).exists());
 }
+
+#[test]
+fn removal_deletes_only_files_with_an_identical_workspace_copy() {
+    let dir = tempfile::tempdir().expect("tmp");
+    let data = dir.path();
+    write(&data.join("notes/raw/inbox/a.md"), "same");
+    write(&data.join("notes/raw/inbox/b.md"), "old source");
+    write(&data.join("notes/digest/inbox/a.md"), "digest");
+    write(&data.join("knowledge/demo/docs/x.md"), "x");
+    write(&data.join("knowledge/demo/.git/HEAD"), "ref");
+    write(&data.join("workspaces/default/raw/inbox/a.md"), "same");
+    write(&data.join("workspaces/default/raw/inbox/b.md"), "edited in new place");
+    write(&data.join("workspaces/default/digest/inbox/a.md"), "digest");
+    write(&data.join("workspaces/knowledge/raw/demo/docs/x.md"), "x");
+
+    let removed = remove_copied_legacy_files(data, &folders(&["demo"])).expect("remove");
+
+    assert_eq!(removed, 3);
+    assert!(!data.join("notes/raw/inbox/a.md").exists());
+    assert!(!data.join("notes/digest").exists(), "emptied folders go");
+    assert_eq!(read(&data.join("notes/raw/inbox/b.md")), "old source", "a differing file stays");
+    assert!(data.join("knowledge/demo/.git/HEAD").exists(), ".git stays");
+    assert!(!data.join("knowledge/demo/docs").exists());
+    assert_eq!(read(&data.join("workspaces/default/raw/inbox/a.md")), "same", "copies stay");
+}
+
+#[test]
+fn removal_empties_and_deletes_the_legacy_roots() {
+    let dir = tempfile::tempdir().expect("tmp");
+    let data = dir.path();
+    write(&data.join("notes/raw/inbox/a.md"), "a");
+    write(&data.join("knowledge/demo/x.md"), "x");
+    copy_legacy_files(data, &folders(&["demo"])).expect("copy");
+
+    let removed = remove_copied_legacy_files(data, &folders(&["demo"])).expect("remove");
+
+    assert_eq!(removed, 2);
+    assert!(!data.join("notes").exists());
+    assert!(!data.join("knowledge").exists());
+    assert_eq!(read(&data.join("workspaces/default/raw/inbox/a.md")), "a");
+}
+
+#[test]
+fn removal_leaves_a_legacy_file_with_no_copy_at_all() {
+    let dir = tempfile::tempdir().expect("tmp");
+    let data = dir.path();
+    write(&data.join("notes/raw/inbox/a.md"), "never copied");
+
+    let removed = remove_copied_legacy_files(data, &[]).expect("remove");
+
+    assert_eq!(removed, 0);
+    assert_eq!(read(&data.join("notes/raw/inbox/a.md")), "never copied");
+}

@@ -6,12 +6,10 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 const apiMocks = vi.hoisted(() => ({
   searchSpark: vi.fn(),
-  searchKnowledge: vi.fn(),
 }));
 
 vi.mock('../../frontend/src/host/api.ts', () => ({
   searchSpark: (...args) => apiMocks.searchSpark(...args),
-  searchKnowledge: (...args) => apiMocks.searchKnowledge(...args),
 }));
 
 
@@ -137,7 +135,6 @@ describe('spark route mount behavior', () => {
     await vi.advanceTimersByTimeAsync(300);
 
     expect(apiMocks.searchSpark).toHaveBeenCalledTimes(1);
-    expect(apiMocks.searchKnowledge).not.toHaveBeenCalled();
   });
 
   it('TAC-2: spark search input triggers searchSpark only', async () => {
@@ -148,8 +145,7 @@ describe('spark route mount behavior', () => {
     input.dispatchEvent(new Event('input', { bubbles: true }));
     await vi.advanceTimersByTimeAsync(300);
 
-    expect(apiMocks.searchSpark).toHaveBeenCalledWith('topic', 8);
-    expect(apiMocks.searchKnowledge).not.toHaveBeenCalled();
+    expect(apiMocks.searchSpark).toHaveBeenCalledWith('topic', 8, 'default');
   });
 });
 

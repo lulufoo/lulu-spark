@@ -12,7 +12,7 @@ use std::time::Duration;
 
 use rusqlite::Connection;
 
-use super::legacy_rows_step::LEGACY_ROWS_STEP;
+use super::legacy_rows_step::{DROP_LEGACY_STEP, LEGACY_ROWS_STEP};
 use crate::config::paths;
 
 pub const DB_FILE: &str = "spark-data.sqlite";
@@ -67,8 +67,9 @@ macro_rules! doc_table_sql {
 /// Step 2 rebuilds `note` instead of `ADD COLUMN … REFERENCES`: SQLite rejects a
 /// NOT NULL default plus FK when the table already has rows.
 /// Step 6 adds the workspace / project containers: empty tables plus the two seed
-/// registry rows. Step 7 copies the legacy rows into them (see `legacy_rows_step`).
-pub(crate) const MIGRATIONS: [&str; 8] = [r#"
+/// registry rows. Step 7 copies the legacy rows into them and step 8 drops the legacy
+/// tables (both in `legacy_rows_step`).
+pub(crate) const MIGRATIONS: [&str; 9] = [r#"
 CREATE TABLE IF NOT EXISTS note (
   doc_id       TEXT PRIMARY KEY,
   raw_path     TEXT NOT NULL,
@@ -213,7 +214,7 @@ CREATE TABLE project (
 INSERT INTO workspace (id, name, doc_table, view_mode, is_default, created_at) VALUES
   ('default',   'Default',   'doc_default',   'directory', 1, strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
   ('knowledge', 'Knowledge', 'doc_knowledge', 'timeline',  0, strftime('%Y-%m-%dT%H:%M:%SZ', 'now'));
-"#, doc_table_sql!("doc_default"), doc_table_sql!("doc_knowledge")), LEGACY_ROWS_STEP];
+"#, doc_table_sql!("doc_default"), doc_table_sql!("doc_knowledge")), LEGACY_ROWS_STEP, DROP_LEGACY_STEP];
 
 pub fn db_path() -> Result<PathBuf, String> {
     paths::spark_data_db_path().map_err(|e| format!("{e:?}"))

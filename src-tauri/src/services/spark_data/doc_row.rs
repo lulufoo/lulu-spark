@@ -8,7 +8,6 @@ use serde_json::Value;
 
 use super::doc_table::validate_doc_table_name;
 use super::json_column::{read_array, write_array};
-use super::note_row::NoteRow;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct DocRow {
@@ -45,28 +44,6 @@ impl DocRow {
             translations: Value::Array(Vec::new()),
             title: None,
             project_id: project_id.to_string(),
-        }
-    }
-}
-
-/// A legacy `note` row read as a document (its category becomes the project).
-impl From<&NoteRow> for DocRow {
-    fn from(note: &NoteRow) -> Self {
-        Self {
-            doc_id: note.doc_id.clone(),
-            raw_path: note.raw_path.clone(),
-            digest_path: note.digest_path.clone(),
-            source_type: note.source_type.clone(),
-            created_at: note.created_at.clone(),
-            importance: note.importance.clone(),
-            done: note.done,
-            links: note.links.clone(),
-            comments: note.comments.clone(),
-            tags: note.tags.clone(),
-            highlights: note.highlights.clone(),
-            translations: note.translations.clone(),
-            title: note.title.clone(),
-            project_id: note.category_id.clone(),
         }
     }
 }

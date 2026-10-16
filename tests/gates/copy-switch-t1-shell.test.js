@@ -64,7 +64,7 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
     expect(indexHtml).toMatch(/<PageBackHome/);
     expect(indexHtml).not.toMatch(/id="btn-nav-home-title"/);
     expect(indexHtml).not.toMatch(/id="btn-nav-home"(?!-)/);
-    expect(indexHtml).toMatch(/data-panel="knowledge">Knowledge</);
+    expect(indexHtml).not.toMatch(/data-panel="knowledge"/);
     expect(indexHtml).not.toContain('id="btn-repo-menu"');
     expect(indexHtml).not.toContain('id="repo-menu-wrap"');
   });
@@ -102,13 +102,9 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
     expect(css).not.toMatch(/\.viewer-panel-title \{\s*display:\s*none/);
     const notesSidebar = readFileSync(join(repoRoot, 'frontend/src/notes/ui/sidebar.tsx'), 'utf8');
     expect(notesSidebar).toMatch(/<WindowDragStrip>\s*<PageBackHome \/>\s*<\/WindowDragStrip>/);
-    expect(css).toMatch(/\.knowledge-doc-tree-icon \{[\s\S]*?color: var\(--fg-muted\);/);
-    expect(css).not.toMatch(/\.knowledge-doc-tree-icon \{[^}]*#54aeff/);
-    expect(css).toMatch(/\.knowledge-doc-tree-label\.selected \.knowledge-doc-tree-icon \{[\s\S]*?color: var\(--fg-muted\);/);
     expect(css).toMatch(/\.kb-reader-header\.viewer-header \{[\s\S]*?padding-left: 24px;/);
     expect(css).toMatch(/\.kb-reader-header\.viewer-header \{[\s\S]*?overflow: visible;/);
     expect(css).toMatch(/\.kb-reader \{[\s\S]*?overflow: visible;/);
-    expect(css).toMatch(/\.knowledge-doc-reader-pane \{[\s\S]*?overflow: visible;/);
     expect(css).toMatch(/\.viewer-header-actions \{[\s\S]*?gap: 0;/);
     expect(css).toMatch(/#md-lang-bar \{[\s\S]*?margin-right: 10px;/);
     expect(css).toMatch(/#bind-dialog-box \{[\s\S]*?width: min\(720px, 94vw\);/);
@@ -183,8 +179,7 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
     expect(dragStrip).not.toMatch(/Lulu Spark/);
     expect(dragStrip).not.toMatch(/isFullscreen/);
     expect(css).toMatch(/#sidebar \.window-drag-strip\.is-chrome \{[\s\S]*?padding-right: var\(--notes-rail\);/);
-    expect(css).toMatch(/\.knowledge-doc-sidebar \.window-drag-strip\.is-chrome \{[\s\S]*?padding-right: 16px;/);
-    expect(css).toMatch(/#sidebar \.window-drag-strip \.page-back-home,[\s\S]*?padding-right: 0;/);
+    expect(css).toMatch(/#sidebar \.window-drag-strip \.page-back-home \{[\s\S]*?padding-right: 0;/);
     expect(notesSidebar).not.toMatch(/notes-sidebar-label/);
     expect(notesSidebar).not.toMatch(/>Notes</);
     expect(css).toMatch(/#sidebar \{[\s\S]*?--notes-rail: 16px;/);
@@ -197,8 +192,6 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
     expect(css).not.toMatch(/\.topic-filter \{[^}]*border-bottom:/);
     expect(css).toMatch(/\.workspace-filter \{[\s\S]*?padding: 8px var\(--notes-rail\) 6px;/);
     expect(css).toMatch(/\.sidebar-channel-zone \{[\s\S]*?border-bottom: 1px solid var\(--border-muted\);/);
-    expect(css).toMatch(/\.knowledge-doc-sidebar-header \{[\s\S]*?padding: 8px 16px 16px;/);
-    expect(css).toMatch(/\.knowledge-doc-sidebar-header \{[\s\S]*?border-bottom: 1px solid var\(--border-muted\);/);
     expect(css).toMatch(/\.list-select-trigger \{[\s\S]*?border: 1px solid var\(--border-muted\);/);
     expect(css).toMatch(/\.list-select-trigger \{[\s\S]*?background: var\(--bg-canvas\);/);
     expect(css).not.toMatch(/\.list-select-trigger \{[^}]*border: 1px solid #d0d7de/);
@@ -268,13 +261,6 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
     expect(indexHtml).not.toMatch(/IndexRebuildStatus|IndexRebuildButton|header-index-status|btn-index-rebuild/);
   });
 
-  it('repo list title uses table B2 knowledge list label', () => {
-    expect(indexHtml).toMatch(/data-tab="list"[^>]*>List</);
-    expect(indexHtml).not.toContain('id="repo-list-title-group"');
-    expect(indexHtml).not.toContain('id="btn-repo-list-refresh"');
-    expect(indexHtml).not.toContain('☰ 沉淀知识库列表');
-  });
-
   it('sidebar resizer aria-label uses table B', () => {
     expect(indexHtml).toMatch(/id="sidebar-resizer"[^>]*aria-label="Resize sidebar"/);
   });
@@ -284,37 +270,19 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
     expect(indexHtml).not.toContain('Read Later 待读');
   });
 
-  it('settings nav uses Notes, Knowledge, Agent, then MCP', () => {
+  it('settings nav uses Notes, Agent, then MCP', () => {
     expect(indexHtml).not.toMatch(/data-panel="spark">Data</);
     expect(indexHtml).toMatch(/data-panel="notes">Notes</);
-    expect(indexHtml).toMatch(/data-panel="knowledge">Knowledge</);
+    expect(indexHtml).not.toMatch(/data-panel="knowledge"/);
     expect(indexHtml).toMatch(/data-panel="llm">Agent</);
     expect(indexHtml).not.toMatch(/data-panel="llm">Assistant/);
     expect(indexHtml).not.toMatch(/data-panel="github">Sync</);
     expect(indexHtml).not.toMatch(/data-panel="github">GitHub account</);
     expect(indexHtml).toMatch(/data-panel="mcp">MCP</);
-    expect(indexHtml).toMatch(/data-tab="hidden"[^>]*>Hidden files</);
-    const knowledgeTabs = indexHtml.match(/id="settings-panel-knowledge"[\s\S]*?role="tablist">([\s\S]*?)<\/div>/)?.[1] ?? '';
-    expect(knowledgeTabs.indexOf('data-tab="directory"')).toBeGreaterThan(-1);
-    expect(knowledgeTabs.indexOf('data-tab="directory"')).toBeLessThan(
-      knowledgeTabs.indexOf('data-tab="categories"'),
-    );
-    expect(knowledgeTabs.indexOf('data-tab="categories"')).toBeLessThan(
-      knowledgeTabs.indexOf('data-tab="list"'),
-    );
-    expect(knowledgeTabs.indexOf('data-tab="list"')).toBeLessThan(
-      knowledgeTabs.indexOf('data-tab="add"'),
-    );
-    expect(knowledgeTabs.indexOf('data-tab="add"')).toBeLessThan(
-      knowledgeTabs.indexOf('data-tab="hidden"'),
-    );
     const nav = indexHtml.match(/<nav id="settings-nav">([\s\S]*?)<\/nav>/)?.[1] ?? '';
     expect(nav).not.toMatch(/data-panel="spark"/);
     expect(nav.indexOf('data-panel="notes"')).toBeGreaterThan(-1);
     expect(nav.indexOf('data-panel="notes"')).toBeLessThan(
-      nav.indexOf('data-panel="knowledge"'),
-    );
-    expect(nav.indexOf('data-panel="knowledge"')).toBeLessThan(
       nav.indexOf('data-panel="llm"'),
     );
     expect(nav.indexOf('data-panel="llm"')).toBeLessThan(

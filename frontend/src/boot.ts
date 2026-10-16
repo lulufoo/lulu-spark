@@ -10,7 +10,6 @@ import { navigate, navigateToNote } from './router/index.ts';
 import { setRouteHandlers } from './route-handlers.ts';
 import { setSparkBinding } from './app-shell/commands/spark-binding.ts';
 import { normalizeKnowledgeIndex } from './knowledge/state/index.ts';
-import './app-shell/ui/settings/sediment-kb.tsx';
 import { initTooltip } from './app-shell/ui/tooltip.ts';
 import {
   getHomeEntryShell,

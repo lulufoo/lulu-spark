@@ -157,21 +157,6 @@ export async function updateDocHighlights(key: string, highlight: unknown, ts?: 
   return writePost('/api/doc-highlights', { key, highlight, ts });
 }
 
-export async function fetchTopics() {
-  const res = await getReadDriver().fetchGet('/api/topics?_=' + Date.now());
-  const text = await res.text();
-  let data: unknown;
-  try {
-    data = text ? JSON.parse(text) : {};
-  } catch {
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    throw new Error('Invalid JSON response');
-  }
-  const rec = asRecord(data);
-  if (!res.ok) throw new Error(String(rec?.error || `HTTP ${res.status}`));
-  return data;
-}
-
 export async function getDraft(id: string) {
   const res = await getReadDriver().fetchGet(`/api/draft?id=${encodeURIComponent(id)}`);
   if (!res.ok) return { content: '' };

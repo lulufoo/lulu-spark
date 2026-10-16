@@ -1,13 +1,10 @@
 //! Hits come out of the index as `doc_id` only; the place a document lives is looked up
 //! in `spark-data.sqlite` (a `docs` hit through its workspace's document table). A hit whose
-//! document is gone, or is a `missing` knowledge document, is dropped.
+//! document is gone is dropped.
 
 use std::collections::HashMap;
 
-use crate::services::spark_data::{
-    self, category_folder, directory_folder, get_doc, get_knowledge_doc, get_note, get_project,
-    get_workspace, KnowledgeStatus,
-};
+use crate::services::spark_data::{self, get_doc, get_project, get_workspace};
 
 use super::collect::DOCS_CATEGORY;
 use super::query::QueryHit;
@@ -31,22 +28,6 @@ fn locate(
             };
             let folder = get_project(conn, &doc.project_id)?.map(|p| p.folder).unwrap_or_default();
             Ok(Some((doc.raw_path, String::new(), folder)))
-        }
-        "notes" => {
-            let Some(note) = get_note(conn, doc_id)? else {
-                return Ok(None);
-            };
-            let folder = category_folder(conn, &note.category_id).unwrap_or_default();
-            Ok(Some((note.raw_path, String::new(), folder)))
-        }
-        "knowledge" => {
-            let Some(doc) = get_knowledge_doc(conn, doc_id)?
-                .filter(|doc| doc.status == KnowledgeStatus::Active)
-            else {
-                return Ok(None);
-            };
-            let folder = directory_folder(conn, &doc.directory_id)?;
-            Ok(Some((doc.path, String::new(), folder)))
         }
         _ => Ok(None),
     }

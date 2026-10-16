@@ -12,11 +12,6 @@ type ReindexEntry = {
 export const REINDEX_INVOKE_MAP: Record<string, ReindexEntry> = {
   reindexAll: { cmd: 'reindex_all' },
   getReindexAllStatus: { cmd: 'get_reindex_all_status' },
-  reindexKbRepo: {
-    cmd: 'reindex_kb_repo',
-    args: (payload) => ({ repo: payload?.repo ?? '' }),
-  },
-  getReindexStatus: { cmd: 'get_reindex_status' },
 };
 
 export function resolveReindexInvoke(

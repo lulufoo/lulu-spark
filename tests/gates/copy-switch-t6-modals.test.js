@@ -30,13 +30,9 @@ describe('P2 copy-switch — main.js & modals (tech-doc T6)', () => {
     expect(mainJs).toContain('Retry');
     expect(mainJs).toContain('Could not load notes:');
     expect(mainJs).toContain('Loading…');
-    expect(mainJs).toContain('No directories found');
-    expect(mainJs).toContain('Uncategorized');
     expect(mainJs).not.toContain('Cloned');
     expect(mainJs).not.toContain('Not cloned');
     expect(mainJs).not.toContain('View local changes');
-    expect(mainJs).toContain('Remove from curated list');
-    expect(mainJs).toContain('Enter a directory name.');
     expect(mainJs).not.toContain('Click to copy');
     expect(mainJs).not.toContain('Updating…');
     expect(mainJs).not.toContain('↓ Update project');

@@ -1,7 +1,4 @@
 use std::path::Path;
-use std::time::UNIX_EPOCH;
-
-use chrono::{TimeZone, Utc};
 use serde_json::{json, Value};
 
 use crate::config::secrets;
@@ -26,50 +23,4 @@ pub fn get_config(_repo_root: &Path) -> Value {
     let s = settings::load().unwrap_or_default();
     settings::to_config_json(&s, &secrets::list_saved_engines())
         .unwrap_or_else(|e| json!({ "ok": false, "error": format!("{e}") }))
-}
-
-/// Derive topics from sediment-kb repos (+ inbox virtual entry).
-pub fn get_topics(_repo_root: &Path) -> Value {
-    let _ = _repo_root;
-    let rows = match crate::services::sediment_kb::list_repos_for_topics() {
-        Ok(rows) => rows,
-        Err(e) => return json!({ "error": format!("topics: {e}") }),
-    };
-
-    let mut topics_list: Vec<Value> = rows
-        .iter()
-        .map(|r| {
-            json!({
-                "repo": r.repo,
-                "description": r.description,
-                "category_id": r.category_id,
-                "category_name": r.category_name,
-            })
-        })
-        .collect();
-    topics_list.push(json!({ "dir": "inbox", "inbox": true }));
-
-    let mut result = json!({
-        "version": 4,
-        "source": "sediment-kb",
-        "defaultBranch": "main",
-        "topics": topics_list,
-    });
-
-    if let Ok(cache_path) = crate::config::paths::spark_data_db_path() {
-        if let Ok(meta) = cache_path.metadata().and_then(|m| m.modified()) {
-            let dur = meta.duration_since(UNIX_EPOCH).unwrap_or_default();
-            if let chrono::LocalResult::Single(dt) =
-                Utc.timestamp_opt(dur.as_secs() as i64, dur.subsec_nanos())
-            {
-                if let Some(obj) = result.as_object_mut() {
-                    obj.insert(
-                        "cached_at".to_string(),
-                        json!(dt.to_rfc3339_opts(chrono::SecondsFormat::Millis, true)),
-                    );
-                }
-            }
-        }
-    }
-    result
 }

@@ -71,11 +71,6 @@ pub fn knowledge_root() -> Result<PathBuf, PathsError> {
     runtime_knowledge_dir()
 }
 
-/// Knowledge registry (repo list / categories) at `{runtime_data_dir}/knowledge/`.
-pub fn sediment_kb_dir() -> Result<PathBuf, PathsError> {
-    Ok(runtime_data_dir()?.join("knowledge"))
-}
-
 pub fn read_later_path() -> Result<PathBuf, PathsError> {
     Ok(runtime_data_dir()?.join("read_later").join("read_later.json"))
 }
@@ -162,14 +157,6 @@ pub fn doc_highlights_file(md5_hex: &str) -> Result<PathBuf, PathsError> {
         return Err(PathsError::RepoRootUnavailable);
     }
     Ok(target)
-}
-
-pub fn sediment_kb_categories_path() -> Result<PathBuf, PathsError> {
-    Ok(sediment_kb_dir()?.join("categories.json"))
-}
-
-pub fn sediment_kb_repos_path() -> Result<PathBuf, PathsError> {
-    Ok(sediment_kb_dir()?.join("repos.json"))
 }
 
 pub fn draft_path(common_path: &str) -> Result<PathBuf, PathsError> {

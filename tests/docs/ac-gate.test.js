@@ -38,7 +38,7 @@ describe('Note AC gate (tech-doc VF / T-13)', () => {
     expect(selectors).not.toMatch(/b\.updated_at|a\.updated_at/);
     expect(assistant).toMatch(/cta:open-entry/);
 
-    const behavioral = read('tests/notes/assistant.test.js');
+    const behavioral = read('tests/docs/assistant.test.js');
     expect(behavioral).toMatch(/sorts created_at desc, slices to ≤3/);
     expect(behavioral).toMatch(/ignores updated_at when ordering/);
     expect(behavioral).toMatch(/dispatches cta:open-entry/);
@@ -117,7 +117,7 @@ describe('Note AC gate (tech-doc VF / T-13)', () => {
     const viewer = readNotesViewerSource();
     expect(viewer).toMatch(/session\.status = 'creating'/);
     expect(viewer).toMatch(/alert\(`Save failed: \$\{e\.message\}`\)/);
-    const behavioral = read('tests/notes/viewer-create-note.test.js');
+    const behavioral = read('tests/docs/viewer-create-note.test.js');
     expect(behavioral).toMatch(/archive failure: alert, keep create session \+ draft/);
     expect(behavioral).toMatch(/no Annotation API/);
   });
@@ -126,14 +126,14 @@ describe('Note AC gate (tech-doc VF / T-13)', () => {
     const viewer = readNotesViewerSource();
     expect(viewer).toMatch(/if \(!trimmed\)/);
     expect(viewer).toMatch(/clearNoteDraft\(session\.tempId\)/);
-    const behavioral = read('tests/notes/viewer-create-note.test.js');
+    const behavioral = read('tests/docs/viewer-create-note.test.js');
     expect(behavioral).toMatch(/empty exit: clear draft \+ closeModal, no Primary create/);
   });
 
   it('AC-9: create locks source_type/topic — no mutation controls', () => {
     const viewer = readNotesViewerSource();
     expect(viewer).not.toMatch(/create-source-type|create-topic|name=["']source_type["']/);
-    const behavioral = read('tests/notes/viewer-create-note.test.js');
+    const behavioral = read('tests/docs/viewer-create-note.test.js');
     expect(behavioral).toMatch(/create flow has no source_type\/topic mutation controls/);
   });
 
@@ -147,7 +147,7 @@ describe('Note AC gate (tech-doc VF / T-13)', () => {
     expect(viewer).not.toMatch(/dismissViewerModal\(\{\s*navigate:\s*false/);
     expect(viewer).not.toMatch(/do not mutate hash \(legacy AC-10/);
     expect(viewer).not.toMatch(/navigate\(['"]#\/home['"]\)/);
-    const behavioral = read('tests/notes/viewer-create-note.test.js');
+    const behavioral = read('tests/docs/viewer-create-note.test.js');
     expect(behavioral).toMatch(/navigate note=id/);
     expect(behavioral).toMatch(
       /empty exit lands list via navigateBackToList \(history\.back or list location\)/,
@@ -161,12 +161,12 @@ describe('Note AC gate (tech-doc VF / T-13)', () => {
     expect(router).toMatch(/navigateBackToList/);
     expect(router).toMatch(/abolishes exit-must-not-change-hash/);
 
-    const openEntry = read('tests/notes/open-entry-navigate.test.js');
+    const openEntry = read('tests/docs/open-entry-navigate.test.js');
     expect(openEntry).toMatch(/layer/);
     expect(openEntry).toMatch(/navigate-to-note/);
     expect(openEntry).not.toMatch(/empty exit only closeModal — does not mutate hash/);
 
-    const listReturn = read('tests/notes/list-return-delete.test.js');
+    const listReturn = read('tests/docs/list-return-delete.test.js');
     expect(listReturn).toMatch(/cta_scroll_/);
     expect(listReturn).toMatch(/location\.replace/);
     expect(listReturn).toMatch(/#\/spark\?date=/);
@@ -180,7 +180,7 @@ describe('Note AC gate (tech-doc VF / T-13)', () => {
     expect(mount).toMatch(/unresolved note/);
     expect(mount).toMatch(/layer/);
 
-    const create = read('tests/notes/viewer-create-note.test.js');
+    const create = read('tests/docs/viewer-create-note.test.js');
     expect(create).toMatch(/archive failure: alert, keep create session \+ draft/);
     expect(create).toMatch(/no Annotation API/);
     expect(create).toMatch(/navigateBackToList/);
@@ -197,7 +197,7 @@ describe('Note AC gate (tech-doc VF / T-13)', () => {
     expect(viewer).toMatch(/createChromePrevDisplay/);
     const css = read('frontend/app.css');
     expect(css).toMatch(/\.viewer-modal\.is-create\s+\.viewer-chrome-persisted/);
-    const behavioral = read('tests/notes/viewer-create-note.test.js');
+    const behavioral = read('tests/docs/viewer-create-note.test.js');
     expect(behavioral).toMatch(/applies create chrome: body-only, no shell-field controls/);
   });
 

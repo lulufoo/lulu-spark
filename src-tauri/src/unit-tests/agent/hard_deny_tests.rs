@@ -28,28 +28,20 @@ fn with_sandbox<F: FnOnce(&TestSandbox)>(f: F) {
     f(&sandbox);
 }
 
-fn plant_demo_repo(_sandbox: &TestSandbox) {
-    crate::services::sediment_kb::add_directory("demo").expect("demo");
-}
-
 #[test]
 fn spark_defaults_lists_data_dir_and_git() {
-    with_sandbox(|sandbox| {
-        plant_demo_repo(sandbox);
+    with_sandbox(|_sandbox| {
         let list = HardDenyList::spark_defaults().expect("list");
         let data = paths::runtime_data_dir().expect("data");
         let wb = stored_path(paths::spark_root().expect("wb"));
-        let clone_git = stored_path(paths::knowledge_root().expect("kb").join("demo")).join(".git");
         assert!(list.roots().iter().any(|p| same_path(p, &data)));
         assert!(list.roots().contains(&wb.join(".git")));
-        assert!(list.roots().contains(&clone_git));
     });
 }
 
 #[test]
 fn contains_spark_data_and_git() {
     with_sandbox(|sandbox| {
-        plant_demo_repo(sandbox);
         let list = HardDenyList::spark_defaults().expect("list");
         let note = sandbox.data_dir().join("notes").join("n1.md");
         fs::create_dir_all(note.parent().unwrap()).expect("notes");
@@ -108,8 +100,7 @@ fn symlink_into_data_is_hard_denied() {
 
 #[test]
 fn fence_read_deny_is_the_hard_deny_list() {
-    with_sandbox(|sandbox| {
-        plant_demo_repo(sandbox);
+    with_sandbox(|_sandbox| {
         let list = HardDenyList::spark_defaults().expect("list");
         let fence = expand_for_business_key(SEEDED_BUSINESS_KEY).expect("fence");
         assert_eq!(fence.read_deny, list.roots());

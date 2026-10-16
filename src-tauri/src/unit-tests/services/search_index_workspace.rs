@@ -79,9 +79,8 @@ fn writes_through_the_doc_service_keep_the_index_in_step() {
 }
 
 #[test]
-fn legacy_chunks_belong_to_the_workspaces_their_category_was_migrated_into() {
-    let notes = SourceChunk::from_text("notes", "raw", "d1", "t", "正文", "", 0);
-    let knowledge = SourceChunk::from_text("knowledge", "", "d2", "t", "正文", "", 0);
-    assert_eq!((notes.workspace_id.as_str(), knowledge.workspace_id.as_str()), ("default", "knowledge"));
-    assert_eq!(notes.in_workspace("abc123").workspace_id, "abc123");
+fn a_chunk_has_no_workspace_until_it_is_placed_in_one() {
+    let chunk = SourceChunk::from_text(DOCS_CATEGORY, "raw", "d1", "t", "正文", "", 0);
+    assert_eq!(chunk.workspace_id, "");
+    assert_eq!(chunk.in_workspace("abc123").workspace_id, "abc123");
 }

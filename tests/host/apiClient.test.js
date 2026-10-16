@@ -32,15 +32,15 @@ beforeEach(() => {
   invokeMock.mockReset();
 });
 
-test('fetchDriver getJson 对 /api/topics 发起 GET 并返回解析后 JSON', async () => {
+test('fetchDriver getJson 对 /api/workspaces 发起 GET 并返回解析后 JSON', async () => {
   const payload = { topics: ['a'] };
   mockFetchJson(payload);
   const driver = createFetchDriver();
-  const result = await driver.getJson('/api/topics');
+  const result = await driver.getJson('/api/workspaces');
 
   expect(fetch).toHaveBeenCalledOnce();
   const [url, init] = fetch.mock.calls[0];
-  expect(url).toBe(`${DEFAULT_DEV_BASE}/api/topics`);
+  expect(url).toBe(`${DEFAULT_DEV_BASE}/api/workspaces`);
   expect(init).toEqual({ method: 'GET' });
   expect(result).toEqual(payload);
 });
@@ -75,7 +75,7 @@ test('HTTP 非 2xx 时 getJson 抛出 Error（含 HTTP 状态）', async () => {
 test('resolveReadDriver 在 fetch 模式下不调用 invoke', async () => {
   mockFetchJson({});
   const driver = resolveReadDriver('fetch');
-  await driver.getJson('/api/topics');
+  await driver.getJson('/api/workspaces');
   expect(fetch).toHaveBeenCalled();
   expect(invokeMock).not.toHaveBeenCalled();
 });

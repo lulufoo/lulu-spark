@@ -14,6 +14,23 @@ describe('readApi contract map', () => {
     }
   });
 
+  it('resolveInvokeFromPath maps the search query with its workspace', () => {
+    expect(resolveInvokeFromPath('/api/search-spark?q=abc&limit=8&workspace=memory')).toEqual({
+      cmd: 'search_spark',
+      args: { q: 'abc', workspace: 'memory', limit: 8 },
+    });
+    expect(resolveInvokeFromPath('/api/search-spark?q=abc')).toEqual({
+      cmd: 'search_spark',
+      args: { q: 'abc', workspace: undefined, limit: undefined },
+    });
+  });
+
+  it('resolveInvokeFromPath no longer maps the knowledge routes', () => {
+    for (const path of ['/api/kb/read?id=x', '/api/kb/list', '/api/sediment-kb/repos', '/api/search-knowledge?q=x', '/api/topics']) {
+      expect(resolveInvokeFromPath(path), path).toBeNull();
+    }
+  });
+
   it('resolveInvokeFromPath 不再映射 infer-github-user-url', () => {
     expect(
       resolveInvokeFromPath(
@@ -25,101 +42,10 @@ describe('readApi contract map', () => {
     ).toBeNull();
   });
 
-  it('resolveInvokeFromPath maps query args', () => {
-    expect(
-      resolveInvokeFromPath('/api/kb/read?id=abcdefabcdefabcdefabcdefabcdefab')
-    ).toEqual({
-      cmd: 'kb_read',
-      args: { id: 'abcdefabcdefabcdefabcdefabcdefab' },
-    });
-  });
-
-  it('resolveInvokeFromPath maps kb list query args', () => {
-    expect(
-      resolveInvokeFromPath('/api/kb/list?repo=myrepo&path=&mode=flat'),
-    ).toEqual({
-      cmd: 'kb_list',
-      args: { repo: 'myrepo', path: '', mode: 'flat' },
-    });
-  });
-
-  it('READ_API_INVOKE_MAP maps /api/kb/doc-count to kb_doc_count', () => {
-    const entry = READ_API_INVOKE_MAP['/api/kb/doc-count'];
-    expect(entry?.cmd).toBe('kb_doc_count');
-    expect(typeof entry?.args).toBe('function');
-  });
-
-  it('resolveInvokeFromPath maps kb doc-count query args', () => {
-    expect(
-      resolveInvokeFromPath('/api/kb/doc-count?repo=myrepo'),
-    ).toEqual({
-      cmd: 'kb_doc_count',
-      args: { repo: 'myrepo' },
-    });
-  });
-
-  it('resolveInvokeFromPath maps kb doc-count with repo-only query', () => {
-    const result = resolveInvokeFromPath('/api/kb/doc-count?repo=myrepo');
-    expect(result).toEqual({
-      cmd: 'kb_doc_count',
-      args: { repo: 'myrepo' },
-    });
-  });
-
-  it('resolveInvokeFromPath decodes URL-encoded repo for kb doc-count', () => {
-    expect(
-      resolveInvokeFromPath('/api/kb/doc-count?repo=topic%20a'),
-    ).toEqual({
-      cmd: 'kb_doc_count',
-      args: { repo: 'topic a' },
-    });
-  });
-
-  it('maps hide-patterns read', () => {
-    expect(resolveInvokeFromPath('/api/kb/hide-patterns')).toEqual({
-      cmd: 'get_kb_hide_patterns',
-      args: {},
-    });
-  });
-
-  it('maps viewer-state read', () => {
-    expect(resolveInvokeFromPath('/api/kb/viewer-state')).toEqual({
-      cmd: 'get_kb_viewer_state',
-      args: {},
-    });
-  });
-
-  it('resolveInvokeFromPath 不再映射 kb git status', () => {
-    expect(resolveInvokeFromPath('/api/kb/diff-status?_=123')).toBeNull();
-    expect(resolveInvokeFromPath('/api/kb/status?repo=myrepo')).toBeNull();
-  });
-
   it('normalizeForContract drops cached_at', () => {
     const a = { entries: [], cached_at: 'x' };
     const b = { entries: [] };
     expect(normalizeForContract(a)).toEqual(normalizeForContract(b));
-  });
-
-  it('resolveInvokeFromPath maps sediment-kb read routes', () => {
-    expect(resolveInvokeFromPath('/api/sediment-kb/categories')).toEqual({
-      cmd: 'get_sediment_kb_categories',
-      args: {},
-    });
-    expect(resolveInvokeFromPath('/api/sediment-kb/repos?_=' + Date.now())).toEqual({
-      cmd: 'get_sediment_kb_repos',
-      args: {},
-    });
-  });
-
-  it('resolveInvokeFromPath maps kb-asset query args', () => {
-    expect(
-      resolveInvokeFromPath(
-        '/api/kb/asset?id=abcdefabcdefabcdefabcdefabcdefab&href=note.png',
-      ),
-    ).toEqual({
-      cmd: 'get_kb_asset',
-      args: { id: 'abcdefabcdefabcdefabcdefabcdefab', href: 'note.png' },
-    });
   });
 
   it('resolveInvokeFromPath maps notes-asset query args', () => {
@@ -136,10 +62,6 @@ describe('readApi contract map', () => {
         lang: undefined,
       },
     });
-  });
-
-  it('resolveInvokeFromPath returns null for unknown sediment-kb route', () => {
-    expect(resolveInvokeFromPath('/api/sediment-kb/unknown')).toBeNull();
   });
 
   it('resolveInvokeFromPath maps read-later to get_read_later', () => {

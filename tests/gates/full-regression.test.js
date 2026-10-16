@@ -14,9 +14,9 @@ const TODO_TASK_VITEST = [
 ];
 
 const NOTE_FEATURE_VITEST = [
-  'tests/notes/assistant.test.js',
-  'tests/notes/viewer-create-note.test.js',
-  'tests/notes/ac-gate.test.js',
+  'tests/docs/assistant.test.js',
+  'tests/docs/viewer-create-note.test.js',
+  'tests/docs/ac-gate.test.js',
 ];
 
 describe('AC-全量回归 gate (tech-doc T-08 / VF)', () => {
