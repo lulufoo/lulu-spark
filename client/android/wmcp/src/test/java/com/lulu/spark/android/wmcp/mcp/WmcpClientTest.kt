@@ -72,7 +72,7 @@ class WmcpClientTest {
         val wmcp = WmcpClientImpl(MemoryStorage(), network)
         wmcp.completeBind(liveOffer())
         val listed = wmcp.listTools()
-        assertEquals(listOf("create_note"), listed.map { it.name })
+        assertEquals(listOf("create_doc"), listed.map { it.name })
         assertTrue(listed.single().inputSchemaJson.contains("\"title\""))
         val init = network.requests[1]
         val initialized = network.requests[2]
@@ -190,7 +190,7 @@ class WmcpClientTest {
         )
         val wmcp = wmcpClient(network)
         wmcp.completeBind(liveOffer())
-        val result = wmcp.callTool("create_note", "{}")
+        val result = wmcp.callTool("create_doc", "{}")
         assertTrue(result.text.contains("bad args") || result.text.contains("error"))
         assertEquals(McpLinkState.Connected, wmcp.keepAlive().state())
     }

@@ -20,24 +20,26 @@ class ToolDispatcherTest {
     @Test
     fun remoteToolKeepsHostInputSchema() {
         val schema =
-            """{"type":"object","properties":{"title":{"type":"string"},"content":{"type":"string"}},"required":["title","content"]}"""
+            """{"type":"object","properties":{"title":{"type":"string"},"content":{"type":"string"},"workspace":{"type":"string"},"project":{"type":"string"},"folder":{"type":"string"}},"required":["title","content"]}"""
         val defs =
             ToolDispatcher(
                 FsTools(),
                 BoundWmcp(
                     McpTool(
-                        name = "create_note",
-                        description = "Create a note from Markdown content.",
+                        name = "create_doc",
+                        description = "Create a document from Markdown content.",
                         inputSchemaJson = schema,
                     ),
                 ),
                 MemoryStorage(),
             ).definitions()
-        val create = defs.single { it.name == "create_note" }
-        assertEquals("Create a note from Markdown content.", create.description)
+        val create = defs.single { it.name == "create_doc" }
+        assertEquals("Create a document from Markdown content.", create.description)
         assertEquals(schema, create.parametersJson)
         assertTrue(create.parametersJson.contains("\"title\""))
         assertTrue(create.parametersJson.contains("\"content\""))
+        assertTrue(create.parametersJson.contains("\"workspace\""))
+        assertTrue(create.parametersJson.contains("\"folder\""))
     }
 
     @Test
@@ -48,7 +50,7 @@ class ToolDispatcherTest {
         assertTrue(names.containsAll(listOf("read", "grep", "write", "edit")))
         assertTrue(names.containsAll(listOf("stage", "list_staged", "get_staged")))
         assertTrue(names.contains("web_search"))
-        assertTrue(defs.none { it.name == "create_note" })
+        assertTrue(defs.none { it.name == "create_doc" })
         assertTrue(defs.none { it.name == "delete_staged" })
     }
 
@@ -99,14 +101,14 @@ class ToolDispatcherTest {
                 FsTools(),
                 BoundWmcp(
                     McpTool(
-                        name = "get_note_content_by_id",
-                        description = "Read one note's raw Markdown by archive entry id.",
-                        inputSchemaJson = """{"type":"object","properties":{"id":{"type":"string"}},"required":["id"]}""",
+                        name = "get_doc_content",
+                        description = "Read one document's raw Markdown by id.",
+                        inputSchemaJson = """{"type":"object","properties":{"id":{"type":"string"},"workspace":{"type":"string"}},"required":["id"]}""",
                     ),
                 ),
                 MemoryStorage(),
             ).definitions()
-        val tool = defs.single { it.name == "get_note_content_by_id" }
+        val tool = defs.single { it.name == "get_doc_content" }
         assertEquals(NOTE_CONTENT_STAGE_DESCRIPTION, tool.description)
         assertTrue(tool.parametersJson.contains("\"id\""))
     }
@@ -120,12 +122,12 @@ class ToolDispatcherTest {
         val dispatcher =
             ToolDispatcher(
                 FsTools(),
-                CallingWmcp("get_note_content_by_id", host),
+                CallingWmcp("get_doc_content", host),
                 storage,
             )
         val out =
             dispatcher.call(
-                "get_note_content_by_id",
+                "get_doc_content",
                 """{"id":"$noteId"}""",
                 "/tmp",
                 "sess_a",
@@ -149,14 +151,14 @@ class ToolDispatcherTest {
             ToolDispatcher(
                 FsTools(),
                 CallingWmcp(
-                    "get_note_content_by_id",
+                    "get_doc_content",
                     """{"id":"ffffffffffffffffffffffffffffffff","ok":false,"error":"Entry not found"}""",
                 ),
                 storage,
             )
         val out =
             dispatcher.call(
-                "get_note_content_by_id",
+                "get_doc_content",
                 """{"id":"ffffffffffffffffffffffffffffffff"}""",
                 "/tmp",
                 "sess_a",
