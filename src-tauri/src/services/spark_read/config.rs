@@ -18,14 +18,6 @@ pub fn check_spark_root(path: &str) -> Value {
             "error": format!("目录不存在：{}", p.display())
         });
     }
-    let notes_index = p.join("notes").join("index.json");
-    let legacy_index = p.join("index.json");
-    if !notes_index.is_file() && !legacy_index.is_file() {
-        return json!({
-            "ok": false,
-            "error": format!("未找到 index.json：{}", notes_index.display())
-        });
-    }
     json!({ "ok": true })
 }
 

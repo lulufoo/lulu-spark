@@ -109,7 +109,6 @@ fn silent_stop_after_a_read_only_tool_says_the_tool_ran_without_writing() {
     let notes = sandbox.data_dir().join("notes");
     fs::create_dir_all(notes.join("raw")).expect("notes raw");
     fs::create_dir_all(notes.join("digest")).expect("notes digest");
-    fs::write(notes.join("index.json"), br#"{"entries":{}}"#).expect("notes index");
     let (mcp, mcp_port) = start_isolated_mcp(&sandbox);
     register_test_mcp("spark", mcp_port);
 

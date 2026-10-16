@@ -78,7 +78,7 @@ fn sync_note_docs_is_noop_without_index_file() {
 
 #[test]
 fn desktop_spark_hits_always_expose_raw_layer() {
-    crate::test_support::with_sandbox_notes(true, |_, _| {
+    crate::test_support::with_sandbox_notes(|_, _| {
         crate::test_support::seed_note_entries(&serde_json::json!({
             "doc-n": { "common_path": "proj/n.md" }
         }));
@@ -109,7 +109,7 @@ fn hits_of_a_deleted_note_or_a_missing_knowledge_doc_are_dropped() {
     use crate::services::spark_data::{
         open as open_data, register_knowledge_doc, update_knowledge_doc, get_knowledge_doc, KnowledgeStatus,
     };
-    crate::test_support::with_sandbox_notes(true, |_, _| {
+    crate::test_support::with_sandbox_notes(|_, _| {
         crate::test_support::seed_note_entries(&serde_json::json!({
             "doc-live": { "common_path": "proj/live.md" }
         }));

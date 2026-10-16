@@ -15,7 +15,6 @@ fn setup_notes_layout(sandbox: &TestSandbox) {
     let notes = sandbox.data_dir().join("notes");
     fs::create_dir_all(notes.join("raw")).expect("raw");
     fs::create_dir_all(notes.join("digest")).expect("digest");
-    fs::write(notes.join("index.json"), br#"{"entries":{}}"#).expect("index");
 }
 
 fn with_host_sandbox<F: FnOnce(&TestSandbox)>(f: F) {

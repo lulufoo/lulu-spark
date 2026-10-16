@@ -23,7 +23,6 @@ fn setup_notes() -> (TestSandbox, PathBuf) {
     let notes = sandbox.data_dir().join("notes");
     fs::create_dir_all(notes.join("raw")).expect("raw dir");
     fs::create_dir_all(notes.join("digest")).expect("digest dir");
-    fs::write(notes.join("index.json"), br#"{"entries":{}}"#).expect("index");
     let repo_root = sandbox.config_dir().to_path_buf();
     (sandbox, repo_root)
 }

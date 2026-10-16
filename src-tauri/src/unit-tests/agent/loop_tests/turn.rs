@@ -30,7 +30,6 @@ fn run_loop_uses_mcp_tools_and_feeds_tool_result_back_to_model() {
     let notes = sandbox.data_dir().join("notes");
     fs::create_dir_all(notes.join("raw")).expect("notes raw");
     fs::create_dir_all(notes.join("digest")).expect("notes digest");
-    fs::write(notes.join("index.json"), br#"{"entries":{}}"#).expect("notes index");
 
     let mcp_port = ephemeral_port();
     let mcp = start_embedded_mcp_runtime(McpRuntimeConfig {
@@ -114,7 +113,6 @@ fn run_loop_marks_successful_note_mcp_mutation_as_wrote() {
     let notes = sandbox.data_dir().join("notes");
     fs::create_dir_all(notes.join("raw")).expect("notes raw");
     fs::create_dir_all(notes.join("digest")).expect("notes digest");
-    fs::write(notes.join("index.json"), br#"{"entries":{}}"#).expect("notes index");
     let mcp_port = ephemeral_port();
     let mcp = start_embedded_mcp_runtime(McpRuntimeConfig {
         bind_addr: format!("127.0.0.1:{mcp_port}").parse().expect("MCP address"),

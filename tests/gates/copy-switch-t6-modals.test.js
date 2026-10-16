@@ -29,7 +29,7 @@ function withoutComments(src) {
 describe('P2 copy-switch — main.js & modals (tech-doc T6)', () => {
   it('main.js uses table B/B2 English for core flow copy', () => {
     expect(mainJs).toContain('Retry');
-    expect(mainJs).toContain('Could not load index.json:');
+    expect(mainJs).toContain('Could not load notes:');
     expect(mainJs).toContain('Loading…');
     expect(mainJs).toContain('No directories found');
     expect(mainJs).toContain('Uncategorized');

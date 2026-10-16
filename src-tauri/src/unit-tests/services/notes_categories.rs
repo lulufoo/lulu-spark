@@ -1,5 +1,5 @@
 use super::*;
-use crate::test_support::TestSandbox;
+use crate::test_support::{read_note_entries, seed_note_entries, TestSandbox};
 use serde_json::json;
 use std::fs;
 
@@ -7,7 +7,6 @@ fn setup() -> TestSandbox {
     let sandbox = TestSandbox::new();
     let notes = sandbox.data_dir().join("notes");
     fs::create_dir_all(&notes).expect("notes");
-    fs::write(notes.join("index.json"), br#"{"entries":{}}"#).expect("index");
     sandbox
 }
 
@@ -24,21 +23,12 @@ fn notes_categories_path_under_notes_not_knowledge() {
 }
 
 #[test]
-fn ensure_writes_inbox_only_and_does_not_scan_index() {
+fn ensure_writes_inbox_only_and_does_not_scan_notes() {
     let sandbox = setup();
     let notes = sandbox.data_dir().join("notes");
-    fs::write(
-        notes.join("index.json"),
-        serde_json::to_string(&json!({
-            "entries": {
-                "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": {
-                    "common_path": "ai-software-dev/theme/a.md"
-                }
-            }
-        }))
-        .unwrap(),
-    )
-    .expect("index");
+    seed_note_entries(&json!({
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": { "common_path": "ai-software-dev/theme/a.md" }
+    }));
 
     let listed = list_notes_categories().expect("list");
     let ids: Vec<&str> = listed["categories"]
@@ -52,27 +42,19 @@ fn ensure_writes_inbox_only_and_does_not_scan_index() {
 }
 
 #[test]
-fn add_and_delete_do_not_touch_index_or_raw() {
+fn add_and_delete_do_not_touch_notes_or_raw() {
     let sandbox = setup();
     let notes = sandbox.data_dir().join("notes");
     let id = "cccccccccccccccccccccccccccccccc";
     fs::create_dir_all(notes.join("raw/ai-software-dev/theme")).expect("dir");
     fs::write(notes.join("raw/ai-software-dev/theme/n.md"), "# n").expect("raw");
-    fs::write(
-        notes.join("index.json"),
-        serde_json::to_string(&json!({
-            "entries": { id: { "common_path": "ai-software-dev/theme/n.md" } }
-        }))
-        .unwrap(),
-    )
-    .expect("index");
+    seed_note_entries(&json!({ id: { "common_path": "ai-software-dev/theme/n.md" } }));
 
     create_notes_category("research", "Research", "desc").expect("add");
     create_notes_category("ai-software-dev", "AI", "").expect("add existing slug");
     delete_notes_category("ai-software-dev").expect("delete");
 
-    let index = fs::read_to_string(notes.join("index.json")).unwrap();
-    assert!(index.contains("ai-software-dev/theme/n.md"));
+    assert!(read_note_entries()["entries"][id]["common_path"] == "ai-software-dev/theme/n.md");
     assert!(notes.join("raw/ai-software-dev/theme/n.md").is_file());
     assert!(!known_ids().unwrap().contains("ai-software-dev"));
     assert!(known_ids().unwrap().contains("research"));
@@ -88,20 +70,13 @@ fn delete_inbox_and_invalid_id_rejected() {
 }
 
 #[test]
-fn update_title_does_not_touch_index_or_id() {
+fn update_title_does_not_touch_notes_or_id() {
     let sandbox = setup();
     let notes = sandbox.data_dir().join("notes");
     let id = "dddddddddddddddddddddddddddddddd";
     fs::create_dir_all(notes.join("raw/ops/theme")).expect("dir");
     fs::write(notes.join("raw/ops/theme/n.md"), "# n").expect("raw");
-    fs::write(
-        notes.join("index.json"),
-        serde_json::to_string(&json!({
-            "entries": { id: { "common_path": "ops/theme/n.md" } }
-        }))
-        .unwrap(),
-    )
-    .expect("index");
+    seed_note_entries(&json!({ id: { "common_path": "ops/theme/n.md" } }));
     create_notes_category("ops", "Ops", "").expect("add");
     update_notes_category("ops", "Operations", "runbooks").expect("update");
     let listed = list_notes_categories().expect("list");
@@ -113,8 +88,7 @@ fn update_title_does_not_touch_index_or_id() {
         .expect("ops");
     assert_eq!(ops["title"], "Operations");
     assert_eq!(ops["description"], "runbooks");
-    let index = fs::read_to_string(notes.join("index.json")).unwrap();
-    assert!(index.contains("ops/theme/n.md"));
+    assert_eq!(read_note_entries()["entries"][id]["common_path"], "ops/theme/n.md");
 }
 
 #[test]

@@ -164,22 +164,11 @@ fn get_draft_invalid_path() {
 }
 
 #[test]
-fn check_spark_root_requires_dir_and_index() {
+fn check_spark_root_requires_an_existing_directory() {
     let dir = tempfile::tempdir().expect("tmp");
-    let missing = check_spark_root("/no/such/spark");
-    assert_eq!(missing["ok"], false);
-
-    let no_index_dir = dir.path().join("empty");
-    fs::create_dir_all(&no_index_dir).expect("mkdir");
-    let no_index = check_spark_root(no_index_dir.to_str().unwrap());
-    assert_eq!(no_index["ok"], false);
-    assert!(no_index["error"].as_str().unwrap().contains("index.json"));
-
-    let store = dir.path().join("store");
-    fs::create_dir_all(&store).expect("mkdir");
-    fs::write(store.join("index.json"), br#"{"entries":[]}"#).expect("write");
-    let ok = check_spark_root(store.to_str().unwrap());
-    assert_eq!(ok["ok"], true);
+    assert_eq!(check_spark_root("/no/such/spark")["ok"], false);
+    assert_eq!(check_spark_root("  ")["ok"], false);
+    assert_eq!(check_spark_root(dir.path().to_str().unwrap())["ok"], true);
 }
 
 #[test]
@@ -239,7 +228,7 @@ fn get_annotations_summary_includes_resolved_tags() {
     use crate::services::tag_write::tag_attach;
     use crate::test_support::with_sandbox_notes;
 
-    with_sandbox_notes(true, |dir, _| {
+    with_sandbox_notes(|dir, _| {
         let cp = "ai/tags.md";
         let id = format!("{:0>32}", "e1");
         seed_note_entries(&serde_json::json!({ id.clone(): { "common_path": cp } }));
@@ -523,9 +512,7 @@ fn notes_search_hit_projection() {
 #[test]
 fn search_notes_rejects_empty_q() {
     with_notes_repo(
-        |_, notes| {
-            fs::write(notes.join("index.json"), br#"{"entries":{}}"#).expect("index");
-        },
+        |_, _| {},
         |cfg_dir| {
             let v = search_notes(cfg_dir, "  ", None);
             assert_eq!(v["_status"], 400);

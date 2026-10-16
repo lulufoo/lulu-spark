@@ -15,7 +15,7 @@ fn row(id: &str) -> crate::services::spark_data::NoteRow {
 
 #[test]
 fn set_done_true_marks_the_note_and_false_clears_it() {
-    with_sandbox_notes(true, |dir, _| {
+    with_sandbox_notes(|dir, _| {
         let cp = "ai/note-done.md";
         let id = seed(cp);
         assert_eq!(set_done(dir, cp, true)["ok"], json!(true));
@@ -29,7 +29,7 @@ fn set_done_true_marks_the_note_and_false_clears_it() {
 
 #[test]
 fn set_importance_high_then_cleared() {
-    with_sandbox_notes(true, |dir, _| {
+    with_sandbox_notes(|dir, _| {
         let cp = "ai/note-importance.md";
         let id = seed(cp);
         assert_eq!(set_importance(dir, cp, Some("high".into()))["ok"], json!(true));
@@ -42,7 +42,7 @@ fn set_importance_high_then_cleared() {
 
 #[test]
 fn an_annotation_write_on_an_unknown_path_is_404() {
-    with_sandbox_notes(true, |dir, _| {
+    with_sandbox_notes(|dir, _| {
         let v = set_done(dir, "ai/nothing-here.md", true);
         assert_eq!(v["error"], "Entry not found");
         assert_eq!(v["_status"], 404);
@@ -51,7 +51,7 @@ fn an_annotation_write_on_an_unknown_path_is_404() {
 
 #[test]
 fn two_notes_sharing_a_path_refuse_the_write() {
-    with_sandbox_notes(true, |dir, _| {
+    with_sandbox_notes(|dir, _| {
         seed_note_entries(&json!({
             "a".repeat(32): { "common_path": "ai/shared.md" },
             "b".repeat(32): { "common_path": "ai/shared.md" },
@@ -63,7 +63,7 @@ fn two_notes_sharing_a_path_refuse_the_write() {
 
 #[test]
 fn update_comments_new_returns_id_and_stores_it_on_the_row() {
-    with_sandbox_notes(true, |dir, _| {
+    with_sandbox_notes(|dir, _| {
         let cp = "ai/note-comments.md";
         let id = seed(cp);
         let v = update_comments(dir, cp, "raw", json!({ "text": "hi" }), "202601011200".into());
@@ -87,7 +87,7 @@ fn update_comments_new_returns_id_and_stores_it_on_the_row() {
 
 #[test]
 fn comments_and_highlights_only_exist_on_the_raw_layer() {
-    with_sandbox_notes(true, |dir, _| {
+    with_sandbox_notes(|dir, _| {
         let cp = "ai/note-layers.md";
         let id = seed(cp);
         let c = update_comments(dir, cp, "digest", json!({ "text": "x" }), String::new());
@@ -104,7 +104,7 @@ fn comments_and_highlights_only_exist_on_the_raw_layer() {
 
 #[test]
 fn update_comments_rejects_an_empty_new_comment_and_an_unknown_id() {
-    with_sandbox_notes(true, |dir, _| {
+    with_sandbox_notes(|dir, _| {
         let cp = "ai/note-comment-errors.md";
         seed(cp);
         assert_eq!(update_comments(dir, cp, "raw", json!({ "text": " " }), String::new())["_status"], 400);
@@ -116,7 +116,7 @@ fn update_comments_rejects_an_empty_new_comment_and_an_unknown_id() {
 
 #[test]
 fn highlights_add_and_remove_by_id() {
-    with_sandbox_notes(true, |dir, _| {
+    with_sandbox_notes(|dir, _| {
         let cp = "ai/note-highlights.md";
         let id = seed(cp);
         let v = update_highlights(dir, cp, "raw", json!({ "text": "quote", "occurrence": 2 }), "ts1".into());
@@ -132,7 +132,7 @@ fn highlights_add_and_remove_by_id() {
 
 #[test]
 fn update_links_invalid_url() {
-    with_sandbox_notes(true, |dir, _| {
+    with_sandbox_notes(|dir, _| {
         seed("ai/note-links-bad.md");
         let v = update_links(dir, "ai/note-links-bad.md", json!([{ "url": "ftp://x" }]));
         assert_eq!(v["_status"], json!(400));
@@ -142,7 +142,7 @@ fn update_links_invalid_url() {
 
 #[test]
 fn update_links_invalid_common_path() {
-    with_sandbox_notes(true, |dir, _| {
+    with_sandbox_notes(|dir, _| {
         let v = update_links(dir, "../evil.md", json!([{ "url": "https://github.com/foo/bar" }]));
         assert_eq!(v["error"], "Invalid common_path");
         assert_eq!(v["_status"], 400);
@@ -151,7 +151,7 @@ fn update_links_invalid_common_path() {
 
 #[test]
 fn update_links_persists_and_an_empty_array_clears_them() {
-    with_sandbox_notes(true, |dir, _| {
+    with_sandbox_notes(|dir, _| {
         let cp = "ai/note-links.md";
         let id = seed(cp);
         let links = json!([{ "url": "https://github.com/foo/bar" }]);
@@ -165,7 +165,7 @@ fn update_links_persists_and_an_empty_array_clears_them() {
 
 #[test]
 fn reorder_comments_persists_new_order() {
-    with_sandbox_notes(true, |dir, _| {
+    with_sandbox_notes(|dir, _| {
         let cp = "ai/note-reorder.md";
         let id = seed(cp);
         let ids: Vec<String> = ["first", "second", "third"]
@@ -187,7 +187,7 @@ fn reorder_comments_persists_new_order() {
 
 #[test]
 fn reorder_comments_rejects_unknown_id_and_keeps_the_order() {
-    with_sandbox_notes(true, |dir, _| {
+    with_sandbox_notes(|dir, _| {
         let cp = "ai/note-reorder-bad.md";
         let id = seed(cp);
         let first = update_comments(dir, cp, "raw", json!({ "text": "only" }), String::new());
@@ -201,7 +201,7 @@ fn reorder_comments_rejects_unknown_id_and_keeps_the_order() {
 
 #[test]
 fn reorder_invalid_common_path_returns_400() {
-    with_sandbox_notes(true, |dir, _| {
+    with_sandbox_notes(|dir, _| {
         let v = reorder_comments(dir, "../evil.md", "raw", vec!["x".into()]);
         assert_eq!(v["error"], "Invalid common_path");
         assert_eq!(v["_status"], 400);

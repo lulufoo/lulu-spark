@@ -232,7 +232,6 @@ pub fn run() {
                 let Ok(data) = crate::config::paths::runtime_data_dir() else {
                     return;
                 };
-                let _ = crate::services::notes::ensure_notes_layout(&data);
                 let _ = crate::services::knowledge_layout::ensure_knowledge_registry_layout(&data);
                 if let Err(error) = crate::services::spark_data::backup_daily() {
                     use crate::services::app_log::{log, Level, Side};

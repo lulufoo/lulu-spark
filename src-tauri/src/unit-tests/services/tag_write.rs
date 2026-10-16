@@ -19,7 +19,7 @@ fn seed(cps: &[&str]) {
 
 #[test]
 fn tag_attach_new_key_writes_the_tag_and_the_note_row() {
-    with_sandbox_notes(true, |dir, _| {
+    with_sandbox_notes(|dir, _| {
         let cp = "ai/tagged.md";
         seed(&[cp]);
         let v = tag_attach(dir, cp, &json!({ "value": "my-tag" }));
@@ -38,7 +38,7 @@ fn tag_attach_new_key_writes_the_tag_and_the_note_row() {
 
 #[test]
 fn tag_attach_same_key_twice_is_idempotent() {
-    with_sandbox_notes(true, |dir, _| {
+    with_sandbox_notes(|dir, _| {
         let cp = "ai/dup.md";
         seed(&[cp]);
         let first = tag_attach(dir, cp, &json!({ "value": "x" }));
@@ -51,7 +51,7 @@ fn tag_attach_same_key_twice_is_idempotent() {
 
 #[test]
 fn tag_attach_unknown_key_is_400() {
-    with_sandbox_notes(true, |dir, _| {
+    with_sandbox_notes(|dir, _| {
         seed(&["ai/unknown.md"]);
         let v = tag_attach(dir, "ai/unknown.md", &json!({ "key": "ghost0000000" }));
         assert_eq!(v["error"], "Unknown tag key");
@@ -61,7 +61,7 @@ fn tag_attach_unknown_key_is_400() {
 
 #[test]
 fn tag_detach_drops_the_tag_nobody_references() {
-    with_sandbox_notes(true, |dir, _| {
+    with_sandbox_notes(|dir, _| {
         let cp = "ai/detach.md";
         seed(&[cp]);
         let attached = tag_attach(dir, cp, &json!({ "value": "gone" }));
@@ -75,7 +75,7 @@ fn tag_detach_drops_the_tag_nobody_references() {
 
 #[test]
 fn tag_detach_keeps_a_tag_another_note_still_has() {
-    with_sandbox_notes(true, |dir, _| {
+    with_sandbox_notes(|dir, _| {
         seed(&["ai/one.md", "ai/two.md"]);
         let key = tag_attach(dir, "ai/one.md", &json!({ "value": "shared" }))["key"]
             .as_str()
@@ -90,7 +90,7 @@ fn tag_detach_keeps_a_tag_another_note_still_has() {
 
 #[test]
 fn tag_update_value_renames_without_touching_the_notes() {
-    with_sandbox_notes(true, |dir, _| {
+    with_sandbox_notes(|dir, _| {
         let cp = "ai/update-val.md";
         seed(&[cp]);
         let attached = tag_attach(dir, cp, &json!({ "value": "old" }));
@@ -105,7 +105,7 @@ fn tag_update_value_renames_without_touching_the_notes() {
 
 #[test]
 fn tag_attach_reuses_existing_key_for_same_value() {
-    with_sandbox_notes(true, |dir, _| {
+    with_sandbox_notes(|dir, _| {
         seed(&["ai/first.md", "ai/second.md"]);
         let first = tag_attach(dir, "ai/first.md", &json!({ "value": "Obsidian" }));
         let key = first["key"].as_str().expect("key").to_string();
@@ -121,7 +121,7 @@ fn tag_attach_reuses_existing_key_for_same_value() {
 
 #[test]
 fn tag_attach_rejects_empty_value() {
-    with_sandbox_notes(true, |dir, _| {
+    with_sandbox_notes(|dir, _| {
         seed(&["ai/bad.md"]);
         let v = tag_attach(dir, "ai/bad.md", &json!({ "value": "   " }));
         assert_eq!(v["_status"], 400);
@@ -130,7 +130,7 @@ fn tag_attach_rejects_empty_value() {
 
 #[test]
 fn registry_shape_is_keys_with_value_and_refs() {
-    with_sandbox_notes(true, |dir, _| {
+    with_sandbox_notes(|dir, _| {
         assert_eq!(read_registry(), json!({ "keys": {} }));
         seed(&["ai/shape.md"]);
         let key = tag_attach(dir, "ai/shape.md", &json!({ "value": "a" }))["key"]
@@ -143,7 +143,7 @@ fn registry_shape_is_keys_with_value_and_refs() {
 
 #[test]
 fn delete_entry_prunes_the_tag_it_was_the_last_to_use() {
-    with_sandbox_notes(true, |dir, notes| {
+    with_sandbox_notes(|dir, notes| {
         let cp = "ai/del.md";
         let entry_id = "a1b2c3d4e5f6789012345678901234ab";
         seed_note_entries(&json!({ entry_id: { "common_path": cp } }));
