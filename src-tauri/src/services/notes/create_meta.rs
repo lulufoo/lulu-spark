@@ -15,7 +15,7 @@ const SOURCE_TYPES: &[&str] = &[
     "jot",
 ];
 
-pub(super) struct CreateMeta {
+pub(crate) struct CreateMeta {
     pub title: String,
     pub created_at: String,
     pub source_type: String,
@@ -25,7 +25,26 @@ pub(super) struct CreateMeta {
     pub common_path: String,
 }
 
-pub(super) fn parse_create_meta(
+pub(crate) fn parse_create_meta(
+    payload: &Value,
+    source_basename: Option<&str>,
+) -> Result<CreateMeta, Value> {
+    let meta = parse_create_meta_unchecked(payload, source_basename)?;
+    if !super::categories::known_ids()
+        .map(|ids| ids.contains(&meta.project))
+        .unwrap_or(false)
+    {
+        return Err(json!({
+            "error": format!("Unknown project: {}", meta.project),
+            "_status": 400
+        }));
+    }
+    Ok(meta)
+}
+
+/// Everything [`parse_create_meta`] checks except that `project` exists; the caller
+/// resolves the project itself (per workspace).
+pub(crate) fn parse_create_meta_unchecked(
     payload: &Value,
     source_basename: Option<&str>,
 ) -> Result<CreateMeta, Value> {
@@ -38,15 +57,6 @@ pub(super) fn parse_create_meta(
         .to_string();
 
     let project = path_segment(payload, "project", "inbox")?;
-    if !super::categories::known_ids()
-        .map(|ids| ids.contains(&project))
-        .unwrap_or(false)
-    {
-        return Err(json!({
-            "error": format!("Unknown project: {project}"),
-            "_status": 400
-        }));
-    }
     if payload.get("theme").is_some() {
         return Err(json!({ "error": "theme was renamed to folder", "_status": 400 }));
     }
@@ -74,7 +84,7 @@ pub(super) fn parse_create_meta(
     })
 }
 
-pub(super) fn format_created_at_zh(ts: &str) -> Result<String, String> {
+pub(crate) fn format_created_at_zh(ts: &str) -> Result<String, String> {
     if ts.len() != 12 || !ts.chars().all(|c| c.is_ascii_digit()) {
         return Err(format!("invalid created_at: {ts}"));
     }

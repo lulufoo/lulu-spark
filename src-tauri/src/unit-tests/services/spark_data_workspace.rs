@@ -132,16 +132,19 @@ fn only_one_workspace_can_be_default() {
 }
 
 #[test]
-fn delete_drops_an_empty_workspace_and_refuses_one_with_projects() {
+fn delete_drops_a_workspace_without_documents_and_refuses_one_with_documents() {
     let (_dir, path) = temp_db();
     let conn = open_at(&path).expect("open");
     let made = create_workspace(&conn, "Temp", None).expect("create");
     insert_project(&conn, &ProjectRow::new("p1", &made.id, "notes", "Notes", "")).expect("project");
-    assert!(delete_workspace(&conn, &made.id).is_err(), "has a project");
+    insert_doc(&conn, &made.doc_table, "d1", "p1").expect("doc");
+    assert!(delete_workspace(&conn, &made.id).is_err(), "has a document");
     assert!(table_exists(&conn, &made.doc_table));
+    assert!(get_project(&conn, "p1").expect("get").is_some());
 
-    assert!(delete_project(&conn, "p1").expect("delete project"));
-    assert!(delete_workspace(&conn, &made.id).expect("delete"));
+    conn.execute(&format!("DELETE FROM {} WHERE doc_id = 'd1'", made.doc_table), []).expect("remove doc");
+    assert!(delete_workspace(&conn, &made.id).expect("delete"), "the empty project goes with it");
+    assert!(get_project(&conn, "p1").expect("get").is_none());
     assert!(!table_exists(&conn, &made.doc_table));
     assert!(get_workspace(&conn, &made.id).expect("get").is_none());
     assert!(!delete_workspace(&conn, &made.id).expect("again"), "already gone");

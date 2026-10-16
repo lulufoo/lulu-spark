@@ -9,14 +9,14 @@ use crate::services::source_path_allow::{self, MAX_ARCHIVE_SOURCE_BYTES};
 use crate::services::translation_gate;
 use crate::services::spark_data;
 
-pub(super) struct TranslationDoc {
+pub(crate) struct TranslationDoc {
     pub lang: String,
     pub common_path: String,
     pub rel: String,
     pub content: String,
 }
 
-pub(super) fn resolve_archive_source_markdown(source_path: &str) -> Result<String, Value> {
+pub(crate) fn resolve_archive_source_markdown(source_path: &str) -> Result<String, Value> {
     let canonical =
         source_path_allow::resolve_source_path(source_path, MAX_ARCHIVE_SOURCE_BYTES)?;
     let is_md = canonical
@@ -68,7 +68,7 @@ pub fn doc_file_path(
     Ok(root_canon.join(layer).join(folder).join(rel))
 }
 
-pub(super) fn write_markdown_atomic(path: &Path, content: &str) -> Result<(), String> {
+pub(crate) fn write_markdown_atomic(path: &Path, content: &str) -> Result<(), String> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
@@ -78,11 +78,11 @@ pub(super) fn write_markdown_atomic(path: &Path, content: &str) -> Result<(), St
     Ok(())
 }
 
-pub(super) fn open_data() -> Result<Connection, Value> {
+pub(crate) fn open_data() -> Result<Connection, Value> {
     spark_data::open().map_err(|e| json!({ "error": e, "_status": 500 }))
 }
 
-pub(super) fn reject_legacy_translation_fields(payload: &Value) -> Option<Value> {
+pub(crate) fn reject_legacy_translation_fields(payload: &Value) -> Option<Value> {
     if payload.get("extra_documents").is_some() || payload.get("index_extra").is_some() {
         return Some(json!({
             "error": "extra_documents/index_extra removed; use translations: [{lang, content}]",
@@ -96,7 +96,7 @@ fn is_valid_lang(lang: &str) -> bool {
     lang.len() == 2 && lang.chars().all(|c| c.is_ascii_lowercase())
 }
 
-pub(super) fn parse_translations(
+pub(crate) fn parse_translations(
     payload: &Value,
     primary_common_path: &str,
     primary_document: &str,
@@ -167,7 +167,7 @@ pub(super) fn parse_translations(
     Ok(out)
 }
 
-pub(super) fn rollback_written(paths: &[PathBuf]) {
+pub(crate) fn rollback_written(paths: &[PathBuf]) {
     for path in paths {
         let _ = fs::remove_file(path);
     }

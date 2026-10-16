@@ -149,9 +149,9 @@ pub fn set_workspace_view_mode(
     .map_err(|e| e.to_string())
 }
 
-/// Delete an empty workspace: drops its document table and registry row together.
-/// Refuses the default workspace and any workspace that still has projects.
-/// `false` when it did not exist.
+/// Delete a workspace that holds no documents: drops its (empty) projects, its document
+/// table and its registry row together. Refuses the default workspace and any workspace
+/// that still has documents. `false` when it did not exist.
 pub fn delete_workspace(conn: &Connection, id: &str) -> Result<bool, String> {
     let Some(row) = get_workspace(conn, id)? else {
         return Ok(false);
@@ -159,15 +159,17 @@ pub fn delete_workspace(conn: &Connection, id: &str) -> Result<bool, String> {
     if row.is_default {
         return Err("the default workspace cannot be deleted".to_string());
     }
-    let projects: i64 = conn
-        .query_row("SELECT count(*) FROM project WHERE workspace_id = ?1", params![id], |r| r.get(0))
-        .map_err(|e| e.to_string())?;
-    if projects > 0 {
-        return Err(format!("workspace {id} still has {projects} project(s)"));
-    }
-    let tx = conn.unchecked_transaction().map_err(|e| e.to_string())?;
     // `doc_table` came out of the registry, whose CHECK ties it to a valid id.
     validate_doc_table_name(&row.doc_table)?;
+    let docs: i64 = conn
+        .query_row(&format!("SELECT count(*) FROM {}", row.doc_table), [], |r| r.get(0))
+        .map_err(|e| e.to_string())?;
+    if docs > 0 {
+        return Err(format!("workspace {id} still has {docs} document(s)"));
+    }
+    let tx = conn.unchecked_transaction().map_err(|e| e.to_string())?;
+    tx.execute("DELETE FROM project WHERE workspace_id = ?1", params![id])
+        .map_err(|e| e.to_string())?;
     tx.execute_batch(&format!("DROP TABLE {}", row.doc_table))
         .map_err(|e| e.to_string())?;
     tx.execute("DELETE FROM workspace WHERE id = ?1", params![id])

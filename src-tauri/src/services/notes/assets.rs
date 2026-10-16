@@ -8,16 +8,16 @@ use serde_json::{json, Value};
 
 use crate::services::source_path_allow;
 
-pub(super) const MAX_NOTE_ASSET_BYTES: u64 = 4 * 1024 * 1024;
-pub(super) const MAX_NOTE_ASSETS: usize = 8;
+pub(crate) const MAX_NOTE_ASSET_BYTES: u64 = 4 * 1024 * 1024;
+pub(crate) const MAX_NOTE_ASSETS: usize = 8;
 
-pub(super) struct ResolvedAsset {
+pub(crate) struct ResolvedAsset {
     pub source: PathBuf,
     pub rel: String,
     pub dest: PathBuf,
 }
 
-pub(super) fn reject_unsupported_asset_paths(payload: &Value) -> Option<Value> {
+pub(crate) fn reject_unsupported_asset_paths(payload: &Value) -> Option<Value> {
     if payload.get("asset_paths").is_some() {
         Some(json!({
             "error": "asset_paths is not supported",
@@ -28,7 +28,7 @@ pub(super) fn reject_unsupported_asset_paths(payload: &Value) -> Option<Value> {
     }
 }
 
-pub(super) fn resolve_create_assets(
+pub(crate) fn resolve_create_assets(
     payload: &Value,
     raw_md_path: &Path,
     common_path: &str,
@@ -90,7 +90,7 @@ pub(super) fn resolve_create_assets(
     Ok(out)
 }
 
-pub(super) fn copy_assets(
+pub(crate) fn copy_assets(
     assets: &[ResolvedAsset],
     written: &mut Vec<PathBuf>,
 ) -> Result<(), Value> {

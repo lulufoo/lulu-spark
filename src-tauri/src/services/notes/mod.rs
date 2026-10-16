@@ -1,14 +1,14 @@
 //! Note writes for MCP (`create_note`, `create_note_content`, `update_note`).
 //! Digest is a field (`digest` + optional `digest_body`), not a second tool.
 
-mod assets;
+pub(crate) mod assets;
 mod categories;
-mod create_meta;
-mod digest;
+pub(crate) mod create_meta;
+pub(crate) mod digest;
 mod document;
 mod export_file;
 mod jot;
-mod store;
+pub(crate) mod store;
 mod update;
 
 pub use categories::{

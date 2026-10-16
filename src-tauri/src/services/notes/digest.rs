@@ -5,13 +5,13 @@ use serde_json::{json, Value};
 use super::store::{doc_file_path, write_markdown_atomic};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum DigestMode {
+pub(crate) enum DigestMode {
     Auto,
     Always,
     Never,
 }
 
-pub(super) fn parse_digest_mode(payload: &Value) -> Result<DigestMode, Value> {
+pub(crate) fn parse_digest_mode(payload: &Value) -> Result<DigestMode, Value> {
     match payload.get("digest").and_then(|v| v.as_str()).map(str::trim) {
         Some("auto") => Ok(DigestMode::Auto),
         Some("always") => Ok(DigestMode::Always),
@@ -21,7 +21,7 @@ pub(super) fn parse_digest_mode(payload: &Value) -> Result<DigestMode, Value> {
     }
 }
 
-pub(super) fn digest_body_from_payload(payload: &Value) -> Option<String> {
+pub(crate) fn digest_body_from_payload(payload: &Value) -> Option<String> {
     payload
         .get("digest_body")
         .and_then(|v| v.as_str())
@@ -31,7 +31,7 @@ pub(super) fn digest_body_from_payload(payload: &Value) -> Option<String> {
 }
 
 /// `auto` follows Host AD-0; `always` writes; `never` skips.
-pub(super) fn digest_should_write(mode: DigestMode, raw: &str, source_type: &str) -> bool {
+pub(crate) fn digest_should_write(mode: DigestMode, raw: &str, source_type: &str) -> bool {
     match mode {
         DigestMode::Always => true,
         DigestMode::Never => false,
@@ -40,7 +40,7 @@ pub(super) fn digest_should_write(mode: DigestMode, raw: &str, source_type: &str
 }
 
 /// AD-0: digest is worth writing when any rule matches.
-pub(super) fn digest_applies(raw: &str, source_type: &str) -> bool {
+pub(crate) fn digest_applies(raw: &str, source_type: &str) -> bool {
     if turn_block_count(raw) >= 2 {
         return true;
     }
@@ -60,7 +60,7 @@ pub(super) fn digest_applies(raw: &str, source_type: &str) -> bool {
     false
 }
 
-pub(super) fn write_digest_file(
+pub(crate) fn write_digest_file(
     notes: &Path,
     folder: &str,
     rel: &str,
@@ -83,7 +83,7 @@ pub(super) fn write_digest_file(
 
 /// Overwrite digest if it already exists (update_note). Create-note stays on
 /// [`write_digest_file`] and still 409s when the digest file is present.
-pub(super) fn write_digest_file_overwrite(
+pub(crate) fn write_digest_file_overwrite(
     notes: &Path,
     folder: &str,
     rel: &str,
@@ -108,7 +108,7 @@ fn turn_block_count(raw: &str) -> usize {
     headings.max(seps)
 }
 
-pub(super) fn digest_body_rejects_relative_images(digest_body: &str) -> Option<Value> {
+pub(crate) fn digest_body_rejects_relative_images(digest_body: &str) -> Option<Value> {
     if has_relative_image(digest_body) {
         Some(json!({
             "error": "digest_body must not contain relative images",
