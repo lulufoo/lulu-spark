@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use serde_json::{json, Value};
 
 use crate::config::roots::knowledge_root_string;
-use crate::repositories::knowledge::{kb_dir_name, kb_safe_path};
+use crate::repositories::knowledge::{kb_dir_name, knowledge_file_path};
 use crate::services::id::random_hex12;
 use crate::services::spark_data::{self, directory_id_for_folder, move_knowledge_paths};
 
@@ -74,7 +74,7 @@ pub fn kb_rename(repo_root: &Path, repo: String, path: String, name: String) -> 
     let Some(dest_rel) = next_relative_path(src_rel, new_name) else {
         return json!({ "error": "invalid path", "_status": 400 });
     };
-    let src = match kb_safe_path(&kb_root, &repo, src_rel) {
+    let src = match kb_dir_name(&repo).and_then(|folder| knowledge_file_path(&kb_root, folder, src_rel)) {
         Ok(p) => p,
         Err(e) => return json!({ "error": e, "_status": err_status(&e) }),
     };
@@ -84,7 +84,7 @@ pub fn kb_rename(repo_root: &Path, repo: String, path: String, name: String) -> 
     if dest_rel == src_rel {
         return json!({ "ok": true, "path": dest_rel });
     }
-    let dest = match kb_safe_path(&kb_root, &repo, &dest_rel) {
+    let dest = match kb_dir_name(&repo).and_then(|folder| knowledge_file_path(&kb_root, folder, &dest_rel)) {
         Ok(p) => p,
         Err(e) => return json!({ "error": e, "_status": err_status(&e) }),
     };

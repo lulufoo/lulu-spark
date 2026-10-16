@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use serde_json::{json, Value};
 
 use crate::config::roots::knowledge_root_string;
-use crate::repositories::knowledge::{kb_dir_name, kb_list_dir, kb_safe_path};
+use crate::repositories::knowledge::{kb_dir_name, knowledge_dir_path, knowledge_file_path};
 use crate::services::spark_data::{
     self, directory_id_for_folder, register_knowledge_doc, remove_knowledge_paths,
 };
@@ -68,7 +68,7 @@ fn remove_docs(repo: &str, rel: &str) -> Result<(), String> {
 }
 
 fn resolve_parent_dir(kb_root: &Path, repo: &str, parent: &str) -> Result<PathBuf, String> {
-    kb_list_dir(kb_root, repo, parent)
+    knowledge_dir_path(kb_root, kb_dir_name(repo)?, parent)
 }
 
 pub fn kb_create(
@@ -101,7 +101,7 @@ pub fn kb_create(
         return json!({ "error": e, "_status": err_status(&e) });
     }
     let dest_rel = join_parent(parent, &entry_name);
-    let dest = match kb_safe_path(&kb_root, &repo, &dest_rel) {
+    let dest = match kb_dir_name(&repo).and_then(|folder| knowledge_file_path(&kb_root, folder, &dest_rel)) {
         Ok(p) => p,
         Err(e) => return json!({ "error": e, "_status": err_status(&e) }),
     };
@@ -130,7 +130,7 @@ pub fn kb_delete(repo_root: &Path, repo: String, path: String) -> Value {
     if src_rel.is_empty() {
         return json!({ "error": "invalid path", "_status": 400 });
     }
-    let src = match kb_safe_path(&kb_root, &repo, src_rel) {
+    let src = match kb_dir_name(&repo).and_then(|folder| knowledge_file_path(&kb_root, folder, src_rel)) {
         Ok(p) => p,
         Err(e) => return json!({ "error": e, "_status": err_status(&e) }),
     };

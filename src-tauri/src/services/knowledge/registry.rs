@@ -7,6 +7,7 @@ use std::path::Path;
 use regex::Regex;
 
 use crate::config::roots::knowledge_root_string;
+use crate::repositories::knowledge::knowledge_dir_path;
 use crate::services::sediment_kb;
 use crate::services::spark_data::{self, directory_id_for_folder, ReconcileStats};
 
@@ -43,10 +44,9 @@ pub fn scan_repo_dir(
     repo_dir: &str,
     hide: &[Regex],
 ) -> Result<ReconcileStats, String> {
-    let local = kb_root.join(repo_dir);
-    if !local.is_dir() {
+    let Ok(local) = knowledge_dir_path(kb_root, repo_dir, "") else {
         return Ok(ReconcileStats::default());
-    }
+    };
     let mut found = HashSet::new();
     walk_md(&local, &local, hide, &mut found);
     let directory_id = directory_id_for_folder(conn, repo_dir)?;

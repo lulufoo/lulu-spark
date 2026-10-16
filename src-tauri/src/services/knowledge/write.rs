@@ -6,7 +6,7 @@ use std::path::Path;
 use serde_json::{json, Map, Value};
 
 use crate::config::roots::knowledge_root_string;
-use crate::repositories::knowledge::kb_safe_path;
+use crate::repositories::knowledge::{kb_dir_name, knowledge_file_path};
 
 use crate::services::id::random_hex12;
 
@@ -28,7 +28,7 @@ fn kb_root_path(repo_root: &Path) -> std::path::PathBuf {
 
 pub fn kb_save(repo_root: &Path, repo: String, path: String, content: String) -> Value {
     let kb_root = kb_root_path(repo_root);
-    let target = match kb_safe_path(&kb_root, &repo, &path) {
+    let target = match kb_dir_name(&repo).and_then(|folder| knowledge_file_path(&kb_root, folder, &path)) {
         Ok(p) => p,
         Err(e) => return json!({ "error": e, "_status": err_status(&e) }),
     };

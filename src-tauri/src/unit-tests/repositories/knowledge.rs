@@ -6,61 +6,57 @@ fn rejects_path_traversal() {
     let dir = tempfile::tempdir().expect("tmp");
     let kb = dir.path().join("kb");
     fs::create_dir_all(kb.join("myrepo")).expect("mkdir");
-    let err = kb_safe_path(&kb, "lulufoo/myrepo", "../secret.md").unwrap_err();
+    let err = knowledge_file_path(&kb, "myrepo", "../secret.md").unwrap_err();
     assert_eq!(err, "invalid path");
 }
 
 #[test]
-fn resolves_file_under_repo() {
+fn resolves_file_under_folder() {
     let dir = tempfile::tempdir().expect("tmp");
     let kb = dir.path().join("kb");
-    let repo_dir = kb.join("myrepo");
-    fs::create_dir_all(&repo_dir).expect("mkdir");
-    let md = repo_dir.join("docs/a.md");
+    let topic = kb.join("myrepo");
+    fs::create_dir_all(&topic).expect("mkdir");
+    let md = topic.join("docs/a.md");
     fs::create_dir_all(md.parent().unwrap()).expect("mkdir");
     fs::write(&md, "# hi").expect("write");
-    let p = kb_safe_path(&kb, "lulufoo/myrepo", "docs/a.md").expect("ok");
+    let p = knowledge_file_path(&kb, "myrepo", "docs/a.md").expect("ok");
     assert!(p.is_file());
 }
 
 #[test]
-fn kb_safe_path_rejects_empty_path() {
+fn knowledge_file_path_rejects_empty_path() {
     let dir = tempfile::tempdir().expect("tmp");
     let kb = dir.path().join("kb");
     fs::create_dir_all(kb.join("myrepo")).expect("mkdir");
-    let err = kb_safe_path(&kb, "lulufoo/myrepo", "").unwrap_err();
+    let err = knowledge_file_path(&kb, "myrepo", "").unwrap_err();
     assert_eq!(err, "invalid path");
 }
 
 #[test]
-fn kb_list_dir_allows_empty_path_for_repo_root() {
+fn knowledge_file_path_rejects_slash_in_folder() {
     let dir = tempfile::tempdir().expect("tmp");
     let kb = dir.path().join("kb");
-    let repo_dir = kb.join("myrepo");
-    fs::create_dir_all(&repo_dir).expect("mkdir");
-    let p = kb_list_dir(&kb, "lulufoo/myrepo", "").expect("ok");
+    fs::create_dir_all(kb.join("myrepo")).expect("mkdir");
+    let err = knowledge_file_path(&kb, "lulufoo/myrepo", "docs/a.md").unwrap_err();
+    assert_eq!(err, "invalid directory name");
+}
+
+#[test]
+fn knowledge_dir_path_allows_empty_rel_for_topic_root() {
+    let dir = tempfile::tempdir().expect("tmp");
+    let kb = dir.path().join("kb");
+    let topic = kb.join("myrepo");
+    fs::create_dir_all(&topic).expect("mkdir");
+    let p = knowledge_dir_path(&kb, "myrepo", "").expect("ok");
     assert!(p.is_dir());
-    assert_eq!(p, repo_dir.canonicalize().unwrap_or(repo_dir));
+    assert_eq!(p, topic.canonicalize().unwrap_or(topic));
 }
 
 #[test]
-fn resolves_file_under_directory_name() {
-    let dir = tempfile::tempdir().expect("tmp");
-    let kb = dir.path().join("kb");
-    let repo_dir = kb.join("topic-name");
-    fs::create_dir_all(&repo_dir).expect("mkdir");
-    let md = repo_dir.join("docs/a.md");
-    fs::create_dir_all(md.parent().unwrap()).expect("mkdir");
-    fs::write(&md, "# hi").expect("write");
-    let p = kb_safe_path(&kb, "topic-name", "docs/a.md").expect("ok");
-    assert!(p.is_file());
-}
-
-#[test]
-fn kb_list_dir_rejects_traversal() {
+fn knowledge_dir_path_rejects_traversal() {
     let dir = tempfile::tempdir().expect("tmp");
     let kb = dir.path().join("kb");
     fs::create_dir_all(kb.join("myrepo")).expect("mkdir");
-    let err = kb_list_dir(&kb, "lulufoo/myrepo", "..").unwrap_err();
+    let err = knowledge_dir_path(&kb, "myrepo", "..").unwrap_err();
     assert_eq!(err, "invalid path");
 }

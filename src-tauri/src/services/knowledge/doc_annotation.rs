@@ -7,7 +7,7 @@ use rusqlite::TransactionBehavior;
 use serde_json::{json, Map, Value};
 
 use crate::config::roots::knowledge_root_string;
-use crate::repositories::knowledge::{kb_dir_name, kb_safe_path};
+use crate::repositories::knowledge::{kb_dir_name, knowledge_file_path};
 use crate::services::spark_data::{
     self, directory_id_for_folder, find_knowledge_doc_id, get_knowledge_directory_by_folder,
     get_knowledge_doc, register_knowledge_doc, update_knowledge_doc, KnowledgeDocRow,
@@ -37,7 +37,7 @@ pub(super) fn edit_doc(
     edit: impl FnOnce(&mut KnowledgeDocRow) -> Result<Value, Value>,
 ) -> Value {
     let kb_root = std::path::PathBuf::from(knowledge_root_string(repo_root));
-    let target = match kb_safe_path(&kb_root, repo, path) {
+    let target = match kb_dir_name(repo).and_then(|folder| knowledge_file_path(&kb_root, folder, path)) {
         Ok(p) => p,
         Err(e) => return error_value(&e, err_status(&e)),
     };
@@ -67,7 +67,7 @@ pub(super) fn edit_doc(
 /// Annotations in the shape the viewer already reads: only non-empty fields.
 pub fn kb_annotation_json(repo_root: &Path, repo: &str, path: &str) -> Value {
     let kb_root = std::path::PathBuf::from(knowledge_root_string(repo_root));
-    if let Err(e) = kb_safe_path(&kb_root, repo, path) {
+    if let Err(e) = kb_dir_name(repo).and_then(|folder| knowledge_file_path(&kb_root, folder, path)) {
         return error_value(&e, err_status(&e));
     }
     let lookup = || -> Result<Option<KnowledgeDocRow>, String> {

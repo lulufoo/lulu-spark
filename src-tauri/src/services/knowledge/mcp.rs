@@ -5,7 +5,7 @@ use std::path::{Component, Path, PathBuf};
 use serde_json::{json, Value};
 
 use crate::config::paths;
-use crate::repositories::knowledge::kb_safe_path;
+use crate::repositories::knowledge::knowledge_file_path;
 use crate::services::search_index::{index_exists, search_in_cache, SearchFilter};
 use crate::services::sediment_kb;
 use crate::services::spark_data::{
@@ -145,7 +145,7 @@ pub(super) fn locate_knowledge_doc(id: &str) -> Result<LocatedDoc, Value> {
         return Err(json!({ "id": id, "ok": false, "error": "Unknown document id" }));
     };
     let root = paths::knowledge_root().map_err(|e| json!({ "error": format!("{e:?}"), "_status": 500 }))?;
-    let file = kb_safe_path(&root, &folder, &row.path)
+    let file = knowledge_file_path(&root, &folder, &row.path)
         .ok()
         .filter(|p| p.is_file());
     match file {

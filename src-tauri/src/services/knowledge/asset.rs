@@ -4,7 +4,7 @@ use std::path::Path;
 use base64::Engine;
 use serde_json::{json, Value};
 
-use crate::repositories::knowledge::kb_safe_path;
+use crate::repositories::knowledge::{kb_dir_name, knowledge_file_path};
 use crate::services::spark_read::{knowledge_root_string, mime_from_extension};
 
 fn err_status_code(msg: &str) -> u16 {
@@ -51,7 +51,7 @@ pub fn kb_asset_json(repo_root: &Path, repo: &str, base: &str, href: &str) -> Va
     };
     let kb_root_str = knowledge_root_string(repo_root);
     let kb_root = Path::new(&kb_root_str);
-    match kb_safe_path(kb_root, repo, &rel) {
+    match kb_dir_name(repo).and_then(|folder| knowledge_file_path(kb_root, folder, &rel)) {
         Err(e) => json!({ "error": e, "_status": err_status_code(&e) }),
         Ok(target) => {
             let mime = match mime_from_extension(&target) {

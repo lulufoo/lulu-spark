@@ -14,81 +14,55 @@ pub fn kb_dir_name(repo: &str) -> Result<&str, String> {
     Ok(name)
 }
 
-/// Aligns with `server.py::_kb_safe_path`.
-pub fn kb_safe_path(kb_root: &Path, repo: &str, rel_path: &str) -> Result<PathBuf, String> {
-    let rel_path = rel_path.trim();
-    if rel_path.is_empty() || rel_path.contains("..") {
-        return Err("invalid path".into());
+fn folder_ok(folder: &str) -> Result<&str, String> {
+    let folder = folder.trim();
+    if folder.is_empty()
+        || folder == "."
+        || folder == ".."
+        || folder.contains("..")
+        || folder.contains('/')
+        || folder.contains('\\')
+        || folder.contains('\0')
+    {
+        return Err("invalid directory name".into());
     }
-    let repo_name = kb_dir_name(repo)?;
-    let local_dir = kb_root.join(repo_name);
-    if !local_dir.is_dir() {
-        return Err(format!("directory not found: {repo_name}"));
-    }
-    let kb_canon = kb_root
-        .canonicalize()
-        .map_err(|e| format!("kb root: {e}"))?;
-    let mut target = local_dir
-        .canonicalize()
-        .unwrap_or_else(|_| local_dir.clone());
-    for comp in Path::new(rel_path).components() {
-        match comp {
-            std::path::Component::Normal(s) => target.push(s),
-            std::path::Component::CurDir => {}
-            _ => return Err("invalid path".into()),
-        }
-    }
-    let prefix = format!(
-        "{}{}",
-        kb_canon.to_string_lossy(),
-        std::path::MAIN_SEPARATOR
-    );
-    let target_str = target.to_string_lossy();
-    if !target_str.starts_with(&prefix) && target != kb_canon {
-        return Err("path traversal not allowed".into());
-    }
-    Ok(target)
+    Ok(folder)
 }
 
-/// List-only path resolver: allows `rel_path == ""` for directory root.
-pub fn kb_list_dir(kb_root: &Path, repo: &str, rel_path: &str) -> Result<PathBuf, String> {
-    let rel_path = rel_path.trim();
-    if rel_path.contains("..") {
-        return Err("invalid path".into());
-    }
-    let repo_name = kb_dir_name(repo)?;
-    let local_dir = kb_root.join(repo_name);
-    if !local_dir.is_dir() {
-        return Err(format!("directory not found: {repo_name}"));
-    }
-    let kb_canon = kb_root
-        .canonicalize()
-        .map_err(|e| format!("kb root: {e}"))?;
-    let mut target = local_dir
-        .canonicalize()
-        .unwrap_or_else(|_| local_dir.clone());
-    if !rel_path.is_empty() {
-        for comp in Path::new(rel_path).components() {
-            match comp {
-                std::path::Component::Normal(s) => target.push(s),
-                std::path::Component::CurDir => {}
-                _ => return Err("invalid path".into()),
-            }
-        }
-    }
-    let prefix = format!(
-        "{}{}",
-        kb_canon.to_string_lossy(),
-        std::path::MAIN_SEPARATOR
-    );
-    let target_str = target.to_string_lossy();
-    if !target_str.starts_with(&prefix) && target != kb_canon {
-        return Err("path traversal not allowed".into());
-    }
+/// Disk path: `{knowledge}/{folder}/{rel}`. `folder` is the topic folder, not the table id.
+pub fn knowledge_file_path(kb_root: &Path, folder: &str, rel: &str) -> Result<PathBuf, String> {
+    join(kb_root, folder, rel, false)
+}
+
+/// Topic folder, or a subdirectory under it. `rel` may be empty for the topic root.
+pub fn knowledge_dir_path(kb_root: &Path, folder: &str, rel: &str) -> Result<PathBuf, String> {
+    let target = join(kb_root, folder, rel, true)?;
     if !target.is_dir() {
         return Err("invalid path".into());
     }
     Ok(target)
+}
+
+fn join(kb_root: &Path, folder: &str, rel: &str, allow_empty_rel: bool) -> Result<PathBuf, String> {
+    let folder = folder_ok(folder)?;
+    let rel = rel.trim();
+    if rel.contains("..") {
+        return Err("invalid path".into());
+    }
+    if !allow_empty_rel && rel.is_empty() {
+        return Err("invalid path".into());
+    }
+    let kb_canon = kb_root
+        .canonicalize()
+        .map_err(|e| format!("kb root: {e}"))?;
+    let topic = kb_canon.join(folder);
+    if !topic.is_dir() {
+        return Err(format!("directory not found: {folder}"));
+    }
+    if rel.is_empty() {
+        return Ok(topic);
+    }
+    Ok(topic.join(rel))
 }
 
 #[cfg(test)]
