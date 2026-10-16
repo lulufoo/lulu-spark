@@ -1,5 +1,5 @@
 import { state, getEntryId, notifyState } from '../../state/host.ts';
-import { noteFileLang } from '../../../knowledge/state/path.ts';
+import { docFileLang } from '../../state/doc-lang.ts';
 import { resetEditAreaScroll } from '../../../shared/utils.ts';
 import * as api from '../../../host/api.ts';
 import { setDocEditMode } from '../../../doc-editor/view.tsx';
@@ -52,7 +52,7 @@ export async function openDoc(entry: NoteEntry, layer = 'raw') {
   notifyState();
 
   const entryId = getEntryId(entry);
-  const lang = noteFileLang(entry, state.viewer.lang || '', layer);
+  const lang = docFileLang(entry, state.viewer.lang || '', layer);
   const [mdResult, annResult] = await Promise.allSettled([
     api.fetchFileContent(layer, entryId, lang),
     api.fetchAnnotation(entryId).catch(() => ({})),
@@ -97,7 +97,7 @@ export async function switchLang(lang: string | null) {
   state.viewer.bodyPaintKey += 1;
   notifyState();
 
-  const langKey = noteFileLang(entry, lang || '', layer);
+  const langKey = docFileLang(entry, lang || '', layer);
   try {
     const text = await api.fetchFileContent(layer, getEntryId(entry), langKey);
     if (gen !== openDocGen) return;
@@ -165,7 +165,7 @@ export async function saveDoc() {
   notifyState();
 
   try {
-    const lang = noteFileLang(state.viewer.entry, state.viewer.lang || '', state.viewer.layer);
+    const lang = docFileLang(state.viewer.entry, state.viewer.lang || '', state.viewer.layer);
     const data = (await api.saveFile(state.viewer.layer, getEntryId(state.viewer.entry), newContent, lang)) as { error?: string };
     if (data.error) throw new Error(data.error);
 

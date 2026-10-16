@@ -1,7 +1,7 @@
 /**
- * Normalize notes `index.json` payload into mutable entry map.
+ * Normalize the documents index payload into mutable entry map.
  */
-export function normalizeKnowledgeIndex(data: unknown): Record<string, object> {
+export function normalizeDocIndex(data: unknown): Record<string, object> {
   if (!data || typeof data !== 'object' || Array.isArray(data)) {
     throw new Error('Invalid index.json format');
   }

@@ -109,16 +109,16 @@ class ToolDispatcherTest {
                 MemoryStorage(),
             ).definitions()
         val tool = defs.single { it.name == "get_doc_content" }
-        assertEquals(NOTE_CONTENT_STAGE_DESCRIPTION, tool.description)
+        assertEquals(DOC_CONTENT_STAGE_DESCRIPTION, tool.description)
         assertTrue(tool.parametersJson.contains("\"id\""))
     }
 
     @Test
     fun noteContentSuccessStagesAndHidesBody() {
         val storage = MemoryStorage()
-        val noteId = "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+        val docId = "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
         val host =
-            """{"id":"$noteId","ok":true,"content":"# Park note\n\nsecret body","truncated":false}"""
+            """{"id":"$docId","ok":true,"content":"# Park doc\n\nsecret body","truncated":false}"""
         val dispatcher =
             ToolDispatcher(
                 FsTools(),
@@ -128,20 +128,20 @@ class ToolDispatcherTest {
         val out =
             dispatcher.call(
                 "get_doc_content",
-                """{"id":"$noteId"}""",
+                """{"id":"$docId"}""",
                 "/tmp",
                 "sess_a",
                 "commute chat",
             )
         assertTrue(out.startsWith("success handle=F1 "))
-        assertTrue(out.contains("note_id=$noteId"))
+        assertTrue(out.contains("doc_id=$docId"))
         assertTrue(!out.contains("secret body"))
         val body = storage.list("staged").single { it.endsWith("/body.md") }
-        assertEquals("# Park note\n\nsecret body", storage.read(body)?.decodeToString())
+        assertEquals("# Park doc\n\nsecret body", storage.read(body)?.decodeToString())
         val meta = storage.read(body.removeSuffix("/body.md") + "/meta")?.decodeToString().orEmpty()
         assertTrue(meta.contains("\"source_session_id\":\"sess_a\""))
         assertTrue(meta.contains("\"source_session_title\":\"commute chat\""))
-        assertTrue(meta.contains("Park note"))
+        assertTrue(meta.contains("Park doc"))
     }
 
     @Test

@@ -2,12 +2,12 @@ package com.lulu.spark.android.agent.tools
 
 import com.lulu.spark.android.agent.tools.stage.StageTools
 
-internal const val NOTE_CONTENT_TOOL = "get_doc_content"
+internal const val DOC_CONTENT_TOOL = "get_doc_content"
 
-internal const val NOTE_CONTENT_STAGE_DESCRIPTION =
+internal const val DOC_CONTENT_STAGE_DESCRIPTION =
     "Fetch one document's raw Markdown onto the phone staged library and tag this chat. Pass the workspace the search hit came from. On success returns success plus a staged handle. Does not return the body. The user reads it in Stage. Use get_doc_digest for a digest, or get_staged for the staged file."
 
-internal fun stageNoteContentResult(
+internal fun stageDocContentResult(
     remoteText: String,
     stage: StageTools,
     sessionId: String,
@@ -21,13 +21,13 @@ internal fun stageNoteContentResult(
         return jsonStringField(inner, "error")?.let { "error: $it" } ?: inner
     }
     val content = jsonStringField(inner, "content") ?: return inner
-    val noteId = jsonStringField(inner, "id").orEmpty()
-    val title = titleFromNoteRaw(content, noteId)
+    val docId = jsonStringField(inner, "id").orEmpty()
+    val title = titleFromDocRaw(content, docId)
     val item = stage.createFromBody(title, content, sessionId, sessionTitle)
-    return "success handle=${item.handle} id=${item.id} note_id=$noteId"
+    return "success handle=${item.handle} id=${item.id} doc_id=$docId"
 }
 
-internal fun titleFromNoteRaw(body: String, noteId: String): String {
+internal fun titleFromDocRaw(body: String, docId: String): String {
     for (line in body.lineSequence()) {
         val trimmed = line.trim()
         if (trimmed.startsWith("# ")) {
@@ -35,5 +35,5 @@ internal fun titleFromNoteRaw(body: String, noteId: String): String {
             if (heading.isNotEmpty()) return heading
         }
     }
-    return noteId.ifBlank { "Untitled" }
+    return docId.ifBlank { "Untitled" }
 }

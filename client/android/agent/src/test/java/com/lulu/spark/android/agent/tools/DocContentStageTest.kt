@@ -6,26 +6,26 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-class NoteContentStageTest {
+class DocContentStageTest {
     @Test
-    fun titlePrefersHeadingThenNoteId() {
-        assertEquals("Park note", titleFromNoteRaw("# Park note\n\nbody", "id1"))
-        assertEquals("id1", titleFromNoteRaw("no heading", "id1"))
-        assertEquals("Untitled", titleFromNoteRaw("", ""))
+    fun titlePrefersHeadingThenDocId() {
+        assertEquals("Park doc", titleFromDocRaw("# Park doc\n\nbody", "id1"))
+        assertEquals("id1", titleFromDocRaw("no heading", "id1"))
+        assertEquals("Untitled", titleFromDocRaw("", ""))
     }
 
     @Test
     fun unwrapsMcpEnvelopeAndStages() {
         val storage = MemoryStorage()
-        val noteId = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-        val host = """{"id":"$noteId","ok":true,"content":"# Heading\n\nbody"}"""
+        val docId = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        val host = """{"id":"$docId","ok":true,"content":"# Heading\n\nbody"}"""
         val envelope =
             """{"result":{"content":[{"type":"text","text":${escapeJson(host)}}],"isError":false}}"""
-        val out = stageNoteContentResult(envelope, StageTools(storage), "sess_a", "chat")
+        val out = stageDocContentResult(envelope, StageTools(storage), "sess_a", "chat")
         assertTrue(out.startsWith("success handle=F1 "))
-        assertTrue(out.contains("note_id=$noteId"))
+        assertTrue(out.contains("doc_id=$docId"))
         assertTrue(!out.contains("body"))
-        val second = stageNoteContentResult(envelope, StageTools(storage), "sess_a", "chat")
+        val second = stageDocContentResult(envelope, StageTools(storage), "sess_a", "chat")
         assertTrue(second.contains("handle=F2"))
     }
 
@@ -36,7 +36,7 @@ class NoteContentStageTest {
             """{"result":{"content":[{"type":"text","text":"HTTP 503: unavailable"}],"isError":true}}"""
         assertEquals(
             "HTTP 503: unavailable",
-            stageNoteContentResult(envelope, StageTools(storage), "sess_a", "chat"),
+            stageDocContentResult(envelope, StageTools(storage), "sess_a", "chat"),
         )
         assertTrue(storage.list("staged").isEmpty())
     }

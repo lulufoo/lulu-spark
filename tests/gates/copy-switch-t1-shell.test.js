@@ -256,7 +256,7 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
   });
 
   it('search placeholders use table B; the header has no index rebuild control', () => {
-    expect(indexHtml).toMatch(/id="gs-wb-input"[^>]*placeholder="Search notes…"/);
+    expect(indexHtml).toMatch(/id="gs-wb-input"[^>]*placeholder="Search this workspace…"/);
     expect(indexHtml).not.toMatch(/id="gs-wb-rebuild-btn"/);
     expect(indexHtml).not.toMatch(/IndexRebuildStatus|IndexRebuildButton|header-index-status|btn-index-rebuild/);
   });
@@ -270,9 +270,9 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
     expect(indexHtml).not.toContain('Read Later 待读');
   });
 
-  it('settings nav uses Notes, Agent, then MCP', () => {
+  it('settings nav uses Workspaces, Agent, then MCP', () => {
     expect(indexHtml).not.toMatch(/data-panel="spark">Data</);
-    expect(indexHtml).toMatch(/data-panel="notes">Notes</);
+    expect(indexHtml).toMatch(/data-panel="notes">Workspaces</);
     expect(indexHtml).not.toMatch(/data-panel="knowledge"/);
     expect(indexHtml).toMatch(/data-panel="llm">Agent</);
     expect(indexHtml).not.toMatch(/data-panel="llm">Assistant/);

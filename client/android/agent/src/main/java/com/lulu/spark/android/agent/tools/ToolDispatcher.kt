@@ -27,8 +27,8 @@ class ToolDispatcher(
         return local +
             remote.filter { it.name !in localNames }.map { tool ->
                 val description =
-                    if (tool.name == NOTE_CONTENT_TOOL) {
-                        NOTE_CONTENT_STAGE_DESCRIPTION
+                    if (tool.name == DOC_CONTENT_TOOL) {
+                        DOC_CONTENT_STAGE_DESCRIPTION
                     } else {
                         tool.description.ifEmpty { tool.name }
                     }
@@ -61,8 +61,8 @@ class ToolDispatcher(
         }
         return try {
             val remoteText = wmcp.callTool(name, arguments).text
-            if (name == NOTE_CONTENT_TOOL) {
-                stageNoteContentResult(remoteText, stage, sessionId, sessionTitle)
+            if (name == DOC_CONTENT_TOOL) {
+                stageDocContentResult(remoteText, stage, sessionId, sessionTitle)
             } else {
                 remoteText
             }

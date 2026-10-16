@@ -9,7 +9,7 @@ import './notes/ui/comments.tsx';
 import { navigate, navigateToNote } from './router/index.ts';
 import { setRouteHandlers } from './route-handlers.ts';
 import { setSparkBinding } from './app-shell/commands/spark-binding.ts';
-import { normalizeKnowledgeIndex } from './knowledge/state/index.ts';
+import { normalizeDocIndex } from './notes/state/doc-index.ts';
 import { initTooltip } from './app-shell/ui/tooltip.ts';
 import {
   getHomeEntryShell,
@@ -39,7 +39,7 @@ async function loadIndex({ managedBtn = false }: { managedBtn?: boolean } = {}) 
     await loadWorkspaces();
     await loadProjects();
     const data = await api.fetchIndex(state.workspaces.current);
-    state.index.data = normalizeKnowledgeIndex(data) as Record<string, HostNoteEntry>;
+    state.index.data = normalizeDocIndex(data) as Record<string, HostNoteEntry>;
     state.index.groupedByDate = buildGroups(state.index.data);
     state.ui.activeTopic = null;
     state.ui.loadError = null;

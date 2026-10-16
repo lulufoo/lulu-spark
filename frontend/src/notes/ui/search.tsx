@@ -198,7 +198,7 @@ export function SparkSearchFields() {
         id="gs-wb-input"
         className="gs-search-input"
         type="text"
-        placeholder="Search notes…"
+        placeholder="Search this workspace…"
         autoComplete="off"
         spellCheck={false}
         value={query}
