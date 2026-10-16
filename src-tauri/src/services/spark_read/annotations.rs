@@ -1,4 +1,3 @@
-use std::fs;
 use std::path::Path;
 
 use serde_json::{json, Map, Value};
@@ -6,6 +5,8 @@ use serde_json::{json, Map, Value};
 use crate::config::roots::notes_root_path;
 use crate::services::annotation::read_annotation_object;
 use crate::services::tags_registry::read_registry;
+
+use super::notes::load_notes_index_entries;
 
 pub fn get_annotation(repo_root: &Path, path: &str) -> Value {
     let decoded = urlencoding::decode(path).unwrap_or_else(|_| path.into());
@@ -40,22 +41,11 @@ fn resolve_tags(registry: &Value, tag_keys: &[Value]) -> Value {
 pub fn get_annotations_summary(repo_root: &Path) -> Value {
     let notes = notes_root_path(repo_root);
     let registry = read_registry(&notes);
-    let index_path = notes.join("index.json");
-    let Ok(text) = fs::read_to_string(&index_path) else {
-        return json!({ "error": format!("No such file: {}", index_path.display()) });
+    let entries = match load_notes_index_entries(repo_root) {
+        Ok(entries) => entries,
+        Err(error) => return error,
     };
-    let Ok(index_data) = serde_json::from_str::<Value>(&text) else {
-        return json!({ "error": "invalid index.json" });
-    };
-    let entries = index_data
-        .get("entries")
-        .cloned()
-        .unwrap_or(index_data.clone());
-    let entry_values: Vec<Value> = match &entries {
-        Value::Object(m) => m.values().cloned().collect(),
-        Value::Array(a) => a.clone(),
-        _ => return json!({ "error": "invalid index entries" }),
-    };
+    let entry_values: Vec<Value> = entries.values().cloned().collect();
     let mut result = Map::new();
     for entry in entry_values {
         let Some(obj) = entry.as_object() else {

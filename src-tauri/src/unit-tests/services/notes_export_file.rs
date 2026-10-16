@@ -3,7 +3,7 @@ use std::fs;
 use serde_json::json;
 
 use crate::services::notes::get_note_file;
-use crate::test_support::TestSandbox;
+use crate::test_support::{seed_note_entries, TestSandbox};
 
 const ID: &str = "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
 
@@ -16,7 +16,7 @@ fn seed_note(sandbox: &TestSandbox, layers: &[&str]) {
     let index = json!({
         "entries": { ID: { "common_path": "ai/note.md", "created_at": "202606190004", "layers": layers } }
     });
-    fs::write(notes.join("index.json"), index.to_string()).expect("write index");
+    seed_note_entries(&index["entries"]);
 }
 
 #[test]

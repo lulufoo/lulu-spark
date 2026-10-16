@@ -5,7 +5,7 @@ use serde_json::json;
 
 use crate::services::annotation::read_annotation_object;
 use crate::services::tags_registry::{read_registry, registry_path};
-use crate::test_support::with_sandbox_notes;
+use crate::test_support::{seed_note_entries, with_sandbox_notes};
 
 #[test]
 fn tag_attach_new_key_writes_registry_and_annotation() {
@@ -108,14 +108,7 @@ fn delete_entry_decrements_refs() {
     with_sandbox_notes(true, |dir, notes| {
         let cp = "ai/del.md";
         let entry_id = "a1b2c3d4e5f6789012345678901234ab";
-        fs::write(
-            notes.join("index.json"),
-            serde_json::to_string(&json!({
-                "entries": { entry_id: { "common_path": cp } }
-            }))
-            .unwrap(),
-        )
-        .expect("index");
+        seed_note_entries(&json!({ entry_id: { "common_path": cp } }));
         fs::create_dir_all(notes.join("raw/ai")).expect("mkdir");
         fs::write(notes.join("raw/ai/del.md"), "# x").expect("md");
 

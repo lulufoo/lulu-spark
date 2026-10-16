@@ -5,6 +5,7 @@ use base64::Engine;
 use serde_json::{json, Map, Value};
 
 use crate::config::roots::{knowledge_root_string, notes_root_path};
+use crate::services::spark_data;
 
 const NOTES_LAYERS: &[&str] = &["raw", "digest"];
 
@@ -18,22 +19,12 @@ fn is_under_root(root: &Path, target: &Path) -> bool {
     target.to_string_lossy().starts_with(&prefix)
 }
 
-/// Notes sidebar index (`notes/index.json`).
+/// Notes sidebar index: `{ "entries": { doc_id: entry } }`, built from the `note` table.
 pub fn get_notes_index(_repo_root: &Path) -> Value {
-    let notes = notes_root_path(_repo_root);
-    let index_path = notes.join("index.json");
-    if !index_path.is_file() {
-        return json!({
-            "error": format!("No such file: {}", index_path.display()),
-            "_status": 404
-        });
-    }
-    let Ok(text) = fs::read_to_string(&index_path) else {
-        return json!({ "error": "failed to read index.json", "_status": 500 });
-    };
-    match serde_json::from_str::<Value>(&text) {
-        Ok(v) => v,
-        Err(e) => json!({ "error": format!("invalid index.json: {e}"), "_status": 500 }),
+    let entries = spark_data::open().and_then(|conn| spark_data::list_note_entries(&conn));
+    match entries {
+        Ok(entries) => json!({ "entries": entries }),
+        Err(e) => json!({ "error": format!("notes index: {e}"), "_status": 500 }),
     }
 }
 

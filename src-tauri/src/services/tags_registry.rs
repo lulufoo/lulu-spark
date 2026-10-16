@@ -10,6 +10,7 @@ use crate::config::roots::notes_root_path;
 use crate::repositories::annotation_paths::annotation_json_path;
 use crate::repositories::atomic_json;
 use crate::services::annotation::read_annotation_object;
+use crate::services::spark_read::load_notes_index_entries;
 
 pub fn registry_path(notes: &Path) -> PathBuf {
     notes.join("tags/registry.json")
@@ -98,40 +99,21 @@ pub fn remove_key_if_zero(registry: &mut Value, key: &str) {
     }
 }
 
-fn index_common_paths(_notes: &Path, index_path: &Path) -> Option<Vec<String>> {
-    let text = fs::read_to_string(index_path).ok()?;
-    let index_data: Value = serde_json::from_str(&text).ok()?;
-    let entries = index_data
-        .get("entries")
-        .cloned()
-        .unwrap_or(index_data);
-    let entry_values: Vec<Value> = match &entries {
-        Value::Object(m) => m.values().cloned().collect(),
-        Value::Array(a) => a.clone(),
-        _ => return Some(vec![]),
-    };
-    let mut paths = Vec::new();
-    for entry in entry_values {
-        if let Some(cp) = entry
-            .as_object()
-            .and_then(|o| o.get("common_path"))
-            .and_then(|v| v.as_str())
-        {
-            if !cp.is_empty() {
-                paths.push(cp.to_string());
-            }
-        }
-    }
-    Some(paths)
+fn index_common_paths(repo_root: &Path) -> Option<Vec<String>> {
+    let entries = load_notes_index_entries(repo_root).ok()?;
+    Some(
+        entries
+            .values()
+            .filter_map(|entry| entry.get("common_path").and_then(Value::as_str))
+            .filter(|path| !path.is_empty())
+            .map(String::from)
+            .collect(),
+    )
 }
 
 pub fn reconcile_tags(repo_root: &Path) -> Option<Value> {
     let notes = notes_root_path(repo_root);
-    let index_path = notes.join("index.json");
-    if !index_path.is_file() {
-        return None;
-    }
-    let paths = index_common_paths(&notes, &index_path)?;
+    let paths = index_common_paths(repo_root)?;
     let old = read_registry(&notes);
 
     let old_keys = old.get("keys").and_then(|v| v.as_object());

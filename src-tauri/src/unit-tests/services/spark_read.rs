@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use serde_json::json;
 
-use crate::test_support::TestSandbox;
+use crate::test_support::{seed_note_entries, TestSandbox};
 
 #[test]
 fn get_config_has_frontend_contract_keys() {
@@ -183,16 +183,40 @@ fn check_spark_root_requires_dir_and_index() {
 }
 
 #[test]
-fn get_notes_index_reads_json() {
+fn get_notes_index_is_built_from_the_note_table_in_the_old_entry_shape() {
     with_notes_repo(
-        |_, notes| {
-            fs::create_dir_all(notes).expect("mkdir");
-            fs::write(notes.join("index.json"), br#"{"entries":[]}"#).expect("write");
+        |_, _| {
+            seed_note_entries(&json!({
+                "n1": {
+                    "common_path": "ai/topic/20260101-a.md", "created_at": "202601010000",
+                    "layers": ["raw", "digest"], "source_type": "article", "title": "A",
+                    "translations": { "zh": "ai/topic/20260101-a-zh.md" }
+                },
+                "n2": { "common_path": "ai/topic/20260102-b.md", "layers": ["raw"] },
+            }));
         },
         |cfg_dir| {
             let v = get_notes_index(cfg_dir);
-            assert_eq!(v["entries"], json!([]));
+            assert_eq!(
+                v,
+                json!({ "entries": {
+                    "n1": {
+                        "common_path": "ai/topic/20260101-a.md", "created_at": "202601010000",
+                        "layers": ["raw", "digest"], "source_type": "article", "title": "A",
+                        "translations": { "zh": "ai/topic/20260101-a-zh.md" }
+                    },
+                    "n2": { "common_path": "ai/topic/20260102-b.md", "layers": ["raw"] },
+                }})
+            );
         },
+    );
+}
+
+#[test]
+fn get_notes_index_of_an_empty_table_has_no_entries() {
+    with_notes_repo(
+        |_, _| {},
+        |cfg_dir| assert_eq!(get_notes_index(cfg_dir), json!({ "entries": {} })),
     );
 }
 
@@ -217,14 +241,7 @@ fn get_annotations_summary_includes_resolved_tags() {
 
     with_sandbox_notes(true, |dir, notes| {
         let cp = "ai/tags.md";
-        fs::write(
-            notes.join("index.json"),
-            serde_json::to_string(&serde_json::json!({
-                "entries": { "e1": { "common_path": cp } }
-            }))
-            .unwrap(),
-        )
-        .expect("index");
+        seed_note_entries(&serde_json::json!({ "e1": { "common_path": cp } }));
         let ann_path = annotation_json_path(&notes, cp).expect("path");
         if let Some(parent) = ann_path.parent() {
             fs::create_dir_all(parent).expect("mkdir");
@@ -381,7 +398,7 @@ fn catalog_listing_helpers_pick_newest_including_raw_only() {
                     }
                 }
             });
-            fs::write(notes.join("index.json"), index.to_string()).expect("write index");
+            seed_note_entries(&index["entries"]);
         },
         move |cfg_dir| {
             let listed = list_notes_by_catalog(cfg_dir, "ai");
@@ -420,7 +437,7 @@ fn get_note_digest_and_content_by_id() {
                     }
                 }
             });
-            fs::write(notes.join("index.json"), index.to_string()).expect("write index");
+            seed_note_entries(&index["entries"]);
         },
         move |cfg_dir| {
             let digest = get_note_digest(cfg_dir, id_ok);
@@ -457,7 +474,7 @@ fn get_note_content_truncates_over_10kb() {
                     }
                 }
             });
-            fs::write(notes.join("index.json"), index.to_string()).expect("write index");
+            seed_note_entries(&index["entries"]);
         },
         move |cfg_dir| {
             let raw = get_note_content_by_id(cfg_dir, id_ok);

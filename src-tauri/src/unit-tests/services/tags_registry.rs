@@ -6,7 +6,7 @@ use serde_json::json;
 use crate::repositories::annotation_paths::annotation_json_path;
 use crate::repositories::atomic_json;
 use crate::services::annotation::read_annotation_object;
-use crate::test_support::with_sandbox_notes;
+use crate::test_support::{seed_note_entries, with_sandbox_notes};
 
 #[test]
 fn registry_path_points_under_notes_tags() {
@@ -63,7 +63,7 @@ fn reconcile_drops_registry_key_with_zero_refs() {
     with_sandbox_notes(true, |dir, notes| {
         let cp1 = "ai/a.md";
         let cp2 = "ai/b.md";
-        fs::write(notes.join("index.json"), index_two_entries(cp1, cp2)).expect("index");
+        seed_note_entries(&index_two_entries(cp1, cp2)["entries"]);
         write_annotation(&notes, cp1, json!({ "tag_keys": ["tagabc123456"] }));
         write_annotation(&notes, cp2, json!({ "tag_keys": ["tagabc123456"] }));
 
@@ -87,7 +87,7 @@ fn reconcile_drops_registry_key_with_zero_refs() {
 fn reconcile_removes_stale_tag_keys_from_annotation() {
     with_sandbox_notes(true, |dir, notes| {
         let cp = "ai/stale.md";
-        fs::write(notes.join("index.json"), index_one_entry(cp)).expect("index");
+        seed_note_entries(&index_one_entry(cp)["entries"]);
         write_annotation(
             &notes,
             cp,
@@ -110,21 +110,17 @@ fn reconcile_removes_stale_tag_keys_from_annotation() {
     });
 }
 
-fn index_one_entry(common_path: &str) -> String {
-    serde_json::to_string(&json!({
-        "entries": { "e1": { "common_path": common_path } }
-    }))
-    .expect("index json")
+fn index_one_entry(common_path: &str) -> serde_json::Value {
+    json!({ "entries": { "e1": { "common_path": common_path } } })
 }
 
-fn index_two_entries(cp1: &str, cp2: &str) -> String {
-    serde_json::to_string(&json!({
+fn index_two_entries(cp1: &str, cp2: &str) -> serde_json::Value {
+    json!({
         "entries": {
             "e1": { "common_path": cp1 },
             "e2": { "common_path": cp2 }
         }
-    }))
-    .expect("index json")
+    })
 }
 
 fn write_annotation(notes: &std::path::Path, common_path: &str, ann: serde_json::Value) {

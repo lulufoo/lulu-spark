@@ -7,14 +7,15 @@ use serde_json::{json, Value};
 
 use crate::config::roots::notes_root_path;
 use crate::services::search_index;
+use crate::services::spark_data::{get_note, update_note as update_note_row, NoteRow};
 use crate::services::translation_gate;
 
 use super::digest::{
     digest_body_from_payload, digest_should_write, parse_digest_mode, write_digest_file_overwrite,
 };
 use super::store::{
-    load_entries_map, notes_layer_path, reject_legacy_translation_fields,
-    resolve_archive_source_markdown, save_entries, write_markdown_atomic,
+    notes_layer_path, open_data, reject_legacy_translation_fields, resolve_archive_source_markdown,
+    write_markdown_atomic,
 };
 
 const DEFERRED_FIELDS: &[&str] = &[
@@ -90,27 +91,22 @@ fn update_note_from_body(repo_root: &Path, payload: &Value, source: &str) -> Val
         return json!({ "error": "Content is empty", "_status": 400 });
     }
 
-    let (index_path, mut entries) = match load_entries_map(repo_root) {
-        Ok(v) => v,
+    let conn = match open_data() {
+        Ok(conn) => conn,
         Err(v) => return v,
     };
-    let Some(entry) = entries.get(&id).cloned() else {
-        return json!({ "error": "Entry not found", "_status": 404 });
+    let note = match get_note(&conn, &id) {
+        Ok(Some(note)) => note,
+        Ok(None) => return json!({ "error": "Entry not found", "_status": 404 }),
+        Err(e) => return json!({ "error": e, "_status": 500 }),
     };
-    let Some(common_path) = entry.get("common_path").and_then(|v| v.as_str()) else {
-        return json!({ "error": "Missing path", "_status": 400 });
-    };
-    let common_path = common_path.trim().to_string();
+    let common_path = note.raw_path.trim().to_string();
     if common_path.is_empty() || common_path.contains("..") {
         return json!({ "error": "Invalid path", "_status": 400 });
     }
-    let source_type = entry
-        .get("source_type")
-        .and_then(|v| v.as_str())
-        .unwrap_or("summary")
-        .to_string();
+    let source_type = note.source_type.clone().unwrap_or_else(|| "summary".to_string());
 
-    if translation_gate::is_full_english(source) && !entry_has_zh(&entry) {
+    if translation_gate::is_full_english(source) && !note_has_zh(&note) {
         return json!({
             "error": "full English note requires translations.zh",
             "_status": 400
@@ -158,13 +154,12 @@ fn update_note_from_body(repo_root: &Path, payload: &Value, source: &str) -> Val
         }
     }
 
-    if digest_rel.is_some() {
-        if let Some(updated) = with_digest_layer(entry) {
-            entries.insert(id.clone(), updated);
-            if let Err(v) = save_entries(&index_path, &entries) {
-                let _ = write_markdown_atomic(&raw_path, &prev_raw);
-                return v;
-            }
+    if digest_rel.is_some() && note.digest_path.is_none() {
+        let mut updated = note.clone();
+        updated.digest_path = Some(common_path.clone());
+        if let Err(e) = update_note_row(&conn, &updated) {
+            let _ = write_markdown_atomic(&raw_path, &prev_raw);
+            return json!({ "error": e, "_status": 500 });
         }
     }
 
@@ -208,21 +203,8 @@ fn reject_deferred_fields(payload: &Value) -> Option<Value> {
     None
 }
 
-fn entry_has_zh(entry: &Value) -> bool {
-    entry.get("translations").and_then(|t| t.get("zh")).is_some()
-}
-
-fn with_digest_layer(mut entry: Value) -> Option<Value> {
-    match entry.get_mut("layers").and_then(|v| v.as_array_mut()) {
-        Some(layers) => {
-            if layers.iter().any(|v| v.as_str() == Some("digest")) {
-                return None;
-            }
-            layers.push(json!("digest"));
-        }
-        None => {
-            entry["layers"] = json!(["raw", "digest"]);
-        }
-    }
-    Some(entry)
+fn note_has_zh(note: &NoteRow) -> bool {
+    note.translations
+        .as_array()
+        .is_some_and(|langs| langs.iter().any(|l| l.as_str() == Some("zh")))
 }

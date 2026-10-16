@@ -124,6 +124,15 @@ pub fn get_note(conn: &Connection, doc_id: &str) -> Result<Option<NoteRow>, Stri
     .map_err(|e| e.to_string())
 }
 
+/// Every note, ordered by `doc_id`.
+pub fn list_notes(conn: &Connection) -> Result<Vec<NoteRow>, String> {
+    let mut stmt = conn
+        .prepare(&format!("SELECT {COLUMNS} FROM note ORDER BY doc_id"))
+        .map_err(|e| e.to_string())?;
+    let rows = stmt.query_map([], map_row).map_err(|e| e.to_string())?;
+    rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
+}
+
 /// `raw_path` is not unique (the real `index.json` has two ids sharing one path), so
 /// this returns every match.
 pub fn find_note_ids_by_path(conn: &Connection, raw_path: &str) -> Result<Vec<String>, String> {

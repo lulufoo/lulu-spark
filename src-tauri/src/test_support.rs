@@ -7,7 +7,10 @@ use std::sync::{Mutex, MutexGuard};
 use crate::config::settings;
 
 mod config_env;
+mod notes_fixture;
 mod sandbox_layout;
+
+pub(crate) use notes_fixture::{block_note_writes, read_note_entries, seed_note_entries};
 
 pub(crate) use config_env::{install_env_restore_probe, install_test_config_env_construction_probe};
 pub use config_env::TestConfigEnv;

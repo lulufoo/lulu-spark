@@ -1,15 +1,17 @@
-//! Notes entry delete / move-project (local FS + index.json only).
+//! Notes entry delete / move-project: files first, then the `note` row.
 
 use std::collections::HashSet;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
-use serde_json::{json, Map, Value};
+use serde_json::{json, Value};
 
 use crate::config::paths;
 use crate::repositories::annotation_paths::annotation_json_path;
 use crate::services::annotation::read_annotation_object;
+use crate::services::archive_parse::expected_lang_common_path;
 use crate::services::search_index;
+use crate::services::spark_data::{self, delete_note, get_note, translation_common_paths, update_note};
 use crate::services::tags_registry::{adjust_refs, read_registry, save_registry};
 const LAYERS: &[&str] = &["raw", "digest"];
 
@@ -17,31 +19,16 @@ fn notes_root() -> Result<PathBuf, Value> {
     paths::notes_root().map_err(|e| json!({ "error": format!("{e:?}") }))
 }
 
-fn load_index(notes: &Path) -> Result<(PathBuf, Map<String, Value>), Value> {
-    let index_path = notes.join("index.json");
-    if !index_path.is_file() {
-        return Err(json!({ "error": "index.json not found", "_status": 404 }));
-    }
-    let text = fs::read_to_string(&index_path).map_err(|e| json!({ "error": e.to_string() }))?;
-    let data: Value =
-        serde_json::from_str(&text).map_err(|e| json!({ "error": e.to_string() }))?;
-    let entries = if let Some(obj) = data.get("entries").and_then(|v| v.as_object()) {
-        obj.clone()
-    } else if let Some(obj) = data.as_object() {
-        obj.clone()
-    } else {
-        return Err(json!({ "error": "invalid index.json", "_status": 500 }));
-    };
-    Ok((index_path, entries))
+fn open_data() -> Result<rusqlite::Connection, Value> {
+    spark_data::open().map_err(|e| json!({ "error": e, "_status": 500 }))
 }
 
-fn save_index(index_path: &Path, entries: &Map<String, Value>) -> Result<(), Value> {
-    let data = json!({ "entries": entries });
-    let text = serde_json::to_string_pretty(&data).map_err(|e| json!({ "error": e.to_string() }))?;
-    let tmp = index_path.with_extension("json.tmp");
-    fs::write(&tmp, &text).map_err(|e| json!({ "error": e.to_string() }))?;
-    fs::rename(&tmp, index_path).map_err(|e| json!({ "error": e.to_string() }))?;
-    Ok(())
+fn load_note(conn: &rusqlite::Connection, id: &str) -> Result<spark_data::NoteRow, Value> {
+    match get_note(conn, id) {
+        Ok(Some(note)) => Ok(note),
+        Ok(None) => Err(json!({ "error": "Entry not found", "_status": 404 })),
+        Err(e) => Err(json!({ "error": e, "_status": 500 })),
+    }
 }
 
 fn valid_projects() -> HashSet<String> {
@@ -65,14 +52,15 @@ pub fn delete_entry(payload: &Value) -> Value {
         Ok(p) => p,
         Err(v) => return v,
     };
-    let (index_path, mut entries) = match load_index(&notes) {
-        Ok(v) => v,
+    let conn = match open_data() {
+        Ok(conn) => conn,
         Err(v) => return v,
     };
-    let Some(entry) = entries.remove(entry_id) else {
-        return json!({ "error": "Entry not found", "_status": 404 });
+    let note = match load_note(&conn, entry_id) {
+        Ok(note) => note,
+        Err(v) => return v,
     };
-    let common_path = entry.get("common_path").and_then(|v| v.as_str()).unwrap_or("");
+    let common_path = note.raw_path.as_str();
     if common_path.is_empty() || common_path.contains("..") {
         return json!({ "error": "Invalid path", "_status": 400 });
     }
@@ -105,8 +93,9 @@ pub fn delete_entry(payload: &Value) -> Value {
             deleted.push(format!("annotations/{}.json", &common_path[..common_path.len().saturating_sub(3)]));
         }
     }
-    if let Err(v) = save_index(&index_path, &entries) {
-        return v;
+    // The files are gone; only now does the record go.
+    if let Err(e) = delete_note(&conn, entry_id) {
+        return json!({ "error": e, "_status": 500 });
     }
     sync_index_for(&[common_path]);
     json!({
@@ -149,19 +138,15 @@ pub fn move_entry_project(payload: &Value) -> Value {
         Ok(p) => p,
         Err(v) => return v,
     };
-    let (index_path, mut entries) = match load_index(&notes) {
-        Ok(v) => v,
+    let conn = match open_data() {
+        Ok(conn) => conn,
         Err(v) => return v,
     };
-    let Some(entry_val) = entries.get(entry_id).cloned() else {
-        return json!({ "error": "Entry not found", "_status": 404 });
+    let mut note = match load_note(&conn, entry_id) {
+        Ok(note) => note,
+        Err(v) => return v,
     };
-    let mut entry = entry_val.as_object().cloned().unwrap_or_default();
-    let old_cp = entry
-        .get("common_path")
-        .and_then(|v| v.as_str())
-        .unwrap_or("")
-        .to_string();
+    let old_cp = note.raw_path.clone();
     let old_cp = old_cp.as_str();
     if old_cp.is_empty() || old_cp.contains("..") {
         return json!({ "error": "Invalid common_path", "_status": 400 });
@@ -195,24 +180,20 @@ pub fn move_entry_project(payload: &Value) -> Value {
             moves.push((ann_src, ann_dst));
         }
     }
-    let old_zh = entry
-        .get("translations")
-        .and_then(|v| v.get("zh"))
-        .and_then(|v| v.as_str())
-        .map(|s| s.to_string());
-    let mut new_zh = None;
-    if let Some(ref old_zh) = old_zh {
-        let mut zh_parts: Vec<&str> = old_zh.split('/').collect();
-        zh_parts[0] = new_project;
-        if zh_parts.len() >= 2 && parts.len() >= 2 {
-            zh_parts[1] = parts[1];
+    let old_translations = match translation_common_paths(&note) {
+        Ok(paths) => paths,
+        Err(e) => return json!({ "error": e, "_status": 500 }),
+    };
+    let mut renamed: Vec<(String, String)> = Vec::new();
+    for (lang, old_path) in &old_translations {
+        let Some(new_path) = expected_lang_common_path(&new_cp, lang) else {
+            return json!({ "error": "Invalid common_path", "_status": 400 });
+        };
+        let (src, dst) = (notes.join("raw").join(old_path), notes.join("raw").join(&new_path));
+        if src.exists() {
+            moves.push((src, dst));
         }
-        new_zh = Some(zh_parts.join("/"));
-        let zh_src = notes.join("raw").join(old_zh);
-        let zh_dst = notes.join("raw").join(new_zh.as_ref().unwrap());
-        if zh_src.exists() {
-            moves.push((zh_src, zh_dst));
-        }
+        renamed.push((old_path.clone(), new_path));
     }
 
     let mut completed = Vec::new();
@@ -245,27 +226,20 @@ pub fn move_entry_project(payload: &Value) -> Value {
                 content = content.replace(&old_ref, &new_ref);
                 content = content.replace(&format!("`{old_ref}`"), &format!("`{new_ref}`"));
             }
-            if let (Some(ref oz), Some(ref nz)) = (old_zh.as_ref(), new_zh.as_ref()) {
-                content = content.replace(&format!("raw/{oz}"), &format!("raw/{nz}"));
+            for (old_path, new_path) in &renamed {
+                content = content.replace(&format!("raw/{old_path}"), &format!("raw/{new_path}"));
             }
             let _ = fs::write(dst, content);
         }
         let _ = src;
     }
 
-    entry.insert("common_path".into(), json!(new_cp));
-    if let Some(nz) = new_zh {
-        let mut tr = entry
-            .get("translations")
-            .and_then(|v| v.as_object())
-            .cloned()
-            .unwrap_or_default();
-        tr.insert("zh".into(), json!(nz));
-        entry.insert("translations".into(), Value::Object(tr));
+    note.raw_path = new_cp.clone();
+    if note.digest_path.is_some() {
+        note.digest_path = Some(new_cp.clone());
     }
-    entries.insert(entry_id.to_string(), Value::Object(entry));
-    if let Err(v) = save_index(&index_path, &entries) {
-        return v;
+    if let Err(e) = update_note(&conn, &note) {
+        return json!({ "error": e, "_status": 500 });
     }
     sync_index_for(&[old_cp, new_cp.as_str()]);
     json!({ "ok": true, "new_common_path": new_cp })

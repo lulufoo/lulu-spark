@@ -1,10 +1,11 @@
 use std::path::{Path, PathBuf};
 
-use serde_json::{json, Map, Value};
+use serde_json::{json, Value};
 
 use crate::config::roots::notes_root_path;
 use crate::services::id::random_entry_id;
 use crate::services::search_index;
+use crate::services::spark_data::{insert_note, NoteRow};
 use crate::services::translation_gate;
 
 use super::assets::{copy_assets, reject_unsupported_asset_paths, resolve_create_assets};
@@ -14,9 +15,8 @@ use super::digest::{
     parse_digest_mode, write_digest_file,
 };
 use super::store::{
-    dual_store_rollback, load_entries_map, notes_layer_path, parse_translations,
-    reject_legacy_translation_fields, resolve_archive_source_markdown, rollback_written,
-    save_entries, write_markdown_atomic,
+    notes_layer_path, open_data, parse_translations, reject_legacy_translation_fields,
+    resolve_archive_source_markdown, rollback_written, write_markdown_atomic,
 };
 
 /// Public note API (HTTP / MCP): body from allow-listed `source_path` only.
@@ -192,37 +192,17 @@ fn write_note(
     }
 
     let id = random_entry_id();
-    let (index_path, mut entries) = match load_entries_map(repo_root) {
-        Ok(v) => v,
-        Err(v) => {
-            rollback_written(&written);
-            return v;
-        }
-    };
-    let index_snapshot = entries.clone();
-
-    let mut entry = Map::new();
-    entry.insert("common_path".to_string(), json!(meta.common_path));
-    entry.insert("title".to_string(), json!(meta.title));
-    entry.insert("created_at".to_string(), json!(meta.created_at));
-    let layers = if digest_rel.is_some() {
-        json!(["raw", "digest"])
-    } else {
-        json!(["raw"])
-    };
-    entry.insert("layers".to_string(), layers);
-    entry.insert("source_type".to_string(), json!(meta.source_type));
-    if !translations.is_empty() {
-        let mut map = Map::new();
-        for t in &translations {
-            map.insert(t.lang.clone(), json!(t.common_path));
-        }
-        entry.insert("translations".to_string(), Value::Object(map));
-    }
-    entries.insert(id.clone(), Value::Object(entry));
-
-    if let Err(v) = save_entries(&index_path, &entries) {
-        dual_store_rollback(&written, &index_path, &index_snapshot);
+    let mut row = NoteRow::new(&id, &meta.common_path);
+    row.title = Some(meta.title.clone());
+    row.created_at = Some(meta.created_at.clone());
+    row.source_type = Some(meta.source_type.clone());
+    row.digest_path = digest_rel.as_ref().map(|_| meta.common_path.clone());
+    row.translations = json!(translations.iter().map(|t| t.lang.as_str()).collect::<Vec<_>>());
+    let stored = open_data().and_then(|conn| {
+        insert_note(&conn, &row).map_err(|e| json!({ "error": e, "_status": 500 }))
+    });
+    if let Err(v) = stored {
+        rollback_written(&written);
         return v;
     }
 

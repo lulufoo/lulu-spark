@@ -249,9 +249,6 @@ pub fn run() {
                         Level::Error,
                     );
                 }
-                if !data.join("notes").join("index.json").is_file() {
-                    return;
-                }
                 if services::tags_registry::reconcile_tags(&repo_root).is_none() {
                     use tauri::Emitter;
                     let _ = app_handle.emit("tags:reconciled", ());
