@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use serde_json::{json, Value};
 
-use super::store::{notes_file_path, write_markdown_atomic};
+use super::store::{doc_file_path, write_markdown_atomic};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum DigestMode {
@@ -67,7 +67,7 @@ pub(super) fn write_digest_file(
     digest_body: &str,
     written: &mut Vec<PathBuf>,
 ) -> Result<String, Value> {
-    let digest_path = notes_file_path(notes, "digest", folder, rel)?;
+    let digest_path = doc_file_path(notes, "digest", folder, rel)?;
     if digest_path.is_file() {
         return Err(json!({
             "error": "File already exists",
@@ -89,7 +89,7 @@ pub(super) fn write_digest_file_overwrite(
     rel: &str,
     digest_body: &str,
 ) -> Result<String, Value> {
-    let digest_path = notes_file_path(notes, "digest", folder, rel)?;
+    let digest_path = doc_file_path(notes, "digest", folder, rel)?;
     if let Err(e) = write_markdown_atomic(&digest_path, digest_body) {
         return Err(json!({ "error": e, "_status": 500 }));
     }

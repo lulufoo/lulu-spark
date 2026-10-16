@@ -20,9 +20,9 @@ pub fn create_note_properties(include_source_path: bool) -> Value {
             "type": "string",
             "description": "Optional notes category folder (first path segment). Must exist in notes/categories.json. Defaults to inbox."
         },
-        "theme": {
+        "folder": {
             "type": "string",
-            "description": "Optional second path segment. Defaults to notes."
+            "description": "Optional second path segment inside the project. Defaults to notes."
         },
         "created_at": {
             "type": "string",

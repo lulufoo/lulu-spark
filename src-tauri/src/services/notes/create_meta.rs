@@ -21,7 +21,7 @@ pub(super) struct CreateMeta {
     pub source_type: String,
     /// Category folder on disk; not part of the stored path.
     pub project: String,
-    /// Stored rel: `{theme}/{filename}` — no category folder prefix.
+    /// Stored rel: `{folder}/{filename}` — no project folder prefix.
     pub common_path: String,
 }
 
@@ -47,7 +47,10 @@ pub(super) fn parse_create_meta(
             "_status": 400
         }));
     }
-    let theme = path_segment(payload, "theme", "notes")?;
+    if payload.get("theme").is_some() {
+        return Err(json!({ "error": "theme was renamed to folder", "_status": 400 }));
+    }
+    let folder = path_segment(payload, "folder", "notes")?;
     let created_at = parse_created_at(payload)?;
     let source_type = parse_source_type(payload)?;
     let rand = random_alnum6();
@@ -55,7 +58,7 @@ pub(super) fn parse_create_meta(
         Some(name) => format!("{created_at}-{rand}-{}", sanitize_basename(name)?),
         None => format!("{created_at}-{rand}.md"),
     };
-    let common_path = format!("{theme}/{filename}");
+    let common_path = format!("{folder}/{filename}");
     if !is_valid_common_path(&common_path) {
         return Err(json!({
             "error": format!("invalid common_path: {common_path}"),

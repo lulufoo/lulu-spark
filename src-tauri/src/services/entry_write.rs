@@ -7,7 +7,7 @@ use serde_json::{json, Value};
 
 use crate::config::roots::notes_root_path;
 use crate::services::archive_parse::expected_lang_common_path;
-use crate::services::notes::notes_file_path;
+use crate::services::notes::doc_file_path;
 use crate::services::search_index;
 use crate::services::spark_data::{self, category_folder, get_note};
 
@@ -62,7 +62,7 @@ pub fn save_entry(
     }
 
     let notes = notes_root_path(repo_root);
-    let target = match notes_file_path(&notes, layer, &folder, &rel) {
+    let target = match doc_file_path(&notes, layer, &folder, &rel) {
         Ok(p) => p,
         Err(v) => return v,
     };

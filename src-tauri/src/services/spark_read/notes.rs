@@ -6,7 +6,7 @@ use serde_json::{json, Map, Value};
 
 use crate::config::roots::notes_root_path;
 use crate::services::archive_parse::expected_lang_common_path;
-use crate::services::notes::notes_file_path;
+use crate::services::notes::doc_file_path;
 use crate::services::spark_data::{self, category_folder, get_note, NoteRow};
 
 const NOTES_LAYERS: &[&str] = &["raw", "digest"];
@@ -83,7 +83,7 @@ fn note_disk_path(
     if rel.is_empty() || rel.contains("..") {
         return Err(json!({ "error": "Invalid path", "_status": 400 }));
     }
-    notes_file_path(&notes_root_path(repo_root), layer, &folder, &rel)
+    doc_file_path(&notes_root_path(repo_root), layer, &folder, &rel)
 }
 
 /// Notes markdown body by doc id (`{layer}/{folder}/{rel}` on disk).
@@ -177,7 +177,7 @@ pub fn get_notes_asset(repo_root: &Path, layer: &str, id: &str, href: &str, lang
         Ok(p) => p,
         Err(v) => return v,
     };
-    let target = match notes_file_path(&notes_root_path(repo_root), layer, &folder, &rel) {
+    let target = match doc_file_path(&notes_root_path(repo_root), layer, &folder, &rel) {
         Ok(p) => p,
         Err(v) => return v,
     };
@@ -249,7 +249,7 @@ pub fn get_note_path_by_id(repo_root: &Path, id: &str) -> Value {
         Err(e) => return json!({ "id": id, "ok": false, "error": e }),
     };
     let notes = notes_root_path(repo_root);
-    let target = match notes_file_path(&notes, "raw", &folder, &note.raw_path) {
+    let target = match doc_file_path(&notes, "raw", &folder, &note.raw_path) {
         Ok(p) => p,
         Err(v) => {
             let msg = v.get("error").and_then(|e| e.as_str()).unwrap_or("Invalid path");

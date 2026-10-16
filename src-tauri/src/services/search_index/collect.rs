@@ -9,7 +9,7 @@ use crate::config::roots::{knowledge_root_string, notes_root_path};
 use crate::repositories::knowledge::knowledge_dir_path;
 use crate::services::index_build::common::{extract_spark_title, should_skip_md};
 use crate::services::knowledge::{compiled_hide_regexes, name_is_hidden};
-use crate::services::notes::notes_file_path;
+use crate::services::notes::doc_file_path;
 use crate::services::spark_data::{
     self, active_knowledge_doc_ids, category_folder, get_note, list_notes, NoteRow,
 };
@@ -129,7 +129,7 @@ pub fn note_chunks(notes: &Path, note: &NoteRow, folder: &str) -> Vec<SourceChun
         .into_iter()
         .filter(|(_, rel)| !rel.is_empty() && !rel.contains(".."))
         .flat_map(|(layer, rel)| {
-            let abs = match notes_file_path(notes, layer, folder, rel) {
+            let abs = match doc_file_path(notes, layer, folder, rel) {
                 Ok(p) => p,
                 Err(_) => return Vec::new(),
             };

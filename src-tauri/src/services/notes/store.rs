@@ -33,9 +33,18 @@ pub(super) fn resolve_archive_source_markdown(source_path: &str) -> Result<Strin
     }
 }
 
-/// Disk path: `{notes}/{layer}/{folder}/{rel}` where `folder` is the category folder.
-pub fn notes_file_path(
-    notes: &Path,
+/// `{workspaces_root}/{workspace_id}`: the one folder that holds every document of a workspace.
+pub fn workspace_dir(workspaces_root: &Path, workspace_id: &str) -> Result<PathBuf, Value> {
+    spark_data::validate_workspace_id(workspace_id)
+        .map_err(|e| json!({ "error": e, "_status": 400 }))?;
+    Ok(workspaces_root.join(workspace_id))
+}
+
+/// Disk path: `{workspace_root}/{layer}/{folder}/{rel}` where `folder` is the project folder
+/// and `rel` is `{folder}/{filename}` inside it. `workspace_root` is a workspace folder
+/// (see [`workspace_dir`]).
+pub fn doc_file_path(
+    workspace_root: &Path,
     layer: &str,
     folder: &str,
     rel: &str,
@@ -52,11 +61,11 @@ pub fn notes_file_path(
             "_status": 400
         }));
     }
-    let notes_canon = match notes.canonicalize() {
+    let root_canon = match workspace_root.canonicalize() {
         Ok(p) => p,
         Err(e) => return Err(json!({ "error": e.to_string(), "_status": 500 })),
     };
-    Ok(notes_canon.join(layer).join(folder).join(rel))
+    Ok(root_canon.join(layer).join(folder).join(rel))
 }
 
 pub(super) fn write_markdown_atomic(path: &Path, content: &str) -> Result<(), String> {
@@ -163,3 +172,7 @@ pub(super) fn rollback_written(paths: &[PathBuf]) {
         let _ = fs::remove_file(path);
     }
 }
+
+#[cfg(test)]
+#[path = "../../unit-tests/services/notes_store.rs"]
+mod tests;

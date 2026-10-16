@@ -46,6 +46,11 @@ pub fn spark_data_db_path() -> Result<PathBuf, PathsError> {
     Ok(runtime_data_dir()?.join("spark-data.sqlite"))
 }
 
+/// One folder per workspace: `{runtime_data_dir}/workspaces/{workspace_id}/`.
+pub fn workspaces_root() -> Result<PathBuf, PathsError> {
+    Ok(runtime_data_dir()?.join("workspaces"))
+}
+
 /// Notes files live at `{runtime_data_dir}/notes/`.
 pub fn notes_root() -> Result<PathBuf, PathsError> {
     Ok(runtime_data_dir()?.join("notes"))

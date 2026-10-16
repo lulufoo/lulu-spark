@@ -67,7 +67,7 @@ pub fn create_jot(
         "title": title,
         "source_type": "jot",
         "project": "inbox",
-        "theme": "notes",
+        "folder": "notes",
         "digest": "never",
     });
     if !ts.is_empty() {

@@ -20,7 +20,7 @@ pub use categories::{
 pub use document::*;
 pub use export_file::get_note_file;
 pub use jot::*;
-pub use store::notes_file_path;
+pub use store::{doc_file_path, workspace_dir};
 pub use update::*;
 
 #[cfg(test)]

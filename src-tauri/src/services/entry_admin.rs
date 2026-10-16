@@ -8,7 +8,7 @@ use serde_json::{json, Value};
 
 use crate::config::paths;
 use crate::services::archive_parse::expected_lang_common_path;
-use crate::services::notes::notes_file_path;
+use crate::services::notes::doc_file_path;
 use crate::services::search_index;
 use crate::services::spark_data::{
     self, category_folder, delete_note, delete_unused_tags, get_note, get_note_category_by_folder,
@@ -45,7 +45,7 @@ fn is_valid_entry_id(id: &str) -> bool {
 }
 
 fn layer_file(notes: &std::path::Path, layer: &str, folder: &str, rel: &str) -> Result<PathBuf, Value> {
-    notes_file_path(notes, layer, folder, rel)
+    doc_file_path(notes, layer, folder, rel)
 }
 
 pub fn delete_entry(payload: &Value) -> Value {

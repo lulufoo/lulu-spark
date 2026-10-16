@@ -70,7 +70,7 @@ fn note_disk(notes: &std::path::Path, layer: &str, id: &str) -> PathBuf {
         .expect("get")
         .expect("row");
     let folder = crate::services::spark_data::category_folder(&conn, &note.category_id).expect("folder");
-    crate::services::notes::notes_file_path(notes, layer, &folder, &note.raw_path).expect("path")
+    crate::services::notes::doc_file_path(notes, layer, &folder, &note.raw_path).expect("path")
 }
 
 fn filename_has_ts_rand(common_path: &str) -> bool {
@@ -287,7 +287,7 @@ fn create_note_theme_line_with_zh_translation() {
         &path_payload(&sandbox, THEME_LINE_DOC, json!({
             "title": "Interview Title",
             "project": "learning-ai-agent",
-            "theme": "waymo-interview",
+            "folder": "waymo-interview",
             "created_at": "202606191700",
             "source_type": "theme-line",
             "translations": [{ "lang": "zh", "content": THEME_LINE_ZH }]
@@ -310,6 +310,21 @@ fn create_note_theme_line_with_zh_translation() {
 }
 
 #[test]
+fn create_note_rejects_the_renamed_theme_field() {
+    let (sandbox, repo_root) = setup_notes();
+    let v = create_note(
+        &repo_root,
+        &path_payload(&sandbox, THEME_LINE_DOC, json!({
+            "title": "Interview Title",
+            "theme": "waymo-interview",
+            "source_type": "theme-line"
+        })),
+    );
+    assert_eq!(v["_status"], json!(400), "{v}");
+    assert!(v["error"].as_str().unwrap().contains("renamed to folder"), "{v}");
+}
+
+#[test]
 fn create_note_zh_from_source_path() {
     let (sandbox, repo_root) = setup_notes();
     add_project("learning-ai-agent");
@@ -319,7 +334,7 @@ fn create_note_zh_from_source_path() {
         &path_payload(&sandbox, THEME_LINE_DOC, json!({
             "title": "Interview Title",
             "project": "learning-ai-agent",
-            "theme": "waymo-interview",
+            "folder": "waymo-interview",
             "created_at": "202606191700",
             "source_type": "theme-line",
             "translations": [{ "lang": "zh", "source_path": zh_file.to_str().unwrap() }]

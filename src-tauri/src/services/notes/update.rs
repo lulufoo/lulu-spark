@@ -16,13 +16,14 @@ use super::digest::{
     digest_body_from_payload, digest_should_write, parse_digest_mode, write_digest_file_overwrite,
 };
 use super::store::{
-    notes_file_path, open_data, reject_legacy_translation_fields, resolve_archive_source_markdown,
+    doc_file_path, open_data, reject_legacy_translation_fields, resolve_archive_source_markdown,
     write_markdown_atomic,
 };
 
 const DEFERRED_FIELDS: &[&str] = &[
     "title",
     "project",
+    "folder",
     "theme",
     "created_at",
     "source_type",
@@ -126,7 +127,7 @@ fn update_note_from_body(repo_root: &Path, payload: &Value, source: &str) -> Val
     }
 
     let notes = notes_root_path(repo_root);
-    let raw_path = match notes_file_path(&notes, "raw", &folder, &rel) {
+    let raw_path = match doc_file_path(&notes, "raw", &folder, &rel) {
         Ok(p) => p,
         Err(v) => return v,
     };
