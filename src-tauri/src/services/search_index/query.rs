@@ -1,4 +1,4 @@
-//! Queryer A: split → route by term length → bm25 / app-layer snippet → fold.
+//! Queryer A: split → route by term length → bm25 / app-layer snippet → resolve → fold.
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -7,6 +7,7 @@ use rusqlite::Connection;
 use serde_json::{json, Value};
 
 use super::chunk::char_len;
+use super::hit_meta::resolve_hits;
 use super::store::{index_exists, open};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -30,8 +31,9 @@ pub struct QueryHit {
     pub doc_id: String,
     pub category: String,
     pub layer: String,
-    pub path: String,
+    /// Filled from `spark-data.sqlite` by `resolve_hits`: note `raw_path` or knowledge `path`.
     pub common_path: String,
+    /// Filled by `resolve_hits`: `owner/name` for knowledge, empty for notes.
     pub repo: String,
     pub title: String,
     pub body: String,
@@ -134,8 +136,7 @@ fn query_tri(
     fetch: u32,
 ) -> Result<Vec<QueryHit>, String> {
     let mut sql = String::from(
-        "SELECT chunk.doc_id, chunk.category, chunk.layer, chunk.path, chunk.common_path,
-                chunk.repo, chunk.title, docs_tri.body,
+        "SELECT chunk.doc_id, chunk.category, chunk.layer, chunk.title, docs_tri.body,
                 snippet(docs_tri, 0, '<em>', '</em>', '…', 16), bm25(docs_tri), chunk.created_at
          FROM docs_tri JOIN chunk ON chunk.id = docs_tri.rowid
          WHERE docs_tri MATCH ?",
@@ -161,8 +162,7 @@ fn query_bi(
     fetch: u32,
 ) -> Result<Vec<QueryHit>, String> {
     let mut sql = String::from(
-        "SELECT chunk.doc_id, chunk.category, chunk.layer, chunk.path, chunk.common_path,
-                chunk.repo, chunk.title,
+        "SELECT chunk.doc_id, chunk.category, chunk.layer, chunk.title,
                 COALESCE((SELECT body FROM docs_tri WHERE rowid = chunk.id), ''),
                 '', bm25(docs_bi), chunk.created_at
          FROM docs_bi JOIN chunk ON chunk.id = docs_bi.rowid
@@ -188,14 +188,13 @@ fn row_to_hit(row: &rusqlite::Row<'_>) -> rusqlite::Result<QueryHit> {
         doc_id: row.get(0)?,
         category: row.get(1)?,
         layer: row.get(2)?,
-        path: row.get(3)?,
-        common_path: row.get(4)?,
-        repo: row.get(5)?,
-        title: row.get(6)?,
-        body: row.get(7)?,
-        snippet: row.get::<_, String>(8).unwrap_or_default(),
-        score: row.get(9)?,
-        created_at: row.get::<_, String>(10).unwrap_or_default(),
+        common_path: String::new(),
+        repo: String::new(),
+        title: row.get(3)?,
+        body: row.get(4)?,
+        snippet: row.get::<_, String>(5).unwrap_or_default(),
+        score: row.get(6)?,
+        created_at: row.get::<_, String>(7).unwrap_or_default(),
     })
 }
 
@@ -245,7 +244,7 @@ pub fn search_in_cache(
     limit: u32,
 ) -> Result<Vec<QueryHit>, String> {
     let conn = open(cache_dir)?;
-    let hits = search(&conn, q, filter, limit)?;
+    let hits = resolve_hits(search(&conn, q, filter, limit)?)?;
     Ok(fold_by_doc_id(hits, limit))
 }
 

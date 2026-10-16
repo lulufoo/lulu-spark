@@ -149,3 +149,17 @@ pub fn active_knowledge_doc_ids(
         .map_err(|e| e.to_string())?;
     rows.collect::<Result<HashMap<_, _>, _>>().map_err(|e| e.to_string())
 }
+
+/// `doc_id` of every record whose repo is not `repo` (the clone's directory name).
+pub fn knowledge_doc_ids_outside_repo(
+    conn: &Connection,
+    repo: &str,
+) -> Result<std::collections::HashSet<String>, String> {
+    let mut stmt = conn
+        .prepare("SELECT doc_id FROM knowledge_doc WHERE repo <> ?1")
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map(params![repo], |row| row.get::<_, String>(0))
+        .map_err(|e| e.to_string())?;
+    rows.collect::<Result<_, _>>().map_err(|e| e.to_string())
+}

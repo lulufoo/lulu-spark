@@ -78,7 +78,7 @@ pub fn delete_entry(payload: &Value) -> Value {
     if let Err(e) = delete_note(&conn, entry_id).and_then(|_| delete_unused_tags(&conn)) {
         return json!({ "error": e, "_status": 500 });
     }
-    sync_index_for(&[common_path]);
+    sync_index_for(entry_id);
     json!({
         "ok": true,
         "id": entry_id,
@@ -86,16 +86,11 @@ pub fn delete_entry(payload: &Value) -> Value {
     })
 }
 
-/// Files are gone or moved by now, so a missing file drops its rows.
-fn sync_index_for(common_paths: &[&str]) {
-    let Ok(repo_root) = paths::repo_root() else {
-        return;
-    };
-    let items: Vec<(&str, &str)> = LAYERS
-        .iter()
-        .flat_map(|layer| common_paths.iter().map(move |cp| (*layer, *cp)))
-        .collect();
-    search_index::sync_note_files_best_effort(&repo_root, &items);
+/// Re-chunk the note from its row, or drop its index rows when the row is gone.
+fn sync_index_for(entry_id: &str) {
+    if let Ok(repo_root) = paths::repo_root() {
+        search_index::sync_note_docs_best_effort(&repo_root, &[entry_id]);
+    }
 }
 
 pub fn move_entry_project(payload: &Value) -> Value {
@@ -211,7 +206,7 @@ pub fn move_entry_project(payload: &Value) -> Value {
     if let Err(e) = update_note(&conn, &note) {
         return json!({ "error": e, "_status": 500 });
     }
-    sync_index_for(&[old_cp, new_cp.as_str()]);
+    sync_index_for(entry_id);
     json!({ "ok": true, "new_common_path": new_cp })
 }
 

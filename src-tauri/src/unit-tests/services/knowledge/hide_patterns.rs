@@ -69,16 +69,17 @@ fn update_and_remove_by_id() {
 }
 
 #[test]
-fn collect_notes_skips_seed_hidden_dir() {
+fn collect_notes_reads_the_note_table_not_the_directory() {
     let sandbox = TestSandbox::new();
     let notes = sandbox.data_dir().join("notes").join("raw");
     fs::create_dir_all(notes.join(".cache")).expect("mkdir");
     fs::write(notes.join("keep.md"), "# k").expect("w");
-    fs::write(notes.join(".cache/hidden.md"), "# h").expect("w");
-    let chunks = crate::services::search_index::collect_notes(sandbox.config_dir());
-    let paths: Vec<_> = chunks.iter().map(|c| c.common_path.as_str()).collect();
-    assert!(paths.contains(&"keep.md"));
-    assert!(!paths.iter().any(|p| p.contains(".cache")));
+    fs::write(notes.join(".cache/stray.md"), "# s").expect("w");
+    crate::test_support::seed_note_entries(&serde_json::json!({ "n1": { "common_path": "keep.md" } }));
+    let chunks = crate::services::search_index::collect_notes(sandbox.config_dir()).expect("collect");
+    assert_eq!(chunks.len(), 1);
+    assert_eq!(chunks[0].doc_id, "n1");
+    assert_eq!(chunks[0].layer, "raw");
 }
 
 #[test]

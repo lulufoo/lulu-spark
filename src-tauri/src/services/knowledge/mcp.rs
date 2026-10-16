@@ -5,7 +5,6 @@ use std::path::{Component, Path, PathBuf};
 use serde_json::{json, Value};
 
 use crate::config::paths;
-use crate::config::roots::knowledge_root_string;
 use crate::repositories::knowledge::kb_safe_path;
 use crate::services::search_index::{index_exists, search_in_cache, SearchFilter};
 use crate::services::sediment_kb;
@@ -37,7 +36,7 @@ pub fn list_knowledge_repos_value() -> Value {
     }
 }
 
-pub fn search_knowledge_mcp(repo_root: &Path, q: &str, limit: Option<u32>) -> Value {
+pub fn search_knowledge_mcp(_repo_root: &Path, q: &str, limit: Option<u32>) -> Value {
     let q = q.trim();
     if q.is_empty() {
         return json!({ "error": "Missing q", "_status": 400 });
@@ -57,19 +56,10 @@ pub fn search_knowledge_mcp(repo_root: &Path, q: &str, limit: Option<u32>) -> Va
         Ok(h) => h,
         Err(e) => return json!({ "error": e, "_status": 500 }),
     };
-    let kb_root = std::path::PathBuf::from(knowledge_root_string(repo_root));
     let mut items = Vec::new();
     for hit in hits {
-        let abs = std::path::PathBuf::from(&hit.path);
-        let abs = if abs.is_file() {
-            abs
-        } else {
-            match kb_safe_path(&kb_root, &hit.repo, &hit.common_path) {
-                Ok(p) if p.is_file() => p,
-                _ => continue,
-            }
-        };
-        if !abs.is_file() {
+        // Skip a document whose file is gone from disk.
+        if locate_knowledge_doc(&hit.doc_id).is_err() {
             continue;
         }
         items.push(json!({

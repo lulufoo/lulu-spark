@@ -206,11 +206,7 @@ fn write_note(
         return v;
     }
 
-    let mut synced: Vec<(&str, &str)> = vec![("raw", meta.common_path.as_str())];
-    if digest_rel.is_some() {
-        synced.push(("digest", meta.common_path.as_str()));
-    }
-    search_index::sync_note_files_best_effort(repo_root, &synced);
+    search_index::sync_note_docs_best_effort(repo_root, &[id.as_str()]);
 
     let extra_rel_paths: Vec<String> = translations.iter().map(|t| t.rel.clone()).collect();
     let mut response = json!({

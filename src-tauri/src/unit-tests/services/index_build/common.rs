@@ -1,15 +1,6 @@
 use super::*;
 
 #[test]
-fn spark_doc_id_matches_python_rules() {
-    assert_eq!(
-        spark_doc_id("raw", "proj/note.md"),
-        sanitize_doc_id("raw__proj/note.md")
-    );
-    assert_eq!(spark_doc_id("raw", "a/b/c.md"), "raw__a_b_c_md");
-}
-
-#[test]
 fn spark_title_from_heading_or_slug() {
     assert_eq!(
         extract_spark_title("# My Title\n\nx", "20250101-note.md"),

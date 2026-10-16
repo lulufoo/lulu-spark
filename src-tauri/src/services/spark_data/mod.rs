@@ -13,7 +13,7 @@ mod tag_rows;
 pub use backup::{backup_daily, backup_dir, backup_for_day, BACKUP_DIR};
 pub use db::{db_path, open, open_at, DB_FILE};
 pub use knowledge_doc_row::{
-    active_knowledge_doc_ids, delete_knowledge_doc, find_knowledge_doc_id, get_knowledge_doc, insert_knowledge_doc,
+    active_knowledge_doc_ids, delete_knowledge_doc, knowledge_doc_ids_outside_repo, find_knowledge_doc_id, get_knowledge_doc, insert_knowledge_doc,
     update_knowledge_doc, KnowledgeDocRow, KnowledgeStatus,
 };
 pub use knowledge_registry::{

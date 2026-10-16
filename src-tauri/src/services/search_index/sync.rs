@@ -1,35 +1,34 @@
 //! App-internal note write paths → keep the index in step without a full rebuild.
 //!
-//! Scope (2026-09-05 /converge): create / save / delete / move done by the App
-//! itself. Files edited outside the App still rely on the startup / manual rebuild.
+//! Scope (2026-09-05 /converge): create / save / delete done by the App itself. Moving
+//! a note needs no sync: chunks carry no path. Files edited outside the App still rely
+//! on the startup / manual rebuild.
 
 use std::path::Path;
 
-use super::collect::note_file_chunks;
+use super::chunk_rows::replace_doc_chunks;
+use super::collect::note_doc_chunks;
 use super::query::cache_dir_or_err;
-use super::chunk_rows::replace_path_chunks;
 use super::store::{index_exists, open};
 
-/// `(layer, common_path)` pairs. Existing files are re-chunked and replace their
-/// rows; missing files have their rows dropped. No-op when no index file exists.
-pub fn sync_note_files(repo_root: &Path, items: &[(&str, &str)]) -> Result<usize, String> {
+/// Re-chunk each note `doc_id` from the `note` table and replace its rows; a note whose
+/// row is gone has its rows dropped. No-op when no index file exists.
+pub fn sync_note_docs(repo_root: &Path, doc_ids: &[&str]) -> Result<usize, String> {
     let cache = cache_dir_or_err()?;
     if !index_exists(&cache) {
         return Ok(0);
     }
     let conn = open(&cache)?;
-    let mut touched = 0;
-    for (layer, common_path) in items {
-        let (key, chunks) = note_file_chunks(repo_root, layer, common_path);
-        replace_path_chunks(&conn, &key, &chunks)?;
-        touched += 1;
+    for doc_id in doc_ids {
+        let chunks = note_doc_chunks(repo_root, doc_id)?;
+        replace_doc_chunks(&conn, doc_id, &chunks)?;
     }
-    Ok(touched)
+    Ok(doc_ids.len())
 }
 
-/// Same as [`sync_note_files`] but never fails the caller's write response.
-pub fn sync_note_files_best_effort(repo_root: &Path, items: &[(&str, &str)]) {
-    if let Err(e) = sync_note_files(repo_root, items) {
+/// Same as [`sync_note_docs`] but never fails the caller's write response.
+pub fn sync_note_docs_best_effort(repo_root: &Path, doc_ids: &[&str]) {
+    if let Err(e) = sync_note_docs(repo_root, doc_ids) {
         eprintln!("search index sync skipped: {e}");
     }
 }

@@ -163,11 +163,7 @@ fn update_note_from_body(repo_root: &Path, payload: &Value, source: &str) -> Val
         }
     }
 
-    let mut synced: Vec<(&str, &str)> = vec![("raw", common_path.as_str())];
-    if digest_rel.is_some() {
-        synced.push(("digest", common_path.as_str()));
-    }
-    search_index::sync_note_files_best_effort(repo_root, &synced);
+    search_index::sync_note_docs_best_effort(repo_root, &[id.as_str()]);
 
     let mut response = json!({
         "ok": true,

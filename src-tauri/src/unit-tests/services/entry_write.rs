@@ -32,6 +32,7 @@ fn save_entry_syncs_search_index_for_touched_file() {
     let md = notes.join("raw").join("proj").join("sync.md");
     fs::create_dir_all(md.parent().unwrap()).expect("mkdir");
     fs::write(&md, "# Sync\n\nold body without keywords").expect("w");
+    crate::test_support::seed_note_entries(&json!({ "sync-note": { "common_path": "proj/sync.md" } }));
     // An index file must exist; the hook is a no-op otherwise.
     drop(open(&sandbox.cache_dir()).expect("create index"));
 
@@ -48,7 +49,7 @@ fn save_entry_syncs_search_index_for_touched_file() {
     assert_eq!(hits[0]["common_path"], "proj/sync.md");
 
     fs::remove_file(&md).expect("rm");
-    crate::services::search_index::sync_note_files(sandbox.config_dir(), &[("raw", "proj/sync.md")])
+    crate::services::search_index::sync_note_docs(sandbox.config_dir(), &["sync-note"])
         .expect("sync delete");
     let conn = open(&sandbox.cache_dir()).expect("open");
     let filter = SearchFilter {
