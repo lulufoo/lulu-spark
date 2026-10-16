@@ -1,6 +1,7 @@
 pub mod abs_file;
 pub mod annotation;
 pub mod archive_parse;
+pub mod note_edit;
 pub mod notes;
 pub mod translation_gate;
 pub mod source_path_allow;
@@ -10,6 +11,7 @@ pub mod draft;
 pub mod doc_highlights;
 pub mod entry_admin;
 pub mod search_index;
+pub mod spark_data;
 pub mod knowledge;
 pub mod index_build;
 pub mod link_title;

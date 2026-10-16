@@ -40,7 +40,6 @@ fn setup_repo_with_notes() -> RepoFixture {
     let sandbox = TestSandbox::new();
     let notes = sandbox.data_dir().join("notes");
     fs::create_dir_all(notes.join("digest")).expect("mkdir digest");
-    fs::write(notes.join("index.json"), br#"{"entries":[]}"#).expect("index");
     fs::write(notes.join("digest/note.md"), b"digest body").expect("digest file");
     RepoFixture {
         repo_root: sandbox.config_dir().to_path_buf(),

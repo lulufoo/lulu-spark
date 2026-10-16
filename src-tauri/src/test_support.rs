@@ -7,7 +7,10 @@ use std::sync::{Mutex, MutexGuard};
 use crate::config::settings;
 
 mod config_env;
+mod notes_fixture;
 mod sandbox_layout;
+
+pub(crate) use notes_fixture::{block_note_writes, read_note_entries, seed_note_entries};
 
 pub(crate) use config_env::{install_env_restore_probe, install_test_config_env_construction_probe};
 pub use config_env::TestConfigEnv;
@@ -210,14 +213,10 @@ pub fn reset_vault() {
     crate::config::vault::test_clear_scope();
 }
 
-pub fn with_sandbox_notes<F: FnOnce(&Path, &Path)>(prepare_ai_subdir: bool, f: F) {
+pub fn with_sandbox_notes<F: FnOnce(&Path, &Path)>(f: F) {
     let sandbox = TestSandbox::new();
     let notes = sandbox.data_dir().join("notes");
-    if prepare_ai_subdir {
-        std::fs::create_dir_all(notes.join("annotations/ai")).expect("mkdir");
-    } else {
-        std::fs::create_dir_all(notes.join("annotations")).expect("mkdir");
-    }
+    std::fs::create_dir_all(&notes).expect("mkdir");
     f(sandbox.config_dir(), notes.as_path());
 }
 

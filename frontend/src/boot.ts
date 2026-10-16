@@ -35,7 +35,7 @@ type TagsRegistryPayload = {
   keys?: Record<string, { value?: string; refs?: number }>;
 };
 
-// ── Fetch index.json ───────────────────────────────────────────────────────
+// ── Fetch the notes index ──────────────────────────────────────────────────────
 
 async function loadIndex({ managedBtn = false }: { managedBtn?: boolean } = {}) {
   void managedBtn;
@@ -57,7 +57,7 @@ async function loadIndex({ managedBtn = false }: { managedBtn?: boolean } = {}) 
     notifyState();
   } catch (e) {
     // @ts-expect-error boot copy scan uses e.message
-    showError(`Could not load index.json: ${e.message}`);
+    showError(`Could not load notes: ${e.message}`);
   }
 }
 
@@ -187,27 +187,6 @@ function registerAiAssistantOpenedListener() {
 }
 
 registerAiAssistantOpenedListener();
-
-function registerTagsReconciledListener() {
-  const onReconciled = async () => {
-    await Promise.all([loadTagsRegistry(), loadAnnotationsSummary()]);
-    applyListFilters();
-    notifyState();
-  };
-  const tryAttach = () => {
-    const listen = typeof window !== 'undefined' && window.__TAURI__?.event?.listen;
-    if (typeof listen !== 'function') return false;
-    void listen('tags:reconciled', onReconciled);
-    return true;
-  };
-  if (tryAttach()) return;
-  let attempts = 0;
-  const timer = setInterval(() => {
-    if (tryAttach() || ++attempts >= 40) clearInterval(timer);
-  }, 50);
-}
-
-registerTagsReconciledListener();
 
 export function startOsNotifyHub() {
   const tryAttach = () => {

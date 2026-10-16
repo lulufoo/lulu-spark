@@ -7,7 +7,7 @@ use crate::services::notes::{
     create_note_content, create_note, create_jot, synthesize_jot_document, update_note,
     update_note_content, JotCreateOpts,
 };
-use crate::test_support::TestSandbox;
+use crate::test_support::{block_note_writes, read_note_entries, TestSandbox};
 
 const SAMPLE_DOC: &str = r#"# Test Title
 
@@ -25,7 +25,6 @@ fn setup_notes() -> (TestSandbox, std::path::PathBuf) {
     let notes = sandbox.data_dir().join("notes");
     fs::create_dir_all(notes.join("raw")).expect("raw dir");
     fs::create_dir_all(notes.join("digest")).expect("digest dir");
-    fs::write(notes.join("index.json"), br#"{"entries":{}}"#).expect("index");
     let repo_root = sandbox.config_dir().to_path_buf();
     (sandbox, repo_root)
 }
@@ -68,6 +67,36 @@ fn filename_has_ts_rand(common_path: &str) -> bool {
 
 
 #[test]
+fn create_note_removes_its_files_when_the_table_write_fails() {
+    let (sandbox, repo_root) = setup_notes();
+    block_note_writes("INSERT");
+    let v = create_note(
+        &repo_root,
+        &path_payload(&sandbox, SAMPLE_DOC, json!({ "source_type": "summary" })),
+    );
+    assert_eq!(v["_status"], 500, "{v}");
+    let raw = sandbox.data_dir().join("notes/raw");
+    let leftovers: Vec<_> = walk_files(&raw);
+    assert!(leftovers.is_empty(), "files are written first and rolled back: {leftovers:?}");
+    assert_eq!(read_note_entries()["entries"], json!({}));
+}
+
+fn walk_files(dir: &std::path::Path) -> Vec<PathBuf> {
+    let mut out = Vec::new();
+    if let Ok(entries) = fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                out.extend(walk_files(&path));
+            } else {
+                out.push(path);
+            }
+        }
+    }
+    out
+}
+
+#[test]
 fn create_note_writes_raw_and_index() {
     let (sandbox, repo_root) = setup_notes();
     let v = create_note(
@@ -87,7 +116,7 @@ fn create_note_writes_raw_and_index() {
     let raw_text = fs::read_to_string(&raw).unwrap();
     assert_eq!(raw_text, SAMPLE_DOC);
     let index: serde_json::Value =
-        serde_json::from_str(&fs::read_to_string(notes.join("index.json")).unwrap()).unwrap();
+        read_note_entries();
     assert_eq!(index["entries"][id]["title"], json!("Test Title"));
     assert!(index["entries"][id]["layers"]
         .as_array()
@@ -129,7 +158,7 @@ fn create_note_always_writes_digest_and_updates_layers() {
     assert!(digest.is_file());
     assert_eq!(v["digest_path"], json!(format!("digest/{common_path}")));
     let index: serde_json::Value =
-        serde_json::from_str(&fs::read_to_string(notes.join("index.json")).unwrap()).unwrap();
+        read_note_entries();
     assert_eq!(
         index["entries"][id]["layers"],
         json!(["raw", "digest"])
@@ -249,7 +278,7 @@ fn create_note_theme_line_with_zh_translation() {
     assert_eq!(v["extra_paths"], json!([format!("raw/{zh_path}")]));
     let id = v["id"].as_str().unwrap();
     let index: serde_json::Value =
-        serde_json::from_str(&fs::read_to_string(notes.join("index.json")).unwrap()).unwrap();
+        read_note_entries();
     assert_eq!(index["entries"][id]["translations"]["zh"], json!(zh_path));
 }
 
@@ -338,9 +367,7 @@ fn create_note_multi_lang_translations() {
     );
     assert_eq!(v.get("ok"), Some(&json!(true)), "failed: {v}");
     let id = v["id"].as_str().unwrap();
-    let notes = crate::config::roots::notes_root_path(&repo_root);
-    let index: serde_json::Value =
-        serde_json::from_str(&fs::read_to_string(notes.join("index.json")).unwrap()).unwrap();
+    let index: serde_json::Value = read_note_entries();
     let stem = v["common_path"].as_str().unwrap().trim_end_matches(".md");
     assert_eq!(
         index["entries"][id]["translations"]["zh"],
@@ -427,9 +454,7 @@ fn create_note_ignores_task_ids_and_does_not_link_todo() {
     assert_eq!(v.get("ok"), Some(&json!(true)), "archive failed: {v}");
     let archive_id = v["id"].as_str().expect("id");
 
-    let notes = crate::config::roots::notes_root_path(&repo_root);
-    let index: serde_json::Value =
-        serde_json::from_str(&fs::read_to_string(notes.join("index.json")).unwrap()).unwrap();
+    let index: serde_json::Value = read_note_entries();
     assert!(index["entries"][archive_id].get("task_ref").is_none());
 }
 
@@ -490,7 +515,7 @@ fn create_jot_writes_raw_index_with_source_type_jot() {
     assert!(!raw_text.contains("[digest]("));
 
     let index: serde_json::Value =
-        serde_json::from_str(&fs::read_to_string(notes.join("index.json")).unwrap()).unwrap();
+        read_note_entries();
     let entry = &index["entries"][id];
     assert_eq!(entry["source_type"], json!("jot"));
     assert_eq!(entry["common_path"], json!(common_path));
@@ -517,14 +542,14 @@ fn create_jot_rejects_empty_body_without_writing() {
     let (_sandbox, repo_root) = setup_notes();
     let notes = crate::config::roots::notes_root_path(&repo_root);
     let index_before: serde_json::Value =
-        serde_json::from_str(&fs::read_to_string(notes.join("index.json")).unwrap()).unwrap();
+        read_note_entries();
 
     let err = create_jot(&repo_root, "   \n  ", &jot_opts_with_ts("202607101435"))
         .expect_err("empty body");
     assert!(!err.is_empty());
 
     let index_after: serde_json::Value =
-        serde_json::from_str(&fs::read_to_string(notes.join("index.json")).unwrap()).unwrap();
+        read_note_entries();
     assert_eq!(index_after, index_before);
     assert!(!notes.join("raw/inbox/notes").exists() || {
         fs::read_dir(notes.join("raw/inbox/notes"))
@@ -836,7 +861,7 @@ fn update_note_always_overwrites_digest_and_adds_layer() {
         digest_body
     );
     let index: serde_json::Value =
-        serde_json::from_str(&fs::read_to_string(notes.join("index.json")).unwrap()).unwrap();
+        read_note_entries();
     assert_eq!(index["entries"][&id]["layers"], json!(["raw", "digest"]));
     assert_eq!(index["entries"][&id]["common_path"], json!(common_path));
 }

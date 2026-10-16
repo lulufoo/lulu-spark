@@ -101,7 +101,7 @@ fn lib_tests_do_not_touch_prod_cache_dir_mtime() {
     let before = prod_cache_dir_mtime();
     {
         let _sandbox = TestSandbox::new();
-        with_sandbox_notes(true, |_dir, notes| {
+        with_sandbox_notes(|_dir, notes| {
             let _ = fs::create_dir_all(notes.join("annotations/ai"));
         });
     }

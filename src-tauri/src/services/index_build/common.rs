@@ -1,31 +1,6 @@
-//! Shared index-build helpers: doc ids, skip rules, title fallback.
+//! Shared index-build helpers: skip rules, title fallback.
 
 pub const SKIP_FILES: &[&str] = &["_index.md", "README.md", "readme.md"];
-pub const SPARK_LAYERS: &[&str] = &["raw", "digest"];
-
-/// `re.sub(r'[^a-zA-Z0-9\-_]', '_', raw_id)[:511]` (legacy Python builder rule).
-pub fn sanitize_doc_id(raw_id: &str) -> String {
-    raw_id
-        .chars()
-        .map(|c| {
-            if c.is_ascii_alphanumeric() || c == '-' || c == '_' {
-                c
-            } else {
-                '_'
-            }
-        })
-        .take(511)
-        .collect()
-}
-
-pub fn spark_doc_id(layer: &str, common_path: &str) -> String {
-    sanitize_doc_id(&format!("{layer}__{common_path}"))
-}
-
-pub fn knowledge_doc_id(repo: &str, path: &str) -> String {
-    let repo_name = repo.split('/').next_back().unwrap_or(repo);
-    sanitize_doc_id(&format!("{repo_name}__{}", path.replace('/', "__")))
-}
 
 pub fn should_skip_md(name: &str) -> bool {
     if SKIP_FILES.contains(&name) {

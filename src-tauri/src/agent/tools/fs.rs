@@ -7,8 +7,6 @@ use std::time::Instant;
 use regex::Regex;
 use serde_json::{json, Value};
 
-use crate::config::paths;
-use crate::services::search_index::{prefilter_or_none, should_scan_file, GrepPrefilter};
 use crate::agent::fence::{
     require_absolute, stored_path, validate_readable_regular_file, PathFence,
 };
@@ -65,9 +63,6 @@ pub fn grep_until(
         }
         None => fence.read_allow.clone(),
     };
-    let prefilter = paths::cache_dir()
-        .ok()
-        .and_then(|cache| prefilter_or_none(&cache, &pattern));
     let mut matches = Vec::new();
     let mut files_seen = 0usize;
     let mut clock = GrepClock {
@@ -81,7 +76,6 @@ pub fn grep_until(
             &regex,
             &mut matches,
             &mut files_seen,
-            prefilter.as_ref(),
             &mut clock,
         );
         if matches.len() >= GREP_MAX_MATCHES || files_seen >= GREP_MAX_FILES || clock.reached {
@@ -103,14 +97,13 @@ fn walk_grep(
     regex: &Regex,
     matches: &mut Vec<String>,
     files_seen: &mut usize,
-    prefilter: Option<&GrepPrefilter>,
     clock: &mut GrepClock,
 ) {
     if matches.len() >= GREP_MAX_MATCHES || *files_seen >= GREP_MAX_FILES || clock.has_run_out() {
         return;
     }
     if root.is_file() {
-        grep_file(root, fence, regex, matches, files_seen, prefilter);
+        grep_file(root, fence, regex, matches, files_seen);
         return;
     }
     let Ok(entries) = std_fs::read_dir(root) else {
@@ -128,9 +121,9 @@ fn walk_grep(
             if path.file_name().and_then(|n| n.to_str()) == Some(".git") {
                 continue;
             }
-            walk_grep(&path, fence, regex, matches, files_seen, prefilter, clock);
+            walk_grep(&path, fence, regex, matches, files_seen, clock);
         } else if path.is_file() {
-            grep_file(&path, fence, regex, matches, files_seen, prefilter);
+            grep_file(&path, fence, regex, matches, files_seen);
         }
     }
 }
@@ -141,12 +134,8 @@ fn grep_file(
     regex: &Regex,
     matches: &mut Vec<String>,
     files_seen: &mut usize,
-    prefilter: Option<&GrepPrefilter>,
 ) {
     if !fence.allows_read(path) {
-        return;
-    }
-    if !should_scan_file(path, prefilter) {
         return;
     }
     *files_seen += 1;

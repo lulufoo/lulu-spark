@@ -41,6 +41,11 @@ pub fn runtime_data_dir() -> Result<PathBuf, PathsError> {
     Ok(settings::runtime_cache_dir()?.join("data"))
 }
 
+/// Durable metadata database: `{runtime_data_dir}/spark-data.sqlite`.
+pub fn spark_data_db_path() -> Result<PathBuf, PathsError> {
+    Ok(runtime_data_dir()?.join("spark-data.sqlite"))
+}
+
 /// Notes files live at `{runtime_data_dir}/notes/`.
 pub fn notes_root() -> Result<PathBuf, PathsError> {
     Ok(runtime_data_dir()?.join("notes"))
@@ -123,11 +128,6 @@ pub fn todo_tasks_plan_md_path(master_task_id: &str) -> Result<PathBuf, PathsErr
 
 pub fn cache_todo_tasks_v1_path() -> Result<PathBuf, PathsError> {
     Ok(cache_dir()?.join("todo_tasks.json"))
-}
-
-/// Knowledge MCP document-id map: `{cache_dir}/knowledge-doc-map.json`.
-pub fn knowledge_doc_map_path() -> Result<PathBuf, PathsError> {
-    Ok(cache_dir()?.join("knowledge-doc-map.json"))
 }
 
 /// Knowledge hide-pattern records: `{cache_dir}/knowledge-hide-patterns.json`.

@@ -3,7 +3,7 @@ use std::fs;
 use serde_json::json;
 
 use crate::services::spark_read::resolve_note_for_open;
-use crate::test_support::TestSandbox;
+use crate::test_support::{seed_note_entries, TestSandbox};
 
 const ID: &str = "abcdefabcdefabcdefabcdefabcdefab";
 
@@ -20,7 +20,7 @@ fn seed_index(sandbox: &TestSandbox) {
             }
         }
     });
-    fs::write(notes.join("index.json"), index.to_string()).expect("write index");
+    seed_note_entries(&index["entries"]);
 }
 
 #[test]

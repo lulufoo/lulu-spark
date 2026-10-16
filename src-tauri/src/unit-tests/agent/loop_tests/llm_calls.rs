@@ -26,7 +26,6 @@ fn each_request_of_a_tool_turn_is_recorded_with_its_round() {
     let notes = sandbox.data_dir().join("notes");
     fs::create_dir_all(notes.join("raw")).expect("notes raw");
     fs::create_dir_all(notes.join("digest")).expect("notes digest");
-    fs::write(notes.join("index.json"), br#"{"entries":{}}"#).expect("notes index");
     let (mcp, mcp_port) = start_isolated_mcp(&sandbox);
     register_test_mcp("spark", mcp_port);
 

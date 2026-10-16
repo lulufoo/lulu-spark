@@ -228,22 +228,21 @@ pub fn run() {
 
             // No Agent Loop startup warmup: first chat pays cold start (MCP/LLM).
 
-            let app_handle = app.handle().clone();
             std::thread::spawn(move || {
-                let Ok(repo_root) = crate::config::paths::repo_root() else {
-                    return;
-                };
                 let Ok(data) = crate::config::paths::runtime_data_dir() else {
                     return;
                 };
-                let _ = crate::services::notes::ensure_notes_layout(&data);
                 let _ = crate::services::knowledge_layout::ensure_knowledge_registry_layout(&data);
-                if !data.join("notes").join("index.json").is_file() {
-                    return;
-                }
-                if services::tags_registry::reconcile_tags(&repo_root).is_none() {
-                    use tauri::Emitter;
-                    let _ = app_handle.emit("tags:reconciled", ());
+                if let Err(error) = crate::services::spark_data::backup_daily() {
+                    use crate::services::app_log::{log, Level, Side};
+                    log(
+                        "spark_data",
+                        "backup_failed",
+                        None,
+                        Some(serde_json::json!({ "error": error })),
+                        Side::Host,
+                        Level::Error,
+                    );
                 }
             });
 

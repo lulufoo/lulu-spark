@@ -8,7 +8,6 @@ mod digest;
 mod document;
 mod export_file;
 mod jot;
-mod layout;
 mod store;
 mod update;
 
@@ -22,7 +21,6 @@ pub use document::*;
 pub use export_file::get_note_file;
 pub use jot::*;
 pub use update::*;
-pub use layout::ensure_notes_layout;
 
 #[cfg(test)]
 #[path = "../../unit-tests/services/notes.rs"]

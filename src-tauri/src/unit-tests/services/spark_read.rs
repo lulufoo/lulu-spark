@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use serde_json::json;
 
-use crate::test_support::TestSandbox;
+use crate::test_support::{seed_note_entries, TestSandbox};
 
 #[test]
 fn get_config_has_frontend_contract_keys() {
@@ -164,35 +164,48 @@ fn get_draft_invalid_path() {
 }
 
 #[test]
-fn check_spark_root_requires_dir_and_index() {
+fn check_spark_root_requires_an_existing_directory() {
     let dir = tempfile::tempdir().expect("tmp");
-    let missing = check_spark_root("/no/such/spark");
-    assert_eq!(missing["ok"], false);
-
-    let no_index_dir = dir.path().join("empty");
-    fs::create_dir_all(&no_index_dir).expect("mkdir");
-    let no_index = check_spark_root(no_index_dir.to_str().unwrap());
-    assert_eq!(no_index["ok"], false);
-    assert!(no_index["error"].as_str().unwrap().contains("index.json"));
-
-    let store = dir.path().join("store");
-    fs::create_dir_all(&store).expect("mkdir");
-    fs::write(store.join("index.json"), br#"{"entries":[]}"#).expect("write");
-    let ok = check_spark_root(store.to_str().unwrap());
-    assert_eq!(ok["ok"], true);
+    assert_eq!(check_spark_root("/no/such/spark")["ok"], false);
+    assert_eq!(check_spark_root("  ")["ok"], false);
+    assert_eq!(check_spark_root(dir.path().to_str().unwrap())["ok"], true);
 }
 
 #[test]
-fn get_notes_index_reads_json() {
+fn get_notes_index_is_built_from_the_note_table_in_the_old_entry_shape() {
     with_notes_repo(
-        |_, notes| {
-            fs::create_dir_all(notes).expect("mkdir");
-            fs::write(notes.join("index.json"), br#"{"entries":[]}"#).expect("write");
+        |_, _| {
+            seed_note_entries(&json!({
+                "n1": {
+                    "common_path": "ai/topic/20260101-a.md", "created_at": "202601010000",
+                    "layers": ["raw", "digest"], "source_type": "article", "title": "A",
+                    "translations": { "zh": "ai/topic/20260101-a-zh.md" }
+                },
+                "n2": { "common_path": "ai/topic/20260102-b.md", "layers": ["raw"] },
+            }));
         },
         |cfg_dir| {
             let v = get_notes_index(cfg_dir);
-            assert_eq!(v["entries"], json!([]));
+            assert_eq!(
+                v,
+                json!({ "entries": {
+                    "n1": {
+                        "common_path": "ai/topic/20260101-a.md", "created_at": "202601010000",
+                        "layers": ["raw", "digest"], "source_type": "article", "title": "A",
+                        "translations": { "zh": "ai/topic/20260101-a-zh.md" }
+                    },
+                    "n2": { "common_path": "ai/topic/20260102-b.md", "layers": ["raw"] },
+                }})
+            );
         },
+    );
+}
+
+#[test]
+fn get_notes_index_of_an_empty_table_has_no_entries() {
+    with_notes_repo(
+        |_, _| {},
+        |cfg_dir| assert_eq!(get_notes_index(cfg_dir), json!({ "entries": {} })),
     );
 }
 
@@ -211,38 +224,27 @@ fn get_notes_file_rejects_traversal() {
 
 #[test]
 fn get_annotations_summary_includes_resolved_tags() {
-    use crate::repositories::annotation_paths::annotation_json_path;
-    use crate::repositories::atomic_json;
+    use crate::services::spark_data::{get_note, open, update_note};
+    use crate::services::tag_write::tag_attach;
     use crate::test_support::with_sandbox_notes;
 
-    with_sandbox_notes(true, |dir, notes| {
+    with_sandbox_notes(|dir, _| {
         let cp = "ai/tags.md";
-        fs::write(
-            notes.join("index.json"),
-            serde_json::to_string(&serde_json::json!({
-                "entries": { "e1": { "common_path": cp } }
-            }))
-            .unwrap(),
-        )
-        .expect("index");
-        let ann_path = annotation_json_path(&notes, cp).expect("path");
-        if let Some(parent) = ann_path.parent() {
-            fs::create_dir_all(parent).expect("mkdir");
-        }
-        atomic_json::write_json(
-            &ann_path,
-            &serde_json::json!({ "tag_keys": ["knownkey123456", "ghostkey123456"] }),
-        )
-        .expect("ann");
-        let mut reg = crate::services::tags_registry::empty_registry();
-        reg["keys"]["knownkey123456"] = serde_json::json!({ "value": "Known", "refs": 1 });
-        assert!(crate::services::tags_registry::save_registry(&notes, &reg).is_none());
+        let id = format!("{:0>32}", "e1");
+        seed_note_entries(&serde_json::json!({ id.clone(): { "common_path": cp } }));
+        let known = tag_attach(dir, cp, &serde_json::json!({ "value": "Known" }));
+        let known = known["key"].as_str().expect("key").to_string();
+        // A row can reference a key the tag table does not have.
+        let conn = open().expect("db");
+        let mut note = get_note(&conn, &id).expect("get").expect("row");
+        note.tags = serde_json::json!([known, "ghostkey123456"]);
+        update_note(&conn, &note).expect("update");
 
         let summary = get_annotations_summary(dir);
         let entry = summary[cp].as_object().expect("entry");
         let tags = entry["tags"].as_array().expect("tags");
         assert_eq!(tags.len(), 2);
-        assert!(tags.iter().any(|t| t["key"] == "knownkey123456" && t["value"] == "Known"));
+        assert!(tags.iter().any(|t| t["key"] == known && t["value"] == "Known"));
         assert!(
             tags.iter()
                 .any(|t| t["key"] == "ghostkey123456" && t["unknown"] == true)
@@ -381,7 +383,7 @@ fn catalog_listing_helpers_pick_newest_including_raw_only() {
                     }
                 }
             });
-            fs::write(notes.join("index.json"), index.to_string()).expect("write index");
+            seed_note_entries(&index["entries"]);
         },
         move |cfg_dir| {
             let listed = list_notes_by_catalog(cfg_dir, "ai");
@@ -420,7 +422,7 @@ fn get_note_digest_and_content_by_id() {
                     }
                 }
             });
-            fs::write(notes.join("index.json"), index.to_string()).expect("write index");
+            seed_note_entries(&index["entries"]);
         },
         move |cfg_dir| {
             let digest = get_note_digest(cfg_dir, id_ok);
@@ -457,7 +459,7 @@ fn get_note_content_truncates_over_10kb() {
                     }
                 }
             });
-            fs::write(notes.join("index.json"), index.to_string()).expect("write index");
+            seed_note_entries(&index["entries"]);
         },
         move |cfg_dir| {
             let raw = get_note_content_by_id(cfg_dir, id_ok);
@@ -470,22 +472,7 @@ fn get_note_content_truncates_over_10kb() {
 }
 
 #[test]
-fn notes_search_filter_and_hit_projection() {
-    assert_eq!(
-        notes_raw_search_filter(None).expect("filter"),
-        r#"layer = "raw""#
-    );
-    assert_eq!(
-        notes_raw_search_filter(Some("inbox")).expect("filter"),
-        r#"layer = "raw" AND common_path STARTS WITH "inbox/""#
-    );
-    assert_eq!(
-        notes_raw_search_filter(Some("personal-growth")).expect("filter"),
-        r#"layer = "raw" AND common_path STARTS WITH "personal-growth/""#
-    );
-    let bad = notes_raw_search_filter(Some(r#"inbox" OR layer = "digest"#));
-    assert_eq!(bad.expect_err("reject injected catalog")["_status"], 400);
-
+fn notes_search_hit_projection() {
     let id = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
     let mut path_index = std::collections::HashMap::new();
     path_index.insert(
@@ -525,11 +512,9 @@ fn notes_search_filter_and_hit_projection() {
 #[test]
 fn search_notes_rejects_empty_q() {
     with_notes_repo(
-        |_, notes| {
-            fs::write(notes.join("index.json"), br#"{"entries":{}}"#).expect("index");
-        },
+        |_, _| {},
         |cfg_dir| {
-            let v = search_notes(cfg_dir, "  ", None, None);
+            let v = search_notes(cfg_dir, "  ", None);
             assert_eq!(v["_status"], 400);
             assert_eq!(v["error"], "Missing q");
         },
@@ -539,13 +524,13 @@ fn search_notes_rejects_empty_q() {
 #[test]
 fn get_annotation_decodes_percent_encoding() {
     with_notes_repo(
-        |_, notes| {
-            fs::create_dir_all(notes.join("annotations").join("ai")).expect("mkdir");
-            let ann_path = notes.join("annotations/ai/note.json");
-            fs::write(&ann_path, br#"{"done":true}"#).expect("write");
+        |_, _| {
+            seed_note_entries(&json!({ "e1": { "common_path": "ai/note.md" } }));
+            let dir = std::path::Path::new("");
+            assert_eq!(crate::services::annotation::set_done(dir, "ai/note.md", true)["ok"], json!(true));
         },
         |cfg_dir| {
-            let v = get_annotation(cfg_dir, "ai/note.md");
+            let v = get_annotation(cfg_dir, "ai%2Fnote.md");
             assert_eq!(v["done"], json!(true));
         },
     );

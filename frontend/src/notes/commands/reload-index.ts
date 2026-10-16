@@ -4,7 +4,7 @@ import type { HostNoteEntry } from '../../host/snapshot-types.ts';
 import { normalizeKnowledgeIndex } from '../../knowledge/state/index.ts';
 import { applyListFilters, buildGroups } from './sidebar.ts';
 
-/** Replace the notes snapshot from Host `index.json`. Keeps topic/tag/date. */
+/** Replace the notes snapshot from the Host notes index. Keeps topic/tag/date. */
 export async function refreshNotesIndex(): Promise<boolean> {
   try {
     const data = await api.fetchIndex();

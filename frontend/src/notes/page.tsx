@@ -250,7 +250,7 @@ function NotesOutletChrome({ routeParams }: { routeParams: Record<string, string
             type="button"
             style={{ display: creating || editing || !entry ? 'none' : undefined }}
             onClick={() => {
-              const layerData = (viewer.annotation[viewer.layer] || {}) as { comments?: unknown[] };
+              const layerData = (viewer.annotation.raw || {}) as { comments?: unknown[] };
               const nextIdx = (layerData.comments || []).length + 1;
               void openCommentDialog(null, null, null, nextIdx);
             }}

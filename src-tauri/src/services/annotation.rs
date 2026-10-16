@@ -1,17 +1,12 @@
-//! Notes annotation write handlers (port `server.py` P2 annotation POSTs).
-
-use std::fs;
-use std::path::{Path, PathBuf};
+//! Notes annotation write handlers: done, importance, links, comments, highlights.
+//! They live on the `note` row; comments and highlights belong to the raw layer.
 
 use serde_json::{json, Map, Value};
 
-use crate::config::roots::notes_root_path;
-use crate::repositories::annotation_paths::annotation_json_path;
-use crate::repositories::atomic_json;
+use crate::services::note_edit::{clean_common_path, edit_note, find_note};
+use crate::services::spark_data::{self, annotation_object};
 
 use super::id::random_hex12;
-
-const ANNOTATION_LAYERS: &[&str] = &["raw", "digest"];
 
 fn is_valid_http_url(url: &str) -> bool {
     let rest = url
@@ -24,355 +19,173 @@ fn is_valid_http_url(url: &str) -> bool {
     !host.is_empty()
 }
 
-fn invalid_common_path() -> Value {
-    json!({ "error": "Invalid common_path", "_status": 400 })
+/// Comments and highlights exist on the raw layer only.
+fn check_layer(layer: &str) -> Result<(), Value> {
+    let layer = layer.trim();
+    match layer {
+        "raw" => Ok(()),
+        _ => Err(json!({ "error": format!("Invalid layer: {layer}"), "_status": 400 })),
+    }
 }
 
-fn invalid_layer(layer: &str) -> Value {
-    json!({
-        "error": format!("Invalid layer: {layer}"),
-        "_status": 400
+fn invalid_state() -> Value {
+    json!({ "error": "Invalid annotation state", "_status": 500 })
+}
+
+/// The annotation object of the note at `common_path`; `{}` when there is none.
+pub fn read_annotation_object(common_path: &str) -> Value {
+    let Ok(cp) = clean_common_path(common_path) else {
+        return json!({});
+    };
+    let found = spark_data::open().ok().and_then(|conn| find_note(&conn, cp).ok());
+    found.map_or_else(|| json!({}), |note| annotation_object(&note))
+}
+
+pub fn set_done(_repo_root: &std::path::Path, common_path: &str, done: bool) -> Value {
+    edit_note(common_path, |_, note| {
+        note.done = done;
+        Ok(json!({ "ok": true }))
     })
 }
 
-fn notes_write_target(repo_root: &Path, common_path: &str) -> Result<(PathBuf, PathBuf), Value> {
-    let cp = common_path.trim();
-    if cp.is_empty() || cp.contains("..") {
-        return Err(invalid_common_path());
-    }
-    let notes = notes_root_path(repo_root);
-    let Some(target) = annotation_json_path(&notes, cp) else {
-        return Err(invalid_common_path());
-    };
-    Ok((notes, target))
-}
-
-fn persist_annotation(target: &Path, ann: &Value) -> Option<Value> {
-    atomic_json::write_json(target, ann)
-        .err()
-        .map(|e| json!({ "error": e, "_status": 500 }))
-}
-
-pub fn read_annotation_object(notes: &Path, common_path: &str) -> Value {
-    let Some(p) = annotation_json_path(notes, common_path) else {
-        return json!({});
-    };
-    if !p.is_file() {
-        return json!({});
-    }
-    let Ok(text) = fs::read_to_string(&p) else {
-        return json!({});
-    };
-    serde_json::from_str(&text).unwrap_or_else(|_| json!({}))
-}
-
-pub fn set_done(repo_root: &Path, common_path: &str, done: bool) -> Value {
-    let Ok((notes, target)) = notes_write_target(repo_root, common_path) else {
-        return invalid_common_path();
-    };
-    let cp = common_path.trim();
-    let mut ann = read_annotation_object(&notes, cp);
-    let Value::Object(ref mut map) = ann else {
-        return json!({ "error": "Invalid annotation state", "_status": 500 });
-    };
-    if done {
-        map.insert("done".into(), json!(true));
-    } else {
-        map.remove("done");
-    }
-    if let Some(err) = persist_annotation(&target, &ann) {
-        return err;
-    }
-    json!({ "ok": true })
-}
-
-pub fn set_importance(repo_root: &Path, common_path: &str, importance: Option<String>) -> Value {
-    let Ok((notes, target)) = notes_write_target(repo_root, common_path) else {
-        return invalid_common_path();
-    };
-    let imp = importance.as_deref().map(str::trim);
+pub fn set_importance(_repo_root: &std::path::Path, common_path: &str, importance: Option<String>) -> Value {
+    let imp = importance.as_deref().map(str::trim).filter(|s| !s.is_empty());
     if let Some(v) = imp {
-        if !v.is_empty() && !matches!(v, "high" | "medium" | "low") {
-            return json!({
-                "error": format!("Invalid importance: {v}"),
-                "_status": 400
-            });
+        if !matches!(v, "high" | "medium" | "low") {
+            return json!({ "error": format!("Invalid importance: {v}"), "_status": 400 });
         }
     }
-    let cp = common_path.trim();
-    let mut ann = read_annotation_object(&notes, cp);
-    let Value::Object(ref mut map) = ann else {
-        return json!({ "error": "Invalid annotation state", "_status": 500 });
-    };
-    if let Some(v) = imp.filter(|s| !s.is_empty()) {
-        map.insert("importance".into(), json!(v));
-    } else {
-        map.remove("importance");
-    }
-    if let Some(err) = persist_annotation(&target, &ann) {
-        return err;
-    }
-    json!({ "ok": true })
+    edit_note(common_path, |_, note| {
+        note.importance = imp.map(String::from);
+        Ok(json!({ "ok": true }))
+    })
 }
 
-pub fn update_links(repo_root: &Path, common_path: &str, links: Value) -> Value {
-    let Ok((notes, target)) = notes_write_target(repo_root, common_path) else {
-        return invalid_common_path();
-    };
-    let links_arr = match links {
-        Value::Array(a) => a,
-        _ => return json!({ "error": "links must be array", "_status": 400 }),
+pub fn update_links(_repo_root: &std::path::Path, common_path: &str, links: Value) -> Value {
+    let Value::Array(links_arr) = links else {
+        return json!({ "error": "links must be array", "_status": 400 });
     };
     for link in &links_arr {
-        let url = link
-            .get("url")
-            .and_then(|v| v.as_str())
-            .unwrap_or("");
+        let url = link.get("url").and_then(|v| v.as_str()).unwrap_or("");
         if !is_valid_http_url(url) {
-            return json!({
-                "error": format!("Invalid url: {url}"),
-                "_status": 400
-            });
+            return json!({ "error": format!("Invalid url: {url}"), "_status": 400 });
         }
     }
-    let cp = common_path.trim();
-    let mut ann = read_annotation_object(&notes, cp);
-    let Value::Object(ref mut map) = ann else {
-        return json!({ "error": "Invalid annotation state", "_status": 500 });
-    };
-    if links_arr.is_empty() {
-        map.remove("links");
-    } else {
-        map.insert("links".into(), Value::Array(links_arr));
-    }
-    if let Some(err) = persist_annotation(&target, &ann) {
-        return err;
-    }
-    json!({ "ok": true })
+    edit_note(common_path, |_, note| {
+        note.links = Value::Array(links_arr);
+        Ok(json!({ "ok": true }))
+    })
+}
+
+fn text_of(value: &Value, key: &str) -> String {
+    value.get(key).and_then(|v| v.as_str()).unwrap_or("").trim().to_string()
 }
 
 pub fn update_comments(
-    repo_root: &Path,
+    _repo_root: &std::path::Path,
     common_path: &str,
     layer: &str,
     comment: Value,
     ts: String,
 ) -> Value {
-    let layer = layer.trim();
-    if !ANNOTATION_LAYERS.contains(&layer) {
-        return invalid_layer(layer);
+    if let Err(reply) = check_layer(layer) {
+        return reply;
     }
-    let Ok((notes, target)) = notes_write_target(repo_root, common_path) else {
-        return invalid_common_path();
-    };
-    let cp = common_path.trim();
-    let cid = comment
-        .get("id")
-        .and_then(|v| v.as_str())
-        .unwrap_or("")
-        .trim()
-        .to_string();
-    let text = comment
-        .get("text")
-        .and_then(|v| v.as_str())
-        .unwrap_or("")
-        .trim()
-        .to_string();
-    let ts = ts.trim().to_string();
-
-    let mut ann = read_annotation_object(&notes, cp);
-    let Value::Object(ref mut root) = ann else {
-        return json!({ "error": "Invalid annotation state", "_status": 500 });
-    };
-    let layer_entry = root
-        .entry(layer.to_string())
-        .or_insert_with(|| json!({}));
-    let Value::Object(ref mut layer_data) = layer_entry else {
-        return json!({ "error": "Invalid annotation state", "_status": 500 });
-    };
-    let comments = layer_data
-        .entry("comments")
-        .or_insert_with(|| json!([]));
-    let Value::Array(ref mut comments) = comments else {
-        return json!({ "error": "Invalid annotation state", "_status": 500 });
-    };
-
-    let mut out_id = cid.clone();
-    if !cid.is_empty() {
-        let idx = comments.iter().position(|c| c.get("id").and_then(|v| v.as_str()) == Some(&cid));
-        let Some(idx) = idx else {
-            return json!({ "error": "Comment not found", "_status": 404 });
+    let (cid, text, ts) = (text_of(&comment, "id"), text_of(&comment, "text"), ts.trim().to_string());
+    edit_note(common_path, |_, note| {
+        let Value::Array(comments) = &mut note.comments else {
+            return Err(invalid_state());
         };
-        if !text.is_empty() {
-            if let Value::Object(ref mut c) = comments[idx] {
-                c.insert("text".into(), json!(text));
-                if !ts.is_empty() {
-                    c.insert("ts".into(), json!(ts));
-                }
+        if cid.is_empty() {
+            if text.is_empty() {
+                return Err(json!({ "error": "text required for new comment", "_status": 400 }));
             }
-        } else {
-            comments.remove(idx);
-            out_id = String::new();
+            let id = random_hex12();
+            comments.push(json!({ "id": id, "text": text, "ts": ts }));
+            return Ok(json!({ "ok": true, "id": id }));
         }
-    } else {
+        let Some(idx) = comments.iter().position(|c| c.get("id").and_then(|v| v.as_str()) == Some(&cid)) else {
+            return Err(json!({ "error": "Comment not found", "_status": 404 }));
+        };
         if text.is_empty() {
-            return json!({
-                "error": "text required for new comment",
-                "_status": 400
-            });
+            comments.remove(idx);
+            return Ok(json!({ "ok": true, "id": "" }));
         }
-        out_id = random_hex12();
-        comments.push(json!({ "id": out_id, "text": text, "ts": ts }));
-    }
-
-    if comments.is_empty() {
-        layer_data.remove("comments");
-    }
-    if let Some(err) = persist_annotation(&target, &ann) {
-        return err;
-    }
-    json!({ "ok": true, "id": out_id })
+        if let Value::Object(c) = &mut comments[idx] {
+            c.insert("text".into(), json!(text));
+            if !ts.is_empty() {
+                c.insert("ts".into(), json!(ts));
+            }
+        }
+        Ok(json!({ "ok": true, "id": cid }))
+    })
 }
 
 pub fn reorder_comments(
-    repo_root: &Path,
+    _repo_root: &std::path::Path,
     common_path: &str,
     layer: &str,
     ids: Vec<String>,
 ) -> Value {
-    let layer = layer.trim();
-    if !ANNOTATION_LAYERS.contains(&layer) {
-        return invalid_layer(layer);
+    if let Err(reply) = check_layer(layer) {
+        return reply;
     }
-    let Ok((notes, target)) = notes_write_target(repo_root, common_path) else {
-        return invalid_common_path();
-    };
-    let cp = common_path.trim();
-    let mut ann = read_annotation_object(&notes, cp);
-    let Value::Object(ref mut root) = ann else {
-        return json!({ "error": "Invalid annotation state", "_status": 500 });
-    };
-    let layer_data = root
-        .entry(layer.to_string())
-        .or_insert_with(|| json!({}));
-    let Value::Object(ref mut layer_map) = layer_data else {
-        return json!({ "error": "Invalid annotation state", "_status": 500 });
-    };
-    let comments = layer_map
-        .get("comments")
-        .and_then(|v| v.as_array())
-        .cloned()
-        .unwrap_or_default();
-    let id_map: Map<String, Value> = comments
-        .into_iter()
-        .filter_map(|c| {
-            let id = c.get("id")?.as_str()?.to_string();
-            Some((id, c))
-        })
-        .collect();
-    let reordered: Vec<Value> = ids
-        .iter()
-        .filter_map(|id| id_map.get(id).cloned())
-        .collect();
-    if reordered.len() != ids.len() {
-        return json!({
-            "error": "Comment id not found",
-            "_status": 404
-        });
-    }
-    layer_map.insert("comments".into(), Value::Array(reordered));
-    if let Some(err) = persist_annotation(&target, &ann) {
-        return err;
-    }
-    json!({ "ok": true })
+    edit_note(common_path, |_, note| {
+        let comments = note.comments.as_array().cloned().unwrap_or_default();
+        let by_id: Map<String, Value> = comments
+            .into_iter()
+            .filter_map(|c| Some((c.get("id")?.as_str()?.to_string(), c)))
+            .collect();
+        let reordered: Vec<Value> = ids.iter().filter_map(|id| by_id.get(id).cloned()).collect();
+        if reordered.len() != ids.len() {
+            return Err(json!({ "error": "Comment id not found", "_status": 404 }));
+        }
+        note.comments = Value::Array(reordered);
+        Ok(json!({ "ok": true }))
+    })
+}
+
+fn occurrence_of(highlight: &Value) -> Option<i64> {
+    let occ = highlight.get("occurrence")?;
+    occ.as_i64()
+        .or_else(|| occ.as_u64().map(|n| n as i64))
+        .or_else(|| occ.as_f64().map(|n| n as i64))
 }
 
 pub fn update_highlights(
-    repo_root: &Path,
+    _repo_root: &std::path::Path,
     common_path: &str,
     layer: &str,
     highlight: Value,
     ts: String,
 ) -> Value {
-    let layer = layer.trim();
-    if !ANNOTATION_LAYERS.contains(&layer) {
-        return invalid_layer(layer);
+    if let Err(reply) = check_layer(layer) {
+        return reply;
     }
-    let Ok((notes, target)) = notes_write_target(repo_root, common_path) else {
-        return invalid_common_path();
-    };
-    let cp = common_path.trim();
-    let hid = highlight
-        .get("id")
-        .and_then(|v| v.as_str())
-        .unwrap_or("")
-        .trim()
-        .to_string();
-    let text = highlight
-        .get("text")
-        .and_then(|v| v.as_str())
-        .unwrap_or("")
-        .trim()
-        .to_string();
-    let occurrence = highlight.get("occurrence").cloned();
-    let ts = ts.trim().to_string();
-
-    let mut ann = read_annotation_object(&notes, cp);
-    let Value::Object(ref mut root) = ann else {
-        return json!({ "error": "Invalid annotation state", "_status": 500 });
-    };
-    let layer_entry = root
-        .entry(layer.to_string())
-        .or_insert_with(|| json!({}));
-    let Value::Object(ref mut layer_data) = layer_entry else {
-        return json!({ "error": "Invalid annotation state", "_status": 500 });
-    };
-    let highlights = layer_data
-        .entry("highlights")
-        .or_insert_with(|| json!([]));
-    let Value::Array(ref mut highlights) = highlights else {
-        return json!({ "error": "Invalid annotation state", "_status": 500 });
-    };
-
-    let out_id = if !hid.is_empty() {
-        highlights.retain(|h| h.get("id").and_then(|v| v.as_str()) != Some(&hid));
-        if highlights.is_empty() {
-            layer_data.remove("highlights");
+    let (hid, text, ts) = (text_of(&highlight, "id"), text_of(&highlight, "text"), ts.trim().to_string());
+    let occurrence = occurrence_of(&highlight);
+    edit_note(common_path, |_, note| {
+        let Value::Array(highlights) = &mut note.highlights else {
+            return Err(invalid_state());
+        };
+        if !hid.is_empty() {
+            highlights.retain(|h| h.get("id").and_then(|v| v.as_str()) != Some(&hid));
+            return Ok(json!({ "ok": true, "id": "" }));
         }
-        String::new()
-    } else {
         if text.is_empty() {
-            return json!({
-                "error": "text required for new highlight",
-                "_status": 400
-            });
+            return Err(json!({ "error": "text required for new highlight", "_status": 400 }));
         }
-        let out_id = random_hex12();
+        let id = random_hex12();
         let mut entry = Map::new();
-        entry.insert("id".into(), json!(out_id));
+        entry.insert("id".into(), json!(id));
         entry.insert("text".into(), json!(text));
         entry.insert("ts".into(), json!(ts));
-        if let Some(occ) = occurrence {
-            if let Some(n) = occ.as_i64() {
-                entry.insert("occurrence".into(), json!(n));
-            } else if let Some(n) = occ.as_u64() {
-                entry.insert("occurrence".into(), json!(n as i64));
-            } else if let Some(n) = occ.as_f64() {
-                entry.insert("occurrence".into(), json!(n as i64));
-            }
+        if let Some(n) = occurrence {
+            entry.insert("occurrence".into(), json!(n));
         }
         highlights.push(Value::Object(entry));
-        out_id
-    };
-
-    if layer_data.get("highlights").is_none() && layer_data.get("comments").is_none() {
-        root.remove(layer);
-    }
-
-    if let Some(err) = persist_annotation(&target, &ann) {
-        return err;
-    }
-    json!({ "ok": true, "id": out_id })
+        Ok(json!({ "ok": true, "id": id }))
+    })
 }
 
 #[cfg(test)]

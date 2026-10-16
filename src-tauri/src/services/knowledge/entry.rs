@@ -1,12 +1,13 @@
 //! Create and delete a knowledge file or folder.
 
 use std::fs;
-use std::path::{Component, Path, PathBuf};
+use std::path::{Path, PathBuf};
 
 use serde_json::{json, Value};
 
 use crate::config::roots::knowledge_root_string;
-use crate::repositories::knowledge::{kb_list_dir, kb_safe_path};
+use crate::repositories::knowledge::{kb_dir_name, kb_list_dir, kb_safe_path};
+use crate::services::spark_data::{self, register_knowledge_doc, remove_knowledge_paths};
 
 fn err_status(msg: &str) -> u16 {
     if msg.contains("invalid") || msg.contains("traversal") {
@@ -51,57 +52,15 @@ fn join_parent(parent: &str, name: &str) -> String {
     }
 }
 
-fn annotation_rel(rel: &str) -> String {
-    if rel.ends_with(".md") {
-        format!("{}.json", &rel[..rel.len() - 3])
-    } else {
-        format!("{rel}.json")
-    }
+/// Records follow the files: written only after the file operation succeeded.
+fn register_doc(repo: &str, rel: &str) -> Result<(), String> {
+    let conn = spark_data::open()?;
+    register_knowledge_doc(&conn, kb_dir_name(repo)?, rel).map(|_| ())
 }
 
-fn annotation_base(kb_root: &Path, repo: &str, rel: &str) -> Result<PathBuf, String> {
-    kb_safe_path(kb_root, repo, rel)?;
-    let repo_name = repo.trim().split('/').next_back().unwrap_or("");
-    let kb_canon = kb_root.canonicalize().map_err(|e| format!("kb root: {e}"))?;
-    Ok(kb_canon.join(repo_name).join(".knowledge_annotations"))
-}
-
-fn push_rel(mut path: PathBuf, rel: &str) -> Result<PathBuf, String> {
-    for comp in Path::new(rel).components() {
-        match comp {
-            Component::Normal(s) => path.push(s),
-            Component::CurDir => {}
-            _ => return Err("invalid path".into()),
-        }
-    }
-    Ok(path)
-}
-
-fn annotation_tree_dir(kb_root: &Path, repo: &str, rel: &str) -> Result<PathBuf, String> {
-    push_rel(annotation_base(kb_root, repo, rel)?, rel.trim())
-}
-
-fn annotation_sidecar_path(kb_root: &Path, repo: &str, rel: &str) -> Result<PathBuf, String> {
-    push_rel(annotation_base(kb_root, repo, rel)?, &annotation_rel(rel.trim()))
-}
-
-fn remove_if_exists(path: &Path) {
-    if path.is_dir() {
-        let _ = fs::remove_dir_all(path);
-    } else if path.is_file() {
-        let _ = fs::remove_file(path);
-    }
-}
-
-fn remove_annotation_sidecars(kb_root: &Path, repo: &str, rel: &str, is_dir: bool) {
-    if is_dir {
-        if let Ok(dir) = annotation_tree_dir(kb_root, repo, rel) {
-            remove_if_exists(&dir);
-        }
-    }
-    if let Ok(ann) = annotation_sidecar_path(kb_root, repo, rel) {
-        remove_if_exists(&ann);
-    }
+fn remove_docs(repo: &str, rel: &str) -> Result<(), String> {
+    let conn = spark_data::open()?;
+    remove_knowledge_paths(&conn, kb_dir_name(repo)?, rel).map(|_| ())
 }
 
 fn resolve_parent_dir(kb_root: &Path, repo: &str, parent: &str) -> Result<PathBuf, String> {
@@ -153,6 +112,11 @@ pub fn kb_create(
     if let Err(e) = result {
         return json!({ "error": e.to_string(), "_status": 500 });
     }
+    if !is_dir {
+        if let Err(e) = register_doc(&repo, &dest_rel) {
+            return json!({ "error": e, "_status": 500 });
+        }
+    }
     json!({ "ok": true, "path": dest_rel })
 }
 
@@ -178,7 +142,9 @@ pub fn kb_delete(repo_root: &Path, repo: String, path: String) -> Value {
     if let Err(e) = result {
         return json!({ "error": e.to_string(), "_status": 500 });
     }
-    remove_annotation_sidecars(&kb_root, &repo, src_rel, is_dir);
+    if let Err(e) = remove_docs(&repo, src_rel) {
+        return json!({ "error": e, "_status": 500 });
+    }
     json!({ "ok": true, "path": src_rel })
 }
 

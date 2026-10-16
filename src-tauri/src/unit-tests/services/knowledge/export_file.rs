@@ -1,13 +1,14 @@
 use std::fs;
 
-use crate::services::knowledge::{doc_map, get_knowledge_file};
+use crate::services::knowledge::get_knowledge_file;
+use crate::services::spark_data::{self, register_knowledge_doc};
 use crate::test_support::TestSandbox;
 
 fn remember(sandbox: &TestSandbox, name: &str, body: &str) -> String {
-    let file = sandbox.cache_dir().join("kb-src").join(name);
+    let file = sandbox.knowledge_root().join("kb-src").join(name);
     fs::create_dir_all(file.parent().unwrap()).expect("mkdir");
     fs::write(&file, body).expect("write");
-    doc_map::remember_path(&file).expect("remember")
+    register_knowledge_doc(&spark_data::open().expect("db"), "kb-src", name).expect("register")
 }
 
 #[test]

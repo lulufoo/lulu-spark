@@ -7,6 +7,7 @@ use serde_json::{json, Value};
 
 use crate::config::roots::notes_root_path;
 use crate::services::search_index;
+use crate::services::spark_data;
 
 const EDITABLE_LAYERS: &[&str] = &["raw", "digest"];
 
@@ -54,7 +55,11 @@ pub fn save_entry(
     if let Err(e) = fs::write(&target_canon, content) {
         return json!({ "error": e.to_string(), "_status": 500 });
     }
-    search_index::sync_note_files_best_effort(repo_root, &[(layer, common_path)]);
+    let ids = spark_data::open()
+        .and_then(|conn| spark_data::find_note_ids_by_path(&conn, common_path))
+        .unwrap_or_default();
+    let ids: Vec<&str> = ids.iter().map(String::as_str).collect();
+    search_index::sync_note_docs_best_effort(repo_root, &ids);
     json!({ "ok": true })
 }
 

@@ -2,7 +2,6 @@ use serde_json::{json, Value};
 use tauri::AppHandle;
 
 use crate::config::paths;
-use crate::config::roots::notes_root_path;
 use crate::services::search_index::{
     cache_dir_or_err, search_desktop_knowledge, search_desktop_spark,
 };
@@ -56,8 +55,7 @@ pub fn get_annotations(_app: AppHandle) -> Result<Value, String> {
 
 #[tauri::command]
 pub fn get_tags_registry(_app: AppHandle) -> Result<Value, String> {
-    let notes = notes_root_path(&repo_root()?);
-    Ok(tags_registry::read_registry(&notes))
+    Ok(tags_registry::read_registry())
 }
 
 #[tauri::command]

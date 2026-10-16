@@ -78,7 +78,7 @@ pub fn search_document_mcp(repo_root: &Path, q: &str, limit: Option<u32>) -> Val
         return json!({ "error": "Missing q", "_status": 400 });
     }
     let limit = Some(document_search_limit(limit));
-    let notes = search_notes(repo_root, q, None, limit);
+    let notes = search_notes(repo_root, q, limit);
     let knowledge = search_knowledge_mcp(repo_root, q, limit);
     merge_document_search(&notes, &knowledge)
 }

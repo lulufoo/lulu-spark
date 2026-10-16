@@ -1,14 +1,13 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use serde_json::{json, Map, Value};
+use rusqlite::Connection;
+use serde_json::{json, Value};
 
-use crate::config::roots::notes_root_path;
-use crate::repositories::atomic_json;
 use crate::services::archive_parse::expected_lang_common_path;
 use crate::services::source_path_allow::{self, MAX_ARCHIVE_SOURCE_BYTES};
 use crate::services::translation_gate;
-use crate::services::spark_read::get_notes_index;
+use crate::services::spark_data;
 
 pub(super) struct TranslationDoc {
     pub lang: String,
@@ -65,36 +64,8 @@ pub(super) fn write_markdown_atomic(path: &Path, content: &str) -> Result<(), St
     Ok(())
 }
 
-pub(super) fn load_entries_map(repo_root: &Path) -> Result<(PathBuf, Map<String, Value>), Value> {
-    let notes = notes_root_path(repo_root);
-    let index_path = notes.join("index.json");
-    let index_value = get_notes_index(repo_root);
-    if index_value.get("_status").is_some() {
-        return Err(index_value);
-    }
-    let entries = index_value
-        .get("entries")
-        .and_then(|v| v.as_object())
-        .cloned()
-        .or_else(|| index_value.as_object().cloned())
-        .ok_or_else(|| json!({ "error": "invalid index entries", "_status": 500 }))?;
-    Ok((index_path, entries))
-}
-
-pub(super) fn save_entries(index_path: &Path, entries: &Map<String, Value>) -> Result<(), Value> {
-    let data = json!({ "entries": entries });
-    if entries.is_empty() {
-        if let Some(parent) = index_path.parent() {
-            fs::create_dir_all(parent).map_err(|e| json!({ "error": e.to_string(), "_status": 500 }))?;
-        }
-        let tmp = index_path.with_extension("json.tmp");
-        let text = serde_json::to_string_pretty(&data)
-            .map_err(|e| json!({ "error": e.to_string(), "_status": 500 }))?;
-        fs::write(&tmp, text).map_err(|e| json!({ "error": e.to_string(), "_status": 500 }))?;
-        fs::rename(&tmp, index_path).map_err(|e| json!({ "error": e.to_string(), "_status": 500 }))?;
-        return Ok(());
-    }
-    atomic_json::write_json(index_path, &data).map_err(|e| json!({ "error": e, "_status": 500 }))
+pub(super) fn open_data() -> Result<Connection, Value> {
+    spark_data::open().map_err(|e| json!({ "error": e, "_status": 500 }))
 }
 
 pub(super) fn reject_legacy_translation_fields(payload: &Value) -> Option<Value> {
@@ -187,13 +158,3 @@ pub(super) fn rollback_written(paths: &[PathBuf]) {
         let _ = fs::remove_file(path);
     }
 }
-
-pub(super) fn dual_store_rollback(
-    written: &[PathBuf],
-    index_path: &Path,
-    snapshot_entries: &Map<String, Value>,
-) {
-    rollback_written(written);
-    let _ = save_entries(index_path, snapshot_entries);
-}
-

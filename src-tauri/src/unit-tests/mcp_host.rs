@@ -229,7 +229,6 @@ fn plant_todo_migration_gate() {
 fn plant_empty_notes_index() {
     let notes = crate::config::paths::notes_root().expect("notes dir");
     fs::create_dir_all(&notes).expect("notes root");
-    fs::write(notes.join("index.json"), br#"{"entries":{}}"#).expect("plant empty notes index");
 }
 
 /// Boundary: Cargo must pin `rmcp` on the 3.1.x line (decision verify point 3.1.0).
@@ -1081,7 +1080,6 @@ fn p3_t10_host_dual_slot_list_call_and_unknown_hard_fail_smoke() {
     fs::write(todo_root.join(".migration_gate_passed"), b"ok\n").expect("plant migration gate");
     let notes = sandbox.data_dir().join("notes");
     fs::create_dir_all(&notes).expect("notes");
-    fs::write(notes.join("index.json"), br#"{"entries":{}}"#).expect("plant empty notes index");
 
     let sidecar_port = ephemeral_port();
     let mcp_port = ephemeral_port();
