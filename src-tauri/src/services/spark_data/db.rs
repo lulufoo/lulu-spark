@@ -20,7 +20,7 @@ const BUSY_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// `MIGRATIONS[n]` upgrades a file from `user_version = n` to `n + 1`.
 /// Append a step to change the schema; never edit an existing one.
-const MIGRATIONS: [&str; 1] = [r#"
+const MIGRATIONS: [&str; 2] = [r#"
 CREATE TABLE IF NOT EXISTS note (
   doc_id       TEXT PRIMARY KEY,
   raw_path     TEXT NOT NULL,
@@ -52,6 +52,13 @@ CREATE TABLE IF NOT EXISTS knowledge_doc (
   links      TEXT NOT NULL DEFAULT '[]' CHECK (json_type(links) = 'array'),
   highlights TEXT NOT NULL DEFAULT '[]' CHECK (json_type(highlights) = 'array'),
   UNIQUE (repo, path)
+);
+"#, r#"
+CREATE TABLE note_category (
+  id TEXT PRIMARY KEY,
+  folder TEXT NOT NULL UNIQUE,
+  title TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT ''
 );
 "#];
 

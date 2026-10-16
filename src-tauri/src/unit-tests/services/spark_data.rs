@@ -25,13 +25,13 @@ fn user_version(conn: &Connection) -> i64 {
 }
 
 #[test]
-fn first_open_creates_three_tables_and_reopen_changes_nothing() {
+fn first_open_creates_four_tables_and_reopen_changes_nothing() {
     let (_dir, path) = temp_db();
     let first = open_at(&path).expect("first open");
     let tables = table_names(&first);
-    assert_eq!(tables, vec!["knowledge_doc", "note", "tag"]);
+    assert_eq!(tables, vec!["knowledge_doc", "note", "note_category", "tag"]);
     let version = user_version(&first);
-    assert_eq!(version, 1);
+    assert_eq!(version, 2);
     insert_note(&first, &NoteRow::new("n1", "a/b.md")).expect("seed");
     drop(first);
 
@@ -39,6 +39,21 @@ fn first_open_creates_three_tables_and_reopen_changes_nothing() {
     assert_eq!(table_names(&second), tables);
     assert_eq!(user_version(&second), version);
     assert!(get_note(&second, "n1").expect("get").is_some(), "reopen must keep data");
+}
+
+#[test]
+fn v2_creates_note_category_and_reopen_keeps_data() {
+    let (_dir, path) = temp_db();
+    let first = open_at(&path).expect("first open");
+    assert!(table_names(&first).contains(&"note_category".to_string()));
+    assert_eq!(user_version(&first), 2);
+    let row = NoteCategoryRow::new("inbox", "inbox", "Inbox", "");
+    insert_note_category(&first, &row).expect("seed");
+    drop(first);
+
+    let second = open_at(&path).expect("reopen");
+    assert_eq!(user_version(&second), 2);
+    assert_eq!(get_note_category(&second, "inbox").expect("get"), Some(row));
 }
 
 #[test]
