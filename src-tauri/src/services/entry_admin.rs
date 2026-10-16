@@ -7,12 +7,11 @@ use std::path::PathBuf;
 use serde_json::{json, Value};
 
 use crate::config::paths;
-use crate::repositories::annotation_paths::annotation_json_path;
-use crate::services::annotation::read_annotation_object;
 use crate::services::archive_parse::expected_lang_common_path;
 use crate::services::search_index;
-use crate::services::spark_data::{self, delete_note, get_note, translation_common_paths, update_note};
-use crate::services::tags_registry::{adjust_refs, read_registry, save_registry};
+use crate::services::spark_data::{
+    self, delete_note, delete_unused_tags, get_note, translation_common_paths, update_note,
+};
 const LAYERS: &[&str] = &["raw", "digest"];
 
 fn notes_root() -> Result<PathBuf, Value> {
@@ -75,26 +74,8 @@ pub fn delete_entry(payload: &Value) -> Value {
             deleted.push(format!("{layer}/{common_path}"));
         }
     }
-    if let Some(ann_path) = annotation_json_path(&notes, common_path) {
-        if ann_path.is_file() {
-            let ann = read_annotation_object(&notes, common_path);
-            if let Some(arr) = ann.get("tag_keys").and_then(|v| v.as_array()) {
-                let keys: Vec<String> = arr
-                    .iter()
-                    .filter_map(|v| v.as_str().map(String::from))
-                    .collect();
-                if !keys.is_empty() {
-                    let mut reg = read_registry(&notes);
-                    adjust_refs(&mut reg, &keys, -1);
-                    let _ = save_registry(&notes, &reg);
-                }
-            }
-            let _ = fs::remove_file(&ann_path);
-            deleted.push(format!("annotations/{}.json", &common_path[..common_path.len().saturating_sub(3)]));
-        }
-    }
     // The files are gone; only now does the record go.
-    if let Err(e) = delete_note(&conn, entry_id) {
+    if let Err(e) = delete_note(&conn, entry_id).and_then(|_| delete_unused_tags(&conn)) {
         return json!({ "error": e, "_status": 500 });
     }
     sync_index_for(&[common_path]);
@@ -167,17 +148,6 @@ pub fn move_entry_project(payload: &Value) -> Value {
         let dst = notes.join(layer).join(&new_cp);
         if src.exists() {
             moves.push((src, dst));
-        }
-    }
-    if let Some(ann_src) = annotation_json_path(&notes, old_cp) {
-        if ann_src.exists() {
-            let new_ann_rel = if new_cp.ends_with(".md") {
-                format!("{}.json", &new_cp[..new_cp.len() - 3])
-            } else {
-                format!("{new_cp}.json")
-            };
-            let ann_dst = notes.join("annotations").join(&new_ann_rel);
-            moves.push((ann_src, ann_dst));
         }
     }
     let old_translations = match translation_common_paths(&note) {

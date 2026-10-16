@@ -1,34 +1,16 @@
-//! Tag attach / detach / update_value — coordinates annotation + registry.
+//! Tag attach / detach / update_value on the `note` and `tag` tables.
 
-use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use serde_json::{json, Value};
 
-use crate::config::roots::notes_root_path;
-use crate::repositories::annotation_paths::annotation_json_path;
-use crate::repositories::atomic_json;
-use crate::services::annotation::read_annotation_object;
 use crate::services::id::random_hex12;
-use crate::services::tags_registry::{adjust_refs, read_registry, save_registry};
+use crate::services::note_edit::edit_note;
+use crate::services::spark_data::{
+    self, find_tag_key_by_value, has_tag, insert_tag, update_tag_value,
+};
 
 pub const TAG_VALUE_MAX_LEN: usize = 64;
-
-fn invalid_common_path() -> Value {
-    json!({ "error": "Invalid common_path", "_status": 400 })
-}
-
-fn notes_and_path(repo_root: &Path, common_path: &str) -> Result<(PathBuf, PathBuf), Value> {
-    let cp = common_path.trim();
-    if cp.is_empty() || cp.contains("..") {
-        return Err(invalid_common_path());
-    }
-    let notes = notes_root_path(repo_root);
-    let Some(target) = annotation_json_path(&notes, cp) else {
-        return Err(invalid_common_path());
-    };
-    Ok((notes, target))
-}
 
 fn validate_value(value: &str) -> Result<String, Value> {
     let v = value.trim();
@@ -44,185 +26,82 @@ fn validate_value(value: &str) -> Result<String, Value> {
     Ok(v.to_string())
 }
 
-fn persist_annotation_file(target: &Path, ann: &Value) -> Option<Value> {
-    if let Some(parent) = target.parent() {
-        if let Err(e) = fs::create_dir_all(parent) {
-            return Some(json!({ "error": e.to_string(), "_status": 500 }));
-        }
-    }
-    atomic_json::write_json(target, ann)
-        .err()
-        .map(|e| json!({ "error": e, "_status": 500 }))
+fn internal(error: impl ToString) -> Value {
+    json!({ "error": error.to_string(), "_status": 500 })
 }
 
-fn dedup_tag_keys(keys: &mut Vec<String>) {
-    keys.sort();
-    keys.dedup();
-}
-
-fn tag_keys_vec(ann: &Value) -> Vec<String> {
-    ann.get("tag_keys")
-        .and_then(|v| v.as_array())
-        .map(|arr| {
-            arr.iter()
-                .filter_map(|v| v.as_str().map(String::from))
-                .collect()
-        })
+fn note_keys(tags: &Value) -> Vec<String> {
+    tags.as_array()
+        .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
         .unwrap_or_default()
 }
 
-fn find_key_by_value(registry: &Value, value: &str) -> Option<String> {
-    let keys = registry.get("keys")?.as_object()?;
-    keys.iter()
-        .filter_map(|(key, entry)| {
-            let matches = entry
-                .get("value")
-                .and_then(|v| v.as_str())
-                .is_some_and(|v| v == value);
-            if !matches {
-                return None;
-            }
-            let refs = entry.get("refs").and_then(|v| v.as_u64()).unwrap_or(0);
-            Some((key.clone(), refs))
-        })
-        .max_by_key(|(_, refs)| *refs)
-        .map(|(key, _)| key)
+fn set_note_keys(tags: &mut Value, mut keys: Vec<String>) {
+    keys.sort();
+    keys.dedup();
+    *tags = json!(keys);
 }
 
-pub fn tag_attach(repo_root: &Path, common_path: &str, payload: &Value) -> Value {
-    let Ok((notes, target)) = notes_and_path(repo_root, common_path) else {
-        return invalid_common_path();
-    };
-    let cp = common_path.trim();
+/// Add `key` to the note's tags; a key it already has is a no-op.
+fn attach_key(note_tags: &mut Value, key: &str) -> Value {
+    let mut keys = note_keys(note_tags);
+    if keys.iter().any(|k| k == key) {
+        return json!({ "ok": true, "idempotent": true, "key": key });
+    }
+    keys.push(key.to_string());
+    set_note_keys(note_tags, keys);
+    json!({ "ok": true, "key": key })
+}
 
+pub fn tag_attach(_repo_root: &Path, common_path: &str, payload: &Value) -> Value {
     let key_opt = payload.get("key").and_then(|v| v.as_str()).map(str::trim);
     let value_opt = payload.get("value").and_then(|v| v.as_str());
-
-    let mut registry = read_registry(&notes);
-    let registry_snapshot = registry.clone();
-
-    let mut ann = read_annotation_object(&notes, cp);
-    let mut keys = tag_keys_vec(&ann);
-    let Value::Object(ref mut ann_map) = ann else {
-        return json!({ "error": "Invalid annotation state", "_status": 500 });
-    };
-
     if let Some(key) = key_opt {
         if key.is_empty() {
             return json!({ "error": "Invalid key", "_status": 400 });
         }
-        let reg_keys = registry.get("keys").and_then(|v| v.as_object());
-        if !reg_keys.is_some_and(|m| m.contains_key(key)) {
-            return json!({ "error": "Unknown tag key", "_status": 400 });
-        }
-        if keys.iter().any(|k| k == key) {
-            return json!({ "ok": true, "idempotent": true, "key": key });
-        }
-        keys.push(key.to_string());
-        adjust_refs(&mut registry, &[key.to_string()], 1);
-        dedup_tag_keys(&mut keys);
-        ann_map.insert("tag_keys".into(), json!(keys));
-        if let Some(err) = save_registry(&notes, &registry) {
-            return err;
-        }
-        if let Some(err) = persist_annotation_file(&target, &ann) {
-            let _ = save_registry(&notes, &registry_snapshot);
-            return err;
-        }
-        return json!({ "ok": true, "key": key });
+        return edit_note(common_path, |conn, note| {
+            if !has_tag(conn, key).map_err(internal)? {
+                return Err(json!({ "error": "Unknown tag key", "_status": 400 }));
+            }
+            Ok(attach_key(&mut note.tags, key))
+        });
     }
-
     let value = match value_opt {
         Some(v) => match validate_value(v) {
             Ok(s) => s,
             Err(e) => return e,
         },
-        None => {
-            return json!({ "error": "value required when key omitted", "_status": 400 });
-        }
+        None => return json!({ "error": "value required when key omitted", "_status": 400 }),
     };
-
-    if let Some(existing_key) = find_key_by_value(&registry, &value) {
-        if keys.iter().any(|k| k == &existing_key) {
-            return json!({ "ok": true, "idempotent": true, "key": existing_key });
-        }
-        keys.push(existing_key.clone());
-        adjust_refs(&mut registry, &[existing_key.clone()], 1);
-        dedup_tag_keys(&mut keys);
-        ann_map.insert("tag_keys".into(), json!(keys));
-        if let Some(err) = save_registry(&notes, &registry) {
-            return err;
-        }
-        if let Some(err) = persist_annotation_file(&target, &ann) {
-            let _ = save_registry(&notes, &registry_snapshot);
-            return err;
-        }
-        return json!({ "ok": true, "key": existing_key });
-    }
-
-    let new_key = random_hex12();
-    keys.push(new_key.clone());
-    dedup_tag_keys(&mut keys);
-    ann_map.insert("tag_keys".into(), json!(keys));
-
-    let reg_keys = registry
-        .get_mut("keys")
-        .and_then(|v| v.as_object_mut())
-        .expect("keys object");
-    reg_keys.insert(new_key.clone(), json!({ "value": value, "refs": 1 }));
-
-    if let Some(err) = save_registry(&notes, &registry) {
-        return err;
-    }
-    if let Some(err) = persist_annotation_file(&target, &ann) {
-        let _ = save_registry(&notes, &registry_snapshot);
-        return err;
-    }
-    json!({ "ok": true, "key": new_key })
+    edit_note(common_path, |conn, note| {
+        let key = match find_tag_key_by_value(conn, &value).map_err(internal)? {
+            Some(existing) => existing,
+            None => {
+                let new_key = random_hex12();
+                insert_tag(conn, &new_key, &value).map_err(internal)?;
+                new_key
+            }
+        };
+        Ok(attach_key(&mut note.tags, &key))
+    })
 }
 
-pub fn tag_detach(repo_root: &Path, common_path: &str, key: &str) -> Value {
-    let Ok((notes, target)) = notes_and_path(repo_root, common_path) else {
-        return invalid_common_path();
-    };
-    let cp = common_path.trim();
+pub fn tag_detach(_repo_root: &Path, common_path: &str, key: &str) -> Value {
     let key = key.trim();
     if key.is_empty() {
         return json!({ "error": "Invalid key", "_status": 400 });
     }
-
-    let mut registry = read_registry(&notes);
-    let registry_snapshot = registry.clone();
-
-    let mut ann = read_annotation_object(&notes, cp);
-    let mut keys = tag_keys_vec(&ann);
-    let Value::Object(ref mut ann_map) = ann else {
-        return json!({ "error": "Invalid annotation state", "_status": 500 });
-    };
-
-    if !keys.iter().any(|k| k == key) {
-        return json!({ "ok": true });
-    }
-    keys.retain(|k| k != key);
-    adjust_refs(&mut registry, &[key.to_string()], -1);
-
-    if keys.is_empty() {
-        ann_map.remove("tag_keys");
-    } else {
-        ann_map.insert("tag_keys".into(), json!(keys));
-    }
-
-    if let Some(err) = save_registry(&notes, &registry) {
-        return err;
-    }
-    if let Some(err) = persist_annotation_file(&target, &ann) {
-        let _ = save_registry(&notes, &registry_snapshot);
-        return err;
-    }
-    json!({ "ok": true })
+    // A tag no note references any more is dropped by `edit_note` once the row is written.
+    edit_note(common_path, |_, note| {
+        let mut keys = note_keys(&note.tags);
+        keys.retain(|k| k != key);
+        set_note_keys(&mut note.tags, keys);
+        Ok(json!({ "ok": true }))
+    })
 }
 
-pub fn tag_update_value(repo_root: &Path, key: &str, value: &str) -> Value {
+pub fn tag_update_value(_repo_root: &Path, key: &str, value: &str) -> Value {
     let key = key.trim();
     if key.is_empty() {
         return json!({ "error": "Invalid key", "_status": 400 });
@@ -231,24 +110,12 @@ pub fn tag_update_value(repo_root: &Path, key: &str, value: &str) -> Value {
         Ok(v) => v,
         Err(e) => return e,
     };
-
-    let notes = notes_root_path(repo_root);
-    let mut registry = read_registry(&notes);
-    let Some(reg_keys) = registry.get_mut("keys").and_then(|v| v.as_object_mut()) else {
-        return json!({ "error": "Invalid registry", "_status": 500 });
-    };
-    let Some(entry) = reg_keys.get_mut(key) else {
-        return json!({ "error": "Unknown tag key", "_status": 400 });
-    };
-    let Some(obj) = entry.as_object_mut() else {
-        return json!({ "error": "Invalid registry entry", "_status": 500 });
-    };
-    obj.insert("value".into(), json!(value));
-
-    if let Some(err) = save_registry(&notes, &registry) {
-        return err;
+    let renamed = spark_data::open().and_then(|conn| update_tag_value(&conn, key, &value));
+    match renamed {
+        Ok(true) => json!({ "ok": true }),
+        Ok(false) => json!({ "error": "Unknown tag key", "_status": 400 }),
+        Err(e) => internal(e),
     }
-    json!({ "ok": true })
 }
 
 #[cfg(test)]

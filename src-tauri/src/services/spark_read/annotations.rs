@@ -2,20 +2,17 @@ use std::path::Path;
 
 use serde_json::{json, Map, Value};
 
-use crate::config::roots::notes_root_path;
 use crate::services::annotation::read_annotation_object;
+use crate::services::spark_data;
 use crate::services::tags_registry::read_registry;
 
-use super::notes::load_notes_index_entries;
-
-pub fn get_annotation(repo_root: &Path, path: &str) -> Value {
+pub fn get_annotation(_repo_root: &Path, path: &str) -> Value {
     let decoded = urlencoding::decode(path).unwrap_or_else(|_| path.into());
     let common_path = decoded.trim();
     if common_path.is_empty() || common_path.contains("..") {
         return json!({ "error": "Invalid path" });
     }
-    let notes = notes_root_path(repo_root);
-    read_annotation_object(&notes, common_path)
+    read_annotation_object(common_path)
 }
 
 fn resolve_tags(registry: &Value, tag_keys: &[Value]) -> Value {
@@ -38,28 +35,19 @@ fn resolve_tags(registry: &Value, tag_keys: &[Value]) -> Value {
     Value::Array(tags)
 }
 
-pub fn get_annotations_summary(repo_root: &Path) -> Value {
-    let notes = notes_root_path(repo_root);
-    let registry = read_registry(&notes);
-    let entries = match load_notes_index_entries(repo_root) {
-        Ok(entries) => entries,
-        Err(error) => return error,
+pub fn get_annotations_summary(_repo_root: &Path) -> Value {
+    let registry = read_registry();
+    let notes = match spark_data::open().and_then(|conn| spark_data::list_notes(&conn)) {
+        Ok(notes) => notes,
+        Err(e) => return json!({ "error": format!("annotations: {e}"), "_status": 500 }),
     };
-    let entry_values: Vec<Value> = entries.values().cloned().collect();
     let mut result = Map::new();
-    for entry in entry_values {
-        let Some(obj) = entry.as_object() else {
-            continue;
-        };
-        let common_path = obj
-            .get("common_path")
-            .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .to_string();
+    for note in notes {
+        let common_path = note.raw_path.clone();
         if common_path.is_empty() {
             continue;
         }
-        let ann = read_annotation_object(&notes, &common_path);
+        let ann = spark_data::annotation_object(&note);
         let Some(ann_obj) = ann.as_object() else {
             continue;
         };

@@ -11,6 +11,9 @@ import { renderMermaidBlocks } from '../../shared/mermaid-render.ts';
 import { renderToHtml } from '../../island.ts';
 import type { NoteEntry } from '../state/types.ts';
 
+// Comments are stored on the note, not on a layer; the API only accepts the raw layer.
+const COMMENT_LAYER = 'raw';
+
 type CommentRec = { id: string; text: string; ts?: string };
 type LayerData = { comments?: CommentRec[] };
 type Annotation = Record<string, LayerData | undefined> & { links?: { url: string }[] };
@@ -20,7 +23,7 @@ function annotation(): Annotation {
 }
 
 function layerComments(host = state): CommentRec[] {
-  const layer = host.viewer.layer || 'raw';
+  const layer = COMMENT_LAYER;
   const layerData = host.viewer.annotation[layer] as LayerData | undefined;
   return layerData?.comments || [];
 }
@@ -96,7 +99,7 @@ export function NotesCommentsBar() {
           noteIndex={i + 1}
           showUp={i > 0}
           showDown={i < comments.length - 1}
-          layer={host.viewer.layer || 'raw'}
+          layer={COMMENT_LAYER}
           entry={entry}
         />
       ))}
@@ -223,7 +226,7 @@ export function NotesCommentFloatNav() {
           className="comment-float-btn"
           data-index={i}
           title={`Edit comment ${i + 1}`}
-          onClick={() => void openCommentDialog(c, host.viewer.layer || 'raw', entry, i + 1)}
+          onClick={() => void openCommentDialog(c, COMMENT_LAYER, entry, i + 1)}
           onMouseEnter={(e) => _showTip(c.text, e.nativeEvent)}
           onMouseMove={(e) => _moveTip(e.nativeEvent)}
           onMouseLeave={() => _hideTip()}
@@ -365,14 +368,14 @@ export async function saveComment() {
       }
     } else {
       if (!state.viewer.entry) return;
-      const data = (await api.updateComments(state.viewer.entry.common_path, state.viewer.layer, { text }, ts)) as {
+      const data = (await api.updateComments(state.viewer.entry.common_path, COMMENT_LAYER, { text }, ts)) as {
         ok?: boolean;
         error?: string;
         id?: string;
       };
       if (data.ok) {
         const ann = annotation();
-        const layer = state.viewer.layer;
+        const layer = COMMENT_LAYER;
         if (!ann[layer]) ann[layer] = {};
         const ld = ann[layer] as LayerData;
         if (!ld.comments) ld.comments = [];
@@ -426,7 +429,7 @@ function _resetDialogTabs() {
 }
 
 export function openAddCommentFromChrome() {
-  const layerData = (state.viewer.annotation[state.viewer.layer] || {}) as LayerData;
+  const layerData = (state.viewer.annotation[COMMENT_LAYER] || {}) as LayerData;
   const nextIdx = (layerData.comments || []).length + 1;
   void openCommentDialog(null, null, null, nextIdx);
 }

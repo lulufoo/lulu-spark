@@ -235,31 +235,27 @@ fn get_notes_file_rejects_traversal() {
 
 #[test]
 fn get_annotations_summary_includes_resolved_tags() {
-    use crate::repositories::annotation_paths::annotation_json_path;
-    use crate::repositories::atomic_json;
+    use crate::services::spark_data::{get_note, open, update_note};
+    use crate::services::tag_write::tag_attach;
     use crate::test_support::with_sandbox_notes;
 
-    with_sandbox_notes(true, |dir, notes| {
+    with_sandbox_notes(true, |dir, _| {
         let cp = "ai/tags.md";
-        seed_note_entries(&serde_json::json!({ "e1": { "common_path": cp } }));
-        let ann_path = annotation_json_path(&notes, cp).expect("path");
-        if let Some(parent) = ann_path.parent() {
-            fs::create_dir_all(parent).expect("mkdir");
-        }
-        atomic_json::write_json(
-            &ann_path,
-            &serde_json::json!({ "tag_keys": ["knownkey123456", "ghostkey123456"] }),
-        )
-        .expect("ann");
-        let mut reg = crate::services::tags_registry::empty_registry();
-        reg["keys"]["knownkey123456"] = serde_json::json!({ "value": "Known", "refs": 1 });
-        assert!(crate::services::tags_registry::save_registry(&notes, &reg).is_none());
+        let id = format!("{:0>32}", "e1");
+        seed_note_entries(&serde_json::json!({ id.clone(): { "common_path": cp } }));
+        let known = tag_attach(dir, cp, &serde_json::json!({ "value": "Known" }));
+        let known = known["key"].as_str().expect("key").to_string();
+        // A row can reference a key the tag table does not have.
+        let conn = open().expect("db");
+        let mut note = get_note(&conn, &id).expect("get").expect("row");
+        note.tags = serde_json::json!([known, "ghostkey123456"]);
+        update_note(&conn, &note).expect("update");
 
         let summary = get_annotations_summary(dir);
         let entry = summary[cp].as_object().expect("entry");
         let tags = entry["tags"].as_array().expect("tags");
         assert_eq!(tags.len(), 2);
-        assert!(tags.iter().any(|t| t["key"] == "knownkey123456" && t["value"] == "Known"));
+        assert!(tags.iter().any(|t| t["key"] == known && t["value"] == "Known"));
         assert!(
             tags.iter()
                 .any(|t| t["key"] == "ghostkey123456" && t["unknown"] == true)
@@ -541,13 +537,13 @@ fn search_notes_rejects_empty_q() {
 #[test]
 fn get_annotation_decodes_percent_encoding() {
     with_notes_repo(
-        |_, notes| {
-            fs::create_dir_all(notes.join("annotations").join("ai")).expect("mkdir");
-            let ann_path = notes.join("annotations/ai/note.json");
-            fs::write(&ann_path, br#"{"done":true}"#).expect("write");
+        |_, _| {
+            seed_note_entries(&json!({ "e1": { "common_path": "ai/note.md" } }));
+            let dir = std::path::Path::new("");
+            assert_eq!(crate::services::annotation::set_done(dir, "ai/note.md", true)["ok"], json!(true));
         },
         |cfg_dir| {
-            let v = get_annotation(cfg_dir, "ai/note.md");
+            let v = get_annotation(cfg_dir, "ai%2Fnote.md");
             assert_eq!(v["done"], json!(true));
         },
     );

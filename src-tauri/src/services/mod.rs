@@ -1,6 +1,7 @@
 pub mod abs_file;
 pub mod annotation;
 pub mod archive_parse;
+pub mod note_edit;
 pub mod notes;
 pub mod translation_gate;
 pub mod source_path_allow;
