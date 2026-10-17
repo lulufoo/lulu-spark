@@ -2,6 +2,8 @@
 
 use rusqlite::{params, Connection, OptionalExtension, Row};
 
+use super::workspace_row::ensure_same_set;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProjectRow {
     pub id: String,
@@ -45,8 +47,9 @@ fn map_row(row: &Row<'_>) -> rusqlite::Result<ProjectRow> {
 
 pub fn insert_project(conn: &Connection, row: &ProjectRow) -> Result<(), String> {
     conn.execute(
-        "INSERT INTO project(id, workspace_id, folder, title, description, icon)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+        "INSERT INTO project(id, workspace_id, folder, title, description, icon, sort_index)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6,
+                 (SELECT coalesce(max(sort_index) + 1, 0) FROM project WHERE workspace_id = ?2))",
         params![row.id, row.workspace_id, row.folder, row.title, row.description, row.icon],
     )
     .map(|_| ())
@@ -91,14 +94,14 @@ pub fn get_project_by_folder(
 fn list_where(conn: &Connection, workspace_id: &str, condition: &str) -> Result<Vec<ProjectRow>, String> {
     let mut stmt = conn
         .prepare(&format!(
-            "SELECT {COLUMNS} FROM project WHERE workspace_id = ?1 AND {condition} ORDER BY lower(title)"
+            "SELECT {COLUMNS} FROM project WHERE workspace_id = ?1 AND {condition} ORDER BY sort_index, id"
         ))
         .map_err(|e| e.to_string())?;
     let rows = stmt.query_map(params![workspace_id], map_row).map_err(|e| e.to_string())?;
     rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
 }
 
-/// Active projects of one workspace, by title (case-insensitive).
+/// Active projects of one workspace in the user's order (`sort_index`).
 pub fn list_projects(conn: &Connection, workspace_id: &str) -> Result<Vec<ProjectRow>, String> {
     list_where(conn, workspace_id, "disabled_at IS NULL")
 }
@@ -131,4 +134,24 @@ pub fn enable_project(conn: &Connection, id: &str) -> Result<bool, String> {
     conn.execute("UPDATE project SET disabled_at = NULL WHERE id = ?1", params![id])
         .map(|changed| changed > 0)
         .map_err(|e| e.to_string())
+}
+
+/// Put every project of one workspace in the order of `folders`. `folders` must name every
+/// project of the workspace (disabled ones included) exactly once; anything else is refused
+/// and nothing changes.
+pub fn reorder_projects(conn: &Connection, workspace_id: &str, folders: &[String]) -> Result<(), String> {
+    let known: Vec<String> = list_all_projects(conn, workspace_id)?
+        .into_iter()
+        .map(|p| p.folder)
+        .collect();
+    ensure_same_set(&known, folders, "project")?;
+    let tx = conn.unchecked_transaction().map_err(|e| e.to_string())?;
+    for (index, folder) in folders.iter().enumerate() {
+        tx.execute(
+            "UPDATE project SET sort_index = ?3 WHERE workspace_id = ?1 AND folder = ?2",
+            params![workspace_id, folder, index as i64],
+        )
+        .map_err(|e| e.to_string())?;
+    }
+    tx.commit().map_err(|e| e.to_string())
 }

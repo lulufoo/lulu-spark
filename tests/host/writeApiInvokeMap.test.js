@@ -25,10 +25,12 @@ const P2_WRITE_PATHS = [
   '/api/workspace-rename',
   '/api/workspace-view-mode',
   '/api/workspace-icon',
+  '/api/workspaces-reorder',
   '/api/workspace-disable',
   '/api/workspace-enable',
   '/api/project-create',
   '/api/project-update',
+  '/api/projects-reorder',
   '/api/project-disable',
   '/api/project-enable',
   '/api/hide-pattern-add',
@@ -53,7 +55,7 @@ describe('writeApiInvokeMap', () => {
     for (const p of P2_WRITE_PATHS) {
       expect(WRITE_API_INVOKE_MAP[p]?.cmd, p).toBeTruthy();
     }
-    expect(Object.keys(WRITE_API_INVOKE_MAP)).toHaveLength(33);
+    expect(Object.keys(WRITE_API_INVOKE_MAP)).toHaveLength(35);
   });
 
   it('maps /api/file absolute-path write to write_abs_file', () => {

@@ -579,3 +579,41 @@ fn a_project_icon_is_kept_unless_changed_and_cleared_by_an_empty_string() {
     ok(&disable_project(&json!({ "workspace": ws, "project": "plans" })));
     assert_eq!(icon_of(&list_disabled_projects(&json!({ "workspace": ws }))["projects"][0]), "02bb22");
 }
+
+#[test]
+fn workspaces_and_projects_can_be_reordered_through_the_service() {
+    let _sandbox = TestSandbox::new();
+    let a = new_workspace("Aaa");
+    let b = new_workspace("Bbb");
+    let ids = |v: &Value| -> Vec<String> {
+        v["workspaces"].as_array().expect("array").iter().map(|w| text(w, "id")).collect()
+    };
+    assert_eq!(ids(&list_workspaces()), vec!["default".to_string(), "knowledge".into(), a.clone(), b.clone()]);
+
+    let moved = reorder_workspaces(&json!({ "ids": [b, "default", a, "knowledge"] }));
+    assert_eq!(ids(ok(&moved)), vec![b.clone(), "default".to_string(), a.clone(), "knowledge".into()]);
+    assert_eq!(ids(&list_workspaces()), ids(&moved), "the list follows the new order");
+
+    assert_eq!(status(&reorder_workspaces(&json!({}))), 400, "ids is required");
+    assert_eq!(status(&reorder_workspaces(&json!({ "ids": "default" }))), 400);
+    assert_eq!(status(&reorder_workspaces(&json!({ "ids": [1] }))), 400);
+    assert_eq!(status(&reorder_workspaces(&json!({ "ids": ["default"] }))), 400, "must name every workspace");
+    assert_eq!(ids(&list_workspaces()), ids(&moved), "a refused reorder changes nothing");
+
+    for folder in ["one", "two", "three"] {
+        ok(&create_project(&json!({ "workspace": a, "folder": folder, "title": folder })));
+    }
+    let folders = |v: &Value| -> Vec<String> {
+        v["projects"].as_array().expect("array").iter().map(|p| text(p, "folder")).collect()
+    };
+    assert_eq!(folders(&list_projects(&json!({ "workspace": a }))), vec!["inbox", "one", "two", "three"]);
+    let reordered = reorder_projects(&json!({ "workspace": a, "folders": ["three", "inbox", "two", "one"] }));
+    assert_eq!(folders(ok(&reordered)), vec!["three", "inbox", "two", "one"]);
+    assert_eq!(folders(&list_projects(&json!({ "workspace": a }))), folders(&reordered));
+
+    assert_eq!(status(&reorder_projects(&json!({ "workspace": a }))), 400);
+    assert_eq!(status(&reorder_projects(&json!({ "workspace": a, "folders": ["one"] }))), 400);
+    assert_eq!(status(&reorder_projects(&json!({ "workspace": "ghost", "folders": [] }))), 404);
+    ok(&disable_workspace(&json!({ "id": b })));
+    assert!(status(&reorder_projects(&json!({ "workspace": b, "folders": ["inbox"] }))) >= 400, "disabled workspace");
+}

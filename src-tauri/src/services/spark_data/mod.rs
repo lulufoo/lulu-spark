@@ -25,7 +25,8 @@ pub use doc_entry::{entry_from_doc, find_doc, list_doc_entries, project_folder, 
 
 pub use project_row::{
     disable_project, enable_project, get_project, get_project_by_folder, insert_project,
-    list_all_projects, list_disabled_projects, list_projects, update_project, ProjectRow,
+    list_all_projects, list_disabled_projects, list_projects, reorder_projects, update_project,
+    ProjectRow,
 };
 pub use tag_rows::{
     delete_unused_tags, find_tag_key_by_value, has_tag, insert_tag, read_tag_registry, update_tag_value,
@@ -33,7 +34,7 @@ pub use tag_rows::{
 pub use workspace_row::{
     create_workspace, disable_workspace, discard_new_workspace, enable_workspace, get_workspace,
     get_workspace_by_name, list_all_workspaces, list_disabled_workspaces, list_workspaces,
-    rename_workspace, set_workspace_icon, set_workspace_view_mode, ViewMode, WorkspaceRow, DEFAULT_WORKSPACE_ID,
+    rename_workspace, reorder_workspaces, set_workspace_icon, set_workspace_view_mode, ViewMode, WorkspaceRow, DEFAULT_WORKSPACE_ID,
     KNOWLEDGE_WORKSPACE_ID,
 };
 

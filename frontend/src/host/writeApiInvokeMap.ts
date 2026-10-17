@@ -135,6 +135,10 @@ export const WRITE_API_INVOKE_MAP: Record<string, WriteInvokeEntry> = {
     cmd: 'set_workspace_icon',
     args: (body) => ({ payload: body ?? {} }),
   },
+  '/api/workspaces-reorder': {
+    cmd: 'reorder_workspaces',
+    args: (body) => ({ payload: body ?? {} }),
+  },
   '/api/workspace-disable': {
     cmd: 'disable_workspace',
     args: (body) => ({ payload: body ?? {} }),
@@ -149,6 +153,10 @@ export const WRITE_API_INVOKE_MAP: Record<string, WriteInvokeEntry> = {
   },
   '/api/project-update': {
     cmd: 'update_project',
+    args: (body) => ({ payload: body ?? {} }),
+  },
+  '/api/projects-reorder': {
+    cmd: 'reorder_projects',
     args: (body) => ({ payload: body ?? {} }),
   },
   '/api/project-disable': {

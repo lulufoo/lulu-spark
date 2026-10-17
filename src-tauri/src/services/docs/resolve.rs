@@ -76,6 +76,20 @@ pub(super) fn icon_field(payload: &Value) -> Result<Option<Option<String>>, Valu
     }
 }
 
+/// A required array of non-empty strings (`ids`, `folders`, ...). Missing or malformed is a 400.
+pub(super) fn string_list_field(payload: &Value, key: &str) -> Result<Vec<String>, Value> {
+    let Some(Value::Array(items)) = payload.get(key) else {
+        return Err(bad_request(format!("Missing {key}")));
+    };
+    items
+        .iter()
+        .map(|item| match item {
+            Value::String(s) if !s.trim().is_empty() => Ok(s.trim().to_string()),
+            _ => Err(bad_request(format!("Invalid {key}"))),
+        })
+        .collect()
+}
+
 /// `workspace` (an id) or the default workspace when it is absent.
 pub(super) fn resolve_workspace(conn: &Connection, requested: Option<&str>) -> Result<WorkspaceRow, Value> {
     match requested {

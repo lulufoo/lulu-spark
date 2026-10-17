@@ -325,3 +325,90 @@ fn icons_are_stored_per_workspace_and_project_and_can_be_cleared() {
     assert!(update_project(&conn, &row).expect("update"));
     assert_eq!(get_project(&conn, "pi").expect("get").expect("row").icon, None);
 }
+
+fn workspace_ids(conn: &Connection) -> Vec<String> {
+    list_workspaces(conn).expect("list").into_iter().map(|w| w.id).collect()
+}
+
+fn project_folders(conn: &Connection, workspace: &str) -> Vec<String> {
+    list_projects(conn, workspace).expect("list").into_iter().map(|p| p.folder).collect()
+}
+
+fn strings(items: &[&str]) -> Vec<String> {
+    items.iter().map(|s| s.to_string()).collect()
+}
+
+#[test]
+fn new_workspaces_and_projects_are_appended_and_the_default_can_move() {
+    let (_dir, path) = temp_db();
+    let conn = open_at(&path).expect("open");
+    let zeta = create_workspace(&conn, "Zeta", None).expect("zeta");
+    let alpha = create_workspace(&conn, "Alpha", None).expect("alpha");
+    assert_eq!(
+        workspace_ids(&conn),
+        vec!["default".to_string(), "knowledge".to_string(), zeta.id.clone(), alpha.id.clone()],
+        "appended in creation order, not by name"
+    );
+
+    insert_project(&conn, &ProjectRow::new("pz", &zeta.id, "zz", "Zz", "")).expect("pz");
+    insert_project(&conn, &ProjectRow::new("pa", &zeta.id, "aa", "Aa", "")).expect("pa");
+    assert_eq!(project_folders(&conn, &zeta.id), strings(&["zz", "aa"]));
+
+    let mut all = workspace_ids(&conn);
+    all.rotate_left(1);
+    reorder_workspaces(&conn, &all).expect("move default to the end");
+    assert_eq!(workspace_ids(&conn), all);
+    assert_eq!(workspace_ids(&conn).last().map(String::as_str), Some("default"));
+
+    reorder_projects(&conn, &zeta.id, &strings(&["aa", "zz"])).expect("reorder projects");
+    assert_eq!(project_folders(&conn, &zeta.id), strings(&["aa", "zz"]));
+}
+
+#[test]
+fn a_reorder_must_name_every_entry_once_and_changes_nothing_otherwise() {
+    let (_dir, path) = temp_db();
+    let conn = open_at(&path).expect("open");
+    let made = create_workspace(&conn, "Made", None).expect("made");
+    let before = workspace_ids(&conn);
+
+    for bad in [
+        strings(&["default"]),
+        strings(&["default", "knowledge", &made.id, &made.id]),
+        strings(&["default", "knowledge", &made.id, "ghost"]),
+        vec![],
+    ] {
+        assert!(reorder_workspaces(&conn, &bad).is_err(), "{bad:?}");
+        assert_eq!(workspace_ids(&conn), before, "{bad:?} left the order alone");
+    }
+
+    insert_project(&conn, &ProjectRow::new("p1", &made.id, "one", "One", "")).expect("p1");
+    insert_project(&conn, &ProjectRow::new("p2", &made.id, "two", "Two", "")).expect("p2");
+    let projects = project_folders(&conn, &made.id);
+    for bad in [strings(&["one"]), strings(&["one", "one", "two"]), strings(&["one", "two", "three"])] {
+        assert!(reorder_projects(&conn, &made.id, &bad).is_err(), "{bad:?}");
+        assert_eq!(project_folders(&conn, &made.id), projects);
+    }
+}
+
+#[test]
+fn disabled_entries_keep_their_place_and_come_back_to_it() {
+    let (_dir, path) = temp_db();
+    let conn = open_at(&path).expect("open");
+    let made = create_workspace(&conn, "Made", None).expect("made");
+    for (id, folder) in [("p1", "one"), ("p2", "two"), ("p3", "three")] {
+        insert_project(&conn, &ProjectRow::new(id, &made.id, folder, folder, "")).expect(folder);
+    }
+    assert!(disable_project(&conn, "p2").expect("disable"));
+    assert_eq!(project_folders(&conn, &made.id), strings(&["one", "three"]));
+
+    // The caller passes every project, the disabled one included, at the position it wants.
+    reorder_projects(&conn, &made.id, &strings(&["three", "two", "one"])).expect("reorder");
+    assert_eq!(project_folders(&conn, &made.id), strings(&["three", "one"]));
+    assert!(enable_project(&conn, "p2").expect("enable"));
+    assert_eq!(project_folders(&conn, &made.id), strings(&["three", "two", "one"]), "back in place");
+
+    assert!(disable_workspace(&conn, &made.id).expect("disable workspace"));
+    assert!(!workspace_ids(&conn).contains(&made.id));
+    assert!(enable_workspace(&conn, &made.id).expect("enable workspace"));
+    assert_eq!(workspace_ids(&conn).last(), Some(&made.id), "enabled workspace is where it was");
+}

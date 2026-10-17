@@ -31,7 +31,7 @@ pub use jot::*;
 pub use move_doc::move_doc;
 pub use project::{
     create_project, disable_project, enable_project, list_disabled_projects, list_projects,
-    update_project,
+    reorder_projects, update_project,
 };
 pub use read::{export_file, get_digest, get_file, get_path};
 pub(crate) use resolve::workspace_root;
@@ -42,7 +42,7 @@ pub use update::{update_doc, update_doc_content};
 pub use viewer_state::{get_viewer_state, set_viewer_state};
 pub use workspace::{
     create_workspace, disable_workspace, enable_workspace, list_disabled_workspaces, list_workspaces,
-    rename_workspace, set_icon, set_view_mode,
+    rename_workspace, reorder_workspaces, set_icon, set_view_mode,
 };
 
 #[cfg(test)]

@@ -50,6 +50,11 @@ pub async fn set_workspace_icon(_app: AppHandle, payload: Value) -> Result<Value
 }
 
 #[tauri::command]
+pub async fn reorder_workspaces(_app: AppHandle, payload: Value) -> Result<Value, String> {
+    run(move || docs::reorder_workspaces(&payload)).await
+}
+
+#[tauri::command]
 pub async fn list_disabled_workspaces(_app: AppHandle) -> Result<Value, String> {
     run(|| docs::list_disabled_workspaces()).await
 }
@@ -72,6 +77,11 @@ pub async fn list_projects(_app: AppHandle, payload: Value) -> Result<Value, Str
 #[tauri::command]
 pub async fn create_project(_app: AppHandle, payload: Value) -> Result<Value, String> {
     run(move || docs::create_project(&payload)).await
+}
+
+#[tauri::command]
+pub async fn reorder_projects(_app: AppHandle, payload: Value) -> Result<Value, String> {
+    run(move || docs::reorder_projects(&payload)).await
 }
 
 #[tauri::command]

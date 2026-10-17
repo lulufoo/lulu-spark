@@ -71,7 +71,9 @@ macro_rules! doc_table_sql {
 /// tables (both in `legacy_rows_step`). Step 9 adds `disabled_at` to `workspace` and
 /// `project`: a workspace or project is disabled (hidden, data kept), never deleted.
 /// Step 10 adds `icon` (a built-in icon id, NULL = default) to both tables.
-pub(crate) const MIGRATIONS: [&str; 11] = [r#"
+/// Step 11 adds `sort_index` (the user's order) to both tables, filled from the old order:
+/// the default workspace first then by name, projects by title within their workspace.
+pub(crate) const MIGRATIONS: [&str; 12] = [r#"
 CREATE TABLE IF NOT EXISTS note (
   doc_id       TEXT PRIMARY KEY,
   raw_path     TEXT NOT NULL,
@@ -222,6 +224,22 @@ ALTER TABLE project ADD COLUMN disabled_at TEXT;
 "#, r#"
 ALTER TABLE workspace ADD COLUMN icon TEXT;
 ALTER TABLE project ADD COLUMN icon TEXT;
+"#, r#"
+ALTER TABLE workspace ADD COLUMN sort_index INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE project ADD COLUMN sort_index INTEGER NOT NULL DEFAULT 0;
+UPDATE workspace SET sort_index = (
+  SELECT count(*) FROM workspace o
+  WHERE o.is_default > workspace.is_default
+     OR (o.is_default = workspace.is_default AND (
+          lower(o.name) < lower(workspace.name)
+          OR (lower(o.name) = lower(workspace.name) AND o.id < workspace.id)))
+);
+UPDATE project SET sort_index = (
+  SELECT count(*) FROM project o
+  WHERE o.workspace_id = project.workspace_id
+    AND (lower(o.title) < lower(project.title)
+         OR (lower(o.title) = lower(project.title) AND o.id < project.id))
+);
 "#];
 
 pub fn db_path() -> Result<PathBuf, String> {

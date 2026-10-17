@@ -190,3 +190,55 @@ fn the_icon_step_leaves_existing_rows_without_an_icon() {
     assert_eq!(count(&conn, "SELECT count(*) FROM project WHERE icon IS NOT NULL"), 0);
     assert_eq!(count(&conn, "SELECT count(*) FROM project WHERE id = 'p9'"), 1);
 }
+
+/// Step 11 adds `sort_index`: workspaces start numbered default first then by name, projects
+/// by title inside their workspace, from 0 and without gaps.
+#[test]
+fn the_sort_step_numbers_existing_rows_in_the_old_order() {
+    let (_dir, path) = temp_db();
+    let before = open_with_steps(&path, &MIGRATIONS[..11]).expect("v11");
+    assert_eq!(user_version(&before), 11);
+    for (id, name) in [("zed", "Zed"), ("amy", "amy")] {
+        before
+            .execute(
+                "INSERT INTO workspace(id, name, doc_table) VALUES (?1, ?2, 'doc_' || ?1)",
+                [id, name],
+            )
+            .expect("workspace at v11");
+    }
+    for (id, folder, title) in [("p1", "z", "Zebra"), ("p2", "a", "apple"), ("p3", "b", "Banana")] {
+        before
+            .execute(
+                "INSERT INTO project(id, workspace_id, folder, title) VALUES (?1, 'knowledge', ?2, ?3)",
+                [id, folder, title],
+            )
+            .expect("project at v11");
+    }
+    drop(before);
+
+    let conn = open_at(&path).expect("latest");
+    let ids = |sql: &str| -> Vec<String> {
+        conn.prepare(sql)
+            .expect("prepare")
+            .query_map([], |r| r.get::<_, String>(0))
+            .expect("query")
+            .collect::<Result<_, _>>()
+            .expect("rows")
+    };
+    assert_eq!(
+        ids("SELECT id FROM workspace ORDER BY sort_index"),
+        vec!["default", "amy", "knowledge", "zed"]
+    );
+    assert_eq!(
+        ids("SELECT CAST(sort_index AS TEXT) FROM workspace ORDER BY sort_index"),
+        vec!["0", "1", "2", "3"]
+    );
+    assert_eq!(
+        ids("SELECT id FROM project WHERE workspace_id = 'knowledge' ORDER BY sort_index"),
+        vec!["p2", "p3", "p1"]
+    );
+    assert_eq!(
+        ids("SELECT CAST(sort_index AS TEXT) FROM project WHERE workspace_id = 'knowledge' ORDER BY sort_index"),
+        vec!["0", "1", "2"]
+    );
+}

@@ -1,7 +1,7 @@
 //! The `workspace` registry: one row per workspace, pointing at its document table.
 //!
 //! `id` and `doc_table` never change after creation (a trigger enforces it);
-//! only `name`, `view_mode`, `icon` and `disabled_at` are editable. A workspace is never deleted:
+//! only `name`, `view_mode`, `icon`, `sort_index` and `disabled_at` are editable. A workspace is never deleted:
 //! it is disabled (hidden, data kept) and can be enabled again. The default workspace
 //! cannot be disabled.
 
@@ -103,8 +103,9 @@ pub fn create_workspace(
     let doc_table = doc_table_for_id(&id)?;
     tx.execute(
         &format!(
-            "INSERT INTO workspace({INSERT_COLUMNS})
-             VALUES (?1, ?2, ?3, ?4, 0, strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))"
+            "INSERT INTO workspace({INSERT_COLUMNS}, sort_index)
+             VALUES (?1, ?2, ?3, ?4, 0, strftime('%Y-%m-%dT%H:%M:%SZ', 'now'),
+                     (SELECT coalesce(max(sort_index) + 1, 0) FROM workspace))"
         ),
         params![id, name, doc_table, mode.as_str()],
     )
@@ -139,14 +140,14 @@ pub fn get_workspace_by_name(conn: &Connection, name: &str) -> Result<Option<Wor
 fn list_where(conn: &Connection, condition: &str) -> Result<Vec<WorkspaceRow>, String> {
     let mut stmt = conn
         .prepare(&format!(
-            "SELECT {COLUMNS} FROM workspace WHERE {condition} ORDER BY is_default DESC, lower(name)"
+            "SELECT {COLUMNS} FROM workspace WHERE {condition} ORDER BY sort_index, id"
         ))
         .map_err(|e| e.to_string())?;
     let rows = stmt.query_map([], map_row).map_err(|e| e.to_string())?;
     rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
 }
 
-/// Active workspaces: default first, then name (case-insensitive).
+/// Active workspaces in the user's order (`sort_index`).
 pub fn list_workspaces(conn: &Connection) -> Result<Vec<WorkspaceRow>, String> {
     list_where(conn, "disabled_at IS NULL")
 }
@@ -245,4 +246,37 @@ pub fn discard_new_workspace(conn: &Connection, id: &str) -> Result<bool, String
         .map_err(|e| e.to_string())?;
     tx.commit().map_err(|e| e.to_string())?;
     Ok(true)
+}
+
+/// Put every workspace in the order of `ids`. `ids` must name every workspace (disabled ones
+/// included) exactly once; anything else is refused and nothing changes.
+pub fn reorder_workspaces(conn: &Connection, ids: &[String]) -> Result<(), String> {
+    let known: Vec<String> = list_all_workspaces(conn)?.into_iter().map(|w| w.id).collect();
+    ensure_same_set(&known, ids, "workspace")?;
+    let tx = conn.unchecked_transaction().map_err(|e| e.to_string())?;
+    for (index, id) in ids.iter().enumerate() {
+        tx.execute(
+            "UPDATE workspace SET sort_index = ?2 WHERE id = ?1",
+            params![id, index as i64],
+        )
+        .map_err(|e| e.to_string())?;
+    }
+    tx.commit().map_err(|e| e.to_string())
+}
+
+/// `Err` unless `given` holds exactly the entries of `known`, each once.
+pub(super) fn ensure_same_set(known: &[String], given: &[String], what: &str) -> Result<(), String> {
+    let mut seen = std::collections::HashSet::new();
+    for item in given {
+        if !seen.insert(item.as_str()) {
+            return Err(format!("duplicate {what} in order: {item}"));
+        }
+        if !known.iter().any(|k| k == item) {
+            return Err(format!("unknown {what} in order: {item}"));
+        }
+    }
+    if let Some(missing) = known.iter().find(|k| !seen.contains(k.as_str())) {
+        return Err(format!("order is missing {what}: {missing}"));
+    }
+    Ok(())
 }

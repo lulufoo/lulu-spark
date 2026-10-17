@@ -1,5 +1,5 @@
-//! Workspace operations: `list` / `create` / `rename` / `set_view_mode` / `set_icon` / `disable` /
-//! `enable`.
+//! Workspace operations: `list` / `create` / `rename` / `set_view_mode` / `set_icon` / `reorder` /
+//! `disable` / `enable`.
 //!
 //! A workspace is never deleted. Disabling hides it (and its documents) from lists and search;
 //! the data stays and `enable` brings it back. Its name stays taken while it is disabled.
@@ -15,14 +15,15 @@ use crate::services::spark_data::{
     discard_new_workspace, enable_workspace as enable_workspace_row, get_workspace,
     get_workspace_by_name,
     list_disabled_workspaces as list_disabled_workspace_rows, list_workspaces as list_workspace_rows,
-    rename_workspace as rename_workspace_row, set_workspace_icon as set_workspace_icon_row,
+    rename_workspace as rename_workspace_row, reorder_workspaces as reorder_workspace_rows,
+    set_workspace_icon as set_workspace_icon_row,
     set_workspace_view_mode, ViewMode, WorkspaceRow,
 };
 
 use super::project::insert_inbox_project;
 use super::resolve::{
     bad_request, conflict, icon_field, internal, not_found, open_data, resolve_workspace,
-    text_field, workspace_root,
+    string_list_field, text_field, workspace_root,
 };
 
 fn workspace_value(row: &WorkspaceRow) -> Value {
@@ -170,6 +171,24 @@ pub fn set_icon(payload: &Value) -> Value {
         Err(v) => return v,
     };
     update_workspace(id, |conn| set_workspace_icon_row(conn, id, icon.as_deref()))
+}
+
+/// `{ ids }` → `{ ok, workspaces }`. `ids` is every workspace, disabled ones included, in the
+/// new order; a list that does not match is a 400 and nothing changes. `workspaces` is the
+/// active list in the new order.
+pub fn reorder_workspaces(payload: &Value) -> Value {
+    let ids = match string_list_field(payload, "ids") {
+        Ok(ids) => ids,
+        Err(v) => return v,
+    };
+    let result = open_data().and_then(|conn| {
+        reorder_workspace_rows(&conn, &ids).map_err(bad_request)?;
+        list_workspace_rows(&conn).map_err(internal)
+    });
+    match result {
+        Ok(rows) => json!({ "ok": true, "workspaces": rows.iter().map(workspace_value).collect::<Vec<_>>() }),
+        Err(v) => v,
+    }
 }
 
 fn update_workspace(

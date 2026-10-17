@@ -1,4 +1,5 @@
-//! Project operations inside one workspace: `list` / `create` / `update` / `disable` / `enable`.
+//! Project operations inside one workspace: `list` / `create` / `update` / `reorder` / `disable` /
+//! `enable`.
 //!
 //! A project is never deleted. Disabling hides it (and its documents) from lists, pickers and
 //! search; the documents stay readable by id and `enable` brings the project back. Its folder
@@ -16,12 +17,14 @@ use crate::services::id::random_alnum6;
 use crate::services::spark_data::{
     disable_project as disable_project_row, enable_project as enable_project_row, get_project,
     get_project_by_folder, insert_project, list_disabled_projects as list_disabled_project_rows,
-    list_projects as list_project_rows, update_project as update_project_row, ProjectRow,
+    list_projects as list_project_rows, reorder_projects as reorder_project_rows,
+    update_project as update_project_row, ProjectRow,
 };
 
 use super::resolve::{
     bad_request, conflict, ensure_project_enabled, ensure_workspace_enabled, icon_field, internal,
-    open_data, resolve_project, resolve_workspace, text_field, DEFAULT_PROJECT_FOLDER,
+    open_data, resolve_project, resolve_workspace, string_list_field, text_field,
+    DEFAULT_PROJECT_FOLDER,
 };
 
 const FOLDER_MAX_LEN: usize = 64;
@@ -163,6 +166,26 @@ pub fn update_project(payload: &Value) -> Value {
     });
     match result {
         Ok(row) => json!({ "ok": true, "project": project_value(&row) }),
+        Err(v) => v,
+    }
+}
+
+/// `{ workspace?, folders }` → `{ ok, projects }`. `folders` is every project of the workspace,
+/// disabled ones included, in the new order; a list that does not match is a 400 and nothing
+/// changes. `projects` is the active list in the new order.
+pub fn reorder_projects(payload: &Value) -> Value {
+    let folders = match string_list_field(payload, "folders") {
+        Ok(folders) => folders,
+        Err(v) => return v,
+    };
+    let result = open_data().and_then(|conn| {
+        let ws = resolve_workspace(&conn, text_field(payload, "workspace"))?;
+        ensure_workspace_enabled(&ws)?;
+        reorder_project_rows(&conn, &ws.id, &folders).map_err(bad_request)?;
+        list_project_rows(&conn, &ws.id).map_err(internal)
+    });
+    match result {
+        Ok(rows) => json!({ "ok": true, "projects": rows.iter().map(project_value).collect::<Vec<_>>() }),
         Err(v) => v,
     }
 }
