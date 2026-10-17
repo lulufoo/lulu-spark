@@ -14,6 +14,7 @@ import {
   deleteEntry,
   fetchWorkspaces, createWorkspace, renameWorkspace, setWorkspaceViewMode, disableWorkspace, enableWorkspace, fetchDisabledWorkspaces, fetchDisabledProjects,
   fetchProjects, createProject, updateProject, disableProject, enableProject, moveToProject,
+  fetchHidePatterns, addHidePattern, updateHidePattern, removeHidePattern, fetchViewerState, saveViewerState,
 } from '../../frontend/src/host/api.ts'
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..')
@@ -261,6 +262,37 @@ test('renameWorkspace, setWorkspaceViewMode, disableWorkspace and enableWorkspac
     { id: 'ws1' },
     { id: 'ws1' },
   ])
+})
+
+test('hidden-files rules are read and written per workspace', async () => {
+  mockFetch({ patterns: [{ id: 'seed00', pattern: '^\\.git$' }] })
+  const listed = await fetchHidePatterns('ws1')
+  expect(fetch.mock.calls[0][0]).toMatch(new RegExp(`^${API_READ_PREFIX}/hide-patterns\\?workspace=ws1&_=\\d+$`))
+  expect(listed.patterns[0].id).toBe('seed00')
+
+  mockFetch({ patterns: [] })
+  await addHidePattern('ws1', '^draft$')
+  await updateHidePattern('ws1', 'seed00', '^x$')
+  await removeHidePattern('ws1', 'seed00')
+  expect(fetch.mock.calls.map((call) => call[0])).toEqual([
+    `${DEFAULT_DEV_BASE}/api/hide-pattern-add`,
+    `${DEFAULT_DEV_BASE}/api/hide-pattern-update`,
+    `${DEFAULT_DEV_BASE}/api/hide-pattern-remove`,
+  ])
+  expect(fetch.mock.calls.map((call) => JSON.parse(call[1].body))).toEqual([
+    { workspace: 'ws1', pattern: '^draft$' },
+    { workspace: 'ws1', id: 'seed00', pattern: '^x$' },
+    { workspace: 'ws1', id: 'seed00' },
+  ])
+})
+
+test('the remembered open document is read and written per workspace', async () => {
+  mockFetch({ id: 'abc' })
+  expect((await fetchViewerState('ws1')).id).toBe('abc')
+  expect(fetch.mock.calls[0][0]).toMatch(new RegExp(`^${API_READ_PREFIX}/viewer-state\\?workspace=ws1&_=\\d+$`))
+  await saveViewerState('ws1', 'abc')
+  expect(fetch.mock.calls[1][0]).toBe(`${DEFAULT_DEV_BASE}/api/viewer-state`)
+  expect(JSON.parse(fetch.mock.calls[1][1].body)).toEqual({ workspace: 'ws1', id: 'abc' })
 })
 
 test('fetchProjects calls /api/projects for one workspace', async () => {

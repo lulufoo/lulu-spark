@@ -27,6 +27,10 @@ const P2_PATHS = [
   ['/api/project-update', 'update_project', ['payload']],
   ['/api/project-disable', 'disable_project', ['payload']],
   ['/api/project-enable', 'enable_project', ['payload']],
+  ['/api/hide-pattern-add', 'add_hide_pattern', ['payload']],
+  ['/api/hide-pattern-update', 'update_hide_pattern', ['payload']],
+  ['/api/hide-pattern-remove', 'remove_hide_pattern', ['payload']],
+  ['/api/viewer-state', 'set_viewer_state', ['payload']],
   ['/api/show-os-notification', 'show_os_notification', ['title', 'body', 'scheme']],
 ];
 

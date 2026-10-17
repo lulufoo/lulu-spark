@@ -5,6 +5,7 @@ import { loadWorkspaces } from '../../../notes/commands/workspace.ts';
 import { applyViewModeChange } from '../../../notes/commands/workspace-switch.ts';
 import {
   patchWorkspacesPanel,
+  workspacesPanelStore,
   type DisabledWorkspaceRow,
 } from '../../state/settings/workspaces-panel.ts';
 
@@ -88,4 +89,66 @@ export function disableWorkspace(id: string) {
 
 export function enableWorkspace(id: string) {
   return run(() => api.enableWorkspace(id));
+}
+
+/** Open the edit dialog for one workspace, with its current name and view in the draft. */
+export function openWorkspaceEditor(id: string) {
+  const workspace = state.workspaces.list.find((w) => w.id === id);
+  if (!workspace) return;
+  patchWorkspacesPanel({
+    selectedId: workspace.id,
+    editorOpen: true,
+    draftName: workspace.name,
+    draftViewMode: workspace.view_mode,
+    confirmDisable: false,
+    error: '',
+  });
+}
+
+export function closeWorkspaceEditor() {
+  const snap = workspacesPanelStore.getSnapshot();
+  if (!snap.editorOpen && !snap.selectedId) return;
+  patchWorkspacesPanel({
+    selectedId: '',
+    editorOpen: false,
+    draftName: '',
+    draftViewMode: 'directory',
+    confirmDisable: false,
+    error: '',
+  });
+}
+
+export function setWorkspaceDraft(name: string, viewMode: api.ViewMode) {
+  patchWorkspacesPanel({ draftName: name, draftViewMode: viewMode });
+}
+
+/** The built-in workspace cannot be disabled. */
+export function askWorkspaceDisable() {
+  const { selectedId } = workspacesPanelStore.getSnapshot();
+  if (!selectedId || state.workspaces.list.find((w) => w.id === selectedId)?.is_default) return;
+  patchWorkspacesPanel({ confirmDisable: true, error: '' });
+}
+
+export function cancelWorkspaceDisable() {
+  patchWorkspacesPanel({ confirmDisable: false, error: '' });
+}
+
+/** Save the dialog: rename and/or change the view, then close it. Stops at the first refusal. */
+export async function saveWorkspaceEditor(): Promise<boolean> {
+  const snap = workspacesPanelStore.getSnapshot();
+  const workspace = state.workspaces.list.find((w) => w.id === snap.selectedId);
+  const name = snap.draftName.trim();
+  if (!workspace || !name) return false;
+  const viewChanged = snap.draftViewMode !== workspace.view_mode;
+  if (name !== workspace.name && !(await renameWorkspace(workspace.id, name))) return false;
+  if (viewChanged && !(await changeWorkspaceViewMode(workspace.id, snap.draftViewMode))) return false;
+  closeWorkspaceEditor();
+  return true;
+}
+
+export async function confirmWorkspaceDisable(): Promise<boolean> {
+  const { selectedId } = workspacesPanelStore.getSnapshot();
+  if (!selectedId || !(await disableWorkspace(selectedId))) return false;
+  closeWorkspaceEditor();
+  return true;
 }

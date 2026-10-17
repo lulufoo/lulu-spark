@@ -24,13 +24,14 @@ describe('fullscreen overlay chrome', () => {
       '#kb-comment-dialog',
       '#comment-delete-dialog',
       '#notes-cat-edit-dialog',
+      '#notes-ws-edit-dialog',
       '#todo-task-dialog',
       '#read-later-dialog',
       '#knowledge-tree-delete-dialog',
     ];
     for (const sel of overlays) {
       expect(css).toMatch(
-        new RegExp(`${escapeRe(sel)}\\s*\\{[^}]*background:\\s*var\\(--bg-rgba-000000-55\\)`),
+        new RegExp(`${escapeRe(sel)}(?:,[^{]*)?\\s*\\{[^}]*background:\\s*var\\(--bg-rgba-000000-55\\)`),
       );
     }
     expect(css).toMatch(

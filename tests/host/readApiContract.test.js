@@ -36,6 +36,17 @@ describe('readApi contract map', () => {
     });
   });
 
+  it('resolveInvokeFromPath maps the per-workspace hidden-files rules and viewer state', () => {
+    expect(resolveInvokeFromPath('/api/hide-patterns?workspace=ws1&_=1')).toEqual({
+      cmd: 'list_hide_patterns',
+      args: { payload: { workspace: 'ws1' } },
+    });
+    expect(resolveInvokeFromPath('/api/viewer-state?workspace=ws1&_=1')).toEqual({
+      cmd: 'get_viewer_state',
+      args: { payload: { workspace: 'ws1' } },
+    });
+  });
+
   it('resolveInvokeFromPath no longer maps the knowledge routes', () => {
     for (const path of ['/api/kb/read?id=x', '/api/kb/list', '/api/sediment-kb/repos', '/api/search-knowledge?q=x', '/api/topics']) {
       expect(resolveInvokeFromPath(path), path).toBeNull();

@@ -58,3 +58,31 @@ export async function disableProject(workspace: string, project: string) {
 export async function enableProject(workspace: string, project: string) {
   return writePost('/api/project-enable', { workspace, project });
 }
+
+export type HidePatternRow = { id: string; pattern: string };
+
+/** Hidden files rules of one workspace. */
+export async function fetchHidePatterns(workspace: string) {
+  return readGet(`/api/hide-patterns?workspace=${encodeURIComponent(workspace)}&_=${Date.now()}`);
+}
+
+export async function addHidePattern(workspace: string, pattern: string) {
+  return writePost('/api/hide-pattern-add', { workspace, pattern });
+}
+
+export async function updateHidePattern(workspace: string, id: string, pattern: string) {
+  return writePost('/api/hide-pattern-update', { workspace, id, pattern });
+}
+
+export async function removeHidePattern(workspace: string, id: string) {
+  return writePost('/api/hide-pattern-remove', { workspace, id });
+}
+
+/** The document a workspace's page had open (`{ id }`, empty when none). */
+export async function fetchViewerState(workspace: string) {
+  return readGet(`/api/viewer-state?workspace=${encodeURIComponent(workspace)}&_=${Date.now()}`);
+}
+
+export async function saveViewerState(workspace: string, id: string) {
+  return writePost('/api/viewer-state', { workspace, id });
+}

@@ -2,6 +2,7 @@ import { state, mergeAnnotations, notifyState } from './host/state.ts';
 import { LAYERS } from './host/constants.ts';
 import * as api from './host/api.ts';
 import type { HostIndexAnnotation, HostNoteEntry } from './host/snapshot-types.ts';
+import { restoreOpenDoc } from './notes/commands/viewer-state.ts';
 import { buildGroups, selectDate, selectDefaultProject, applyListFilters } from './notes/commands/sidebar.ts';
 import { entryGroupKey, isDirectoryView, loadProjects, loadWorkspaces } from './notes/commands/workspace.ts';
 import { resetDirTree } from './notes/state/dir-tree.ts';
@@ -56,6 +57,7 @@ async function loadIndex({ managedBtn = false }: { managedBtn?: boolean } = {}) 
       : (state.index.filteredGroups.length > 0 ? state.index.filteredGroups[0].date : null);
     if (targetDate) selectDate(targetDate);
     notifyState();
+    void restoreOpenDoc();
   } catch (e) {
     // @ts-expect-error boot copy scan uses e.message
     showError(`Could not load notes: ${e.message}`);

@@ -27,7 +27,8 @@ import {
   closeNotesCategoryEditor,
   selectProjectsWorkspace,
 } from './notes-categories.ts';
-import { loadDisabledWorkspaces } from './workspaces.ts';
+import { selectHidePatternsWorkspace } from './hide-patterns.ts';
+import { closeWorkspaceEditor, loadDisabledWorkspaces } from './workspaces.ts';
 import { loadSettingsSnapshot } from './snapshot.ts';
 import { saveThemeSelection } from './theme.ts';
 import {
@@ -61,22 +62,39 @@ export function ensureWired() {
   wired = true;
 }
 
-export function closeSettingsDialog() {
+/** Dialogs of the Workspaces and workspace pages never outlive their page. */
+function closeEditors() {
   closeNotesCategoryEditor();
+  closeWorkspaceEditor();
+}
+
+export function closeSettingsDialog() {
+  closeEditors();
   settingsOpenStore.set(false);
   document.getElementById('settings-dialog')?.classList.remove('open');
 }
 
-/** Show one settings panel; a `workspace:<id>` panel also loads that workspace's projects. */
+/**
+ * Show one settings panel, always on its Directory tab. A `workspace:<id>` panel also loads that
+ * workspace's projects and hidden-file rules.
+ */
 function showPanel(panelId: string): Promise<void> {
+  closeEditors();
   switchPanel(panelId);
-  if (isWorkspacePanel(panelId)) return selectProjectsWorkspace(workspaceIdOfPanel(panelId));
-  closeNotesCategoryEditor();
+  if (isWorkspacePanel(panelId)) {
+    switchSettingsTab('workspace', 'directory');
+    const workspaceId = workspaceIdOfPanel(panelId);
+    return Promise.all([
+      selectProjectsWorkspace(workspaceId),
+      selectHidePatternsWorkspace(workspaceId),
+    ]).then(() => undefined);
+  }
+  if (panelId === 'notes') switchSettingsTab('notes', 'directory');
   return Promise.resolve();
 }
 
 export async function openSettingsDialog(opts: SettingsOpenOpts = {}) {
-  closeNotesCategoryEditor();
+  closeEditors();
   settingsOpenStore.set(true);
   document.getElementById('settings-dialog')?.classList.add('open');
   ensureWired();

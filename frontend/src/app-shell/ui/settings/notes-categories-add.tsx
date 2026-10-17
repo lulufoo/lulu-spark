@@ -3,7 +3,7 @@ import { addNotesCategory } from '../../commands/settings/notes-categories.ts';
 import { notesCategoriesStore } from '../../state/settings/notes-categories.ts';
 
 /** Add form for the selected workspace; it clears only after the host accepted the project. */
-export function WorkspaceProjectAdd() {
+export function NotesCategoriesAddHost() {
   const snap = useSyncExternalStore(
     notesCategoriesStore.subscribe,
     notesCategoriesStore.getSnapshot,
@@ -23,8 +23,11 @@ export function WorkspaceProjectAdd() {
 
   return (
     <div className="notes-cat-add">
+      <p className="notes-cat-lead">
+        Adding a project does not move existing documents. Title and description are display only.
+      </p>
       <div className="settings-field">
-        <label htmlFor="notes-cat-new-title">New project</label>
+        <label htmlFor="notes-cat-new-title">Title</label>
         <input
           id="notes-cat-new-title"
           type="text"
@@ -41,13 +44,16 @@ export function WorkspaceProjectAdd() {
         <textarea
           id="notes-cat-new-description"
           rows={3}
-          placeholder="Optional. Shown on the project list and note cards."
+          placeholder="Optional. Shown on the project list."
           autoComplete="off"
           spellCheck={false}
           disabled={snap.busy}
           value={description}
           onChange={(e) => setDescription(e.target.value)}
         />
+      </div>
+      <div id="notes-cat-add-error" className="settings-result notes-cat-error">
+        {snap.editorOpen ? '' : snap.error}
       </div>
       <div className="settings-panel-actions">
         <button
@@ -57,7 +63,7 @@ export function WorkspaceProjectAdd() {
           disabled={snap.busy || !title.trim()}
           onClick={() => void onAdd()}
         >
-          {snap.busy ? 'Working…' : 'Add project'}
+          {snap.busy ? 'Adding…' : 'Add project'}
         </button>
       </div>
     </div>

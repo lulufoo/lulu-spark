@@ -42,6 +42,14 @@ export const READ_API_INVOKE_MAP: Record<string, ReadInvokeEntry> = {
     cmd: 'list_disabled_projects',
     args: (url) => ({ payload: { workspace: url.searchParams.get('workspace') || undefined } }),
   },
+  '/api/hide-patterns': {
+    cmd: 'list_hide_patterns',
+    args: (url) => ({ payload: { workspace: url.searchParams.get('workspace') || undefined } }),
+  },
+  '/api/viewer-state': {
+    cmd: 'get_viewer_state',
+    args: (url) => ({ payload: { workspace: url.searchParams.get('workspace') || undefined } }),
+  },
   '/api/search-spark': {
     cmd: 'search_spark',
     args: (url) => ({

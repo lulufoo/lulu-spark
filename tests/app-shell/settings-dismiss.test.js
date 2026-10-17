@@ -18,7 +18,7 @@ vi.mock('../../frontend/src/host/api.ts', () => ({
   setConfig: vi.fn(),
   invoke: vi.fn(),
   fetchProjects: vi.fn(),
-  fetchKbHidePatterns: vi.fn(),
+  fetchHidePatterns: vi.fn(),
 }));
 
 import * as api from '../../frontend/src/host/api.ts';
@@ -69,7 +69,7 @@ describe('Settings header and footer dismiss', () => {
     api.fetchConfig.mockResolvedValue(baseConfig());
     api.setConfig.mockResolvedValue(baseConfig());
     api.fetchProjects.mockResolvedValue({ projects: [] });
-    api.fetchKbHidePatterns.mockResolvedValue({ patterns: [] });
+    api.fetchHidePatterns.mockResolvedValue({ patterns: [] });
     api.invoke.mockResolvedValue({
       channels: [],
       groups: [],
@@ -139,7 +139,7 @@ describe('Settings close hook without #btn-settings-close', () => {
     api.fetchConfig.mockResolvedValue(baseConfig());
     api.setConfig.mockResolvedValue(baseConfig());
     api.fetchProjects.mockResolvedValue({ projects: [] });
-    api.fetchKbHidePatterns.mockResolvedValue({ patterns: [] });
+    api.fetchHidePatterns.mockResolvedValue({ patterns: [] });
     api.invoke.mockResolvedValue({ channels: [], groups: [], enabled: {} });
 
     document.body.innerHTML = renderToHtml(createElement(SettingsDialog));

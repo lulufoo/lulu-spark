@@ -1,30 +1,69 @@
 import { useSyncExternalStore } from 'react';
 import { getStateVersion, state, subscribeState } from '../../../host/state.ts';
 import { notesCategoriesStore } from '../../state/settings/notes-categories.ts';
+import { workspacesPanelStore } from '../../state/settings/workspaces-panel.ts';
+import { HiddenFilesTab } from './hidden-files-tab.tsx';
+import { NotesCategoriesAddHost } from './notes-categories-add.tsx';
 import { NotesCategoriesEditHost } from './notes-categories-edit.tsx';
-import { WorkspaceProjectAdd } from './workspace-project-add.tsx';
-import { WorkspaceProjectList } from './workspace-project-list.tsx';
 
-/** One page per workspace nav item: its projects, add form, edit dialog and disabled projects. */
+/**
+ * One page per workspace nav item. The tabs always render (their click listeners are wired once on
+ * the static DOM); the contents follow the selected workspace.
+ */
 export function WorkspaceProjectsPanel() {
   useSyncExternalStore(subscribeState, getStateVersion, getStateVersion);
   const snap = useSyncExternalStore(notesCategoriesStore.subscribe, notesCategoriesStore.getSnapshot);
+  const { root } = useSyncExternalStore(workspacesPanelStore.subscribe, workspacesPanelStore.getSnapshot);
   const workspace = state.workspaces.list.find((w) => w.id === snap.workspaceId);
+  const dir = workspace && root ? `${root}/${workspace.id}` : '';
 
   return (
     <div id="settings-panel-workspace" className="settings-panel">
-      {workspace ? (
-        <div className="notes-workspaces-panel" data-workspace-panel={workspace.id}>
-          <h3 id="workspace-panel-title" className="workspace-panel-title">{workspace.name}</h3>
-          <p className="notes-cat-lead">
-            A project groups documents inside this workspace. Title and description are display only;
-            existing documents keep their path.
-          </p>
-          <WorkspaceProjectList />
-          <WorkspaceProjectAdd />
-          <NotesCategoriesEditHost />
+      <div className="settings-tabs" role="tablist">
+        <button type="button" className="settings-tab active" data-tab="directory" role="tab">
+          Directory
+        </button>
+        <button type="button" className="settings-tab" data-tab="add" role="tab">
+          Add project
+        </button>
+        <button type="button" className="settings-tab" data-tab="edit" role="tab">
+          Edit &amp; Disable project
+        </button>
+        <button type="button" className="settings-tab" data-tab="hidden" role="tab">
+          Hidden files
+        </button>
+      </div>
+      <div
+        id="settings-tab-workspace-directory"
+        className="settings-tab-panel active"
+        data-tab="directory"
+      >
+        <div className="settings-field">
+          <label htmlFor="workspace-dir-path">Workspace directory</label>
+          <input
+            id="workspace-dir-path"
+            type="text"
+            spellCheck={false}
+            autoComplete="off"
+            readOnly
+            className="settings-input-readonly"
+            value={dir}
+            placeholder={dir || undefined}
+          />
+          <span className="settings-field-hint">
+            {workspace
+              ? `Folder of ${workspace.name}. Its projects are the folders inside.`
+              : 'Choose a workspace.'}
+          </span>
         </div>
-      ) : null}
+      </div>
+      <div id="settings-tab-workspace-add" className="settings-tab-panel" data-tab="add">
+        <NotesCategoriesAddHost />
+      </div>
+      <div id="settings-tab-workspace-edit" className="settings-tab-panel" data-tab="edit">
+        <NotesCategoriesEditHost />
+      </div>
+      <HiddenFilesTab />
     </div>
   );
 }

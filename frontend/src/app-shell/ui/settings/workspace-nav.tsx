@@ -10,7 +10,7 @@ export function WorkspaceNavItems() {
         <button
           key={workspace.id}
           type="button"
-          className="settings-nav-item settings-nav-workspace"
+          className="settings-nav-item"
           data-panel={`workspace:${workspace.id}`}
         >
           {workspace.name}

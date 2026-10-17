@@ -3,17 +3,13 @@ import type { SettingsConfig } from '../../state/types.ts';
 import { loadAssistantEnginePanel } from './engine.ts';
 import { loadThemePanel } from './theme.ts';
 import { store } from '../../state/settings/store.ts';
+import { patchWorkspacesPanel } from '../../state/settings/workspaces-panel.ts';
 
 export async function loadSettingsSnapshot() {
   try {
     const cfg = (await api.fetchConfig()) as SettingsConfig;
 
-    const rootInput = document.getElementById('workspaces-root-path') as HTMLInputElement | null;
-    const workspacesRoot = cfg?.workspaces_root ?? '';
-    if (rootInput) {
-      rootInput.value = workspacesRoot;
-      if (workspacesRoot) rootInput.placeholder = workspacesRoot;
-    }
+    patchWorkspacesPanel({ root: cfg?.workspaces_root ?? '' });
 
     loadAssistantEnginePanel(cfg ?? {});
     loadThemePanel(cfg?.theme);

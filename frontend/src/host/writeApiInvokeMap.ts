@@ -155,6 +155,22 @@ export const WRITE_API_INVOKE_MAP: Record<string, WriteInvokeEntry> = {
     cmd: 'enable_project',
     args: (body) => ({ payload: body ?? {} }),
   },
+  '/api/hide-pattern-add': {
+    cmd: 'add_hide_pattern',
+    args: (body) => ({ payload: body ?? {} }),
+  },
+  '/api/hide-pattern-update': {
+    cmd: 'update_hide_pattern',
+    args: (body) => ({ payload: body ?? {} }),
+  },
+  '/api/hide-pattern-remove': {
+    cmd: 'remove_hide_pattern',
+    args: (body) => ({ payload: body ?? {} }),
+  },
+  '/api/viewer-state': {
+    cmd: 'set_viewer_state',
+    args: (body) => ({ payload: body ?? {} }),
+  },
   '/api/doc-draft': {
     cmd: 'save_doc_draft',
     args: (body) => ({

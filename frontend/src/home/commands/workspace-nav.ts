@@ -1,6 +1,7 @@
 import * as api from '../../host/api.ts';
 import { state } from '../../host/state.ts';
 import { selectDefaultProject, selectProject } from '../../notes/commands/sidebar.ts';
+import { restoreOpenDoc } from '../../notes/commands/viewer-state.ts';
 import { showWorkspace, switchWorkspace } from '../../notes/commands/workspace-switch.ts';
 import { setHomeState, type HomeProject } from '../state/store.ts';
 
@@ -36,9 +37,12 @@ export async function refreshWorkspaceProjects() {
 
 /** Enter a workspace with its default project, also when it is already the shown one. */
 export function openWorkspace(id: string, navigateFn?: (hash: string) => void) {
-  if (id !== state.workspaces.current) switchWorkspace(id);
-  else selectDefaultProject();
+  const alreadyShown = id === state.workspaces.current;
+  if (alreadyShown) selectDefaultProject();
+  else switchWorkspace(id);
   navigateFn?.('#/spark');
+  // A workspace that is switched to restores in `loadIndex`, once its index is there.
+  if (alreadyShown) void restoreOpenDoc();
 }
 
 /** Enter a workspace and select one of its projects once that workspace's index is loaded. */

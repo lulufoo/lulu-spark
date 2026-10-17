@@ -3,6 +3,7 @@ import { resetEditAreaScroll } from '../../../shared/utils.ts';
 import * as api from '../../../host/api.ts';
 import { navigateToNote, navigateBackToList, parseHash } from '../../../router/index.ts';
 import { exitEditMode } from './doc.ts';
+import { forgetOpenDoc } from '../viewer-state.ts';
 import { hideNoteOutlet, setNotePanelTitle, showNoteOutlet } from './outlet.ts';
 
 const CREATE_CHROME_HIDDEN_IDS = [
@@ -64,6 +65,7 @@ export function locationDate() {
 }
 
 export function dismissViewerModal() {
+  forgetOpenDoc();
   clearCreateChrome();
   hideNoteOutlet();
   document.body.style.overflow = '';

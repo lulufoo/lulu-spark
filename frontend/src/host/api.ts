@@ -20,6 +20,7 @@ export { getPackageSnapshot } from './api/package-snapshot.ts';
 export type { PackageSnapshot } from './api/package-snapshot.ts';
 
 export {
+  addHidePattern,
   createProject,
   createWorkspace,
   disableProject,
@@ -28,13 +29,18 @@ export {
   enableWorkspace,
   fetchDisabledProjects,
   fetchDisabledWorkspaces,
+  fetchHidePatterns,
   fetchProjects,
+  fetchViewerState,
   fetchWorkspaces,
+  removeHidePattern,
   renameWorkspace,
+  saveViewerState,
   setWorkspaceViewMode,
+  updateHidePattern,
   updateProject,
 } from './api/workspaces.ts';
-export type { ViewMode } from './api/workspaces.ts';
+export type { HidePatternRow, ViewMode } from './api/workspaces.ts';
 
 export {
   createNote,

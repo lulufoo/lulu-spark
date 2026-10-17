@@ -22,7 +22,7 @@ const { notesCategoriesStore, emptyNotesCategoriesSnap } = await import(
   '../../frontend/src/app-shell/state/settings/notes-categories.ts'
 );
 const { WorkspaceNavItems } = await import('../../frontend/src/app-shell/ui/settings/workspace-nav.tsx');
-const { WorkspaceProjectList } = await import('../../frontend/src/app-shell/ui/settings/workspace-project-list.tsx');
+const { NotesCategoriesEditHost } = await import('../../frontend/src/app-shell/ui/settings/notes-categories-edit.tsx');
 const tabs = await import('../../frontend/src/app-shell/ui/settings/tabs.ts');
 
 const row = (folder, title = folder) => ({ folder, title, description: '' });
@@ -108,17 +108,53 @@ describe('Workspace projects settings', () => {
     act(() => root.unmount());
   });
 
-  it('shows Edit and Disable per project, and no Disable for inbox', async () => {
+  it('lists whole-row project buttons that open the dialog; Disable is in the dialog, not for inbox', async () => {
     await commands.selectProjectsWorkspace('default');
     const host = document.createElement('div');
     document.body.appendChild(host);
     const root = createRoot(host);
-    act(() => root.render(createElement(WorkspaceProjectList)));
-    const inbox = host.querySelector('[data-project="inbox"]');
-    const work = host.querySelector('[data-project="work"]');
-    expect([...inbox.querySelectorAll('button')].map((b) => b.textContent)).toEqual(['Edit']);
-    expect([...work.querySelectorAll('button')].map((b) => b.textContent)).toEqual(['Edit', 'Disable']);
-    expect(host.querySelector('#notes-projects-disabled summary').textContent).toBe('Disabled (1)');
+    act(() => root.render(createElement(NotesCategoriesEditHost)));
+    const inbox = host.querySelector('button.notes-cat-item[data-project="inbox"]');
+    const work = host.querySelector('button.notes-cat-item[data-project="work"]');
+    expect(inbox.querySelector('.notes-cat-item-action').textContent).toBe('Edit');
+    expect(work.querySelector('.notes-cat-item-action').textContent).toBe('Edit');
+    expect(host.querySelector('#notes-cat-edit-dialog').classList.contains('open')).toBe(false);
+
+    act(() => work.click());
+    expect(host.querySelector('#notes-cat-edit-dialog').classList.contains('open')).toBe(true);
+    expect(host.querySelector('#notes-cat-edit-dialog-title').textContent).toBe('Edit project');
+    const labels = () => [...host.querySelectorAll('.notes-cat-edit-actions button')].map((b) => b.textContent);
+    expect(labels()).toEqual(['Disable', 'Cancel', 'Save']);
+
+    // Disable asks for confirmation first; Back returns to the form without calling the host.
+    act(() => host.querySelector('.notes-cat-edit-actions .sediment-kb-delete-btn').click());
+    expect(host.querySelector('#notes-cat-edit-dialog-title').textContent).toBe('Disable project');
+    expect(labels()).toEqual(['Back', 'Disable project']);
+    act(() => host.querySelector('.notes-cat-edit-actions .btn-settings-ghost').click());
+    expect(labels()).toEqual(['Disable', 'Cancel', 'Save']);
+    expect(calls).toEqual([]);
+
+    act(() => host.querySelector('.notes-cat-edit-actions .sediment-kb-delete-btn').click());
+    await act(async () => host.querySelector('#btn-notes-cat-disable').click());
+    expect(calls).toEqual([['disable', 'default', 'work']]);
+    expect(host.querySelector('#notes-cat-edit-dialog').classList.contains('open')).toBe(false);
+
+    act(() => inbox.click());
+    expect(labels()).toEqual(['Cancel', 'Save']);
+    act(() => root.unmount());
+  });
+
+  it('keeps Disabled collapsed below the list and enables a project from its row', async () => {
+    await commands.selectProjectsWorkspace('default');
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    act(() => root.render(createElement(NotesCategoriesEditHost)));
+    const details = host.querySelector('details#notes-projects-disabled');
+    expect(details.open).toBe(false);
+    expect(details.querySelector('summary').textContent).toBe('Disabled (1)');
+    await act(async () => details.querySelector('button[data-project-disabled="old"]').click());
+    expect(calls).toEqual([['enable', 'default', 'old']]);
     act(() => root.unmount());
   });
 });
