@@ -12,7 +12,7 @@ pub fn build(channel: &str) -> Option<ToolRoute> {
         return None;
     }
     let mut props = workspace_property();
-    props["id"] = json!({ "type": "string", "description": "Document id (32-char hex)." });
+    props["id"] = json!({ "type": "string", "description": "Document id from search or create_doc." });
     Some(route(
         "delete_doc",
         "Hard-delete one document by id (raw, digest, annotation, index). workspace defaults to Default. Irreversible. Exposed only on the spark MCP channel (/mcp/spark); not available on cursor_ide or mobile.",

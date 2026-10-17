@@ -11,7 +11,7 @@ fn id_properties(extra: Value) -> Value {
     let mut props = workspace_property();
     props["id"] = json!({
         "type": "string",
-        "description": "Document id (32-char hex) from search."
+        "description": "Document id from search or create_doc."
     });
     if let Some(extra) = extra.as_object() {
         for (key, value) in extra {

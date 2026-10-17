@@ -7,7 +7,7 @@ registerReferenceKind({
   kind: 'note',
   scheme: 'note',
   label: 'note',
-  idPattern: /^[0-9a-f]{32}$/,
+  idPattern: /^(?:[a-z0-9_]+-)?[0-9a-f]{32}$/,
   open: openNoteById,
 });
 
@@ -16,7 +16,7 @@ registerReferenceKind({
   kind: 'knowledge',
   scheme: 'knowledge',
   label: 'knowledge',
-  idPattern: /^[0-9a-f]+$/,
+  idPattern: /^(?:[a-z0-9_]+-)?[0-9a-f]+$/,
   open: openKnowledgeById,
 });
 

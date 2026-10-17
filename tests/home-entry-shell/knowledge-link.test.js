@@ -61,6 +61,7 @@ describe('knowledgeIdFromHref', () => {
     expect(knowledgeIdFromHref(`knowledge:${ID}`)).toBe(ID);
     expect(knowledgeIdFromHref(`knowledge:${LEGACY_ID}`)).toBe(LEGACY_ID);
     expect(knowledgeIdFromHref(`  knowledge:${ID} `)).toBe(ID);
+    expect(knowledgeIdFromHref(`knowledge:knowledge-${ID}`)).toBe(`knowledge-${ID}`);
   });
 
   it('rejects anything that is not a knowledge: hex link', () => {

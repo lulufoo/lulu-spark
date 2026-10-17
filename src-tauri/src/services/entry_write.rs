@@ -13,10 +13,6 @@ use crate::services::spark_data::{self, find_doc, project_folder};
 
 const EDITABLE_LAYERS: &[&str] = &["raw", "digest"];
 
-fn is_valid_entry_id(id: &str) -> bool {
-    id.len() == 32 && id.chars().all(|c| c.is_ascii_hexdigit())
-}
-
 pub fn save_entry(
     _repo_root: &Path,
     layer: String,
@@ -32,7 +28,7 @@ pub fn save_entry(
         });
     }
     let id = id.trim();
-    if !is_valid_entry_id(id) {
+    if !spark_data::is_valid_doc_id(id) {
         return json!({ "error": "Invalid id", "_status": 400 });
     }
 

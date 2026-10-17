@@ -12,7 +12,7 @@ use crate::services::docs::store::doc_file_path;
 use crate::services::spark_data::{DocRow, ProjectRow, WorkspaceRow};
 
 use super::resolve::{
-    bad_request, doc_id_field, internal, not_found, open_data, resolve_doc, resolve_workspace,
+    bad_request, doc_id_field, internal, not_found, open_data, resolve_doc, resolve_doc_workspace,
     text_field, workspace_root,
 };
 
@@ -45,7 +45,7 @@ fn locate(
 fn find(payload: &Value) -> Result<(WorkspaceRow, ProjectRow, DocRow), Value> {
     let id = doc_id_field(payload)?;
     let conn = open_data()?;
-    let workspace = resolve_workspace(&conn, text_field(payload, "workspace"))?;
+    let workspace = resolve_doc_workspace(&conn, payload, &id)?;
     let (doc, project) = resolve_doc(&conn, &workspace, &id)?;
     Ok((workspace, project, doc))
 }

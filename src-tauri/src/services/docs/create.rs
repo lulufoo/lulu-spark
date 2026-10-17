@@ -7,7 +7,6 @@ use std::path::{Path, PathBuf};
 
 use serde_json::{json, Value};
 
-use crate::services::id::random_entry_id;
 use crate::services::docs::assets::{copy_assets, reject_unsupported_asset_paths, resolve_create_assets};
 use crate::services::docs::create_meta::parse_create_meta_unchecked;
 use crate::services::docs::digest::{
@@ -19,7 +18,7 @@ use crate::services::docs::store::{
     resolve_archive_source_markdown, rollback_written, write_markdown_atomic,
 };
 use crate::services::search_index;
-use crate::services::spark_data::{insert_doc, DocRow};
+use crate::services::spark_data::{insert_doc, new_doc_id, DocRow};
 use crate::services::translation_gate;
 
 use super::resolve::{
@@ -162,7 +161,7 @@ fn write_doc(source: &str, payload: &Value, source_basename: Option<&str>) -> Va
         return v;
     }
 
-    let id = random_entry_id();
+    let id = new_doc_id(&workspace.id);
     let mut row = DocRow::new(&id, &meta.common_path, &project.id);
     row.title = Some(meta.title.clone());
     row.created_at = Some(meta.created_at.clone());

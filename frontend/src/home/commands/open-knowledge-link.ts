@@ -3,7 +3,7 @@ import { openNoteById } from './open-note-link.ts';
 
 /** Chat links that open a knowledge document: `[title](knowledge:<hex id>)`. Written by the model.
  * The id length is not checked here; Rust decides whether the id exists. */
-const KNOWLEDGE_HREF = /^knowledge:([0-9a-f]+)$/;
+const KNOWLEDGE_HREF = /^knowledge:((?:[a-z0-9_]+-)?[0-9a-f]+)$/;
 
 export function knowledgeIdFromHref(href: string | null | undefined): string | null {
   const match = KNOWLEDGE_HREF.exec((href ?? '').trim());

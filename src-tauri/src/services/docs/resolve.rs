@@ -61,6 +61,17 @@ pub(super) fn resolve_workspace(conn: &Connection, requested: Option<&str>) -> R
     }
 }
 
+/// The workspace of a request about document `id`: the `workspace` field when given, else the
+/// one a prefixed id names, else the default workspace.
+pub(super) fn resolve_doc_workspace(
+    conn: &Connection,
+    payload: &Value,
+    id: &str,
+) -> Result<WorkspaceRow, Value> {
+    let named = spark_data::split_doc_id(id).and_then(|(workspace, _)| workspace);
+    resolve_workspace(conn, text_field(payload, "workspace").or(named))
+}
+
 /// The project with this folder inside `workspace`; 400 when it does not exist there.
 pub(super) fn resolve_project(
     conn: &Connection,
@@ -89,15 +100,11 @@ pub(super) fn resolve_doc(
     Ok((doc, project))
 }
 
-pub(super) fn is_valid_doc_id(id: &str) -> bool {
-    id.len() == 32 && id.chars().all(|c| c.is_ascii_hexdigit())
-}
-
 pub(super) fn doc_id_field(payload: &Value) -> Result<String, Value> {
     let Some(id) = text_field(payload, "id") else {
         return Err(bad_request("Missing id"));
     };
-    if !is_valid_doc_id(id) {
+    if !spark_data::is_valid_doc_id(id) {
         return Err(bad_request("Invalid id"));
     }
     Ok(id.to_string())

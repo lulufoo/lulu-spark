@@ -13,7 +13,7 @@ pub fn source_type_schema() -> Value {
 fn workspace_schema() -> Value {
     json!({
         "type": "string",
-        "description": "Optional workspace id from list_workspaces. Defaults to the Default workspace."
+        "description": "Optional workspace id from list_workspaces. Defaults to the Default workspace; a document id that starts with a workspace id (<workspace>-<hex>) already names its workspace."
     })
 }
 
@@ -97,7 +97,7 @@ pub fn update_doc_properties(include_source_path: bool) -> Value {
         "workspace": workspace_schema(),
         "id": {
             "type": "string",
-            "description": "Document id (32-char hex) from search or create_doc."
+            "description": "Document id from search or create_doc."
         },
         "digest": {
             "type": "string",

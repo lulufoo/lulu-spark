@@ -4,6 +4,7 @@ mod backup;
 mod db;
 mod doc_annotation;
 mod doc_entry;
+mod doc_id;
 mod doc_row;
 mod doc_table;
 mod json_column;
@@ -19,6 +20,7 @@ pub use doc_row::{
 };
 pub use doc_table::{create_doc_table, doc_table_for_id, validate_doc_table_name, validate_workspace_id};
 pub use doc_annotation::annotation_object;
+pub use doc_id::{duplicate_doc_ids, is_valid_doc_id, new_doc_id, split_doc_id};
 pub use doc_entry::{entry_from_doc, find_doc, list_doc_entries, project_folder, translation_common_paths, FoundDoc};
 
 pub use project_row::{

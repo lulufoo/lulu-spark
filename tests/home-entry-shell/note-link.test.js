@@ -60,7 +60,9 @@ describe('noteIdFromHref', () => {
   it('accepts note:<32 hex> only', () => {
     expect(noteIdFromHref(`note:${ID}`)).toBe(ID);
     expect(noteIdFromHref(`  note:${ID} `)).toBe(ID);
-    for (const bad of ['note:bad', `note:${ID}x`, `https://x/${ID}`, `Note:${ID}`, '', null, undefined]) {
+    expect(noteIdFromHref(`note:default-${ID}`)).toBe(`default-${ID}`);
+    expect(noteIdFromHref(`note:k3x9ab-${ID}`)).toBe(`k3x9ab-${ID}`);
+    for (const bad of ['note:bad', `note:${ID}x`, `note:Bad-${ID}`, `note:-${ID}`, `https://x/${ID}`, `Note:${ID}`, '', null, undefined]) {
       expect(noteIdFromHref(bad)).toBeNull();
     }
   });

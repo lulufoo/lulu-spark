@@ -342,3 +342,81 @@ fn a_folder_with_four_levels_or_unsafe_segments_is_rejected() {
         ok(&write_in_folder(good, json!({})));
     }
 }
+
+fn plain_hex_row(id: &str, project_id: &str) -> spark_data::DocRow {
+    let mut row = spark_data::DocRow::new(id, "notes/202601011200-old123.md", project_id);
+    row.title = Some("Old".into());
+    row
+}
+
+fn inbox_id(workspace: &str) -> String {
+    spark_data::get_project_by_folder(&spark_data::open().expect("db"), workspace, "inbox")
+        .expect("lookup")
+        .expect("inbox")
+        .id
+}
+
+#[test]
+fn a_new_doc_id_starts_with_its_workspace_id_and_survives_a_rename() {
+    let _sandbox = TestSandbox::new();
+    let ws = new_workspace("Memory");
+    let in_default = text(ok(&write(None, None)), "id");
+    let in_ws = text(ok(&write(Some(&ws), None)), "id");
+
+    let (prefix, hex) = in_default.split_once('-').expect("prefixed");
+    assert_eq!(prefix, "default");
+    assert_eq!(hex.len(), 32);
+    assert!(in_ws.starts_with(&format!("{ws}-")), "{in_ws}");
+
+    ok(&rename_workspace(&json!({ "id": ws, "name": "Renamed" })));
+    assert_eq!(get_file(&json!({ "id": in_ws }))["content"], json!(BODY), "found by the id alone, no workspace given");
+    assert_eq!(text(&get_path(&json!({ "id": in_ws })), "id"), in_ws);
+    ok(&delete_doc(&json!({ "id": in_ws })));
+    assert_eq!(status(&get_file(&json!({ "id": in_ws }))), 404);
+}
+
+#[test]
+fn a_prefixed_id_only_looks_in_the_workspace_it_names() {
+    let _sandbox = TestSandbox::new();
+    let ws = new_workspace("Memory");
+    let id = text(ok(&write(Some(&ws), None)), "id");
+    let hex = id.split_once('-').expect("prefixed").1;
+
+    assert_eq!(status(&get_file(&json!({ "id": format!("default-{hex}") }))), 404);
+    assert_eq!(status(&get_file(&json!({ "id": format!("nope-{hex}") }))), 404);
+    assert_eq!(status(&get_file(&json!({ "id": format!("Bad-Prefix-{hex}") }))), 400);
+    assert_eq!(status(&get_file(&json!({ "id": format!("{ws}-short") }))), 400);
+}
+
+#[test]
+fn a_plain_32_hex_id_from_before_the_prefix_still_reads_updates_and_deletes() {
+    let sandbox = TestSandbox::new();
+    ok(&write(None, None));
+    let old = "0123456789abcdef0123456789abcdef";
+    let conn = spark_data::open().expect("db");
+    spark_data::insert_doc(&conn, "doc_default", &plain_hex_row(old, &inbox_id("default"))).expect("insert");
+    let dir = workspaces_dir(&sandbox).join("default/raw/inbox/notes");
+    fs::write(dir.join("202601011200-old123.md"), "# Old\n\n旧文档正文。\n").expect("file");
+
+    assert_eq!(get_file(&json!({ "id": old }))["content"], json!("# Old\n\n旧文档正文。\n"));
+    ok(&update_doc_content(&json!({ "id": old, "content": "# Old\n\n改过。\n", "digest": "never" })));
+    assert_eq!(get_file(&json!({ "id": old }))["content"], json!("# Old\n\n改过。\n"));
+    ok(&delete_doc(&json!({ "id": old })));
+    assert_eq!(status(&get_file(&json!({ "id": old }))), 404);
+}
+
+#[test]
+fn an_id_shared_by_two_workspace_tables_is_reported() {
+    let _sandbox = TestSandbox::new();
+    ok(&write(None, None));
+    let conn = spark_data::open().expect("db");
+    assert!(spark_data::duplicate_doc_ids(&conn).expect("scan").is_empty());
+
+    let shared = "fedcba9876543210fedcba9876543210";
+    let project = inbox_id("default");
+    for table in ["doc_default", "doc_knowledge"] {
+        spark_data::insert_doc(&conn, table, &plain_hex_row(shared, &project)).expect("insert");
+    }
+    let dups = spark_data::duplicate_doc_ids(&conn).expect("scan");
+    assert_eq!(dups, vec![(shared.to_string(), vec!["default".to_string(), "knowledge".to_string()])]);
+}

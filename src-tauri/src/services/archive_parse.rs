@@ -53,13 +53,6 @@ pub fn ts_from_common_path(common_path: &str) -> Option<String> {
     }
 }
 
-pub fn is_valid_entry_id(id: &str) -> bool {
-    id.len() == 32
-        && id
-            .chars()
-            .all(|c| c.is_ascii_hexdigit() && !c.is_uppercase())
-}
-
 #[cfg(test)]
 #[path = "../unit-tests/services/archive_parse.rs"]
 mod tests;

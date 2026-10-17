@@ -18,8 +18,8 @@ use crate::services::spark_data::{update_doc as update_doc_row, DocRow};
 use crate::services::translation_gate;
 
 use super::resolve::{
-    bad_request, doc_id_field, internal, not_found, open_data, resolve_doc, resolve_workspace,
-    text_field, workspace_root,
+    bad_request, doc_id_field, internal, not_found, open_data, resolve_doc, resolve_doc_workspace,
+    workspace_root,
 };
 
 /// Fields that only `create_doc` accepts.
@@ -90,7 +90,7 @@ fn update_from_body(payload: &Value, source: &str) -> Value {
         Ok(c) => c,
         Err(v) => return v,
     };
-    let workspace = match resolve_workspace(&conn, text_field(payload, "workspace")) {
+    let workspace = match resolve_doc_workspace(&conn, payload, &id) {
         Ok(w) => w,
         Err(v) => return v,
     };

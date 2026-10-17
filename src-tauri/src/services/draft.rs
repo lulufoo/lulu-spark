@@ -17,7 +17,7 @@ pub fn save_comment_draft(payload: &Value) -> Value {
         .get("content")
         .and_then(|v| v.as_str())
         .unwrap_or("");
-    if id.len() != 32 || !id.chars().all(|c| c.is_ascii_hexdigit()) {
+    if !crate::services::spark_data::is_valid_doc_id(id) {
         return json!({ "error": "Invalid id", "_status": 400 });
     }
     let draft_file = match paths::draft_path(id) {

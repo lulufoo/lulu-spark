@@ -131,7 +131,7 @@ fn create_note_writes_raw_and_index() {
     );
     assert_eq!(v.get("ok"), Some(&json!(true)), "create_note failed: {v}");
     let id = v["id"].as_str().expect("id");
-    assert_eq!(id.len(), 32);
+    assert!(crate::services::spark_data::is_valid_doc_id(id) && id.starts_with("default-"), "{id}");
     let notes = default_workspace_dir();
     let rel = note_row(id).raw_path;
     assert!(rel.starts_with("notes/"), "{rel}");
@@ -589,7 +589,7 @@ fn create_note_content_writes_from_markdown_body() {
     );
     assert_eq!(v.get("ok"), Some(&json!(true)), "create_note_content failed: {v}");
     let id = v["id"].as_str().expect("id");
-    assert_eq!(id.len(), 32);
+    assert!(crate::services::spark_data::is_valid_doc_id(id) && id.starts_with("default-"), "{id}");
     let rel = note_row(id).raw_path;
     assert!(rel.starts_with("notes/"), "{rel}");
     assert!(rel.ends_with(".md"), "{rel}");

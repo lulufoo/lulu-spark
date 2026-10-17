@@ -220,6 +220,30 @@ pub fn run() {
                             ),
                         }
                     }
+                    // Ids are unique inside each document table, not across tables. Report any
+                    // id that two workspaces share; nothing is repaired.
+                    match crate::services::spark_data::open().and_then(|c| crate::services::spark_data::duplicate_doc_ids(&c)) {
+                        Ok(dups) if dups.is_empty() => {}
+                        Ok(dups) => log(
+                            "workspaces",
+                            "duplicate_doc_ids",
+                            None,
+                            Some(serde_json::json!({
+                                "count": dups.len(),
+                                "ids": dups.iter().map(|(id, workspaces)| serde_json::json!({ "id": id, "workspaces": workspaces })).collect::<Vec<_>>(),
+                            })),
+                            Side::Host,
+                            Level::Warn,
+                        ),
+                        Err(error) => log(
+                            "workspaces",
+                            "duplicate_doc_ids_check_failed",
+                            None,
+                            Some(serde_json::json!({ "error": error })),
+                            Side::Host,
+                            Level::Error,
+                        ),
+                    }
                     if let Ok(repo_root) = crate::config::paths::repo_root() {
                         let _ = services::reindex::run_all_reindex_blocking(&repo_root, &spark_slot);
                     }

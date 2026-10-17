@@ -4,8 +4,8 @@ import { refreshNotesIndex } from '../../notes/commands/reload-index.ts';
 import { showWorkspace } from '../../notes/commands/workspace-switch.ts';
 import { showActionError } from './hub.ts';
 
-/** Chat links that open a note: `[title](note:<32-hex id>)`. Written by the model. */
-const NOTE_HREF = /^note:([0-9a-f]{32})$/;
+/** Chat links that open a note: `[title](note:<id>)`. The id is `<workspace id>-<32 hex>` or a plain 32 hex. */
+const NOTE_HREF = /^note:((?:[a-z0-9_]+-)?[0-9a-f]{32})$/;
 
 export function noteIdFromHref(href: string | null | undefined): string | null {
   const match = NOTE_HREF.exec((href ?? '').trim());

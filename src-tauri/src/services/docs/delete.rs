@@ -10,7 +10,7 @@ use crate::services::search_index;
 use crate::services::spark_data::{delete_doc as delete_doc_row, delete_unused_tags};
 
 use super::resolve::{
-    bad_request, doc_id_field, internal, open_data, resolve_doc, resolve_workspace, text_field,
+    bad_request, doc_id_field, internal, open_data, resolve_doc, resolve_doc_workspace,
     workspace_root,
 };
 
@@ -24,7 +24,7 @@ pub fn delete_doc(payload: &Value) -> Value {
         Ok(c) => c,
         Err(v) => return v,
     };
-    let workspace = match resolve_workspace(&conn, text_field(payload, "workspace")) {
+    let workspace = match resolve_doc_workspace(&conn, payload, &id) {
         Ok(w) => w,
         Err(v) => return v,
     };

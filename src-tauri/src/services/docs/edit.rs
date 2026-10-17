@@ -13,7 +13,7 @@ pub fn invalid_doc_id() -> Value {
 
 pub fn clean_doc_id(id: &str) -> Result<&str, Value> {
     let id = id.trim();
-    if id.len() != 32 || !id.chars().all(|c| c.is_ascii_hexdigit()) {
+    if !spark_data::is_valid_doc_id(id) {
         return Err(invalid_doc_id());
     }
     Ok(id)

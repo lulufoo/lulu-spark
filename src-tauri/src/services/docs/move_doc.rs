@@ -13,7 +13,7 @@ use crate::services::search_index;
 use crate::services::spark_data::{translation_common_paths, update_doc as update_doc_row};
 
 use super::resolve::{
-    bad_request, doc_id_field, internal, open_data, resolve_doc, resolve_project, resolve_workspace,
+    bad_request, doc_id_field, internal, open_data, resolve_doc, resolve_doc_workspace, resolve_project,
     text_field, workspace_root,
 };
 
@@ -38,7 +38,7 @@ pub fn move_doc(payload: &Value) -> Value {
         Ok(c) => c,
         Err(v) => return v,
     };
-    let workspace = match resolve_workspace(&conn, text_field(payload, "workspace")) {
+    let workspace = match resolve_doc_workspace(&conn, payload, &id) {
         Ok(w) => w,
         Err(v) => return v,
     };

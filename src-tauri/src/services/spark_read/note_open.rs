@@ -2,14 +2,13 @@
 
 use serde_json::{json, Value};
 
-use super::notes::is_valid_entry_id;
 use crate::services::spark_data::{self, entry_from_doc, find_doc, project_folder};
 
 /// Look up document `id` in any workspace. Success is its index entry plus `id` and `ok`.
 /// Never returns a file body or an absolute path.
 pub fn resolve_note_for_open(id: &str) -> Value {
     let id = id.trim();
-    if !is_valid_entry_id(id) {
+    if !spark_data::is_valid_doc_id(id) {
         return json!({ "id": id, "ok": false, "error": "Invalid id" });
     }
     let found = spark_data::open().and_then(|conn| {

@@ -13,10 +13,6 @@ use crate::services::spark_data::{
 
 const NOTES_LAYERS: &[&str] = &["raw", "digest"];
 
-pub(super) fn is_valid_entry_id(id: &str) -> bool {
-    id.len() == 32 && id.chars().all(|c| c.is_ascii_hexdigit())
-}
-
 fn is_under_root(root: &Path, target: &Path) -> bool {
     let root_canon = root.canonicalize().unwrap_or_else(|_| root.to_path_buf());
     let prefix = format!(
@@ -46,7 +42,7 @@ pub fn get_notes_index(workspace: Option<&str>) -> Value {
 
 fn load_note(id: &str) -> Result<(rusqlite::Connection, FoundDoc), Value> {
     let id = id.trim();
-    if !is_valid_entry_id(id) {
+    if !spark_data::is_valid_doc_id(id) {
         return Err(json!({ "error": "Invalid id", "_status": 400 }));
     }
     let conn = spark_data::open().map_err(|e| json!({ "error": e, "_status": 500 }))?;
@@ -214,7 +210,7 @@ pub fn get_notes_asset(layer: &str, id: &str, href: &str, lang: Option<&str>) ->
 
 pub fn get_draft(_repo_root: &Path, id: &str) -> Value {
     let id = id.trim();
-    if !is_valid_entry_id(id) {
+    if !spark_data::is_valid_doc_id(id) {
         return json!({ "error": "Invalid id" });
     }
     let target = match crate::config::paths::draft_path(id) {
@@ -231,7 +227,7 @@ pub fn get_note_path_by_id(id: &str) -> Value {
     if id.is_empty() {
         return json!({ "error": "Missing id", "_status": 400 });
     }
-    if !is_valid_entry_id(id) {
+    if !spark_data::is_valid_doc_id(id) {
         return json!({ "id": id, "ok": false, "error": "Invalid id" });
     }
     let conn = match spark_data::open() {

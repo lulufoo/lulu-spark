@@ -9,13 +9,6 @@ fn ts_from_common_path_extracts_prefix() {
 }
 
 #[test]
-fn is_valid_entry_id_requires_32_lower_hex() {
-    assert!(is_valid_entry_id("a1b2c3d4e5f6789012345678901234ab"));
-    assert!(!is_valid_entry_id("SHORT"));
-    assert!(!is_valid_entry_id("A1B2C3D4E5F6789012345678901234AB"));
-}
-
-#[test]
 fn expected_zh_common_path_appends_suffix() {
     assert_eq!(
         expected_zh_common_path("t/202606191430-foo.md").as_deref(),

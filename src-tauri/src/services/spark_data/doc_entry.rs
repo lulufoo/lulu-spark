@@ -5,9 +5,10 @@ use serde_json::{json, Map, Value};
 
 use crate::services::archive_parse::expected_lang_common_path;
 
+use super::doc_id::split_doc_id;
 use super::doc_row::{get_doc, list_docs, DocRow};
 use super::project_row::get_project;
-use super::workspace_row::{list_workspaces, WorkspaceRow};
+use super::workspace_row::{get_workspace, list_workspaces, WorkspaceRow};
 
 /// A document together with the workspace whose table holds it.
 #[derive(Debug, Clone)]
@@ -16,8 +17,16 @@ pub struct FoundDoc {
     pub doc: DocRow,
 }
 
-/// The document with this id, wherever it lives. Ids are unique across workspaces.
+/// The document with this id. A prefixed id (`<workspace id>-<hex>`) goes straight to that
+/// workspace's table; a plain 32 hex id from before the prefix scans the tables in order and
+/// returns the first match (nothing enforces uniqueness across tables).
 pub fn find_doc(conn: &Connection, id: &str) -> Result<Option<FoundDoc>, String> {
+    if let Some((Some(workspace_id), _)) = split_doc_id(id) {
+        let Some(workspace) = get_workspace(conn, workspace_id)? else {
+            return Ok(None);
+        };
+        return Ok(get_doc(conn, &workspace.doc_table, id)?.map(|doc| FoundDoc { workspace, doc }));
+    }
     for workspace in list_workspaces(conn)? {
         if let Some(doc) = get_doc(conn, &workspace.doc_table, id)? {
             return Ok(Some(FoundDoc { workspace, doc }));
