@@ -15,8 +15,8 @@ export async function handleNotesOsNotifyEnvelope(
   if (!scheme) return;
   try {
     await showOsNotification({
-      title: 'New note',
-      body: 'A note was added',
+      title: 'New document',
+      body: 'A document was added',
       scheme,
     });
   } catch {

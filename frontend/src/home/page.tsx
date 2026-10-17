@@ -4,7 +4,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { flushSync } from 'react-dom';
 import { getAuthUser, signOutAuth, startAuthLogin } from '../auth/oauth.ts';
 import { authUserStore } from '../auth/state/user.ts';
-import { state } from '../host/state.ts';
+import { state, useHostState } from '../host/state.ts';
 import { switchWorkspace } from '../notes/commands/workspace-switch.ts';
 import { openAbout } from './commands/about.ts';
 import { loadPackageDebug } from './commands/package-debug.ts';
@@ -135,8 +135,20 @@ const MessageThread = memo(function MessageThread({
   );
 });
 
-/** Built-in workspace that the Home "Knowledge" shortcut opens. */
+const DEFAULT_WORKSPACE_ID = 'default';
+/** Built-in workspace that the second Home document shortcut opens. */
 const KNOWLEDGE_WORKSPACE_ID = 'knowledge';
+
+/** Seed names, used until the workspace registry is loaded. */
+const SEED_WORKSPACE_NAMES: Record<string, string> = {
+  [DEFAULT_WORKSPACE_ID]: 'Default',
+  [KNOWLEDGE_WORKSPACE_ID]: 'Knowledge',
+};
+
+/** The shortcut label follows the workspace's current name, so a rename shows up here. */
+function workspaceLabel(id: string): string {
+  return state.workspaces.list.find((w) => w.id === id)?.name || SEED_WORKSPACE_NAMES[id] || id;
+}
 
 function goHomeEntry(
   dest: string | undefined,
@@ -163,6 +175,7 @@ export function HomePage({
   openReadLater,
 }: HomePageChrome = {}) {
   const state = useHomeState();
+  useHostState();
   const authUser = useSyncExternalStore(authUserStore.subscribe, authUserStore.getSnapshot);
   const isDebug = useSyncExternalStore(
     packageDebugStore.subscribe,
@@ -316,14 +329,14 @@ export function HomePage({
                 }}
               >
                 <HomeNavIcon name="notes" />
-                <span className="home-desktop-shortcut-label">Notes</span>
+                <span className="home-desktop-shortcut-label">{workspaceLabel(DEFAULT_WORKSPACE_ID)}</span>
               </button>
               <button
                 type="button"
                 className="home-chat-new"
                 data-role="create-note"
-                aria-label="New note"
-                title="New note"
+                aria-label="New document"
+                title="New document"
                 onClick={() => {
                   const temp_id =
                     typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
@@ -348,7 +361,7 @@ export function HomePage({
               onClick={() => goHomeEntry('knowledge', navigateFn, openReadLater)}
             >
               <HomeNavIcon name="knowledge" />
-              <span className="home-desktop-shortcut-label">Knowledge</span>
+              <span className="home-desktop-shortcut-label">{workspaceLabel(KNOWLEDGE_WORKSPACE_ID)}</span>
             </button>
             <button
               type="button"

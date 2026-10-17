@@ -197,12 +197,12 @@ function NotesOutletChrome({ routeParams }: { routeParams: Record<string, string
             id="btn-goto-kb"
             type="button"
             style={{ display: kbUrl && !creating ? undefined : 'none' }}
-            title="Go to Knowledge"
+            title="Go to workspace"
             onClick={() => {
               if (kbUrl) window.open(kbUrl, '_blank', 'noopener,noreferrer');
             }}
           >
-            📚 Knowledge
+            📚 Workspace
           </button>
           <button
             className="md-header-btn viewer-chrome-persisted"
@@ -350,7 +350,7 @@ export function NotesMain({ routeParams }: { routeParams: Record<string, string>
           void openCreateNote({ temp_id });
         }}
       >
-        + New note
+        + New document
       </button>
       <NotesStatus />
       <div

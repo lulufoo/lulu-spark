@@ -24,13 +24,13 @@ function readPage() {
 describe('home Notes create entry · source', () => {
   const page = readPage();
 
-  it('puts a create control beside the Notes shortcut, not on the Notes title', () => {
+  it('puts a create control beside the default workspace shortcut, not on its title', () => {
     expect(page).toMatch(/data-home-entry="spark"/);
     expect(page).toMatch(/data-role="create-note"/);
-    expect(page).toMatch(/aria-label="New note"/);
+    expect(page).toMatch(/aria-label="New document"/);
     const notesBtn = page.indexOf('data-home-entry="spark"');
     const createBtn = page.indexOf('data-role="create-note"');
-    const notesLabel = page.indexOf('>Notes<');
+    const notesLabel = page.indexOf('workspaceLabel(DEFAULT_WORKSPACE_ID)');
     expect(notesBtn).toBeGreaterThan(-1);
     expect(createBtn).toBeGreaterThan(notesBtn);
     expect(notesLabel).toBeGreaterThan(notesBtn);

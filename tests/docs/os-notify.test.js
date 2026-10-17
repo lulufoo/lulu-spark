@@ -74,8 +74,8 @@ describe('handleNotesOsNotifyEnvelope', () => {
     );
     expect(composeSpy).toHaveBeenCalledWith(NOTE_CREATE);
     expect(notifySpy).toHaveBeenCalledWith({
-      title: 'New note',
-      body: 'A note was added',
+      title: 'New document',
+      body: 'A document was added',
       scheme: NOTES_OPEN,
     });
   });

@@ -7,7 +7,7 @@ import { readFrontendJs } from '../helpers/read-frontend-js.js';
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 
 const TABLE_A_BRANDS = [
-  { zh: 'Workbench 笔记', en: 'Notes', file: 'frontend/src/home/page.tsx' },
+  { zh: 'Workbench 笔记', en: 'Default', file: 'frontend/src/home/page.tsx' },
   { zh: 'Read Later 待读', en: 'Read Later', file: 'frontend/src/home/page.tsx' },
   { zh: '沉淀知识库', en: 'Knowledge', file: 'frontend/src/home/page.tsx' },
   { zh: 'Lulu Spark', en: 'Lulu Spark', file: 'frontend/src/home/page.tsx' },

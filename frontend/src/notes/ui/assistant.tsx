@@ -68,7 +68,7 @@ function NoteList({
 function CreateButton({ onCreate }: { onCreate: () => void }) {
   return (
     <button type="button" className="note-assistant-create" onClick={onCreate}>
-      New note
+      New document
     </button>
   );
 }
