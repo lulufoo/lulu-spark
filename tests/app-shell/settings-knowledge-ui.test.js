@@ -110,6 +110,12 @@ describe('Settings Data panel', () => {
     expect(nav.indexOf('data-panel="llm"')).toBeLessThan(
       nav.indexOf('data-panel="mcp"'),
     );
+    expect(nav.indexOf('data-panel="mcp"')).toBeLessThan(
+      nav.indexOf('data-panel="document"'),
+    );
+    expect(nav.indexOf('data-panel="document"')).toBeLessThan(
+      nav.indexOf('data-panel="devices"'),
+    );
     expect(nav).not.toMatch(/data-panel="github"/);
   });
 });

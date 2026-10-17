@@ -273,7 +273,7 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
     expect(indexHtml).not.toContain('Read Later 待读');
   });
 
-  it('settings nav uses Workspaces, Agent, then MCP', () => {
+  it('settings nav uses Workspaces, Agent, MCP, then Document', () => {
     expect(indexHtml).not.toMatch(/data-panel="spark">Data</);
     expect(indexHtml).toMatch(/data-panel="notes">Workspaces</);
     expect(indexHtml).not.toMatch(/data-panel="knowledge"/);
@@ -282,6 +282,7 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
     expect(indexHtml).not.toMatch(/data-panel="github">Sync</);
     expect(indexHtml).not.toMatch(/data-panel="github">GitHub account</);
     expect(indexHtml).toMatch(/data-panel="mcp">MCP</);
+    expect(indexHtml).toMatch(/data-panel="document">Document</);
     const nav = indexHtml.match(/<nav id="settings-nav">([\s\S]*?)<\/nav>/)?.[1] ?? '';
     expect(nav).not.toMatch(/data-panel="spark"/);
     expect(nav.indexOf('data-panel="notes"')).toBeGreaterThan(-1);
@@ -290,6 +291,12 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
     );
     expect(nav.indexOf('data-panel="llm"')).toBeLessThan(
       nav.indexOf('data-panel="mcp"'),
+    );
+    expect(nav.indexOf('data-panel="mcp"')).toBeLessThan(
+      nav.indexOf('data-panel="document"'),
+    );
+    expect(nav.indexOf('data-panel="document"')).toBeLessThan(
+      nav.indexOf('data-panel="devices"'),
     );
     expect(nav).not.toMatch(/data-panel="github"/);
   });

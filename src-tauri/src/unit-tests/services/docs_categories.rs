@@ -110,6 +110,51 @@ fn save_rejects_empty_id_duplicate_id_empty_label_and_does_not_write() {
 }
 
 #[test]
+fn save_rejects_whitespace_uppercase_and_bad_hyphens() {
+    let _sandbox = TestSandbox::new();
+    let path = local_path();
+    let ok = vec![DocCategory {
+        id: "summary".into(),
+        label: "Summary".into(),
+        exposed: true,
+    }];
+    save(&ok).expect("seed");
+    let before = fs::read_to_string(&path).expect("before");
+
+    let err_space = save(&[DocCategory {
+        id: "foo bar".into(),
+        label: "Foo".into(),
+        exposed: true,
+    }]);
+    assert!(
+        err_space
+            .as_ref()
+            .is_err_and(|e| e.contains("whitespace")),
+        "{err_space:?}"
+    );
+    let err_upper = save(&[DocCategory {
+        id: "Foo".into(),
+        label: "Foo".into(),
+        exposed: true,
+    }]);
+    assert!(err_upper.is_err(), "{err_upper:?}");
+    let err_hyphen = save(&[DocCategory {
+        id: "-foo".into(),
+        label: "Foo".into(),
+        exposed: true,
+    }]);
+    assert!(err_hyphen.is_err(), "{err_hyphen:?}");
+    assert_eq!(fs::read_to_string(&path).expect("unchanged"), before);
+
+    save(&[DocCategory {
+        id: "theme-line".into(),
+        label: "Theme".into(),
+        exposed: true,
+    }])
+    .expect("hyphenated id is allowed");
+}
+
+#[test]
 fn parse_rejects_missing_or_non_bool_exposed() {
     assert!(parse_list(r#"[{"id":"a","label":"A"}]"#).is_err());
     assert!(parse_list(r#"[{"id":"a","label":"A","exposed":"yes"}]"#).is_err());

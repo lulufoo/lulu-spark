@@ -1,5 +1,6 @@
 import { OverlayDismissButton } from '../../../shared/overlay-dismiss-button.tsx';
 import { BindPanel } from '../bind-dialog.tsx';
+import { DocumentPanel } from './document-panel.tsx';
 import { McpChannelToolsHost } from './mcp-channel-tools.tsx';
 import { McpTicketsHost } from './mcp-tickets.tsx';
 import { NotesSettingsPanel } from './notes-panel.tsx';
@@ -19,6 +20,7 @@ export function SettingsDialogChrome() {
           <WorkspaceNavItems />
           <button type="button" className="settings-nav-item" data-panel="llm">Agent</button>
           <button type="button" className="settings-nav-item" data-panel="mcp">MCP</button>
+          <button type="button" className="settings-nav-item" data-panel="document">Document</button>
           <button type="button" className="settings-nav-item" data-panel="devices">Devices</button>
           <button type="button" className="settings-nav-item" data-panel="theme">Theme</button>
         </nav>
@@ -101,6 +103,7 @@ export function SettingsDialogChrome() {
               <McpChannelToolsHost />
             </div>
           </div>
+          <DocumentPanel />
           <BindPanel />
           <div id="settings-panel-theme" className="settings-panel">
             <div className="settings-field">

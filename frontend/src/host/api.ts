@@ -78,3 +78,6 @@ export {
 } from './api/spark.ts';
 
 export { getReindexAllStatus, reindexAll, searchSpark } from './api/search.ts';
+
+export { fetchDocCategories, saveDocCategories } from './api/doc-categories.ts';
+export type { DocCategory } from './api/doc-categories.ts';

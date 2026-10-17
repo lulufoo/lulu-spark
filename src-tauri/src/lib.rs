@@ -50,6 +50,8 @@ pub fn run() {
             commands::mcp_oauth::revoke_mcp_device_ticket,
             commands::mcp_channel_tools::get_mcp_channel_tools,
             commands::mcp_channel_tools::set_mcp_channel_tools,
+            commands::doc_categories::get_doc_categories,
+            commands::doc_categories::set_doc_categories,
             commands::bind::issue_bind,
             commands::bind::read_bind_session,
             commands::sync::save_comment_draft,

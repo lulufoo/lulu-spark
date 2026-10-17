@@ -72,11 +72,43 @@ fn string_field(obj: &serde_json::Map<String, Value>, key: &str) -> Result<Strin
     }
 }
 
+/// Lowercase letters and digits, hyphen-separated. No spaces, no leading/trailing hyphen.
+fn valid_id_form(id: &str) -> bool {
+    let mut bytes = id.bytes();
+    let Some(first) = bytes.next() else {
+        return false;
+    };
+    if !first.is_ascii_lowercase() && !first.is_ascii_digit() {
+        return false;
+    }
+    let mut prev_hyphen = false;
+    for b in bytes {
+        if b == b'-' {
+            if prev_hyphen {
+                return false;
+            }
+            prev_hyphen = true;
+            continue;
+        }
+        prev_hyphen = false;
+        if !b.is_ascii_lowercase() && !b.is_ascii_digit() {
+            return false;
+        }
+    }
+    !prev_hyphen
+}
+
 fn validate(items: &[DocCategory]) -> Result<(), String> {
     let mut seen = HashSet::new();
     for item in items {
         if item.id.trim().is_empty() {
             return Err("category id is empty".into());
+        }
+        if item.id.chars().any(char::is_whitespace) {
+            return Err("category id cannot contain whitespace".into());
+        }
+        if !valid_id_form(&item.id) {
+            return Err("category id must be lowercase letters, digits, and hyphens".into());
         }
         if item.label.trim().is_empty() {
             return Err("category label is empty".into());
