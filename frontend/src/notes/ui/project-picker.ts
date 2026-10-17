@@ -1,7 +1,7 @@
 import { state } from '../state/host.ts';
 import { createFloatingListSelect } from '../../shared/floating-list-select.ts';
 import { sortedProjectFolders } from '../state/dir-tree.ts';
-import { selectProject } from '../commands/sidebar.ts';
+import { enterProject } from '../commands/restore.ts';
 
 /**
  * Directory view: the project dropdown, shaped like main's Knowledge library picker. It is always
@@ -30,7 +30,7 @@ export function renderProjectPicker(parent: HTMLElement) {
     value: state.ui.activeTopic || folders[0] || '',
     options,
     onSelect: (value: string) => {
-      if (value) selectProject(value);
+      if (value) enterProject(value);
     },
   });
   parent.appendChild(picker);

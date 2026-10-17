@@ -54,7 +54,7 @@ export async function openDoc(entry: NoteEntry, layer = 'raw') {
   notifyState();
 
   const entryId = getEntryId(entry);
-  if (entryId) rememberOpenDoc(entryId);
+  if (entryId) rememberOpenDoc(entry, entryId);
   const lang = docFileLang(entry, state.viewer.lang || '', layer);
   const [mdResult, annResult] = await Promise.allSettled([
     api.fetchFileContent(layer, entryId, lang),

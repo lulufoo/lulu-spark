@@ -14,6 +14,7 @@ import {
   sortedProjectFolders,
 } from '../state/dir-tree.ts';
 import type { NoteEntry } from '../state/types.ts';
+import { rememberDate, rememberNode, rememberProject } from './viewer-state.ts';
 
 /**
  * Group documents by day, newest day first. Documents without a usable `created_at` are not
@@ -96,12 +97,14 @@ export function selectDate(date: string) {
   }
 
   state.ui.activeDate = date;
-  sessionStorage.setItem('cta_active_date', date);
   if (isDirKey(date)) {
     const nodeKey = nodeKeyOf(date);
     expandDirNodes(pathKeys(nodeKey));
     state.ui.activeTopic = projectOfNode(nodeKey);
     applyListFilters();
+    rememberNode(state.ui.activeTopic, nodeKey);
+  } else {
+    rememberDate(state.ui.activeTopic ?? '', date);
   }
   notifyState();
 
@@ -121,6 +124,7 @@ export function selectProject(folder: string) {
   resetDirTree();
   applyListFilters();
   notifyState();
+  rememberProject(folder);
 }
 
 /**
@@ -146,6 +150,7 @@ export function selectDefaultProject() {
 
 export function selectTopic(key: string | null) {
   state.ui.activeTopic = key;
+  rememberProject(key ?? '');
   applyListFilters();
   if (state.index.filteredGroups.length > 0) {
     selectDate(state.index.filteredGroups[0].date);

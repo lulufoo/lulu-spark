@@ -1,7 +1,7 @@
 import { notifyState, state } from '../../state/host.ts';
 import { formatDate } from '../../../shared/utils.ts';
 import { dirKeyLabel, isDirKey, normalizeGroupKey } from '../../state/dir-tree.ts';
-import { entryGroupKey } from '../workspace.ts';
+import { entryGroupKey, isDirectoryView } from '../workspace.ts';
 import type { HostNoteGroup, HostOutletMode } from '../../../host/snapshot-types.ts';
 import type { NoteEntry } from '../../state/types.ts';
 
@@ -30,12 +30,11 @@ export function resolveNotesListDate(
   activeDate?: string | null,
   routeDate?: string | null,
 ) {
-  const picks = [
-    activeDate,
-    routeDate,
-    state.index.filteredGroups[0]?.date,
-    state.index.groupedByDate[0]?.date,
-  ];
+  // The directory view shows only what its tree selected: with nothing selected the pane stays
+  // blank instead of falling back to a timeline day that has nothing to do with the project.
+  const picks = isDirectoryView()
+    ? [activeDate, routeDate]
+    : [activeDate, routeDate, state.index.filteredGroups[0]?.date, state.index.groupedByDate[0]?.date];
   for (const pick of picks) {
     const date = normalizeGroupKey(pick);
     if (!date) continue;

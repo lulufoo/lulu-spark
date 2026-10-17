@@ -5,6 +5,7 @@ import { state, useHostState } from '../state/host.ts';
 import { formatDate } from '../../shared/utils.ts';
 import { closeFloatingListSelect, createFloatingListSelect } from '../../shared/floating-list-select.ts';
 import { applyListFilters, buildGroups, selectDate, selectTopic } from '../commands/sidebar.ts';
+import { enterProject } from '../commands/restore.ts';
 import { isTimelineView } from '../commands/workspace.ts';
 import { PageBackHome } from '../../shared/home-mark.tsx';
 import { WindowDragStrip } from '../../shared/window-drag-strip.tsx';
@@ -52,7 +53,7 @@ function _renderTopicFilter(parent: HTMLElement) {
     pickerClass: 'topic-select',
     value: state.ui.activeTopic || '',
     options,
-    onSelect: (v: string) => selectTopic(v || null),
+    onSelect: (v: string) => enterProject(v || null),
   });
   wrap.appendChild(picker);
 
