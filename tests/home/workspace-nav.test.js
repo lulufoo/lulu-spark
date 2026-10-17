@@ -189,7 +189,9 @@ describe('HomeWorkspaceNav', () => {
     expect(badge.textContent).toBe('…');
     expect(badge.dataset.homeHidden).toBe('knowledge');
     expect(badge.dataset.homeHiddenCount).toBe('2');
-    expect(badge.getAttribute('title')).toBe('2 projects collapsed');
+    expect(badge.getAttribute('data-tip')).toBe('2 projects collapsed');
+    expect(badge.hasAttribute('title')).toBe(false);
+    expect(badge.getAttribute('aria-label')).toBe('2 projects collapsed');
     expect(host.querySelectorAll('.home-nav-hidden-count')).toHaveLength(1);
     expect(host.querySelector('[data-home-more]')).toBeNull();
   });
@@ -200,7 +202,8 @@ describe('HomeWorkspaceNav', () => {
     expect(projectsOf(host, 'knowledge')).toEqual(['a']);
     const badge = host.querySelector('[data-home-entry="knowledge"] .home-nav-hidden-count');
     expect(badge.textContent).toBe('…');
-    expect(badge.getAttribute('title')).toBe('3 projects collapsed');
+    expect(badge.getAttribute('data-tip')).toBe('3 projects collapsed');
+    expect(badge.hasAttribute('title')).toBe(false);
     expect(projectsOf(host, 'default')).toEqual(['inbox', 'work']);
   });
 
