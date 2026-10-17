@@ -42,7 +42,15 @@ const { ReorderRows } = await import('../../frontend/src/shared/reorder-rows.tsx
 const { NotesWorkspacesEditHost } = await import('../../frontend/src/app-shell/ui/settings/notes-workspaces-edit.tsx');
 
 const ws = (id, sort_index) => ({ id, name: id, view_mode: 'directory', is_default: id === 'default', icon: '', sort_index });
-const project = (folder, sort_index) => ({ folder, title: folder, description: '', icon: '', sort_index });
+const project = (id, sort_index, extra = {}) => ({
+  id,
+  folder: extra.folder ?? id,
+  title: id,
+  description: '',
+  icon: '',
+  sort_index,
+  is_inbox: extra.is_inbox ?? id === 'inbox',
+});
 const ids = () => state.workspaces.list.map((w) => w.id);
 
 beforeEach(() => {
@@ -82,7 +90,7 @@ describe('reordering workspaces', () => {
 describe('reordering projects', () => {
   const rows = () => notesCategoriesStore.getSnapshot().rows.map((r) => r.id);
 
-  it('keeps the disabled project in its place and sends every folder', async () => {
+  it('keeps the disabled project in its place and sends every id', async () => {
     await categories.selectProjectsWorkspace('default');
     const done = categories.reorderNotesCategories('default', ['b', 'inbox', 'a']);
     expect(rows()).toEqual(['b', 'inbox', 'a']);

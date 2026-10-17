@@ -333,7 +333,7 @@ test('reorder posts the whole list of ids or folders', async () => {
   ])
   expect(fetch.mock.calls.map((call) => JSON.parse(call[1].body))).toEqual([
     { ids: ['b', 'default', 'a'] },
-    { workspace: 'ws1', folders: ['two', 'one'] },
+    { workspace: 'ws1', ids: ['two', 'one'] },
   ])
 })
 

@@ -6,17 +6,19 @@ import { setHomeState, type HomeProject } from '../state/store.ts';
 
 function asProjects(data: unknown): HomeProject[] {
   const rec = data as {
-    projects?: Array<{ folder?: unknown; title?: unknown; icon?: unknown }>;
+    projects?: Array<{ id?: unknown; folder?: unknown; title?: unknown; icon?: unknown }>;
     error?: string;
   } | null;
   if (rec?.error) throw new Error(rec.error);
   const out: HomeProject[] = [];
   for (const row of rec?.projects ?? []) {
+    const id = typeof row.id === 'string' ? row.id : '';
+    if (!id) continue;
     const folder = typeof row.folder === 'string' ? row.folder : '';
-    if (!folder) continue;
     out.push({
+      id,
       folder,
-      title: typeof row.title === 'string' && row.title ? row.title : folder,
+      title: typeof row.title === 'string' && row.title ? row.title : id,
       icon: typeof row.icon === 'string' ? row.icon : '',
     });
   }
@@ -48,8 +50,8 @@ export function openWorkspace(id: string, navigateFn?: (hash: string) => void) {
 }
 
 /** Enter a workspace and select one of its projects once that workspace's index is loaded. */
-export async function openProject(id: string, folder: string, navigateFn?: (hash: string) => void) {
+export async function openProject(id: string, projectId: string, navigateFn?: (hash: string) => void) {
   await showWorkspace(id);
-  enterProject(folder);
+  enterProject(projectId);
   navigateFn?.('#/spark');
 }

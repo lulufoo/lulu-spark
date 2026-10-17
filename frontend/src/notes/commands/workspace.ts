@@ -74,26 +74,29 @@ export async function loadWorkspaces(): Promise<void> {
   notifyState();
 }
 
-/** Project titles of the current workspace, keyed by project folder. */
+/** Project titles of the current workspace, keyed by project id. */
 export async function loadProjects(): Promise<void> {
   const data = (await api.fetchProjects(state.workspaces.current)) as {
-    projects?: Array<{ folder?: string; title?: string; description?: string }>;
+    projects?: Array<{ id?: string; folder?: string; title?: string; description?: string; is_inbox?: boolean }>;
     error?: string;
   };
   if (data?.error) throw new Error(data.error);
   const titles: Record<string, string> = {};
   const descriptions: Record<string, string> = {};
+  const inbox: Record<string, boolean> = {};
   const order: string[] = [];
   for (const project of data?.projects || []) {
-    const folder = typeof project.folder === 'string' ? project.folder : '';
-    if (!folder) continue;
-    order.push(folder);
-    titles[folder] = typeof project.title === 'string' && project.title ? project.title : folder;
-    descriptions[folder] = typeof project.description === 'string' ? project.description : '';
+    const id = typeof project.id === 'string' ? project.id : '';
+    if (!id) continue;
+    order.push(id);
+    titles[id] = typeof project.title === 'string' && project.title ? project.title : id;
+    descriptions[id] = typeof project.description === 'string' ? project.description : '';
+    inbox[id] = project.is_inbox === true;
   }
   state.index.topicTitles = titles;
   state.index.topicOrder = order;
   state.index.topicDescriptions = descriptions;
+  state.index.topicInbox = inbox;
   state.index.topicRepos = {};
   notifyState();
 }

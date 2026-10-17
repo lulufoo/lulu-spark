@@ -21,7 +21,7 @@ function openRememberedDoc(project: string, id: string) {
   if (!id || !onListRoute()) return;
   const data = state.index.data || {};
   const known = data[id] ?? Object.values(data).find((e) => e._id === id || e.id === id);
-  if (!known || (known.folder || '') !== project) return;
+  if (!known || (known.project_id || known.folder || '') !== project) return;
   document.dispatchEvent(new CustomEvent('cta:open-entry', { detail: { id } }));
 }
 

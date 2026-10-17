@@ -28,7 +28,7 @@ export function NotesCategoriesEditHost() {
     notesCategoriesStore.getSnapshot,
   );
   const selected = snap.rows.find((row) => row.id === snap.selectedId);
-  const inbox = selected?.id === 'inbox';
+  const inbox = Boolean(selected?.is_inbox);
   const confirming = Boolean(selected) && snap.confirmDisableId === selected?.id;
 
   useEffect(() => {
@@ -79,7 +79,7 @@ export function NotesCategoriesEditHost() {
                   <span className="notes-cat-item-main">
                     <span className="notes-cat-item-title-row">
                       <span className="notes-cat-item-title">{row.title || row.id}</span>
-                      {row.id === 'inbox' ? <span className="notes-cat-badge">Built-in</span> : null}
+                      {row.is_inbox ? <span className="notes-cat-badge">Built-in</span> : null}
                     </span>
                     <span className={`notes-cat-item-desc${desc ? '' : ' is-empty'}`}>
                       {desc || 'No description'}

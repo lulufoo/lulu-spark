@@ -25,7 +25,13 @@ const { WorkspaceNavItems } = await import('../../frontend/src/app-shell/ui/sett
 const { NotesCategoriesEditHost } = await import('../../frontend/src/app-shell/ui/settings/notes-categories-edit.tsx');
 const tabs = await import('../../frontend/src/app-shell/ui/settings/tabs.ts');
 
-const row = (folder, title = folder) => ({ folder, title, description: '' });
+const row = (id, title = id, extra = {}) => ({
+  id,
+  folder: extra.folder ?? id,
+  title,
+  description: '',
+  is_inbox: extra.is_inbox ?? id === 'inbox',
+});
 
 describe('Workspace projects settings', () => {
   beforeEach(() => {
@@ -63,11 +69,29 @@ describe('Workspace projects settings', () => {
     expect(calls).toEqual([['enable', 'default', 'old']]);
   });
 
-  it('never offers Disable for inbox', () => {
+  it('never offers Disable for inbox', async () => {
+    await commands.selectProjectsWorkspace('default');
     commands.askNotesCategoryDisable('inbox');
     expect(notesCategoriesStore.getSnapshot().confirmDisableId).toBe('');
     commands.askNotesCategoryDisable('work');
     expect(notesCategoriesStore.getSnapshot().confirmDisableId).toBe('work');
+  });
+
+  it('still treats a renamed inbox as Built-in when its id is not inbox', async () => {
+    projects.default = [row('minted', 'Catch-all', { folder: 'inbox', is_inbox: true }), row('work', 'Work')];
+    await commands.selectProjectsWorkspace('default');
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    act(() => root.render(createElement(NotesCategoriesEditHost)));
+    const inbox = host.querySelector('button.notes-cat-item[data-project="minted"]');
+    expect(inbox.querySelector('.notes-cat-badge').textContent).toBe('Built-in');
+    act(() => inbox.click());
+    const labels = () => [...host.querySelectorAll('.notes-cat-edit-actions button')].map((b) => b.textContent);
+    expect(labels()).toEqual(['Cancel', 'Save']);
+    commands.askNotesCategoryDisable('minted');
+    expect(notesCategoriesStore.getSnapshot().confirmDisableId).toBe('');
+    act(() => root.unmount());
   });
 
   it('drops a late answer for a workspace that is no longer selected', async () => {

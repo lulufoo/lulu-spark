@@ -34,13 +34,13 @@ describe('icon fields in the data layer', () => {
   it('keeps the icon of a project in the Home sidebar and reads a missing one as empty', async () => {
     state.workspaces.list = [{ id: 'default', name: 'Default', view_mode: 'directory', is_default: true, icon: '' }];
     projects = [
-      { folder: 'plans', title: 'Plans', icon: '01aa00' },
-      { folder: 'inbox', title: 'Inbox' },
+      { id: 'plans', folder: 'plans', title: 'Plans', icon: '01aa00' },
+      { id: 'inbox', folder: 'inbox', title: 'Inbox' },
     ];
     await refreshWorkspaceProjects();
     expect(getHomeState().workspaceProjects.default).toEqual([
-      { folder: 'plans', title: 'Plans', icon: '01aa00' },
-      { folder: 'inbox', title: 'Inbox', icon: '' },
+      { id: 'plans', folder: 'plans', title: 'Plans', icon: '01aa00' },
+      { id: 'inbox', folder: 'inbox', title: 'Inbox', icon: '' },
     ]);
   });
 });

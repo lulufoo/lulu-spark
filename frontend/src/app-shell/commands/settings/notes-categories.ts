@@ -9,19 +9,24 @@ import {
   type NotesCategoryRow,
 } from '../../state/settings/notes-categories.ts';
 
-/** One row per project; a project is addressed by its folder. */
+/** One row per project; a project is addressed by its id. */
 function asRows(data: unknown): NotesCategoryRow[] {
-  const rec = data as { projects?: Array<Partial<NotesCategoryRow> & { sort_index?: number }>; error?: string };
+  const rec = data as {
+    projects?: Array<Partial<NotesCategoryRow> & { sort_index?: number; is_inbox?: unknown }>;
+    error?: string;
+  };
   if (rec?.error) throw new Error(rec.error);
   const rows: NotesCategoryRow[] = [];
   for (const [at, c] of (rec.projects || []).entries()) {
+    const id = typeof c.id === 'string' ? c.id.trim() : '';
+    if (!id) continue;
     const folder = typeof c.folder === 'string' ? c.folder.trim() : '';
-    if (!folder) continue;
     rows.push({
-      id: folder,
-      title: typeof c.title === 'string' ? c.title : folder,
+      id,
+      title: typeof c.title === 'string' && c.title ? c.title : id,
       description: typeof c.description === 'string' ? c.description : '',
       folder,
+      is_inbox: c.is_inbox === true,
       icon: typeof c.icon === 'string' ? c.icon : '',
       sortIndex: typeof c.sort_index === 'number' ? c.sort_index : at,
     });
@@ -42,16 +47,19 @@ function failWith(e: unknown) {
 function applyNotesCategoryMaps(rows: NotesCategoryRow[]) {
   const descMap: Record<string, string> = {};
   const titleMap: Record<string, string> = {};
+  const inboxMap: Record<string, boolean> = {};
   const order: string[] = [];
   for (const row of rows) {
-    const key = row.folder || row.id;
+    const key = row.id;
     order.push(key);
     titleMap[key] = row.title || key;
     descMap[key] = row.description || '';
+    inboxMap[key] = row.is_inbox;
   }
   state.index.topicTitles = titleMap;
   state.index.topicOrder = order;
   state.index.topicDescriptions = descMap;
+  state.index.topicInbox = inboxMap;
   state.index.topicRepos = {};
   notifyState();
 }
@@ -99,15 +107,15 @@ export async function selectProjectsWorkspace(workspaceId: string) {
 
 /**
  * Drag-reorder: show the new order at once, then ask the backend; a refusal puts the old order
- * back and says why. `folders` are the enabled projects in their new order, disabled ones keep
+ * back and says why. `ids` are the enabled projects in their new order, disabled ones keep
  * their place.
  */
-export async function reorderNotesCategories(workspaceId: string, folders: string[]): Promise<boolean> {
+export async function reorderNotesCategories(workspaceId: string, ids: string[]): Promise<boolean> {
   const snap = notesCategoriesStore.getSnapshot();
   const byId = new Map(snap.rows.map((row) => [row.id, row]));
-  const next = folders.map((id) => byId.get(id)).filter((row): row is NotesCategoryRow => Boolean(row));
+  const next = ids.map((id) => byId.get(id)).filter((row): row is NotesCategoryRow => Boolean(row));
   if (snap.workspaceId !== workspaceId || next.length !== snap.rows.length) return false;
-  const whole = withDisabledInPlace(snap.rows.map((r) => ({ id: r.id, sortIndex: r.sortIndex })), snap.disabled.map((r) => ({ id: r.id, sortIndex: r.sortIndex })), folders);
+  const whole = withDisabledInPlace(snap.rows.map((r) => ({ id: r.id, sortIndex: r.sortIndex })), snap.disabled.map((r) => ({ id: r.id, sortIndex: r.sortIndex })), ids);
   patchNotesCategories({ rows: next, error: '' });
   try {
     throwOnError(await api.reorderProjects(workspaceId, whole));
@@ -150,9 +158,10 @@ export function closeNotesCategoryEditor() {
   });
 }
 
-/** `inbox` is the built-in project and cannot be disabled. */
+/** The inbox (`is_inbox`) cannot be disabled. */
 export function askNotesCategoryDisable(id: string) {
-  if (!id || id === 'inbox') return;
+  const row = rowById(notesCategoriesStore.getSnapshot().rows, id);
+  if (!row || row.is_inbox) return;
   patchNotesCategories({ confirmDisableId: id, error: '' });
 }
 

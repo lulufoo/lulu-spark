@@ -84,8 +84,8 @@ beforeEach(() => {
     { id: 'ws2', name: 'Wiki', view_mode: 'timeline', is_default: false, icon: ICON_A },
   ];
   projects.default = [
-    { folder: 'inbox', title: 'Inbox', description: '', icon: '' },
-    { folder: 'plans', title: 'Plans', description: 'd', icon: ICON_A },
+    { id: 'inbox', folder: 'inbox', title: 'Inbox', description: '', icon: '', is_inbox: true },
+    { id: 'plans', folder: 'plans', title: 'Plans', description: 'd', icon: ICON_A },
   ];
 });
 

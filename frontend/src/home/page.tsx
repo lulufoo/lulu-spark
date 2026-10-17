@@ -343,9 +343,9 @@ export function HomePage({
                 if (id === DEFAULT_WORKSPACE_ID) void markHomeEntryRead('spark');
                 openWorkspace(id, navigateFn);
               }}
-              onOpenProject={(id, folder) => {
+              onOpenProject={(id, projectId) => {
                 if (id === DEFAULT_WORKSPACE_ID) void markHomeEntryRead('spark');
-                void openProject(id, folder, navigateFn);
+                void openProject(id, projectId, navigateFn);
               }}
             />
           </div>

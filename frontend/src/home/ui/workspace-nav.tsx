@@ -23,7 +23,7 @@ type Props = {
   /** Unread dot of the documents channel; shown on the built-in workspace. */
   unreadDocs: boolean;
   onOpenWorkspace: (id: string) => void;
-  onOpenProject: (id: string, folder: string) => void;
+  onOpenProject: (id: string, projectId: string) => void;
 };
 
 /** `data-home-entry` of the two built-in workspaces keeps its old value; others use their id. */
@@ -151,11 +151,11 @@ export function HomeWorkspaceNav({
             </div>
             {shown.map((project) => (
               <button
-                key={project.folder}
+                key={project.id}
                 type="button"
                 className="home-chat-nav-item home-nav-project"
-                data-home-project={project.folder}
-                onClick={() => onOpenProject(row.id, project.folder)}
+                data-home-project={project.id}
+                onClick={() => onOpenProject(row.id, project.id)}
               >
                 <span className="home-nav-project-icon" aria-hidden="true">
                   <Icon id={project.icon && getIcon(project.icon) ? project.icon : DEFAULT_PROJECT_ICON_ID} size={16} />

@@ -91,7 +91,7 @@ describe('HomeWorkspaceNav icons', () => {
 
   it('draws the configured icon of a workspace and of a project', () => {
     const host = render(rows({ default: ICON_WS }), {
-      default: [{ folder: 'plans', title: 'Plans', icon: ICON_P }],
+      default: [{ id: 'plans', folder: 'plans', title: 'Plans', icon: ICON_P }],
     });
     expect(entry(host, 'spark').querySelector(`svg[data-icon-id="${ICON_WS}"]`)).not.toBeNull();
     expect(entry(host, 'spark').querySelector('[data-home-icon="notes"]')).toBeNull();
@@ -107,20 +107,20 @@ describe('HomeWorkspaceNav icons', () => {
   });
 
   it('gives a project without an icon the Folder icon', () => {
-    const host = render(rows(), { default: [{ folder: 'inbox', title: 'Inbox', icon: '' }] });
+    const host = render(rows(), { default: [{ id: 'inbox', folder: 'inbox', title: 'Inbox', icon: '' }] });
     expect(project(host, 'inbox').querySelector(`svg[data-icon-id="${DEFAULT_PROJECT_ICON_ID}"]`)).not.toBeNull();
   });
 
   it('falls back to the defaults for a well-formed id the module does not know', () => {
     const host = render(rows({ default: '00zzzz' }), {
-      default: [{ folder: 'inbox', title: 'Inbox', icon: '00zzzz' }],
+      default: [{ id: 'inbox', folder: 'inbox', title: 'Inbox', icon: '00zzzz' }],
     });
     expect(entry(host, 'spark').querySelector('[data-home-icon="notes"]')).not.toBeNull();
     expect(project(host, 'inbox').querySelector(`svg[data-icon-id="${DEFAULT_PROJECT_ICON_ID}"]`)).not.toBeNull();
   });
 
   it('draws icons in the current colour, with no colour of their own', () => {
-    const host = render(rows({ default: ICON_WS }), { default: [{ folder: 'p', title: 'P', icon: ICON_P }] });
+    const host = render(rows({ default: ICON_WS }), { default: [{ id: 'p', folder: 'p', title: 'P', icon: ICON_P }] });
     for (const svg of host.querySelectorAll('svg[data-icon-id]')) {
       expect(svg.getAttribute('stroke')).toBe('currentColor');
     }
@@ -131,10 +131,10 @@ describe('HomeWorkspaceNav icons', () => {
     listHeight = 7 * 32 + 2 * 8;
     const host = render(rows(), {
       default: [
-        { folder: 'inbox', title: 'Inbox', icon: ICON_P },
-        { folder: 'work', title: 'Work', icon: ICON_P2 },
+        { id: 'inbox', folder: 'inbox', title: 'Inbox', icon: ICON_P },
+        { id: 'work', folder: 'work', title: 'Work', icon: ICON_P2 },
       ],
-      knowledge: ['a', 'b', 'c', 'd'].map((folder) => ({ folder, title: folder, icon: ICON_P })),
+      knowledge: ['a', 'b', 'c', 'd'].map((folder) => ({ id: folder, folder, title: folder, icon: ICON_P })),
       wiki: [],
     });
     const badge = host.querySelector('[data-home-hidden="knowledge"]');
@@ -182,12 +182,12 @@ describe('Home sidebar after a settings change', () => {
     state.workspaces.list = [
       { id: 'default', name: 'Default', view_mode: 'directory', is_default: true, icon: '' },
     ];
-    projectsByWorkspace = { default: [{ folder: 'plans', title: 'Plans', icon: '' }] };
+    projectsByWorkspace = { default: [{ id: 'plans', folder: 'plans', title: 'Plans', icon: '' }] };
     startHomeHub();
     announceRegistryChange();
     await vi.waitFor(() => expect(getHomeState().workspaceProjects.default?.[0]?.icon).toBe(''));
 
-    projectsByWorkspace = { default: [{ folder: 'plans', title: 'Plans', icon: ICON_P }] };
+    projectsByWorkspace = { default: [{ id: 'plans', folder: 'plans', title: 'Plans', icon: ICON_P }] };
     announceRegistryChange();
     await vi.waitFor(() => expect(getHomeState().workspaceProjects.default[0].icon).toBe(ICON_P));
   });
