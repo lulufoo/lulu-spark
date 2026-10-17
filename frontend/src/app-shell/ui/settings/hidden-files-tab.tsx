@@ -62,7 +62,8 @@ export function HiddenFilesTab() {
             <button
               type="button"
               className="kb-hide-row-del"
-              title="Remove this rule"
+              data-tip="Remove this rule"
+              aria-label="Remove this rule"
               disabled={snap.busy}
               onClick={() => void removeHidePatternRow(row.id)}
             >

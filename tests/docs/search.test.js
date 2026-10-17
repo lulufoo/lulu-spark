@@ -273,7 +273,7 @@ describe('notes search module', () => {
     hit.dispatchEvent(new MouseEvent('mouseenter'));
     await vi.advanceTimersByTimeAsync(300);
     expect(apiMocks.fetchFileContent).not.toHaveBeenCalled();
-    expect(document.querySelector('.digest-tooltip')).toBeNull();
+    expect(document.querySelector('.ui-tip-preview')).toBeNull();
   });
 
   it('search.tsx does not import attachDigestTooltip', () => {

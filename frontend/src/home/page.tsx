@@ -345,7 +345,7 @@ export function HomePage({
             className="home-chat-new"
             data-role="new-session"
             aria-label="New conversation"
-            title="New conversation"
+            data-tip="New conversation"
             onClick={() => {
               void createSession()
                 .then((ok) => {
@@ -460,7 +460,7 @@ export function HomePage({
                 className="home-chat-send"
                 data-role="send"
                 aria-label="Send"
-                title="Send"
+                data-tip="Send"
                 disabled={locked}
               >
                 <span className="home-chat-send-label">Send</span>

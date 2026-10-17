@@ -1,10 +1,9 @@
 import { fetchFileContent } from '../../host/api.ts';
+import { TIP_DELAY_MS, placeTip } from '../../shared/tooltip/tooltip.ts';
 
-const HOVER_DELAY_MS = 300;
 const PREVIEW_MAX_CHARS = 400;
 const DIGEST_HEADER_RE = /^#\s+[^\n]+\n+>\s*创建时间：[^\n]+\n+(?:---\s*\n+)?/;
-const TOOLTIP_GAP_PX = 6;
-const INTERACTIVE_SEL = 'button, [data-action], [data-tag-key], .badge-links';
+const INTERACTIVE_SEL = 'button, [data-action], [data-tag-key], .badge-links, [data-tip]';
 
 function isInteractiveTarget(target: EventTarget | null): boolean {
   return target instanceof Element && Boolean(target.closest(INTERACTIVE_SEL));
@@ -25,20 +24,9 @@ export function digestPreviewText(raw: string): string {
 
 function buildTooltip(text: string): HTMLDivElement {
   const tip = document.createElement('div');
-  tip.className = 'digest-tooltip';
-  tip.style.position = 'fixed';
+  tip.className = 'ui-tip ui-tip-preview';
   tip.textContent = text;
   return tip;
-}
-
-function placeTooltip(tip: HTMLDivElement, anchorRect: DOMRect) {
-  const tipRect = tip.getBoundingClientRect();
-  const spaceBelow = window.innerHeight - anchorRect.bottom;
-  const flip = spaceBelow < tipRect.height + TOOLTIP_GAP_PX;
-  tip.style.left = `${anchorRect.left}px`;
-  tip.style.top = flip
-    ? `${Math.max(anchorRect.top - tipRect.height - TOOLTIP_GAP_PX, 0)}px`
-    : `${anchorRect.bottom + TOOLTIP_GAP_PX}px`;
 }
 
 export function attachDigestTooltip(el: HTMLElement, id: string): () => void {
@@ -75,7 +63,7 @@ export function attachDigestTooltip(el: HTMLElement, id: string): () => void {
     removeTooltip();
     tooltip = buildTooltip(digestPreviewText(content));
     document.body.appendChild(tooltip);
-    placeTooltip(tooltip, el.getBoundingClientRect());
+    placeTip(tooltip, el.getBoundingClientRect());
   }
 
   let suppressShow = false;
@@ -83,7 +71,7 @@ export function attachDigestTooltip(el: HTMLElement, id: string): () => void {
   function scheduleShow() {
     if (showTimer || tooltip) return;
     const session = ++hoverSession;
-    showTimer = setTimeout(() => void show(session), HOVER_DELAY_MS);
+    showTimer = setTimeout(() => void show(session), TIP_DELAY_MS);
   }
 
   function onMouseOver(e: MouseEvent) {

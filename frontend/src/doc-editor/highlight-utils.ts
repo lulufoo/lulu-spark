@@ -95,7 +95,8 @@ export function wrapNthMatch(
   function makeDelBtn() {
     const b = document.createElement('button');
     b.className = 'highlight-del-btn';
-    b.title = 'Remove highlight';
+    b.dataset.tip = 'Remove highlight';
+    b.setAttribute('aria-label', 'Remove highlight');
     b.textContent = '×';
     b.addEventListener('click', (e) => {
       e.preventDefault();

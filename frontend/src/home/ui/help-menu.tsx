@@ -30,7 +30,7 @@ export function HelpMenu({ onAbout }: { onAbout?: () => void }) {
         aria-haspopup="menu"
         aria-expanded={open ? 'true' : 'false'}
         aria-label="About"
-        title="About"
+        data-tip="About"
         onClick={() => setOpen((prev) => !prev)}
       >
         <HomeNavIcon name="help" />

@@ -43,7 +43,7 @@ function NodeContents({ node, depth, expanded, openDocId }: TreeProps & { node: 
           <button
             type="button"
             className={`knowledge-doc-tree-label${openDocId === doc.id ? ' selected' : ''}`}
-            title={doc.entry.raw_path || doc.name}
+            data-tip={doc.entry.raw_path || doc.name}
             onClick={() => openDoc(doc.id, doc.entry)}
           >
             <Chrome isDir={false} expanded={false} />
@@ -68,7 +68,7 @@ function FolderBlock({ node, depth, expanded, openDocId }: TreeProps & { node: D
         <button
           type="button"
           className="knowledge-doc-tree-label"
-          title={node.name}
+          data-tip={node.name}
           aria-expanded={open}
           onClick={() => toggleDirNodeOpen(node.key)}
         >

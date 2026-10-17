@@ -135,7 +135,7 @@ export function IconPicker({ value, defaultIcon, onChange, disabled, label }: Pr
                     data-icon-id={icon.id}
                     aria-label={icon.name}
                     aria-pressed={icon.id === chosen}
-                    title={icon.name}
+                    data-tip={icon.name}
                     onClick={() => pick(icon.id)}
                   >
                     <Icon id={icon.id} size={18} />

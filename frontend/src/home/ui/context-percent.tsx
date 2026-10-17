@@ -68,7 +68,7 @@ export function ContextPercent({
         type="button"
         className="home-chat-context-percent"
         data-role="context-percent"
-        title="Show context usage"
+        data-tip="Show context usage"
         aria-label="Show context usage"
         aria-expanded={open}
         aria-controls={open ? titleId : undefined}

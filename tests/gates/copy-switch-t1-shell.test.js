@@ -303,7 +303,7 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
     expect(deleteDialog).not.toMatch(/⚠️/);
     expect(deleteDialog).toMatch(/id="delete-dialog-desc"[^>]*>[\s\S]*Cannot be undone/);
     expect(deleteDialog).toMatch(/placeholder="Enter CONFIRM here"/);
-    expect(deleteDialog).toMatch(/title="Copy CONFIRM"/);
+    expect(deleteDialog).toMatch(/data-tip="Copy CONFIRM"/);
   });
 
   it('comment editor placeholder uses table B2', () => {

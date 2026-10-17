@@ -15,7 +15,7 @@ export function Shell() {
       {/* <!-- Floating highlight button --> */}
       <button id="highlight-add-btn" className="viewer-highlight-btn" style={{ display: 'none', position: 'fixed', zIndex: 9999 }}>Highlight</button>
       {/* <!-- Comment preview tooltip --> */}
-      <div id="comment-preview-tip"></div>
+      <div id="comment-preview-tip" className="ui-tip ui-tip-preview"></div>
 
       {/* <!-- Comment dialog --> */}
       <NoteCommentDialog />

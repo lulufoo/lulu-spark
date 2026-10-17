@@ -41,7 +41,7 @@ export function CreateTargetDialog() {
       <div className="create-target-box" role="dialog" aria-modal="true" aria-labelledby="create-target-title">
         <div className="create-target-header">
           <h3 id="create-target-title">New document</h3>
-          <OverlayDismissButton title="Cancel" onClick={() => cancelCreateProject()} />
+          <OverlayDismissButton label="Cancel" onClick={() => cancelCreateProject()} />
         </div>
         <div className="create-target-body">
           <label className="create-target-label">Create it in project</label>
