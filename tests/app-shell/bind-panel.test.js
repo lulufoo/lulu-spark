@@ -58,6 +58,25 @@ describe('Devices settings panel (pairing)', () => {
     expect(visibleCopy(document.getElementById('bind-dialog-footer'))).not.toMatch(/Close/);
   });
 
+  it('lays the steps out below the code, not inside the right-hand meta column', () => {
+    const steps = document.getElementById('bind-steps');
+    expect(steps).not.toBeNull();
+    expect(steps.querySelectorAll('li')).toHaveLength(3);
+    expect(document.getElementById('bind-dialog-meta').contains(steps)).toBe(false);
+    const body = document.getElementById('bind-dialog-body');
+    const footer = document.getElementById('bind-dialog-footer');
+    expect(body.compareDocumentPosition(steps) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(steps.compareDocumentPosition(footer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('keeps the QR card a fixed square and scales the canvas by width', () => {
+    const css = readRel('frontend/app.css');
+    expect(css).toMatch(/#bind-qr-card\s*\{[^}]*width: 240px;[^}]*aspect-ratio: 1;/);
+    expect(css).toMatch(/#bind-preview canvas,\s*#bind-preview img\s*\{[^}]*width: 100% !important;[^}]*height: auto !important;/);
+    expect(css).toMatch(/#bind-steps\s*\{[^}]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/);
+    expect(css).not.toMatch(/#bind-steps li\s*\{[^}]*(background|border):/);
+  });
+
   it('keeps the dialog-only CSS (overlay, header) removed', () => {
     const css = readRel('frontend/app.css');
     expect(css).not.toMatch(/#bind-dialog\s*\{/);
