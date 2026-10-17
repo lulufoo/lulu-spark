@@ -11,8 +11,8 @@ import { UserMessageText } from '../../frontend/src/home/ui/user-message-text.ts
 
 const NOTE_ID = 'f6692dc5d5242eec5206b6400e704bd6';
 const GUIDE_ID = 'knowledge-0123456789abcdef0123456789abcdef';
-const NOTE = `[Default：Agent Mock](doc:${NOTE_ID})`;
-const GUIDE = `[Knowledge：Guide](doc:${GUIDE_ID})`;
+const NOTE = `[Default：Agent Mock](spark-doc:${NOTE_ID})`;
+const GUIDE = `[Knowledge：Guide](spark-doc:${GUIDE_ID})`;
 
 let container;
 let root;
@@ -52,13 +52,19 @@ describe('UserMessageText', () => {
   });
 
   it('leaves invalid references as the original text', () => {
-    const el = render('see [x](doc:abc) and [y](https://a.b)');
+    const el = render('see [x](spark-doc:abc) and [y](https://a.b)');
     expect(el.querySelector('.home-ref-chip')).toBeNull();
-    expect(el.textContent).toBe('see [x](doc:abc) and [y](https://a.b)');
+    expect(el.textContent).toBe('see [x](spark-doc:abc) and [y](https://a.b)');
+  });
+
+  it('leaves a retired doc: link as the original text', () => {
+    const el = render(`[Old](doc:${NOTE_ID})`);
+    expect(el.querySelector('.home-ref-chip')).toBeNull();
+    expect(el.textContent).toBe(`[Old](doc:${NOTE_ID})`);
   });
 
   it('never turns message text into markup', () => {
-    const el = render(`<b>x</b> [T](doc:${NOTE_ID}) <img src=x>`);
+    const el = render(`<b>x</b> [T](spark-doc:${NOTE_ID}) <img src=x>`);
     expect(el.querySelector('b')).toBeNull();
     expect(el.querySelector('img')).toBeNull();
     expect(el.textContent).toContain('<b>x</b>');

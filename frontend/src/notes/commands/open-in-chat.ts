@@ -26,7 +26,7 @@ function workspaceNameOf(entry: HostNoteEntry) {
   return state.workspaces.list.find((w) => w.id === id)?.name || id;
 }
 
-/** `[Workspace name：Title](doc:<id>) ` — shown as a chip in the composer; the space keeps typing after it. */
+/** `[Workspace name：Title](spark-doc:<id>) ` — shown as a chip in the composer; the space keeps typing after it. */
 export function noteReferenceDraft(entry: HostNoteEntry, id: string) {
   const title = noteTitle(entry, id).replace(/\s+/g, ' ').trim();
   return `${serializeReference({ kind: 'doc', id, title: `${workspaceNameOf(entry)}：${title}` })} `;

@@ -11,8 +11,8 @@ import { registerReferenceKind } from '../../frontend/src/home/references/index.
 
 const NOTE_ID = 'f6692dc5d5242eec5206b6400e704bd6';
 const GUIDE_ID = 'knowledge-0123456789abcdef0123456789abcdef';
-const NOTE = `[Default：Agent Mock](doc:${NOTE_ID})`;
-const GUIDE = `[Knowledge：Guide](doc:${GUIDE_ID})`;
+const NOTE = `[Default：Agent Mock](spark-doc:${NOTE_ID})`;
+const GUIDE = `[Knowledge：Guide](spark-doc:${GUIDE_ID})`;
 
 let container;
 let root;
@@ -85,7 +85,7 @@ describe('chips in the composer', () => {
     expect(chip.getAttribute('data-ref-id')).toBe(NOTE_ID);
     expect(chip.textContent).toBe('Default：Agent Mock');
     expect(chip.querySelector('.home-ref-chip-label')?.textContent).toBe('Default：Agent Mock');
-    expect(el.textContent).not.toContain('(doc:');
+    expect(el.textContent).not.toContain('(spark-doc:');
     expect(ref.current.getText()).toBe(`read ${NOTE} now`);
   });
 
@@ -96,9 +96,9 @@ describe('chips in the composer', () => {
     expect(ref.current.getText()).toBe(GUIDE);
   });
 
-  it('no longer turns the old note: and knowledge: links into chips', () => {
+  it('no longer turns the old note:, knowledge:, or doc: links into chips', () => {
     const { ref, el } = render();
-    ref.current.setText(`[A](note:${NOTE_ID}) [B](knowledge:${NOTE_ID})`);
+    ref.current.setText(`[A](note:${NOTE_ID}) [B](knowledge:${NOTE_ID}) [C](doc:${NOTE_ID})`);
     expect(el.querySelector('.home-ref-chip')).toBeNull();
   });
 

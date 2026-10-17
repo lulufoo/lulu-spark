@@ -57,21 +57,34 @@ afterEach(() => {
 });
 
 describe('docIdFromHref', () => {
-  it('accepts doc:<id> only; the old note: and knowledge: schemes are gone', () => {
-    expect(docIdFromHref(`doc:${ID}`)).toBe(ID);
-    expect(docIdFromHref(`  doc:${ID} `)).toBe(ID);
-    expect(docIdFromHref(`doc:default-${ID}`)).toBe(`default-${ID}`);
-    expect(docIdFromHref(`doc:k3x9ab-${ID}`)).toBe(`k3x9ab-${ID}`);
-    for (const bad of ['doc:bad', `note:${ID}`, `knowledge:${ID}`, `doc:${ID}x`, `doc:Bad-${ID}`, `doc:-${ID}`, `https://x/${ID}`, `Note:${ID}`, '', null, undefined]) {
+  it('accepts spark-doc:<id> only; the old doc:, note:, and knowledge: schemes are gone', () => {
+    expect(docIdFromHref(`spark-doc:${ID}`)).toBe(ID);
+    expect(docIdFromHref(`  spark-doc:${ID} `)).toBe(ID);
+    expect(docIdFromHref(`spark-doc:default-${ID}`)).toBe(`default-${ID}`);
+    expect(docIdFromHref(`spark-doc:k3x9ab-${ID}`)).toBe(`k3x9ab-${ID}`);
+    for (const bad of [
+      `doc:${ID}`,
+      'spark-doc:bad',
+      `note:${ID}`,
+      `knowledge:${ID}`,
+      `spark-doc:${ID}x`,
+      `spark-doc:Bad-${ID}`,
+      `spark-doc:-${ID}`,
+      `https://x/${ID}`,
+      `Note:${ID}`,
+      '',
+      null,
+      undefined,
+    ]) {
       expect(docIdFromHref(bad)).toBeNull();
     }
   });
 });
 
 describe('onDocLinkClick', () => {
-  it('intercepts a doc: link, resolves it in Rust, then opens the entry', async () => {
+  it('intercepts a spark-doc: link, resolves it in Rust, then opens the entry', async () => {
     vi.mocked(resolveDocForOpen).mockResolvedValue({ id: ID, ok: true, folder: 'ai' });
-    const event = clickOn(`<p><a href="doc:${ID}"><b>Default：Title</b></a></p>`, 'b');
+    const event = clickOn(`<p><a href="spark-doc:${ID}"><b>Default：Title</b></a></p>`, 'b');
     expect(event.preventDefault).toHaveBeenCalledOnce();
     await flush();
     expect(resolveDocForOpen).toHaveBeenCalledWith(ID);
@@ -82,7 +95,7 @@ describe('onDocLinkClick', () => {
   it('leaves every other link alone', async () => {
     const event = clickOn('<a href="https://example.com">x</a>', 'a');
     expect(event.preventDefault).not.toHaveBeenCalled();
-    for (const old of ['note', 'knowledge']) {
+    for (const old of ['doc', 'note', 'knowledge']) {
       expect(clickOn(`<a href="${old}:${ID}">x</a>`, 'a').preventDefault).not.toHaveBeenCalled();
     }
     const plain = clickOn('<span>no link</span>', 'span');
@@ -92,8 +105,8 @@ describe('onDocLinkClick', () => {
     expect(opened).toEqual([]);
   });
 
-  it('reports a malformed doc: link without calling Rust', async () => {
-    const event = clickOn('<a href="doc:bad">x</a>', 'a');
+  it('reports a malformed spark-doc: link without calling Rust', async () => {
+    const event = clickOn('<a href="spark-doc:bad">x</a>', 'a');
     expect(event.preventDefault).toHaveBeenCalledOnce();
     await flush();
     expect(resolveDocForOpen).not.toHaveBeenCalled();
@@ -103,7 +116,7 @@ describe('onDocLinkClick', () => {
 
   it('reports the Rust error when the id is unknown', async () => {
     vi.mocked(resolveDocForOpen).mockRejectedValue(new Error('Entry not found'));
-    clickOn(`<a href="doc:${ID}">x</a>`, 'a');
+    clickOn(`<a href="spark-doc:${ID}">x</a>`, 'a');
     await flush();
     const err = vi.mocked(showActionError).mock.calls[0][0];
     expect(err.message).toBe('Cannot open document: Entry not found');
@@ -117,7 +130,7 @@ describe('onDocLinkClick', () => {
       state.index.data = { [ID]: { folder: 'ai', id: ID } };
       return true;
     });
-    clickOn(`<a href="doc:${ID}">x</a>`, 'a');
+    clickOn(`<a href="spark-doc:${ID}">x</a>`, 'a');
     await flush();
     expect(refreshNotesIndex).toHaveBeenCalledOnce();
     expect(opened).toEqual([{ id: ID }]);
@@ -127,7 +140,7 @@ describe('onDocLinkClick', () => {
     state.index.data = {};
     vi.mocked(resolveDocForOpen).mockResolvedValue({ id: ID, ok: true, folder: 'ai' });
     vi.mocked(refreshNotesIndex).mockResolvedValue(true);
-    clickOn(`<a href="doc:${ID}">x</a>`, 'a');
+    clickOn(`<a href="spark-doc:${ID}">x</a>`, 'a');
     await flush();
     expect(opened).toEqual([]);
     expect(vi.mocked(showActionError).mock.calls[0][0].message).toMatch(/Cannot open document/);
@@ -135,9 +148,9 @@ describe('onDocLinkClick', () => {
 });
 
 describe('wiring', () => {
-  it('marked keeps the doc: href intact', () => {
-    const html = marked.parse(`[Title](doc:${ID})`);
-    expect(html).toContain(`href="doc:${ID}"`);
+  it('marked keeps the spark-doc: href intact', () => {
+    const html = marked.parse(`[Title](spark-doc:${ID})`);
+    expect(html).toContain(`href="spark-doc:${ID}"`);
   });
 
   it('assistant markdown in the home page uses the click handler', () => {

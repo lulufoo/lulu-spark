@@ -27,7 +27,7 @@ describe('noteReferenceDraft', () => {
 
   it('links the title to the note id', () => {
     expect(noteReferenceDraft({ _id: ID, common_path: 'inbox/x.md', title: 'My note' }, ID)).toBe(
-      `[Default：My note](doc:${ID}) `,
+      `[Default：My note](spark-doc:${ID}) `,
     );
   });
 
@@ -38,7 +38,7 @@ describe('noteReferenceDraft', () => {
       created_at: '202610110218',
     };
     state.index.titleCache.set('20261011', new Map([[ID, 'Real Title']]));
-    expect(noteReferenceDraft(entry, ID)).toBe(`[Default：Real Title](doc:${ID}) `);
+    expect(noteReferenceDraft(entry, ID)).toBe(`[Default：Real Title](spark-doc:${ID}) `);
   });
 
   it('uses the open viewer H1 when the card cache is empty', () => {
@@ -49,19 +49,19 @@ describe('noteReferenceDraft', () => {
     };
     state.viewer.entry = entry;
     state.viewer.rawText = '# Viewer Title\n\nbody';
-    expect(noteReferenceDraft(entry, ID)).toBe(`[Default：Viewer Title](doc:${ID}) `);
+    expect(noteReferenceDraft(entry, ID)).toBe(`[Default：Viewer Title](spark-doc:${ID}) `);
   });
 
   it('falls back to Untitled note when no title is available', () => {
     expect(noteReferenceDraft({ _id: ID, folder: 'inbox' }, ID)).toBe(
-      `[Default：Untitled note](doc:${ID}) `,
+      `[Default：Untitled note](spark-doc:${ID}) `,
     );
   });
 
   it('drops brackets and flattens whitespace so the link stays one chip', () => {
     expect(
       noteReferenceDraft({ _id: ID, common_path: 'a.md', title: 'A [draft]\n  v2' }, ID),
-    ).toBe(`[Default：A draft v2](doc:${ID}) `);
+    ).toBe(`[Default：A draft v2](spark-doc:${ID}) `);
   });
 
   it('shows the current name of the entry workspace, so a rename shows up at once', () => {
@@ -70,8 +70,8 @@ describe('noteReferenceDraft', () => {
       list: [DEFAULT_WORKSPACE, { id: 'k3x9ab', name: 'Research', view_mode: 'timeline', is_default: false }],
     };
     const entry = { _id: ID, workspace: 'k3x9ab', common_path: 'a.md', title: 'Paper' };
-    expect(noteReferenceDraft(entry, ID)).toBe(`[Research：Paper](doc:${ID}) `);
-    expect(noteReferenceDraft({ ...entry, workspace: 'gone' }, ID)).toBe(`[gone：Paper](doc:${ID}) `);
+    expect(noteReferenceDraft(entry, ID)).toBe(`[Research：Paper](spark-doc:${ID}) `);
+    expect(noteReferenceDraft({ ...entry, workspace: 'gone' }, ID)).toBe(`[gone：Paper](spark-doc:${ID}) `);
   });
 
   it('is a reference the composer shows as a chip', () => {
@@ -98,7 +98,7 @@ describe('openNoteInChat', () => {
 
   it('opens a new chat prefilled with the note reference, not a staged file', async () => {
     await openNoteInChat({ _id: ID, common_path: 'inbox/note.md', title: 'Note' });
-    expect(draftSpy).toHaveBeenCalledWith(`[Default：Note](doc:${ID}) `);
+    expect(draftSpy).toHaveBeenCalledWith(`[Default：Note](spark-doc:${ID}) `);
   });
 
   it('prefills the card title when the index entry has no title field', async () => {
@@ -109,7 +109,7 @@ describe('openNoteInChat', () => {
     };
     state.index.titleCache.set('20261011', new Map([[ID, 'Real Title']]));
     await openNoteInChat(entry);
-    expect(draftSpy).toHaveBeenCalledWith(`[Default：Real Title](doc:${ID}) `);
+    expect(draftSpy).toHaveBeenCalledWith(`[Default：Real Title](spark-doc:${ID}) `);
   });
 
   it('re-enables the button after opening, and after a failure', async () => {
