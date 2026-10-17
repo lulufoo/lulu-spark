@@ -2,7 +2,7 @@
 
 use serde_json::{json, Value};
 
-use super::schema::workspace_property;
+use super::super::schema::workspace_property;
 use crate::mcp_host::catalog::route_util::{object_schema, route};
 use crate::mcp_host::ToolRoute;
 use crate::services::docs;

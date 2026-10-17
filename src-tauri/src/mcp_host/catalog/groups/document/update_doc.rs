@@ -2,7 +2,7 @@
 
 use serde_json::{json, Value};
 
-use super::schema::update_doc_properties;
+use super::super::schema::update_doc_properties;
 use super::write_public::mcp_doc_write_public;
 use crate::mcp_host::catalog::route_util::{object_schema, route};
 use crate::mcp_host::ToolRoute;

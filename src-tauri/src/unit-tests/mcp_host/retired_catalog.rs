@@ -3,7 +3,7 @@
 
 use std::path::PathBuf;
 
-use crate::mcp_host::catalog::groups::docs;
+use crate::mcp_host::catalog::groups::{document, ALL_GROUP_IDS};
 use crate::mcp_host::catalog::{build, group_for_migrated_api};
 
 const RETIRED_NOTES_APIS: &[&str] = &[
@@ -17,22 +17,26 @@ const RETIRED_KNOWLEDGE_APIS: &[&str] = &["list_knowledge_repos"];
 fn retired_catalog_tools_do_not_build() {
     for channel in ["spark", "cursor_ide", "mobile"] {
         for api in RETIRED_NOTES_APIS {
-            assert!(!docs::contains(api), "{api} must not be in the docs registry");
-            assert!(
-                build("docs", api, channel).is_none(),
-                "{api} must not build on {channel}"
-            );
+            assert!(!document::contains(api), "{api} must not be in the document registry");
+            for group in ALL_GROUP_IDS {
+                assert!(
+                    build(group, api, channel).is_none(),
+                    "{api} must not build in {group} on {channel}"
+                );
+            }
             assert_eq!(group_for_migrated_api(api), None, "{api}");
         }
         for api in RETIRED_KNOWLEDGE_APIS {
             assert!(
-                !docs::contains(api),
-                "{api} must not be in the docs registry"
+                !document::contains(api),
+                "{api} must not be in the document registry"
             );
-            assert!(
-                build("docs", api, channel).is_none(),
-                "{api} must not build on {channel}"
-            );
+            for group in ALL_GROUP_IDS {
+                assert!(
+                    build(group, api, channel).is_none(),
+                    "{api} must not build in {group} on {channel}"
+                );
+            }
             assert_eq!(group_for_migrated_api(api), None, "{api}");
         }
     }
@@ -42,10 +46,10 @@ fn retired_catalog_tools_do_not_build() {
 fn retired_catalog_tool_modules_are_gone() {
     let src = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src");
     for rel in [
-        "mcp_host/catalog/groups/docs/get_all_notes_catalog.rs",
-        "mcp_host/catalog/groups/docs/get_latest_digest_per_catalog.rs",
-        "mcp_host/catalog/groups/docs/get_notes_by_catalog.rs",
-        "mcp_host/catalog/groups/docs/list_knowledge_repos.rs",
+        "mcp_host/catalog/groups/document/get_all_notes_catalog.rs",
+        "mcp_host/catalog/groups/document/get_latest_digest_per_catalog.rs",
+        "mcp_host/catalog/groups/document/get_notes_by_catalog.rs",
+        "mcp_host/catalog/groups/document/list_knowledge_repos.rs",
     ] {
         assert!(!src.join(rel).exists(), "{rel} must be deleted");
     }

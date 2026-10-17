@@ -1,4 +1,4 @@
-//! Shared JSON Schema fragments for the docs MCP tools.
+//! Shared JSON Schema fragments for the workspace, project and document MCP tools.
 
 use serde_json::{json, Value};
 

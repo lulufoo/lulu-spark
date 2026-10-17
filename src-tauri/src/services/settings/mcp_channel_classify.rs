@@ -20,18 +20,18 @@ pub fn migrate_content_tools_to_file(channel: &str, mut groups: EnabledByGroup) 
     if channel == "mobile" {
         return groups;
     }
-    if groups.docs.iter().any(|n| n == DOC_CONTENT) {
-        groups.docs.retain(|n| n != DOC_CONTENT);
-        push_unique(&mut groups.docs, DOC_FILE);
+    if groups.document.iter().any(|n| n == DOC_CONTENT) {
+        groups.document.retain(|n| n != DOC_CONTENT);
+        push_unique(&mut groups.document, DOC_FILE);
     }
     groups
 }
 
 fn sort_groups(groups: &mut EnabledByGroup) {
-    groups.docs.sort();
-    groups.docs.dedup();
-    groups.global.sort();
-    groups.global.dedup();
+    for (_, names) in groups.groups_mut() {
+        names.sort();
+        names.dedup();
+    }
 }
 
 fn group_for_tool(name: &str) -> Option<&'static str> {
@@ -52,10 +52,8 @@ pub fn classify_flat(
         if !catalog.contains(&name) {
             continue;
         }
-        match group_for_tool(&name) {
-            Some("docs") => groups.docs.push(name),
-            Some("global") => groups.global.push(name),
-            _ => {}
+        if let Some(group) = group_for_tool(&name) {
+            groups.push(group, name);
         }
     }
     sort_groups(&mut groups);
@@ -63,20 +61,19 @@ pub fn classify_flat(
 }
 
 pub fn filter_groups(groups: EnabledByGroup, catalog: &HashSet<String>) -> EnabledByGroup {
-    let mut filtered = EnabledByGroup {
-        docs: groups.docs.into_iter().filter(|n| catalog.contains(n)).collect(),
-        global: groups.global.into_iter().filter(|n| catalog.contains(n)).collect(),
-    };
+    let mut filtered = groups;
+    for (_, names) in filtered.groups_mut() {
+        names.retain(|n| catalog.contains(n));
+    }
     sort_groups(&mut filtered);
     filtered
 }
 
 pub fn groups_to_flat(groups: &EnabledByGroup) -> HashSet<String> {
     groups
-        .docs
-        .iter()
-        .chain(groups.global.iter())
-        .cloned()
+        .groups()
+        .into_iter()
+        .flat_map(|(_, names)| names.iter().cloned())
         .collect()
 }
 

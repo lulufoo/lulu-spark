@@ -1,8 +1,9 @@
 //! Per-channel MCP tool allowlist (`/mcp/spark`, `/mcp/cursor`, `/mcp/codex`,
 //! `/mcp/claude`, `/mcp/mobile`). `cursor_ide` is a legacy alias of `cursor`.
 //!
-//! Persists nested `{ channel: { docs: [], global: [] } }`.
-//! Legacy flat arrays and the older `notes` / `knowledge` groups are migrated on read.
+//! Persists nested `{ channel: { global: [], workspace: [], project: [], document: [], read_later: [] } }`.
+//! Legacy flat arrays and the older `docs` group (workspace, project and document tools in one
+//! list) are re-sorted into the five groups on read; nothing is lost and nothing is added.
 //! UI commands still accept/return flat enabled lists.
 //! Retired tool names (`create_note`, `search_notes`, ...) rewrite to their replacement.
 //! Tools a channel does not expose (per the tool's own `build`) are never enabled there;
@@ -44,9 +45,54 @@ static LOCK: Mutex<()> = Mutex::new(());
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct EnabledByGroup {
     #[serde(default)]
-    pub docs: Vec<String>,
-    #[serde(default)]
     pub global: Vec<String>,
+    #[serde(default)]
+    pub workspace: Vec<String>,
+    #[serde(default)]
+    pub project: Vec<String>,
+    #[serde(default)]
+    pub document: Vec<String>,
+    #[serde(default)]
+    pub read_later: Vec<String>,
+}
+
+/// Group ids that may appear in a saved entry. `docs` is the pre-split group.
+const SAVED_GROUP_KEYS: &[&str] = &[
+    "docs",
+    "global",
+    "workspace",
+    "project",
+    "document",
+    "read_later",
+];
+
+impl EnabledByGroup {
+    /// `(group id, names)` for the five groups, in Settings order.
+    pub fn groups(&self) -> [(&'static str, &Vec<String>); 5] {
+        [
+            ("global", &self.global),
+            ("workspace", &self.workspace),
+            ("project", &self.project),
+            ("document", &self.document),
+            ("read_later", &self.read_later),
+        ]
+    }
+
+    pub fn groups_mut(&mut self) -> [(&'static str, &mut Vec<String>); 5] {
+        [
+            ("global", &mut self.global),
+            ("workspace", &mut self.workspace),
+            ("project", &mut self.project),
+            ("document", &mut self.document),
+            ("read_later", &mut self.read_later),
+        ]
+    }
+
+    pub fn push(&mut self, group: &str, name: String) {
+        if let Some((_, list)) = self.groups_mut().into_iter().find(|(id, _)| *id == group) {
+            list.push(name);
+        }
+    }
 }
 
 #[derive(Debug, Default, Clone)]
@@ -86,11 +132,11 @@ fn apply_channel_tool_policy(channel: &str, mut names: HashSet<String>) -> HashS
 
 fn apply_group_policy(channel: &str, mut groups: EnabledByGroup) -> EnabledByGroup {
     if channel != "spark" {
-        groups
-            .docs
-            .retain(|name| !SPARK_ONLY_TOOLS.contains(&name.as_str()));
+        for (_, names) in groups.groups_mut() {
+            names.retain(|name| !SPARK_ONLY_TOOLS.contains(&name.as_str()));
+        }
     }
-    for names in [&mut groups.docs, &mut groups.global] {
+    for (_, names) in groups.groups_mut() {
         names.retain(|name| !hidden_on_channel(channel, name));
     }
     sort_enabled_groups(&mut groups);
@@ -115,11 +161,10 @@ fn normalize_channel_entry(value: &Value, catalog: &HashSet<String>) -> EnabledB
             .map(|list| list.iter().filter_map(|v| v.as_str().map(str::to_string)).collect())
             .unwrap_or_default()
     };
-    let groups = EnabledByGroup {
-        docs: names("docs"),
-        global: names("global"),
-    };
-    filter_groups(groups, catalog)
+    // A saved entry may still list workspace/project/document tools under the old `docs` key, so
+    // every tool is placed again by the group it belongs to now.
+    let saved: Vec<String> = SAVED_GROUP_KEYS.iter().flat_map(|key| names(key)).collect();
+    classify_flat(saved, catalog)
 }
 
 fn store_path() -> Result<std::path::PathBuf, String> {
@@ -233,8 +278,11 @@ pub fn snapshot() -> Result<Value, String> {
         enabled_grouped.insert(
             (*channel).to_string(),
             json!({
-                "docs": grouped.docs,
                 "global": grouped.global,
+                "workspace": grouped.workspace,
+                "project": grouped.project,
+                "document": grouped.document,
+                "read_later": grouped.read_later,
             }),
         );
     }
@@ -245,8 +293,11 @@ pub fn snapshot() -> Result<Value, String> {
             json!({
                 "id": id,
                 "label": match *id {
-                    "docs" => "Documents",
                     "global" => "Global",
+                    "workspace" => "Workspace",
+                    "project" => "Project",
+                    "document" => "Document",
+                    "read_later" => "Read Later",
                     other => other,
                 },
                 "tools": tools.iter().map(|tool| json!({

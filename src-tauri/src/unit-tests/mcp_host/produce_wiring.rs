@@ -5,10 +5,11 @@ use serde_json::{json, Value};
 
 use crate::commands::write::create_note_json;
 use crate::config::paths;
-use crate::mcp_host::catalog::groups::docs::{
-    self, create_doc_from_content, create_doc_from_source, produce_create_doc_if_ok,
+use crate::mcp_host::catalog::groups::document::{
+    create_doc_from_content, create_doc_from_source, produce_create_doc_if_ok,
     produce_update_doc_if_ok, update_doc_from_content, update_doc_from_source,
 };
+use crate::mcp_host::catalog::{build, group_for_migrated_api};
 use crate::services::message_center::last_changed_envelope;
 use crate::services::docs::create_jot;
 use crate::test_support::TestSandbox;
@@ -69,7 +70,8 @@ fn occupy_message_center_path_as_dir() {
 }
 
 fn invoke_notes(name: &str, args: Value) -> Value {
-    (docs::build(name, "spark").expect(name).invoke)(&args)
+    let group = group_for_migrated_api(name).expect(name);
+    (build(group, name, "spark").expect(name).invoke)(&args)
 }
 
 fn assert_note_ok(value: &Value) {
@@ -237,7 +239,9 @@ fn update_doc_from_content_success_adds_notes_record() {
 #[test]
 fn other_note_and_tauri_writes_are_not_wired() {
     let mut files = Vec::new();
-    collect_rs_files(&src("mcp_host/catalog/groups/docs"), &mut files);
+    for group in ["global", "workspace", "project", "document", "read_later"] {
+        collect_rs_files(&src(&format!("mcp_host/catalog/groups/{group}")), &mut files);
+    }
     for path in files {
         let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
         if name == "create_doc.rs" || name == "update_doc.rs" {

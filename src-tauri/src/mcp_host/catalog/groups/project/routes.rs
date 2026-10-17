@@ -1,11 +1,6 @@
-//! MCP APIs for projects: `list_projects`, `create_project`, `update_project`.
-//!
-//! There is no delete, disable or enable tool: a project is disabled and enabled by a person in
-//! Settings only.
-
 use serde_json::json;
 
-use super::schema::workspace_property;
+use super::super::schema::workspace_property;
 use crate::mcp_host::catalog::route_util::{object_schema, route};
 use crate::mcp_host::ToolRoute;
 use crate::services::docs;
