@@ -1,0 +1,151 @@
+/**
+ * Built-in icons, copied from lulu-board (packages/drawer-app/skill-assets/icons.json for the
+ * names and categories, packages/board/item/icon-paths.json for the drawing) on 2026-10-17.
+ *
+ * Each icon has a frozen 6-character id: the 2-digit category code plus 4 random [a-z0-9].
+ * The ids were generated once at copy time. Never regenerate or renumber them: they are stored
+ * in the database. 24x24 outline style, drawn with stroke="currentColor" (see icon.tsx).
+ *
+ * This file is data. Add an icon by appending an entry with a new id; do not edit existing ids.
+ */
+
+export type IconCategory = {
+  /** Two-digit category code, also the first two characters of every icon id in it. */
+  code: string;
+  name: string;
+  /** Whether the settings icon picker lists this category. The icons stay usable either way. */
+  picker: boolean;
+};
+
+export type IconDef = {
+  id: string;
+  name: string;
+  /** Code of the category the icon belongs to. */
+  category: string;
+  /** SVG child elements (path, circle, rect, ...) for a 24x24 viewBox. */
+  body: string;
+};
+
+export const ICON_CATEGORIES: readonly IconCategory[] = [
+  { code: "00", name: "Shapes", picker: true },
+  { code: "01", name: "Process", picker: true },
+  { code: "02", name: "People", picker: true },
+  { code: "03", name: "Content", picker: true },
+  { code: "04", name: "Tech", picker: true },
+  { code: "05", name: "Marks", picker: true },
+  { code: "06", name: "Directions", picker: false },
+];
+
+export const ICONS: readonly IconDef[] = [
+  // 00 Shapes
+  { id: "00yocd", name: "Circle", category: "00", body: "<circle cx=\"12\" cy=\"12\" r=\"10\"/>" },
+  { id: "00j2ti", name: "Square", category: "00", body: "<rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\"/>" },
+  { id: "00uq7r", name: "Triangle", category: "00", body: "<path d=\"M13.73 4a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z\"/>" },
+  { id: "00ite7", name: "Hexagon", category: "00", body: "<path d=\"M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z\"/>" },
+  { id: "00fv0z", name: "Arrow", category: "00", body: "<path d=\"M5 12h14\"/><path d=\"m12 5 7 7-7 7\"/>" },
+  { id: "008zd3", name: "Plus", category: "00", body: "<path d=\"M5 12h14\"/><path d=\"M12 5v14\"/>" },
+  { id: "00i50y", name: "Minus", category: "00", body: "<path d=\"M5 12h14\"/>" },
+  { id: "009c1a", name: "Dot", category: "00", body: "<circle cx=\"12\" cy=\"12\" r=\"2.5\"/>" },
+  { id: "00i4t8", name: "Cloud", category: "00", body: "<path d=\"M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z\"/>" },
+  { id: "00d3l9", name: "Diamond", category: "00", body: "<path d=\"M2.7 10.3a2.41 2.41 0 0 0 0 3.41l7.59 7.59a2.41 2.41 0 0 0 3.41 0l7.59-7.59a2.41 2.41 0 0 0 0-3.41l-7.59-7.59a2.41 2.41 0 0 0-3.41 0Z\"/>" },
+  { id: "00p6g8", name: "Circle Plus", category: "00", body: "<circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M8 12h8\"/><path d=\"M12 8v8\"/>" },
+  { id: "00mzgl", name: "Circle Minus", category: "00", body: "<circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M8 12h8\"/>" },
+  { id: "0091xv", name: "Circle X", category: "00", body: "<circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"m15 9-6 6\"/><path d=\"m9 9 6 6\"/>" },
+  { id: "00mxrc", name: "Circle Check", category: "00", body: "<circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"m16 9-5.5 5.5L8 12\"/>" },
+  { id: "00p83n", name: "Square Plus", category: "00", body: "<rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\"/><path d=\"M8 12h8\"/><path d=\"M12 8v8\"/>" },
+  { id: "00084s", name: "Square Minus", category: "00", body: "<rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\"/><path d=\"M8 12h8\"/>" },
+  { id: "005rdk", name: "Square X", category: "00", body: "<rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\" ry=\"2\"/><path d=\"m15 9-6 6\"/><path d=\"m9 9 6 6\"/>" },
+  { id: "00ar8a", name: "Square Check", category: "00", body: "<rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\"/><path d=\"m16 9-5.5 5.5L8 12\"/>" },
+  // 01 Process
+  { id: "01rj7w", name: "Steps", category: "01", body: "<rect width=\"8\" height=\"8\" x=\"3\" y=\"3\" rx=\"2\"/><path d=\"M7 11v4a2 2 0 0 0 2 2h4\"/><rect width=\"8\" height=\"8\" x=\"13\" y=\"13\" rx=\"2\"/>" },
+  { id: "01d8m9", name: "Pause", category: "01", body: "<rect x=\"14\" y=\"3\" width=\"5\" height=\"18\" rx=\"1\"/><rect x=\"5\" y=\"3\" width=\"5\" height=\"18\" rx=\"1\"/>" },
+  { id: "01c5f4", name: "Play", category: "01", body: "<path d=\"M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z\"/>" },
+  { id: "015ize", name: "Enter", category: "01", body: "<path d=\"m10 17 5-5-5-5\"/><path d=\"M15 12H3\"/><path d=\"M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4\"/>" },
+  { id: "012dtf", name: "Exit", category: "01", body: "<path d=\"m16 17 5-5-5-5\"/><path d=\"M21 12H9\"/><path d=\"M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4\"/>" },
+  { id: "01ww3p", name: "Upload", category: "01", body: "<path d=\"M12 3v12\"/><path d=\"m17 8-5-5-5 5\"/><path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\"/>" },
+  { id: "01yven", name: "Download", category: "01", body: "<path d=\"M12 15V3\"/><path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\"/><path d=\"m7 10 5 5 5-5\"/>" },
+  { id: "01yoo4", name: "Edit", category: "01", body: "<path d=\"M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z\"/><path d=\"m15 5 4 4\"/>" },
+  { id: "01lctm", name: "Delete", category: "01", body: "<path d=\"M10 11v6\"/><path d=\"M14 11v6\"/><path d=\"M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6\"/><path d=\"M3 6h18\"/><path d=\"M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2\"/>" },
+  { id: "01082q", name: "Circle Play", category: "01", body: "<path d=\"M9 9.003a1 1 0 0 1 1.517-.859l4.997 2.997a1 1 0 0 1 0 1.718l-4.997 2.997A1 1 0 0 1 9 14.996z\"/><circle cx=\"12\" cy=\"12\" r=\"10\"/>" },
+  { id: "01absa", name: "Circle Pause", category: "01", body: "<circle cx=\"12\" cy=\"12\" r=\"10\"/><line x1=\"10\" x2=\"10\" y1=\"15\" y2=\"9\"/><line x1=\"14\" x2=\"14\" y1=\"15\" y2=\"9\"/>" },
+  { id: "01of4w", name: "Skip Back", category: "01", body: "<path d=\"M17.971 4.285A2 2 0 0 1 21 6v12a2 2 0 0 1-3.029 1.715l-9.997-5.998a2 2 0 0 1-.003-3.432z\"/><path d=\"M3 20V4\"/>" },
+  { id: "01x56b", name: "Skip Forward", category: "01", body: "<path d=\"M21 4v16\"/><path d=\"M6.029 4.285A2 2 0 0 0 3 6v12a2 2 0 0 0 3.029 1.715l9.997-5.998a2 2 0 0 0 .003-3.432z\"/>" },
+  { id: "017sna", name: "Save", category: "01", body: "<path d=\"M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z\"/><path d=\"M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7\"/><path d=\"M7 3v4a1 1 0 0 0 1 1h7\"/>" },
+  { id: "01sm40", name: "Copy", category: "01", body: "<rect width=\"14\" height=\"14\" x=\"8\" y=\"8\" rx=\"2\" ry=\"2\"/><path d=\"M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2\"/>" },
+  { id: "01svrz", name: "Clipboard", category: "01", body: "<rect width=\"8\" height=\"4\" x=\"8\" y=\"2\" rx=\"1\" ry=\"1\"/><path d=\"M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2\"/>" },
+  { id: "01qt27", name: "Send", category: "01", body: "<path d=\"M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z\"/><path d=\"m21.854 2.147-10.94 10.939\"/>" },
+  { id: "017886", name: "External Link", category: "01", body: "<path d=\"M15 3h6v6\"/><path d=\"M10 14 21 3\"/><path d=\"M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6\"/>" },
+  { id: "01qk4e", name: "Maximize", category: "01", body: "<path d=\"M15 3h6v6\"/><path d=\"m21 3-7 7\"/><path d=\"m3 21 7-7\"/><path d=\"M9 21H3v-6\"/>" },
+  { id: "010z7i", name: "Scan", category: "01", body: "<path d=\"M3 7V5a2 2 0 0 1 2-2h2\"/><path d=\"M17 3h2a2 2 0 0 1 2 2v2\"/><path d=\"M21 17v2a2 2 0 0 1-2 2h-2\"/><path d=\"M7 21H5a2 2 0 0 1-2-2v-2\"/>" },
+  { id: "01yx5j", name: "Target", category: "01", body: "<circle cx=\"12\" cy=\"12\" r=\"10\"/><circle cx=\"12\" cy=\"12\" r=\"6\"/><circle cx=\"12\" cy=\"12\" r=\"2\"/>" },
+  { id: "01vcco", name: "Route", category: "01", body: "<circle cx=\"6\" cy=\"19\" r=\"3\"/><path d=\"M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15\"/><circle cx=\"18\" cy=\"5\" r=\"3\"/>" },
+  { id: "015829", name: "Sitemap", category: "01", body: "<rect x=\"16\" y=\"16\" width=\"6\" height=\"6\" rx=\"1\"/><rect x=\"2\" y=\"16\" width=\"6\" height=\"6\" rx=\"1\"/><rect x=\"9\" y=\"2\" width=\"6\" height=\"6\" rx=\"1\"/><path d=\"M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3\"/><path d=\"M12 12V8\"/>" },
+  { id: "01xru1", name: "Layers", category: "01", body: "<path d=\"M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z\"/><path d=\"M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12\"/><path d=\"M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17\"/>" },
+  // 02 People
+  { id: "02mgrc", name: "Person", category: "02", body: "<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><circle cx=\"12\" cy=\"7\" r=\"4\"/>" },
+  { id: "022pmp", name: "Team", category: "02", body: "<path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\"/><path d=\"M16 3.128a4 4 0 0 1 0 7.744\"/><path d=\"M22 21v-2a4 4 0 0 0-3-3.87\"/><circle cx=\"9\" cy=\"7\" r=\"4\"/>" },
+  { id: "02axh1", name: "Invite", category: "02", body: "<path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\"/><circle cx=\"9\" cy=\"7\" r=\"4\"/><line x1=\"19\" x2=\"19\" y1=\"8\" y2=\"14\"/><line x1=\"22\" x2=\"16\" y1=\"11\" y2=\"11\"/>" },
+  { id: "02vmun", name: "Home", category: "02", body: "<path d=\"M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8\"/><path d=\"M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z\"/>" },
+  { id: "02ex4l", name: "Message", category: "02", body: "<path d=\"M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z\"/>" },
+  { id: "02ypqb", name: "Message Plus", category: "02", body: "<path d=\"M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z\"/><path d=\"M12 8v6\"/><path d=\"M9 11h6\"/>" },
+  { id: "02r9i3", name: "Mail", category: "02", body: "<path d=\"m22 7-8.991 5.727a2 2 0 0 1-2.009 0L2 7\"/><rect x=\"2\" y=\"4\" width=\"20\" height=\"16\" rx=\"2\"/>" },
+  { id: "02ljyb", name: "Inbox", category: "02", body: "<polyline points=\"22 12 16 12 14 15 10 15 8 12 2 12\"/><path d=\"M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z\"/>" },
+  { id: "02am2z", name: "Share", category: "02", body: "<circle cx=\"18\" cy=\"5\" r=\"3\"/><circle cx=\"6\" cy=\"12\" r=\"3\"/><circle cx=\"18\" cy=\"19\" r=\"3\"/><line x1=\"8.59\" x2=\"15.42\" y1=\"13.51\" y2=\"17.49\"/><line x1=\"15.41\" x2=\"8.59\" y1=\"6.51\" y2=\"10.49\"/>" },
+  { id: "027wqu", name: "At Sign", category: "02", body: "<circle cx=\"12\" cy=\"12\" r=\"4\"/><path d=\"M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-4 8\"/>" },
+  { id: "02tgbn", name: "Globe", category: "02", body: "<circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20\"/><path d=\"M2 12h20\"/>" },
+  // 03 Content
+  { id: "03vxh3", name: "Document", category: "03", body: "<path d=\"M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z\"/><path d=\"M14 2v5a1 1 0 0 0 1 1h5\"/><path d=\"M10 9H8\"/><path d=\"M16 13H8\"/><path d=\"M16 17H8\"/>" },
+  { id: "03t947", name: "Folder", category: "03", body: "<path d=\"M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z\"/>" },
+  { id: "03icw4", name: "List", category: "03", body: "<path d=\"M3 5h.01\"/><path d=\"M3 12h.01\"/><path d=\"M3 19h.01\"/><path d=\"M8 5h13\"/><path d=\"M8 12h13\"/><path d=\"M8 19h13\"/>" },
+  { id: "037u1l", name: "Book", category: "03", body: "<path d=\"M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20\"/>" },
+  { id: "03j9l3", name: "Image", category: "03", body: "<rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\" ry=\"2\"/><circle cx=\"9\" cy=\"9\" r=\"2\"/><path d=\"m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21\"/>" },
+  { id: "03hose", name: "Table", category: "03", body: "<path d=\"M12 3v18\"/><rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\"/><path d=\"M3 9h18\"/><path d=\"M3 15h18\"/>" },
+  { id: "03iq1u", name: "Box", category: "03", body: "<path d=\"M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z\"/><path d=\"m3.3 7 8.7 5 8.7-5\"/><path d=\"M12 22V12\"/>" },
+  // 04 Tech
+  { id: "0471qn", name: "Loop", category: "04", body: "<path d=\"m17 2 4 4-4 4\"/><path d=\"M3 11v-1a4 4 0 0 1 4-4h14\"/><path d=\"m7 22-4-4 4-4\"/><path d=\"M21 13v1a4 4 0 0 1-4 4H3\"/>" },
+  { id: "04h2fo", name: "Git", category: "04", body: "<path d=\"M15 6a9 9 0 0 0-9 9V3\"/><circle cx=\"18\" cy=\"6\" r=\"3\"/><circle cx=\"6\" cy=\"18\" r=\"3\"/>" },
+  { id: "042mxd", name: "Server", category: "04", body: "<rect width=\"20\" height=\"8\" x=\"2\" y=\"2\" rx=\"2\" ry=\"2\"/><rect width=\"20\" height=\"8\" x=\"2\" y=\"14\" rx=\"2\" ry=\"2\"/><line x1=\"6\" x2=\"6.01\" y1=\"6\" y2=\"6\"/><line x1=\"6\" x2=\"6.01\" y1=\"18\" y2=\"18\"/>" },
+  { id: "04nugw", name: "Database", category: "04", body: "<ellipse cx=\"12\" cy=\"5\" rx=\"9\" ry=\"3\"/><path d=\"M3 5V19A9 3 0 0 0 21 19V5\"/><path d=\"M3 12A9 3 0 0 0 21 12\"/>" },
+  { id: "041d7h", name: "Code", category: "04", body: "<path d=\"m16 18 6-6-6-6\"/><path d=\"m8 6-6 6 6 6\"/>" },
+  { id: "044jq5", name: "Terminal", category: "04", body: "<path d=\"M12 19h8\"/><path d=\"m4 17 6-6-6-6\"/>" },
+  { id: "04l4d8", name: "Agent", category: "04", body: "<path d=\"M12 8V4H8\"/><rect width=\"16\" height=\"12\" x=\"4\" y=\"8\" rx=\"2\"/><path d=\"M2 14h2\"/><path d=\"M20 14h2\"/><path d=\"M15 13v2\"/><path d=\"M9 13v2\"/>" },
+  { id: "04oyob", name: "Tool Call", category: "04", body: "<path d=\"m10 9-3 3 3 3\"/><path d=\"m14 15 3-3-3-3\"/><rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\"/>" },
+  { id: "04zbou", name: "Token", category: "04", body: "<path d=\"M13.744 17.736a6 6 0 1 1-7.48-7.48\"/><path d=\"M15 6h1v4\"/><path d=\"m6.134 14.768.866-.5 2 3.464\"/><circle cx=\"16\" cy=\"8\" r=\"6\"/>" },
+  { id: "049158", name: "Sparkle", category: "04", body: "<path d=\"M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z\"/><path d=\"M20 2v4\"/><path d=\"M22 4h-4\"/><circle cx=\"4\" cy=\"20\" r=\"2\"/>" },
+  { id: "04gif4", name: "Tool", category: "04", body: "<path d=\"M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.106-3.105c.32-.322.863-.22.983.218a6 6 0 0 1-8.259 7.057l-7.91 7.91a1 1 0 0 1-2.999-3l7.91-7.91a6 6 0 0 1 7.057-8.259c.438.12.54.662.219.984z\"/>" },
+  { id: "04cm2b", name: "Zap", category: "04", body: "<path d=\"M15.914 4a1.5 1.5 0 00-2.474-1.561l-9 9A1.5 1.5 0 005.5 14h4.002a.5.5 0 01.471.666L8.086 20a1.5 1.5 0 002.475 1.56l9-9A1.5 1.5 0 0018.5 10h-3.997a.5.5 0 01-.472-.667z\"/>" },
+  // 05 Marks
+  { id: "05kzen", name: "Correct", category: "05", body: "<path d=\"M20 6 9 17l-5-5\"/>" },
+  { id: "05wx8i", name: "Wrong", category: "05", body: "<path d=\"M18 6 6 18\"/><path d=\"m6 6 12 12\"/>" },
+  { id: "056ec5", name: "Warn", category: "05", body: "<path d=\"m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3\"/><path d=\"M12 9v4\"/><path d=\"M12 17h.01\"/>" },
+  { id: "057lln", name: "Info", category: "05", body: "<circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M12 16v-4\"/><path d=\"M12 8h.01\"/>" },
+  { id: "05qycq", name: "Question", category: "05", body: "<circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3\"/><path d=\"M12 17h.01\"/>" },
+  { id: "05w1yb", name: "Star", category: "05", body: "<path d=\"M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z\"/>" },
+  { id: "052gwj", name: "Flag", category: "05", body: "<path d=\"M4 22V4a1 1 0 0 1 .4-.8A6 6 0 0 1 8 2c3 0 5 2 7.333 2q2 0 3.067-.8A1 1 0 0 1 20 4v10a1 1 0 0 1-.4.8A6 6 0 0 1 16 16c-3 0-5-2-8-2a6 6 0 0 0-4 1.528\"/>" },
+  { id: "05wtj2", name: "Clock", category: "05", body: "<circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M12 6v6l4 2\"/>" },
+  { id: "0506rl", name: "Search", category: "05", body: "<path d=\"m21 21-4.34-4.34\"/><circle cx=\"11\" cy=\"11\" r=\"8\"/>" },
+  { id: "05363y", name: "Bell", category: "05", body: "<path d=\"M10.268 21a2 2 0 0 0 3.464 0\"/><path d=\"M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326\"/>" },
+  { id: "058bfh", name: "Link", category: "05", body: "<path d=\"M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71\"/><path d=\"M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71\"/>" },
+  { id: "05e27j", name: "Lock", category: "05", body: "<rect width=\"18\" height=\"11\" x=\"3\" y=\"11\" rx=\"2\" ry=\"2\"/><path d=\"M7 11V7a5 5 0 0 1 10 0v4\"/>" },
+  { id: "0504dl", name: "Key", category: "05", body: "<path d=\"m2 21 9.6-9.6\"/><path d=\"m7.5 15.5 2.3 2.3a1 1 0 0 1 0 1.4l-2.1 2.1a1 1 0 0 1-1.4 0L4 19\"/><circle cx=\"15.5\" cy=\"7.5\" r=\"5.5\"/>" },
+  { id: "05ucc1", name: "Funnel", category: "05", body: "<path d=\"M10 20a1 1 0 0 0 .553.895l2 1A1 1 0 0 0 14 21v-7a2 2 0 0 1 .517-1.341L21.74 4.67A1 1 0 0 0 21 3H3a1 1 0 0 0-.742 1.67l7.225 7.989A2 2 0 0 1 10 14z\"/>" },
+  { id: "05vdkv", name: "Tag", category: "05", body: "<path d=\"M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z\"/><circle cx=\"7.5\" cy=\"7.5\" r=\".5\" fill=\"currentColor\"/>" },
+  { id: "05nr8w", name: "Refresh", category: "05", body: "<path d=\"M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8\"/><path d=\"M21 3v5h-5\"/><path d=\"M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16\"/><path d=\"M8 16H3v5\"/>" },
+  { id: "05ns4v", name: "Sliders", category: "05", body: "<path d=\"M10 5H3\"/><path d=\"M12 19H3\"/><path d=\"M14 3v4\"/><path d=\"M16 17v4\"/><path d=\"M21 12h-9\"/><path d=\"M21 19h-5\"/><path d=\"M21 5h-7\"/><path d=\"M8 10v4\"/><path d=\"M8 12H3\"/>" },
+  // 06 Directions
+  { id: "06d0eu", name: "Arrow Up", category: "06", body: "<path d=\"m5 12 7-7 7 7\"/><path d=\"M12 19V5\"/>" },
+  { id: "06j089", name: "Arrow Down", category: "06", body: "<path d=\"M12 5v14\"/><path d=\"m19 12-7 7-7-7\"/>" },
+  { id: "06wgp6", name: "Arrow Left", category: "06", body: "<path d=\"m12 19-7-7 7-7\"/><path d=\"M19 12H5\"/>" },
+  { id: "06f8jx", name: "Arrow Up Left", category: "06", body: "<path d=\"M7 17V7h10\"/><path d=\"M17 17 7 7\"/>" },
+  { id: "06gyxt", name: "Arrow Up Right", category: "06", body: "<path d=\"M7 7h10v10\"/><path d=\"M7 17 17 7\"/>" },
+  { id: "06o39e", name: "Arrow Down Left", category: "06", body: "<path d=\"M17 7 7 17\"/><path d=\"M17 17H7V7\"/>" },
+  { id: "06ea1f", name: "Arrow Down Right", category: "06", body: "<path d=\"m7 7 10 10\"/><path d=\"M17 7v10H7\"/>" },
+  { id: "06ovyz", name: "Chevron Up", category: "06", body: "<path d=\"m18 15-6-6-6 6\"/>" },
+  { id: "06ofab", name: "Chevron Down", category: "06", body: "<path d=\"m6 9 6 6 6-6\"/>" },
+  { id: "068117", name: "Chevron Left", category: "06", body: "<path d=\"m15 18-6-6 6-6\"/>" },
+  { id: "06wxky", name: "Chevron Right", category: "06", body: "<path d=\"m9 18 6-6-6-6\"/>" },
+  { id: "06glb2", name: "Corner Down Left", category: "06", body: "<path d=\"M20 4v7a4 4 0 0 1-4 4H4\"/><path d=\"m9 10-5 5 5 5\"/>" },
+  { id: "06ira4", name: "Swap", category: "06", body: "<path d=\"M8 3 4 7l4 4\"/><path d=\"M4 7h16\"/><path d=\"m16 21 4-4-4-4\"/><path d=\"M20 17H4\"/>" },
+  { id: "06b2rp", name: "Undo", category: "06", body: "<path d=\"M9 14 4 9l5-5\"/><path d=\"M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11\"/>" },
+  { id: "06c30s", name: "Redo", category: "06", body: "<path d=\"m15 14 5-5-5-5\"/><path d=\"M20 9H9.5A5.5 5.5 0 0 0 4 14.5A5.5 5.5 0 0 0 9.5 20H13\"/>" },
+];
