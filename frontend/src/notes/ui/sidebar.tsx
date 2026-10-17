@@ -22,7 +22,7 @@ function _renderTopicFilter(parent: HTMLElement) {
   if (allEntries.length === 0) return;
   const topicCounts: Record<string, number> = {};
   for (const entry of allEntries) {
-    const topic = entry.folder || 'unknown';
+    const topic = entry.project_id || 'unknown';
     topicCounts[topic] = (topicCounts[topic] || 0) + 1;
   }
   const total = allEntries.length;
@@ -45,7 +45,7 @@ function _renderTopicFilter(parent: HTMLElement) {
     options.push({
       value: 'unknown',
       label: `unknown (${topicCounts['unknown']})`,
-      title: 'Entries with no category folder',
+      title: 'Entries with no project',
     });
   }
 

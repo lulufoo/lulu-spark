@@ -191,7 +191,7 @@ describe('T6 behavioral: main-layer open (spark-search hits + card title)', () =
 
   it('card title click emits cta:open-entry with main layer raw (layer badges removed)', () => {
     const entry = {
-      folder: 'inbox',
+      project_id: 'inbox',
       created_at: '202607191200',
       layers: ['raw', 'digest'],
     };
@@ -212,7 +212,7 @@ describe('T6 behavioral: main-layer open (spark-search hits + card title)', () =
 
   it('digest-only entry: title click emits cta:open-entry falling back to layer digest', () => {
     const entry = {
-      folder: 'inbox',
+      project_id: 'inbox',
       created_at: '202607191300',
       layers: ['digest'],
     };

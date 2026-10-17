@@ -29,7 +29,7 @@ const { applyViewModeChange } = await import('../../frontend/src/notes/commands/
 const { DirTree } = await import('../../frontend/src/notes/ui/dir-tree.tsx');
 const { entryGroupKey } = await import('../../frontend/src/notes/commands/workspace.ts');
 
-const doc = (folder, raw_path, extra = {}) => ({ folder, raw_path, ...extra });
+const doc = (project_id, raw_path, extra = {}) => ({ project_id, raw_path, ...extra });
 
 const data = {
   a: doc('android', 'arch/build/builder/detekt.md', { created_at: '202604011200' }),
@@ -173,7 +173,7 @@ describe('entering from Home', () => {
     load();
     selectProject('ai');
     expect(state.ui.activeTopic).toBe('ai');
-    expect(state.index.filteredGroups.every((g) => g.entries.every(({ entry }) => entry.folder === 'ai'))).toBe(true);
+    expect(state.index.filteredGroups.every((g) => g.entries.every(({ entry }) => entry.project_id === 'ai'))).toBe(true);
     selectDefaultProject();
     expect(state.ui.activeTopic).toBeNull();
     expect(state.index.filteredGroups).toBe(state.index.groupedByDate);
@@ -200,7 +200,7 @@ describe('switching the view mode keeps the selected project', () => {
     expect(state.ui.activeTopic).toBe('android');
     expect(state.index.filteredGroups.every((g) => !g.date.startsWith('dir:'))).toBe(true);
     for (const g of state.index.filteredGroups) {
-      expect(g.entries.every(({ entry }) => entry.folder === 'android')).toBe(true);
+      expect(g.entries.every(({ entry }) => entry.project_id === 'android')).toBe(true);
     }
   });
 

@@ -9,7 +9,7 @@ use crate::services::archive_parse::expected_lang_common_path;
 
 use super::doc_id::split_doc_id;
 use super::doc_row::{get_doc, list_docs, DocRow};
-use super::project_row::{get_project, list_all_projects};
+use super::project_row::list_all_projects;
 use super::workspace_row::{get_workspace, list_all_workspaces, WorkspaceRow};
 
 /// A document together with the workspace whose table holds it.
@@ -38,13 +38,6 @@ pub fn find_doc(conn: &Connection, id: &str) -> Result<Option<FoundDoc>, String>
     Ok(None)
 }
 
-/// Folder of the project `project_id`; the folder is the middle path segment on disk.
-pub fn project_folder(conn: &Connection, project_id: &str) -> Result<String, String> {
-    get_project(conn, project_id)?
-        .map(|project| project.folder)
-        .ok_or_else(|| format!("project {project_id} missing"))
-}
-
 /// `translations` is stored as a language list; each path is derived from `raw_path`.
 pub fn translation_common_paths(doc: &DocRow) -> Result<Vec<(String, String)>, String> {
     let langs = doc.translations.as_array().cloned().unwrap_or_default();
@@ -59,15 +52,13 @@ pub fn translation_common_paths(doc: &DocRow) -> Result<Vec<(String, String)>, S
         .collect()
 }
 
-/// `{id, workspace, project_id, folder, raw_path, created_at, layers, source_type, translations?, title?}`.
-/// `folder` is the project's folder; `raw_path` is relative to it and keeps the original
-/// directory structure (the directory view is built from it).
-pub fn entry_from_doc(doc: &DocRow, workspace_id: &str, folder: &str) -> Result<Value, String> {
+/// `{id, workspace, project_id, raw_path, created_at, layers, source_type, translations?, title?}`.
+/// `raw_path` is the document-internal path and keeps the original directory structure.
+pub fn entry_from_doc(doc: &DocRow, workspace_id: &str) -> Result<Value, String> {
     let mut entry = Map::new();
     entry.insert("id".into(), json!(doc.doc_id));
     entry.insert("workspace".into(), json!(workspace_id));
     entry.insert("project_id".into(), json!(doc.project_id));
-    entry.insert("folder".into(), json!(folder));
     entry.insert("raw_path".into(), json!(doc.raw_path));
     entry.insert(
         "layers".into(),
@@ -97,18 +88,18 @@ pub fn list_doc_entries(conn: &Connection, workspace: &WorkspaceRow) -> Result<M
     if workspace.disabled_at.is_some() {
         return Ok(entries);
     }
-    let projects: HashMap<String, (String, bool)> = list_all_projects(conn, &workspace.id)?
+    let projects: HashMap<String, bool> = list_all_projects(conn, &workspace.id)?
         .into_iter()
-        .map(|p| (p.id, (p.folder, p.disabled_at.is_some())))
+        .map(|p| (p.id, p.disabled_at.is_some()))
         .collect();
     for doc in list_docs(conn, &workspace.doc_table)? {
-        let Some((folder, disabled)) = projects.get(&doc.project_id) else {
+        let Some(disabled) = projects.get(&doc.project_id) else {
             return Err(format!("project {} missing", doc.project_id));
         };
         if *disabled {
             continue;
         }
-        entries.insert(doc.doc_id.clone(), entry_from_doc(&doc, &workspace.id, folder)?);
+        entries.insert(doc.doc_id.clone(), entry_from_doc(&doc, &workspace.id)?);
     }
     Ok(entries)
 }

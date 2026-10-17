@@ -137,7 +137,7 @@ fn discard_drops_a_fresh_workspace_without_documents_and_refuses_one_with_docume
     let (_dir, path) = temp_db();
     let conn = open_at(&path).expect("open");
     let made = create_workspace(&conn, "Temp", None).expect("create");
-    insert_project(&conn, &ProjectRow::new("p1", &made.id, "notes", "Notes", "")).expect("project");
+    insert_project(&conn, &ProjectRow::new("p1", &made.id, "Notes", "")).expect("project");
     insert_doc(&conn, &made.doc_table, "d1", "p1").expect("doc");
     assert!(discard_new_workspace(&conn, &made.id).is_err(), "has a document");
     assert!(table_exists(&conn, &made.doc_table));
@@ -156,7 +156,7 @@ fn disable_hides_a_workspace_keeps_its_data_and_enable_brings_it_back() {
     let (_dir, path) = temp_db();
     let conn = open_at(&path).expect("open");
     let made = create_workspace(&conn, "Temp", None).expect("create");
-    insert_project(&conn, &ProjectRow::new("p1", &made.id, "notes", "Notes", "")).expect("project");
+    insert_project(&conn, &ProjectRow::new("p1", &made.id, "Notes", "")).expect("project");
     insert_doc(&conn, &made.doc_table, "d1", "p1").expect("doc");
     assert!(made.disabled_at.is_none());
 
@@ -243,33 +243,30 @@ fn projects_are_unique_per_workspace_and_need_a_real_workspace() {
     let conn = open_at(&path).expect("open");
     // A fresh database already carries the migrated `inbox` note category in `default`.
     let before = list_projects(&conn, "default").expect("list").len();
-    insert_project(&conn, &ProjectRow::new("p1", "default", "work", "Work", "")).expect("p1");
+    insert_project(&conn, &ProjectRow::new("p1", "default", "Work", "")).expect("p1");
+    insert_project(&conn, &ProjectRow::new("p2", "default", "Again", "")).expect("second project of the same workspace");
+    insert_project(&conn, &ProjectRow::new("p3", "knowledge", "Work", "")).expect("same title elsewhere");
     assert!(
-        insert_project(&conn, &ProjectRow::new("p2", "default", "work", "Again", "")).is_err(),
-        "UNIQUE(workspace_id, folder)"
-    );
-    insert_project(&conn, &ProjectRow::new("p3", "knowledge", "work", "Work", "")).expect("same folder elsewhere");
-    assert!(
-        insert_project(&conn, &ProjectRow::new("p4", "nope", "x", "X", "")).is_err(),
+        insert_project(&conn, &ProjectRow::new("p4", "nope", "X", "")).is_err(),
         "FK to workspace"
     );
 
-    let found = get_project_by_folder(&conn, "knowledge", "work").expect("get").expect("row");
+    let found = get_project(&conn, "p3").expect("get").expect("row");
     assert_eq!(found.id, "p3");
     let mut changed = found.clone();
     changed.title = "Renamed".into();
     changed.description = "分组：AI".into();
     assert!(update_project(&conn, &changed).expect("update"));
     assert_eq!(get_project(&conn, "p3").expect("get"), Some(changed));
-    assert_eq!(list_projects(&conn, "default").expect("list").len(), before + 1);
-    assert!(!update_project(&conn, &ProjectRow::new("none", "default", "f", "F", "")).expect("missing"));
+    assert_eq!(list_projects(&conn, "default").expect("list").len(), before + 2);
+    assert!(!update_project(&conn, &ProjectRow::new("none", "default", "F", "")).expect("missing"));
 }
 
 #[test]
 fn doc_tables_need_a_real_project_and_block_a_raw_delete_of_it() {
     let (_dir, path) = temp_db();
     let conn = open_at(&path).expect("open");
-    insert_project(&conn, &ProjectRow::new("p1", "default", "work", "Work", "")).expect("project");
+    insert_project(&conn, &ProjectRow::new("p1", "default", "Work", "")).expect("project");
     assert!(insert_doc(&conn, "doc_default", "d1", "missing").is_err(), "FK to project");
     insert_doc(&conn, "doc_default", "d1", "p1").expect("doc");
     assert!(insert_doc(&conn, "doc_default", "d1", "p1").is_err(), "primary key");
@@ -285,20 +282,19 @@ fn doc_tables_need_a_real_project_and_block_a_raw_delete_of_it() {
 fn disable_hides_a_project_keeps_it_by_id_and_enable_brings_it_back() {
     let (_dir, path) = temp_db();
     let conn = open_at(&path).expect("open");
-    insert_project(&conn, &ProjectRow::new("p1", "default", "work", "Work", "")).expect("project");
+    insert_project(&conn, &ProjectRow::new("p1", "default", "Work", "")).expect("project");
     insert_doc(&conn, "doc_default", "d1", "p1").expect("doc");
 
     assert!(disable_project(&conn, "p1").expect("disable"), "a project with documents can be disabled");
-    let folders = |rows: Vec<ProjectRow>| rows.into_iter().map(|p| p.folder).collect::<Vec<_>>();
-    assert!(!folders(list_projects(&conn, "default").expect("list")).contains(&"work".to_string()));
-    assert_eq!(folders(list_disabled_projects(&conn, "default").expect("disabled")), vec!["work".to_string()]);
-    assert!(folders(list_all_projects(&conn, "default").expect("all")).contains(&"work".to_string()));
+    let ids = |rows: Vec<ProjectRow>| rows.into_iter().map(|p| p.id).collect::<Vec<_>>();
+    assert!(!ids(list_projects(&conn, "default").expect("list")).contains(&"p1".to_string()));
+    assert_eq!(ids(list_disabled_projects(&conn, "default").expect("disabled")), vec!["p1".to_string()]);
+    assert!(ids(list_all_projects(&conn, "default").expect("all")).contains(&"p1".to_string()));
     let kept = get_project(&conn, "p1").expect("get").expect("row");
     assert!(kept.disabled_at.is_some(), "still found by id");
-    assert_eq!(get_project_by_folder(&conn, "default", "work").expect("by folder").map(|p| p.id), Some("p1".into()));
 
     assert!(enable_project(&conn, "p1").expect("enable"));
-    assert!(folders(list_projects(&conn, "default").expect("list")).contains(&"work".to_string()));
+    assert!(ids(list_projects(&conn, "default").expect("list")).contains(&"p1".to_string()));
     assert!(!disable_project(&conn, "ghost").expect("missing"));
     assert!(!enable_project(&conn, "ghost").expect("missing"));
 }
@@ -317,7 +313,7 @@ fn icons_are_stored_per_workspace_and_project_and_can_be_cleared() {
     assert_eq!(get_workspace(&conn, &made.id).expect("get").expect("row").icon, None);
     assert!(!set_workspace_icon(&conn, "missing", Some("03abcd")).expect("missing"));
 
-    let mut row = ProjectRow::new("pi", &made.id, "work", "Work", "");
+    let mut row = ProjectRow::new("pi", &made.id, "Work", "");
     row.icon = Some("01a1b2".into());
     insert_project(&conn, &row).expect("insert with icon");
     assert_eq!(get_project(&conn, "pi").expect("get").expect("row").icon.as_deref(), Some("01a1b2"));
@@ -330,8 +326,8 @@ fn workspace_ids(conn: &Connection) -> Vec<String> {
     list_workspaces(conn).expect("list").into_iter().map(|w| w.id).collect()
 }
 
-fn project_folders(conn: &Connection, workspace: &str) -> Vec<String> {
-    list_projects(conn, workspace).expect("list").into_iter().map(|p| p.folder).collect()
+fn project_ids(conn: &Connection, workspace: &str) -> Vec<String> {
+    list_projects(conn, workspace).expect("list").into_iter().map(|p| p.id).collect()
 }
 
 fn strings(items: &[&str]) -> Vec<String> {
@@ -350,9 +346,9 @@ fn new_workspaces_and_projects_are_appended_and_the_default_can_move() {
         "appended in creation order, not by name"
     );
 
-    insert_project(&conn, &ProjectRow::new("pz", &zeta.id, "zz", "Zz", "")).expect("pz");
-    insert_project(&conn, &ProjectRow::new("pa", &zeta.id, "aa", "Aa", "")).expect("pa");
-    assert_eq!(project_folders(&conn, &zeta.id), strings(&["zz", "aa"]));
+    insert_project(&conn, &ProjectRow::new("pz", &zeta.id, "Zz", "")).expect("pz");
+    insert_project(&conn, &ProjectRow::new("pa", &zeta.id, "Aa", "")).expect("pa");
+    assert_eq!(project_ids(&conn, &zeta.id), strings(&["pz", "pa"]));
 
     let mut all = workspace_ids(&conn);
     all.rotate_left(1);
@@ -360,8 +356,8 @@ fn new_workspaces_and_projects_are_appended_and_the_default_can_move() {
     assert_eq!(workspace_ids(&conn), all);
     assert_eq!(workspace_ids(&conn).last().map(String::as_str), Some("default"));
 
-    reorder_projects(&conn, &zeta.id, &strings(&["aa", "zz"])).expect("reorder projects");
-    assert_eq!(project_folders(&conn, &zeta.id), strings(&["aa", "zz"]));
+    reorder_projects(&conn, &zeta.id, &strings(&["pa", "pz"])).expect("reorder projects");
+    assert_eq!(project_ids(&conn, &zeta.id), strings(&["pa", "pz"]));
 }
 
 #[test]
@@ -381,12 +377,12 @@ fn a_reorder_must_name_every_entry_once_and_changes_nothing_otherwise() {
         assert_eq!(workspace_ids(&conn), before, "{bad:?} left the order alone");
     }
 
-    insert_project(&conn, &ProjectRow::new("p1", &made.id, "one", "One", "")).expect("p1");
-    insert_project(&conn, &ProjectRow::new("p2", &made.id, "two", "Two", "")).expect("p2");
-    let projects = project_folders(&conn, &made.id);
-    for bad in [strings(&["one"]), strings(&["one", "one", "two"]), strings(&["one", "two", "three"])] {
+    insert_project(&conn, &ProjectRow::new("p1", &made.id, "One", "")).expect("p1");
+    insert_project(&conn, &ProjectRow::new("p2", &made.id, "Two", "")).expect("p2");
+    let projects = project_ids(&conn, &made.id);
+    for bad in [strings(&["p1"]), strings(&["p1", "p1", "p2"]), strings(&["p1", "p2", "ghost"])] {
         assert!(reorder_projects(&conn, &made.id, &bad).is_err(), "{bad:?}");
-        assert_eq!(project_folders(&conn, &made.id), projects);
+        assert_eq!(project_ids(&conn, &made.id), projects);
     }
 }
 
@@ -396,16 +392,16 @@ fn disabled_entries_keep_their_place_and_come_back_to_it() {
     let conn = open_at(&path).expect("open");
     let made = create_workspace(&conn, "Made", None).expect("made");
     for (id, folder) in [("p1", "one"), ("p2", "two"), ("p3", "three")] {
-        insert_project(&conn, &ProjectRow::new(id, &made.id, folder, folder, "")).expect(folder);
+        insert_project(&conn, &ProjectRow::new(id, &made.id, folder, "")).expect(folder);
     }
     assert!(disable_project(&conn, "p2").expect("disable"));
-    assert_eq!(project_folders(&conn, &made.id), strings(&["one", "three"]));
+    assert_eq!(project_ids(&conn, &made.id), strings(&["p1", "p3"]));
 
     // The caller passes every project, the disabled one included, at the position it wants.
-    reorder_projects(&conn, &made.id, &strings(&["three", "two", "one"])).expect("reorder");
-    assert_eq!(project_folders(&conn, &made.id), strings(&["three", "one"]));
+    reorder_projects(&conn, &made.id, &strings(&["p3", "p2", "p1"])).expect("reorder");
+    assert_eq!(project_ids(&conn, &made.id), strings(&["p3", "p1"]));
     assert!(enable_project(&conn, "p2").expect("enable"));
-    assert_eq!(project_folders(&conn, &made.id), strings(&["three", "two", "one"]), "back in place");
+    assert_eq!(project_ids(&conn, &made.id), strings(&["p3", "p2", "p1"]), "back in place");
 
     assert!(disable_workspace(&conn, &made.id).expect("disable workspace"));
     assert!(!workspace_ids(&conn).contains(&made.id));

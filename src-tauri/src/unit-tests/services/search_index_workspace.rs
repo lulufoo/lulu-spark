@@ -48,7 +48,14 @@ fn searching_with_a_workspace_only_hits_that_workspace() {
     let scoped = search_in_cache(&cache, WORD, &only_workspace(&other), 10).expect("scoped");
     assert_eq!(ids(&scoped), vec![in_other.as_str()]);
     assert_eq!(scoped[0].workspace_id, other);
-    assert_eq!(scoped[0].topic, "inbox", "the project folder comes from the registry");
+    let inbox = crate::services::spark_data::get_inbox_project(
+        &crate::services::spark_data::open().expect("db"),
+        &other,
+    )
+    .expect("lookup")
+    .expect("inbox")
+    .id;
+    assert_eq!(scoped[0].topic, inbox, "the project id comes from the registry");
     assert!(scoped[0].common_path.ends_with(".md"));
 
     let default_only = search_in_cache(&cache, WORD, &only_workspace("default"), 10).expect("default");

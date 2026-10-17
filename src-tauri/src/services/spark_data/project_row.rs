@@ -8,7 +8,6 @@ use super::workspace_row::ensure_same_set;
 pub struct ProjectRow {
     pub id: String,
     pub workspace_id: String,
-    pub folder: String,
     pub title: String,
     pub description: String,
     /// `None` = active; a timestamp = disabled (hidden from lists and search, data kept).
@@ -17,55 +16,65 @@ pub struct ProjectRow {
     pub icon: Option<String>,
     /// Position in the user's order inside the workspace; ignored on insert (new rows go last).
     pub sort_index: i64,
+    /// The built-in inbox of this workspace. At most one row per workspace.
+    pub is_inbox: bool,
 }
 
 impl ProjectRow {
-    pub fn new(id: &str, workspace_id: &str, folder: &str, title: &str, description: &str) -> Self {
+    pub fn new(id: &str, workspace_id: &str, title: &str, description: &str) -> Self {
         Self {
             id: id.to_string(),
             workspace_id: workspace_id.to_string(),
-            folder: folder.to_string(),
             title: title.to_string(),
             description: description.to_string(),
             disabled_at: None,
             icon: None,
             sort_index: 0,
+            is_inbox: false,
         }
     }
 }
 
-const COLUMNS: &str = "id, workspace_id, folder, title, description, disabled_at, icon, sort_index";
+const COLUMNS: &str = "id, workspace_id, title, description, disabled_at, icon, sort_index, is_inbox";
 
 fn map_row(row: &Row<'_>) -> rusqlite::Result<ProjectRow> {
     Ok(ProjectRow {
         id: row.get(0)?,
         workspace_id: row.get(1)?,
-        folder: row.get(2)?,
-        title: row.get(3)?,
-        description: row.get(4)?,
-        disabled_at: row.get(5)?,
-        icon: row.get(6)?,
-        sort_index: row.get(7)?,
+        title: row.get(2)?,
+        description: row.get(3)?,
+        disabled_at: row.get(4)?,
+        icon: row.get(5)?,
+        sort_index: row.get(6)?,
+        is_inbox: row.get::<_, i64>(7)? != 0,
     })
 }
 
 pub fn insert_project(conn: &Connection, row: &ProjectRow) -> Result<(), String> {
     conn.execute(
-        "INSERT INTO project(id, workspace_id, folder, title, description, icon, sort_index)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6,
-                 (SELECT coalesce(max(sort_index) + 1, 0) FROM project WHERE workspace_id = ?2))",
-        params![row.id, row.workspace_id, row.folder, row.title, row.description, row.icon],
+        "INSERT INTO project(id, workspace_id, title, description, icon, sort_index, is_inbox)
+         VALUES (?1, ?2, ?3, ?4, ?5,
+                 (SELECT coalesce(max(sort_index) + 1, 0) FROM project WHERE workspace_id = ?2),
+                 ?6)",
+        params![
+            row.id,
+            row.workspace_id,
+            row.title,
+            row.description,
+            row.icon,
+            if row.is_inbox { 1 } else { 0 }
+        ],
     )
     .map(|_| ())
     .map_err(|e| e.to_string())
 }
 
-/// Replace `folder`, `title`, `description` and `icon` of the row with this `id`.
+/// Replace `title`, `description` and `icon` of the row with this `id`.
 /// A project never moves between workspaces. `false` when it does not exist.
 pub fn update_project(conn: &Connection, row: &ProjectRow) -> Result<bool, String> {
     conn.execute(
-        "UPDATE project SET folder = ?2, title = ?3, description = ?4, icon = ?5 WHERE id = ?1",
-        params![row.id, row.folder, row.title, row.description, row.icon],
+        "UPDATE project SET title = ?2, description = ?3, icon = ?4 WHERE id = ?1",
+        params![row.id, row.title, row.description, row.icon],
     )
     .map(|changed| changed > 0)
     .map_err(|e| e.to_string())
@@ -81,14 +90,11 @@ pub fn get_project(conn: &Connection, id: &str) -> Result<Option<ProjectRow>, St
     .map_err(|e| e.to_string())
 }
 
-pub fn get_project_by_folder(
-    conn: &Connection,
-    workspace_id: &str,
-    folder: &str,
-) -> Result<Option<ProjectRow>, String> {
+/// The built-in inbox of this workspace, if the row exists.
+pub fn get_inbox_project(conn: &Connection, workspace_id: &str) -> Result<Option<ProjectRow>, String> {
     conn.query_row(
-        &format!("SELECT {COLUMNS} FROM project WHERE workspace_id = ?1 AND folder = ?2"),
-        params![workspace_id, folder],
+        &format!("SELECT {COLUMNS} FROM project WHERE workspace_id = ?1 AND is_inbox = 1"),
+        params![workspace_id],
         map_row,
     )
     .optional()
@@ -140,20 +146,20 @@ pub fn enable_project(conn: &Connection, id: &str) -> Result<bool, String> {
         .map_err(|e| e.to_string())
 }
 
-/// Put every project of one workspace in the order of `folders`. `folders` must name every
+/// Put every project of one workspace in the order of `ids`. `ids` must name every
 /// project of the workspace (disabled ones included) exactly once; anything else is refused
 /// and nothing changes.
-pub fn reorder_projects(conn: &Connection, workspace_id: &str, folders: &[String]) -> Result<(), String> {
+pub fn reorder_projects(conn: &Connection, workspace_id: &str, ids: &[String]) -> Result<(), String> {
     let known: Vec<String> = list_all_projects(conn, workspace_id)?
         .into_iter()
-        .map(|p| p.folder)
+        .map(|p| p.id)
         .collect();
-    ensure_same_set(&known, folders, "project")?;
+    ensure_same_set(&known, ids, "project")?;
     let tx = conn.unchecked_transaction().map_err(|e| e.to_string())?;
-    for (index, folder) in folders.iter().enumerate() {
+    for (index, id) in ids.iter().enumerate() {
         tx.execute(
-            "UPDATE project SET sort_index = ?3 WHERE workspace_id = ?1 AND folder = ?2",
-            params![workspace_id, folder, index as i64],
+            "UPDATE project SET sort_index = ?2 WHERE id = ?1",
+            params![id, index as i64],
         )
         .map_err(|e| e.to_string())?;
     }

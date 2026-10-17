@@ -165,7 +165,7 @@ pub fn tag_update_value(
 }
 
 /// Thin Tauri wrapper around the docs service: `workspace` + `project` in the payload locate
-/// the new document (default workspace, `inbox`).
+/// the new document (default workspace, inbox when `project` is omitted).
 /// Business errors stay in the Value (`error` + `_status`); do not convert to Err.
 /// App jot-create may pass `{ body, source_type: "jot" }` (no `source_path`) → Host synthesis.
 /// Path create uses `source_path` + `title`; `document` is rejected.

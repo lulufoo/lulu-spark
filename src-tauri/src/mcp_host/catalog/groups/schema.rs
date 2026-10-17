@@ -31,7 +31,7 @@ pub fn create_doc_properties(include_source_path: bool) -> Value {
         "workspace": workspace_schema(),
         "project": {
             "type": "string",
-            "description": "Optional project folder (from list_projects) inside the workspace. Defaults to inbox."
+            "description": "Optional project id from list_projects. Omit to use the workspace inbox."
         },
         "folder": {
             "type": "string",

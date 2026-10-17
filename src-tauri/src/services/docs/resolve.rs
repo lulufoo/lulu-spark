@@ -1,8 +1,8 @@
 //! Locate `workspace` + `project` (+ document) through the registry.
 //!
 //! A caller names a workspace by id (default: the built-in default workspace) and a project
-//! by folder (default: `inbox`). Nothing is created implicitly, and a project of another
-//! workspace is never accepted.
+//! by id (default: the workspace inbox). Nothing is created implicitly, and a project of
+//! another workspace is never accepted.
 
 use std::path::{Path, PathBuf};
 
@@ -12,11 +12,9 @@ use serde_json::{json, Value};
 use crate::config::paths;
 use crate::services::docs::workspace_dir;
 use crate::services::spark_data::{
-    self, get_doc, get_project, get_project_by_folder, get_workspace, list_workspaces, DocRow,
+    self, get_doc, get_inbox_project, get_project, get_workspace, list_workspaces, DocRow,
     ProjectRow, WorkspaceRow,
 };
-
-pub const DEFAULT_PROJECT_FOLDER: &str = "inbox";
 
 pub(super) fn bad_request(message: impl Into<String>) -> Value {
     json!({ "error": message.into(), "_status": 400 })
@@ -115,17 +113,28 @@ pub(super) fn resolve_doc_workspace(
     resolve_workspace(conn, text_field(payload, "workspace").or(named))
 }
 
-/// The project with this folder inside `workspace`; 400 when it does not exist there.
+/// The project with this id inside `workspace`. Omitted id → the inbox. 400 when missing
+/// or when the id belongs to another workspace.
 pub(super) fn resolve_project(
     conn: &Connection,
     workspace: &WorkspaceRow,
-    folder: &str,
+    id: Option<&str>,
 ) -> Result<ProjectRow, Value> {
-    get_project_by_folder(conn, &workspace.id, folder)
-        .map_err(internal)?
-        .ok_or_else(|| {
-            bad_request(format!("Unknown project: {folder} in workspace {}", workspace.id))
-        })
+    let row = match id {
+        Some(id) => get_project(conn, id)
+            .map_err(internal)?
+            .ok_or_else(|| bad_request(format!("Unknown project: {id}")))?,
+        None => get_inbox_project(conn, &workspace.id)
+            .map_err(internal)?
+            .ok_or_else(|| bad_request(format!("Inbox missing in workspace {}", workspace.id)))?,
+    };
+    if row.workspace_id != workspace.id {
+        return Err(bad_request(format!(
+            "Unknown project: {} in workspace {}",
+            row.id, workspace.id
+        )));
+    }
+    Ok(row)
 }
 
 /// 409 when `workspace` is disabled. Guards every write; reads by id keep working.
@@ -139,7 +148,7 @@ pub(super) fn ensure_workspace_enabled(workspace: &WorkspaceRow) -> Result<(), V
 /// 409 when `project` is disabled. Guards every write; reads by id keep working.
 pub(super) fn ensure_project_enabled(project: &ProjectRow) -> Result<(), Value> {
     if project.disabled_at.is_some() {
-        return Err(conflict(format!("Project {} is disabled", project.folder)));
+        return Err(conflict(format!("Project {} is disabled", project.id)));
     }
     Ok(())
 }

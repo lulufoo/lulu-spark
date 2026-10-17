@@ -11,12 +11,12 @@ const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const order = [];
 let resolveShow;
 const projectsByWorkspace = {
-  default: [{ folder: 'inbox', title: 'Inbox' }, { folder: 'work', title: 'Work' }],
+  default: [{ id: 'inbox', project_id: 'inbox', title: 'Inbox' }, { id: 'work', project_id: 'work', title: 'Work' }],
   knowledge: [
-    { folder: 'a', title: 'A' },
-    { folder: 'b', title: 'B' },
-    { folder: 'c', title: 'C' },
-    { folder: 'd', title: 'D' },
+    { id: 'a', project_id: 'a', title: 'A' },
+    { id: 'b', project_id: 'b', title: 'B' },
+    { id: 'c', project_id: 'c', title: 'C' },
+    { id: 'd', project_id: 'd', title: 'D' },
   ],
   empty: [],
 };
@@ -69,7 +69,7 @@ describe('Home workspace nav commands', () => {
     state.workspaces.list.push({ id: 'broken', name: 'Broken', view_mode: 'directory', is_default: false });
     await commands.refreshWorkspaceProjects();
     const loaded = getHomeState().workspaceProjects;
-    expect(loaded.default.map((p) => p.folder)).toEqual(['inbox', 'work']);
+    expect(loaded.default.map((p) => p.id)).toEqual(['inbox', 'work']);
     expect(loaded.knowledge).toHaveLength(4);
     expect(loaded.broken).toEqual([]);
   });

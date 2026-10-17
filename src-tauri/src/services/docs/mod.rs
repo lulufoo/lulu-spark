@@ -40,7 +40,6 @@ pub use project::{
 };
 pub use read::{export_file, get_digest, get_file, get_path};
 pub(crate) use resolve::workspace_root;
-pub use resolve::DEFAULT_PROJECT_FOLDER;
 pub use search::search;
 pub use store::{doc_file_path, workspace_dir};
 pub use update::{update_doc, update_doc_content};

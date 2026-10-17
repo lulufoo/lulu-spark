@@ -49,7 +49,7 @@ pub fn delete_doc(payload: &Value) -> Value {
     }
     let mut removed = 0;
     for (layer, rel) in &files {
-        let Ok(target) = doc_file_path(&root, layer, &project.folder, rel) else {
+        let Ok(target) = doc_file_path(&root, layer, &project.id, rel) else {
             continue;
         };
         if target.is_file() && fs::remove_file(&target).is_ok() {

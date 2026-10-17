@@ -111,7 +111,7 @@ describe('chooser dialog', () => {
 
 describe('landOnNewDocument', () => {
   it('timeline: selects the Project and the day the document was created', () => {
-    state.index.data = { n1: { folder: 'ideas', created_at: '20260710120000', raw_path: 'ideas/notes/a.md' } };
+    state.index.data = { n1: { project_id: 'ideas', created_at: '20260710120000', raw_path: 'ideas/notes/a.md' } };
     expect(landOnNewDocument('n1', 'ideas')).toBe('20260710');
     expect(selectTopic).toHaveBeenCalledWith('ideas');
     expect(selectDate).toHaveBeenCalledWith('20260710');

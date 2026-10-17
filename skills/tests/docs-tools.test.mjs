@@ -94,12 +94,15 @@ describe("skills use the generic docs MCP tools", () => {
     assert.match(text, /`delete_doc` and `get_read_later` are offered on `\/mcp\/spark` only/);
   });
 
-  it("spark-task confirms the workspace and project, and defaults to Default / inbox", () => {
+  it("spark-task confirms the workspace and project, and omits project for the inbox", () => {
     const text = fs.readFileSync(path.join(root, "spark-task", "SKILL.md"), "utf8");
     assert.match(text, /list_workspaces/);
     assert.match(text, /list_projects/);
     assert.match(text, /`Default`/);
-    assert.match(text, /`inbox`/);
+    assert.match(text, /omit `project`/);
+    assert.match(text, /is_inbox/);
+    assert.equal(/project: "inbox"/.test(text), true);
+    assert.equal(/project `inbox`/.test(text), false);
   });
 
   it("path-or-paste names `folder`, not the retired `theme` field", () => {

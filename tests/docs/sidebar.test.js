@@ -36,7 +36,7 @@ const makeGroup = (date, topics, tagKeys = []) => ({
   entries: topics.map((t, i) => ({
     id: `e${i}`,
     entry: {
-      folder: t,
+      project_id: t,
       created_at: date + '120000',
       tag_keys: tagKeys[i] ? [tagKeys[i]] : undefined,
     },
@@ -77,9 +77,9 @@ function seedWorkspaces(viewMode) {
 beforeEach(() => {
   seedDom();
   state.index.data = {
-    a: { folder: 'ai', created_at: '202501011200', tag_keys: ['k1'] },
-    b: { folder: 'ai', created_at: '202501021200', tag_keys: ['k1', 'k2'] },
-    c: { folder: 'common-tech', created_at: '202501011200', tag_keys: ['k2'] },
+    a: { project_id: 'ai', created_at: '202501011200', tag_keys: ['k1'] },
+    b: { project_id: 'ai', created_at: '202501021200', tag_keys: ['k1', 'k2'] },
+    c: { project_id: 'common-tech', created_at: '202501011200', tag_keys: ['k2'] },
     d: { created_at: '202501031200' },
   };
   state.index.groupedByDate = [
@@ -105,16 +105,16 @@ describe('selectTopic', () => {
     selectTopic('ai');
     expect(state.ui.activeTopic).toBe('ai');
     for (const g of state.index.filteredGroups) {
-      expect(g.entries.every(({ entry }) => (entry.folder || 'unknown') === 'ai')).toBe(true);
+      expect(g.entries.every(({ entry }) => (entry.project_id || 'unknown') === 'ai')).toBe(true);
     }
   });
 
-  it('key="unknown" 时过滤没有 folder 的条目', () => {
+  it('key="unknown" 时过滤没有 project_id 的条目', () => {
     selectTopic('unknown');
     expect(state.ui.activeTopic).toBe('unknown');
     expect(state.index.filteredGroups.length).toBeGreaterThan(0);
     for (const g of state.index.filteredGroups) {
-      expect(g.entries.every(({ entry }) => (entry.folder || 'unknown') === 'unknown')).toBe(true);
+      expect(g.entries.every(({ entry }) => (entry.project_id || 'unknown') === 'unknown')).toBe(true);
     }
   });
 
@@ -180,9 +180,9 @@ describe('renderSidebar workspace title', () => {
 
   it('counts undated documents and lists them under an Undated tab', () => {
     state.index.data = {
-      a: { folder: 'ai', title: 'A' },
-      b: { folder: 'ai', title: 'B' },
-      c: { folder: 'ops', title: 'C', created_at: '202501011200' },
+      a: { project_id: 'ai', title: 'A' },
+      b: { project_id: 'ai', title: 'B' },
+      c: { project_id: 'ops', title: 'C', created_at: '202501011200' },
     };
     state.index.groupedByDate = buildGroups(state.index.data);
     applyListFilters();
@@ -243,9 +243,9 @@ describe('renderSidebar workspace title', () => {
   it('directory view: picking a project in the dropdown shows only its content, no project node', () => {
     state.index.topicTitles = { ai: 'AI', 'common-tech': 'Common tech' };
     state.index.data = {
-      a: { folder: 'ai', raw_path: 'x/one.md', created_at: '202501011200' },
-      b: { folder: 'ai', raw_path: 'top.md', created_at: '202501021200' },
-      c: { folder: 'common-tech', raw_path: 'y/two.md', created_at: '202501011200' },
+      a: { project_id: 'ai', raw_path: 'x/one.md', created_at: '202501011200' },
+      b: { project_id: 'ai', raw_path: 'top.md', created_at: '202501021200' },
+      c: { project_id: 'common-tech', raw_path: 'y/two.md', created_at: '202501011200' },
     };
     seedWorkspaces('directory');
     renderSidebar();

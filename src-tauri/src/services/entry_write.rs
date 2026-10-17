@@ -9,7 +9,7 @@ use crate::services::archive_parse::expected_lang_common_path;
 use crate::services::docs::workspace_root;
 use crate::services::docs::doc_file_path;
 use crate::services::search_index;
-use crate::services::spark_data::{self, find_doc, project_folder};
+use crate::services::spark_data::{self, find_doc};
 
 const EDITABLE_LAYERS: &[&str] = &["raw", "digest"];
 
@@ -42,10 +42,6 @@ pub fn save_entry(
         Err(e) => return json!({ "error": e, "_status": 500 }),
     };
     let (workspace, note) = (found.workspace, found.doc);
-    let folder = match project_folder(&conn, &note.project_id) {
-        Ok(f) => f,
-        Err(e) => return json!({ "error": e, "_status": 500 }),
-    };
     let rel = match (layer, lang.as_deref().map(str::trim).filter(|s| !s.is_empty())) {
         ("raw", Some(lang)) => match expected_lang_common_path(&note.raw_path, lang) {
             Some(p) => p,
@@ -62,14 +58,14 @@ pub fn save_entry(
         Ok(root) => root,
         Err(v) => return v,
     };
-    let target = match doc_file_path(&root, layer, &folder, &rel) {
+    let target = match doc_file_path(&root, layer, &note.project_id, &rel) {
         Ok(p) => p,
         Err(v) => return v,
     };
 
     if !target.is_file() {
         return json!({
-            "error": format!("File not found: {layer}/{folder}/{rel}"),
+            "error": format!("File not found: {layer}/{}/{rel}", note.project_id),
             "_status": 404
         });
     }

@@ -37,9 +37,9 @@ pub fn synthesize_jot_document(body: &str, opts: &JotCreateOpts) -> Result<Strin
     ))
 }
 
-/// Write a jot through the docs service (`{project}/notes/{ts}-{rand}.md`) into `workspace`
-/// (the default workspace when `None`) and `project` (`inbox` when `None`). A project that does
-/// not exist there or is disabled is refused before anything is written.
+/// Write a jot through the docs service (`{project.id}/notes/{ts}-{rand}.md`) into `workspace`
+/// (the default workspace when `None`) and `project` (the inbox when `None`). A project that
+/// does not exist there or is disabled is refused before anything is written.
 pub fn create_jot(
     workspace: Option<&str>,
     project: Option<&str>,
@@ -67,13 +67,15 @@ pub fn create_jot(
     let mut payload = json!({
         "title": title,
         "source_type": "jot",
-        "project": project.unwrap_or("inbox"),
         "folder": "notes",
         "digest": "never",
         "content": doc,
     });
     if let Some(workspace) = workspace {
         payload["workspace"] = json!(workspace);
+    }
+    if let Some(project) = project {
+        payload["project"] = json!(project);
     }
     if !ts.is_empty() {
         payload["created_at"] = json!(ts);

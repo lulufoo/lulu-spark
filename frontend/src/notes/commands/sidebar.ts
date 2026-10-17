@@ -55,7 +55,7 @@ export function applyListFilters() {
     groups = groups
       .map(({ date, entries }) => ({
         date,
-        entries: entries.filter(({ entry }) => (entry.folder || 'unknown') === topic),
+        entries: entries.filter(({ entry }) => (entry.project_id || 'unknown') === topic),
       }))
       .filter(({ entries }) => entries.length > 0);
   }

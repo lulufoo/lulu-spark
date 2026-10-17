@@ -28,7 +28,7 @@ export function NotesCategoriesEditHost() {
     notesCategoriesStore.getSnapshot,
   );
   const selected = snap.rows.find((row) => row.id === snap.selectedId);
-  const inbox = selected?.id === 'inbox';
+  const inbox = Boolean(selected?.is_inbox);
   const confirming = Boolean(selected) && snap.confirmDisableId === selected?.id;
 
   useEffect(() => {
@@ -79,7 +79,7 @@ export function NotesCategoriesEditHost() {
                   <span className="notes-cat-item-main">
                     <span className="notes-cat-item-title-row">
                       <span className="notes-cat-item-title">{row.title || row.id}</span>
-                      {row.id === 'inbox' ? <span className="notes-cat-badge">Built-in</span> : null}
+                      {row.is_inbox ? <span className="notes-cat-badge">Built-in</span> : null}
                     </span>
                     <span className={`notes-cat-item-desc${desc ? '' : ' is-empty'}`}>
                       {desc || 'No description'}
@@ -142,7 +142,7 @@ export function NotesCategoriesEditHost() {
               <div id="notes-cat-edit-dialog-body">
                 <p className="notes-cat-confirm-copy">
                   Disable <strong>{selected.title || selected.id}</strong>? It is hidden from lists and
-                  search. Its documents are kept, the folder stays reserved, and you can enable it
+                  search. Its documents are kept, and you can enable it
                   again from the Disabled list.
                 </p>
                 <div id="notes-cat-edit-error" className="settings-result notes-cat-error">

@@ -8,7 +8,7 @@ import type { NoteEntry } from '../state/types.ts';
 export { moveProjectOpenStore };
 export { moveProjectViewStore } from '../state/move-project.ts';
 
-type ProjectRec = { folder?: string; title?: string; description?: string };
+type ProjectRec = { id?: string; title?: string; description?: string };
 
 let currentEntry: NoteEntry | null = null;
 
@@ -31,11 +31,11 @@ async function loadProjects(currentProject: string) {
     const data = (await api.fetchProjects(state.workspaces.current)) as { projects?: ProjectRec[] };
     const items = (data.projects || [])
       .map((c) => {
-        const folder = typeof c.folder === 'string' ? c.folder.trim() : '';
-        if (!folder || folder === currentProject) return null;
+        const id = typeof c.id === 'string' ? c.id.trim() : '';
+        if (!id || id === currentProject) return null;
         return {
-          proj: folder,
-          title: typeof c.title === 'string' && c.title.trim() ? c.title.trim() : folder,
+          proj: id,
+          title: typeof c.title === 'string' && c.title.trim() ? c.title.trim() : id,
           desc: typeof c.description === 'string' ? c.description : '',
         };
       })
@@ -58,7 +58,7 @@ async function loadProjects(currentProject: string) {
 export async function openMoveProjectDialog(entry: NoteEntry | null | undefined) {
   if (!entry) return;
 
-  const currentProject = entry.folder || 'unknown';
+  const currentProject = entry.project_id || 'unknown';
   currentEntry = entry;
   moveProjectViewStore.set({
     ...emptyMoveProjectView(),

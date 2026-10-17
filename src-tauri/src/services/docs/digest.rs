@@ -62,12 +62,12 @@ pub(crate) fn digest_applies(raw: &str, source_type: &str) -> bool {
 
 pub(crate) fn write_digest_file(
     notes: &Path,
-    folder: &str,
+    project_id: &str,
     rel: &str,
     digest_body: &str,
     written: &mut Vec<PathBuf>,
 ) -> Result<String, Value> {
-    let digest_path = doc_file_path(notes, "digest", folder, rel)?;
+    let digest_path = doc_file_path(notes, "digest", project_id, rel)?;
     if digest_path.is_file() {
         return Err(json!({
             "error": "File already exists",
@@ -85,11 +85,11 @@ pub(crate) fn write_digest_file(
 /// [`write_digest_file`] and still 409s when the digest file is present.
 pub(crate) fn write_digest_file_overwrite(
     notes: &Path,
-    folder: &str,
+    project_id: &str,
     rel: &str,
     digest_body: &str,
 ) -> Result<String, Value> {
-    let digest_path = doc_file_path(notes, "digest", folder, rel)?;
+    let digest_path = doc_file_path(notes, "digest", project_id, rel)?;
     if let Err(e) = write_markdown_atomic(&digest_path, digest_body) {
         return Err(json!({ "error": e, "_status": 500 }));
     }

@@ -10,8 +10,8 @@ pub(crate) struct CreateMeta {
     pub title: String,
     pub created_at: String,
     pub source_type: String,
-    /// Category folder on disk; not part of the stored path.
-    pub project: String,
+    /// Project id from the payload; `None` means the workspace inbox.
+    pub project: Option<String>,
     /// Stored rel: `{folder}/{filename}` — no project folder prefix.
     pub common_path: String,
 }
@@ -30,7 +30,7 @@ pub(crate) fn parse_create_meta_unchecked(
         .ok_or_else(|| json!({ "error": "Missing title", "_status": 400 }))?
         .to_string();
 
-    let project = path_segment(payload, "project", "inbox")?;
+    let project = optional_project(payload)?;
     if payload.get("theme").is_some() {
         return Err(json!({ "error": "theme was renamed to folder", "_status": 400 }));
     }
@@ -96,17 +96,21 @@ fn parse_created_at(payload: &Value) -> Result<String, Value> {
     }
 }
 
-fn path_segment(payload: &Value, key: &str, default: &str) -> Result<String, Value> {
-    let raw = payload
-        .get(key)
-        .and_then(|v| v.as_str())
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .unwrap_or(default);
-    if raw.contains("..") || raw.contains('/') || raw.contains('\\') {
-        return Err(json!({ "error": format!("Invalid {key}"), "_status": 400 }));
+fn optional_project(payload: &Value) -> Result<Option<String>, Value> {
+    match payload.get("project") {
+        None | Some(Value::Null) => Ok(None),
+        Some(Value::String(raw)) => {
+            let id = raw.trim();
+            if id.is_empty() {
+                Ok(None)
+            } else if id.contains("..") || id.contains('/') || id.contains('\\') {
+                Err(json!({ "error": "Invalid project", "_status": 400 }))
+            } else {
+                Ok(Some(id.to_string()))
+            }
+        }
+        Some(_) => Err(json!({ "error": "Invalid project", "_status": 400 })),
     }
-    Ok(raw.to_string())
 }
 
 /// Deepest `folder` allowed under a project.

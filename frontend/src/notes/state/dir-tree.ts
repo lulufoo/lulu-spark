@@ -3,7 +3,7 @@ import { normalizeDateKey } from '../../shared/utils.ts';
 import type { NoteEntry } from './types.ts';
 
 /**
- * The directory view groups documents by where their raw file lives: project folder first,
+ * The directory view groups documents by where their raw file lives: project id first,
  * then the sub-folders of `raw_path`. A group key `dir:<node key>` names one tree node, the
  * same way a date key names one day in the timeline view.
  */
@@ -12,7 +12,7 @@ export const DIR_KEY_PREFIX = 'dir:';
 export type DirDoc = { id: string; entry: NoteEntry; name: string };
 
 export type DirNode = {
-  /** `<project folder>` or `<project folder>/<sub>/<sub>`. */
+  /** `<project id>` or `<project id>/<sub>/<sub>`. */
   key: string;
   name: string;
   kind: 'project' | 'folder';
@@ -44,7 +44,7 @@ export function pathKeys(nodeKey: string): string[] {
   return parts.map((_, i) => parts.slice(0, i + 1).join('/'));
 }
 
-/** The project folder a node belongs to. */
+/** The project id a node belongs to. */
 export function projectOfNode(nodeKey: string): string {
   return nodeKey.split('/')[0] || '';
 }
@@ -55,10 +55,14 @@ function splitRawPath(rawPath: unknown): { dirs: string[]; file: string } {
   return { dirs: parts, file };
 }
 
+function projectKeyOf(entry: NoteEntry): string {
+  return entry.project_id || 'unknown';
+}
+
 /** The tree node whose own documents include `entry`. */
 export function nodeKeyOfEntry(entry: NoteEntry): string {
   const { dirs } = splitRawPath(entry.raw_path);
-  return [entry.folder || 'unknown', ...dirs].join('/');
+  return [projectKeyOf(entry), ...dirs].join('/');
 }
 
 /** Like main's Knowledge tree, a document shows as its file name (the title column can be empty). */
@@ -66,7 +70,7 @@ function docName(entry: NoteEntry, file: string): string {
   return file || entry.title || 'Untitled note';
 }
 
-/** Label of a group key for headings: the project folder shows its title. */
+/** Label of a group key for headings: the project shows its title. */
 export function dirKeyLabel(dirKey: string, projectTitles: Record<string, string>): string {
   const [project = '', ...rest] = nodeKeyOf(dirKey).split('/');
   return [projectTitles[project] || project, ...rest].join(' / ');
@@ -85,7 +89,7 @@ function sortNode(node: DirNode) {
 /**
  * Index entries → projects → sub-folders → documents, built in memory from `raw_path`
  * (no file system access). Projects without documents still appear, so the tree shows
- * every project; `projectTitles` lists them by folder.
+ * every project; `projectTitles` lists them by id.
  */
 export function buildDirTree(
   data: Record<string, NoteEntry> | null,
@@ -94,21 +98,21 @@ export function buildDirTree(
   const projects = new Map<string, DirNode>();
   const folders = new Map<string, DirNode>();
 
-  const project = (folder: string): DirNode => {
-    let node = projects.get(folder);
+  const project = (id: string): DirNode => {
+    let node = projects.get(id);
     if (!node) {
-      node = { key: folder, name: projectTitles[folder] || folder, kind: 'project', children: [], docs: [] };
-      projects.set(folder, node);
+      node = { key: id, name: projectTitles[id] || id, kind: 'project', children: [], docs: [] };
+      projects.set(id, node);
     }
     return node;
   };
 
-  for (const folder of Object.keys(projectTitles)) project(folder);
+  for (const id of Object.keys(projectTitles)) project(id);
 
   for (const [id, entry] of Object.entries(data || {})) {
     if (!entry) continue;
     const { dirs, file } = splitRawPath(entry.raw_path);
-    let node = project(entry.folder || 'unknown');
+    let node = project(projectKeyOf(entry));
     for (const dir of dirs) {
       const key = `${node.key}/${dir}`;
       let child = folders.get(key);

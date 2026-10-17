@@ -11,8 +11,7 @@ export type HostNoteEntry = {
   id?: string;
   workspace?: string;
   project_id?: string;
-  folder?: string;
-  /** Path of the raw file relative to the project folder; read-only, drives the directory tree. */
+  /** Path of the raw file inside the project; read-only, drives the directory tree. */
   raw_path?: string;
   created_at?: string;
   layers?: string[];
@@ -57,8 +56,10 @@ export type HostIndex = {
   titleFetchCache: Map<string, string>;
   topicDescriptions: Record<string, string>;
   topicTitles: Record<string, string>;
-  /** Project folders in the order Settings arranged them (the order the backend lists them). */
+  /** Project ids in the order Settings arranged them (the order the backend lists them). */
   topicOrder: string[];
+  /** Which project ids are the workspace inbox. */
+  topicInbox: Record<string, boolean>;
   topicRepos: Record<string, string>;
 };
 

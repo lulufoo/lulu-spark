@@ -9,7 +9,7 @@ use crate::services::docs::hide_patterns::{compiled_hide_regexes, path_is_hidden
 use crate::services::docs::workspace_root;
 use crate::services::docs::doc_file_path;
 use crate::services::spark_data::{
-    self, find_doc, get_workspace, list_doc_entries, project_folder, DocRow, FoundDoc,
+    self, find_doc, get_workspace, list_doc_entries, DocRow, FoundDoc,
 };
 
 const DOC_LAYERS: &[&str] = &["raw", "digest"];
@@ -71,33 +71,26 @@ fn doc_rel(note: &DocRow, layer: &str, lang: Option<&str>) -> Result<String, Val
     }
 }
 
-fn note_disk_path(
-    conn: &rusqlite::Connection,
-    found: &FoundDoc,
-    layer: &str,
-    lang: Option<&str>,
-) -> Result<PathBuf, Value> {
+fn note_disk_path(found: &FoundDoc, layer: &str, lang: Option<&str>) -> Result<PathBuf, Value> {
     let note = &found.doc;
-    let folder = project_folder(conn, &note.project_id)
-        .map_err(|e| json!({ "error": e, "_status": 500 }))?;
     let rel = doc_rel(note, layer, lang)?;
     if rel.is_empty() || rel.contains("..") {
         return Err(json!({ "error": "Invalid path", "_status": 400 }));
     }
-    doc_file_path(&workspace_root(&found.workspace)?, layer, &folder, &rel)
+    doc_file_path(&workspace_root(&found.workspace)?, layer, &note.project_id, &rel)
 }
 
-/// Notes markdown body by doc id (`{layer}/{folder}/{rel}` on disk).
+/// Notes markdown body by doc id (`{layer}/{project.id}/{rel}` on disk).
 pub fn get_doc_file(layer: &str, id: &str, lang: Option<&str>) -> Value {
     let layer = layer.trim();
     if !DOC_LAYERS.contains(&layer) {
         return json!({ "error": format!("Invalid layer: {layer}"), "_status": 400 });
     }
-    let (conn, found) = match load_doc(id) {
+    let (_conn, found) = match load_doc(id) {
         Ok(v) => v,
         Err(v) => return v,
     };
-    let target = match note_disk_path(&conn, &found, layer, lang) {
+    let target = match note_disk_path(&found, layer, lang) {
         Ok(p) => p,
         Err(v) => return v,
     };
@@ -162,13 +155,9 @@ pub fn get_doc_asset(layer: &str, id: &str, href: &str, lang: Option<&str>) -> V
     if !DOC_LAYERS.contains(&layer) {
         return json!({ "error": format!("Invalid layer: {layer}"), "_status": 400 });
     }
-    let (conn, found) = match load_doc(id) {
+    let (_conn, found) = match load_doc(id) {
         Ok(v) => v,
         Err(v) => return v,
-    };
-    let folder = match project_folder(&conn, &found.doc.project_id) {
-        Ok(f) => f,
-        Err(e) => return json!({ "error": e, "_status": 500 }),
     };
     let root = match workspace_root(&found.workspace) {
         Ok(root) => root,
@@ -182,7 +171,7 @@ pub fn get_doc_asset(layer: &str, id: &str, href: &str, lang: Option<&str>) -> V
         Ok(p) => p,
         Err(v) => return v,
     };
-    let target = match doc_file_path(&root, layer, &folder, &rel) {
+    let target = match doc_file_path(&root, layer, &found.doc.project_id, &rel) {
         Ok(p) => p,
         Err(v) => return v,
     };
@@ -250,15 +239,11 @@ pub fn get_note_path_by_id(id: &str) -> Value {
         return json!({ "id": id, "ok": false, "error": "Entry not found" });
     };
     let note = &found.doc;
-    let folder = match project_folder(&conn, &note.project_id) {
-        Ok(f) => f,
-        Err(e) => return json!({ "id": id, "ok": false, "error": e }),
-    };
     let root = match workspace_root(&found.workspace) {
         Ok(root) => root,
         Err(v) => return v,
     };
-    let target = match doc_file_path(&root, "raw", &folder, &note.raw_path) {
+    let target = match doc_file_path(&root, "raw", &note.project_id, &note.raw_path) {
         Ok(p) => p,
         Err(v) => {
             let msg = v.get("error").and_then(|e| e.as_str()).unwrap_or("Invalid path");

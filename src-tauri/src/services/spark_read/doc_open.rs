@@ -2,7 +2,7 @@
 
 use serde_json::{json, Value};
 
-use crate::services::spark_data::{self, entry_from_doc, find_doc, project_folder};
+use crate::services::spark_data::{self, entry_from_doc, find_doc};
 
 /// Look up document `id` in any workspace. Success is its index entry plus `id` and `ok`.
 /// Never returns a file body or an absolute path.
@@ -15,8 +15,7 @@ pub fn resolve_doc_for_open(id: &str) -> Value {
         let Some(found) = find_doc(&conn, id)? else {
             return Ok(None);
         };
-        let folder = project_folder(&conn, &found.doc.project_id)?;
-        let entry = entry_from_doc(&found.doc, &found.workspace.id, &folder)?;
+        let entry = entry_from_doc(&found.doc, &found.workspace.id)?;
         Ok(Some(entry))
     });
     let entry = match found {

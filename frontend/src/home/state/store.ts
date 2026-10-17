@@ -41,7 +41,7 @@ export type ChannelUnread = {
 
 /** A project of a workspace as the Home sidebar lists it. */
 export type HomeProject = {
-  folder: string;
+  id: string;
   title: string;
   /** Id of the configured icon; empty = the default project icon. */
   icon: string;

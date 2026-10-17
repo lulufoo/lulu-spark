@@ -52,7 +52,7 @@ export function WorkspaceProjectsPanel() {
           />
           <span className="settings-field-hint">
             {workspace
-              ? `Folder of ${workspace.name}. Its projects are the folders inside.`
+              ? `Folder of ${workspace.name}. Its projects live inside.`
               : 'Choose a workspace.'}
           </span>
         </div>

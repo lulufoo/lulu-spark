@@ -20,7 +20,7 @@ beforeEach(() => {
 
 describe('resolveDocForOpen host api', () => {
   it('invokes resolve_doc_for_open with the id and returns the entry', async () => {
-    const entry = { id: ID, ok: true, folder: 'ai', created_at: '202606190004' };
+    const entry = { id: ID, ok: true, project_id: 'ai', created_at: '202606190004' };
     vi.mocked(invokeCommand).mockResolvedValue(entry);
     await expect(resolveDocForOpen(ID)).resolves.toEqual(entry);
     expect(invokeCommand).toHaveBeenCalledWith('resolve_doc_for_open', { id: ID });

@@ -13,10 +13,18 @@ import type { NoteEntry, NoteTag } from '../state/types.ts';
 
 export { cycleImportance, loadTitles, toggleDone };
 
+function projectKeyOf(entry: NoteEntry): string {
+  return entry.project_id || 'unknown';
+}
+
 function catalogTopicLabel(entry: NoteEntry): string {
-  const folder = entry.folder || 'unknown';
-  const title = state.index.topicTitles[folder];
-  return title && title !== folder ? title : folder;
+  const key = projectKeyOf(entry);
+  const title = state.index.topicTitles[key];
+  return title && title !== key ? title : key;
+}
+
+function isInboxCard(entry: NoteEntry): boolean {
+  return state.index.topicInbox?.[projectKeyOf(entry)] === true;
 }
 
 function asRecord(entry: NoteEntry): Record<string, unknown> {
@@ -254,7 +262,7 @@ export function buildCard(id: string, entry: NoteEntry, title?: string | null) {
   const topic = catalogTopicLabel(entry);
   const displayTitle = title !== undefined ? title : null;
   const time = timeFromTs(entry.created_at || '');
-  const projectDir = entry.folder || 'unknown';
+  const projectDir = projectKeyOf(entry);
   const topicDesc = state.index.topicDescriptions[projectDir] || '';
 
   card.innerHTML = renderToHtml(
@@ -268,7 +276,7 @@ export function buildCard(id: string, entry: NoteEntry, title?: string | null) {
   );
   if (entry.done) card.classList.add('done');
   if (entry.importance) card.classList.add(`importance-${entry.importance}`);
-  if ((entry.folder || '') === 'inbox') card.classList.add('inbox-pending');
+  if (isInboxCard(entry)) card.classList.add('inbox-pending');
   bindCardActions(card, entry);
   attachCardDigestTooltip(card, id);
   return card;
@@ -314,13 +322,13 @@ export function DocCard({
   entry._id = id;
   const topic = catalogTopicLabel(entry);
   const time = timeFromTs(entry.created_at || '');
-  const projectDir = entry.folder || 'unknown';
+  const projectDir = projectKeyOf(entry);
   const topicDesc = state.index.topicDescriptions[projectDir] || '';
   const className = [
     'doc-card',
     entry.done ? 'done' : '',
     entry.importance ? `importance-${entry.importance}` : '',
-    projectDir === 'inbox' ? 'inbox-pending' : '',
+    isInboxCard(entry) ? 'inbox-pending' : '',
   ]
     .filter(Boolean)
     .join(' ');

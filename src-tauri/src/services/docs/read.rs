@@ -39,7 +39,7 @@ fn locate(
     if rel.is_empty() || rel.contains("..") {
         return Err(bad_request("Invalid path"));
     }
-    doc_file_path(&workspace_root(workspace)?, layer, &project.folder, &rel)
+    doc_file_path(&workspace_root(workspace)?, layer, &project.id, &rel)
 }
 
 fn find(payload: &Value) -> Result<(WorkspaceRow, ProjectRow, DocRow), Value> {
