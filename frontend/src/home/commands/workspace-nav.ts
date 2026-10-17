@@ -5,9 +5,6 @@ import { restoreOpenDoc } from '../../notes/commands/viewer-state.ts';
 import { showWorkspace, switchWorkspace } from '../../notes/commands/workspace-switch.ts';
 import { setHomeState, type HomeProject } from '../state/store.ts';
 
-/** The Home sidebar lists this many projects per workspace; the rest fold into `...`. */
-export const HOME_PROJECT_LIMIT = 3;
-
 function asProjects(data: unknown): HomeProject[] {
   const rec = data as { projects?: Array<{ folder?: unknown; title?: unknown }>; error?: string } | null;
   if (rec?.error) throw new Error(rec.error);

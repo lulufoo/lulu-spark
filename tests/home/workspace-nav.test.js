@@ -1,7 +1,12 @@
 // @vitest-environment jsdom
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 
 const order = [];
 let resolveShow;
@@ -96,10 +101,47 @@ describe('Home workspace nav commands', () => {
 });
 
 describe('HomeWorkspaceNav', () => {
+  const ROW_H = 32;
+  let listHeight;
+  let observers;
+  let hosts;
+
+  beforeEach(() => {
+    listHeight = 20 * ROW_H;
+    observers = [];
+    hosts = [];
+    globalThis.ResizeObserver = class {
+      constructor(callback) {
+        this.callback = callback;
+        observers.push(this);
+      }
+      observe() {}
+      disconnect() {
+        observers = observers.filter((o) => o !== this);
+      }
+    };
+    Object.defineProperty(HTMLElement.prototype, 'clientHeight', {
+      configurable: true,
+      get() {
+        return this.dataset?.homeNavList ? listHeight : 0;
+      },
+    });
+  });
+
+  afterEach(() => {
+    for (const { root, host } of hosts) {
+      act(() => root.unmount());
+      host.remove();
+    }
+    delete globalThis.ResizeObserver;
+    delete HTMLElement.prototype.clientHeight;
+  });
+
   function render(props) {
     const host = document.createElement('div');
     document.body.appendChild(host);
     const root = createRoot(host);
+    hosts.push({ root, host });
     act(() =>
       root.render(
         createElement(HomeWorkspaceNav, {
@@ -116,18 +158,86 @@ describe('HomeWorkspaceNav', () => {
     return host;
   }
 
-  it('lists at most three projects per workspace and a ... row only beyond three', () => {
+  function resizeTo(rowCount) {
+    listHeight = rowCount * ROW_H;
+    act(() => observers.forEach((o) => o.callback([])));
+  }
+
+  const projectsOf = (host, id) =>
+    [...host.querySelectorAll(`[data-home-workspace="${id}"] .home-nav-project:not(.home-nav-more)`)].map(
+      (b) => b.dataset.homeProject,
+    );
+
+  it('shows every project and no ... when all of them fit', () => {
     const host = render();
-    const projectsOf = (id) =>
-      [...host.querySelectorAll(`[data-home-workspace="${id}"] .home-nav-project:not(.home-nav-more)`)].map(
-        (b) => b.dataset.homeProject,
-      );
-    expect(projectsOf('default')).toEqual(['inbox', 'work']);
-    expect(projectsOf('knowledge')).toEqual(['a', 'b', 'c']);
-    expect(projectsOf('empty')).toEqual([]);
+    expect(projectsOf(host, 'default')).toEqual(['inbox', 'work']);
+    expect(projectsOf(host, 'knowledge')).toEqual(['a', 'b', 'c', 'd']);
+    expect(projectsOf(host, 'empty')).toEqual([]);
+    expect(host.querySelector('.home-nav-more')).toBeNull();
+    expect(host.querySelector('.home-nav-workspaces').dataset.homeNavOverflow).toBe('false');
+  });
+
+  it('cuts the largest workspace off with a ... row when the rows run short', () => {
+    // Needs are 3, 5 and 1 rows; 7 rows leave Knowledge three: title, one project, `...`.
+    const host = render();
+    resizeTo(7);
+    expect(projectsOf(host, 'default')).toEqual(['inbox', 'work']);
+    expect(projectsOf(host, 'knowledge')).toEqual(['a']);
     expect(host.querySelector('[data-home-more="knowledge"]').textContent).toBe('...');
     expect(host.querySelector('[data-home-more="default"]')).toBeNull();
     expect(host.querySelector('[data-home-more="empty"]')).toBeNull();
+  });
+
+  it('folds a workspace to its title when it would get fewer than three rows', () => {
+    const host = render();
+    resizeTo(6);
+    expect(projectsOf(host, 'knowledge')).toEqual([]);
+    expect(host.querySelector('[data-home-more="knowledge"]')).toBeNull();
+    expect(projectsOf(host, 'default')).toEqual(['inbox', 'work']);
+    expect(host.querySelector('[data-home-entry="knowledge"]')).not.toBeNull();
+  });
+
+  it('recomputes when the list is resized', () => {
+    const host = render();
+    resizeTo(7);
+    expect(projectsOf(host, 'knowledge')).toEqual(['a']);
+    resizeTo(20);
+    expect(projectsOf(host, 'knowledge')).toEqual(['a', 'b', 'c', 'd']);
+    expect(host.querySelector('.home-nav-more')).toBeNull();
+  });
+
+  it('scrolls and keeps every title when even the titles do not fit', () => {
+    const host = render();
+    resizeTo(2);
+    const list = host.querySelector('.home-nav-workspaces');
+    expect(list.dataset.homeNavOverflow).toBe('true');
+    expect(host.querySelectorAll('.home-desktop-shortcut')).toHaveLength(3);
+    expect(host.querySelector('.home-nav-project')).toBeNull();
+  });
+
+  it('never renders more rows than were measured', () => {
+    const host = render();
+    for (const count of [3, 4, 5, 6, 7, 8, 9, 12]) {
+      resizeTo(count);
+      const rowCount = host.querySelectorAll('.home-chat-nav-notes, .home-nav-project').length;
+      expect(rowCount).toBeLessThanOrEqual(count);
+    }
+  });
+
+  it('does not own Read Later, which stays a fixed row outside the measured list', () => {
+    const host = render();
+    expect(host.querySelector('[data-home-entry="read-later"]')).toBeNull();
+    const page = readFileSync(join(repoRoot, 'frontend/src/home/page.tsx'), 'utf8');
+    expect(page.indexOf('<HomeWorkspaceNav')).toBeLessThan(page.indexOf('data-home-entry="read-later"'));
+    const css = readFileSync(join(repoRoot, 'frontend/app.css'), 'utf8');
+    expect(css).toMatch(/\.home-nav-workspaces \{[^}]*flex: 1 1 0;[^}]*min-height: 0;/);
+    expect(css).toMatch(/--home-nav-row-h: 32px;/);
+  });
+
+  it('no longer has the fixed three-project limit', () => {
+    for (const file of ['frontend/src/home/ui/workspace-nav.tsx', 'frontend/src/home/commands/workspace-nav.ts']) {
+      expect(readFileSync(join(repoRoot, file), 'utf8')).not.toMatch(/HOME_PROJECT_LIMIT/);
+    }
   });
 
   it('keeps one shortcut per workspace, the entry keys and the + beside Default only', () => {
@@ -146,6 +256,7 @@ describe('HomeWorkspaceNav', () => {
     const onOpenWorkspace = vi.fn();
     const onOpenProject = vi.fn();
     const host = render({ onOpenWorkspace, onOpenProject });
+    resizeTo(8); // Knowledge shows a, b and a `...` row.
     host.querySelector('[data-home-project="b"]').click();
     expect(onOpenProject).toHaveBeenCalledWith('knowledge', 'b');
     host.querySelector('[data-home-entry="knowledge"]').click();

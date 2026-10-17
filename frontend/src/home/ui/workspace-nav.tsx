@@ -1,6 +1,10 @@
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { HomeNavIcon } from './nav-icons.tsx';
-import { HOME_PROJECT_LIMIT } from '../commands/workspace-nav.ts';
+import { allocateWorkspaceRows } from '../state/workspace-rows.ts';
 import type { HomeProject } from '../state/store.ts';
+
+/** Used when `--home-nav-row-h` cannot be read (the stylesheet is not applied). */
+const FALLBACK_ROW_HEIGHT = 32;
 
 export type HomeWorkspaceRow = { id: string; name: string; isDefault: boolean };
 
@@ -32,7 +36,33 @@ function PlusIcon() {
   );
 }
 
-/** Workspace rows, each with its first projects (title order) and `...` when there are more. */
+/** The sidebar's row height, from the `--home-nav-row-h` custom property. */
+function rowHeightOf(el: HTMLElement): number {
+  const raw = parseFloat(getComputedStyle(el).getPropertyValue('--home-nav-row-h'));
+  return Number.isFinite(raw) && raw > 0 ? raw : FALLBACK_ROW_HEIGHT;
+}
+
+/** How many whole rows fit in the list; `null` until the list has been measured. */
+function useAvailableRows(ref: React.RefObject<HTMLDivElement | null>): number | null {
+  const [rows, setRows] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return undefined;
+    const measure = () => setRows(Math.floor(el.clientHeight / rowHeightOf(el)));
+    measure();
+    if (typeof ResizeObserver === 'undefined') return undefined;
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [ref]);
+  return rows;
+}
+
+/**
+ * Workspace rows, each with the projects the row allocation grants it (title order) and `...`
+ * when some are cut off. The list fills the height the sidebar has left; when even the titles
+ * do not fit it scrolls. Until the list is measured only the titles are shown.
+ */
 export function HomeWorkspaceNav({
   workspaces,
   projects,
@@ -41,11 +71,26 @@ export function HomeWorkspaceNav({
   onOpenProject,
   onCreateDocument,
 }: Props) {
+  const listRef = useRef<HTMLDivElement | null>(null);
+  const availableRows = useAvailableRows(listRef);
+  const counts = workspaces.map((row) => (projects[row.id] ?? []).length);
+  const countKey = counts.join(',');
+  const allocation = useMemo(
+    () => allocateWorkspaceRows(availableRows ?? 0, countKey ? countKey.split(',').map(Number) : []),
+    [availableRows, countKey],
+  );
+  const measured = availableRows !== null;
   return (
-    <>
-      {workspaces.map((row) => {
+    <div
+      ref={listRef}
+      className="home-nav-workspaces"
+      data-home-nav-list="workspace"
+      data-home-nav-overflow={allocation.overflow ? 'true' : 'false'}
+    >
+      {workspaces.map((row, index) => {
         const list = projects[row.id] ?? [];
-        const shown = list.slice(0, HOME_PROJECT_LIMIT);
+        const plan = measured ? allocation.plans[index] : { shown: 0, more: false };
+        const shown = list.slice(0, plan.shown);
         return (
           <div key={row.id} className="home-nav-workspace" data-home-workspace={row.id}>
             <div className="home-chat-nav-notes">
@@ -83,7 +128,7 @@ export function HomeWorkspaceNav({
                 <span className="home-nav-project-label">{project.title}</span>
               </button>
             ))}
-            {list.length > HOME_PROJECT_LIMIT ? (
+            {plan.more ? (
               <button
                 type="button"
                 className="home-chat-nav-item home-nav-project home-nav-more"
@@ -97,6 +142,6 @@ export function HomeWorkspaceNav({
           </div>
         );
       })}
-    </>
+    </div>
   );
 }

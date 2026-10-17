@@ -6300,6 +6300,8 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   --home-chat-row-h: 40px;
   /* Height of the "Workspace" and "Chats" label rows. */
   --home-nav-label-h: 28px;
+  /* Every row of the Workspace area (workspace, project, ...) and Read Later has this height. */
+  --home-nav-row-h: 32px;
   --home-chat-list-rows: 5;
   --home-chat-list-pad: 2px;
   position: relative;
@@ -6316,14 +6318,31 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
 .home-chat-nav {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  /* Takes all the height Chats and the account bar leave; Workspace fills it (see below). */
+  flex: 1 1 0;
+  min-height: 0;
   padding: 8px var(--home-chat-row-inset) 12px;
   border-bottom: 1px solid var(--border-hex-e8ecf0);
 }
 .home-chat-nav-group {
   display: flex;
   flex-direction: column;
+  flex: 1 1 0;
+  min-height: 0;
   gap: 2px;
+}
+.home-chat-nav-group > .home-chat-nav-label,
+.home-chat-nav-group > .home-desktop-shortcut {
+  flex: 0 0 auto;
+}
+/* The Workspace list is measured: rows are fixed-height with no gaps, so whole rows add up. */
+.home-nav-workspaces {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.home-nav-workspaces[data-home-nav-overflow="true"] {
+  overflow-y: auto;
 }
 .home-chat-nav-label,
 .home-chat-sessions-title {
@@ -6345,7 +6364,9 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   align-items: center;
   gap: 10px;
   width: 100%;
-  padding: 7px 8px;
+  height: var(--home-nav-row-h);
+  flex-shrink: 0;
+  padding: 0 8px;
   border: none;
   border-radius: 8px;
   background: transparent;
@@ -6360,10 +6381,9 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
 .home-nav-workspace {
   display: flex;
   flex-direction: column;
-  gap: 2px;
 }
 .home-chat-nav .home-nav-project {
-  padding: 4px 8px 4px 36px;
+  padding: 0 8px 0 36px;
   font-size: 12.5px;
   color: var(--fg-muted);
 }
@@ -6378,6 +6398,7 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   display: flex;
   align-items: center;
   gap: 4px;
+  height: var(--home-nav-row-h);
 }
 .home-chat-nav-notes .home-desktop-shortcut {
   flex: 1;
@@ -6406,6 +6427,10 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   font-weight: 500;
   color: var(--fg-default);
   max-width: none;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   text-align: left;
 }
 .home-chat-nav .home-desktop-shortcut[data-home-unread="true"] .home-desktop-shortcut-icon {
