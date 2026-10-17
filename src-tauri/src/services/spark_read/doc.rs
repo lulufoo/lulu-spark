@@ -5,6 +5,7 @@ use base64::Engine;
 use serde_json::{json, Value};
 
 use crate::services::archive_parse::expected_lang_common_path;
+use crate::services::docs::hide_patterns::{compiled_hide_regexes, path_is_hidden};
 use crate::services::docs::workspace_root;
 use crate::services::docs::doc_file_path;
 use crate::services::spark_data::{
@@ -34,7 +35,15 @@ pub fn get_docs_index(workspace: Option<&str>) -> Value {
                 .find(|w| w.is_default)
                 .ok_or_else(|| "default workspace missing".to_string())?,
         };
-        let entries = list_doc_entries(&conn, &row)?;
+        let mut entries = list_doc_entries(&conn, &row)?;
+        // Hidden files: a document with a hidden path segment is not listed (still readable by id).
+        let hide = compiled_hide_regexes(&row.id);
+        if !hide.is_empty() {
+            entries.retain(|_, entry| {
+                let raw_path = entry.get("raw_path").and_then(Value::as_str).unwrap_or("");
+                !path_is_hidden(raw_path, &hide)
+            });
+        }
         Ok(json!({ "workspace": row.id, "entries": entries }))
     });
     result.unwrap_or_else(|e| json!({ "error": format!("notes index: {e}"), "_status": 500 }))

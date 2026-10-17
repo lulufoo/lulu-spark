@@ -10,6 +10,7 @@ mod create;
 mod delete;
 pub(crate) mod digest;
 pub mod edit;
+pub(crate) mod hide_patterns;
 mod jot;
 mod move_doc;
 mod project;
@@ -18,10 +19,14 @@ mod resolve;
 mod search;
 pub(crate) mod store;
 mod update;
+mod viewer_state;
 mod workspace;
 
 pub use create::{create_doc, create_doc_content};
 pub use delete::delete_doc;
+pub use hide_patterns::{
+    add_hide_pattern, list_hide_patterns, remove_hide_pattern, update_hide_pattern,
+};
 pub use jot::*;
 pub use move_doc::move_doc;
 pub use project::{
@@ -34,6 +39,7 @@ pub use resolve::DEFAULT_PROJECT_FOLDER;
 pub use search::search;
 pub use store::{doc_file_path, workspace_dir};
 pub use update::{update_doc, update_doc_content};
+pub use viewer_state::{get_viewer_state, set_viewer_state};
 pub use workspace::{
     create_workspace, disable_workspace, enable_workspace, list_disabled_workspaces, list_workspaces,
     rename_workspace, set_view_mode,

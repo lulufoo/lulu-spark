@@ -40,6 +40,8 @@ const INVOKE_MAP_COMMANDS: &[&str] = &[
     "get_doc_asset",
     "list_workspaces",
     "list_projects",
+    "list_hide_patterns",
+    "get_viewer_state",
     "search_spark",
     "get_annotations",
     "get_annotation",

@@ -19,6 +19,8 @@ commands.allow = [
   "list_disabled_workspaces",
   "list_projects",
   "list_disabled_projects",
+  "list_hide_patterns",
+  "get_viewer_state",
   "get_tags_registry",
   "get_read_later",
   "get_todo_tasks",

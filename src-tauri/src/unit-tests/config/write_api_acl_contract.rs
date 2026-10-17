@@ -83,6 +83,10 @@ const NOTE_WRITE_COMMANDS: &[&str] = &[
     "update_project",
     "disable_project",
     "enable_project",
+    "add_hide_pattern",
+    "update_hide_pattern",
+    "remove_hide_pattern",
+    "set_viewer_state",
 ];
 
 const DOC_HIGHLIGHTS_WRITE_COMMANDS: &[&str] = &["update_doc_highlights"];

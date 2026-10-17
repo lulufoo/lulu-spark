@@ -9,6 +9,7 @@ use rusqlite::Connection;
 
 use crate::config::paths;
 use crate::services::docs::doc_file_path;
+use crate::services::docs::hide_patterns::{compiled_hide_regexes, path_is_hidden};
 use crate::services::spark_data::{
     self, get_doc, get_project, get_workspace, list_docs, list_projects, list_workspaces, DocRow,
     WorkspaceRow,
@@ -50,8 +51,12 @@ fn workspace_chunks(conn: &Connection, workspace: &WorkspaceRow) -> Result<Vec<S
         .into_iter()
         .map(|p| (p.id, p.folder))
         .collect();
+    let hide = compiled_hide_regexes(&workspace.id);
     let mut chunks = Vec::new();
     for doc in list_docs(conn, &workspace.doc_table)? {
+        if path_is_hidden(&doc.raw_path, &hide) {
+            continue;
+        }
         if let Some(folder) = folders.get(&doc.project_id) {
             chunks.extend(doc_chunks(&root, &workspace.id, &doc, folder));
         }
@@ -86,5 +91,9 @@ pub fn workspace_doc_chunks(workspace_id: &str, doc_id: &str) -> Result<Vec<Sour
     let Some(project) = get_project(&conn, &doc.project_id)?.filter(|p| p.disabled_at.is_none()) else {
         return Ok(Vec::new());
     };
+    // Hidden files: a document with a hidden path segment is not searchable.
+    if path_is_hidden(&doc.raw_path, &compiled_hide_regexes(workspace_id)) {
+        return Ok(Vec::new());
+    }
     Ok(doc_chunks(&workspace_root(workspace_id)?, workspace_id, &doc, &project.folder))
 }

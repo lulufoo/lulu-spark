@@ -88,3 +88,33 @@ pub async fn disable_project(_app: AppHandle, payload: Value) -> Result<Value, S
 pub async fn enable_project(_app: AppHandle, payload: Value) -> Result<Value, String> {
     run(move || docs::enable_project(&payload)).await
 }
+
+#[tauri::command]
+pub async fn list_hide_patterns(_app: AppHandle, payload: Value) -> Result<Value, String> {
+    run(move || docs::list_hide_patterns(&payload)).await
+}
+
+#[tauri::command]
+pub async fn add_hide_pattern(_app: AppHandle, payload: Value) -> Result<Value, String> {
+    run(move || docs::add_hide_pattern(&payload)).await
+}
+
+#[tauri::command]
+pub async fn update_hide_pattern(_app: AppHandle, payload: Value) -> Result<Value, String> {
+    run(move || docs::update_hide_pattern(&payload)).await
+}
+
+#[tauri::command]
+pub async fn remove_hide_pattern(_app: AppHandle, payload: Value) -> Result<Value, String> {
+    run(move || docs::remove_hide_pattern(&payload)).await
+}
+
+#[tauri::command]
+pub async fn get_viewer_state(_app: AppHandle, payload: Value) -> Result<Value, String> {
+    run(move || docs::get_viewer_state(&payload)).await
+}
+
+#[tauri::command]
+pub async fn set_viewer_state(_app: AppHandle, payload: Value) -> Result<Value, String> {
+    run(move || docs::set_viewer_state(&payload)).await
+}

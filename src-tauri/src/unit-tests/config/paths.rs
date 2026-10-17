@@ -22,6 +22,28 @@ fn spark_data_db_path_under_runtime_data_dir() {
 }
 
 #[test]
+fn workspace_hide_patterns_path_is_one_file_per_workspace_under_cache_dir() {
+    let sandbox = TestSandbox::new();
+    let cache = cache_dir().expect("cache");
+    let got = workspace_hide_patterns_path("knowledge").expect("hide");
+    assert_eq!(got, cache.join("workspace-hide-patterns").join("knowledge.json"));
+    sandbox.assert_not_prod_path(&got).expect("sandbox hide");
+    assert_eq!(
+        legacy_hide_patterns_path().expect("legacy"),
+        cache.join("knowledge-hide-patterns.json")
+    );
+}
+
+#[test]
+fn workspace_viewer_state_path_is_one_file_per_workspace_under_cache_dir() {
+    let sandbox = TestSandbox::new();
+    let cache = cache_dir().expect("cache");
+    let got = workspace_viewer_state_path("default").expect("viewer");
+    assert_eq!(got, cache.join("workspace-viewer-state").join("default.json"));
+    sandbox.assert_not_prod_path(&got).expect("sandbox viewer");
+}
+
+#[test]
 fn doc_draft_path_resolves_under_cache_drafts_notes() {
     let _sandbox = TestSandbox::new();
     let cache = cache_dir().expect("cache");
