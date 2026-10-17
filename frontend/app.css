@@ -6288,27 +6288,28 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   color: var(--fg-default);
   background: var(--bg-surface);
 }
-.knowledge-repo-picker-host {
+/* The shared dropdown (shared/components/select): the look of the Project dropdown. */
+.ui-select-host {
   flex: 1;
   min-width: 0;
 }
-.knowledge-repo-picker {
+.ui-select {
   width: 100%;
 }
-.knowledge-repo-picker .list-select-trigger {
+.ui-select .list-select-trigger {
   min-height: 36px;
 }
-.knowledge-repo-picker .list-select-label,
-.knowledge-repo-picker-menu .list-select-option {
+.ui-select .list-select-label,
+.ui-select-menu .list-select-option {
   font-size: 14px;
   font-weight: 300;
   color: var(--fg-default);
 }
-.knowledge-repo-picker-menu .list-select-option.selected {
+.ui-select-menu .list-select-option.selected {
   color: var(--fg-accent);
   font-weight: 300;
 }
-.knowledge-repo-picker-menu {
+.ui-select-menu {
   max-height: 480px;
   overflow-y: auto;
   overflow-x: hidden;
@@ -6317,7 +6318,7 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
 }
-.knowledge-repo-picker-menu::-webkit-scrollbar {
+.ui-select-menu::-webkit-scrollbar {
   display: none;
 }
 

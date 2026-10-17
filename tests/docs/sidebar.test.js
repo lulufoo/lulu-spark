@@ -198,7 +198,7 @@ describe('renderSidebar workspace title', () => {
     renderSidebar();
     expect(sidebarEl()?.querySelectorAll('.topic-filter')).toHaveLength(1);
     expect(optionTexts(findSelect('.topic-select'))[0]).toBe('All (4)');
-    expect(sidebarEl()?.querySelector('.knowledge-repo-picker')).toBeNull();
+    expect(sidebarEl()?.querySelector('.ui-select')).toBeNull();
     expect(sidebarEl()?.querySelector('#sidebar-tree-zone')).toBeNull();
 
     state.index.topicTitles = { ai: 'AI', 'common-tech': 'Common tech' };
@@ -207,10 +207,10 @@ describe('renderSidebar workspace title', () => {
     act(() => notifyState());
     expect(sidebarEl()?.querySelectorAll('.topic-filter')).toHaveLength(0);
     expect(sidebarEl()?.querySelector('.date-tab')).toBeNull();
-    expect(sidebarEl()?.querySelectorAll('.knowledge-doc-sidebar-header .knowledge-repo-picker')).toHaveLength(1);
-    expect(optionTexts(findSelect('.knowledge-repo-picker'))).toEqual(['AI (2)', 'Common tech (1)']);
+    expect(sidebarEl()?.querySelectorAll('.knowledge-doc-sidebar-header .ui-select')).toHaveLength(1);
+    expect(optionTexts(findSelect('.ui-select'))).toEqual(['AI (2)', 'Common tech (1)']);
     act(() => selectDefaultProject());
-    expect(findSelect('.knowledge-repo-picker')._listSelectValue).toBe('ai');
+    expect(findSelect('.ui-select')._listSelectValue).toBe('ai');
     expect(sidebarEl()?.querySelector('#sidebar-tree-zone #sidebar-dir-tree')).not.toBeNull();
   });
 
@@ -227,9 +227,9 @@ describe('renderSidebar workspace title', () => {
       state.index.topicTitles = { ai: 'AI', ops: 'Ops' };
       notifyState();
     });
-    expect(sidebarEl()?.querySelectorAll('.knowledge-doc-sidebar-header .knowledge-repo-picker-host')).toHaveLength(1);
-    expect(sidebarEl()?.querySelectorAll('.knowledge-repo-picker')).toHaveLength(1);
-    expect(optionTexts(findSelect('.knowledge-repo-picker'))).toEqual(['AI (0)', 'Ops (0)']);
+    expect(sidebarEl()?.querySelectorAll('.knowledge-doc-sidebar-header .ui-select-host')).toHaveLength(1);
+    expect(sidebarEl()?.querySelectorAll('.ui-select')).toHaveLength(1);
+    expect(optionTexts(findSelect('.ui-select'))).toEqual(['AI (0)', 'Ops (0)']);
   });
 
   it('directory view with no projects still shows the dropdown', () => {
@@ -237,7 +237,7 @@ describe('renderSidebar workspace title', () => {
     state.index.data = {};
     seedWorkspaces('directory');
     renderSidebar();
-    expect(optionTexts(findSelect('.knowledge-repo-picker'))).toEqual(['No projects']);
+    expect(optionTexts(findSelect('.ui-select'))).toEqual(['No projects']);
   });
 
   it('directory view: picking a project in the dropdown shows only its content, no project node', () => {
@@ -253,7 +253,7 @@ describe('renderSidebar workspace title', () => {
     const names = [...sidebarEl().querySelectorAll('#sidebar-dir-tree .knowledge-doc-tree-name')].map((n) => n.textContent);
     expect(names).toEqual(['x', 'top.md']);
     expect(sidebarEl().querySelector('[data-node="ai"]')).toBeNull();
-    expect(findSelect('.knowledge-repo-picker')._listSelectValue).toBe('ai');
+    expect(findSelect('.ui-select')._listSelectValue).toBe('ai');
     act(() => selectProject('common-tech'));
     expect([...sidebarEl().querySelectorAll('#sidebar-dir-tree .knowledge-doc-tree-name')].map((n) => n.textContent)).toEqual(['y']);
   });
