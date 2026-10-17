@@ -6298,6 +6298,8 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   --home-chat-row-inset: 8px;
   /* One chat row (8px padding + 24px icon + 8px padding); the Chats block holds exactly five. */
   --home-chat-row-h: 40px;
+  /* Height of the "Workspace" and "Chats" label rows. */
+  --home-nav-label-h: 28px;
   --home-chat-list-rows: 5;
   --home-chat-list-pad: 2px;
   position: relative;
@@ -6323,13 +6325,18 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   flex-direction: column;
   gap: 2px;
 }
-.home-chat-nav-label {
-  font-size: 11px;
-  font-weight: 650;
-  letter-spacing: .06em;
-  text-transform: uppercase;
+.home-chat-nav-label,
+.home-chat-sessions-title {
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
   color: var(--fg-subtle);
-  padding: 6px 8px 16px;
+}
+.home-chat-nav-label {
+  display: flex;
+  align-items: center;
+  height: var(--home-nav-label-h);
+  padding: 0 8px;
 }
 .home-chat-nav .home-desktop-shortcut,
 .home-chat-nav-item {
@@ -6418,14 +6425,9 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px var(--home-chat-row-inset) 8px var(--home-rail);
-}
-.home-chat-sessions-title {
-  font-size: 11px;
-  font-weight: 650;
-  letter-spacing: .06em;
-  text-transform: uppercase;
-  color: var(--fg-subtle);
+  height: var(--home-nav-label-h);
+  margin-top: 12px;
+  padding: 0 var(--home-chat-row-inset) 0 var(--home-rail);
 }
 .home-chat-new {
   width: 28px;
