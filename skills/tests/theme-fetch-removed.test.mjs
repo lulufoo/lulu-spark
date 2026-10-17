@@ -37,7 +37,7 @@ describe("theme-fetch skill removal", () => {
   it("README and sibling skills omit theme-fetch", () => {
     const files = [
       readme,
-      path.join(root, "note-task/SKILL.md"),
+      path.join(root, "spark-task/SKILL.md"),
     ];
     for (const file of files) {
       const text = fs.readFileSync(file, "utf8");
