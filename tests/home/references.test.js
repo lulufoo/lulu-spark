@@ -11,11 +11,12 @@ const NOTE_ID = 'f6692dc5d5242eec5206b6400e704bd6';
 const READ_LATER_ID = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
 
 describe('reference kinds', () => {
-  it('registers doc and read-later out of the box; note and knowledge are gone', () => {
-    const doc = referenceKindByScheme('doc');
+  it('registers doc and read-later out of the box; note, knowledge, and doc are gone', () => {
+    const doc = referenceKindByScheme('spark-doc');
     const readLater = referenceKindByScheme('read-later');
     expect(doc?.kind).toBe('doc');
-    expect(doc?.label).toBe('doc');
+    expect(doc?.label).toBe('');
+    expect(referenceKindByScheme('doc')).toBeUndefined();
     expect(referenceKindByScheme('note')).toBeUndefined();
     expect(referenceKindByScheme('knowledge')).toBeUndefined();
     expect(readLater?.kind).toBe('read-later');
@@ -43,17 +44,17 @@ describe('parseReferences', () => {
   });
 
   it('splits text around a document reference', () => {
-    const raw = `read [Default：Agent Mock](doc:${NOTE_ID}) first`;
+    const raw = `read [Default：Agent Mock](spark-doc:${NOTE_ID}) first`;
     expect(parseReferences(raw)).toEqual([
       { type: 'text', text: 'read ' },
-      { type: 'ref', kind: 'doc', id: NOTE_ID, title: 'Default：Agent Mock', raw: `[Default：Agent Mock](doc:${NOTE_ID})` },
+      { type: 'ref', kind: 'doc', id: NOTE_ID, title: 'Default：Agent Mock', raw: `[Default：Agent Mock](spark-doc:${NOTE_ID})` },
       { type: 'text', text: ' first' },
     ]);
   });
 
   it('accepts a plain 32-hex id and a `<workspace id>-<32 hex>` id', () => {
-    const prefixed = parseReferences(`[A](doc:default-${NOTE_ID})`);
-    const other = parseReferences(`[B](doc:k3x9ab-${NOTE_ID})`);
+    const prefixed = parseReferences(`[A](spark-doc:default-${NOTE_ID})`);
+    const other = parseReferences(`[B](spark-doc:k3x9ab-${NOTE_ID})`);
     expect(prefixed[0]).toMatchObject({ type: 'ref', kind: 'doc', id: `default-${NOTE_ID}` });
     expect(other[0]).toMatchObject({ type: 'ref', kind: 'doc', id: `k3x9ab-${NOTE_ID}` });
   });
@@ -72,21 +73,22 @@ describe('parseReferences', () => {
   });
 
   it('parses adjacent references', () => {
-    const segments = parseReferences(`[A](doc:${NOTE_ID})[B](doc:default-${NOTE_ID})`);
+    const segments = parseReferences(`[A](spark-doc:${NOTE_ID})[B](spark-doc:default-${NOTE_ID})`);
     expect(segments.map((s) => s.type)).toEqual(['ref', 'ref']);
   });
 
   it('leaves anything that is not a valid registered reference as text', () => {
     const cases = [
-      '[x](doc:abc)', // doc ids are 32 hex, optionally behind a workspace id
-      `[x](doc:${NOTE_ID.toUpperCase()})`,
-      `[x](doc:Bad-${NOTE_ID})`,
-      `[x](note:${NOTE_ID})`, // the old schemes are no longer references
+      '[x](spark-doc:abc)', // ids are 32 hex, optionally behind a workspace id
+      `[x](spark-doc:${NOTE_ID.toUpperCase()})`,
+      `[x](spark-doc:Bad-${NOTE_ID})`,
+      `[x](doc:${NOTE_ID})`, // the old scheme is no longer a reference
+      `[x](note:${NOTE_ID})`,
       `[x](knowledge:${NOTE_ID})`,
       '[x](https://example.com)',
       '[x](unknown:abc123)',
-      `[](doc:${NOTE_ID})`,
-      `[multi\nline](doc:${NOTE_ID})`,
+      `[](spark-doc:${NOTE_ID})`,
+      `[multi\nline](spark-doc:${NOTE_ID})`,
     ];
     for (const raw of cases) {
       expect(parseReferences(raw), raw).toEqual([{ type: 'text', text: raw }]);
@@ -94,7 +96,7 @@ describe('parseReferences', () => {
   });
 
   it('never loses or reorders characters', () => {
-    const raw = `a [b](doc:${NOTE_ID}) c [d](doc:zz) e\n[f](note:ab12)`;
+    const raw = `a [b](spark-doc:${NOTE_ID}) c [d](spark-doc:zz) e\n[f](doc:${NOTE_ID})`;
     const joined = parseReferences(raw)
       .map((s) => (s.type === 'text' ? s.text : s.raw))
       .join('');
@@ -105,13 +107,13 @@ describe('parseReferences', () => {
 describe('serializeReference', () => {
   it('writes the markdown link the model sees', () => {
     expect(serializeReference({ kind: 'doc', id: NOTE_ID, title: 'Default：Agent Mock' })).toBe(
-      `[Default：Agent Mock](doc:${NOTE_ID})`,
+      `[Default：Agent Mock](spark-doc:${NOTE_ID})`,
     );
   });
 
   it('flattens newlines and drops brackets in the title', () => {
     expect(serializeReference({ kind: 'doc', id: NOTE_ID, title: 'a[b]\nc' })).toBe(
-      `[ab c](doc:${NOTE_ID})`,
+      `[ab c](spark-doc:${NOTE_ID})`,
     );
   });
 

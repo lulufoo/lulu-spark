@@ -11,8 +11,8 @@ import { UserMessageText } from '../../frontend/src/home/ui/user-message-text.ts
 
 const NOTE_ID = 'f6692dc5d5242eec5206b6400e704bd6';
 const GUIDE_ID = 'knowledge-0123456789abcdef0123456789abcdef';
-const NOTE = `[Default：Agent Mock](doc:${NOTE_ID})`;
-const GUIDE = `[Knowledge：Guide](doc:${GUIDE_ID})`;
+const NOTE = `[Default：Agent Mock](spark-doc:${NOTE_ID})`;
+const GUIDE = `[Knowledge：Guide](spark-doc:${GUIDE_ID})`;
 
 let container;
 let root;
@@ -44,21 +44,27 @@ describe('UserMessageText', () => {
   it('shows document references of two workspaces as chips between the text', () => {
     const el = render(`read ${NOTE} then ${GUIDE} now`);
     const chips = [...el.querySelectorAll('.home-ref-chip')];
-    expect(chips.map((c) => c.textContent)).toEqual(['doc: Default：Agent Mock', 'doc: Knowledge：Guide']);
-    expect(el.textContent).toBe('read doc: Default：Agent Mock then doc: Knowledge：Guide now');
-    expect(chips[0].querySelector('.home-ref-chip-label')?.textContent).toBe('doc: Default：Agent Mock');
+    expect(chips.map((c) => c.textContent)).toEqual(['Default：Agent Mock', 'Knowledge：Guide']);
+    expect(el.textContent).toBe('read Default：Agent Mock then Knowledge：Guide now');
+    expect(chips[0].querySelector('.home-ref-chip-label')?.textContent).toBe('Default：Agent Mock');
     expect(chips[0].getAttribute('data-ref-kind')).toBe('doc');
     expect(chips[0].getAttribute('data-ref-id')).toBe(NOTE_ID);
   });
 
   it('leaves invalid references as the original text', () => {
-    const el = render('see [x](doc:abc) and [y](https://a.b)');
+    const el = render('see [x](spark-doc:abc) and [y](https://a.b)');
     expect(el.querySelector('.home-ref-chip')).toBeNull();
-    expect(el.textContent).toBe('see [x](doc:abc) and [y](https://a.b)');
+    expect(el.textContent).toBe('see [x](spark-doc:abc) and [y](https://a.b)');
+  });
+
+  it('leaves a retired doc: link as the original text', () => {
+    const el = render(`[Old](doc:${NOTE_ID})`);
+    expect(el.querySelector('.home-ref-chip')).toBeNull();
+    expect(el.textContent).toBe(`[Old](doc:${NOTE_ID})`);
   });
 
   it('never turns message text into markup', () => {
-    const el = render(`<b>x</b> [T](doc:${NOTE_ID}) <img src=x>`);
+    const el = render(`<b>x</b> [T](spark-doc:${NOTE_ID}) <img src=x>`);
     expect(el.querySelector('b')).toBeNull();
     expect(el.querySelector('img')).toBeNull();
     expect(el.textContent).toContain('<b>x</b>');

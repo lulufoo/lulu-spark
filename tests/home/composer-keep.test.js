@@ -15,7 +15,7 @@ import { stopHomeHub, resetHomeCommands } from '../../frontend/src/home/commands
 import { composerDisabled, composerValue, setComposerValue } from '../helpers/composer.js';
 
 const NOTE_ID = 'f6692dc5d5242eec5206b6400e704bd6';
-const NOTE = `[Agent Mock](doc:${NOTE_ID})`;
+const NOTE = `[Agent Mock](spark-doc:${NOTE_ID})`;
 
 describe('composer keep (store)', () => {
   beforeEach(resetComposerKeep);

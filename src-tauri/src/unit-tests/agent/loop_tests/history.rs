@@ -35,9 +35,12 @@ fn spark_host_system_prompt_closes_data_and_teaches_file_copies() {
     assert!(prompt.contains("cannot be requested"), "hard deny cannot be asked");
     assert!(prompt.contains("`.git`"), "hard deny names .git");
     assert!(prompt.contains("SESSION_WORKSPACE_DIR"), "copies go to the session workspace");
-    assert!(prompt.contains("(doc:<id>)"), "document link rule");
+    assert!(prompt.contains("(spark-doc:<id>)"), "document link rule");
     assert!(prompt.contains("U+FF1A"), "the colon in the link text is spelled out");
-    assert!(!prompt.contains("(note:<id>)") && !prompt.contains("(knowledge:<id>)"), "old schemes are gone");
+    assert!(
+        !prompt.contains("(doc:<id>)") && !prompt.contains("(note:<id>)") && !prompt.contains("(knowledge:<id>)"),
+        "old schemes are gone"
+    );
     assert!(prompt.contains("[Title](read-later:<id>)"), "read-later link rule");
 }
 

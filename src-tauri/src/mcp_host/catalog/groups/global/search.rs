@@ -19,7 +19,7 @@ pub fn build(channel: &str) -> Option<ToolRoute> {
     Some(route(
         "search",
         &format!(
-            "Search Lulu Spark's own library: the documents of every workspace, or of one when workspace is given. Returns id, title, snippet, workspace_name, workspace and project per hit. To link a hit in chat write [workspace_name][U+FF1A][title](doc:id), where U+FF1A is the full-width colon. Does not return file path or body. {follow_up}"
+            "Search Lulu Spark's own library: the documents of every workspace, or of one when workspace is given. Returns id, title, snippet, workspace_name, workspace and project per hit. To link a hit in chat write [workspace_name][U+FF1A][title](spark-doc:id), where U+FF1A is the full-width colon. Does not return file path or body. {follow_up}"
         ),
         object_schema(
             json!({

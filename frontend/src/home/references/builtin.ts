@@ -4,8 +4,8 @@ import { registerReferenceKind } from './registry.ts';
 
 registerReferenceKind({
   kind: 'doc',
-  scheme: 'doc',
-  label: 'doc',
+  scheme: 'spark-doc',
+  label: '',
   idPattern: /^(?:[a-z0-9_]+-)?[0-9a-f]{32}$/,
   open: openDocById,
 });

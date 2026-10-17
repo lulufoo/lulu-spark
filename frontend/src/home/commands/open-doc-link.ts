@@ -4,9 +4,9 @@ import { refreshNotesIndex } from '../../notes/commands/reload-index.ts';
 import { showWorkspace } from '../../notes/commands/workspace-switch.ts';
 import { showActionError } from './hub.ts';
 
-/** Chat links that open a document: `[Workspace name：Title](doc:<id>)`. The id is `<workspace id>-<32 hex>`
+/** Chat links that open a document: `[Workspace name：Title](spark-doc:<id>)`. The id is `<workspace id>-<32 hex>`
  * or a plain 32 hex from before the prefix. Only the id is read; the link text is for display. */
-const DOC_HREF = /^doc:((?:[a-z0-9_]+-)?[0-9a-f]{32})$/;
+const DOC_HREF = /^spark-doc:((?:[a-z0-9_]+-)?[0-9a-f]{32})$/;
 
 export function docIdFromHref(href: string | null | undefined): string | null {
   const match = DOC_HREF.exec((href ?? '').trim());
@@ -40,14 +40,14 @@ export async function openDocById(id: string): Promise<void> {
   }
 }
 
-/** Delegated click for rendered chat markdown. Only `doc:` links are intercepted. */
+/** Delegated click for rendered chat markdown. Only `spark-doc:` links are intercepted. */
 export function onDocLinkClick(event: {
   target: EventTarget | null;
   preventDefault(): void;
 }): void {
   const target = event.target;
   if (!(target instanceof Element)) return;
-  const anchor = target.closest('a[href^="doc:"]');
+  const anchor = target.closest('a[href^="spark-doc:"]');
   if (!anchor) return;
   event.preventDefault();
   const id = docIdFromHref(anchor.getAttribute('href'));

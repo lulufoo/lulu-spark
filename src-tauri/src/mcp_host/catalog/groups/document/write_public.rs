@@ -10,7 +10,7 @@ fn nonempty_array(value: &Value) -> bool {
 }
 
 /// Success becomes `{ok, id, workspace?, workspace_name?}` plus written-flags. The workspace
-/// name is what a chat link shows: `[workspace name：title](doc:<id>)`. Failures pass through.
+/// name is what a chat link shows: `[workspace name：title](spark-doc:<id>)`. Failures pass through.
 pub(super) fn mcp_doc_write_public(result: Value) -> Value {
     if result.get("error").is_some() || result.get("ok") != Some(&json!(true)) {
         return result;

@@ -43,6 +43,6 @@ Spark's own data and `.git` directories are not readable or writable and cannot 
 
 ## Links and references
 
-When you point the user at a Spark document in any workspace, write it as [<workspace_name><colon><title>](doc:<id>), where <colon> is the single full-width colon character U+FF1A (not an ASCII colon). The workspace name is `workspace_name` and `<id>` is `id`, both from `search` or `create_doc`. When you point the user at a read-later item, write it as [Title](read-later:<id>) using the item's id.
-In a user message, `[<workspace_name><colon><title>](doc:<id>)` refers to a document; `<id>` is that document's id.
+When you point the user at a Spark document in any workspace, write it as [<workspace_name><colon><title>](spark-doc:<id>), where <colon> is the single full-width colon character U+FF1A (not an ASCII colon). The workspace name is `workspace_name` and `<id>` is `id`, both from `search` or `create_doc`. When you point the user at a read-later item, write it as [Title](read-later:<id>) using the item's id.
+In a user message, `[<workspace_name><colon><title>](spark-doc:<id>)` refers to a document; `<id>` is that document's id.
 In a user message, `[Title](read-later:<id>)` refers to a read-later item; `<id>` is that item's id.
