@@ -116,6 +116,19 @@ fn parse_rejects_missing_or_non_bool_exposed() {
 }
 
 #[test]
+fn exposed_ids_use_builtin_without_creating_the_file() {
+    let sandbox = TestSandbox::new();
+    let path = local_path();
+    assert!(!path.exists());
+    assert_eq!(
+        exposed_ids(),
+        vec!["summary", "dialogue", "video", "article"]
+    );
+    assert!(!path.exists());
+    sandbox.assert_not_prod_path(&path).expect("sandbox path");
+}
+
+#[test]
 fn is_legal_and_is_exposed_follow_the_local_list() {
     let _sandbox = TestSandbox::new();
     load().expect("seed default");

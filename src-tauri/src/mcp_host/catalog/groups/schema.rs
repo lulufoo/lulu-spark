@@ -3,10 +3,11 @@
 use serde_json::{json, Value};
 
 pub fn source_type_schema() -> Value {
+    let ids = crate::services::docs::categories::exposed_ids();
     json!({
         "type": "string",
-        "enum": ["summary", "article", "theme-line", "dialogue", "transcript", "jot"],
-        "description": "Optional source type; defaults to summary."
+        "enum": ids,
+        "description": "Optional source type; defaults to summary. Must be an id from list_doc_categories."
     })
 }
 

@@ -157,6 +157,7 @@ const DOCS_TOOLS: &[&str] = &[
     "update_project",
     "get_doc_digest",
     "get_doc_file",
+    "list_doc_categories",
     "create_doc",
     "update_doc",
     "delete_doc",
@@ -172,6 +173,7 @@ const DOCS_TOOLS_NON_SPARK: &[&str] = &[
     "update_project",
     "get_doc_digest",
     "get_doc_file",
+    "list_doc_categories",
     "create_doc",
     "update_doc",
 ];

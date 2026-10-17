@@ -2,6 +2,7 @@
 
 mod create_doc;
 mod delete_doc;
+mod list_categories;
 mod read_doc;
 mod update_doc;
 mod write_public;
@@ -29,6 +30,7 @@ const REGISTRY: Registry = &[
     ("get_doc_digest", read_doc::build_digest as BuildFn),
     ("get_doc_content", read_doc::build_content as BuildFn),
     ("get_doc_file", read_doc::build_file as BuildFn),
+    ("list_doc_categories", list_categories::build as BuildFn),
     ("create_doc", create_doc::build as BuildFn),
     ("update_doc", update_doc::build as BuildFn),
     ("delete_doc", delete_doc::build as BuildFn),

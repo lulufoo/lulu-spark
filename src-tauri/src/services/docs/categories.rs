@@ -93,6 +93,15 @@ fn write_items(path: &Path, items: &[DocCategory]) -> Result<(), String> {
     atomic_json::write_json(path, &value)
 }
 
+fn read_unlocked() -> Result<Vec<DocCategory>, String> {
+    let path = file_path()?;
+    if !path.is_file() {
+        return Ok(builtin_categories());
+    }
+    let text = fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    parse_list(&text)
+}
+
 fn load_unlocked() -> Result<Vec<DocCategory>, String> {
     let path = file_path()?;
     if !path.is_file() {
@@ -103,8 +112,7 @@ fn load_unlocked() -> Result<Vec<DocCategory>, String> {
         write_items(&path, &items)?;
         return Ok(items);
     }
-    let text = fs::read_to_string(&path).map_err(|e| e.to_string())?;
-    parse_list(&text)
+    read_unlocked()
 }
 
 /// Local list. Missing file → write builtin default first.
@@ -134,6 +142,19 @@ pub fn is_exposed(id: &str) -> bool {
     load()
         .ok()
         .is_some_and(|items| items.iter().any(|c| c.id == id && c.exposed))
+}
+
+/// Exposed ids for MCP schema. Missing local file uses builtin and does not write.
+pub fn exposed_ids() -> Vec<String> {
+    let _guard = WRITE_LOCK.lock().ok();
+    match read_unlocked() {
+        Ok(items) => items
+            .into_iter()
+            .filter(|c| c.exposed)
+            .map(|c| c.id)
+            .collect(),
+        Err(_) => Vec::new(),
+    }
 }
 
 #[cfg(test)]
