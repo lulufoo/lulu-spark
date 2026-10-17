@@ -25,6 +25,7 @@ import {
   applyListFilters,
   buildGroups,
   selectDate,
+  selectProject,
   selectTopic,
 } from '../../frontend/src/notes/commands/sidebar.ts';
 import { renderDocList } from '../../frontend/src/notes/ui/cards.tsx';
@@ -191,19 +192,45 @@ describe('renderSidebar workspace title', () => {
     expect(sidebarEl().querySelector('.date-tab[data-date="undated"] .count').textContent).toBe('2');
   });
 
-  it('shows the project picker in the timeline view only; the directory view paints the tree', () => {
+  it('both views have a project dropdown; only the timeline has dates, only the directory has the tree', () => {
     applyListFilters();
     renderSidebar();
     expect(sidebarEl()?.querySelectorAll('.topic-filter')).toHaveLength(1);
     expect(optionTexts(findSelect('.topic-select'))[0]).toBe('All (4)');
-    expect(sidebarEl()?.querySelector('#sidebar-dir-tree')).toBeNull();
+    expect(sidebarEl()?.querySelector('.knowledge-repo-picker')).toBeNull();
+    expect(sidebarEl()?.querySelector('#sidebar-tree-zone')).toBeNull();
 
+    state.index.topicTitles = { ai: 'AI', 'common-tech': 'Common tech' };
     seedWorkspaces('directory');
     renderSidebar();
     act(() => notifyState());
     expect(sidebarEl()?.querySelectorAll('.topic-filter')).toHaveLength(0);
     expect(sidebarEl()?.querySelector('.date-tab')).toBeNull();
-    expect(sidebarEl()?.querySelector('#sidebar-dir-tree')).not.toBeNull();
+    expect(sidebarEl()?.querySelectorAll('.knowledge-doc-sidebar-header .knowledge-repo-picker')).toHaveLength(1);
+    expect(optionTexts(findSelect('.knowledge-repo-picker'))).toEqual([
+      'Select a project',
+      'AI (2)',
+      'Common tech (1)',
+    ]);
+    expect(sidebarEl()?.querySelector('#sidebar-tree-zone .knowledge-doc-empty')).not.toBeNull();
+  });
+
+  it('directory view: picking a project in the dropdown shows only its content, no project node', () => {
+    state.index.topicTitles = { ai: 'AI', 'common-tech': 'Common tech' };
+    state.index.data = {
+      a: { folder: 'ai', raw_path: 'x/one.md', created_at: '202501011200' },
+      b: { folder: 'ai', raw_path: 'top.md', created_at: '202501021200' },
+      c: { folder: 'common-tech', raw_path: 'y/two.md', created_at: '202501011200' },
+    };
+    seedWorkspaces('directory');
+    renderSidebar();
+    act(() => selectProject('ai'));
+    const names = [...sidebarEl().querySelectorAll('#sidebar-dir-tree .knowledge-doc-tree-name')].map((n) => n.textContent);
+    expect(names).toEqual(['x', 'top.md']);
+    expect(sidebarEl().querySelector('[data-node="ai"]')).toBeNull();
+    expect(findSelect('.knowledge-repo-picker')._listSelectValue).toBe('ai');
+    act(() => selectProject('common-tech'));
+    expect([...sidebarEl().querySelectorAll('#sidebar-dir-tree .knowledge-doc-tree-name')].map((n) => n.textContent)).toEqual(['y']);
   });
 
   it('has no tag filter any more', () => {

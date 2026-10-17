@@ -109,7 +109,7 @@ export function selectDate(date: string) {
   loadTitles(group.entries, date);
 }
 
-/** Select a project from outside the page (Home sidebar): open it in the tree, or fill the timeline's picker. */
+/** Select a project (Home sidebar or the picker): the tree shows its content, or the timeline filters to it. */
 export function selectProject(folder: string) {
   if (!isDirectoryView()) {
     selectTopic(folder);
@@ -118,7 +118,6 @@ export function selectProject(folder: string) {
   state.ui.activeTopic = folder;
   state.ui.activeDate = null;
   resetDirTree();
-  expandDirNodes([folder]);
   applyListFilters();
   notifyState();
 }

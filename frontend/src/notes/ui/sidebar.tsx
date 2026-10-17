@@ -9,6 +9,7 @@ import { isTimelineView } from '../commands/workspace.ts';
 import { PageBackHome } from '../../shared/home-mark.tsx';
 import { WindowDragStrip } from '../../shared/window-drag-strip.tsx';
 import { DirTree } from './dir-tree.tsx';
+import { renderProjectPicker } from './project-picker.ts';
 import { attachNotesSidebarResize } from './sidebar-resize.ts';
 
 export { applyListFilters, buildGroups, selectDate, selectTopic };
@@ -107,11 +108,12 @@ export function NotesSidebar() {
     sidebar?.querySelectorAll('.topic-filter').forEach((el) => el.remove());
     parent.replaceChildren();
     if (isTimelineView()) _renderTopicFilter(parent);
+    else renderProjectPicker(parent);
     return () => {
       closeFloatingListSelect();
       parent.replaceChildren();
     };
-  }, [data, topic, workspaces.current, workspaces.list]);
+  }, [data, topic, workspaces.current, workspaces.list, host.index.topicTitles]);
 
   useLayoutEffect(() => {
     const aside = document.getElementById('sidebar');
@@ -128,7 +130,13 @@ export function NotesSidebar() {
         <div id="sidebar-workspace-title" className="sidebar-workspace-title" title={workspaceName}>
           {workspaceName}
         </div>
-        <div id="sidebar-channel-zone" className="sidebar-channel-zone" ref={channelRef} />
+        {isTimelineView() ? (
+          <div id="sidebar-channel-zone" className="sidebar-channel-zone" ref={channelRef} />
+        ) : (
+          <div id="sidebar-channel-zone" className="knowledge-doc-sidebar-header">
+            <div className="knowledge-repo-picker-host" ref={channelRef} />
+          </div>
+        )}
         {isTimelineView() ? (
         <div id="sidebar-date-zone" className="sidebar-date-zone">
           {groups.map(({ date, entries }) => {

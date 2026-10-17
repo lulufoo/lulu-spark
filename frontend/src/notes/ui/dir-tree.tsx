@@ -1,7 +1,7 @@
 import { useMemo, useSyncExternalStore } from 'react';
 import { getEntryId } from '../../host/state.ts';
 import { useHostState } from '../state/host.ts';
-import { buildDirTree, dirTreeStore, toggleDirNodeOpen, type DirNode } from '../state/dir-tree.ts';
+import { buildDirTree, dirTreeStore, findDirNode, toggleDirNodeOpen, type DirNode } from '../state/dir-tree.ts';
 import type { NoteEntry } from '../state/types.ts';
 import { FileGlyph, FolderGlyph, TreeChevron, TreeNodeName } from './dir-tree-glyphs.tsx';
 
@@ -23,17 +23,39 @@ function Chrome({ isDir, expanded }: { isDir: boolean; expanded: boolean }) {
   );
 }
 
-function FolderBlock({
-  node,
-  depth,
-  expanded,
-  openDocId,
-}: {
-  node: DirNode;
-  depth: number;
-  expanded: string[];
-  openDocId: string;
-}) {
+type TreeProps = { depth: number; expanded: string[]; openDocId: string };
+
+/** The folders, then the documents, directly inside `node`. */
+function NodeContents({ node, depth, expanded, openDocId }: TreeProps & { node: DirNode }) {
+  return (
+    <>
+      {node.children.map((child) => (
+        <FolderBlock key={child.key} node={child} depth={depth} expanded={expanded} openDocId={openDocId} />
+      ))}
+      {node.docs.map((doc) => (
+        <div
+          key={doc.id}
+          className="knowledge-doc-tree-node is-file"
+          data-id={doc.id}
+          data-kind="file"
+          style={{ paddingLeft: depth * 16 }}
+        >
+          <button
+            type="button"
+            className={`knowledge-doc-tree-label${openDocId === doc.id ? ' selected' : ''}`}
+            title={doc.entry.raw_path || doc.name}
+            onClick={() => openDoc(doc.id, doc.entry)}
+          >
+            <Chrome isDir={false} expanded={false} />
+            <TreeNodeName name={doc.name} isDir={false} />
+          </button>
+        </div>
+      ))}
+    </>
+  );
+}
+
+function FolderBlock({ node, depth, expanded, openDocId }: TreeProps & { node: DirNode }) {
   const open = expanded.includes(node.key);
   return (
     <>
@@ -59,51 +81,35 @@ function FolderBlock({
           className="knowledge-doc-tree-children"
           style={{ ['--knowledge-tree-guide' as string]: `${depth * 16 + 12}px` }}
         >
-          {node.children.map((child) => (
-            <FolderBlock key={child.key} node={child} depth={depth + 1} expanded={expanded} openDocId={openDocId} />
-          ))}
-          {node.docs.map((doc) => (
-            <div
-              key={doc.id}
-              className="knowledge-doc-tree-node is-file"
-              data-id={doc.id}
-              data-kind="file"
-              style={{ paddingLeft: (depth + 1) * 16 }}
-            >
-              <button
-                type="button"
-                className={`knowledge-doc-tree-label${openDocId === doc.id ? ' selected' : ''}`}
-                title={doc.entry.raw_path || doc.name}
-                onClick={() => openDoc(doc.id, doc.entry)}
-              >
-                <Chrome isDir={false} expanded={false} />
-                <TreeNodeName name={doc.name} isDir={false} />
-              </button>
-            </div>
-          ))}
+          <NodeContents node={node} depth={depth + 1} expanded={expanded} openDocId={openDocId} />
         </div>
       ) : null}
     </>
   );
 }
 
-/** Directory view of the sidebar: project → sub-folders → documents, built from `raw_path`. Read-only. */
+/**
+ * Directory view of the sidebar: the folders and documents of the project picked in the dropdown,
+ * built from `raw_path`. The project itself is not a node. Read-only.
+ */
 export function DirTree() {
   const host = useHostState();
   const { expanded } = useSyncExternalStore(dirTreeStore.subscribe, dirTreeStore.getSnapshot);
-  const roots = useMemo(
-    () => buildDirTree(host.index.data, host.index.topicTitles),
-    [host.index.data, host.index.topicTitles],
+  const project = host.ui.activeTopic;
+  const root = useMemo(
+    () => (project ? findDirNode(buildDirTree(host.index.data, host.index.topicTitles), project) : null),
+    [host.index.data, host.index.topicTitles, project],
   );
   const openDocId =
     host.viewer.entry && host.viewer.outletMode === 'open' ? getEntryId(host.viewer.entry) || '' : '';
 
-  if (roots.length === 0) return <div className="knowledge-doc-empty">No documents yet.</div>;
+  if (!project) return <div className="knowledge-doc-empty">Select a project to browse its documents.</div>;
+  if (!root || (root.children.length === 0 && root.docs.length === 0)) {
+    return <div className="knowledge-doc-empty">This project has no documents yet.</div>;
+  }
   return (
     <div id="sidebar-dir-tree" role="tree">
-      {roots.map((node) => (
-        <FolderBlock key={node.key} node={node} depth={0} expanded={expanded} openDocId={openDocId} />
-      ))}
+      <NodeContents node={root} depth={0} expanded={expanded} openDocId={openDocId} />
     </div>
   );
 }

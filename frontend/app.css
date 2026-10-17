@@ -6085,6 +6085,20 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   flex-shrink: 0;
 }
 
+.knowledge-doc-sidebar-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 2;
+  padding: 8px 16px 16px;
+  font-size: 14px;
+  font-weight: 300;
+  border-bottom: 1px solid var(--border-muted);
+  color: var(--fg-default);
+  background: var(--bg-surface);
+}
 .knowledge-repo-picker-host {
   flex: 1;
   min-width: 0;

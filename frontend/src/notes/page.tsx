@@ -68,7 +68,7 @@ function NotesStatus() {
   return (
     <div id="status">
       <div style={{ color: '#8c959f', fontSize: '13px' }}>
-        {isDirectoryView() ? '← Select a project or folder' : '← Select a date to view documents'}
+        {isDirectoryView() ? '← Select a document in the tree' : '← Select a date to view documents'}
       </div>
     </div>
   );

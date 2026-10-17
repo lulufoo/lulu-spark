@@ -136,7 +136,7 @@ describe('entering from Home', () => {
     selectProject('android');
     expect(state.ui.activeDate).toBeNull();
     expect(state.ui.activeTopic).toBe('android');
-    expect(dirTreeStore.getSnapshot().expanded).toEqual(['android']);
+    expect(dirTreeStore.getSnapshot().expanded).toEqual([]);
     clearProjectSelection();
     expect(state.ui.activeDate).toBeNull();
     expect(state.ui.activeTopic).toBeNull();
@@ -164,7 +164,6 @@ describe('switching the view mode keeps the selected project', () => {
     setView('directory');
     applyViewModeChange();
     expect(state.ui.activeTopic).toBe('ai');
-    expect(dirTreeStore.getSnapshot().expanded).toEqual(['ai']);
     expect(state.ui.activeDate).toBeNull();
   });
 
@@ -209,42 +208,60 @@ describe('DirTree', () => {
     load();
   });
 
-  it('paints only the projects while everything is collapsed', () => {
+  const names = (host) => [...host.querySelectorAll('.knowledge-doc-tree-name')].map((n) => n.textContent);
+
+  it('asks for a project first, then paints that project only: no project node, folders before files', () => {
     const { host } = render();
-    const nodes = [...host.querySelectorAll('.knowledge-doc-tree-node')];
-    expect(nodes.map((n) => n.querySelector('.knowledge-doc-tree-name').textContent)).toEqual([
-      'AI',
-      'Android',
-      'Empty project',
-    ]);
-    expect(nodes.every((n) => n.classList.contains('is-dir'))).toBe(true);
+    expect(host.querySelector('.knowledge-doc-empty').textContent).toContain('Select a project');
+    act(() => selectProject('android'));
+    expect(names(host)).toEqual(['arch', 'readme.md']);
+    expect(host.querySelector('[data-node="android"]')).toBeNull();
+    act(() => selectProject('ai'));
+    expect(names(host)).toEqual(['topic-x', 'Untitled note']);
+    expect(host.querySelectorAll('.is-file')).toHaveLength(1);
+  });
+
+  it('says so when the selected project holds no documents', () => {
+    const { host } = render();
+    act(() => selectProject('empty'));
+    expect(host.querySelector('.knowledge-doc-empty').textContent).toContain('no documents');
+  });
+
+  it('switching project resets what was opened', () => {
+    const { host } = render();
+    act(() => selectProject('android'));
+    act(() => host.querySelector('[data-node="android/arch"] > button').click());
+    expect(dirTreeStore.getSnapshot().expanded).toEqual(['android/arch']);
+    act(() => selectProject('ai'));
+    expect(dirTreeStore.getSnapshot().expanded).toEqual([]);
   });
 
   it('a folder only opens and closes: files and sub-folders appear, no list is selected', () => {
     const { host } = render();
-    act(() => host.querySelector('[data-node="android"] > button').click());
-    expect(dirTreeStore.getSnapshot().expanded).toEqual(['android']);
+    act(() => selectProject('android'));
+    act(() => host.querySelector('[data-node="android/arch"] > button').click());
     expect(state.ui.activeDate).toBeNull();
-    expect(host.querySelector('[data-node="android/arch"]')).not.toBeNull();
-    expect(host.querySelector('.is-file[data-id="d"] .knowledge-doc-tree-stem').textContent).toBe('readme');
-    expect(host.querySelector('.is-file[data-id="d"] .knowledge-doc-tree-ext').textContent).toBe('.md');
-    act(() => host.querySelector('[data-node="android"] > button').click());
-    expect(host.querySelector('[data-node="android/arch"]')).toBeNull();
+    expect(host.querySelector('[data-node="android/arch/build"]')).not.toBeNull();
+    expect(host.querySelector('.is-file[data-id="c"] .knowledge-doc-tree-stem').textContent).toBe('intro');
+    expect(host.querySelector('.is-file[data-id="c"] .knowledge-doc-tree-ext').textContent).toBe('.md');
+    act(() => host.querySelector('[data-node="android/arch"] > button').click());
+    expect(host.querySelector('[data-node="android/arch/build"]')).toBeNull();
   });
 
   it('has no edit actions', () => {
     const { host } = render();
-    act(() => host.querySelector('[data-node="ai"] > button').click());
+    act(() => selectProject('android'));
+    act(() => host.querySelector('[data-node="android/arch"] > button').click());
     expect(host.querySelector('input, [data-action], .knowledge-doc-tree-rename')).toBeNull();
   });
 
   it('opens a document through the shared open-entry event', () => {
     const { host } = render();
-    act(() => host.querySelector('[data-node="ai"] > button').click());
+    act(() => selectProject('android'));
     const seen = vi.fn();
     document.addEventListener('cta:open-entry', (e) => seen(e.detail));
-    act(() => host.querySelector('.is-file[data-id="g"] button').click());
-    expect(seen).toHaveBeenCalledWith({ id: 'g', layer: 'raw' });
+    act(() => host.querySelector('.is-file[data-id="d"] button').click());
+    expect(seen).toHaveBeenCalledWith({ id: 'd', layer: 'raw' });
   });
 
   it('keeps day selection working in the timeline view', () => {
