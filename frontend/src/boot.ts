@@ -2,8 +2,8 @@ import { state, mergeAnnotations, notifyState } from './host/state.ts';
 import { LAYERS } from './host/constants.ts';
 import * as api from './host/api.ts';
 import type { HostIndexAnnotation, HostNoteEntry } from './host/snapshot-types.ts';
-import { buildGroups, selectDate, applyListFilters } from './notes/commands/sidebar.ts';
-import { entryGroupKey, loadProjects, loadWorkspaces } from './notes/commands/workspace.ts';
+import { buildGroups, selectDate, selectDefaultProject, applyListFilters } from './notes/commands/sidebar.ts';
+import { entryGroupKey, isDirectoryView, loadProjects, loadWorkspaces } from './notes/commands/workspace.ts';
 import { resetDirTree } from './notes/state/dir-tree.ts';
 import { showWorkspaceOf } from './notes/commands/workspace-switch.ts';
 import './notes/ui/comments.tsx';
@@ -49,6 +49,7 @@ async function loadIndex({ managedBtn = false }: { managedBtn?: boolean } = {}) 
     applyListFilters();
     await Promise.all([loadAnnotationsSummary(), loadTagsRegistry()]);
     applyListFilters();
+    if (isDirectoryView()) selectDefaultProject();
     const savedDate = sessionStorage.getItem('cta_active_date');
     const targetDate = (savedDate && state.index.filteredGroups.find((g) => g.date === savedDate))
       ? savedDate

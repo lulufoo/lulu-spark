@@ -1,11 +1,12 @@
 import { state } from '../state/host.ts';
 import { createFloatingListSelect } from '../../shared/floating-list-select.ts';
-import { clearProjectSelection, selectProject } from '../commands/sidebar.ts';
+import { sortedProjectFolders } from '../state/dir-tree.ts';
+import { selectProject } from '../commands/sidebar.ts';
 
 /**
- * Directory view: the project dropdown, shaped like main's Knowledge library picker.
- * Every enabled project is an option with its document count; there is no "All" (that would
- * flatten the projects), so an unselected workspace shows the placeholder.
+ * Directory view: the project dropdown, shaped like main's Knowledge library picker. It is always
+ * shown and always has a project selected: every enabled project is an option with its document
+ * count, and there is no "All" (that would flatten the projects).
  */
 export function renderProjectPicker(parent: HTMLElement) {
   const counts: Record<string, number> = {};
@@ -14,23 +15,23 @@ export function renderProjectPicker(parent: HTMLElement) {
     counts[folder] = (counts[folder] || 0) + 1;
   }
   const titles = state.index.topicTitles;
-  const folders = Object.keys(titles).sort((a, b) => (titles[a] || a).localeCompare(titles[b] || b));
-  if (folders.length === 0) return;
+  const folders = sortedProjectFolders(titles);
 
-  const options = [
-    { value: '', label: 'Select a project' },
-    ...folders.map((folder) => ({
-      value: folder,
-      label: `${titles[folder] || folder} (${counts[folder] || 0})`,
-    })),
-  ];
+  const options = folders.length
+    ? folders.map((folder) => ({
+        value: folder,
+        label: `${titles[folder] || folder} (${counts[folder] || 0})`,
+      }))
+    : [{ value: '', label: 'No projects' }];
   const { picker } = createFloatingListSelect({
     ariaLabel: 'Select project',
     pickerClass: 'knowledge-repo-picker',
     menuMaxHeight: 480,
-    value: state.ui.activeTopic || '',
+    value: state.ui.activeTopic || folders[0] || '',
     options,
-    onSelect: (value: string) => (value ? selectProject(value) : clearProjectSelection()),
+    onSelect: (value: string) => {
+      if (value) selectProject(value);
+    },
   });
   parent.appendChild(picker);
 }

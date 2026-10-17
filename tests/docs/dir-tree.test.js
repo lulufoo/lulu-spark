@@ -21,7 +21,7 @@ const {
   pathKeys,
   resetDirTree,
 } = await import('../../frontend/src/notes/state/dir-tree.ts');
-const { applyListFilters, buildGroups, clearProjectSelection, selectDate, selectProject, selectTopic } = await import(
+const { applyListFilters, buildGroups, selectDate, selectDefaultProject, selectProject, selectTopic } = await import(
   '../../frontend/src/notes/commands/sidebar.ts'
 );
 const { applyViewModeChange } = await import('../../frontend/src/notes/commands/workspace-switch.ts');
@@ -100,7 +100,7 @@ describe('directory view selection', () => {
     load();
   });
 
-  it('starts with nothing selected and every project collapsed', () => {
+  it('starts with no day selected and every folder collapsed', () => {
     expect(state.ui.activeDate).toBeNull();
     expect(state.index.filteredGroups).toEqual([]);
     expect(dirTreeStore.getSnapshot().expanded).toEqual([]);
@@ -130,18 +130,26 @@ describe('directory view selection', () => {
 });
 
 describe('entering from Home', () => {
-  it('directory view: a project is opened and highlighted, entering the workspace clears it', () => {
+  it('directory view: a project opens selected; entering the workspace selects the first project', () => {
     setView('directory');
     load();
     selectProject('android');
     expect(state.ui.activeDate).toBeNull();
     expect(state.ui.activeTopic).toBe('android');
     expect(dirTreeStore.getSnapshot().expanded).toEqual([]);
-    clearProjectSelection();
+    selectDefaultProject();
+    expect(state.ui.activeTopic).toBe('ai');
     expect(state.ui.activeDate).toBeNull();
-    expect(state.ui.activeTopic).toBeNull();
     expect(dirTreeStore.getSnapshot().expanded).toEqual([]);
     expect(state.index.filteredGroups).toEqual([]);
+  });
+
+  it('directory view of a workspace with no projects has nothing to select', () => {
+    setView('directory');
+    load();
+    state.index.topicTitles = {};
+    selectDefaultProject();
+    expect(state.ui.activeTopic).toBeNull();
   });
 
   it('timeline view: a project fills the picker, entering the workspace clears it', () => {
@@ -150,7 +158,7 @@ describe('entering from Home', () => {
     selectProject('ai');
     expect(state.ui.activeTopic).toBe('ai');
     expect(state.index.filteredGroups.every((g) => g.entries.every(({ entry }) => entry.folder === 'ai'))).toBe(true);
-    clearProjectSelection();
+    selectDefaultProject();
     expect(state.ui.activeTopic).toBeNull();
     expect(state.index.filteredGroups).toBe(state.index.groupedByDate);
   });
@@ -180,7 +188,7 @@ describe('switching the view mode keeps the selected project', () => {
     }
   });
 
-  it('with no project selected the directory stays unselected and the timeline lists everything', () => {
+  it('with no project selected the timeline lists everything and the directory takes the first project', () => {
     setView('directory');
     load();
     setView('timeline');
@@ -189,6 +197,7 @@ describe('switching the view mode keeps the selected project', () => {
     setView('directory');
     applyViewModeChange();
     expect(state.ui.activeDate).toBeNull();
+    expect(state.ui.activeTopic).toBe('ai');
     expect(state.index.filteredGroups).toEqual([]);
   });
 });
@@ -210,9 +219,10 @@ describe('DirTree', () => {
 
   const names = (host) => [...host.querySelectorAll('.knowledge-doc-tree-name')].map((n) => n.textContent);
 
-  it('asks for a project first, then paints that project only: no project node, folders before files', () => {
+  it('paints the selected project only: no project node, folders before files', () => {
     const { host } = render();
-    expect(host.querySelector('.knowledge-doc-empty').textContent).toContain('Select a project');
+    act(() => selectDefaultProject());
+    expect(names(host)).toEqual(['topic-x', 'Untitled note']);
     act(() => selectProject('android'));
     expect(names(host)).toEqual(['arch', 'readme.md']);
     expect(host.querySelector('[data-node="android"]')).toBeNull();

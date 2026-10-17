@@ -24,7 +24,7 @@ vi.mock('../../frontend/src/host/api.ts', () => ({
 }));
 vi.mock('../../frontend/src/notes/commands/sidebar.ts', () => ({
   selectProject: (folder) => order.push(['select', folder]),
-  clearProjectSelection: () => order.push(['clear']),
+  selectDefaultProject: () => order.push(['clear']),
 }));
 vi.mock('../../frontend/src/notes/commands/workspace-switch.ts', () => ({
   switchWorkspace: (id) => order.push(['switch', id]),
@@ -76,7 +76,7 @@ describe('Home workspace nav commands', () => {
     expect(navigate).toHaveBeenCalledWith('#/spark');
   });
 
-  it('opening the shown workspace clears the selected project', () => {
+  it('opening the shown workspace selects its default project', () => {
     const navigate = vi.fn();
     commands.openWorkspace('default', navigate);
     expect(order).toEqual([['clear']]);

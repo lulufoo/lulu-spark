@@ -1,6 +1,6 @@
 import * as api from '../../host/api.ts';
 import { state } from '../../host/state.ts';
-import { clearProjectSelection, selectProject } from '../../notes/commands/sidebar.ts';
+import { selectDefaultProject, selectProject } from '../../notes/commands/sidebar.ts';
 import { showWorkspace, switchWorkspace } from '../../notes/commands/workspace-switch.ts';
 import { setHomeState, type HomeProject } from '../state/store.ts';
 
@@ -34,10 +34,10 @@ export async function refreshWorkspaceProjects() {
   setHomeState((prev) => ({ ...prev, workspaceProjects: Object.fromEntries(loaded) }));
 }
 
-/** Enter a workspace with no project selected, also when it is already the shown one. */
+/** Enter a workspace with its default project, also when it is already the shown one. */
 export function openWorkspace(id: string, navigateFn?: (hash: string) => void) {
   if (id !== state.workspaces.current) switchWorkspace(id);
-  else clearProjectSelection();
+  else selectDefaultProject();
   navigateFn?.('#/spark');
 }
 

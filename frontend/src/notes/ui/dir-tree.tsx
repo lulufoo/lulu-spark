@@ -103,7 +103,7 @@ export function DirTree() {
   const openDocId =
     host.viewer.entry && host.viewer.outletMode === 'open' ? getEntryId(host.viewer.entry) || '' : '';
 
-  if (!project) return <div className="knowledge-doc-empty">Select a project to browse its documents.</div>;
+  if (!project) return <div className="knowledge-doc-empty">This workspace has no projects yet.</div>;
   if (!root || (root.children.length === 0 && root.docs.length === 0)) {
     return <div className="knowledge-doc-empty">This project has no documents yet.</div>;
   }

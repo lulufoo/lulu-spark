@@ -138,6 +138,11 @@ export function findDirNode(roots: DirNode[], nodeKey: string): DirNode | null {
   return found;
 }
 
+/** Project folders in the order of the directory view's dropdown: by title. */
+export function sortedProjectFolders(projectTitles: Record<string, string>): string[] {
+  return Object.keys(projectTitles).sort((a, b) => (projectTitles[a] || a).localeCompare(projectTitles[b] || b));
+}
+
 export type DirTreeSnap = { expanded: string[] };
 
 /** Which nodes are open; reset when another workspace's index is loaded. */

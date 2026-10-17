@@ -11,6 +11,7 @@ import {
   pathKeys,
   projectOfNode,
   resetDirTree,
+  sortedProjectFolders,
 } from '../state/dir-tree.ts';
 import type { NoteEntry } from '../state/types.ts';
 
@@ -122,17 +123,25 @@ export function selectProject(folder: string) {
   notifyState();
 }
 
-/** Entering a workspace without a project: nothing selected, every project collapsed. */
-export function clearProjectSelection() {
-  if (isDirectoryView()) {
-    state.ui.activeTopic = null;
-    state.ui.activeDate = null;
-    resetDirTree();
-    applyListFilters();
-    notifyState();
+/**
+ * Entering a workspace without a chosen project. The directory view always has a project in its
+ * dropdown, so it takes the first one; the timeline view shows every project (All).
+ */
+export function selectDefaultProject() {
+  if (!isDirectoryView()) {
+    selectTopic(null);
     return;
   }
-  selectTopic(null);
+  const [first] = sortedProjectFolders(state.index.topicTitles);
+  if (first) {
+    selectProject(first);
+    return;
+  }
+  state.ui.activeTopic = null;
+  state.ui.activeDate = null;
+  resetDirTree();
+  applyListFilters();
+  notifyState();
 }
 
 export function selectTopic(key: string | null) {

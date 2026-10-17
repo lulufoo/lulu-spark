@@ -25,6 +25,7 @@ import {
   applyListFilters,
   buildGroups,
   selectDate,
+  selectDefaultProject,
   selectProject,
   selectTopic,
 } from '../../frontend/src/notes/commands/sidebar.ts';
@@ -207,12 +208,36 @@ describe('renderSidebar workspace title', () => {
     expect(sidebarEl()?.querySelectorAll('.topic-filter')).toHaveLength(0);
     expect(sidebarEl()?.querySelector('.date-tab')).toBeNull();
     expect(sidebarEl()?.querySelectorAll('.knowledge-doc-sidebar-header .knowledge-repo-picker')).toHaveLength(1);
-    expect(optionTexts(findSelect('.knowledge-repo-picker'))).toEqual([
-      'Select a project',
-      'AI (2)',
-      'Common tech (1)',
-    ]);
-    expect(sidebarEl()?.querySelector('#sidebar-tree-zone .knowledge-doc-empty')).not.toBeNull();
+    expect(optionTexts(findSelect('.knowledge-repo-picker'))).toEqual(['AI (2)', 'Common tech (1)']);
+    act(() => selectDefaultProject());
+    expect(findSelect('.knowledge-repo-picker')._listSelectValue).toBe('ai');
+    expect(sidebarEl()?.querySelector('#sidebar-tree-zone #sidebar-dir-tree')).not.toBeNull();
+  });
+
+  it('directory view: the dropdown is painted even when the registry and projects arrive after the first paint', () => {
+    state.workspaces = { current: 'default', list: [] };
+    state.index.topicTitles = {};
+    state.index.data = {};
+    renderSidebar();
+    act(() => {
+      seedWorkspaces('directory');
+      notifyState();
+    });
+    act(() => {
+      state.index.topicTitles = { ai: 'AI', ops: 'Ops' };
+      notifyState();
+    });
+    expect(sidebarEl()?.querySelectorAll('.knowledge-doc-sidebar-header .knowledge-repo-picker-host')).toHaveLength(1);
+    expect(sidebarEl()?.querySelectorAll('.knowledge-repo-picker')).toHaveLength(1);
+    expect(optionTexts(findSelect('.knowledge-repo-picker'))).toEqual(['AI (0)', 'Ops (0)']);
+  });
+
+  it('directory view with no projects still shows the dropdown', () => {
+    state.index.topicTitles = {};
+    state.index.data = {};
+    seedWorkspaces('directory');
+    renderSidebar();
+    expect(optionTexts(findSelect('.knowledge-repo-picker'))).toEqual(['No projects']);
   });
 
   it('directory view: picking a project in the dropdown shows only its content, no project node', () => {

@@ -131,9 +131,9 @@ export function NotesSidebar() {
           {workspaceName}
         </div>
         {isTimelineView() ? (
-          <div id="sidebar-channel-zone" className="sidebar-channel-zone" ref={channelRef} />
+          <div key="timeline-zone" id="sidebar-channel-zone" className="sidebar-channel-zone" ref={channelRef} />
         ) : (
-          <div id="sidebar-channel-zone" className="knowledge-doc-sidebar-header">
+          <div key="directory-zone" id="sidebar-channel-zone" className="knowledge-doc-sidebar-header">
             <div className="knowledge-repo-picker-host" ref={channelRef} />
           </div>
         )}
