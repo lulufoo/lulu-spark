@@ -229,11 +229,14 @@ describe('HomeWorkspaceNav', () => {
     }
   });
 
-  it('does not own Read Later, which stays a fixed row outside the measured list', () => {
+  it('does not own Read Later, which lives in the top bar and not in the Workspace group', () => {
     const host = render();
     expect(host.querySelector('[data-home-entry="read-later"]')).toBeNull();
     const page = readFileSync(join(repoRoot, 'frontend/src/home/page.tsx'), 'utf8');
-    expect(page.indexOf('<HomeWorkspaceNav')).toBeLessThan(page.indexOf('data-home-entry="read-later"'));
+    expect(page.indexOf('<TopActions')).toBeLessThan(page.indexOf('<HomeWorkspaceNav'));
+    expect(page).not.toMatch(/data-home-entry="read-later"/);
+    const group = page.slice(page.indexOf('data-home-nav-group="workspace"'), page.indexOf('</nav>'));
+    expect(group).not.toMatch(/read-later|Read Later/);
     const css = readFileSync(join(repoRoot, 'frontend/app.css'), 'utf8');
     expect(css).toMatch(/\.home-nav-workspaces \{[^}]*flex: 1 1 0;[^}]*min-height: 0;/);
     expect(css).toMatch(/--home-nav-row-h: 32px;/);

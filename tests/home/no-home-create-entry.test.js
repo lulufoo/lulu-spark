@@ -36,8 +36,11 @@ describe('Home has no create-document entry · source', () => {
   });
 
   it('keeps the Read Later shortcut and does not restore the old add entry', () => {
-    expect(page).toMatch(/data-home-entry="read-later"/);
+    const topActions = readFileSync(join(repoRoot, 'frontend/src/home/ui/top-actions.tsx'), 'utf8');
+    expect(topActions).toMatch(/data-home-entry="read-later"/);
+    expect(page).toMatch(/<TopActions/);
     expect(page).toMatch(/goReadLater\(/);
+    expect(page).not.toMatch(/data-home-entry="read-later"/);
     expect(page).not.toMatch(/note-assistant-fab|note-assistant-create/);
     expect(page).not.toMatch(/data-home-entry="notes"/);
     expect(page).not.toMatch(/新建随记/);

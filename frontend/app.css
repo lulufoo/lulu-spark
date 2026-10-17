@@ -74,6 +74,7 @@
     app-region: drag;
   }
   .window-drag-strip .page-back-home,
+  .window-drag-strip .home-top-actions,
   .home-chat-main-drag button,
   .notes-page-toolbar .gs-search-wrap,
   .notes-page-toolbar .gs-search-dropdown,
@@ -6711,6 +6712,56 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   position: absolute;
   top: -2px;
   right: -2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--bg-danger);
+}
+.home-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.home-top-action {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--fg-muted);
+  cursor: pointer;
+}
+.home-top-action:hover {
+  background: var(--bg-subtle);
+  color: var(--fg-default);
+}
+.home-top-action:focus-visible {
+  outline: 2px solid var(--border-accent);
+  outline-offset: 1px;
+}
+.home-top-action .home-desktop-shortcut-icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+}
+.home-top-action .home-desktop-shortcut-icon svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+.home-top-action[data-home-unread="true"] .home-desktop-shortcut-icon::after {
+  content: "";
+  position: absolute;
+  top: -3px;
+  right: -3px;
   width: 8px;
   height: 8px;
   border-radius: 50%;

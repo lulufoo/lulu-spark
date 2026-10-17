@@ -16,7 +16,6 @@ import { AboutDialog } from './ui/about-dialog.tsx';
 import { ApprovalDialog } from './ui/approval-dialog.tsx';
 import { AccountBar } from './ui/account-bar.tsx';
 import { HelpMenu } from './ui/help-menu.tsx';
-import { HomeNavIcon } from './ui/nav-icons.tsx';
 import { SessionList } from './ui/session-list.tsx';
 import { SessionMenu } from './ui/session-menu.tsx';
 import { ContextPercent } from './ui/context-percent.tsx';
@@ -60,6 +59,7 @@ import { ThinkingFold } from './ui/thinking.tsx';
 import { openBindDialog } from '../app-shell/ui/bind-dialog.tsx';
 import { openSettingsDialog } from '../app-shell/ui/settings/dialog.tsx';
 import { WindowDragStrip } from '../shared/window-drag-strip.tsx';
+import { TopActions } from './ui/top-actions.tsx';
 
 /** Scrolling this close to the bottom of the Chats list (about one row) reveals more chats. */
 const SESSION_LIST_LOAD_MORE_PX = 40;
@@ -158,10 +158,6 @@ function navWorkspaces(): HomeWorkspaceRow[] {
 function goReadLater(navigateFn?: (hash: string) => void, openReadLater?: () => void) {
   if (typeof openReadLater === 'function') openReadLater();
   else navigateFn?.('#/read-later');
-}
-
-function unreadProps(unread: boolean) {
-  return unread ? { 'data-home-unread': 'true' as const } : {};
 }
 
 /** Home chat page. Reads the home store; commands update the store. */
@@ -313,7 +309,18 @@ export function HomePage({
   return (
     <div className="home-chat">
       <aside ref={sidebarRef} className="home-chat-sidebar">
-        <WindowDragStrip />
+        <WindowDragStrip>
+          <TopActions
+            readLaterUnread={state.channelUnread.read_later}
+            onReadLater={() => {
+              void markHomeEntryRead('read-later');
+              goReadLater(navigateFn, openReadLater);
+            }}
+            onSettings={() => {
+              void openSettingsDialog();
+            }}
+          />
+        </WindowDragStrip>
         <nav className="home-chat-nav" aria-label="Lulu Spark">
           <div className="home-chat-nav-group" data-home-nav-group="workspace">
             <div className="home-chat-nav-label">Workspace</div>
@@ -330,19 +337,6 @@ export function HomePage({
                 void openProject(id, folder, navigateFn);
               }}
             />
-            <button
-              type="button"
-              className="home-chat-nav-item home-desktop-shortcut"
-              data-home-entry="read-later"
-              {...unreadProps(state.channelUnread.read_later)}
-              onClick={() => {
-                void markHomeEntryRead('read-later');
-                goReadLater(navigateFn, openReadLater);
-              }}
-            >
-              <HomeNavIcon name="read-later" />
-              <span className="home-desktop-shortcut-label">Read Later</span>
-            </button>
           </div>
         </nav>
         <div className="home-chat-sessions-head">

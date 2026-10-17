@@ -160,8 +160,8 @@ describe('HomeWorkspaceNav icons', () => {
   });
 
   it('leaves Read Later on its own fixed icon, which cannot be configured', () => {
-    const page = readFileSync(join(repoRoot, 'frontend/src/home/page.tsx'), 'utf8');
-    expect(page).toMatch(/<HomeNavIcon name="read-later" \/>/);
+    const topActions = readFileSync(join(repoRoot, 'frontend/src/home/ui/top-actions.tsx'), 'utf8');
+    expect(topActions).toMatch(/<HomeNavIcon name="read-later" \/>/);
     const nav = readFileSync(join(repoRoot, 'frontend/src/home/ui/workspace-nav.tsx'), 'utf8');
     expect(nav).not.toMatch(/read-later/);
   });

@@ -48,7 +48,7 @@ describe('mountHomeHub', () => {
     expect(container.querySelector('[data-role="session-list"]')).not.toBeNull();
 
     const shortcuts = container.querySelectorAll('.home-desktop-shortcut');
-    expect(shortcuts).toHaveLength(3);
+    expect(shortcuts).toHaveLength(2);
 
     const sparkEntry = container.querySelector('[data-home-entry="spark"]');
     const readLaterEntry = container.querySelector('[data-home-entry="read-later"]');
@@ -59,13 +59,17 @@ describe('mountHomeHub', () => {
     expect(knowledgeEntry).not.toBeNull();
     expect(todoTasksEntry).toBeNull();
     expect(sparkEntry.textContent).toMatch(/Default/);
-    expect(readLaterEntry.textContent).toMatch(/Read Later/);
+    expect(readLaterEntry.getAttribute('aria-label')).toBe('Read Later');
+    expect(readLaterEntry.getAttribute('title')).toBe('Read Later');
+    expect(readLaterEntry.closest('.window-drag-strip')).not.toBeNull();
+    expect(readLaterEntry.closest('[data-home-nav-group="workspace"]')).toBeNull();
     expect(knowledgeEntry.textContent).toMatch(/Knowledge/);
     const labels = [...shortcuts].map((entry) => entry.querySelector('.home-desktop-shortcut-label')?.textContent);
-    expect(labels).toEqual(['Default', 'Knowledge', 'Read Later']);
+    expect(labels).toEqual(['Default', 'Knowledge']);
     expect(container.querySelector('#btn-bind')).toBeNull();
     expect(container.querySelector('#btn-settings')).toBeNull();
     expect(container.querySelector('[data-role="help-menu-trigger"] [data-home-icon="settings"]')).not.toBeNull();
+    expect(container.querySelector('.window-drag-strip [data-role="top-settings"][title="Settings"]')).not.toBeNull();
     expect(container.querySelector('[data-home-entry="spark"] [data-home-icon="notes"]')).not.toBeNull();
     expect(container.querySelector('[data-home-entry="knowledge"] [data-home-icon="knowledge"]')).not.toBeNull();
     expect(container.querySelector('[data-home-entry="read-later"] [data-home-icon="read-later"]')).not.toBeNull();
@@ -80,10 +84,16 @@ describe('mountHomeHub', () => {
     try {
       cleanup = mountHomeHub(container, { navigate });
       const labels = [...container.querySelectorAll('.home-desktop-shortcut-label')].map((el) => el.textContent);
-      expect(labels).toEqual(['Inbox', 'Library', 'Read Later']);
+      expect(labels).toEqual(['Inbox', 'Library']);
     } finally {
       state.workspaces.list = before;
     }
+  });
+
+  it('opens Read Later from the top bar icon', () => {
+    cleanup = mountHomeHub(container, { navigate });
+    container.querySelector('[data-home-entry="read-later"]').click();
+    expect(navigate).toHaveBeenCalledWith('#/read-later');
   });
 
   it('navigates to #/spark when spark entry is clicked', () => {
