@@ -39,6 +39,7 @@ fn project_value(row: &ProjectRow) -> Value {
         "disabled_at": row.disabled_at,
         "icon": row.icon.clone().unwrap_or_default(),
         "sort_index": row.sort_index,
+        "is_inbox": row.is_inbox,
     })
 }
 
@@ -73,10 +74,9 @@ fn mint_project_id(conn: &Connection) -> Result<String, String> {
 /// The empty `inbox` project every workspace starts with.
 pub(super) fn insert_inbox_project(conn: &Connection, workspace_id: &str) -> Result<(), String> {
     let id = mint_project_id(conn)?;
-    insert_project(
-        conn,
-        &ProjectRow::new(&id, workspace_id, DEFAULT_PROJECT_FOLDER, "Inbox", ""),
-    )
+    let mut row = ProjectRow::new(&id, workspace_id, DEFAULT_PROJECT_FOLDER, "Inbox", "");
+    row.is_inbox = true;
+    insert_project(conn, &row)
 }
 
 /// `{ workspace? }` → `{ projects: [...] }`.
@@ -191,16 +191,30 @@ pub fn reorder_projects(payload: &Value) -> Value {
     }
 }
 
-/// `{ workspace?, project }` → `{ ok, project }`. `inbox` is refused. The documents stay; they
-/// are hidden from lists and search and still open by id.
+/// `{ workspace?, project }` → `{ ok, project }`. The inbox (`is_inbox`) is refused. The
+/// documents stay; they are hidden from lists and search and still open by id.
 pub fn disable_project(payload: &Value) -> Value {
     let Some(folder) = text_field(payload, "project") else {
         return bad_request("Missing project");
     };
-    if folder == DEFAULT_PROJECT_FOLDER {
-        return bad_request("Cannot disable inbox");
+    let result = open_data().and_then(|conn| {
+        let ws = resolve_workspace(&conn, text_field(payload, "workspace"))?;
+        let row = resolve_project(&conn, &ws, folder)?;
+        if row.is_inbox {
+            return Err(bad_request("Cannot disable inbox"));
+        }
+        if row.disabled_at.is_some() {
+            ensure_workspace_enabled(&ws)?;
+        }
+        disable_project_row(&conn, &row.id).map_err(internal)?;
+        get_project(&conn, &row.id)
+            .map_err(internal)?
+            .ok_or_else(|| internal("project missing"))
+    });
+    match result {
+        Ok(row) => json!({ "ok": true, "project": project_value(&row) }),
+        Err(v) => v,
     }
-    toggle_project(payload, folder, disable_project_row)
 }
 
 /// `{ workspace?, project }` → `{ ok, project }`. The project and its documents show up again.

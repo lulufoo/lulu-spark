@@ -73,7 +73,9 @@ macro_rules! doc_table_sql {
 /// Step 10 adds `icon` (a built-in icon id, NULL = default) to both tables.
 /// Step 11 adds `sort_index` (the user's order) to both tables, filled from the old order:
 /// the default workspace first then by name, projects by title within their workspace.
-pub(crate) const MIGRATIONS: [&str; 12] = [r#"
+/// Step 12 adds `is_inbox` (one built-in project per workspace). Rows that already use
+/// folder `inbox` are marked; missing inboxes are not inserted here.
+pub(crate) const MIGRATIONS: [&str; 13] = [r#"
 CREATE TABLE IF NOT EXISTS note (
   doc_id       TEXT PRIMARY KEY,
   raw_path     TEXT NOT NULL,
@@ -240,6 +242,12 @@ UPDATE project SET sort_index = (
     AND (lower(o.title) < lower(project.title)
          OR (lower(o.title) = lower(project.title) AND o.id < project.id))
 );
+"#, r#"
+ALTER TABLE project ADD COLUMN is_inbox INTEGER NOT NULL DEFAULT 0 CHECK (is_inbox IN (0, 1));
+UPDATE project SET is_inbox = 1 WHERE folder = 'inbox';
+CREATE UNIQUE INDEX project_one_inbox ON project(workspace_id) WHERE is_inbox = 1;
+CREATE TRIGGER project_keys_immutable BEFORE UPDATE OF id, is_inbox ON project
+BEGIN SELECT RAISE(ABORT, 'project id and is_inbox cannot change'); END;
 "#];
 
 pub fn db_path() -> Result<PathBuf, String> {

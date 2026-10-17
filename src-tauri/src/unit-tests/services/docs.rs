@@ -217,11 +217,19 @@ fn project_crud_follows_the_workspace_and_protects_inbox_and_documents() {
     let listed = list_projects(&json!({ "workspace": ws }));
     let folders: Vec<_> = listed["projects"].as_array().expect("array").iter().map(|p| text(p, "folder")).collect();
     assert!(folders.contains(&"inbox".to_string()) && folders.contains(&"plans".to_string()), "{folders:?}");
+    let inbox = listed["projects"]
+        .as_array()
+        .expect("array")
+        .iter()
+        .find(|p| p["is_inbox"] == true)
+        .expect("created workspace has an inbox");
+    assert_eq!((text(inbox, "folder"), text(inbox, "title")), ("inbox".into(), "Inbox".into()));
 
     let updated = update_project(&json!({ "workspace": ws, "project": "plans", "title": "Roadmaps" }));
     assert_eq!((text(&ok(&updated)["project"], "title"), text(&updated["project"], "folder")), ("Roadmaps".into(), "plans".into()));
     assert_eq!(status(&update_project(&json!({ "workspace": ws, "project": "ghost", "title": "x" }))), 400);
 
+    ok(&update_project(&json!({ "workspace": ws, "project": "inbox", "title": "Catch-all" })));
     assert_eq!(status(&disable_project(&json!({ "workspace": ws, "project": "inbox" }))), 400);
 }
 

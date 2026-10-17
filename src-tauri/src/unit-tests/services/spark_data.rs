@@ -242,3 +242,45 @@ fn the_sort_step_numbers_existing_rows_in_the_old_order() {
         vec!["0", "1", "2"]
     );
 }
+
+/// Step 12 marks the seeded Default inbox and does not invent one for Knowledge.
+#[test]
+fn the_inbox_step_marks_seeded_inbox_keeps_folder_and_skips_knowledge() {
+    let (_dir, path) = temp_db();
+    drop(open_with_steps(&path, &MIGRATIONS[..12]).expect("v12"));
+    let conn = open_at(&path).expect("latest");
+    let inbox = get_project(&conn, "inbox").expect("get").expect("seeded");
+    assert!(inbox.is_inbox, "{inbox:?}");
+    assert_eq!((inbox.folder.as_str(), inbox.workspace_id.as_str()), ("inbox", "default"));
+    assert_eq!(
+        count(&conn, "SELECT count(*) FROM project WHERE workspace_id = 'knowledge' AND is_inbox = 1"),
+        0
+    );
+    let cols: Vec<String> = conn
+        .prepare("PRAGMA table_info(project)")
+        .expect("pragma")
+        .query_map([], |r| r.get(1))
+        .expect("query")
+        .collect::<Result<_, _>>()
+        .expect("rows");
+    assert!(cols.contains(&"folder".to_string()) && cols.contains(&"is_inbox".to_string()), "{cols:?}");
+}
+
+#[test]
+fn a_workspace_accepts_only_one_inbox_and_the_flag_cannot_change() {
+    let (_dir, path) = temp_db();
+    let conn = open_at(&path).expect("open");
+    let mut extra = ProjectRow::new("i2", "default", "other", "Other", "");
+    extra.is_inbox = true;
+    assert!(insert_project(&conn, &extra).is_err(), "one inbox per workspace");
+    assert!(
+        conn.execute("UPDATE project SET is_inbox = 0 WHERE id = 'inbox'", []).is_err(),
+        "is_inbox is immutable"
+    );
+    assert!(
+        conn.execute("UPDATE project SET id = 'moved' WHERE id = 'inbox'", []).is_err(),
+        "id is immutable"
+    );
+    extra.is_inbox = false;
+    insert_project(&conn, &extra).expect("a non-inbox project is fine");
+}

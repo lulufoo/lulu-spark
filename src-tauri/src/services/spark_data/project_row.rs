@@ -17,6 +17,8 @@ pub struct ProjectRow {
     pub icon: Option<String>,
     /// Position in the user's order inside the workspace; ignored on insert (new rows go last).
     pub sort_index: i64,
+    /// The built-in inbox of this workspace. At most one row per workspace.
+    pub is_inbox: bool,
 }
 
 impl ProjectRow {
@@ -30,11 +32,13 @@ impl ProjectRow {
             disabled_at: None,
             icon: None,
             sort_index: 0,
+            is_inbox: false,
         }
     }
 }
 
-const COLUMNS: &str = "id, workspace_id, folder, title, description, disabled_at, icon, sort_index";
+const COLUMNS: &str =
+    "id, workspace_id, folder, title, description, disabled_at, icon, sort_index, is_inbox";
 
 fn map_row(row: &Row<'_>) -> rusqlite::Result<ProjectRow> {
     Ok(ProjectRow {
@@ -46,15 +50,25 @@ fn map_row(row: &Row<'_>) -> rusqlite::Result<ProjectRow> {
         disabled_at: row.get(5)?,
         icon: row.get(6)?,
         sort_index: row.get(7)?,
+        is_inbox: row.get::<_, i64>(8)? != 0,
     })
 }
 
 pub fn insert_project(conn: &Connection, row: &ProjectRow) -> Result<(), String> {
     conn.execute(
-        "INSERT INTO project(id, workspace_id, folder, title, description, icon, sort_index)
+        "INSERT INTO project(id, workspace_id, folder, title, description, icon, sort_index, is_inbox)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6,
-                 (SELECT coalesce(max(sort_index) + 1, 0) FROM project WHERE workspace_id = ?2))",
-        params![row.id, row.workspace_id, row.folder, row.title, row.description, row.icon],
+                 (SELECT coalesce(max(sort_index) + 1, 0) FROM project WHERE workspace_id = ?2),
+                 ?7)",
+        params![
+            row.id,
+            row.workspace_id,
+            row.folder,
+            row.title,
+            row.description,
+            row.icon,
+            if row.is_inbox { 1 } else { 0 }
+        ],
     )
     .map(|_| ())
     .map_err(|e| e.to_string())
