@@ -157,6 +157,10 @@ describe('HomeWorkspaceNav icons', () => {
     expect(projectRule).not.toMatch(/\bheight:/);
     expect(css).not.toMatch(/home-nav-more/);
     expect(css).toMatch(/\.home-nav-hidden-count \{[^}]*margin-left: auto;/);
+    // the hover target is a 28px square at the row's right edge, not just the glyph
+    expect(css).toMatch(/\.home-nav-hidden-count \{[^}]*width: 28px;[^}]*height: 28px;/);
+    expect(css).toMatch(/\.home-nav-hidden-count \{[^}]*margin-right: -8px;/);
+    expect(css).toMatch(/\.home-nav-hidden-count \{[^}]*display: inline-flex;[^}]*justify-content: center;/);
     expect(css).toMatch(/\.home-nav-project-icon \{[^}]*width: 16px;/);
   });
 

@@ -6583,10 +6583,17 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* Cut-off projects: a grey `…` at the right of the workspace row (the count is in its hover text); it never squeezes the title. */
+/* Cut-off projects: a grey `…` at the right of the workspace row (the count is in its hover text); it never squeezes the title.
+   The glyph is tiny, so its box is a 28px square (hover target) that reaches the row's right edge; the glyph keeps its place. */
 .home-nav-hidden-count {
   flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
   margin-left: auto;
+  margin-right: -8px;
   font-size: 12px;
   line-height: 1;
   color: var(--fg-subtle);
