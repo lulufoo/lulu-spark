@@ -24,10 +24,10 @@ import {
 } from '../../state/settings/store.ts';
 import { settingsOpenStore } from '../../state/dialog-open.ts';
 import {
-  clearNotesCategoryError,
   closeNotesCategoryEditor,
   loadNotesCategories,
 } from './notes-categories.ts';
+import { loadDisabledWorkspaces } from './workspaces.ts';
 import { loadSettingsSnapshot } from './snapshot.ts';
 import { saveThemeSelection } from './theme.ts';
 import { switchPanel, switchSettingsTab } from '../../ui/settings/tabs.ts';
@@ -74,12 +74,12 @@ export async function openSettingsDialog(opts: SettingsOpenOpts = {}) {
   const keyInput = input('settings-llm-api-key');
   if (keyInput) keyInput.value = '';
   const panelId = opts.panel || 'notes';
-  switchSettingsTab('notes', panelId === 'notes' ? (opts.tab || 'directory') : 'directory');
   switchSettingsTab('llm', 'engine');
   switchSettingsTab('mcp', panelId === 'mcp' ? (opts.tab || 'tickets') : 'tickets');
   switchPanel(panelId);
   await loadSettingsSnapshot();
   await loadNotesCategories();
+  await loadDisabledWorkspaces();
   await loadMcpChannelTools();
   requestAnimationFrame(() => paintMcpToolGroups());
   await loadMcpTicketView();
@@ -91,8 +91,6 @@ function wireSettingsDialog() {
       const panel = tabBtn.closest('.settings-panel');
       const panelId = panel?.id?.replace(/^settings-panel-/, '');
       const tab = (tabBtn as HTMLElement).dataset.tab;
-      if (panelId !== 'notes' || tab !== 'edit') closeNotesCategoryEditor();
-      if (panelId === 'notes') clearNotesCategoryError();
       if (panelId && tab) switchSettingsTab(panelId, tab);
       if (panelId === 'mcp' && tab === 'tools') void loadMcpChannelTools();
     });

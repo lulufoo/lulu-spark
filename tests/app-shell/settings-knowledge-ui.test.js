@@ -30,25 +30,22 @@ describe('Settings workspace UI', () => {
     expect(indexHtml).not.toMatch(/data-panel="knowledge"/);
   });
 
-  it('Notes settings hold the directory, add and edit tabs', () => {
+  it('Workspaces settings manage workspaces on one page, without sub-tabs', () => {
     expect(indexHtml).toContain('id="settings-panel-notes"');
-    expect(indexHtml).toContain('id="settings-tab-notes-directory"');
     expect(indexHtml).toContain('id="workspaces-root-path"');
     expect(indexHtml).toMatch(/id="workspaces-root-path"[^>]*readOnly/);
     expect(indexHtml).not.toContain('id="notes-root-path"');
+    const panel = readFileSync(join(repoRoot, 'frontend/src/app-shell/ui/settings/notes-panel.tsx'), 'utf8');
+    expect(panel).not.toContain('role="tablist"');
+    expect(panel).not.toContain('settings-tab-panel');
+    expect(panel.indexOf('workspaces-root-path')).toBeLessThan(panel.indexOf('<NotesWorkspacesHost'));
+    expect(indexHtml).not.toContain('Edit &amp; Delete project');
+    expect(indexHtml).toContain('id="notes-workspace-list"');
+    expect(indexHtml).toContain('Confirm disable');
+    expect(indexHtml).toContain('Disabled (');
+    // Project add/edit stay reachable until each workspace has its own page.
     expect(indexHtml).toContain('id="settings-tab-notes-add"');
     expect(indexHtml).toContain('id="settings-tab-notes-edit"');
-    expect(indexHtml).toMatch(/data-tab="directory"[^>]*>\s*Directory\s*</);
-    expect(indexHtml).toMatch(/data-tab="add"[^>]*>\s*Add project\s*</);
-    expect(indexHtml).toMatch(/data-tab="edit"[^>]*>\s*Edit &amp; Delete project\s*</);
-    const notesTabs = indexHtml.match(/id="settings-panel-notes"[\s\S]*?role="tablist">([\s\S]*?)<\/div>/)?.[1] ?? '';
-    expect(notesTabs.indexOf('data-tab="directory"')).toBeGreaterThan(-1);
-    expect(notesTabs.indexOf('data-tab="directory"')).toBeLessThan(
-      notesTabs.indexOf('data-tab="add"'),
-    );
-    expect(notesTabs.indexOf('data-tab="add"')).toBeLessThan(
-      notesTabs.indexOf('data-tab="edit"'),
-    );
     expect(indexHtml).toContain('id="notes-cat-list"');
     expect(indexHtml).toContain('id="notes-cat-edit-dialog"');
     expect(indexHtml).toContain('id="notes-cat-edit-dialog-box"');

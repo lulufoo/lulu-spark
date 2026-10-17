@@ -1,36 +1,22 @@
 import { useState, useSyncExternalStore } from 'react';
-import * as api from '../../../host/api.ts';
+import type { ViewMode } from '../../../host/api.ts';
 import { getStateVersion, state, subscribeState } from '../../../host/state.ts';
-import { loadWorkspaces } from '../../../notes/commands/workspace.ts';
+import {
+  addWorkspace,
+  changeWorkspaceViewMode,
+  disableWorkspace,
+  renameWorkspace,
+} from '../../commands/settings/workspaces.ts';
+import { workspacesPanelStore } from '../../state/settings/workspaces-panel.ts';
+import { NotesWorkspacesDisabled } from './notes-workspaces-disabled.tsx';
 
 type Draft = { id: string; name: string } | null;
 
-function describeError(err: unknown): string {
-  return err instanceof Error ? err.message : String(err);
+function parseViewMode(value: string): ViewMode {
+  return value === 'timeline' ? 'timeline' : 'directory';
 }
 
-function throwOnError(data: unknown) {
-  const error = (data as { error?: string } | null)?.error;
-  if (error) throw new Error(error);
-}
-
-/** Reload the registry; the page reloads its index when the shown workspace changed. */
-async function refreshWorkspaces(previous: string) {
-  await loadWorkspaces();
-  if (state.workspaces.current !== previous) document.dispatchEvent(new CustomEvent('cta:reload'));
-}
-
-function WorkspaceRow({
-  busy,
-  onRename,
-  onDelete,
-  workspaceId,
-}: {
-  busy: boolean;
-  onRename: (id: string, name: string) => Promise<boolean>;
-  onDelete: (id: string) => Promise<boolean>;
-  workspaceId: string;
-}) {
+function WorkspaceRow({ busy, workspaceId }: { busy: boolean; workspaceId: string }) {
   const workspace = state.workspaces.list.find((w) => w.id === workspaceId);
   const [draft, setDraft] = useState<Draft>(null);
   const [confirming, setConfirming] = useState(false);
@@ -55,7 +41,7 @@ function WorkspaceRow({
           type="button"
           className="btn-settings-save"
           disabled={busy || !draft.name.trim()}
-          onClick={() => void onRename(draft.id, draft.name.trim()).then((ok) => ok && setDraft(null))}
+          onClick={() => void renameWorkspace(draft.id, draft.name.trim()).then((ok) => ok && setDraft(null))}
         >
           Save
         </button>
@@ -70,8 +56,17 @@ function WorkspaceRow({
           <span className="notes-cat-item-title">{workspace.name}</span>
           {workspace.is_default ? <span className="notes-cat-badge">Built-in</span> : null}
         </span>
-        <span className="notes-cat-item-desc">{workspace.view_mode}</span>
       </span>
+      <select
+        className="notes-ws-view"
+        aria-label={`View of ${workspace.name}`}
+        value={workspace.view_mode}
+        disabled={busy}
+        onChange={(e) => void changeWorkspaceViewMode(workspace.id, parseViewMode(e.target.value))}
+      >
+        <option value="directory">Directory</option>
+        <option value="timeline">Timeline</option>
+      </select>
       <button
         type="button"
         className="btn-settings-ghost"
@@ -81,14 +76,19 @@ function WorkspaceRow({
         Rename
       </button>
       {workspace.is_default ? null : confirming ? (
-        <button
-          type="button"
-          className="sediment-kb-delete-btn"
-          disabled={busy}
-          onClick={() => void onDelete(workspace.id).then((ok) => ok && setConfirming(false))}
-        >
-          Confirm delete
-        </button>
+        <>
+          <button type="button" className="btn-settings-ghost" disabled={busy} onClick={() => setConfirming(false)}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="sediment-kb-delete-btn"
+            disabled={busy}
+            onClick={() => void disableWorkspace(workspace.id).then((ok) => ok && setConfirming(false))}
+          >
+            Confirm disable
+          </button>
+        </>
       ) : (
         <button
           type="button"
@@ -96,7 +96,7 @@ function WorkspaceRow({
           disabled={busy}
           onClick={() => setConfirming(true)}
         >
-          Delete
+          Disable
         </button>
       )}
     </div>
@@ -105,50 +105,29 @@ function WorkspaceRow({
 
 export function NotesWorkspacesHost() {
   useSyncExternalStore(subscribeState, getStateVersion, getStateVersion);
+  const snap = useSyncExternalStore(workspacesPanelStore.subscribe, workspacesPanelStore.getSnapshot);
   const [name, setName] = useState('');
-  const [viewMode, setViewMode] = useState<api.ViewMode>('directory');
-  const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>('directory');
+  const { busy } = snap;
 
-  async function run(call: () => Promise<unknown>): Promise<boolean> {
-    const previous = state.workspaces.current;
-    setError('');
-    setBusy(true);
-    try {
-      throwOnError(await call());
-      await refreshWorkspaces(previous);
-      return true;
-    } catch (err) {
-      setError(describeError(err));
-      return false;
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function addWorkspace() {
+  async function onAdd() {
     const trimmed = name.trim();
     if (!trimmed) return;
-    if (await run(() => api.createWorkspace(trimmed, viewMode))) setName('');
+    if (await addWorkspace(trimmed, viewMode)) setName('');
   }
 
   return (
     <div className="notes-cat-add">
       <p className="notes-cat-lead">
-        A workspace holds its own projects and documents. The built-in workspace can be renamed but not deleted;
-        a workspace that still holds documents cannot be deleted.
+        A workspace holds its own projects and documents. Disabling a workspace hides it; nothing is deleted,
+        and it can be enabled again from the Disabled list. The built-in workspace can be renamed but not disabled.
       </p>
       <div id="notes-workspace-list">
         {state.workspaces.list.map((workspace) => (
-          <WorkspaceRow
-            key={workspace.id}
-            workspaceId={workspace.id}
-            busy={busy}
-            onRename={(id, next) => run(() => api.renameWorkspace(id, next))}
-            onDelete={(id) => run(() => api.disableWorkspace(id))}
-          />
+          <WorkspaceRow key={workspace.id} workspaceId={workspace.id} busy={busy} />
         ))}
       </div>
+      <NotesWorkspacesDisabled busy={busy} rows={snap.disabled} />
       <div className="settings-field">
         <label htmlFor="notes-workspace-new-name">New workspace</label>
         <input
@@ -168,14 +147,14 @@ export function NotesWorkspacesHost() {
           id="notes-workspace-new-view"
           value={viewMode}
           disabled={busy}
-          onChange={(e) => setViewMode(e.target.value === 'timeline' ? 'timeline' : 'directory')}
+          onChange={(e) => setViewMode(parseViewMode(e.target.value))}
         >
           <option value="directory">Directory</option>
           <option value="timeline">Timeline</option>
         </select>
       </div>
       <div id="notes-workspace-error" className="settings-result notes-cat-error">
-        {error}
+        {snap.error}
       </div>
       <div className="settings-panel-actions">
         <button
@@ -183,7 +162,7 @@ export function NotesWorkspacesHost() {
           type="button"
           className="btn-settings-save"
           disabled={busy || !name.trim()}
-          onClick={() => void addWorkspace()}
+          onClick={() => void onAdd()}
         >
           {busy ? 'Working…' : 'Add workspace'}
         </button>

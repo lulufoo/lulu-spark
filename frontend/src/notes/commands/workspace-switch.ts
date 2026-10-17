@@ -20,6 +20,11 @@ export async function changeViewMode(mode: api.ViewMode) {
   const data = (await api.setWorkspaceViewMode(workspace.id, mode)) as { error?: string };
   if (data?.error) throw new Error(data.error);
   state.workspaces.list = state.workspaces.list.map((w) => (w.id === workspace.id ? { ...w, view_mode: mode } : w));
+  applyViewModeChange();
+}
+
+/** Regroup the shown workspace after its view mode changed. */
+export function applyViewModeChange() {
   applyListFilters();
   const first = state.index.filteredGroups[0];
   if (first) selectDate(first.date);
