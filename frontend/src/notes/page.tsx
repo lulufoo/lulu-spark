@@ -22,6 +22,7 @@ import {
 import { renderDocBody } from './ui/viewer/body.tsx';
 import { SparkSearch } from './ui/search.tsx';
 import { openCreateNote } from './commands/viewer/create.ts';
+import { dateKeyOf, normalizeDateKey } from '../shared/utils.ts';
 
 export { NotesSidebar };
 
@@ -145,7 +146,9 @@ function NotesOutletChrome({ routeParams }: { routeParams: Record<string, string
   const fileSize = viewer.fileSize || (viewer.rawText ? formatBytes(viewer.rawText) : '');
   const loadFailed = Boolean(viewer.loadError);
 
-  const dateStr = String(entry?.created_at || host.ui.activeDate || routeParams.date || '').slice(0, 8);
+  const dateStr = entry
+    ? dateKeyOf(entry.created_at)
+    : normalizeDateKey(host.ui.activeDate) || normalizeDateKey(routeParams.date);
   const panelTitle = notesDateHeadingText(dateStr, findNotesDateGroup(dateStr));
 
   return (

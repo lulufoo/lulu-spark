@@ -1,6 +1,7 @@
 import { state, mergeAnnotations, notifyState } from './host/state.ts';
 import { LAYERS } from './host/constants.ts';
 import * as api from './host/api.ts';
+import { dateKeyOf } from './shared/utils.ts';
 import type { HostIndexAnnotation, HostNoteEntry } from './host/snapshot-types.ts';
 import { buildGroups, selectDate, applyListFilters } from './notes/commands/sidebar.ts';
 import { loadProjects, loadWorkspaces } from './notes/commands/workspace.ts';
@@ -259,10 +260,7 @@ document.addEventListener('cta:open-entry', (event) => {
     });
     return;
   }
-  const date = entry.created_at
-    ? entry.created_at.slice(0, 8)
-    : (state.ui?.activeDate || '');
-  if (!date) return;
+  const date = dateKeyOf(entry.created_at);
   selectDate(date);
   const params: { date: string; note: string; layer?: string } = { date, note: id };
   params.layer = detail.layer || (LAYERS.find((l) => entry.layers?.includes(l)) ?? 'raw');

@@ -2,7 +2,8 @@
 import { act } from 'react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-vi.mock('../../frontend/src/shared/utils.ts', () => ({
+vi.mock('../../frontend/src/shared/utils.ts', async (importOriginal) => ({
+  ...(await importOriginal()),
   formatDate: () => ({ full: '2025-01-01', label: '01-01', year: '2025', weekday: 'Wed' }),
 }));
 vi.mock('../../frontend/src/notes/ui/cards.tsx', () => ({ renderDocList: vi.fn(), loadTitles: vi.fn() }));
@@ -145,6 +146,21 @@ describe('renderSidebar workspace switch', () => {
     expect(active?.dataset.viewMode).toBe('directory');
   });
 
+  it('counts undated documents and lists them under an Undated tab', () => {
+    state.index.data = {
+      a: { folder: 'ai', title: 'A' },
+      b: { folder: 'ai', title: 'B' },
+      c: { folder: 'ops', title: 'C', created_at: '202501011200' },
+    };
+    state.index.groupedByDate = buildGroups(state.index.data);
+    applyListFilters();
+    renderSidebar();
+    expect(optionTexts(findSelect('.topic-select'))[0]).toBe('All (3)');
+    const tabs = [...sidebarEl().querySelectorAll('.date-tab')].map((t) => t.dataset.date);
+    expect(tabs).toEqual(['20250101', 'undated']);
+    expect(sidebarEl().querySelector('.date-tab[data-date="undated"] .count').textContent).toBe('2');
+  });
+
   it('shows the project picker in the directory view only', () => {
     applyListFilters();
     renderSidebar();
@@ -217,15 +233,22 @@ describe('sidebar channel nav', () => {
 });
 
 describe('buildGroups', () => {
-  it('忽略缺少 created_at 的异常条目', () => {
+  it('puts documents without created_at into an Undated group after every date', () => {
     const grouped = buildGroups({
       ok: { common_path: 'ai/a', created_at: '202501011200' },
-      broken: { common_path: 'ai/b' },
+      older: { common_path: 'ai/c', created_at: '202412311200' },
+      zeta: { common_path: 'ai/z', title: 'Zeta' },
+      alpha: { common_path: 'ai/b', title: 'Alpha', created_at: null },
     });
+    expect(grouped.map((g) => g.date)).toEqual(['20250101', '20241231', 'undated']);
+    expect(grouped[2].entries.map((e) => e.id)).toEqual(['alpha', 'zeta']);
+  });
+
+  it('keeps a workspace whose documents are all undated listable', () => {
+    const grouped = buildGroups({ a: { common_path: 'x/a' }, b: { common_path: 'x/b' } });
     expect(grouped).toHaveLength(1);
-    expect(grouped[0].date).toBe('20250101');
-    expect(grouped[0].entries).toHaveLength(1);
-    expect(grouped[0].entries[0].id).toBe('ok');
+    expect(grouped[0].date).toBe('undated');
+    expect(grouped[0].entries).toHaveLength(2);
   });
 });
 

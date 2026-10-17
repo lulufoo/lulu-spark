@@ -14,7 +14,8 @@ import { attachNotesSidebarResize } from './sidebar-resize.ts';
 export { applyListFilters, buildGroups, selectDate, selectTopic };
 
 function _renderTopicFilter(parent: HTMLElement) {
-  const allEntries = Object.values(state.index.data || {});
+  // Count what the list shows: every grouped document, so the picker and the list agree.
+  const allEntries = (state.index.groupedByDate || []).flatMap((group) => group.entries.map(({ entry }) => entry));
   if (allEntries.length === 0) return;
   const topicCounts: Record<string, number> = {};
   for (const entry of allEntries) {

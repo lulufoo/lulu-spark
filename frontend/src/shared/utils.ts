@@ -16,7 +16,25 @@ export function topicFromPath(commonPath: string): string {
   return parts.join('/');
 }
 
+/** Group key of documents that have no `created_at`; it sorts after every real date. */
+export const UNDATED_KEY = 'undated';
+
+/** `YYYYMMDD` or `UNDATED_KEY` when `value` is one of them (or a longer timestamp); otherwise ''. */
+export function normalizeDateKey(value: unknown): string {
+  const text = typeof value === 'string' ? value : '';
+  if (text === UNDATED_KEY) return text;
+  return /^\d{8}/.test(text) ? text.slice(0, 8) : '';
+}
+
+/** The sidebar group a document belongs to, given its `created_at`. */
+export function dateKeyOf(createdAt: unknown): string {
+  return normalizeDateKey(createdAt) || UNDATED_KEY;
+}
+
 export function formatDate(dateStr: string) {
+  if (dateStr === UNDATED_KEY) {
+    return { day: '', label: 'Undated', year: '', month: '', weekday: '', full: 'Undated' };
+  }
   // dateStr = 'YYYYMMDD'
   const y = dateStr.slice(0, 4);
   const m = dateStr.slice(4, 6);
@@ -38,7 +56,7 @@ export function formatDate(dateStr: string) {
 
 export function timeFromTs(ts: string): string {
   // ts = 'YYYYMMDDHHMM'
-  return ts.slice(8, 10) + ':' + ts.slice(10, 12);
+  return ts.length >= 12 ? ts.slice(8, 10) + ':' + ts.slice(10, 12) : '';
 }
 
 export function escHtml(s: string): string {

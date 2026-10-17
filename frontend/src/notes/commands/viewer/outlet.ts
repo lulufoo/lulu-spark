@@ -1,5 +1,5 @@
 import { notifyState, state } from '../../state/host.ts';
-import { formatDate } from '../../../shared/utils.ts';
+import { formatDate, normalizeDateKey, dateKeyOf } from '../../../shared/utils.ts';
 import type { HostNoteGroup, HostOutletMode } from '../../../host/snapshot-types.ts';
 import type { NoteEntry } from '../../state/types.ts';
 
@@ -7,16 +7,16 @@ export function notesDateHeadingText(
   dateStr: string | null | undefined,
   group: { entries?: unknown[] } | null | undefined,
 ) {
-  const date = String(dateStr || '').slice(0, 8);
-  if (!/^\d{8}$/.test(date)) return '';
+  const date = normalizeDateKey(dateStr);
+  if (!date) return '';
   const datePart = formatDate(date).full;
   const count = group?.entries?.length;
   return count != null ? `${datePart}  ·  ${count} items` : datePart;
 }
 
 export function findNotesDateGroup(dateStr: string | null | undefined): HostNoteGroup | null {
-  const date = String(dateStr || '').slice(0, 8);
-  if (!/^\d{8}$/.test(date)) return null;
+  const date = normalizeDateKey(dateStr);
+  if (!date) return null;
   return (
     state.index.filteredGroups?.find((g) => g.date === date) ||
     state.index.groupedByDate?.find((g) => g.date === date) ||
@@ -35,8 +35,8 @@ export function resolveNotesListDate(
     state.index.groupedByDate[0]?.date,
   ];
   for (const pick of picks) {
-    const date = String(pick || '').slice(0, 8);
-    if (!/^\d{8}$/.test(date)) continue;
+    const date = normalizeDateKey(pick);
+    if (!date) continue;
     const group = findNotesDateGroup(date);
     if (group) return { date, group };
   }
@@ -46,9 +46,11 @@ export function resolveNotesListDate(
 export function setNotePanelTitle(entryOrDate?: string | NoteEntry | null) {
   const titleEl = document.getElementById('md-panel-title');
   const dateStr = typeof entryOrDate === 'string'
-    ? entryOrDate
-    : String(entryOrDate?.created_at || state.ui.activeDate || '').slice(0, 8);
-  if (!/^\d{8}$/.test(dateStr)) {
+    ? normalizeDateKey(entryOrDate)
+    : entryOrDate
+      ? dateKeyOf(entryOrDate.created_at)
+      : normalizeDateKey(state.ui.activeDate);
+  if (!dateStr) {
     if (titleEl) {
       titleEl.textContent = '';
       titleEl.removeAttribute('title');

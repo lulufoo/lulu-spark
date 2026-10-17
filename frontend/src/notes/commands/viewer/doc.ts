@@ -1,6 +1,6 @@
 import { state, getEntryId, notifyState } from '../../state/host.ts';
 import { docFileLang } from '../../state/doc-lang.ts';
-import { resetEditAreaScroll } from '../../../shared/utils.ts';
+import { dateKeyOf, resetEditAreaScroll } from '../../../shared/utils.ts';
 import * as api from '../../../host/api.ts';
 import { setDocEditMode } from '../../../doc-editor/view.tsx';
 import { initHighlightUI } from '../../ui/viewer/body.tsx';
@@ -170,7 +170,7 @@ export async function saveDoc() {
     if (data.error) throw new Error(data.error);
 
     state.viewer.rawText = newContent;
-    const date = (state.viewer.entry.created_at || '').slice(0, 8);
+    const date = dateKeyOf(state.viewer.entry.created_at);
     const h1Match = newContent.match(/^#\s+(.+)/m);
     const newTitle = h1Match ? h1Match[1].trim() : (state.viewer.entry.title || 'Untitled note');
     const entryId = getEntryId(state.viewer.entry);

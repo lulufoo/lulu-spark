@@ -2,22 +2,34 @@ import { notifyState, state } from '../state/host.ts';
 import { loadTitles } from './cards.ts';
 import { isTimelineView } from './workspace.ts';
 import { parseHash, navigateToDateList } from '../../router/index.ts';
+import { dateKeyOf, UNDATED_KEY } from '../../shared/utils.ts';
 import type { NoteEntry } from '../state/types.ts';
 
+/**
+ * Group documents by day, newest day first. Documents without a usable `created_at` are not
+ * dropped: they form one `Undated` group after every date, ordered by title.
+ */
 export function buildGroups(indexData: Record<string, NoteEntry>) {
   const map = new Map<string, { id: string; entry: NoteEntry }[]>();
   for (const [id, entry] of Object.entries(indexData)) {
-    if (!entry || typeof entry.created_at !== 'string') continue;
-    const date = entry.created_at.slice(0, 8);
+    if (!entry) continue;
+    const date = dateKeyOf(entry.created_at);
     if (!map.has(date)) map.set(date, []);
     map.get(date)!.push({ id, entry });
   }
+  const rank = (date: string) => (date === UNDATED_KEY ? 0 : 1);
   return [...map.entries()]
-    .sort((a, b) => b[0].localeCompare(a[0]))
+    .sort((a, b) => rank(b[0]) - rank(a[0]) || b[0].localeCompare(a[0]))
     .map(([date, entries]) => ({
       date,
-      entries: entries.sort((a, b) => String(b.entry.created_at).localeCompare(String(a.entry.created_at))),
+      entries: date === UNDATED_KEY
+        ? entries.sort(compareByTitle)
+        : entries.sort((a, b) => String(b.entry.created_at).localeCompare(String(a.entry.created_at))),
     }));
+}
+
+function compareByTitle(a: { id: string; entry: NoteEntry }, b: { id: string; entry: NoteEntry }) {
+  return (a.entry.title || '').localeCompare(b.entry.title || '') || a.id.localeCompare(b.id);
 }
 
 /** Directory view filters by project; the timeline view lists every document of the workspace. */
