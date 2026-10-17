@@ -1,12 +1,13 @@
 import * as api from '../../../host/api.ts';
 import { notifyState, state } from '../../../host/state.ts';
 import {
+  emptyNotesCategoriesSnap,
   notesCategoriesStore,
   patchNotesCategories,
   type NotesCategoryRow,
 } from '../../state/settings/notes-categories.ts';
 
-/** One row per project of the current workspace; a project is addressed by its folder. */
+/** One row per project; a project is addressed by its folder. */
 function asRows(data: unknown): NotesCategoryRow[] {
   const rec = data as { projects?: Array<Partial<NotesCategoryRow>>; error?: string };
   if (rec?.error) throw new Error(rec.error);
@@ -24,7 +25,17 @@ function asRows(data: unknown): NotesCategoryRow[] {
   return rows;
 }
 
-export function applyNotesCategoryMaps(rows: NotesCategoryRow[]) {
+function throwOnError(data: unknown) {
+  const error = (data as { error?: string } | null)?.error;
+  if (error) throw new Error(error);
+}
+
+function failWith(e: unknown) {
+  patchNotesCategories({ error: (e as Error).message || String(e), busy: false });
+}
+
+/** The page shows project titles of the workspace it browses; keep them in step with edits. */
+function applyNotesCategoryMaps(rows: NotesCategoryRow[]) {
   const descMap: Record<string, string> = {};
   const titleMap: Record<string, string> = {};
   for (const row of rows) {
@@ -42,29 +53,40 @@ function rowById(rows: NotesCategoryRow[], id: string) {
   return rows.find((row) => row.id === id);
 }
 
-export async function loadNotesCategories() {
+/** Reload both lists of `workspaceId`; a late answer for a workspace that is no longer selected is dropped. */
+export async function loadNotesCategories(workspaceId: string) {
   const snap = notesCategoriesStore.getSnapshot();
-  const keepId = snap.editorOpen ? snap.selectedId : '';
+  const keepId = snap.editorOpen && snap.workspaceId === workspaceId ? snap.selectedId : '';
   patchNotesCategories({ error: '', busy: true });
   try {
-    const rows = asRows(await api.fetchProjects(state.workspaces.current));
-    applyNotesCategoryMaps(rows);
+    const rows = asRows(await api.fetchProjects(workspaceId));
+    const disabled = asRows(await api.fetchDisabledProjects(workspaceId));
+    if (notesCategoriesStore.getSnapshot().workspaceId !== workspaceId) return;
+    if (workspaceId === state.workspaces.current) applyNotesCategoryMaps(rows);
     const selected = keepId ? rowById(rows, keepId) : undefined;
     patchNotesCategories({
       rows,
+      disabled,
       selectedId: selected?.id || '',
       draftTitle: selected?.title || '',
       draftDescription: selected?.description || '',
       busy: false,
       editorOpen: !!selected,
-      confirmDelete: false,
+      confirmDisableId: '',
     });
   } catch (e) {
-    patchNotesCategories({
-      error: (e as Error).message || String(e),
-      busy: false,
-    });
+    failWith(e);
   }
+}
+
+/** Show the projects of another workspace (a settings nav item was chosen). */
+export async function selectProjectsWorkspace(workspaceId: string) {
+  patchNotesCategories({
+    ...emptyNotesCategoriesSnap(),
+    workspaceId,
+    busy: true,
+  });
+  await loadNotesCategories(workspaceId);
 }
 
 export function openNotesCategoryEditor(id: string) {
@@ -76,91 +98,77 @@ export function openNotesCategoryEditor(id: string) {
     draftDescription: selected.description,
     error: '',
     editorOpen: true,
-    confirmDelete: false,
+    confirmDisableId: '',
   });
 }
 
 export function closeNotesCategoryEditor() {
   const snap = notesCategoriesStore.getSnapshot();
-  if (!snap.editorOpen && !snap.selectedId && !snap.confirmDelete) return;
+  if (!snap.editorOpen && !snap.selectedId && !snap.confirmDisableId) return;
   patchNotesCategories({
     selectedId: '',
     draftTitle: '',
     draftDescription: '',
     error: '',
     editorOpen: false,
-    confirmDelete: false,
+    confirmDisableId: '',
   });
 }
 
-export function askNotesCategoryDelete() {
-  const snap = notesCategoriesStore.getSnapshot();
-  if (!snap.selectedId || snap.selectedId === 'inbox') return;
-  patchNotesCategories({ confirmDelete: true, error: '' });
+/** `inbox` is the built-in project and cannot be disabled. */
+export function askNotesCategoryDisable(id: string) {
+  if (!id || id === 'inbox') return;
+  patchNotesCategories({ confirmDisableId: id, error: '' });
 }
 
-export function cancelNotesCategoryDelete() {
-  patchNotesCategories({ confirmDelete: false });
-}
-
-export function clearNotesCategoryError() {
-  if (!notesCategoriesStore.getSnapshot().error) return;
-  patchNotesCategories({ error: '' });
+export function cancelNotesCategoryDisable() {
+  patchNotesCategories({ confirmDisableId: '' });
 }
 
 export function setNotesCategoryDraft(title: string, description: string) {
   patchNotesCategories({ draftTitle: title, draftDescription: description });
 }
 
-export async function addNotesCategory(title: string, description: string) {
+export async function addNotesCategory(workspaceId: string, title: string, description: string) {
   patchNotesCategories({ error: '', busy: true });
   try {
-    const data = (await api.createProject(state.workspaces.current, title, description)) as {
-      error?: string;
-    };
-    if (data.error) throw new Error(data.error);
-    await loadNotesCategories();
+    throwOnError(await api.createProject(workspaceId, title, description));
+    await loadNotesCategories(workspaceId);
   } catch (e) {
-    patchNotesCategories({
-      error: (e as Error).message || String(e),
-      busy: false,
-    });
+    failWith(e);
   }
 }
 
-export async function saveNotesCategory() {
+export async function saveNotesCategory(workspaceId: string) {
   const snap = notesCategoriesStore.getSnapshot();
   if (!snap.selectedId || !snap.draftTitle.trim()) return;
   patchNotesCategories({ error: '', busy: true });
   try {
-    const data = (await api.updateProject(
-      state.workspaces.current,
-      snap.selectedId,
-      snap.draftTitle,
-      snap.draftDescription,
-    )) as { error?: string };
-    if (data.error) throw new Error(data.error);
+    throwOnError(await api.updateProject(workspaceId, snap.selectedId, snap.draftTitle, snap.draftDescription));
     closeNotesCategoryEditor();
-    await loadNotesCategories();
+    await loadNotesCategories(workspaceId);
   } catch (e) {
-    patchNotesCategories({
-      error: (e as Error).message || String(e),
-      busy: false,
-    });
+    failWith(e);
   }
 }
 
-export async function removeNotesCategory(id: string) {
+export async function disableNotesCategory(workspaceId: string, id: string) {
   patchNotesCategories({ error: '', busy: true });
   try {
-    const data = (await api.disableProject(state.workspaces.current, id)) as { error?: string };
-    if (data.error) throw new Error(data.error);
+    throwOnError(await api.disableProject(workspaceId, id));
     closeNotesCategoryEditor();
-    await loadNotesCategories();
+    await loadNotesCategories(workspaceId);
   } catch (e) {
-    patchNotesCategories({
-      error: (e as Error).message || String(e),
-      busy: false,
-    });
+    failWith(e);
+  }
+}
+
+export async function enableNotesCategory(workspaceId: string, id: string) {
+  patchNotesCategories({ error: '', busy: true });
+  try {
+    throwOnError(await api.enableProject(workspaceId, id));
+    await loadNotesCategories(workspaceId);
+  } catch (e) {
+    failWith(e);
   }
 }

@@ -8,26 +8,33 @@ export type NotesCategoryRow = {
 };
 
 export type NotesCategoriesSnap = {
+  /** Workspace whose projects the panel shows (the selected settings nav item). */
+  workspaceId: string;
   rows: NotesCategoryRow[];
+  /** Disabled projects of that workspace; they can be enabled again. */
+  disabled: NotesCategoryRow[];
   selectedId: string;
   draftTitle: string;
   draftDescription: string;
   error: string;
   busy: boolean;
   editorOpen: boolean;
-  confirmDelete: boolean;
+  /** Project row waiting for "Confirm disable"; empty when none. */
+  confirmDisableId: string;
 };
 
 export function emptyNotesCategoriesSnap(): NotesCategoriesSnap {
   return {
+    workspaceId: '',
     rows: [],
+    disabled: [],
     selectedId: '',
     draftTitle: '',
     draftDescription: '',
     error: '',
     busy: false,
     editorOpen: false,
-    confirmDelete: false,
+    confirmDisableId: '',
   };
 }
 

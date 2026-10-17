@@ -25,12 +25,17 @@ import {
 import { settingsOpenStore } from '../../state/dialog-open.ts';
 import {
   closeNotesCategoryEditor,
-  loadNotesCategories,
+  selectProjectsWorkspace,
 } from './notes-categories.ts';
 import { loadDisabledWorkspaces } from './workspaces.ts';
 import { loadSettingsSnapshot } from './snapshot.ts';
 import { saveThemeSelection } from './theme.ts';
-import { switchPanel, switchSettingsTab } from '../../ui/settings/tabs.ts';
+import {
+  isWorkspacePanel,
+  switchPanel,
+  switchSettingsTab,
+  workspaceIdOfPanel,
+} from '../../ui/settings/tabs.ts';
 import { mountSettingsListSelects } from '../../ui/settings/list-select.ts';
 
 export { settingsOpenStore };
@@ -62,6 +67,14 @@ export function closeSettingsDialog() {
   document.getElementById('settings-dialog')?.classList.remove('open');
 }
 
+/** Show one settings panel; a `workspace:<id>` panel also loads that workspace's projects. */
+function showPanel(panelId: string): Promise<void> {
+  switchPanel(panelId);
+  if (isWorkspacePanel(panelId)) return selectProjectsWorkspace(workspaceIdOfPanel(panelId));
+  closeNotesCategoryEditor();
+  return Promise.resolve();
+}
+
 export async function openSettingsDialog(opts: SettingsOpenOpts = {}) {
   closeNotesCategoryEditor();
   settingsOpenStore.set(true);
@@ -76,13 +89,13 @@ export async function openSettingsDialog(opts: SettingsOpenOpts = {}) {
   const panelId = opts.panel || 'notes';
   switchSettingsTab('llm', 'engine');
   switchSettingsTab('mcp', panelId === 'mcp' ? (opts.tab || 'tickets') : 'tickets');
-  switchPanel(panelId);
+  const loadingWorkspace = showPanel(panelId);
   await loadSettingsSnapshot();
-  await loadNotesCategories();
   await loadDisabledWorkspaces();
   await loadMcpChannelTools();
   requestAnimationFrame(() => paintMcpToolGroups());
   await loadMcpTicketView();
+  await loadingWorkspace;
 }
 
 function wireSettingsDialog() {
@@ -96,13 +109,11 @@ function wireSettingsDialog() {
     });
   });
 
-  document.querySelectorAll('.settings-nav-item').forEach((navBtn) => {
-    navBtn.addEventListener('click', async () => {
-      const panelId = (navBtn as HTMLElement).dataset.panel;
-      if (!panelId) return;
-      if (panelId !== 'notes') closeNotesCategoryEditor();
-      switchPanel(panelId);
-    });
+  // Workspace nav items are painted by React and change with the registry: delegate.
+  document.getElementById('settings-nav')?.addEventListener('click', (event) => {
+    const navBtn = (event.target as HTMLElement | null)?.closest('.settings-nav-item') as HTMLElement | null;
+    const panelId = navBtn?.dataset.panel;
+    if (panelId) void showPanel(panelId);
   });
 
   btn('btn-settings-close')?.addEventListener('click', closeSettingsDialog);

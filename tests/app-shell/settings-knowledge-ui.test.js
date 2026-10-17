@@ -43,9 +43,12 @@ describe('Settings workspace UI', () => {
     expect(indexHtml).toContain('id="notes-workspace-list"');
     expect(indexHtml).toContain('Confirm disable');
     expect(indexHtml).toContain('Disabled (');
-    // Project add/edit stay reachable until each workspace has its own page.
-    expect(indexHtml).toContain('id="settings-tab-notes-add"');
-    expect(indexHtml).toContain('id="settings-tab-notes-edit"');
+    // Projects moved to one page per workspace; the old sub-tabs are gone.
+    expect(indexHtml).not.toContain('id="settings-tab-notes-add"');
+    expect(indexHtml).not.toContain('id="settings-tab-notes-edit"');
+    expect(panel).not.toMatch(/data-tab="(add|edit)"/);
+    expect(indexHtml).toContain('id="settings-panel-workspace"');
+    expect(indexHtml).toContain('data-panel={`workspace:${workspace.id}`}');
     expect(indexHtml).toContain('id="notes-cat-list"');
     expect(indexHtml).toContain('id="notes-cat-edit-dialog"');
     expect(indexHtml).toContain('id="notes-cat-edit-dialog-box"');
