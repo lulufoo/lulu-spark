@@ -65,18 +65,20 @@ function NotesStatus() {
       </div>
     );
   }
-  if (host.ui.activeDate) return <div id="status" style={{ display: 'none' }} />;
-  return (
-    <div id="status">
-      <div style={{ color: '#8c959f', fontSize: '13px' }}>
-        {isDirectoryView() ? '← Select a document in the tree' : '← Select a date to view documents'}
-      </div>
-    </div>
-  );
+  return <div id="status" style={{ display: 'none' }} />;
 }
 
-function NotesDateHeading({ text }: { text: string }) {
-  return <div id="date-heading">{text}</div>;
+/** What the toolbar shows while nothing is selected; it sits in the heading's place, beside the search. */
+function emptySelectionHint(): string {
+  return isDirectoryView() ? 'Select a document in the tree' : 'Select a date to view documents';
+}
+
+function NotesDateHeading({ text, hint }: { text: string; hint?: boolean }) {
+  return (
+    <div id="date-heading" className={hint ? 'date-heading-hint' : undefined}>
+      {text}
+    </div>
+  );
 }
 
 function copyReference(entry: HostNoteEntry | null) {
@@ -332,9 +334,11 @@ export function NotesMain({ routeParams }: { routeParams: Record<string, string>
   const directory = isDirectoryView();
   const emptyFilter = Boolean(!group && host.ui.activeTopic && !directory);
   const emptyFolder = Boolean(directory && group && group.entries.length === 0);
-  const headingText = emptyFilter
+  const selectedHeading = emptyFilter
     ? 'No matching items'
     : notesDateHeadingText(date, group);
+  const headingIsHint = !selectedHeading;
+  const headingText = selectedHeading || emptySelectionHint();
 
   return (
     <>
@@ -343,7 +347,7 @@ export function NotesMain({ routeParams }: { routeParams: Record<string, string>
         hidden={showOutlet}
         data-tauri-drag-region="deep"
       >
-        <NotesDateHeading text={headingText} />
+        <NotesDateHeading text={headingText} hint={headingIsHint} />
         <SparkSearch />
       </div>
       <button

@@ -197,6 +197,11 @@
     flex-shrink: 0;
     color: var(--fg-default);
   }
+  /* Nothing selected: a quiet hint where the heading goes, on the search box's row. */
+  .notes-page-toolbar #date-heading.date-heading-hint {
+    font-weight: 400;
+    color: var(--fg-subtle);
+  }
   .page-toolbar .gs-search-wrap {
     flex: 1;
     min-width: 0;

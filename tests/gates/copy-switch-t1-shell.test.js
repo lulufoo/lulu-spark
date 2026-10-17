@@ -79,7 +79,7 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
     const notesPage = readFileSync(join(repoRoot, 'frontend/src/notes/page.tsx'), 'utf8');
     const css = readFileSync(join(repoRoot, 'frontend/app.css'), 'utf8');
     expect(notesPage).toMatch(
-      /className="page-toolbar notes-page-toolbar"[\s\S]*hidden=\{showOutlet\}[\s\S]*<NotesDateHeading text=\{headingText\} \/>[\s\S]*<SparkSearch \/>/,
+      /className="page-toolbar notes-page-toolbar"[\s\S]*hidden=\{showOutlet\}[\s\S]*<NotesDateHeading text=\{headingText\} hint=\{headingIsHint\} \/>[\s\S]*<SparkSearch \/>/,
     );
     expect(notesPage).toMatch(/className="page-toolbar notes-page-toolbar"/);
     expect(notesPage).toMatch(/id="md-header" className="viewer-header" data-tauri-drag-region="deep"/);
