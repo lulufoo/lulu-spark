@@ -43,7 +43,7 @@ pub(crate) fn parse_create_meta_unchecked(
     if payload.get("theme").is_some() {
         return Err(json!({ "error": "theme was renamed to folder", "_status": 400 }));
     }
-    let folder = path_segment(payload, "folder", "notes")?;
+    let folder = folder_path(payload)?;
     let created_at = parse_created_at(payload)?;
     let source_type = parse_source_type(payload)?;
     let rand = random_alnum6();
@@ -111,6 +111,33 @@ fn path_segment(payload: &Value, key: &str, default: &str) -> Result<String, Val
         .unwrap_or(default);
     if raw.contains("..") || raw.contains('/') || raw.contains('\\') {
         return Err(json!({ "error": format!("Invalid {key}"), "_status": 400 }));
+    }
+    Ok(raw.to_string())
+}
+
+/// Deepest `folder` allowed under a project.
+pub(crate) const MAX_FOLDER_DEPTH: usize = 3;
+
+/// `folder`: a relative path of 1..=3 segments (`a`, `a/b`, `a/b/c`); defaults to `notes`.
+/// Empty segments, leading or trailing `/`, `.`/`..` and `\` are rejected.
+fn folder_path(payload: &Value) -> Result<String, Value> {
+    let raw = payload
+        .get("folder")
+        .and_then(|v| v.as_str())
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .unwrap_or("notes");
+    let segments: Vec<&str> = raw.split('/').collect();
+    let ok = segments.len() <= MAX_FOLDER_DEPTH
+        && !raw.contains('\\')
+        && segments
+            .iter()
+            .all(|s| !s.is_empty() && *s != "." && !s.contains(".."));
+    if !ok {
+        return Err(json!({
+            "error": format!("Invalid folder: use 1 to {MAX_FOLDER_DEPTH} path segments such as a/b/c"),
+            "_status": 400
+        }));
     }
     Ok(raw.to_string())
 }

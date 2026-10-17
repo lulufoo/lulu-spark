@@ -34,7 +34,7 @@ pub fn create_doc_properties(include_source_path: bool) -> Value {
         },
         "folder": {
             "type": "string",
-            "description": "Optional second path segment inside the project. Defaults to notes."
+            "description": "Optional relative path inside the project, 1 to 3 levels such as ai/agents/notes. Defaults to notes."
         },
         "created_at": {
             "type": "string",

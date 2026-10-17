@@ -13,11 +13,18 @@ pub fn expected_zh_common_path(primary_common_path: &str) -> Option<String> {
 }
 
 pub fn is_valid_common_path(common_path: &str) -> bool {
+    // `{folder}/{filename}` where `folder` has 1..=3 segments.
     let parts: Vec<&str> = common_path.split('/').collect();
-    if parts.len() != 2 {
+    if parts.len() < 2 || parts.len() > 4 {
         return false;
     }
-    let filename = parts[1];
+    if parts[..parts.len() - 1]
+        .iter()
+        .any(|s| s.is_empty() || *s == "." || s.contains("..") || s.contains('\\'))
+    {
+        return false;
+    }
+    let filename = parts[parts.len() - 1];
     if !filename.ends_with(".md") {
         return false;
     }

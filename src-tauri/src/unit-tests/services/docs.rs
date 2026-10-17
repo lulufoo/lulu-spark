@@ -292,3 +292,53 @@ fn a_full_rebuild_indexes_every_workspace_and_drops_chunks_of_deleted_documents(
     let ids: Vec<String> = found["items"].as_array().expect("items").iter().map(|i| text(i, "id")).collect();
     assert_eq!(ids, vec![kept], "{found}");
 }
+
+fn write_in_folder(folder: &str, extra: Value) -> Value {
+    let mut payload = json!({ "title": "Nested", "content": BODY, "digest": "never", "folder": folder });
+    for (key, value) in extra.as_object().expect("object") {
+        payload[key] = value.clone();
+    }
+    create_doc_content(&payload)
+}
+
+#[test]
+fn a_three_level_folder_works_through_create_read_move_search_and_delete() {
+    let sandbox = TestSandbox::new();
+    ok(&create_project(&json!({ "folder": "plans", "title": "Plans" })));
+    let created = write_in_folder("ai/agents/notes", json!({ "translations": [{ "lang": "fr", "content": "# Titre\n\ncorps\n" }] }));
+    let id = text(ok(&created), "id");
+
+    let rel = spark_data::find_doc(&spark_data::open().expect("db"), &id).expect("find").expect("doc").doc.raw_path;
+    assert!(rel.starts_with("ai/agents/notes/"), "{rel}");
+    let dir = workspaces_dir(&sandbox).join("default/raw/inbox/ai/agents/notes");
+    assert_eq!(fs::read_dir(&dir).expect("dir").count(), 2, "the document and its translation");
+    assert_eq!(get_file(&json!({ "id": id }))["content"], json!(BODY));
+    assert_eq!(get_file(&json!({ "id": id, "lang": "fr" }))["content"], json!("# Titre\n\ncorps"));
+
+    let updated = update_doc_content(&json!({ "id": id, "content": "# 新\n\n更新后的正文 narwhal。\n", "digest": "never" }));
+    ok(&updated);
+    crate::services::index_build::rebuild_spark_index(&crate::config::paths::repo_root().expect("root")).expect("index");
+    let found = search(&json!({ "q": "narwhal" }));
+    assert_eq!(text(&found["items"][0], "id"), id, "{found}");
+
+    ok(&move_doc(&json!({ "id": id, "project": "plans" })));
+    assert!(workspaces_dir(&sandbox).join("default/raw/plans/ai/agents/notes").is_dir());
+    assert_eq!(fs::read_dir(&dir).expect("old dir").count(), 0, "both files left the old project");
+    assert_eq!(get_file(&json!({ "id": id, "lang": "fr" }))["content"], json!("# Titre\n\ncorps"));
+
+    assert_eq!(ok(&delete_doc(&json!({ "id": id })))["removed"], json!(2));
+    assert_eq!(status(&get_file(&json!({ "id": id }))), 404);
+}
+
+#[test]
+fn a_folder_with_four_levels_or_unsafe_segments_is_rejected() {
+    let sandbox = TestSandbox::new();
+    for bad in ["a/b/c/d", "a//b", "/a", "a/", "../x", "a/../b", "a/./b", "a\\b", "a..b"] {
+        let v = write_in_folder(bad, json!({}));
+        assert_eq!(status(&v), 400, "folder {bad:?} gave {v}");
+    }
+    assert!(!workspaces_dir(&sandbox).join("default/raw").join("inbox").exists(), "nothing is written for a rejected folder");
+    for good in ["notes", "a/b", "a/b/c"] {
+        ok(&write_in_folder(good, json!({})));
+    }
+}
