@@ -145,15 +145,15 @@ const DEFAULT_WORKSPACE_ID = 'default';
 
 /** Seed rows, used until the workspace registry is loaded. */
 const SEED_WORKSPACES: HomeWorkspaceRow[] = [
-  { id: DEFAULT_WORKSPACE_ID, name: 'Default', isDefault: true },
-  { id: 'knowledge', name: 'Knowledge', isDefault: false },
+  { id: DEFAULT_WORKSPACE_ID, name: 'Default', isDefault: true, icon: '' },
+  { id: 'knowledge', name: 'Knowledge', isDefault: false, icon: '' },
 ];
 
 /** One row per enabled workspace; the label follows its current name, so a rename shows up here. */
 function navWorkspaces(): HomeWorkspaceRow[] {
   const list = state.workspaces.list;
   if (list.length === 0) return SEED_WORKSPACES;
-  return list.map((w) => ({ id: w.id, name: w.name, isDefault: w.is_default }));
+  return list.map((w) => ({ id: w.id, name: w.name, isDefault: w.is_default, icon: w.icon }));
 }
 
 function goReadLater(navigateFn?: (hash: string) => void, openReadLater?: () => void) {

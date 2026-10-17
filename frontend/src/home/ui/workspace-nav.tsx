@@ -1,12 +1,20 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { defaultWorkspaceIconName, HomeNavIcon } from './nav-icons.tsx';
+import { Icon } from '../../shared/icons/icon.tsx';
+import { DEFAULT_PROJECT_ICON_ID, getIcon } from '../../shared/icons/index.ts';
 import { allocateWorkspaceRows } from '../state/workspace-rows.ts';
 import type { HomeProject } from '../state/store.ts';
 
 /** Used when `--home-nav-row-h` cannot be read (the stylesheet is not applied). */
 const FALLBACK_ROW_HEIGHT = 32;
 
-export type HomeWorkspaceRow = { id: string; name: string; isDefault: boolean };
+export type HomeWorkspaceRow = {
+  id: string;
+  name: string;
+  isDefault: boolean;
+  /** Id of the configured icon; empty = the default workspace icon. */
+  icon: string;
+};
 
 type Props = {
   workspaces: HomeWorkspaceRow[];
@@ -23,6 +31,18 @@ function entryKey(row: HomeWorkspaceRow): string {
   if (row.isDefault) return 'spark';
   if (row.id === 'knowledge') return 'knowledge';
   return `workspace:${row.id}`;
+}
+
+/** The configured icon when it is a known one, otherwise the built-in default of that workspace. */
+function WorkspaceIcon({ row }: { row: HomeWorkspaceRow }) {
+  if (row.icon && getIcon(row.icon)) {
+    return (
+      <span className="home-desktop-shortcut-icon" data-home-icon="custom" aria-hidden="true">
+        <Icon id={row.icon} size={18} />
+      </span>
+    );
+  }
+  return <HomeNavIcon name={defaultWorkspaceIconName(row.id)} />;
 }
 
 function PlusIcon() {
@@ -101,7 +121,7 @@ export function HomeWorkspaceNav({
                 {...(row.isDefault && unreadDocs ? { 'data-home-unread': 'true' } : {})}
                 onClick={() => onOpenWorkspace(row.id)}
               >
-                <HomeNavIcon name={defaultWorkspaceIconName(row.id)} />
+                <WorkspaceIcon row={row} />
                 <span className="home-desktop-shortcut-label">{row.name}</span>
               </button>
               {row.isDefault ? (
@@ -125,6 +145,9 @@ export function HomeWorkspaceNav({
                 data-home-project={project.folder}
                 onClick={() => onOpenProject(row.id, project.folder)}
               >
+                <span className="home-nav-project-icon" aria-hidden="true">
+                  <Icon id={project.icon && getIcon(project.icon) ? project.icon : DEFAULT_PROJECT_ICON_ID} size={16} />
+                </span>
                 <span className="home-nav-project-label">{project.title}</span>
               </button>
             ))}
