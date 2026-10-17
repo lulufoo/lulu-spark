@@ -83,8 +83,8 @@ describe('chips in the composer', () => {
     expect(chip.getAttribute('contenteditable')).toBe('false');
     expect(chip.getAttribute('data-ref-kind')).toBe('doc');
     expect(chip.getAttribute('data-ref-id')).toBe(NOTE_ID);
-    expect(chip.textContent).toBe('doc: Default：Agent Mock');
-    expect(chip.querySelector('.home-ref-chip-label')?.textContent).toBe('doc: Default：Agent Mock');
+    expect(chip.textContent).toBe('Default：Agent Mock');
+    expect(chip.querySelector('.home-ref-chip-label')?.textContent).toBe('Default：Agent Mock');
     expect(el.textContent).not.toContain('(doc:');
     expect(ref.current.getText()).toBe(`read ${NOTE} now`);
   });
@@ -92,7 +92,7 @@ describe('chips in the composer', () => {
   it('shows a document of another workspace the same way, with its workspace name', () => {
     const { ref, el } = render();
     ref.current.setText(GUIDE);
-    expect(el.querySelector('.home-ref-chip').textContent).toBe('doc: Knowledge：Guide');
+    expect(el.querySelector('.home-ref-chip').textContent).toBe('Knowledge：Guide');
     expect(ref.current.getText()).toBe(GUIDE);
   });
 

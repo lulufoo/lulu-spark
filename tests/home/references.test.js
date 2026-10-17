@@ -15,7 +15,7 @@ describe('reference kinds', () => {
     const doc = referenceKindByScheme('doc');
     const readLater = referenceKindByScheme('read-later');
     expect(doc?.kind).toBe('doc');
-    expect(doc?.label).toBe('doc');
+    expect(doc?.label).toBe('');
     expect(referenceKindByScheme('note')).toBeUndefined();
     expect(referenceKindByScheme('knowledge')).toBeUndefined();
     expect(readLater?.kind).toBe('read-later');

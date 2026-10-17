@@ -4,9 +4,10 @@ import { serializeReference, type ReferenceValue } from './parse.ts';
 export const CHIP_CLASS = 'home-ref-chip';
 export const CHIP_LABEL_CLASS = 'home-ref-chip-label';
 
-/** The words on a chip: `note: Title`. */
+/** The words on a chip: `label: Title`, or just `Title` when the kind has no label. */
 export function chipLabelText(kind: string, title: string): string {
-  return `${referenceKindByName(kind)?.label ?? kind}: ${title}`;
+  const label = referenceKindByName(kind)?.label ?? kind;
+  return label ? `${label}: ${title}` : title;
 }
 
 /** A read-only inline chip for one reference. The markdown link stays recoverable from its data. */

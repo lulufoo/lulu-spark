@@ -44,9 +44,9 @@ describe('UserMessageText', () => {
   it('shows document references of two workspaces as chips between the text', () => {
     const el = render(`read ${NOTE} then ${GUIDE} now`);
     const chips = [...el.querySelectorAll('.home-ref-chip')];
-    expect(chips.map((c) => c.textContent)).toEqual(['doc: Default：Agent Mock', 'doc: Knowledge：Guide']);
-    expect(el.textContent).toBe('read doc: Default：Agent Mock then doc: Knowledge：Guide now');
-    expect(chips[0].querySelector('.home-ref-chip-label')?.textContent).toBe('doc: Default：Agent Mock');
+    expect(chips.map((c) => c.textContent)).toEqual(['Default：Agent Mock', 'Knowledge：Guide']);
+    expect(el.textContent).toBe('read Default：Agent Mock then Knowledge：Guide now');
+    expect(chips[0].querySelector('.home-ref-chip-label')?.textContent).toBe('Default：Agent Mock');
     expect(chips[0].getAttribute('data-ref-kind')).toBe('doc');
     expect(chips[0].getAttribute('data-ref-id')).toBe(NOTE_ID);
   });
