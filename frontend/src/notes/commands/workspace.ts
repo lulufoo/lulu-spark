@@ -1,6 +1,9 @@
 import * as api from '../../host/api.ts';
 import { notifyState, state } from '../state/host.ts';
 import type { HostWorkspace } from '../../host/state.ts';
+import { dateKeyOf } from '../../shared/utils.ts';
+import { dirKeyOf, nodeKeyOfEntry } from '../state/dir-tree.ts';
+import type { NoteEntry } from '../state/types.ts';
 
 const CURRENT_WORKSPACE_KEY = 'spark_workspace';
 const DEFAULT_WORKSPACE_ID = 'default';
@@ -21,9 +24,22 @@ export function getCurrentWorkspace(): HostWorkspace | undefined {
   return list.find((w) => w.id === current);
 }
 
-/** The timeline view lists every document of the workspace; there is no project picker. */
+/** Timeline view: documents grouped by day, with a project picker. */
 export function isTimelineView(): boolean {
-  return getCurrentWorkspace()?.view_mode === 'timeline';
+  return !isDirectoryView();
+}
+
+/**
+ * Directory view: a tree of project → sub-folder → document. Until the workspace registry has
+ * loaded the page falls back to the timeline grouping.
+ */
+export function isDirectoryView(): boolean {
+  return getCurrentWorkspace()?.view_mode === 'directory';
+}
+
+/** Sidebar group a document belongs to: its day (timeline) or its tree node (directory). */
+export function entryGroupKey(entry: NoteEntry): string {
+  return isDirectoryView() ? dirKeyOf(nodeKeyOfEntry(entry)) : dateKeyOf(entry.created_at);
 }
 
 export function readStoredWorkspaceId(): string {

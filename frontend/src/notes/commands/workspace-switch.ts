@@ -1,7 +1,7 @@
 import * as api from '../../host/api.ts';
 import { notifyState, state } from '../state/host.ts';
-import { applyListFilters, selectDate } from './sidebar.ts';
-import { getCurrentWorkspace, storeWorkspaceId } from './workspace.ts';
+import { applyListFilters, selectDate, selectDirNode } from './sidebar.ts';
+import { getCurrentWorkspace, isDirectoryView, storeWorkspaceId } from './workspace.ts';
 
 /** Show another workspace: the page reloads its index and project titles. */
 export function switchWorkspace(id: string) {
@@ -23,8 +23,19 @@ export async function changeViewMode(mode: api.ViewMode) {
   applyViewModeChange();
 }
 
-/** Regroup the shown workspace after its view mode changed. */
+/**
+ * Regroup the shown workspace after its view mode changed. The selected project carries over:
+ * the timeline's project picker becomes the directory's selected project and back.
+ */
 export function applyViewModeChange() {
+  const topic = state.ui.activeTopic;
+  state.ui.activeDate = null;
+  if (isDirectoryView()) {
+    applyListFilters();
+    if (topic) selectDirNode(topic);
+    else notifyState();
+    return;
+  }
   applyListFilters();
   const first = state.index.filteredGroups[0];
   if (first) selectDate(first.date);

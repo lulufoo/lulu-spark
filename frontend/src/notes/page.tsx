@@ -22,7 +22,8 @@ import {
 import { renderDocBody } from './ui/viewer/body.tsx';
 import { SparkSearch } from './ui/search.tsx';
 import { openCreateNote } from './commands/viewer/create.ts';
-import { dateKeyOf, normalizeDateKey } from '../shared/utils.ts';
+import { normalizeGroupKey } from './state/dir-tree.ts';
+import { entryGroupKey, isDirectoryView } from './commands/workspace.ts';
 
 export { NotesSidebar };
 
@@ -66,7 +67,9 @@ function NotesStatus() {
   if (host.ui.activeDate) return <div id="status" style={{ display: 'none' }} />;
   return (
     <div id="status">
-      <div style={{ color: '#8c959f', fontSize: '13px' }}>← Select a date to view documents</div>
+      <div style={{ color: '#8c959f', fontSize: '13px' }}>
+        {isDirectoryView() ? '← Select a project or folder' : '← Select a date to view documents'}
+      </div>
     </div>
   );
 }
@@ -147,8 +150,8 @@ function NotesOutletChrome({ routeParams }: { routeParams: Record<string, string
   const loadFailed = Boolean(viewer.loadError);
 
   const dateStr = entry
-    ? dateKeyOf(entry.created_at)
-    : normalizeDateKey(host.ui.activeDate) || normalizeDateKey(routeParams.date);
+    ? entryGroupKey(entry)
+    : normalizeGroupKey(host.ui.activeDate) || normalizeGroupKey(routeParams.date);
   const panelTitle = notesDateHeadingText(dateStr, findNotesDateGroup(dateStr));
 
   return (
@@ -325,7 +328,9 @@ export function NotesMain({ routeParams }: { routeParams: Record<string, string>
   }, [host.ui.activeDate, showOutlet]);
 
   const { date, group } = resolveNotesListDate(host.ui.activeDate, routeParams.date);
-  const emptyFilter = Boolean(!group && host.ui.activeTopic);
+  const directory = isDirectoryView();
+  const emptyFilter = Boolean(!group && host.ui.activeTopic && !directory);
+  const emptyFolder = Boolean(directory && group && group.entries.length === 0);
   const headingText = emptyFilter
     ? 'No matching items'
     : notesDateHeadingText(date, group);
@@ -366,7 +371,8 @@ export function NotesMain({ routeParams }: { routeParams: Record<string, string>
           <NotesDocList
             entries={group?.entries || []}
             date={date || ''}
-            empty={Boolean(!group && host.ui.activeTopic)}
+            empty={emptyFilter || emptyFolder}
+            emptyMessage={emptyFolder ? 'No documents directly in this folder. Open it in the tree.' : undefined}
           />
         ) : null}
       </div>

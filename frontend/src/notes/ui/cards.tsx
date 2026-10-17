@@ -346,13 +346,15 @@ export function NotesDocList({
   entries,
   date,
   empty,
+  emptyMessage = 'No documents match the current filters',
 }: {
   entries: { id: string; entry: NoteEntry }[];
   date: string;
   empty?: boolean;
+  emptyMessage?: string;
 }) {
   if (empty) {
-    return <div className="empty-filter-msg">No documents match the current filters</div>;
+    return <div className="empty-filter-msg">{emptyMessage}</div>;
   }
 
   return (
@@ -438,7 +440,9 @@ export function updateTitlesInDOM(date: string) {
 
 export function updateDiffInDOM() {
   if (!state.ui.activeDate) return;
-  const group = state.index.groupedByDate.find((g) => g.date === state.ui.activeDate);
+  const group =
+    state.index.groupedByDate.find((g) => g.date === state.ui.activeDate) ||
+    state.index.filteredGroups.find((g) => g.date === state.ui.activeDate);
   if (!group) return;
   for (const { id, entry } of group.entries) {
     const card = document.querySelector(`.doc-card[data-id="${id}"]`);

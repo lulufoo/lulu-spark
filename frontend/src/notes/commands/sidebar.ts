@@ -1,8 +1,17 @@
 import { notifyState, state } from '../state/host.ts';
 import { loadTitles } from './cards.ts';
-import { isTimelineView } from './workspace.ts';
+import { isDirectoryView } from './workspace.ts';
 import { parseHash, navigateToDateList } from '../../router/index.ts';
 import { dateKeyOf, UNDATED_KEY } from '../../shared/utils.ts';
+import {
+  dirKeyOf,
+  expandDirNodes,
+  isDirKey,
+  nodeKeyOf,
+  nodeKeyOfEntry,
+  pathKeys,
+  projectOfNode,
+} from '../state/dir-tree.ts';
 import type { NoteEntry } from '../state/types.ts';
 
 /**
@@ -32,11 +41,15 @@ function compareByTitle(a: { id: string; entry: NoteEntry }, b: { id: string; en
   return (a.entry.title || '').localeCompare(b.entry.title || '') || a.id.localeCompare(b.id);
 }
 
-/** Directory view filters by project; the timeline view lists every document of the workspace. */
+/** Timeline view: filter by project. Directory view: the documents directly inside the selected tree node. */
 export function applyListFilters() {
+  if (isDirectoryView()) {
+    state.index.filteredGroups = directoryGroups();
+    return;
+  }
   let groups = state.index.groupedByDate;
   const topic = state.ui.activeTopic;
-  if (topic && !isTimelineView()) {
+  if (topic) {
     groups = groups
       .map(({ date, entries }) => ({
         date,
@@ -47,7 +60,28 @@ export function applyListFilters() {
   state.index.filteredGroups = groups;
 }
 
+function directoryGroups() {
+  const key = state.ui.activeDate;
+  if (!isDirKey(key)) return [];
+  const nodeKey = nodeKeyOf(key);
+  const entries = Object.entries(state.index.data || {})
+    .filter(([, entry]) => entry && nodeKeyOfEntry(entry) === nodeKey)
+    .map(([id, entry]) => ({ id, entry }))
+    .sort(
+      (a, b) =>
+        String(b.entry.created_at ?? '').localeCompare(String(a.entry.created_at ?? '')) ||
+        String(a.entry.raw_path ?? '').localeCompare(String(b.entry.raw_path ?? '')),
+    );
+  return [{ date: key, entries }];
+}
+
+/** A day key belongs to the timeline view and a `dir:` key to the directory view. */
+function fitsCurrentView(date: string): boolean {
+  return isDirectoryView() ? isDirKey(date) : !isDirKey(date);
+}
+
 export function selectDate(date: string) {
+  if (!fitsCurrentView(date)) return;
   const route = parseHash(typeof window !== 'undefined' ? window.location.hash : '');
   if (route.name === 'spark') {
     const params = route.params as { note?: string };
@@ -62,11 +96,22 @@ export function selectDate(date: string) {
 
   state.ui.activeDate = date;
   sessionStorage.setItem('cta_active_date', date);
+  if (isDirKey(date)) {
+    const nodeKey = nodeKeyOf(date);
+    expandDirNodes(pathKeys(nodeKey));
+    state.ui.activeTopic = projectOfNode(nodeKey);
+    applyListFilters();
+  }
   notifyState();
 
   const group = state.index.filteredGroups.find((g) => g.date === date);
   if (!group) return;
   loadTitles(group.entries, date);
+}
+
+/** Select a tree node (project or folder) in the directory view; its path opens. */
+export function selectDirNode(nodeKey: string) {
+  selectDate(dirKeyOf(nodeKey));
 }
 
 export function selectTopic(key: string | null) {

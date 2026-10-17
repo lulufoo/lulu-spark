@@ -59,14 +59,16 @@ pub fn translation_common_paths(doc: &DocRow) -> Result<Vec<(String, String)>, S
         .collect()
 }
 
-/// `{id, workspace, project_id, folder, created_at, layers, source_type, translations?, title?}`.
-/// `folder` is the project's folder.
+/// `{id, workspace, project_id, folder, raw_path, created_at, layers, source_type, translations?, title?}`.
+/// `folder` is the project's folder; `raw_path` is relative to it and keeps the original
+/// directory structure (the directory view is built from it).
 pub fn entry_from_doc(doc: &DocRow, workspace_id: &str, folder: &str) -> Result<Value, String> {
     let mut entry = Map::new();
     entry.insert("id".into(), json!(doc.doc_id));
     entry.insert("workspace".into(), json!(workspace_id));
     entry.insert("project_id".into(), json!(doc.project_id));
     entry.insert("folder".into(), json!(folder));
+    entry.insert("raw_path".into(), json!(doc.raw_path));
     entry.insert(
         "layers".into(),
         if doc.digest_path.is_some() { json!(["raw", "digest"]) } else { json!(["raw"]) },

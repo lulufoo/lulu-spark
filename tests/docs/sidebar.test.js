@@ -87,7 +87,7 @@ beforeEach(() => {
   ];
   state.index.filteredGroups = state.index.groupedByDate;
   state.index.tagsRegistry = { keys: { k1: { value: 'Alpha' }, k2: { value: 'Beta' } } };
-  seedWorkspaces('directory');
+  seedWorkspaces('timeline');
   state.ui.activeTopic = null;
   state.ui.activeDate = null;
   state.ui.sparkRoot = '';
@@ -123,17 +123,31 @@ describe('selectTopic', () => {
 });
 
 describe('timeline view', () => {
-  it('ignores the active project so every document of the workspace is listed', () => {
-    seedWorkspaces('timeline');
-    state.ui.activeTopic = 'ai';
-    applyListFilters();
-    expect(state.index.filteredGroups).toBe(state.index.groupedByDate);
-  });
-
-  it('directory view still narrows to the active project', () => {
+  it('narrows every day to the active project', () => {
     state.ui.activeTopic = 'common-tech';
     applyListFilters();
     expect(state.index.filteredGroups).toHaveLength(1);
+    expect(state.index.filteredGroups[0].date).toBe('20250101');
+  });
+
+  it('lists every document when no project is selected', () => {
+    applyListFilters();
+    expect(state.index.filteredGroups).toBe(state.index.groupedByDate);
+  });
+});
+
+describe('directory view', () => {
+  it('lists nothing until a tree node is selected, whatever the project picker held', () => {
+    seedWorkspaces('directory');
+    state.ui.activeTopic = 'ai';
+    applyListFilters();
+    expect(state.index.filteredGroups).toEqual([]);
+  });
+
+  it('ignores day keys: the tree decides what is selected', () => {
+    seedWorkspaces('directory');
+    selectDate('20250101');
+    expect(state.ui.activeDate).toBeNull();
   });
 });
 
@@ -143,7 +157,7 @@ describe('renderSidebar workspace switch', () => {
     renderSidebar();
     expect(optionTexts(findSelect('.workspace-select'))).toEqual(['Default', 'Research']);
     const active = sidebarEl()?.querySelector('.view-mode-btn.active');
-    expect(active?.dataset.viewMode).toBe('directory');
+    expect(active?.dataset.viewMode).toBe('timeline');
   });
 
   it('counts undated documents and lists them under an Undated tab', () => {
@@ -161,17 +175,20 @@ describe('renderSidebar workspace switch', () => {
     expect(sidebarEl().querySelector('.date-tab[data-date="undated"] .count').textContent).toBe('2');
   });
 
-  it('shows the project picker in the directory view only', () => {
+  it('shows the project picker in the timeline view only; the directory view paints the tree', () => {
     applyListFilters();
     renderSidebar();
     expect(sidebarEl()?.querySelectorAll('.topic-filter')).toHaveLength(1);
     expect(optionTexts(findSelect('.topic-select'))[0]).toBe('All (4)');
+    expect(sidebarEl()?.querySelector('#sidebar-dir-tree')).toBeNull();
 
-    seedWorkspaces('timeline');
+    seedWorkspaces('directory');
     renderSidebar();
     act(() => notifyState());
     expect(sidebarEl()?.querySelectorAll('.topic-filter')).toHaveLength(0);
-    expect(sidebarEl()?.querySelector('.view-mode-btn.active')?.dataset.viewMode).toBe('timeline');
+    expect(sidebarEl()?.querySelector('.date-tab')).toBeNull();
+    expect(sidebarEl()?.querySelector('#sidebar-dir-tree')).not.toBeNull();
+    expect(sidebarEl()?.querySelector('.view-mode-btn.active')?.dataset.viewMode).toBe('directory');
   });
 
   it('has no tag filter any more', () => {

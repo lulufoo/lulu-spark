@@ -9,6 +9,7 @@ import { isTimelineView } from '../commands/workspace.ts';
 import { changeViewMode, switchWorkspace } from '../commands/workspace-switch.ts';
 import { PageBackHome } from '../../shared/home-mark.tsx';
 import { WindowDragStrip } from '../../shared/window-drag-strip.tsx';
+import { DirTree } from './dir-tree.tsx';
 import { attachNotesSidebarResize } from './sidebar-resize.ts';
 
 export { applyListFilters, buildGroups, selectDate, selectTopic };
@@ -139,7 +140,7 @@ export function NotesSidebar() {
     sidebar?.querySelectorAll('.workspace-filter, .topic-filter').forEach((el) => el.remove());
     parent.replaceChildren();
     _renderWorkspaceSwitch(parent);
-    if (!isTimelineView()) _renderTopicFilter(parent);
+    if (isTimelineView()) _renderTopicFilter(parent);
     return () => {
       closeFloatingListSelect();
       parent.replaceChildren();
@@ -159,6 +160,7 @@ export function NotesSidebar() {
           <PageBackHome />
         </WindowDragStrip>
         <div id="sidebar-channel-zone" className="sidebar-channel-zone" ref={channelRef} />
+        {isTimelineView() ? (
         <div id="sidebar-date-zone" className="sidebar-date-zone">
           {groups.map(({ date, entries }) => {
             const d = formatDate(date);
@@ -174,6 +176,11 @@ export function NotesSidebar() {
             );
           })}
         </div>
+        ) : (
+          <div id="sidebar-tree-zone" className="sidebar-date-zone">
+            <DirTree />
+          </div>
+        )}
       </div>
       <div
         id="sidebar-resizer"

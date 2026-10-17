@@ -1,10 +1,10 @@
 import { state, mergeAnnotations, notifyState } from './host/state.ts';
 import { LAYERS } from './host/constants.ts';
 import * as api from './host/api.ts';
-import { dateKeyOf } from './shared/utils.ts';
 import type { HostIndexAnnotation, HostNoteEntry } from './host/snapshot-types.ts';
 import { buildGroups, selectDate, applyListFilters } from './notes/commands/sidebar.ts';
-import { loadProjects, loadWorkspaces } from './notes/commands/workspace.ts';
+import { entryGroupKey, loadProjects, loadWorkspaces } from './notes/commands/workspace.ts';
+import { resetDirTree } from './notes/state/dir-tree.ts';
 import { showWorkspaceOf } from './notes/commands/workspace-switch.ts';
 import './notes/ui/comments.tsx';
 import { navigate, navigateToNote } from './router/index.ts';
@@ -43,6 +43,8 @@ async function loadIndex({ managedBtn = false }: { managedBtn?: boolean } = {}) 
     state.index.data = normalizeDocIndex(data) as Record<string, HostNoteEntry>;
     state.index.groupedByDate = buildGroups(state.index.data);
     state.ui.activeTopic = null;
+    state.ui.activeDate = null;
+    resetDirTree();
     state.ui.loadError = null;
     applyListFilters();
     await Promise.all([loadAnnotationsSummary(), loadTagsRegistry()]);
@@ -260,7 +262,7 @@ document.addEventListener('cta:open-entry', (event) => {
     });
     return;
   }
-  const date = dateKeyOf(entry.created_at);
+  const date = entryGroupKey(entry);
   selectDate(date);
   const params: { date: string; note: string; layer?: string } = { date, note: id };
   params.layer = detail.layer || (LAYERS.find((l) => entry.layers?.includes(l)) ?? 'raw');

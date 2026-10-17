@@ -1,5 +1,7 @@
 import { notifyState, state } from '../../state/host.ts';
-import { formatDate, normalizeDateKey, dateKeyOf } from '../../../shared/utils.ts';
+import { formatDate } from '../../../shared/utils.ts';
+import { dirKeyLabel, isDirKey, normalizeGroupKey } from '../../state/dir-tree.ts';
+import { entryGroupKey } from '../workspace.ts';
 import type { HostNoteGroup, HostOutletMode } from '../../../host/snapshot-types.ts';
 import type { NoteEntry } from '../../state/types.ts';
 
@@ -7,15 +9,15 @@ export function notesDateHeadingText(
   dateStr: string | null | undefined,
   group: { entries?: unknown[] } | null | undefined,
 ) {
-  const date = normalizeDateKey(dateStr);
+  const date = normalizeGroupKey(dateStr);
   if (!date) return '';
-  const datePart = formatDate(date).full;
+  const datePart = isDirKey(date) ? dirKeyLabel(date, state.index.topicTitles) : formatDate(date).full;
   const count = group?.entries?.length;
   return count != null ? `${datePart}  ·  ${count} items` : datePart;
 }
 
 export function findNotesDateGroup(dateStr: string | null | undefined): HostNoteGroup | null {
-  const date = normalizeDateKey(dateStr);
+  const date = normalizeGroupKey(dateStr);
   if (!date) return null;
   return (
     state.index.filteredGroups?.find((g) => g.date === date) ||
@@ -35,7 +37,7 @@ export function resolveNotesListDate(
     state.index.groupedByDate[0]?.date,
   ];
   for (const pick of picks) {
-    const date = normalizeDateKey(pick);
+    const date = normalizeGroupKey(pick);
     if (!date) continue;
     const group = findNotesDateGroup(date);
     if (group) return { date, group };
@@ -46,10 +48,10 @@ export function resolveNotesListDate(
 export function setNotePanelTitle(entryOrDate?: string | NoteEntry | null) {
   const titleEl = document.getElementById('md-panel-title');
   const dateStr = typeof entryOrDate === 'string'
-    ? normalizeDateKey(entryOrDate)
+    ? normalizeGroupKey(entryOrDate)
     : entryOrDate
-      ? dateKeyOf(entryOrDate.created_at)
-      : normalizeDateKey(state.ui.activeDate);
+      ? entryGroupKey(entryOrDate)
+      : normalizeGroupKey(state.ui.activeDate);
   if (!dateStr) {
     if (titleEl) {
       titleEl.textContent = '';

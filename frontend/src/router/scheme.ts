@@ -1,7 +1,7 @@
 import { LOGIN_EVENT_EXCHANGE, LOGIN_EVENT_ROUTE, logLoginHop } from '../auth/hop.ts';
 import { completeAuthLogin } from '../auth/oauth.ts';
 import { encodePassBag, extractPassIdFromScheme, PASS_QUERY } from '../auth/pass.ts';
-import { dateKeyOf } from '../shared/utils.ts';
+import { entryGroupKey } from '../notes/commands/workspace.ts';
 import { state } from '../host/state.ts';
 import { openReadLaterDialog } from '../read-later/commands/dialog.ts';
 import { navigateToNote } from './index.ts';
@@ -103,7 +103,7 @@ export function resolveNotesLanding(id: string): NotesLanding | null {
   const entry = data[id] ?? Object.values(data).find((item) => item._id === id || item.id === id);
 
   if (!entry) return null;
-  return { date: dateKeyOf(entry.created_at), note: id };
+  return { date: entryGroupKey(entry), note: id };
 }
 
 function isAuthLoginScheme(scheme: string): boolean {

@@ -82,13 +82,13 @@ fn get_docs_index_is_built_from_the_doc_table_in_the_entry_shape() {
                 json!({ "workspace": "default", "entries": {
                     "n1": {
                         "id": "n1", "workspace": "default", "project_id": "seed-ai", "folder": "ai",
-                        "created_at": "202601010000",
+                        "raw_path": "topic/20260101-a.md", "created_at": "202601010000",
                         "layers": ["raw", "digest"], "source_type": "article", "title": "A",
                         "translations": { "zh": "topic/20260101-a-zh.md" }
                     },
                     "n2": {
                         "id": "n2", "workspace": "default", "project_id": "seed-ai", "folder": "ai",
-                        "layers": ["raw"]
+                        "raw_path": "topic/20260102-b.md", "layers": ["raw"]
                     },
                 }})
             );

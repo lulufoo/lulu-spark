@@ -753,6 +753,50 @@
   }
   .date-tab.active .count { background: var(--bg-hex-b6e3ff); color: var(--fg-accent-emphasis); }
 
+  /* ── Directory tree (directory view) ─────────────────────────────────────── */
+  .dir-tree, .dir-children { list-style: none; margin: 0; padding: 0; }
+  .dir-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding-top: 4px;
+    padding-bottom: 4px;
+    padding-right: 12px;
+    font-size: 13px;
+    line-height: 1.4;
+    color: var(--fg-muted);
+    cursor: pointer;
+    user-select: none;
+  }
+  .dir-row:hover { background: var(--bg-canvas); color: var(--fg-default); }
+  .dir-row.active { background: var(--bg-hex-ddf4ff); color: var(--fg-accent); font-weight: 600; }
+  .dir-project > .dir-row { font-weight: 600; color: var(--fg-default); }
+  .dir-project > .dir-row.active { color: var(--fg-accent); }
+  .dir-chevron {
+    flex: 0 0 14px;
+    width: 14px;
+    padding: 0;
+    border: none;
+    background: none;
+    color: inherit;
+    font-size: 11px;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .dir-chevron:disabled { cursor: default; }
+  .dir-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dir-count {
+    flex-shrink: 0;
+    background: var(--bg-muted);
+    color: var(--fg-muted);
+    border-radius: 10px;
+    padding: 0 6px;
+    font-size: 10px;
+  }
+  .dir-row.active .dir-count { background: var(--bg-hex-b6e3ff); color: var(--fg-accent-emphasis); }
+  .dir-doc { font-weight: 400; }
+  .dir-empty { padding: 12px var(--notes-rail); font-size: 12px; color: var(--fg-muted); }
+
   /* ── Topic Filter ────────────────────────────────────────────────────────── */
   .topic-filter {
     padding: 8px var(--notes-rail) 6px;
