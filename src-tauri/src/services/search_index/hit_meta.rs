@@ -9,7 +9,7 @@ use crate::services::spark_data::{self, get_doc, get_project, get_workspace};
 use super::collect::DOCS_CATEGORY;
 use super::query::QueryHit;
 
-/// Where one document lives: `(path relative to its root, unused repo, topic folder)`.
+/// Where one document lives: `(path relative to its root, unused repo, project id)`.
 type Location = Option<(String, String, String)>;
 
 fn locate(
@@ -26,8 +26,8 @@ fn locate(
             let Some(doc) = get_doc(conn, &workspace.doc_table, doc_id)? else {
                 return Ok(None);
             };
-            let folder = get_project(conn, &doc.project_id)?.map(|p| p.folder).unwrap_or_default();
-            Ok(Some((doc.raw_path, String::new(), folder)))
+            let project = get_project(conn, &doc.project_id)?.map(|p| p.id).unwrap_or_default();
+            Ok(Some((doc.raw_path, String::new(), project)))
         }
         _ => Ok(None),
     }

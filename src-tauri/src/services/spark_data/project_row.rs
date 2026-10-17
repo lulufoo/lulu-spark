@@ -109,6 +109,17 @@ pub fn get_project_by_folder(
     .map_err(|e| e.to_string())
 }
 
+/// The built-in inbox of this workspace, if the row exists.
+pub fn get_inbox_project(conn: &Connection, workspace_id: &str) -> Result<Option<ProjectRow>, String> {
+    conn.query_row(
+        &format!("SELECT {COLUMNS} FROM project WHERE workspace_id = ?1 AND is_inbox = 1"),
+        params![workspace_id],
+        map_row,
+    )
+    .optional()
+    .map_err(|e| e.to_string())
+}
+
 fn list_where(conn: &Connection, workspace_id: &str, condition: &str) -> Result<Vec<ProjectRow>, String> {
     let mut stmt = conn
         .prepare(&format!(
@@ -154,20 +165,20 @@ pub fn enable_project(conn: &Connection, id: &str) -> Result<bool, String> {
         .map_err(|e| e.to_string())
 }
 
-/// Put every project of one workspace in the order of `folders`. `folders` must name every
+/// Put every project of one workspace in the order of `ids`. `ids` must name every
 /// project of the workspace (disabled ones included) exactly once; anything else is refused
 /// and nothing changes.
-pub fn reorder_projects(conn: &Connection, workspace_id: &str, folders: &[String]) -> Result<(), String> {
+pub fn reorder_projects(conn: &Connection, workspace_id: &str, ids: &[String]) -> Result<(), String> {
     let known: Vec<String> = list_all_projects(conn, workspace_id)?
         .into_iter()
-        .map(|p| p.folder)
+        .map(|p| p.id)
         .collect();
-    ensure_same_set(&known, folders, "project")?;
+    ensure_same_set(&known, ids, "project")?;
     let tx = conn.unchecked_transaction().map_err(|e| e.to_string())?;
-    for (index, folder) in folders.iter().enumerate() {
+    for (index, id) in ids.iter().enumerate() {
         tx.execute(
-            "UPDATE project SET sort_index = ?3 WHERE workspace_id = ?1 AND folder = ?2",
-            params![workspace_id, folder, index as i64],
+            "UPDATE project SET sort_index = ?2 WHERE id = ?1",
+            params![id, index as i64],
         )
         .map_err(|e| e.to_string())?;
     }

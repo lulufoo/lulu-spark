@@ -102,7 +102,7 @@ fn write_doc(source: &str, payload: &Value, source_basename: Option<&str>) -> Va
         Ok(w) => w,
         Err(v) => return v,
     };
-    let project = match resolve_project(&conn, &workspace, &meta.project) {
+    let project = match resolve_project(&conn, &workspace, meta.project.as_deref()) {
         Ok(p) => p,
         Err(v) => return v,
     };
@@ -184,7 +184,7 @@ fn write_doc(source: &str, payload: &Value, source_basename: Option<&str>) -> Va
         "id": id,
         "workspace": workspace.id,
         "workspace_name": workspace.name,
-        "project": project.folder,
+        "project": project.id,
         "created_at": meta.created_at,
     });
     if !translations.is_empty() {

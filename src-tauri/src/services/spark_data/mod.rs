@@ -24,7 +24,8 @@ pub use doc_id::{duplicate_doc_ids, is_valid_doc_id, new_doc_id, split_doc_id};
 pub use doc_entry::{entry_from_doc, find_doc, list_doc_entries, project_folder, translation_common_paths, FoundDoc};
 
 pub use project_row::{
-    disable_project, enable_project, get_project, get_project_by_folder, insert_project,
+    disable_project, enable_project, get_inbox_project, get_project, get_project_by_folder,
+    insert_project,
     list_all_projects, list_disabled_projects, list_projects, reorder_projects, update_project,
     ProjectRow,
 };

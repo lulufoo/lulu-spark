@@ -34,9 +34,10 @@ fn stage_source(sandbox: &TestSandbox, name: &str, content: &str) -> PathBuf {
     p.canonicalize().expect("canon")
 }
 
-fn add_project(id: &str) {
-    let v = crate::services::docs::create_project(&json!({ "project": id, "folder": id, "title": id }));
+fn add_project(title: &str) -> String {
+    let v = crate::services::docs::create_project(&json!({ "title": title }));
     assert_eq!(v["ok"], json!(true), "{v}");
+    v["project"]["id"].as_str().expect("id").to_string()
 }
 
 fn path_payload(sandbox: &TestSandbox, content: &str, mut base: serde_json::Value) -> serde_json::Value {
@@ -282,10 +283,10 @@ const THEME_LINE_ZH: &str = r#"# 中文标题
 #[test]
 fn create_note_theme_line_with_zh_translation() {
     let sandbox = setup_notes();
-    add_project("learning-ai-agent");
+    let project = add_project("learning-ai-agent");
     let v = create_doc(&path_payload(&sandbox, THEME_LINE_DOC, json!({
             "title": "Interview Title",
-            "project": "learning-ai-agent",
+            "project": project,
             "folder": "waymo-interview",
             "created_at": "202606191700",
             "source_type": "video",
@@ -298,13 +299,13 @@ fn create_note_theme_line_with_zh_translation() {
     let rel = note_row(id).raw_path;
     assert!(rel.starts_with("waymo-interview/202606191700-"), "{rel}");
     let zh_rel = format!("{}-zh.md", rel.trim_end_matches(".md"));
-    assert!(notes.join("raw/learning-ai-agent").join(&zh_rel).is_file());
+    assert!(notes.join("raw").join(&project).join(&zh_rel).is_file());
     assert_eq!(v["extra_paths"], json!([format!("raw/{zh_rel}")]));
     let index: serde_json::Value =
         read_note_entries();
     assert_eq!(index["entries"][id]["translations"]["zh"], json!(zh_rel));
     let row = note_row(id);
-    assert_eq!(row.project_id, project_id("learning-ai-agent"));
+    assert_eq!(row.project_id, project);
     assert_eq!(row.raw_path, rel);
 }
 
@@ -324,11 +325,11 @@ fn create_note_rejects_the_renamed_theme_field() {
 #[test]
 fn create_note_zh_from_source_path() {
     let sandbox = setup_notes();
-    add_project("learning-ai-agent");
+    let project = add_project("learning-ai-agent");
     let zh_file = stage_source(&sandbox, "zh.md", THEME_LINE_ZH);
     let v = create_doc(&path_payload(&sandbox, THEME_LINE_DOC, json!({
             "title": "Interview Title",
-            "project": "learning-ai-agent",
+            "project": project,
             "folder": "waymo-interview",
             "created_at": "202606191700",
             "source_type": "video",
@@ -1028,17 +1029,17 @@ fn jot_dirs(root: &std::path::Path) -> Vec<PathBuf> {
 #[test]
 fn create_jot_with_a_project_writes_into_that_project() {
     let _sandbox = setup_notes();
-    add_project("plans");
-    let v = create_jot(None, Some("plans"), "放进计划\n\n正文", &jot_opts_with_ts("202607101440"))
+    let plans = add_project("plans");
+    let v = create_jot(None, Some(&plans), "放进计划\n\n正文", &jot_opts_with_ts("202607101440"))
         .expect("create_jot");
     assert_eq!(v["ok"], json!(true), "{v}");
-    assert_eq!(v["project"], json!("plans"));
+    assert_eq!(v["project"], json!(plans));
     let id = v["id"].as_str().expect("id");
     assert!(note_row(id).raw_path.starts_with("notes/202607101440-"));
     let entry = &read_note_entries()["entries"][id];
-    assert_eq!(entry["folder"], json!("plans"));
+    assert_eq!(entry["folder"], json!(plans));
     assert_eq!(entry["source_type"], json!("jot"));
-    let raw = default_workspace_dir().join("raw/plans/notes");
+    let raw = default_workspace_dir().join("raw").join(&plans).join("notes");
     assert!(jot_dirs(&raw).iter().any(|p| p.extension().is_some_and(|e| e == "md")), "{raw:?}");
 }
 
@@ -1054,14 +1055,14 @@ fn create_jot_without_a_project_still_goes_to_inbox() {
 #[test]
 fn create_jot_refuses_a_missing_or_disabled_project_and_writes_nothing() {
     let _sandbox = setup_notes();
-    add_project("old");
-    let disabled = crate::services::docs::disable_project(&json!({ "project": "old" }));
+    let old = add_project("old");
+    let disabled = crate::services::docs::disable_project(&json!({ "project": old }));
     assert_eq!(disabled["ok"], json!(true), "{disabled}");
     let before = jot_dirs(&default_workspace_dir());
 
-    for project in ["ghost", "old"] {
-        let err = create_jot(None, Some(project), "不该写入", &jot_opts_with_ts("202607101442"))
-            .expect_err(project);
+    for project in ["ghost".to_string(), old] {
+        let err = create_jot(None, Some(&project), "不该写入", &jot_opts_with_ts("202607101442"))
+            .expect_err(&project);
         assert!(err.starts_with("400:") || err.starts_with("404:") || err.starts_with("409:"), "{project}: {err}");
     }
     assert_eq!(jot_dirs(&default_workspace_dir()), before, "nothing was written");
@@ -1073,11 +1074,12 @@ fn create_jot_refuses_a_project_of_another_workspace() {
     let other = crate::services::docs::create_workspace(&json!({ "name": "Other" }));
     let other_id = other["workspace"]["id"].as_str().expect("workspace id").to_string();
     let made = crate::services::docs::create_project(
-        &json!({ "workspace": other_id, "folder": "theirs", "title": "Theirs" }),
+        &json!({ "workspace": other_id, "title": "Theirs" }),
     );
     assert_eq!(made["ok"], json!(true), "{made}");
+    let theirs = made["project"]["id"].as_str().expect("project id");
     let before = jot_dirs(&default_workspace_dir());
-    let err = create_jot(Some("default"), Some("theirs"), "跨工作区", &jot_opts_with_ts("202607101443"))
+    let err = create_jot(Some("default"), Some(theirs), "跨工作区", &jot_opts_with_ts("202607101443"))
         .expect_err("another workspace's project");
     assert!(err.starts_with("400:") || err.starts_with("404:"), "{err}");
     assert_eq!(jot_dirs(&default_workspace_dir()), before);

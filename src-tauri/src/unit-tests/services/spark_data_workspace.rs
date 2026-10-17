@@ -360,7 +360,7 @@ fn new_workspaces_and_projects_are_appended_and_the_default_can_move() {
     assert_eq!(workspace_ids(&conn), all);
     assert_eq!(workspace_ids(&conn).last().map(String::as_str), Some("default"));
 
-    reorder_projects(&conn, &zeta.id, &strings(&["aa", "zz"])).expect("reorder projects");
+    reorder_projects(&conn, &zeta.id, &strings(&["pa", "pz"])).expect("reorder projects");
     assert_eq!(project_folders(&conn, &zeta.id), strings(&["aa", "zz"]));
 }
 
@@ -384,7 +384,7 @@ fn a_reorder_must_name_every_entry_once_and_changes_nothing_otherwise() {
     insert_project(&conn, &ProjectRow::new("p1", &made.id, "one", "One", "")).expect("p1");
     insert_project(&conn, &ProjectRow::new("p2", &made.id, "two", "Two", "")).expect("p2");
     let projects = project_folders(&conn, &made.id);
-    for bad in [strings(&["one"]), strings(&["one", "one", "two"]), strings(&["one", "two", "three"])] {
+    for bad in [strings(&["p1"]), strings(&["p1", "p1", "p2"]), strings(&["p1", "p2", "ghost"])] {
         assert!(reorder_projects(&conn, &made.id, &bad).is_err(), "{bad:?}");
         assert_eq!(project_folders(&conn, &made.id), projects);
     }
@@ -402,7 +402,7 @@ fn disabled_entries_keep_their_place_and_come_back_to_it() {
     assert_eq!(project_folders(&conn, &made.id), strings(&["one", "three"]));
 
     // The caller passes every project, the disabled one included, at the position it wants.
-    reorder_projects(&conn, &made.id, &strings(&["three", "two", "one"])).expect("reorder");
+    reorder_projects(&conn, &made.id, &strings(&["p3", "p2", "p1"])).expect("reorder");
     assert_eq!(project_folders(&conn, &made.id), strings(&["three", "one"]));
     assert!(enable_project(&conn, "p2").expect("enable"));
     assert_eq!(project_folders(&conn, &made.id), strings(&["three", "two", "one"]), "back in place");

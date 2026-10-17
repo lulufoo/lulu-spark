@@ -18,7 +18,7 @@ fn with(extra: serde_json::Value) -> serde_json::Value {
 pub fn build_list(_channel: &str) -> Option<ToolRoute> {
     Some(route(
         "list_projects",
-        "List the projects of one workspace. workspace defaults to Default. Each project has a folder (the value other tools take as project), a title and a description.",
+        "List the projects of one workspace. workspace defaults to Default. Each project has an id (the value other tools take as project), a title, is_inbox, and a description.",
         object_schema(with(json!({})), &[]),
         true,
         false,
@@ -32,7 +32,6 @@ pub fn build_create(_channel: &str) -> Option<ToolRoute> {
         "Add a project to a workspace. workspace defaults to Default. Does not move existing documents.",
         object_schema(
             with(json!({
-                "folder": { "type": "string", "description": "Optional directory name. Generated when omitted." },
                 "title": { "type": "string", "description": "Display title." },
                 "description": { "type": "string", "description": "Optional description." }
             })),
@@ -47,10 +46,10 @@ pub fn build_create(_channel: &str) -> Option<ToolRoute> {
 pub fn build_update(_channel: &str) -> Option<ToolRoute> {
     Some(route(
         "update_project",
-        "Change a project's title and description. The folder is kept.",
+        "Change a project's title and description. The id is kept.",
         object_schema(
             with(json!({
-                "project": { "type": "string", "description": "Project folder from list_projects." },
+                "project": { "type": "string", "description": "Project id from list_projects." },
                 "title": { "type": "string", "description": "Display title." },
                 "description": { "type": "string", "description": "Optional description." }
             })),

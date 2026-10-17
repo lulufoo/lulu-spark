@@ -37,9 +37,9 @@ pub struct QueryHit {
     pub layer: String,
     /// Filled from `spark-data.sqlite` by `resolve_hits`: the document path inside its project.
     pub common_path: String,
-    /// Filled by `resolve_hits`: the project folder.
+    /// Filled by `resolve_hits`: unused here.
     pub repo: String,
-    /// Folder inside the project.
+    /// Filled by `resolve_hits`: the project id.
     pub topic: String,
     pub title: String,
     pub body: String,
