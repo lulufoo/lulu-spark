@@ -150,7 +150,6 @@ describe('HomeWorkspaceNav', () => {
           unreadDocs: false,
           onOpenWorkspace: vi.fn(),
           onOpenProject: vi.fn(),
-          onCreateDocument: vi.fn(),
           ...props,
         }),
       ),
@@ -243,14 +242,14 @@ describe('HomeWorkspaceNav', () => {
     }
   });
 
-  it('keeps one shortcut per workspace, the entry keys and the + beside Default only', () => {
+  it('keeps one shortcut per workspace and the entry keys, with no + on any row', () => {
     const host = render({ unreadDocs: true });
     expect([...host.querySelectorAll('.home-desktop-shortcut')].map((b) => b.dataset.homeEntry)).toEqual([
       'spark',
       'knowledge',
       'workspace:empty',
     ]);
-    expect(host.querySelectorAll('[data-role="create-note"]')).toHaveLength(1);
+    expect(host.querySelector('[data-role="create-note"], .home-chat-new')).toBeNull();
     expect(host.querySelector('[data-home-entry="spark"]').dataset.homeUnread).toBe('true');
     expect(host.querySelector('[data-home-entry="knowledge"]').dataset.homeUnread).toBeUndefined();
   });

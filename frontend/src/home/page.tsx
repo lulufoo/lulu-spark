@@ -57,7 +57,6 @@ import {
   type LiveThinking,
 } from './state/store.ts';
 import { ThinkingFold } from './ui/thinking.tsx';
-import { openCreateNote } from '../notes/commands/viewer/create.ts';
 import { openBindDialog } from '../app-shell/ui/bind-dialog.tsx';
 import { openSettingsDialog } from '../app-shell/ui/settings/dialog.tsx';
 import { WindowDragStrip } from '../shared/window-drag-strip.tsx';
@@ -329,14 +328,6 @@ export function HomePage({
               onOpenProject={(id, folder) => {
                 if (id === DEFAULT_WORKSPACE_ID) void markHomeEntryRead('spark');
                 void openProject(id, folder, navigateFn);
-              }}
-              onCreateDocument={() => {
-                const temp_id =
-                  typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-                    ? crypto.randomUUID()
-                    : `note-${Date.now()}`;
-                navigateFn?.('#/spark');
-                void openCreateNote({ temp_id });
               }}
             />
             <button

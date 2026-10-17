@@ -23,7 +23,6 @@ type Props = {
   unreadDocs: boolean;
   onOpenWorkspace: (id: string) => void;
   onOpenProject: (id: string, folder: string) => void;
-  onCreateDocument: () => void;
 };
 
 /** `data-home-entry` of the two built-in workspaces keeps its old value; others use their id. */
@@ -43,17 +42,6 @@ function WorkspaceIcon({ row }: { row: HomeWorkspaceRow }) {
     );
   }
   return <HomeNavIcon name={defaultWorkspaceIconName(row.id)} />;
-}
-
-function PlusIcon() {
-  return (
-    <svg className="home-chat-new-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <path
-        fill="currentColor"
-        d="M11 5a1 1 0 1 1 2 0v6h6a1 1 0 1 1 0 2h-6v6a1 1 0 1 1-2 0v-6H5a1 1 0 1 1 0-2h6V5z"
-      />
-    </svg>
-  );
 }
 
 /** The sidebar's row height, from the `--home-nav-row-h` custom property. */
@@ -90,7 +78,6 @@ export function HomeWorkspaceNav({
   unreadDocs,
   onOpenWorkspace,
   onOpenProject,
-  onCreateDocument,
 }: Props) {
   const listRef = useRef<HTMLDivElement | null>(null);
   const availableRows = useAvailableRows(listRef);
@@ -135,18 +122,6 @@ export function HomeWorkspaceNav({
                   </span>
                 ) : null}
               </button>
-              {row.isDefault ? (
-                <button
-                  type="button"
-                  className="home-chat-new"
-                  data-role="create-note"
-                  aria-label="New document"
-                  title="New document"
-                  onClick={onCreateDocument}
-                >
-                  <PlusIcon />
-                </button>
-              ) : null}
             </div>
             {shown.map((project) => (
               <button

@@ -80,7 +80,6 @@ describe('HomeWorkspaceNav icons', () => {
           unreadDocs: false,
           onOpenWorkspace() {},
           onOpenProject() {},
-          onCreateDocument() {},
         }),
       ),
     );
