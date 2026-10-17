@@ -15,6 +15,8 @@ export type WorkspacesPanelSnap = {
   editorOpen: boolean;
   draftName: string;
   draftViewMode: ViewMode;
+  /** Icon chosen in the dialog; empty = the default icon. */
+  draftIcon: string;
   /** The edit dialog asks "Disable <name>?" instead of showing the form. */
   confirmDisable: boolean;
 };
@@ -29,6 +31,7 @@ export function emptyWorkspacesPanelSnap(): WorkspacesPanelSnap {
     editorOpen: false,
     draftName: '',
     draftViewMode: 'directory',
+    draftIcon: '',
     confirmDisable: false,
   };
 }

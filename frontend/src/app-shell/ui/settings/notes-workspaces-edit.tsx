@@ -10,8 +10,11 @@ import {
   openWorkspaceEditor,
   saveWorkspaceEditor,
   setWorkspaceDraft,
+  setWorkspaceDraftIcon,
 } from '../../commands/settings/workspaces.ts';
 import { workspacesPanelStore } from '../../state/settings/workspaces-panel.ts';
+import { defaultWorkspaceIconName, HomeNavIcon } from '../../../home/ui/nav-icons.tsx';
+import { IconPicker } from './icon-picker.tsx';
 import { parseViewMode } from './notes-workspaces-add.tsx';
 
 /** Workspace list (whole row opens the dialog), the edit dialog, and the collapsed Disabled list. */
@@ -151,21 +154,30 @@ export function NotesWorkspacesEditHost() {
               <div id="notes-ws-edit-dialog-body">
                 <div className="settings-field">
                   <label htmlFor="notes-ws-edit-name">Name</label>
-                  <input
-                    id="notes-ws-edit-name"
-                    type="text"
-                    value={snap.draftName}
-                    autoComplete="off"
-                    spellCheck={false}
-                    disabled={snap.busy}
-                    onChange={(e) => setWorkspaceDraft(e.target.value, snap.draftViewMode)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        void saveWorkspaceEditor();
-                      }
-                    }}
-                  />
+                  <div className="icon-name-row">
+                    <IconPicker
+                      label="Workspace icon"
+                      value={snap.draftIcon}
+                      defaultIcon={<HomeNavIcon name={defaultWorkspaceIconName(selected.id)} />}
+                      disabled={snap.busy}
+                      onChange={setWorkspaceDraftIcon}
+                    />
+                    <input
+                      id="notes-ws-edit-name"
+                      type="text"
+                      value={snap.draftName}
+                      autoComplete="off"
+                      spellCheck={false}
+                      disabled={snap.busy}
+                      onChange={(e) => setWorkspaceDraft(e.target.value, snap.draftViewMode)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          void saveWorkspaceEditor();
+                        }
+                      }}
+                    />
+                  </div>
                 </div>
                 <div className="settings-field">
                   <label htmlFor="notes-ws-edit-view">View</label>

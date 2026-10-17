@@ -1,6 +1,8 @@
 import { useState, useSyncExternalStore } from 'react';
 import type { ViewMode } from '../../../host/api.ts';
 import { addWorkspace } from '../../commands/settings/workspaces.ts';
+import { defaultWorkspaceIconName, HomeNavIcon } from '../../../home/ui/nav-icons.tsx';
+import { IconPicker } from './icon-picker.tsx';
 import { workspacesPanelStore } from '../../state/settings/workspaces-panel.ts';
 
 export function parseViewMode(value: string): ViewMode {
@@ -12,12 +14,16 @@ export function NotesWorkspacesAddHost() {
   const snap = useSyncExternalStore(workspacesPanelStore.subscribe, workspacesPanelStore.getSnapshot);
   const [name, setName] = useState('');
   const [viewMode, setViewMode] = useState<ViewMode>('directory');
+  const [icon, setIcon] = useState('');
   const { busy } = snap;
 
   async function onAdd() {
     const trimmed = name.trim();
     if (!trimmed) return;
-    if (await addWorkspace(trimmed, viewMode)) setName('');
+    if (await addWorkspace(trimmed, viewMode, icon)) {
+      setName('');
+      setIcon('');
+    }
   }
 
   return (
@@ -27,16 +33,25 @@ export function NotesWorkspacesAddHost() {
       </p>
       <div className="settings-field">
         <label htmlFor="notes-workspace-new-name">Name</label>
-        <input
-          id="notes-workspace-new-name"
-          type="text"
-          value={name}
-          placeholder="Display name"
-          autoComplete="off"
-          spellCheck={false}
-          disabled={busy}
-          onChange={(e) => setName(e.target.value)}
-        />
+        <div className="icon-name-row">
+          <IconPicker
+            label="Workspace icon"
+            value={icon}
+            defaultIcon={<HomeNavIcon name={defaultWorkspaceIconName('')} />}
+            disabled={busy}
+            onChange={setIcon}
+          />
+          <input
+            id="notes-workspace-new-name"
+            type="text"
+            value={name}
+            placeholder="Display name"
+            autoComplete="off"
+            spellCheck={false}
+            disabled={busy}
+            onChange={(e) => setName(e.target.value)}
+          />
+        </div>
       </div>
       <div className="settings-field">
         <label htmlFor="notes-workspace-new-view">View</label>

@@ -21,6 +21,7 @@ function asRows(data: unknown): NotesCategoryRow[] {
       title: typeof c.title === 'string' ? c.title : folder,
       description: typeof c.description === 'string' ? c.description : '',
       folder,
+      icon: typeof c.icon === 'string' ? c.icon : '',
     });
   }
   return rows;
@@ -71,6 +72,7 @@ export async function loadNotesCategories(workspaceId: string) {
       selectedId: selected?.id || '',
       draftTitle: selected?.title || '',
       draftDescription: selected?.description || '',
+      draftIcon: selected?.icon || '',
       busy: false,
       editorOpen: !!selected,
       confirmDisableId: '',
@@ -97,6 +99,7 @@ export function openNotesCategoryEditor(id: string) {
     selectedId: selected.id,
     draftTitle: selected.title,
     draftDescription: selected.description,
+    draftIcon: selected.icon,
     error: '',
     editorOpen: true,
     confirmDisableId: '',
@@ -110,6 +113,7 @@ export function closeNotesCategoryEditor() {
     selectedId: '',
     draftTitle: '',
     draftDescription: '',
+    draftIcon: '',
     error: '',
     editorOpen: false,
     confirmDisableId: '',
@@ -130,10 +134,19 @@ export function setNotesCategoryDraft(title: string, description: string) {
   patchNotesCategories({ draftTitle: title, draftDescription: description });
 }
 
-export async function addNotesCategory(workspaceId: string, title: string, description: string) {
+export function setNotesCategoryDraftIcon(icon: string) {
+  patchNotesCategories({ draftIcon: icon });
+}
+
+/** `icon` empty = the default project icon. */
+export async function addNotesCategory(workspaceId: string, title: string, description: string, icon = '') {
   patchNotesCategories({ error: '', busy: true });
   try {
-    throwOnError(await api.createProject(workspaceId, title, description));
+    throwOnError(
+      await (icon
+        ? api.createProject(workspaceId, title, description, icon)
+        : api.createProject(workspaceId, title, description)),
+    );
     await loadNotesCategories(workspaceId);
     announceRegistryChange();
   } catch (e) {
@@ -144,9 +157,15 @@ export async function addNotesCategory(workspaceId: string, title: string, descr
 export async function saveNotesCategory(workspaceId: string) {
   const snap = notesCategoriesStore.getSnapshot();
   if (!snap.selectedId || !snap.draftTitle.trim()) return;
+  const current = rowById(snap.rows, snap.selectedId);
+  const iconChanged = snap.draftIcon !== (current?.icon ?? '');
   patchNotesCategories({ error: '', busy: true });
   try {
-    throwOnError(await api.updateProject(workspaceId, snap.selectedId, snap.draftTitle, snap.draftDescription));
+    throwOnError(
+      await (iconChanged
+        ? api.updateProject(workspaceId, snap.selectedId, snap.draftTitle, snap.draftDescription, snap.draftIcon)
+        : api.updateProject(workspaceId, snap.selectedId, snap.draftTitle, snap.draftDescription)),
+    );
     closeNotesCategoryEditor();
     await loadNotesCategories(workspaceId);
     announceRegistryChange();

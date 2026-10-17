@@ -5,6 +5,8 @@ export type NotesCategoryRow = {
   title: string;
   description: string;
   folder: string;
+  /** Id of the configured icon; empty = the default project icon. */
+  icon: string;
 };
 
 export type NotesCategoriesSnap = {
@@ -16,6 +18,8 @@ export type NotesCategoriesSnap = {
   selectedId: string;
   draftTitle: string;
   draftDescription: string;
+  /** Icon chosen in the dialog; empty = the default icon. */
+  draftIcon: string;
   error: string;
   busy: boolean;
   editorOpen: boolean;
@@ -31,6 +35,7 @@ export function emptyNotesCategoriesSnap(): NotesCategoriesSnap {
     selectedId: '',
     draftTitle: '',
     draftDescription: '',
+    draftIcon: '',
     error: '',
     busy: false,
     editorOpen: false,

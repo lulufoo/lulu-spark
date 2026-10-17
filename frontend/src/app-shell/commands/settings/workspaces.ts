@@ -65,8 +65,9 @@ export function clearWorkspacesError() {
   patchWorkspacesPanel({ error: '' });
 }
 
-export function addWorkspace(name: string, viewMode: api.ViewMode) {
-  return run(() => api.createWorkspace(name, viewMode));
+/** `icon` empty = the default icon. */
+export function addWorkspace(name: string, viewMode: api.ViewMode, icon = '') {
+  return run(() => (icon ? api.createWorkspace(name, viewMode, icon) : api.createWorkspace(name, viewMode)));
 }
 
 export function renameWorkspace(id: string, name: string) {
@@ -81,6 +82,11 @@ export function changeWorkspaceViewMode(id: string, mode: api.ViewMode) {
       if (id === state.workspaces.current) applyViewModeChange();
     },
   );
+}
+
+/** Empty `icon` clears it, back to the default icon. */
+export function changeWorkspaceIcon(id: string, icon: string) {
+  return run(() => api.setWorkspaceIcon(id, icon));
 }
 
 export function disableWorkspace(id: string) {
@@ -100,6 +106,7 @@ export function openWorkspaceEditor(id: string) {
     editorOpen: true,
     draftName: workspace.name,
     draftViewMode: workspace.view_mode,
+    draftIcon: workspace.icon,
     confirmDisable: false,
     error: '',
   });
@@ -113,6 +120,7 @@ export function closeWorkspaceEditor() {
     editorOpen: false,
     draftName: '',
     draftViewMode: 'directory',
+    draftIcon: '',
     confirmDisable: false,
     error: '',
   });
@@ -120,6 +128,10 @@ export function closeWorkspaceEditor() {
 
 export function setWorkspaceDraft(name: string, viewMode: api.ViewMode) {
   patchWorkspacesPanel({ draftName: name, draftViewMode: viewMode });
+}
+
+export function setWorkspaceDraftIcon(icon: string) {
+  patchWorkspacesPanel({ draftIcon: icon });
 }
 
 /** The built-in workspace cannot be disabled. */
@@ -133,15 +145,20 @@ export function cancelWorkspaceDisable() {
   patchWorkspacesPanel({ confirmDisable: false, error: '' });
 }
 
-/** Save the dialog: rename and/or change the view, then close it. Stops at the first refusal. */
+/**
+ * Save the dialog: rename, change the view and change the icon, each only when it differs, then
+ * close it. Stops at the first refusal and leaves the dialog open with the reason.
+ */
 export async function saveWorkspaceEditor(): Promise<boolean> {
   const snap = workspacesPanelStore.getSnapshot();
   const workspace = state.workspaces.list.find((w) => w.id === snap.selectedId);
   const name = snap.draftName.trim();
   if (!workspace || !name) return false;
   const viewChanged = snap.draftViewMode !== workspace.view_mode;
+  const iconChanged = snap.draftIcon !== workspace.icon;
   if (name !== workspace.name && !(await renameWorkspace(workspace.id, name))) return false;
   if (viewChanged && !(await changeWorkspaceViewMode(workspace.id, snap.draftViewMode))) return false;
+  if (iconChanged && !(await changeWorkspaceIcon(workspace.id, snap.draftIcon))) return false;
   closeWorkspaceEditor();
   return true;
 }

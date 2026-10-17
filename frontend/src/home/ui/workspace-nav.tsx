@@ -1,5 +1,5 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { HomeNavIcon } from './nav-icons.tsx';
+import { defaultWorkspaceIconName, HomeNavIcon } from './nav-icons.tsx';
 import { allocateWorkspaceRows } from '../state/workspace-rows.ts';
 import type { HomeProject } from '../state/store.ts';
 
@@ -101,7 +101,7 @@ export function HomeWorkspaceNav({
                 {...(row.isDefault && unreadDocs ? { 'data-home-unread': 'true' } : {})}
                 onClick={() => onOpenWorkspace(row.id)}
               >
-                <HomeNavIcon name={row.id === 'knowledge' ? 'knowledge' : 'notes'} />
+                <HomeNavIcon name={defaultWorkspaceIconName(row.id)} />
                 <span className="home-desktop-shortcut-label">{row.name}</span>
               </button>
               {row.isDefault ? (

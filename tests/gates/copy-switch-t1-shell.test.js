@@ -227,7 +227,7 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
     expect(homeSrc).not.toMatch(/home-chat-nav-label">Library</);
     expect(helpMenuSrc).toMatch(/id="btn-bind"/);
     expect(helpMenuSrc).toMatch(/id="btn-bind"[\s\S]*?Devices/);
-    expect(homeSrc).toMatch(/<HomeNavIcon name=\{row\.id === 'knowledge' \? 'knowledge' : 'notes'\}/);
+    expect(homeSrc).toMatch(/<HomeNavIcon name=\{defaultWorkspaceIconName\(row\.id\)\}/);
     expect(homeSrc).toMatch(/<HomeNavIcon name="read-later"/);
     expect(homeSrc).not.toMatch(/<HomeNavIcon name="bind"/);
     expect(helpMenuSrc).toMatch(/<HomeNavIcon name="settings"/);

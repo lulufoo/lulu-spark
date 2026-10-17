@@ -1,6 +1,9 @@
 import { useState, useSyncExternalStore } from 'react';
 import { addNotesCategory } from '../../commands/settings/notes-categories.ts';
+import { Icon } from '../../../shared/icons/icon.tsx';
+import { DEFAULT_PROJECT_ICON_ID } from '../../../shared/icons/index.ts';
 import { notesCategoriesStore } from '../../state/settings/notes-categories.ts';
+import { IconPicker } from './icon-picker.tsx';
 
 /** Add form for the selected workspace; it clears only after the host accepted the project. */
 export function NotesCategoriesAddHost() {
@@ -10,14 +13,16 @@ export function NotesCategoriesAddHost() {
   );
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [icon, setIcon] = useState('');
 
   async function onAdd() {
     const trimmed = title.trim();
     if (!trimmed) return;
-    await addNotesCategory(snap.workspaceId, trimmed, description.trim());
+    await addNotesCategory(snap.workspaceId, trimmed, description.trim(), icon);
     if (!notesCategoriesStore.getSnapshot().error) {
       setTitle('');
       setDescription('');
+      setIcon('');
     }
   }
 
@@ -28,16 +33,25 @@ export function NotesCategoriesAddHost() {
       </p>
       <div className="settings-field">
         <label htmlFor="notes-cat-new-title">Title</label>
-        <input
-          id="notes-cat-new-title"
-          type="text"
-          placeholder="Display title"
-          autoComplete="off"
-          spellCheck={false}
-          disabled={snap.busy}
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-        />
+        <div className="icon-name-row">
+          <IconPicker
+            label="Project icon"
+            value={icon}
+            defaultIcon={<Icon id={DEFAULT_PROJECT_ICON_ID} size={18} />}
+            disabled={snap.busy}
+            onChange={setIcon}
+          />
+          <input
+            id="notes-cat-new-title"
+            type="text"
+            placeholder="Display title"
+            autoComplete="off"
+            spellCheck={false}
+            disabled={snap.busy}
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+          />
+        </div>
       </div>
       <div className="settings-field">
         <label htmlFor="notes-cat-new-description">Description</label>

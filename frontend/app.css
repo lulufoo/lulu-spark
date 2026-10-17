@@ -5491,6 +5491,105 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   padding: 16px;
   overflow-y: auto;
 }
+/* Icon picker (settings): a button beside the name that opens a grid of built-in icons. */
+.icon-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.icon-name-row input[type="text"] { flex: 1; min-width: 0; }
+.icon-picker { flex: 0 0 auto; }
+.icon-picker-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  background: var(--bg-surface);
+  color: var(--fg-muted);
+  cursor: pointer;
+}
+.icon-picker-button:hover:not(:disabled),
+.icon-picker-button[aria-expanded="true"] {
+  background: var(--bg-subtle);
+  color: var(--fg-default);
+}
+.icon-picker-button:focus-visible,
+.icon-picker-cell:focus-visible,
+.icon-picker-default:focus-visible {
+  outline: 2px solid var(--border-accent);
+  outline-offset: 1px;
+}
+.icon-picker-button:disabled { opacity: .6; cursor: not-allowed; }
+.icon-picker-button svg,
+.icon-picker-default-preview svg { width: 18px; height: 18px; display: block; }
+.icon-picker-button .home-desktop-shortcut-icon,
+.icon-picker-default-preview .home-desktop-shortcut-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.icon-picker-panel {
+  position: fixed;
+  z-index: 2200;
+  width: 292px;
+  overflow-y: auto;
+  padding: 8px;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--bg-surface);
+  box-shadow: 0 8px 24px var(--shadow-rgba-010409-18);
+}
+.icon-picker-default {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fg-default);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+.icon-picker-default-preview { display: inline-flex; color: var(--fg-muted); }
+.icon-picker-default:hover { background: var(--bg-subtle); }
+.icon-picker-category-title {
+  margin: 10px 0 4px;
+  padding: 0 4px;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--fg-subtle);
+}
+.icon-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 32px);
+  gap: 2px;
+}
+.icon-picker-cell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fg-muted);
+  cursor: pointer;
+}
+.icon-picker-cell:hover { background: var(--bg-subtle); color: var(--fg-default); }
+.icon-picker-cell.is-selected,
+.icon-picker-default.is-selected {
+  background: var(--bg-subtle);
+  color: var(--fg-accent);
+}
 .notes-cat-confirm-copy {
   margin: 0;
   font-size: 13px;

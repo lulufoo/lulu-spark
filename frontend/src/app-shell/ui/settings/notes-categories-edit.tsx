@@ -9,8 +9,12 @@ import {
   openNotesCategoryEditor,
   saveNotesCategory,
   setNotesCategoryDraft,
+  setNotesCategoryDraftIcon,
 } from '../../commands/settings/notes-categories.ts';
+import { Icon } from '../../../shared/icons/icon.tsx';
+import { DEFAULT_PROJECT_ICON_ID } from '../../../shared/icons/index.ts';
 import { notesCategoriesStore } from '../../state/settings/notes-categories.ts';
+import { IconPicker } from './icon-picker.tsx';
 
 /**
  * Project list of the selected workspace (whole row opens the dialog), the edit dialog with its
@@ -160,21 +164,30 @@ export function NotesCategoriesEditHost() {
               <div id="notes-cat-edit-dialog-body">
                 <div className="settings-field">
                   <label htmlFor="notes-cat-edit-title">Title</label>
-                  <input
-                    id="notes-cat-edit-title"
-                    type="text"
-                    value={snap.draftTitle}
-                    autoComplete="off"
-                    spellCheck={false}
-                    disabled={snap.busy}
-                    onChange={(e) => setNotesCategoryDraft(e.target.value, snap.draftDescription)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        save();
-                      }
-                    }}
-                  />
+                  <div className="icon-name-row">
+                    <IconPicker
+                      label="Project icon"
+                      value={snap.draftIcon}
+                      defaultIcon={<Icon id={DEFAULT_PROJECT_ICON_ID} size={18} />}
+                      disabled={snap.busy}
+                      onChange={setNotesCategoryDraftIcon}
+                    />
+                    <input
+                      id="notes-cat-edit-title"
+                      type="text"
+                      value={snap.draftTitle}
+                      autoComplete="off"
+                      spellCheck={false}
+                      disabled={snap.busy}
+                      onChange={(e) => setNotesCategoryDraft(e.target.value, snap.draftDescription)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          save();
+                        }
+                      }}
+                    />
+                  </div>
                 </div>
                 <div className="settings-field">
                   <label htmlFor="notes-cat-edit-description">Description</label>
