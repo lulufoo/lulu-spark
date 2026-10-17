@@ -269,6 +269,7 @@ fn other_note_and_tauri_writes_are_not_wired() {
 
         let jot = create_jot(
             None,
+            None,
             "随手记一行",
             &Default::default(),
         )

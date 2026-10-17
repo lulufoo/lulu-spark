@@ -174,7 +174,8 @@ pub fn create_note_json(payload: Value) -> Result<Value, String> {
             .unwrap_or("");
         if source_type == "jot" {
             let workspace = payload.get("workspace").and_then(|v| v.as_str());
-            return match docs::create_jot(workspace, body, &docs::JotCreateOpts::default()) {
+            let project = payload.get("project").and_then(|v| v.as_str());
+            return match docs::create_jot(workspace, project, body, &docs::JotCreateOpts::default()) {
                 Ok(v) => Ok(v),
                 Err(msg) => {
                     let (status, error) = match msg.split_once(':') {

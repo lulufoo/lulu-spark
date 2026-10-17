@@ -513,7 +513,7 @@ fn synthesize_jot_document_empty_first_line_falls_back_to_ts() {
 fn create_jot_writes_raw_index_with_source_type_jot() {
     let _sandbox = setup_notes();
     let body = "快速记录\n\nDetails here.";
-    let v = create_jot(None, body, &jot_opts_with_ts("202607101433"))
+    let v = create_jot(None, None, body, &jot_opts_with_ts("202607101433"))
         .expect("create_jot");
     assert_eq!(v.get("ok"), Some(&json!(true)), "failed: {v}");
     let id = v["id"].as_str().expect("id");
@@ -546,8 +546,8 @@ fn create_jot_second_write_gets_new_filename() {
     let _sandbox = setup_notes();
     let opts = jot_opts_with_ts("202607101434");
     let body = "同一路径笔记";
-    let first = create_jot(None, body, &opts).expect("first create");
-    let second = create_jot(None, body, &opts).expect("second create");
+    let first = create_jot(None, None, body, &opts).expect("first create");
+    let second = create_jot(None, None, body, &opts).expect("second create");
     assert_eq!(first.get("ok"), Some(&json!(true)));
     assert_eq!(second.get("ok"), Some(&json!(true)));
     assert_ne!(
@@ -563,7 +563,7 @@ fn create_jot_rejects_empty_body_without_writing() {
     let index_before: serde_json::Value =
         read_note_entries();
 
-    let err = create_jot(None, "   \n  ", &jot_opts_with_ts("202607101435"))
+    let err = create_jot(None, None, "   \n  ", &jot_opts_with_ts("202607101435"))
         .expect_err("empty body");
     assert!(!err.is_empty());
 
@@ -958,9 +958,84 @@ fn update_note_rejects_full_english_without_zh() {
 #[test]
 fn create_jot_rejects_full_english_without_zh() {
     let _sandbox = setup_notes();
-    let err = create_jot(None, "Only English jot body.",
+    let err = create_jot(None, None, "Only English jot body.",
         &jot_opts_with_ts("202607101440"),
     )
     .expect_err("english jot");
     assert!(err.contains("translations.zh"), "{err}");
+}
+
+fn jot_dirs(root: &std::path::Path) -> Vec<PathBuf> {
+    fn walk(dir: &std::path::Path, out: &mut Vec<PathBuf>) {
+        let Ok(entries) = fs::read_dir(dir) else { return };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                walk(&path, out);
+            } else {
+                out.push(path);
+            }
+        }
+    }
+    let mut files = Vec::new();
+    walk(root, &mut files);
+    files
+}
+
+#[test]
+fn create_jot_with_a_project_writes_into_that_project() {
+    let _sandbox = setup_notes();
+    add_project("plans");
+    let v = create_jot(None, Some("plans"), "放进计划\n\n正文", &jot_opts_with_ts("202607101440"))
+        .expect("create_jot");
+    assert_eq!(v["ok"], json!(true), "{v}");
+    assert_eq!(v["project"], json!("plans"));
+    let id = v["id"].as_str().expect("id");
+    assert!(note_row(id).raw_path.starts_with("notes/202607101440-"));
+    let entry = &read_note_entries()["entries"][id];
+    assert_eq!(entry["folder"], json!("plans"));
+    assert_eq!(entry["source_type"], json!("jot"));
+    let raw = default_workspace_dir().join("raw/plans/notes");
+    assert!(jot_dirs(&raw).iter().any(|p| p.extension().is_some_and(|e| e == "md")), "{raw:?}");
+}
+
+#[test]
+fn create_jot_without_a_project_still_goes_to_inbox() {
+    let _sandbox = setup_notes();
+    let v = create_jot(None, None, "没有指定项目", &jot_opts_with_ts("202607101441")).expect("create_jot");
+    assert_eq!(v["project"], json!("inbox"));
+    let id = v["id"].as_str().expect("id");
+    assert_eq!(read_note_entries()["entries"][id]["folder"], json!("inbox"));
+}
+
+#[test]
+fn create_jot_refuses_a_missing_or_disabled_project_and_writes_nothing() {
+    let _sandbox = setup_notes();
+    add_project("old");
+    let disabled = crate::services::docs::disable_project(&json!({ "project": "old" }));
+    assert_eq!(disabled["ok"], json!(true), "{disabled}");
+    let before = jot_dirs(&default_workspace_dir());
+
+    for project in ["ghost", "old"] {
+        let err = create_jot(None, Some(project), "不该写入", &jot_opts_with_ts("202607101442"))
+            .expect_err(project);
+        assert!(err.starts_with("400:") || err.starts_with("404:") || err.starts_with("409:"), "{project}: {err}");
+    }
+    assert_eq!(jot_dirs(&default_workspace_dir()), before, "nothing was written");
+}
+
+#[test]
+fn create_jot_refuses_a_project_of_another_workspace() {
+    let _sandbox = setup_notes();
+    let other = crate::services::docs::create_workspace(&json!({ "name": "Other" }));
+    let other_id = other["workspace"]["id"].as_str().expect("workspace id").to_string();
+    let made = crate::services::docs::create_project(
+        &json!({ "workspace": other_id, "folder": "theirs", "title": "Theirs" }),
+    );
+    assert_eq!(made["ok"], json!(true), "{made}");
+    let before = jot_dirs(&default_workspace_dir());
+    let err = create_jot(Some("default"), Some("theirs"), "跨工作区", &jot_opts_with_ts("202607101443"))
+        .expect_err("another workspace's project");
+    assert!(err.starts_with("400:") || err.starts_with("404:"), "{err}");
+    assert_eq!(jot_dirs(&default_workspace_dir()), before);
 }

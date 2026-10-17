@@ -6,7 +6,7 @@ use crate::services::translation_gate;
 use super::create_meta::format_created_at_zh;
 
 /// Options for Host-side jot shell synthesis.
-/// Topic is always `inbox`; `source_type` is always `jot` — callers cannot override either.
+/// `source_type` is always `jot` — callers cannot override it.
 #[derive(Debug, Clone, Default)]
 pub struct JotCreateOpts {
     /// Fixed `YYYYMMDDHHMM` (UTC+8) for tests; `None` uses current time.
@@ -14,7 +14,7 @@ pub struct JotCreateOpts {
 }
 
 /// Build a minimal archive MD shell for a jot (H1 / 创建时间). No navigation.
-/// No persistence. Topic is fixed to `inbox`.
+/// No persistence.
 pub fn synthesize_jot_document(body: &str, opts: &JotCreateOpts) -> Result<String, String> {
     if body.trim().is_empty() {
         return Err("empty body".into());
@@ -37,10 +37,12 @@ pub fn synthesize_jot_document(body: &str, opts: &JotCreateOpts) -> Result<Strin
     ))
 }
 
-/// Write a jot through the docs service (`inbox/notes/{ts}-{rand}.md`) into `workspace`
-/// (the default workspace when `None`).
+/// Write a jot through the docs service (`{project}/notes/{ts}-{rand}.md`) into `workspace`
+/// (the default workspace when `None`) and `project` (`inbox` when `None`). A project that does
+/// not exist there or is disabled is refused before anything is written.
 pub fn create_jot(
     workspace: Option<&str>,
+    project: Option<&str>,
     body: &str,
     opts: &JotCreateOpts,
 ) -> Result<Value, String> {
@@ -65,7 +67,7 @@ pub fn create_jot(
     let mut payload = json!({
         "title": title,
         "source_type": "jot",
-        "project": "inbox",
+        "project": project.unwrap_or("inbox"),
         "folder": "notes",
         "digest": "never",
         "content": doc,
