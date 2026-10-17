@@ -1,5 +1,6 @@
 import * as api from '../../../host/api.ts';
 import { state } from '../../../host/state.ts';
+import { announceRegistryChange } from '../../../shared/registry-events.ts';
 import { loadWorkspaces } from '../../../notes/commands/workspace.ts';
 import { applyViewModeChange } from '../../../notes/commands/workspace-switch.ts';
 import {
@@ -48,6 +49,7 @@ async function run(call: () => Promise<unknown>, after?: () => void): Promise<bo
     await loadWorkspaces();
     if (state.workspaces.current !== previous) document.dispatchEvent(new CustomEvent('cta:reload'));
     after?.();
+    announceRegistryChange();
     patchWorkspacesPanel({ disabled: asDisabledRows(await api.fetchDisabledWorkspaces()) });
     return true;
   } catch (err) {

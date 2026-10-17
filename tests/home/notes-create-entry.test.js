@@ -21,20 +21,26 @@ function readPage() {
   return readFileSync(join(repoRoot, 'frontend/src/home/page.tsx'), 'utf8');
 }
 
+function readNav() {
+  return readFileSync(join(repoRoot, 'frontend/src/home/ui/workspace-nav.tsx'), 'utf8');
+}
+
 describe('home Notes create entry · source', () => {
   const page = readPage();
 
   it('puts a create control beside the default workspace shortcut, not on its title', () => {
-    expect(page).toMatch(/data-home-entry="spark"/);
-    expect(page).toMatch(/data-role="create-note"/);
-    expect(page).toMatch(/aria-label="New document"/);
-    const notesBtn = page.indexOf('data-home-entry="spark"');
-    const createBtn = page.indexOf('data-role="create-note"');
-    const notesLabel = page.indexOf('workspaceLabel(DEFAULT_WORKSPACE_ID)');
-    expect(notesBtn).toBeGreaterThan(-1);
+    const nav = readNav();
+    expect(nav).toMatch(/data-home-entry=\{entryKey\(row\)\}/);
+    expect(nav).toMatch(/return 'spark'/);
+    expect(nav).toMatch(/data-role="create-note"/);
+    expect(nav).toMatch(/aria-label="New document"/);
+    const notesBtn = nav.indexOf('data-home-entry={entryKey(row)}');
+    const createBtn = nav.indexOf('data-role="create-note"');
+    const notesLabel = nav.indexOf('{row.name}');
     expect(createBtn).toBeGreaterThan(notesBtn);
     expect(notesLabel).toBeGreaterThan(notesBtn);
-    expect(page.slice(notesBtn, notesLabel)).not.toMatch(/data-role="create-note"/);
+    expect(nav.slice(notesBtn, notesLabel)).not.toMatch(/data-role="create-note"/);
+    expect(page).toMatch(/onCreateDocument=/);
   });
 
   it('prepares a non-empty temp_id and calls existing openCreateNote', () => {
@@ -47,7 +53,7 @@ describe('home Notes create entry · source', () => {
 
   it('keeps the Read Later shortcut and does not restore the old add entry', () => {
     expect(page).toMatch(/data-home-entry="read-later"/);
-    expect(page).toMatch(/goHomeEntry\(\s*['"]read-later['"]/);
+    expect(page).toMatch(/goReadLater\(/);
     expect(page).not.toMatch(/note-assistant-fab|note-assistant-create/);
     expect(page).not.toMatch(/data-home-entry="notes"/);
     expect(page).not.toMatch(/新建随记/);

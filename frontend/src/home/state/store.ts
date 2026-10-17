@@ -39,6 +39,12 @@ export type ChannelUnread = {
   read_later: boolean;
 };
 
+/** A project of a workspace as the Home sidebar lists it. */
+export type HomeProject = {
+  folder: string;
+  title: string;
+};
+
 export type ContextUsageCategory = {
   id: string;
   tokens: number;
@@ -63,6 +69,8 @@ export type HomeState = {
   thinkingByChat: Record<string, LiveThinking>;
   inFlightIds: string[];
   channelUnread: ChannelUnread;
+  /** Enabled projects per workspace id, in title order. */
+  workspaceProjects: Record<string, HomeProject[]>;
 };
 
 function emptyUnread(): ChannelUnread {
@@ -83,6 +91,7 @@ function emptyState(): HomeState {
     thinkingByChat: Object.create(null) as Record<string, LiveThinking>,
     inFlightIds: [],
     channelUnread: emptyUnread(),
+    workspaceProjects: {},
   };
 }
 

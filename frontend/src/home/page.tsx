@@ -5,7 +5,8 @@ import { flushSync } from 'react-dom';
 import { getAuthUser, signOutAuth, startAuthLogin } from '../auth/oauth.ts';
 import { authUserStore } from '../auth/state/user.ts';
 import { state, useHostState } from '../host/state.ts';
-import { switchWorkspace } from '../notes/commands/workspace-switch.ts';
+import { openProject, openWorkspace, refreshWorkspaceProjects } from './commands/workspace-nav.ts';
+import { HomeWorkspaceNav, type HomeWorkspaceRow } from './ui/workspace-nav.tsx';
 import { openAbout } from './commands/about.ts';
 import { loadPackageDebug } from './commands/package-debug.ts';
 import { packageDebugStore } from './state/package-debug.ts';
@@ -136,33 +137,23 @@ const MessageThread = memo(function MessageThread({
 });
 
 const DEFAULT_WORKSPACE_ID = 'default';
-/** Built-in workspace that the second Home document shortcut opens. */
-const KNOWLEDGE_WORKSPACE_ID = 'knowledge';
 
-/** Seed names, used until the workspace registry is loaded. */
-const SEED_WORKSPACE_NAMES: Record<string, string> = {
-  [DEFAULT_WORKSPACE_ID]: 'Default',
-  [KNOWLEDGE_WORKSPACE_ID]: 'Knowledge',
-};
+/** Seed rows, used until the workspace registry is loaded. */
+const SEED_WORKSPACES: HomeWorkspaceRow[] = [
+  { id: DEFAULT_WORKSPACE_ID, name: 'Default', isDefault: true },
+  { id: 'knowledge', name: 'Knowledge', isDefault: false },
+];
 
-/** The shortcut label follows the workspace's current name, so a rename shows up here. */
-function workspaceLabel(id: string): string {
-  return state.workspaces.list.find((w) => w.id === id)?.name || SEED_WORKSPACE_NAMES[id] || id;
+/** One row per enabled workspace; the label follows its current name, so a rename shows up here. */
+function navWorkspaces(): HomeWorkspaceRow[] {
+  const list = state.workspaces.list;
+  if (list.length === 0) return SEED_WORKSPACES;
+  return list.map((w) => ({ id: w.id, name: w.name, isDefault: w.is_default }));
 }
 
-function goHomeEntry(
-  dest: string | undefined,
-  navigateFn?: (hash: string) => void,
-  openReadLater?: () => void,
-) {
-  if (dest === 'spark') navigateFn?.('#/spark');
-  else if (dest === 'read-later') {
-    if (typeof openReadLater === 'function') openReadLater();
-    else navigateFn?.('#/read-later');
-  } else if (dest === 'knowledge') {
-    if (state.workspaces.list.some((w) => w.id === KNOWLEDGE_WORKSPACE_ID)) switchWorkspace(KNOWLEDGE_WORKSPACE_ID);
-    navigateFn?.('#/spark');
-  }
+function goReadLater(navigateFn?: (hash: string) => void, openReadLater?: () => void) {
+  if (typeof openReadLater === 'function') openReadLater();
+  else navigateFn?.('#/read-later');
 }
 
 function unreadProps(unread: boolean) {
@@ -175,7 +166,8 @@ export function HomePage({
   openReadLater,
 }: HomePageChrome = {}) {
   const state = useHomeState();
-  useHostState();
+  const host = useHostState();
+  const workspaceIds = host.workspaces.list.map((w) => w.id).join(',');
   const authUser = useSyncExternalStore(authUserStore.subscribe, authUserStore.getSnapshot);
   const isDebug = useSyncExternalStore(
     packageDebugStore.subscribe,
@@ -195,6 +187,10 @@ export function HomePage({
   const lastPaintKeyRef = useRef('');
   const mdPaintGenRef = useRef(0);
   const paintKey = messagePaintKey(state);
+
+  useEffect(() => {
+    void refreshWorkspaceProjects();
+  }, [workspaceIds]);
 
   useEffect(() => {
     startHomeHub();
@@ -317,52 +313,27 @@ export function HomePage({
         <nav className="home-chat-nav" aria-label="Lulu Spark">
           <div className="home-chat-nav-group" data-home-nav-group="workspace">
             <div className="home-chat-nav-label">Workspace</div>
-            <div className="home-chat-nav-notes">
-              <button
-                type="button"
-                className="home-chat-nav-item home-desktop-shortcut"
-                data-home-entry="spark"
-                {...unreadProps(state.channelUnread.docs)}
-                onClick={() => {
-                  void markHomeEntryRead('spark');
-                  goHomeEntry('spark', navigateFn, openReadLater);
-                }}
-              >
-                <HomeNavIcon name="notes" />
-                <span className="home-desktop-shortcut-label">{workspaceLabel(DEFAULT_WORKSPACE_ID)}</span>
-              </button>
-              <button
-                type="button"
-                className="home-chat-new"
-                data-role="create-note"
-                aria-label="New document"
-                title="New document"
-                onClick={() => {
-                  const temp_id =
-                    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-                      ? crypto.randomUUID()
-                      : `note-${Date.now()}`;
-                  goHomeEntry('spark', navigateFn, openReadLater);
-                  void openCreateNote({ temp_id });
-                }}
-              >
-                <svg className="home-chat-new-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                  <path
-                    fill="currentColor"
-                    d="M11 5a1 1 0 1 1 2 0v6h6a1 1 0 1 1 0 2h-6v6a1 1 0 1 1-2 0v-6H5a1 1 0 1 1 0-2h6V5z"
-                  />
-                </svg>
-              </button>
-            </div>
-            <button
-              type="button"
-              className="home-chat-nav-item home-desktop-shortcut"
-              data-home-entry="knowledge"
-              onClick={() => goHomeEntry('knowledge', navigateFn, openReadLater)}
-            >
-              <HomeNavIcon name="knowledge" />
-              <span className="home-desktop-shortcut-label">{workspaceLabel(KNOWLEDGE_WORKSPACE_ID)}</span>
-            </button>
+            <HomeWorkspaceNav
+              workspaces={navWorkspaces()}
+              projects={state.workspaceProjects}
+              unreadDocs={state.channelUnread.docs}
+              onOpenWorkspace={(id) => {
+                if (id === DEFAULT_WORKSPACE_ID) void markHomeEntryRead('spark');
+                openWorkspace(id, navigateFn);
+              }}
+              onOpenProject={(id, folder) => {
+                if (id === DEFAULT_WORKSPACE_ID) void markHomeEntryRead('spark');
+                void openProject(id, folder, navigateFn);
+              }}
+              onCreateDocument={() => {
+                const temp_id =
+                  typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+                    ? crypto.randomUUID()
+                    : `note-${Date.now()}`;
+                navigateFn?.('#/spark');
+                void openCreateNote({ temp_id });
+              }}
+            />
             <button
               type="button"
               className="home-chat-nav-item home-desktop-shortcut"
@@ -370,7 +341,7 @@ export function HomePage({
               {...unreadProps(state.channelUnread.read_later)}
               onClick={() => {
                 void markHomeEntryRead('read-later');
-                goHomeEntry('read-later', navigateFn, openReadLater);
+                goReadLater(navigateFn, openReadLater);
               }}
             >
               <HomeNavIcon name="read-later" />

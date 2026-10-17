@@ -1,4 +1,5 @@
 import * as api from '../../../host/api.ts';
+import { announceRegistryChange } from '../../../shared/registry-events.ts';
 import { notifyState, state } from '../../../host/state.ts';
 import {
   emptyNotesCategoriesSnap,
@@ -134,6 +135,7 @@ export async function addNotesCategory(workspaceId: string, title: string, descr
   try {
     throwOnError(await api.createProject(workspaceId, title, description));
     await loadNotesCategories(workspaceId);
+    announceRegistryChange();
   } catch (e) {
     failWith(e);
   }
@@ -147,6 +149,7 @@ export async function saveNotesCategory(workspaceId: string) {
     throwOnError(await api.updateProject(workspaceId, snap.selectedId, snap.draftTitle, snap.draftDescription));
     closeNotesCategoryEditor();
     await loadNotesCategories(workspaceId);
+    announceRegistryChange();
   } catch (e) {
     failWith(e);
   }
@@ -158,6 +161,7 @@ export async function disableNotesCategory(workspaceId: string, id: string) {
     throwOnError(await api.disableProject(workspaceId, id));
     closeNotesCategoryEditor();
     await loadNotesCategories(workspaceId);
+    announceRegistryChange();
   } catch (e) {
     failWith(e);
   }
@@ -168,6 +172,7 @@ export async function enableNotesCategory(workspaceId: string, id: string) {
   try {
     throwOnError(await api.enableProject(workspaceId, id));
     await loadNotesCategories(workspaceId);
+    announceRegistryChange();
   } catch (e) {
     failWith(e);
   }

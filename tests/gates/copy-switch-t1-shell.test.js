@@ -6,7 +6,9 @@ import { readShellHtml } from '../helpers/read-frontend-js.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const shellSrc = readFileSync(join(repoRoot, 'frontend/src/shell.tsx'), 'utf8');
-const homeSrc = readFileSync(join(repoRoot, 'frontend/src/home/page.tsx'), 'utf8');
+const homeSrc = ['page.tsx', 'ui/workspace-nav.tsx']
+  .map((file) => readFileSync(join(repoRoot, 'frontend/src/home', file), 'utf8'))
+  .join('\n');
 const helpMenuSrc = readFileSync(join(repoRoot, 'frontend/src/home/ui/help-menu.tsx'), 'utf8');
 const indexHtml = [
   readShellHtml(),
@@ -220,8 +222,7 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
     expect(homeSrc).not.toMatch(/home-chat-nav-label">Library</);
     expect(helpMenuSrc).toMatch(/id="btn-bind"/);
     expect(helpMenuSrc).toMatch(/id="btn-bind"[\s\S]*?Devices/);
-    expect(homeSrc).toMatch(/<HomeNavIcon name="notes"/);
-    expect(homeSrc).toMatch(/<HomeNavIcon name="knowledge"/);
+    expect(homeSrc).toMatch(/<HomeNavIcon name=\{row\.id === 'knowledge' \? 'knowledge' : 'notes'\}/);
     expect(homeSrc).toMatch(/<HomeNavIcon name="read-later"/);
     expect(homeSrc).not.toMatch(/<HomeNavIcon name="bind"/);
     expect(helpMenuSrc).toMatch(/<HomeNavIcon name="settings"/);

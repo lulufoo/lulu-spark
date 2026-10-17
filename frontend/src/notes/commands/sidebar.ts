@@ -11,6 +11,7 @@ import {
   nodeKeyOfEntry,
   pathKeys,
   projectOfNode,
+  resetDirTree,
 } from '../state/dir-tree.ts';
 import type { NoteEntry } from '../state/types.ts';
 
@@ -112,6 +113,25 @@ export function selectDate(date: string) {
 /** Select a tree node (project or folder) in the directory view; its path opens. */
 export function selectDirNode(nodeKey: string) {
   selectDate(dirKeyOf(nodeKey));
+}
+
+/** Select a project from outside the page (Home sidebar): the tree node, or the timeline's picker. */
+export function selectProject(folder: string) {
+  if (isDirectoryView()) selectDirNode(folder);
+  else selectTopic(folder);
+}
+
+/** Entering a workspace without a project: nothing selected, every project collapsed. */
+export function clearProjectSelection() {
+  if (isDirectoryView()) {
+    state.ui.activeTopic = null;
+    state.ui.activeDate = null;
+    resetDirTree();
+    applyListFilters();
+    notifyState();
+    return;
+  }
+  selectTopic(null);
 }
 
 export function selectTopic(key: string | null) {

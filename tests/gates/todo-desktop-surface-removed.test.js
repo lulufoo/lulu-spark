@@ -63,12 +63,10 @@ describe('t2 desktop todo surface removed', () => {
     expect(keys).toContain('read-later');
     expect(keys).toContain('builders');
     expect(keys).not.toContain('todo-task');
-    expect(read('frontend/src/home/page.tsx')).toMatch(
-      /data-home-entry="spark"/,
-    );
-    expect(read('frontend/src/home/page.tsx')).toMatch(
-      /data-home-entry="knowledge"/,
-    );
+    const nav = read('frontend/src/home/ui/workspace-nav.tsx');
+    expect(nav).toMatch(/data-home-entry=\{entryKey\(row\)\}/);
+    expect(nav).toMatch(/return 'spark'/);
+    expect(nav).toMatch(/return 'knowledge'/);
     expect(read('frontend/src/boot.ts')).not.toMatch(/createNotesContentAdapter/);
   });
 

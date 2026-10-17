@@ -19,7 +19,7 @@ const {
   pathKeys,
   resetDirTree,
 } = await import('../../frontend/src/notes/state/dir-tree.ts');
-const { applyListFilters, buildGroups, selectDate, selectDirNode, selectTopic } = await import(
+const { applyListFilters, buildGroups, clearProjectSelection, selectDate, selectDirNode, selectProject, selectTopic } = await import(
   '../../frontend/src/notes/commands/sidebar.ts'
 );
 const { applyViewModeChange } = await import('../../frontend/src/notes/commands/workspace-switch.ts');
@@ -123,6 +123,32 @@ describe('directory view selection', () => {
     setView('timeline');
     expect(entryGroupKey(data.a)).toBe('20260401');
     expect(entryGroupKey(data.c)).toBe('undated');
+  });
+});
+
+describe('entering from Home', () => {
+  it('directory view: a project is opened and highlighted, entering the workspace clears it', () => {
+    setView('directory');
+    load();
+    selectProject('android');
+    expect(state.ui.activeDate).toBe(dirKeyOf('android'));
+    expect(dirTreeStore.getSnapshot().expanded).toEqual(['android']);
+    clearProjectSelection();
+    expect(state.ui.activeDate).toBeNull();
+    expect(state.ui.activeTopic).toBeNull();
+    expect(dirTreeStore.getSnapshot().expanded).toEqual([]);
+    expect(state.index.filteredGroups).toEqual([]);
+  });
+
+  it('timeline view: a project fills the picker, entering the workspace clears it', () => {
+    setView('timeline');
+    load();
+    selectProject('ai');
+    expect(state.ui.activeTopic).toBe('ai');
+    expect(state.index.filteredGroups.every((g) => g.entries.every(({ entry }) => entry.folder === 'ai'))).toBe(true);
+    clearProjectSelection();
+    expect(state.ui.activeTopic).toBeNull();
+    expect(state.index.filteredGroups).toBe(state.index.groupedByDate);
   });
 });
 

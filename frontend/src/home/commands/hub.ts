@@ -1,6 +1,8 @@
 import * as api from '../../host/api.ts';
 import { refreshStagedFromBinding } from './staged.ts';
 import { refreshWorkspace } from './workspace.ts';
+import { refreshWorkspaceProjects } from './workspace-nav.ts';
+import { REGISTRY_CHANGED_EVENT } from '../../shared/registry-events.ts';
 import {
   markHomeEntryRead,
   refreshChannelUnread,
@@ -44,12 +46,15 @@ function getTauriListen(): TauriListen | null {
 let fetchGen = 0;
 let unlistenBinding: (() => void) | null = null;
 let unlistenMessageCenter: (() => void) | null = null;
+let unlistenRegistry: (() => void) | null = null;
 
 function clearHomeListens() {
   if (typeof unlistenBinding === 'function') unlistenBinding();
   unlistenBinding = null;
   if (typeof unlistenMessageCenter === 'function') unlistenMessageCenter();
   unlistenMessageCenter = null;
+  unlistenRegistry?.();
+  unlistenRegistry = null;
 }
 
 export function resetHomeCommands() {
@@ -361,6 +366,10 @@ export function startHomeHub() {
   });
   void applyBindingState();
   void refreshChannelUnread();
+  unlistenRegistry?.();
+  const onRegistryChanged = () => void refreshWorkspaceProjects();
+  document.addEventListener(REGISTRY_CHANGED_EVENT, onRegistryChanged);
+  unlistenRegistry = () => document.removeEventListener(REGISTRY_CHANGED_EVENT, onRegistryChanged);
   if (!listen) {
     console.info('[DEBUG-assistant] home: binding-changed listen missing');
     return;
