@@ -15,10 +15,7 @@ pub fn build_routes_for_channel(
     let mut routes = Vec::new();
     let mut seen = HashSet::new();
 
-    for (group, keys) in [
-        ("docs", &enabled.docs),
-        ("global", &enabled.global),
-    ] {
+    for (group, keys) in enabled.groups() {
         for key in keys {
             if !seen.insert(key.clone()) {
                 continue;

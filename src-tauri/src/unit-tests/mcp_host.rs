@@ -8,7 +8,7 @@ use std::time::Duration;
 
 use super::*;
 use crate::main_host;
-use crate::mcp_host::catalog::groups::docs::{
+use crate::mcp_host::catalog::groups::document::{
     create_doc_from_content, create_doc_from_source,
 };
 use crate::services::mcp_oauth::{

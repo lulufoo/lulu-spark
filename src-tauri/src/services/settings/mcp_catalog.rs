@@ -7,19 +7,12 @@ use std::collections::HashSet;
 
 use super::mcp_channel_tools;
 
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub struct GroupedEnabledCatalog {
-    pub docs: Vec<String>,
-    pub global: Vec<String>,
-}
+/// Enabled API keys per business group (same shape as the saved Settings entry).
+pub type GroupedEnabledCatalog = mcp_channel_tools::EnabledByGroup;
 
 /// Enabled API keys for `channel`, partitioned by business group.
 pub fn enabled_grouped(channel: &str) -> GroupedEnabledCatalog {
-    let grouped = mcp_channel_tools::enabled_by_group(channel);
-    GroupedEnabledCatalog {
-        docs: grouped.docs,
-        global: grouped.global,
-    }
+    mcp_channel_tools::enabled_by_group(channel)
 }
 
 /// Flat enabled names (settings storage view). Prefer [`enabled_grouped`] for MCP list build.
