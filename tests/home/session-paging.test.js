@@ -115,30 +115,57 @@ describe('Chats list in the sidebar', () => {
     delete window.__TAURI__;
   });
 
-  const rows = () => container.querySelectorAll('.home-chat-session').length;
+  const sidebarRows = () => container.querySelectorAll('[data-role="session-list"] .home-chat-session').length;
+  const panelRows = () => container.querySelectorAll('[data-role="history-list"] .home-chat-session').length;
 
-  it('lists 10, then 10 more each time the list is scrolled to the bottom, past the old 20 limit', async () => {
+  it('lists 3 in the sidebar; the popover lists 10, then 10 more each time it is scrolled to the bottom', async () => {
     cleanup = mountHomeHub(container, { navigate: vi.fn() });
-    await vi.waitFor(() => expect(rows()).toBe(10));
-    const list = container.querySelector('[data-role="session-list"]');
+    await vi.waitFor(() => expect(sidebarRows()).toBe(3));
+    expect(container.querySelector('[data-role="history-trigger"]')?.getAttribute('aria-label')).toBe('All chats (45)');
+    expect(container.querySelector('[data-role="history-panel"]')).toBeNull();
+
+    container.querySelector('[data-role="history-trigger"]').click();
+    await vi.waitFor(() => expect(panelRows()).toBe(10));
+    expect(sidebarRows()).toBe(3);
+
+    const list = container.querySelector('[data-role="history-list"]');
     const metrics = { scrollHeight: 400, clientHeight: 200, scrollTop: 0 };
     for (const key of Object.keys(metrics)) {
       Object.defineProperty(list, key, { configurable: true, get: () => metrics[key] });
     }
 
     list.dispatchEvent(new Event('scroll', { bubbles: true }));
-    expect(rows()).toBe(10);
+    expect(panelRows()).toBe(10);
 
     metrics.scrollTop = 200;
     list.dispatchEvent(new Event('scroll', { bubbles: true }));
-    await vi.waitFor(() => expect(rows()).toBe(20));
+    await vi.waitFor(() => expect(panelRows()).toBe(20));
     list.dispatchEvent(new Event('scroll', { bubbles: true }));
-    await vi.waitFor(() => expect(rows()).toBe(30));
+    await vi.waitFor(() => expect(panelRows()).toBe(30));
     list.dispatchEvent(new Event('scroll', { bubbles: true }));
     list.dispatchEvent(new Event('scroll', { bubbles: true }));
-    await vi.waitFor(() => expect(rows()).toBe(45));
-    list.dispatchEvent(new Event('scroll', { bubbles: true }));
-    expect(rows()).toBe(45);
+    await vi.waitFor(() => expect(panelRows()).toBe(45));
+  });
+
+  it('picking a chat in the popover selects it and closes the popover', async () => {
+    cleanup = mountHomeHub(container, { navigate: vi.fn() });
+    await vi.waitFor(() => expect(sidebarRows()).toBe(3));
+    container.querySelector('[data-role="history-trigger"]').click();
+    await vi.waitFor(() => expect(panelRows()).toBe(10));
+    container.querySelector('[data-role="history-list"] [data-session-id="s8"]').click();
+    await vi.waitFor(() => expect(container.querySelector('[data-role="history-panel"]')).toBeNull());
+    expect(invokeSpy).toHaveBeenCalledWith('select_chat_session', { sessionId: 's8' });
+  });
+
+  it('shows no All chats button when every chat already fits in the sidebar', async () => {
+    invokeSpy.mockImplementation(async (cmd) => {
+      if (cmd === 'query_binding') return { state: 'bound' };
+      if (cmd === 'list_chat_sessions') return { sessions: sessionsOf(3), current_session_id: '' };
+      return {};
+    });
+    cleanup = mountHomeHub(container, { navigate: vi.fn() });
+    await vi.waitFor(() => expect(sidebarRows()).toBe(3));
+    expect(container.querySelector('[data-role="history-trigger"]')).toBeNull();
   });
 
   it('keeps the empty-state text when there are no chats', async () => {
