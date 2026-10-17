@@ -15,6 +15,9 @@ type Props = {
 
 type Anchor = { top: number; left: number; maxHeight: number };
 
+/** The pencil that tells the button can be changed. */
+const EDIT_BADGE_ICON_ID = '01yoo4';
+
 const PANEL_GAP = 4;
 const PANEL_MAX_HEIGHT = 320;
 const SCREEN_MARGIN = 12;
@@ -30,7 +33,7 @@ function anchorBelow(button: HTMLElement): Anchor {
 }
 
 /**
- * An icon button that opens a grid of the built-in icons, grouped by category. Esc and a click
+ * An icon button (a pencil badge at its bottom-right says it can be changed) that opens a grid of the built-in icons, grouped by category. Esc and a click
  * outside close only the grid, so a dialog around it stays open. The grid is fixed-positioned so
  * a scrolling dialog body does not clip it.
  */
@@ -96,7 +99,10 @@ export function IconPicker({ value, defaultIcon, onChange, disabled, label }: Pr
           else if (buttonRef.current) setAnchor(anchorBelow(buttonRef.current));
         }}
       >
-        {chosen ? <Icon id={chosen} size={18} /> : defaultIcon}
+        <span className="icon-picker-main">{chosen ? <Icon id={chosen} size={20} /> : defaultIcon}</span>
+        <span className="icon-picker-edit-badge" data-icon-badge="edit" aria-hidden="true">
+          <Icon id={EDIT_BADGE_ICON_ID} size={9} />
+        </span>
       </button>
       {anchor ? (
         <div

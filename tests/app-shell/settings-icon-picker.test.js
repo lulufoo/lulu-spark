@@ -109,7 +109,19 @@ describe('IconPicker', () => {
     mountPicker();
     expect(button().querySelector('[data-testid="default-icon"]')).not.toBeNull();
     act(() => root.render(createElement(IconPicker, { label: 'Test icon', value: ICON_A, defaultIcon: null, onChange() {} })));
-    expect(button().querySelector(`svg[data-icon-id="${ICON_A}"]`)).not.toBeNull();
+    expect(button().querySelector(`.icon-picker-main svg[data-icon-id="${ICON_A}"]`)).not.toBeNull();
+  });
+
+  it('carries a bottom-right pencil badge so it reads as editable, with or without a chosen icon', () => {
+    mountPicker();
+    const badge = () => button().querySelector('.icon-picker-edit-badge');
+    expect(badge()?.querySelector('svg[data-icon-id="01yoo4"]')).not.toBeNull();
+    act(() => root.render(createElement(IconPicker, { label: 'Test icon', value: ICON_A, defaultIcon: null, onChange() {} })));
+    expect(badge()?.querySelector('svg[data-icon-id="01yoo4"]')).not.toBeNull();
+    // The badge is decoration: the button keeps its accessible name and the badge is not a control.
+    expect(button().getAttribute('aria-label')).toBe('Test icon');
+    expect(badge().getAttribute('aria-hidden')).toBe('true');
+    expect(badge().querySelector('button')).toBeNull();
   });
 
   it('falls back to the default for a well-formed id the module does not know', () => {
@@ -274,7 +286,7 @@ describe('workspace icon in the Add form', () => {
     });
     await act(async () => host.querySelector('#btn-notes-workspace-add').click());
     expect(calls).toEqual([['create-ws', 'New one', 'directory', ICON_B]]);
-    expect(host.querySelector('.icon-picker-button svg[data-icon-id]')).toBeNull();
+    expect(host.querySelector('.icon-picker-main svg[data-icon-id]')).toBeNull();
     expect(host.querySelector('.icon-picker-button [data-home-icon="notes"]')).not.toBeNull();
   });
 
