@@ -6,7 +6,7 @@ import { readShellHtml } from '../helpers/read-frontend-js.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const shellSrc = readFileSync(join(repoRoot, 'frontend/src/shell.tsx'), 'utf8');
-const homeSrc = ['page.tsx', 'ui/workspace-nav.tsx']
+const homeSrc = ['page.tsx', 'ui/workspace-nav.tsx', 'ui/top-actions.tsx']
   .map((file) => readFileSync(join(repoRoot, 'frontend/src/home', file), 'utf8'))
   .join('\n');
 const helpMenuSrc = readFileSync(join(repoRoot, 'frontend/src/home/ui/help-menu.tsx'), 'utf8');

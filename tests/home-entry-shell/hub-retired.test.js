@@ -43,7 +43,8 @@ describe('home-entry hub retired (T-hub / T-read-later)', () => {
     const home = readFrontendJs('frontend/src/home/page.tsx');
     const shell = readFrontendJs('frontend/src/shell.tsx');
     const html = readShellHtml();
-    expect(home).toMatch(/data-home-entry="read-later"/);
+    const topActions = readFrontendJs('frontend/src/home/ui/top-actions.tsx');
+    expect(topActions).toMatch(/data-home-entry="read-later"/);
     expect(home).toMatch(/goReadLater\(/);
     expect(shell).toMatch(/ReadLaterDialog/);
     expect(html).toMatch(/id="read-later-dialog"/);
