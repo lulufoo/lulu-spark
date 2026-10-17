@@ -8,7 +8,6 @@ use super::workspace_row::ensure_same_set;
 pub struct ProjectRow {
     pub id: String,
     pub workspace_id: String,
-    pub folder: String,
     pub title: String,
     pub description: String,
     /// `None` = active; a timestamp = disabled (hidden from lists and search, data kept).
@@ -22,11 +21,10 @@ pub struct ProjectRow {
 }
 
 impl ProjectRow {
-    pub fn new(id: &str, workspace_id: &str, folder: &str, title: &str, description: &str) -> Self {
+    pub fn new(id: &str, workspace_id: &str, title: &str, description: &str) -> Self {
         Self {
             id: id.to_string(),
             workspace_id: workspace_id.to_string(),
-            folder: folder.to_string(),
             title: title.to_string(),
             description: description.to_string(),
             disabled_at: None,
@@ -37,33 +35,30 @@ impl ProjectRow {
     }
 }
 
-const COLUMNS: &str =
-    "id, workspace_id, folder, title, description, disabled_at, icon, sort_index, is_inbox";
+const COLUMNS: &str = "id, workspace_id, title, description, disabled_at, icon, sort_index, is_inbox";
 
 fn map_row(row: &Row<'_>) -> rusqlite::Result<ProjectRow> {
     Ok(ProjectRow {
         id: row.get(0)?,
         workspace_id: row.get(1)?,
-        folder: row.get(2)?,
-        title: row.get(3)?,
-        description: row.get(4)?,
-        disabled_at: row.get(5)?,
-        icon: row.get(6)?,
-        sort_index: row.get(7)?,
-        is_inbox: row.get::<_, i64>(8)? != 0,
+        title: row.get(2)?,
+        description: row.get(3)?,
+        disabled_at: row.get(4)?,
+        icon: row.get(5)?,
+        sort_index: row.get(6)?,
+        is_inbox: row.get::<_, i64>(7)? != 0,
     })
 }
 
 pub fn insert_project(conn: &Connection, row: &ProjectRow) -> Result<(), String> {
     conn.execute(
-        "INSERT INTO project(id, workspace_id, folder, title, description, icon, sort_index, is_inbox)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6,
+        "INSERT INTO project(id, workspace_id, title, description, icon, sort_index, is_inbox)
+         VALUES (?1, ?2, ?3, ?4, ?5,
                  (SELECT coalesce(max(sort_index) + 1, 0) FROM project WHERE workspace_id = ?2),
-                 ?7)",
+                 ?6)",
         params![
             row.id,
             row.workspace_id,
-            row.folder,
             row.title,
             row.description,
             row.icon,
@@ -74,12 +69,12 @@ pub fn insert_project(conn: &Connection, row: &ProjectRow) -> Result<(), String>
     .map_err(|e| e.to_string())
 }
 
-/// Replace `folder`, `title`, `description` and `icon` of the row with this `id`.
+/// Replace `title`, `description` and `icon` of the row with this `id`.
 /// A project never moves between workspaces. `false` when it does not exist.
 pub fn update_project(conn: &Connection, row: &ProjectRow) -> Result<bool, String> {
     conn.execute(
-        "UPDATE project SET folder = ?2, title = ?3, description = ?4, icon = ?5 WHERE id = ?1",
-        params![row.id, row.folder, row.title, row.description, row.icon],
+        "UPDATE project SET title = ?2, description = ?3, icon = ?4 WHERE id = ?1",
+        params![row.id, row.title, row.description, row.icon],
     )
     .map(|changed| changed > 0)
     .map_err(|e| e.to_string())
@@ -89,20 +84,6 @@ pub fn get_project(conn: &Connection, id: &str) -> Result<Option<ProjectRow>, St
     conn.query_row(
         &format!("SELECT {COLUMNS} FROM project WHERE id = ?1"),
         params![id],
-        map_row,
-    )
-    .optional()
-    .map_err(|e| e.to_string())
-}
-
-pub fn get_project_by_folder(
-    conn: &Connection,
-    workspace_id: &str,
-    folder: &str,
-) -> Result<Option<ProjectRow>, String> {
-    conn.query_row(
-        &format!("SELECT {COLUMNS} FROM project WHERE workspace_id = ?1 AND folder = ?2"),
-        params![workspace_id, folder],
         map_row,
     )
     .optional()

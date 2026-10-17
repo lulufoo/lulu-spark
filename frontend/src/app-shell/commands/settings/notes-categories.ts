@@ -20,12 +20,10 @@ function asRows(data: unknown): NotesCategoryRow[] {
   for (const [at, c] of (rec.projects || []).entries()) {
     const id = typeof c.id === 'string' ? c.id.trim() : '';
     if (!id) continue;
-    const folder = typeof c.folder === 'string' ? c.folder.trim() : '';
     rows.push({
       id,
       title: typeof c.title === 'string' && c.title ? c.title : id,
       description: typeof c.description === 'string' ? c.description : '',
-      folder,
       is_inbox: c.is_inbox === true,
       icon: typeof c.icon === 'string' ? c.icon : '',
       sortIndex: typeof c.sort_index === 'number' ? c.sort_index : at,

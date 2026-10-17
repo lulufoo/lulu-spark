@@ -2,8 +2,8 @@
 //! `enable`.
 //!
 //! A project is never deleted. Disabling hides it (and its documents) from lists, pickers and
-//! search; the documents stay readable by id and `enable` brings the project back. Its folder
-//! stays taken while it is disabled.
+//! search; the documents stay readable by id and `enable` brings the project back. The id
+//! stays reserved while it is disabled.
 //!
 //! A project is addressed by its id. The inbox is the `is_inbox` row; its title can change.
 
@@ -23,14 +23,12 @@ use crate::services::spark_data::{
 use super::resolve::{
     bad_request, ensure_project_enabled, ensure_workspace_enabled, icon_field, internal,
     open_data, resolve_project, resolve_workspace, string_list_field, text_field,
-    DEFAULT_PROJECT_FOLDER,
 };
 
 fn project_value(row: &ProjectRow) -> Value {
     json!({
         "id": row.id,
         "workspace_id": row.workspace_id,
-        "folder": row.folder,
         "title": row.title,
         "description": row.description,
         "disabled_at": row.disabled_at,
@@ -65,7 +63,7 @@ fn mint_project_id(conn: &Connection) -> Result<String, String> {
 /// The empty `inbox` project every workspace starts with.
 pub(super) fn insert_inbox_project(conn: &Connection, workspace_id: &str) -> Result<(), String> {
     let id = mint_project_id(conn)?;
-    let mut row = ProjectRow::new(&id, workspace_id, DEFAULT_PROJECT_FOLDER, "Inbox", "");
+    let mut row = ProjectRow::new(&id, workspace_id, "Inbox", "");
     row.is_inbox = true;
     insert_project(conn, &row)
 }
@@ -95,7 +93,7 @@ pub fn list_disabled_projects(payload: &Value) -> Value {
     }
 }
 
-/// `{ workspace?, title, description?, icon? }` → `{ ok, project }`. Folder equals the minted id.
+/// `{ workspace?, title, description?, icon? }` → `{ ok, project }`.
 pub fn create_project(payload: &Value) -> Value {
     let Some(title) = text_field(payload, "title") else {
         return bad_request("Missing title");
@@ -109,7 +107,7 @@ pub fn create_project(payload: &Value) -> Value {
         let ws = resolve_workspace(&conn, text_field(payload, "workspace"))?;
         ensure_workspace_enabled(&ws)?;
         let id = mint_project_id(&conn).map_err(internal)?;
-        let mut row = ProjectRow::new(&id, &ws.id, &id, title, description);
+        let mut row = ProjectRow::new(&id, &ws.id, title, description);
         row.icon = icon;
         insert_project(&conn, &row).map_err(internal)?;
         Ok(row)
@@ -120,7 +118,7 @@ pub fn create_project(payload: &Value) -> Value {
     }
 }
 
-/// `{ workspace?, project, title, description?, icon? }` → `{ ok, project }`. Folder is kept.
+/// `{ workspace?, project, title, description?, icon? }` → `{ ok, project }`.
 /// `icon` absent keeps the icon, an empty string clears it.
 pub fn update_project(payload: &Value) -> Value {
     let (Some(id), Some(title)) = (text_field(payload, "project"), text_field(payload, "title"))

@@ -44,7 +44,6 @@ const { NotesWorkspacesEditHost } = await import('../../frontend/src/app-shell/u
 const ws = (id, sort_index) => ({ id, name: id, view_mode: 'directory', is_default: id === 'default', icon: '', sort_index });
 const project = (id, sort_index, extra = {}) => ({
   id,
-  folder: extra.folder ?? id,
   title: id,
   description: '',
   icon: '',

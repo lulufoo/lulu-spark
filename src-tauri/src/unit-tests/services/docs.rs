@@ -232,11 +232,11 @@ fn project_crud_follows_the_workspace_and_protects_inbox_and_documents() {
     let ws = new_workspace("Work");
     let made = create_project(&json!({ "workspace": ws, "title": "Plans", "description": "d" }));
     let plans = text(&ok(&made)["project"], "id");
-    assert_eq!(ok(&made)["project"]["folder"], json!(plans), "folder equals the minted id");
+    assert!(ok(&made)["project"].get("folder").is_none(), "{made}");
     assert_eq!(status(&create_project(&json!({ "workspace": ws, "title": " " }))), 400);
 
     let minted = create_project(&json!({ "workspace": ws, "title": "Auto" }));
-    assert_eq!(ok(&minted)["project"]["folder"], ok(&minted)["project"]["id"]);
+    assert!(ok(&minted)["project"].get("folder").is_none(), "{minted}");
 
     let listed = list_projects(&json!({ "workspace": ws }));
     let inbox = listed["projects"]
@@ -246,7 +246,8 @@ fn project_crud_follows_the_workspace_and_protects_inbox_and_documents() {
         .find(|p| p["is_inbox"] == true)
         .expect("created workspace has an inbox");
     let inbox_id = text(inbox, "id");
-    assert_eq!((text(inbox, "folder"), text(inbox, "title")), ("inbox".into(), "Inbox".into()));
+    assert_eq!(text(inbox, "title"), "Inbox");
+    assert!(inbox.get("folder").is_none(), "{inbox}");
     assert_ne!(inbox_id, "inbox");
     assert!(project_ids(&listed).contains(&plans), "{listed}");
 

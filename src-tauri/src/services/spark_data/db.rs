@@ -12,6 +12,7 @@ use std::time::Duration;
 
 use rusqlite::Connection;
 
+use super::drop_folder_step::{run_with_foreign_keys_off, DROP_PROJECT_FOLDER_STEP};
 use super::legacy_rows_step::{DROP_LEGACY_STEP, LEGACY_ROWS_STEP};
 use crate::config::paths;
 
@@ -64,18 +65,12 @@ macro_rules! doc_table_sql {
 
 /// `MIGRATIONS[n]` upgrades a file from `user_version = n` to `n + 1`.
 /// Append a step to change the schema; never edit an existing one.
-/// Step 2 rebuilds `note` instead of `ADD COLUMN … REFERENCES`: SQLite rejects a
-/// NOT NULL default plus FK when the table already has rows.
-/// Step 6 adds the workspace / project containers: empty tables plus the two seed
-/// registry rows. Step 7 copies the legacy rows into them and step 8 drops the legacy
-/// tables (both in `legacy_rows_step`). Step 9 adds `disabled_at` to `workspace` and
-/// `project`: a workspace or project is disabled (hidden, data kept), never deleted.
-/// Step 10 adds `icon` (a built-in icon id, NULL = default) to both tables.
-/// Step 11 adds `sort_index` (the user's order) to both tables, filled from the old order:
-/// the default workspace first then by name, projects by title within their workspace.
-/// Step 12 adds `is_inbox` (one built-in project per workspace). Rows that already use
-/// folder `inbox` are marked; missing inboxes are not inserted here.
-pub(crate) const MIGRATIONS: [&str; 13] = [r#"
+/// Step 2 rebuilds `note` (SQLite rejects NOT NULL default plus FK on a filled table).
+/// Step 6 adds workspace / project; 7 copies legacy rows; 8 drops the old tables.
+/// Step 9 `disabled_at`; 10 `icon`; 11 `sort_index` (default workspace first, then name;
+/// projects by title). Step 12 `is_inbox` (marks folder `inbox`; does not insert).
+/// Step 13 rebuilds `project` without `folder`.
+pub(crate) const MIGRATIONS: [&str; 14] = [r#"
 CREATE TABLE IF NOT EXISTS note (
   doc_id       TEXT PRIMARY KEY,
   raw_path     TEXT NOT NULL,
@@ -248,7 +243,7 @@ UPDATE project SET is_inbox = 1 WHERE folder = 'inbox';
 CREATE UNIQUE INDEX project_one_inbox ON project(workspace_id) WHERE is_inbox = 1;
 CREATE TRIGGER project_keys_immutable BEFORE UPDATE OF id, is_inbox ON project
 BEGIN SELECT RAISE(ABORT, 'project id and is_inbox cannot change'); END;
-"#];
+"#, DROP_PROJECT_FOLDER_STEP];
 
 pub fn db_path() -> Result<PathBuf, String> {
     paths::spark_data_db_path().map_err(|e| format!("{e:?}"))
@@ -288,11 +283,18 @@ pub(crate) fn migrate(conn: &Connection, steps: &[&str]) -> Result<(), String> {
         ));
     }
     for (from, step) in steps.iter().enumerate().skip(version) {
-        let tx = conn.unchecked_transaction().map_err(|e| e.to_string())?;
-        tx.execute_batch(step).map_err(|e| e.to_string())?;
-        tx.pragma_update(None, "user_version", from + 1)
-            .map_err(|e| e.to_string())?;
-        tx.commit().map_err(|e| e.to_string())?;
+        let apply = || {
+            let tx = conn.unchecked_transaction().map_err(|e| e.to_string())?;
+            tx.execute_batch(step).map_err(|e| e.to_string())?;
+            tx.pragma_update(None, "user_version", from + 1)
+                .map_err(|e| e.to_string())?;
+            tx.commit().map_err(|e| e.to_string())
+        };
+        if *step == DROP_PROJECT_FOLDER_STEP {
+            run_with_foreign_keys_off(conn, apply)?;
+        } else {
+            apply()?;
+        }
     }
     Ok(())
 }

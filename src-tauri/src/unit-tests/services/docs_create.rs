@@ -61,15 +61,8 @@ fn default_workspace_dir() -> PathBuf {
     crate::config::paths::workspaces_root().expect("workspaces root").join("default")
 }
 
-fn project_id(folder: &str) -> String {
-    crate::services::spark_data::get_project_by_folder(
-        &crate::services::spark_data::open().expect("db"),
-        "default",
-        folder,
-    )
-    .expect("lookup")
-    .expect("project")
-    .id
+fn inbox_id() -> String {
+    "inbox".into()
 }
 
 fn note_row(id: &str) -> crate::services::spark_data::DocRow {
@@ -152,7 +145,7 @@ fn create_note_writes_raw_and_index() {
         .unwrap()
         .contains(&json!("raw")));
     let row = note_row(id);
-    assert_eq!(row.project_id, project_id("inbox"));
+    assert_eq!(row.project_id, inbox_id());
     assert_eq!(row.raw_path, rel);
 }
 
@@ -537,7 +530,8 @@ fn create_jot_writes_raw_index_with_source_type_jot() {
         read_note_entries();
     let entry = &index["entries"][id];
     assert_eq!(entry["source_type"], json!("jot"));
-    assert_eq!(entry["folder"], json!("inbox"));
+    assert_eq!(entry["project_id"], json!("inbox"));
+    assert!(entry.get("folder").is_none(), "{entry}");
     assert!(entry["layers"]
         .as_array()
         .unwrap()
@@ -890,7 +884,8 @@ fn update_note_always_overwrites_digest_and_adds_layer() {
     let index: serde_json::Value =
         read_note_entries();
     assert_eq!(index["entries"][&id]["layers"], json!(["raw", "digest"]));
-    assert_eq!(index["entries"][&id]["folder"], json!("inbox"));
+    assert_eq!(index["entries"][&id]["project_id"], json!("inbox"));
+    assert!(index["entries"][&id].get("folder").is_none());
 }
 
 #[test]
@@ -1036,7 +1031,8 @@ fn create_jot_with_a_project_writes_into_that_project() {
     let id = v["id"].as_str().expect("id");
     assert!(note_row(id).raw_path.starts_with("notes/202607101440-"));
     let entry = &read_note_entries()["entries"][id];
-    assert_eq!(entry["folder"], json!(plans));
+    assert_eq!(entry["project_id"], json!(plans));
+    assert!(entry.get("folder").is_none(), "{entry}");
     assert_eq!(entry["source_type"], json!("jot"));
     let raw = default_workspace_dir().join("raw").join(&plans).join("notes");
     assert!(jot_dirs(&raw).iter().any(|p| p.extension().is_some_and(|e| e == "md")), "{raw:?}");
@@ -1048,7 +1044,7 @@ fn create_jot_without_a_project_still_goes_to_inbox() {
     let v = create_jot(None, None, "没有指定项目", &jot_opts_with_ts("202607101441")).expect("create_jot");
     assert_eq!(v["project"], json!("inbox"));
     let id = v["id"].as_str().expect("id");
-    assert_eq!(read_note_entries()["entries"][id]["folder"], json!("inbox"));
+    assert_eq!(read_note_entries()["entries"][id]["project_id"], json!("inbox"));
 }
 
 #[test]

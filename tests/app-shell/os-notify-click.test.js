@@ -44,7 +44,7 @@ function extractFunctionBody(source, name) {
 
 function seedIndex(entry = {
   _id: NOTE_ID,
-  folder: 'inbox',
+  project_id: 'inbox',
   created_at: `${NOTE_DATE}120000`,
 }) {
   state.index.data = { [NOTE_ID]: entry };
@@ -126,7 +126,7 @@ describe('handleOsNotifyClicked', () => {
     vi.spyOn(api, 'fetchIndex').mockResolvedValue({
       entries: {
         [NOTE_ID]: {
-          folder: 'inbox',
+          project_id: 'inbox',
           created_at: `${NOTE_DATE}120000`,
         },
       },

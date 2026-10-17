@@ -48,7 +48,7 @@ beforeEach(() => {
   vi.mocked(resolveDocForOpen).mockReset();
   vi.mocked(refreshNotesIndex).mockReset();
   vi.mocked(showActionError).mockReset();
-  state.index.data = { [ID]: { folder: 'ai', id: ID } };
+  state.index.data = { [ID]: { project_id: 'ai', id: ID } };
 });
 
 afterEach(() => {
@@ -83,7 +83,7 @@ describe('docIdFromHref', () => {
 
 describe('onDocLinkClick', () => {
   it('intercepts a spark-doc: link, resolves it in Rust, then opens the entry', async () => {
-    vi.mocked(resolveDocForOpen).mockResolvedValue({ id: ID, ok: true, folder: 'ai' });
+    vi.mocked(resolveDocForOpen).mockResolvedValue({ id: ID, ok: true, project_id: 'ai' });
     const event = clickOn(`<p><a href="spark-doc:${ID}"><b>Default：Title</b></a></p>`, 'b');
     expect(event.preventDefault).toHaveBeenCalledOnce();
     await flush();
@@ -125,9 +125,9 @@ describe('onDocLinkClick', () => {
 
   it('refreshes a stale list once, then opens', async () => {
     state.index.data = {};
-    vi.mocked(resolveDocForOpen).mockResolvedValue({ id: ID, ok: true, folder: 'ai' });
+    vi.mocked(resolveDocForOpen).mockResolvedValue({ id: ID, ok: true, project_id: 'ai' });
     vi.mocked(refreshNotesIndex).mockImplementation(async () => {
-      state.index.data = { [ID]: { folder: 'ai', id: ID } };
+      state.index.data = { [ID]: { project_id: 'ai', id: ID } };
       return true;
     });
     clickOn(`<a href="spark-doc:${ID}">x</a>`, 'a');
@@ -138,7 +138,7 @@ describe('onDocLinkClick', () => {
 
   it('reports instead of staying silent when the list still lacks the document', async () => {
     state.index.data = {};
-    vi.mocked(resolveDocForOpen).mockResolvedValue({ id: ID, ok: true, folder: 'ai' });
+    vi.mocked(resolveDocForOpen).mockResolvedValue({ id: ID, ok: true, project_id: 'ai' });
     vi.mocked(refreshNotesIndex).mockResolvedValue(true);
     clickOn(`<a href="spark-doc:${ID}">x</a>`, 'a');
     await flush();

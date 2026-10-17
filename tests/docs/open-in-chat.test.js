@@ -53,7 +53,7 @@ describe('noteReferenceDraft', () => {
   });
 
   it('falls back to Untitled note when no title is available', () => {
-    expect(noteReferenceDraft({ _id: ID, folder: 'inbox' }, ID)).toBe(
+    expect(noteReferenceDraft({ _id: ID, project_id: 'inbox' }, ID)).toBe(
       `[Default：Untitled note](spark-doc:${ID}) `,
     );
   });

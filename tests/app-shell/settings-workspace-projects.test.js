@@ -27,7 +27,6 @@ const tabs = await import('../../frontend/src/app-shell/ui/settings/tabs.ts');
 
 const row = (id, title = id, extra = {}) => ({
   id,
-  folder: extra.folder ?? id,
   title,
   description: '',
   is_inbox: extra.is_inbox ?? id === 'inbox',
@@ -78,7 +77,7 @@ describe('Workspace projects settings', () => {
   });
 
   it('still treats a renamed inbox as Built-in when its id is not inbox', async () => {
-    projects.default = [row('minted', 'Catch-all', { folder: 'inbox', is_inbox: true }), row('work', 'Work')];
+    projects.default = [row('minted', 'Catch-all', { is_inbox: true }), row('work', 'Work')];
     await commands.selectProjectsWorkspace('default');
     const host = document.createElement('div');
     document.body.appendChild(host);

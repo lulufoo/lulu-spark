@@ -244,18 +244,20 @@ fn the_sort_step_numbers_existing_rows_in_the_old_order() {
 }
 
 /// Step 12 marks the seeded Default inbox and does not invent one for Knowledge.
+/// Step 13 then drops `folder`; the latest file has `is_inbox` and no `folder`.
 #[test]
-fn the_inbox_step_marks_seeded_inbox_keeps_folder_and_skips_knowledge() {
+fn the_inbox_step_marks_seeded_inbox_and_skips_knowledge() {
     let (_dir, path) = temp_db();
-    drop(open_with_steps(&path, &MIGRATIONS[..12]).expect("v12"));
-    let conn = open_at(&path).expect("latest");
-    let inbox = get_project(&conn, "inbox").expect("get").expect("seeded");
+    let after_inbox = open_with_steps(&path, &MIGRATIONS[..13]).expect("v13");
+    let inbox = get_project(&after_inbox, "inbox").expect("get").expect("seeded");
     assert!(inbox.is_inbox, "{inbox:?}");
-    assert_eq!((inbox.folder.as_str(), inbox.workspace_id.as_str()), ("inbox", "default"));
+    assert_eq!(inbox.workspace_id, "default");
     assert_eq!(
-        count(&conn, "SELECT count(*) FROM project WHERE workspace_id = 'knowledge' AND is_inbox = 1"),
+        count(&after_inbox, "SELECT count(*) FROM project WHERE workspace_id = 'knowledge' AND is_inbox = 1"),
         0
     );
+    drop(after_inbox);
+    let conn = open_at(&path).expect("latest");
     let cols: Vec<String> = conn
         .prepare("PRAGMA table_info(project)")
         .expect("pragma")
@@ -263,14 +265,15 @@ fn the_inbox_step_marks_seeded_inbox_keeps_folder_and_skips_knowledge() {
         .expect("query")
         .collect::<Result<_, _>>()
         .expect("rows");
-    assert!(cols.contains(&"folder".to_string()) && cols.contains(&"is_inbox".to_string()), "{cols:?}");
+    assert!(cols.contains(&"is_inbox".to_string()), "{cols:?}");
+    assert!(!cols.contains(&"folder".to_string()), "{cols:?}");
 }
 
 #[test]
 fn a_workspace_accepts_only_one_inbox_and_the_flag_cannot_change() {
     let (_dir, path) = temp_db();
     let conn = open_at(&path).expect("open");
-    let mut extra = ProjectRow::new("i2", "default", "other", "Other", "");
+    let mut extra = ProjectRow::new("i2", "default", "Other", "");
     extra.is_inbox = true;
     assert!(insert_project(&conn, &extra).is_err(), "one inbox per workspace");
     assert!(

@@ -247,7 +247,7 @@ describe('T2 mountSpark three-branch routing', () => {
   });
 
   it('resolved note → note outlet open state (not Dialog)', () => {
-    const entry = { id: 'e1', folder: 'inbox', layers: ['raw'] };
+    const entry = { id: 'e1', project_id: 'inbox', layers: ['raw'] };
     const env = stubSparkMountEnv({
       state: { index: { data: { e1: entry } } },
     });

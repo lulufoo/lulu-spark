@@ -142,7 +142,7 @@ export function NotesCategoriesEditHost() {
               <div id="notes-cat-edit-dialog-body">
                 <p className="notes-cat-confirm-copy">
                   Disable <strong>{selected.title || selected.id}</strong>? It is hidden from lists and
-                  search. Its documents are kept, the folder stays reserved, and you can enable it
+                  search. Its documents are kept, and you can enable it
                   again from the Disabled list.
                 </p>
                 <div id="notes-cat-edit-error" className="settings-result notes-cat-error">

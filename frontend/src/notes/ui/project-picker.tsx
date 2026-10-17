@@ -18,7 +18,7 @@ export function ProjectPicker() {
   const options = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const entry of Object.values(data || {})) {
-      const folder = entry?.folder || 'unknown';
+      const folder = entry?.project_id || 'unknown';
       counts[folder] = (counts[folder] || 0) + 1;
     }
     return folders.length

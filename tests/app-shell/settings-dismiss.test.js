@@ -37,7 +37,7 @@ function visibleCopy(el) {
 function seedNotesEditor({ busy = false } = {}) {
   notesCategoriesStore.set({
     ...emptyNotesCategoriesSnap(),
-    rows: [{ id: 'work', title: 'Work', description: '', folder: 'work' }],
+    rows: [{ id: 'work', title: 'Work', description: '', project_id: 'work' }],
     selectedId: 'work',
     draftTitle: 'Work',
     draftDescription: '',

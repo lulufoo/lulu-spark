@@ -37,10 +37,10 @@ const memory = await import('../../frontend/src/notes/commands/viewer-state.ts')
 const { resolveNotesListDate } = await import('../../frontend/src/notes/commands/viewer/outlet.ts');
 
 const data = {
-  d1: { id: 'd1', _id: 'd1', folder: 'ai', raw_path: 'plans/one.md', created_at: '202605011200' },
-  d2: { id: 'd2', _id: 'd2', folder: 'ai', raw_path: 'two.md', created_at: '202605021200' },
-  d3: { id: 'd3', _id: 'd3', folder: 'ops', raw_path: 'run/book/three.md', created_at: '202604011200' },
-  d4: { id: 'd4', _id: 'd4', folder: 'ops', raw_path: 'four.md', created_at: '202603011200' },
+  d1: { id: 'd1', _id: 'd1', project_id: 'ai', raw_path: 'plans/one.md', created_at: '202605011200' },
+  d2: { id: 'd2', _id: 'd2', project_id: 'ai', raw_path: 'two.md', created_at: '202605021200' },
+  d3: { id: 'd3', _id: 'd3', project_id: 'ops', raw_path: 'run/book/three.md', created_at: '202604011200' },
+  d4: { id: 'd4', _id: 'd4', project_id: 'ops', raw_path: 'four.md', created_at: '202603011200' },
 };
 const titles = { ai: 'AI', ops: 'Ops', empty: 'Empty' };
 const opened = [];

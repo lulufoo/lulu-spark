@@ -11,12 +11,12 @@ const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const order = [];
 let resolveShow;
 const projectsByWorkspace = {
-  default: [{ id: 'inbox', folder: 'inbox', title: 'Inbox' }, { id: 'work', folder: 'work', title: 'Work' }],
+  default: [{ id: 'inbox', project_id: 'inbox', title: 'Inbox' }, { id: 'work', project_id: 'work', title: 'Work' }],
   knowledge: [
-    { id: 'a', folder: 'a', title: 'A' },
-    { id: 'b', folder: 'b', title: 'B' },
-    { id: 'c', folder: 'c', title: 'C' },
-    { id: 'd', folder: 'd', title: 'D' },
+    { id: 'a', project_id: 'a', title: 'A' },
+    { id: 'b', project_id: 'b', title: 'B' },
+    { id: 'c', project_id: 'c', title: 'C' },
+    { id: 'd', project_id: 'd', title: 'D' },
   ],
   empty: [],
 };

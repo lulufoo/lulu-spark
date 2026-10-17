@@ -100,7 +100,7 @@ export function rememberDate(project: string, date: string) {
 
 /** Directory view: the document just opened is the one its project reopens next time. */
 export function rememberOpenDoc(entry: NoteEntry, id: string) {
-  const project = entry.folder || '';
+  const project = entry.project_id || '';
   if (!id || !project || !isDirectoryView()) return;
   record({ project, node: nodeKeyOfEntry(entry), doc: id });
 }

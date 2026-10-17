@@ -297,10 +297,10 @@ test('the remembered open document is read and written per workspace', async () 
 })
 
 test('fetchProjects calls /api/projects for one workspace', async () => {
-  mockFetch({ projects: [{ folder: 'inbox', title: 'Inbox', description: '' }] })
+  mockFetch({ projects: [{ id: 'inbox', title: 'Inbox', description: '' }] })
   const result = await fetchProjects('ws1')
   expect(fetch.mock.calls[0][0]).toMatch(new RegExp(`^${API_READ_PREFIX}/projects\\?workspace=ws1&_=\\d+$`))
-  expect(result.projects[0].folder).toBe('inbox')
+  expect(result.projects[0].id).toBe('inbox')
 })
 
 test('project writes post workspace, project, title and description', async () => {
@@ -323,7 +323,7 @@ test('project writes post workspace, project, title and description', async () =
   ])
 })
 
-test('reorder posts the whole list of ids or folders', async () => {
+test('reorder posts the whole list of ids', async () => {
   mockFetch({ ok: true })
   await reorderWorkspaces(['b', 'default', 'a'])
   await reorderProjects('ws1', ['two', 'one'])

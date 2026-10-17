@@ -14,7 +14,7 @@ import type { NoteEntry, NoteTag } from '../state/types.ts';
 export { cycleImportance, loadTitles, toggleDone };
 
 function projectKeyOf(entry: NoteEntry): string {
-  return entry.project_id || entry.folder || 'unknown';
+  return entry.project_id || 'unknown';
 }
 
 function catalogTopicLabel(entry: NoteEntry): string {

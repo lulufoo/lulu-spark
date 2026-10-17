@@ -95,7 +95,7 @@ describe('buildCard source_type badge', () => {
 
   it('summary 显示黄色「总结」badge', () => {
     const entry = {
-      folder: 'proj',
+      project_id: 'proj',
       created_at: '202605181200',
       layers: ['raw'],
       source_type: 'summary',
@@ -116,7 +116,7 @@ describe('buildCard source_type badge', () => {
 
   it('jot still shows a badge and the picker includes jot', async () => {
     const entry = {
-      folder: 'proj',
+      project_id: 'proj',
       created_at: '202605181200',
       layers: ['raw'],
       source_type: 'jot',
@@ -142,7 +142,7 @@ describe('buildCard source_type badge', () => {
     const onOpen = (e) => opened.push(e.detail);
     document.addEventListener('cta:open-entry', onOpen);
     const entry = {
-      folder: 'proj',
+      project_id: 'proj',
       created_at: '202605181200',
       layers: ['raw'],
       source_type: 'dialogue',
@@ -270,7 +270,7 @@ describe('digest tooltip 挂在最底徽章行（buildCard / DocCard）', () => 
 
   function makeEntry(commonPath, overrides = {}) {
     return {
-      folder: String(commonPath).split('/')[0],
+      project_id: String(commonPath).split('/')[0],
       created_at: '202605181200',
       layers: ['raw', 'digest'],
       source_type: 'note',
@@ -413,7 +413,7 @@ describe('card open-in-chat sits next to the star', () => {
 
   function makeEntry(overrides = {}) {
     return {
-      folder: 'proj',
+      project_id: 'proj',
       created_at: '202605181200',
       layers: ['raw'],
       source_type: 'summary',
@@ -446,7 +446,7 @@ describe('card open-in-chat sits next to the star', () => {
     document.removeEventListener('cta:open-entry', onOpen);
     expect(openNoteInChat).toHaveBeenCalledTimes(1);
     expect(openNoteInChat).toHaveBeenCalledWith(
-      expect.objectContaining({ _id: 'chat2', folder: 'proj' }),
+      expect.objectContaining({ _id: 'chat2', project_id: 'proj' }),
       expect.any(HTMLButtonElement),
     );
     expect(opened).toEqual([]);

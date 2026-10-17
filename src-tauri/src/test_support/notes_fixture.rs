@@ -4,8 +4,8 @@ use rusqlite::Connection;
 use serde_json::{json, Value};
 
 use crate::services::spark_data::{
-    self, get_project_by_folder, get_workspace, insert_doc, insert_project, list_doc_entries,
-    DocRow, ProjectRow, DEFAULT_WORKSPACE_ID,
+    self, get_project, get_workspace, insert_doc, insert_project, list_doc_entries, DocRow,
+    ProjectRow, DEFAULT_WORKSPACE_ID,
 };
 
 const DEFAULT_DOC_TABLE: &str = "doc_default";
@@ -14,37 +14,48 @@ fn text(entry: &Value, key: &str) -> Option<String> {
     entry.get(key).and_then(Value::as_str).map(String::from)
 }
 
-/// Seed `common_path` is stored rel. Optional `folder` (default: first path
-/// segment, or `inbox` when the path has no slash).
-fn seed_folder_and_rel(entry: &Value, raw_path: &str) -> (String, String) {
+/// Optional `folder` names the seed project (default: first path segment, or `inbox`).
+/// The rest of `common_path` is stored as `raw_path`.
+fn seed_project_and_rel(entry: &Value, raw_path: &str) -> (String, String) {
     if let Some(folder) = text(entry, "folder") {
-        return (folder, raw_path.to_string());
+        return (project_id_for_seed(&folder), raw_path.to_string());
     }
     match raw_path.split_once('/') {
         Some((folder, rel)) if !folder.is_empty() && !rel.is_empty() => {
-            (folder.to_string(), rel.to_string())
+            (project_id_for_seed(folder), rel.to_string())
         }
         _ => ("inbox".into(), raw_path.to_string()),
     }
 }
 
-fn ensure_folder_project(conn: &Connection, folder: &str) -> String {
-    if let Some(row) = get_project_by_folder(conn, DEFAULT_WORKSPACE_ID, folder).expect("lookup") {
-        return row.id;
+fn project_id_for_seed(folder: &str) -> String {
+    if folder == "inbox" {
+        "inbox".into()
+    } else {
+        format!("seed-{folder}")
     }
-    let id = format!("seed-{folder}");
-    insert_project(conn, &ProjectRow::new(&id, DEFAULT_WORKSPACE_ID, folder, folder, "")).expect("project");
-    id
+}
+
+fn ensure_project(conn: &Connection, project_id: &str) -> String {
+    if get_project(conn, project_id).expect("lookup").is_some() {
+        return project_id.to_string();
+    }
+    insert_project(
+        conn,
+        &ProjectRow::new(project_id, DEFAULT_WORKSPACE_ID, project_id, ""),
+    )
+    .expect("project");
+    project_id.to_string()
 }
 
 /// `entries` is `{ "<id>": { common_path, folder?, created_at, layers, ... } }`.
-/// Stored `raw_path` never includes the category folder.
+/// Stored `raw_path` never includes the project identity.
 pub fn seed_note_entries(entries: &Value) {
     let conn = spark_data::open().expect("open spark-data");
     for (id, entry) in entries.as_object().expect("entries object") {
         let raw_in = text(entry, "common_path").expect("common_path");
-        let (folder, raw_path) = seed_folder_and_rel(entry, &raw_in);
-        let project_id = ensure_folder_project(&conn, &folder);
+        let (project_id, raw_path) = seed_project_and_rel(entry, &raw_in);
+        let project_id = ensure_project(&conn, &project_id);
         let mut note = DocRow::new(id, &raw_path, &project_id);
         let has_digest = entry
             .get("layers")

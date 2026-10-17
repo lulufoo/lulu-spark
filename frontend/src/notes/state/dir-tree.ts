@@ -44,7 +44,7 @@ export function pathKeys(nodeKey: string): string[] {
   return parts.map((_, i) => parts.slice(0, i + 1).join('/'));
 }
 
-/** The project folder a node belongs to. */
+/** The project id a node belongs to. */
 export function projectOfNode(nodeKey: string): string {
   return nodeKey.split('/')[0] || '';
 }
@@ -56,7 +56,7 @@ function splitRawPath(rawPath: unknown): { dirs: string[]; file: string } {
 }
 
 function projectKeyOf(entry: NoteEntry): string {
-  return entry.project_id || entry.folder || 'unknown';
+  return entry.project_id || 'unknown';
 }
 
 /** The tree node whose own documents include `entry`. */
@@ -70,7 +70,7 @@ function docName(entry: NoteEntry, file: string): string {
   return file || entry.title || 'Untitled note';
 }
 
-/** Label of a group key for headings: the project folder shows its title. */
+/** Label of a group key for headings: the project shows its title. */
 export function dirKeyLabel(dirKey: string, projectTitles: Record<string, string>): string {
   const [project = '', ...rest] = nodeKeyOf(dirKey).split('/');
   return [projectTitles[project] || project, ...rest].join(' / ');

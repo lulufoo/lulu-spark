@@ -11,8 +11,7 @@ export type HostNoteEntry = {
   id?: string;
   workspace?: string;
   project_id?: string;
-  folder?: string;
-  /** Path of the raw file relative to the project folder; read-only, drives the directory tree. */
+  /** Path of the raw file inside the project; read-only, drives the directory tree. */
   raw_path?: string;
   created_at?: string;
   layers?: string[];

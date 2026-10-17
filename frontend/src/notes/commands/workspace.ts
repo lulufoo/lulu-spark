@@ -77,7 +77,7 @@ export async function loadWorkspaces(): Promise<void> {
 /** Project titles of the current workspace, keyed by project id. */
 export async function loadProjects(): Promise<void> {
   const data = (await api.fetchProjects(state.workspaces.current)) as {
-    projects?: Array<{ id?: string; folder?: string; title?: string; description?: string; is_inbox?: boolean }>;
+    projects?: Array<{ id?: string; title?: string; description?: string; is_inbox?: boolean }>;
     error?: string;
   };
   if (data?.error) throw new Error(data.error);

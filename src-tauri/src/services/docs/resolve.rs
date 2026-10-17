@@ -16,8 +16,6 @@ use crate::services::spark_data::{
     ProjectRow, WorkspaceRow,
 };
 
-pub const DEFAULT_PROJECT_FOLDER: &str = "inbox";
-
 pub(super) fn bad_request(message: impl Into<String>) -> Value {
     json!({ "error": message.into(), "_status": 400 })
 }

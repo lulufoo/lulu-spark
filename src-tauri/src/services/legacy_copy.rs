@@ -3,7 +3,7 @@
 //! The database rows are copied by a migration step; this copies the files they point at:
 //!
 //! - `notes/{raw,digest}`           → `workspaces/default/{raw,digest}`
-//! - `knowledge/{folder}` (per knowledge project) → `workspaces/knowledge/raw/{folder}`
+//! - `knowledge/{name}` (legacy knowledge id) → `workspaces/knowledge/raw/{project.id}`
 //!
 //! The copy never overwrites an existing destination file, skips `.git` and symlinks, and
 //! writes a marker once it finishes, so an interrupted run is simply resumed on next start.
@@ -32,10 +32,11 @@ pub struct LegacyCopyReport {
     pub removed: usize,
 }
 
-/// Copy the legacy files under `data_dir` (`{runtime_data_dir}`) for the given knowledge folders.
+/// Copy the legacy files under `data_dir` (`{runtime_data_dir}`).
+/// `knowledge` is `(source folder under knowledge/, dest project id)`.
 pub fn copy_legacy_files(
     data_dir: &Path,
-    knowledge_folders: &[String],
+    knowledge: &[(String, String)],
 ) -> Result<LegacyCopyReport, String> {
     let workspaces = data_dir.join("workspaces");
     let marker = workspaces.join(LEGACY_COPY_MARKER);
@@ -50,13 +51,13 @@ pub fn copy_legacy_files(
         copy_tree(&data_dir.join("notes").join(layer), &default_dir.join(layer), &mut report)?;
     }
     let knowledge_raw = workspaces.join(KNOWLEDGE_WORKSPACE_ID).join("raw");
-    for folder in knowledge_folders {
+    for (folder, dest_id) in knowledge {
         let src = data_dir.join("knowledge").join(folder);
         if !src.is_dir() {
             report.missing_folders.push(folder.clone());
             continue;
         }
-        copy_tree(&src, &knowledge_raw.join(folder), &mut report)?;
+        copy_tree(&src, &knowledge_raw.join(dest_id), &mut report)?;
     }
 
     fs::create_dir_all(&workspaces).map_err(|e| e.to_string())?;
@@ -74,9 +75,16 @@ fn rename_sediment_kb(data_dir: &Path) -> Result<(), String> {
     Ok(())
 }
 
-fn knowledge_folders() -> Result<Vec<String>, String> {
+fn knowledge_source_name(project_id: &str) -> &str {
+    project_id.strip_prefix("knowledge:").unwrap_or(project_id)
+}
+
+fn knowledge_projects() -> Result<Vec<(String, String)>, String> {
     let conn = crate::services::spark_data::open()?;
-    Ok(list_projects(&conn, KNOWLEDGE_WORKSPACE_ID)?.into_iter().map(|p| p.folder).collect())
+    Ok(list_projects(&conn, KNOWLEDGE_WORKSPACE_ID)?
+        .into_iter()
+        .map(|p| (knowledge_source_name(&p.id).to_string(), p.id))
+        .collect())
 }
 
 /// Startup entry: read the knowledge project folders from the database, copy, then clean up.
@@ -86,10 +94,10 @@ pub fn copy_legacy_files_at_startup(data_dir: &Path) -> Result<LegacyCopyReport,
         LegacyCopyReport { already_done: true, ..Default::default() }
     } else {
         rename_sediment_kb(data_dir)?;
-        copy_legacy_files(data_dir, &knowledge_folders()?)?
+        copy_legacy_files(data_dir, &knowledge_projects()?)?
     };
     if marker.exists() {
-        report.removed = remove_copied_legacy_files(data_dir, &knowledge_folders()?)?;
+        report.removed = remove_copied_legacy_files(data_dir, &knowledge_projects()?)?;
     }
     Ok(report)
 }
@@ -99,7 +107,7 @@ pub fn copy_legacy_files_at_startup(data_dir: &Path) -> Result<LegacyCopyReport,
 /// anything unknown stay where they are.
 pub fn remove_copied_legacy_files(
     data_dir: &Path,
-    knowledge_folders: &[String],
+    knowledge: &[(String, String)],
 ) -> Result<usize, String> {
     let workspaces = data_dir.join("workspaces");
     let default_dir = workspaces.join(DEFAULT_WORKSPACE_ID);
@@ -108,8 +116,8 @@ pub fn remove_copied_legacy_files(
         removed += remove_copied_tree(&data_dir.join("notes").join(layer), &default_dir.join(layer))?;
     }
     let knowledge_raw = workspaces.join(KNOWLEDGE_WORKSPACE_ID).join("raw");
-    for folder in knowledge_folders {
-        removed += remove_copied_tree(&data_dir.join("knowledge").join(folder), &knowledge_raw.join(folder))?;
+    for (folder, dest_id) in knowledge {
+        removed += remove_copied_tree(&data_dir.join("knowledge").join(folder), &knowledge_raw.join(dest_id))?;
     }
     // Folders that held only the removed files; `remove_dir` refuses a folder that is not empty.
     for dir in ["notes", "knowledge"] {

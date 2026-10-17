@@ -30,7 +30,8 @@ fn resolve_returns_index_entry_for_known_id() {
     let out = resolve_doc_for_open(ID);
     assert_eq!(out["ok"], true, "{out}");
     assert_eq!(out["id"], ID);
-    assert_eq!(out["folder"], "ai");
+    assert_eq!(out["project_id"], "seed-ai");
+    assert!(out.get("folder").is_none(), "{out}");
     assert!(out.get("common_path").is_none());
     assert_eq!(out["created_at"], "202606190004");
     assert_eq!(out["layers"], json!(["raw", "digest"]));
