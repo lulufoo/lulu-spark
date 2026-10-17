@@ -7,7 +7,7 @@ pub fn source_type_schema() -> Value {
     json!({
         "type": "string",
         "enum": ids,
-        "description": "Optional source type; defaults to summary. Must be an id from list_doc_categories."
+        "description": "Required. Must be an id from list_doc_categories."
     })
 }
 

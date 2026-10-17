@@ -404,6 +404,52 @@ fn create_doc_source_type_enum_follows_exposed_list() {
 }
 
 #[test]
+fn mcp_create_doc_requires_exposed_source_type() {
+    let _sandbox = TestSandbox::new();
+    let invoke = build("document", "create_doc", "mobile")
+        .expect("mobile create")
+        .invoke;
+    let missing = invoke(&serde_json::json!({
+        "content": "# 标题\n\n正文\n",
+        "title": "T",
+        "digest": "never",
+    }));
+    assert_eq!(missing["_status"], serde_json::json!(400), "{missing}");
+    assert!(
+        missing["error"].as_str().unwrap_or("").contains("source_type"),
+        "{missing}"
+    );
+    for bad in ["jot", "theme-line", "transcript"] {
+        let rejected = invoke(&serde_json::json!({
+            "content": "# 标题\n\n正文\n",
+            "title": "T",
+            "digest": "never",
+            "source_type": bad,
+        }));
+        assert_eq!(rejected["_status"], serde_json::json!(400), "{bad}: {rejected}");
+    }
+    let ok = invoke(&serde_json::json!({
+        "content": "# 标题\n\n这是足够长的正文内容。\n",
+        "title": "T",
+        "digest": "never",
+        "source_type": "dialogue",
+    }));
+    assert_eq!(ok["ok"], serde_json::json!(true), "{ok}");
+}
+
+#[test]
+fn create_doc_schema_requires_source_type() {
+    for channel in ["spark", "mobile"] {
+        let route = build("document", "create_doc", channel).expect(channel);
+        let required = route.input_schema["required"].as_array().expect("required");
+        assert!(
+            required.iter().any(|v| v.as_str() == Some("source_type")),
+            "{channel}"
+        );
+    }
+}
+
+#[test]
 fn catalog_has_no_write_tool_for_categories() {
     for (group, routes) in catalog_groups() {
         for route in routes {

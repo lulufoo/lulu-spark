@@ -149,6 +149,7 @@ fn content_note_args() -> Value {
         "content": "MCP 产出笔记正文",
         "title": "MCP produce content",
         "digest": "never",
+        "source_type": "summary",
     })
 }
 
@@ -157,6 +158,7 @@ fn source_note_args(sandbox: &TestSandbox) -> Value {
         "source_path": stage_source(sandbox, SAMPLE_DOC).to_str().unwrap(),
         "title": "MCP produce source",
         "digest": "never",
+        "source_type": "summary",
     })
 }
 
@@ -266,6 +268,7 @@ fn other_note_and_tauri_writes_are_not_wired() {
             "source_path": stage_source(sandbox, SAMPLE_DOC).to_str().unwrap(),
             "title": "Tauri create_note",
             "digest": "never",
+            "source_type": "summary",
         }))
         .expect("tauri create_note");
         assert_note_ok(&tauri_note);

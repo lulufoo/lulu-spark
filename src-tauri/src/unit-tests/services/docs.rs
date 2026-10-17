@@ -28,7 +28,7 @@ fn new_workspace(name: &str) -> String {
 }
 
 fn write(workspace: Option<&str>, project: Option<&str>) -> Value {
-    let mut payload = json!({ "title": "T", "content": BODY, "digest": "never" });
+    let mut payload = json!({ "title": "T", "content": BODY, "digest": "never", "source_type": "summary" });
     if let Some(w) = workspace {
         payload["workspace"] = json!(w);
     }
@@ -115,7 +115,7 @@ fn update_overwrites_the_body_and_refuses_create_only_fields() {
 fn a_digest_is_written_and_read_back() {
     let _sandbox = TestSandbox::new();
     let created = create_doc_content(&json!({
-        "title": "T", "content": BODY, "digest": "always", "digest_body": "# 摘要\n\n要点。\n"
+        "title": "T", "content": BODY, "digest": "always", "digest_body": "# 摘要\n\n要点。\n", "source_type": "summary"
     }));
     let id = text(ok(&created), "id");
     // The digest body is trimmed on the way in, as it always was.
@@ -127,7 +127,7 @@ fn a_digest_is_written_and_read_back() {
 fn delete_doc_removes_files_and_row() {
     let sandbox = TestSandbox::new();
     let created = create_doc_content(&json!({
-        "title": "T", "content": BODY, "digest": "always", "digest_body": "# 摘要\n\n要点。\n"
+        "title": "T", "content": BODY, "digest": "always", "digest_body": "# 摘要\n\n要点。\n", "source_type": "summary"
     }));
     let id = text(ok(&created), "id");
     let removed = delete_doc(&json!({ "id": id }));
@@ -307,6 +307,7 @@ fn write_text(workspace: &str, body: &str) -> String {
         "title": "Searchable",
         "content": body,
         "digest": "never",
+        "source_type": "summary",
     }));
     text(ok(&created), "id")
 }
@@ -357,7 +358,7 @@ fn a_full_rebuild_indexes_every_workspace_and_drops_chunks_of_deleted_documents(
 }
 
 fn write_in_folder(folder: &str, extra: Value) -> Value {
-    let mut payload = json!({ "title": "Nested", "content": BODY, "digest": "never", "folder": folder });
+    let mut payload = json!({ "title": "Nested", "content": BODY, "digest": "never", "source_type": "summary", "folder": folder });
     for (key, value) in extra.as_object().expect("object") {
         payload[key] = value.clone();
     }

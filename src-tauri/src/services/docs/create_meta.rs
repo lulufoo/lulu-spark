@@ -6,15 +6,6 @@ use serde_json::{json, Value};
 use crate::services::archive_parse::is_valid_common_path;
 use crate::services::id::random_alnum6;
 
-const SOURCE_TYPES: &[&str] = &[
-    "summary",
-    "article",
-    "theme-line",
-    "dialogue",
-    "transcript",
-    "jot",
-];
-
 pub(crate) struct CreateMeta {
     pub title: String,
     pub created_at: String,
@@ -83,9 +74,12 @@ fn parse_source_type(payload: &Value) -> Result<String, Value> {
     let raw = payload
         .get("source_type")
         .and_then(|v| v.as_str())
-        .unwrap_or("summary")
-        .trim();
-    if SOURCE_TYPES.contains(&raw) {
+        .map(str::trim)
+        .filter(|s| !s.is_empty());
+    let Some(raw) = raw else {
+        return Err(json!({ "error": "Missing source_type", "_status": 400 }));
+    };
+    if super::categories::is_legal(raw) {
         Ok(raw.to_string())
     } else {
         Err(json!({ "error": "Invalid source_type", "_status": 400 }))

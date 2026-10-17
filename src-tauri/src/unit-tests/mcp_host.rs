@@ -2219,6 +2219,7 @@ fn mobile_channel_create_note_hits_content_api() {
     assert!(required.iter().any(|v| v.as_str() == Some("content")));
     assert!(required.iter().any(|v| v.as_str() == Some("title")));
     assert!(required.iter().any(|v| v.as_str() == Some("digest")));
+    assert!(required.iter().any(|v| v.as_str() == Some("source_type")));
     assert!(!required.iter().any(|v| v.as_str() == Some("source_path")));
 
     let path_table = build_channel_tool_table(SPARK_SLOT, SPARK_SLOT).expect("path");
@@ -2237,6 +2238,7 @@ fn mobile_channel_create_note_hits_content_api() {
     assert!(path_required.iter().any(|v| v.as_str() == Some("source_path")));
     assert!(path_required.iter().any(|v| v.as_str() == Some("title")));
     assert!(path_required.iter().any(|v| v.as_str() == Some("digest")));
+    assert!(path_required.iter().any(|v| v.as_str() == Some("source_type")));
 }
 
 /// Exception: oauth still rejects mobile; T3 failure must not change Slot.

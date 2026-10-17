@@ -48,6 +48,7 @@ fn create_with_assets(sandbox: &TestSandbox, assets: Vec<PathBuf>) -> serde_json
             "source_path": source.to_str().unwrap(),
             "title": "Test Title",
             "digest": "never",
+            "source_type": "summary",
             "asset_paths": paths,
         }),
     )
@@ -176,6 +177,7 @@ fn create_note_digest_relative_image_is_400() {
             "source_path": source.to_str().unwrap(),
             "title": "Test Title",
             "digest": "always",
+            "source_type": "summary",
             "digest_body": "# 摘要\n\n![x](./overview-diagram.png)\n",
             "asset_paths": [png.to_str().unwrap()],
         }),
@@ -197,6 +199,7 @@ fn create_note_digest_allows_https_image() {
             "source_path": source.to_str().unwrap(),
             "title": "Test Title",
             "digest": "always",
+            "source_type": "summary",
             "digest_body": digest_body,
         }),
     );
@@ -222,6 +225,7 @@ fn create_note_content_and_update_reject_asset_paths() {
             "content": SAMPLE_DOC,
             "title": "Test Title",
             "digest": "never",
+            "source_type": "summary",
         }),
     );
     let id = created["id"].as_str().unwrap();

@@ -49,6 +49,9 @@ fn path_payload(sandbox: &TestSandbox, content: &str, mut base: serde_json::Valu
     if !obj.contains_key("digest") {
         obj.insert("digest".to_string(), json!("never"));
     }
+    if !obj.contains_key("source_type") {
+        obj.insert("source_type".to_string(), json!("summary"));
+    }
     obj.remove("document");
     base
 }
@@ -285,7 +288,7 @@ fn create_note_theme_line_with_zh_translation() {
             "project": "learning-ai-agent",
             "folder": "waymo-interview",
             "created_at": "202606191700",
-            "source_type": "theme-line",
+            "source_type": "video",
             "translations": [{ "lang": "zh", "content": THEME_LINE_ZH }]
         })),
     );
@@ -311,7 +314,7 @@ fn create_note_rejects_the_renamed_theme_field() {
     let v = create_doc(&path_payload(&sandbox, THEME_LINE_DOC, json!({
             "title": "Interview Title",
             "theme": "waymo-interview",
-            "source_type": "theme-line"
+            "source_type": "video"
         })),
     );
     assert_eq!(v["_status"], json!(400), "{v}");
@@ -328,7 +331,7 @@ fn create_note_zh_from_source_path() {
             "project": "learning-ai-agent",
             "folder": "waymo-interview",
             "created_at": "202606191700",
-            "source_type": "theme-line",
+            "source_type": "video",
             "translations": [{ "lang": "zh", "source_path": zh_file.to_str().unwrap() }]
         })),
     );
@@ -342,7 +345,7 @@ fn create_note_zh_from_source_path() {
 fn create_note_rejects_zh_stub() {
     let sandbox = setup_notes();
     let v = create_doc(&path_payload(&sandbox, THEME_LINE_DOC, json!({
-            "source_type": "theme-line",
+            "source_type": "video",
             "translations": [{ "lang": "zh", "content": "# 题\n\n> 创建时间：2026年6月19日 17:00\n\n---\n\nSEE_FILE\n" }]
         })),
     );
@@ -355,7 +358,7 @@ fn create_note_rejects_zh_too_short() {
     let sandbox = setup_notes();
     let long_en = format!("{}\n{}\n", THEME_LINE_DOC.trim_end(), "word ".repeat(400));
     let v = create_doc(&path_payload(&sandbox, &long_en, json!({
-            "source_type": "theme-line",
+            "source_type": "video",
             "translations": [{ "lang": "zh", "content": THEME_LINE_ZH }]
         })),
     );
@@ -368,7 +371,7 @@ fn create_note_rejects_zh_content_and_source_path() {
     let sandbox = setup_notes();
     let zh_file = stage_source(&sandbox, "zh-both.md", THEME_LINE_ZH);
     let v = create_doc(&path_payload(&sandbox, THEME_LINE_DOC, json!({
-            "source_type": "theme-line",
+            "source_type": "video",
             "translations": [{
                 "lang": "zh",
                 "content": THEME_LINE_ZH,
@@ -384,7 +387,7 @@ fn create_note_rejects_zh_content_and_source_path() {
 fn create_note_multi_lang_translations() {
     let sandbox = setup_notes();
     let v = create_doc(&path_payload(&sandbox, THEME_LINE_DOC, json!({
-            "source_type": "theme-line",
+            "source_type": "video",
             "translations": [
                 { "lang": "zh", "content": THEME_LINE_ZH },
                 { "lang": "fr", "content": "# Titre\n\n> 创建时间：2026年6月19日 17:00\n\n---\n\nbonjour\n" }
@@ -409,7 +412,7 @@ fn create_note_multi_lang_translations() {
 fn create_note_rejects_legacy_extra_documents() {
     let sandbox = setup_notes();
     let v = create_doc(&path_payload(&sandbox, THEME_LINE_DOC, json!({
-            "source_type": "theme-line",
+            "source_type": "video",
             "extra_documents": [{
                 "rel": "raw/learning-ai-agent/waymo-interview/202606191700-waymo-interview-zh.md",
                 "content": THEME_LINE_ZH
@@ -631,6 +634,44 @@ fn create_note_rejects_unknown_source_type() {
 }
 
 #[test]
+fn create_note_requires_source_type() {
+    let sandbox = setup_notes();
+    let mut payload = path_payload(&sandbox, SAMPLE_DOC, json!({}));
+    payload.as_object_mut().expect("object").remove("source_type");
+    let v = create_doc(&payload);
+    assert_eq!(v.get("_status"), Some(&json!(400)));
+    assert!(
+        v["error"].as_str().unwrap_or("").contains("source_type"),
+        "{v}"
+    );
+}
+
+#[test]
+fn create_note_rejects_legacy_theme_line_id() {
+    let sandbox = setup_notes();
+    let v = create_doc(&path_payload(
+        &sandbox,
+        SAMPLE_DOC,
+        json!({ "source_type": "theme-line" }),
+    ));
+    assert_eq!(v.get("_status"), Some(&json!(400)));
+}
+
+#[test]
+fn create_note_accepts_video_and_dialogue() {
+    let sandbox = setup_notes();
+    for source_type in ["video", "dialogue", "article", "summary"] {
+        let v = create_doc(&path_payload(
+            &sandbox,
+            SAMPLE_DOC,
+            json!({ "source_type": source_type }),
+        ));
+        assert_eq!(v.get("ok"), Some(&json!(true)), "{source_type}: {v}");
+        assert_eq!(note_row(v["id"].as_str().unwrap()).source_type.as_deref(), Some(source_type));
+    }
+}
+
+#[test]
 fn create_note_content_rejects_source_path_and_empty() {
     let _sandbox = setup_notes();
     let with_path = create_doc_content(&json!({
@@ -757,6 +798,7 @@ fn create_note_content_rejects_full_english_without_zh() {
             "content": FULL_EN_DOC,
             "title": "English Title",
             "digest": "never",
+            "source_type": "summary",
         }),
     );
     assert_eq!(v.get("_status"), Some(&json!(400)));
@@ -916,6 +958,7 @@ fn update_note_content_overwrites_and_rejects_source_path() {
             "content": SAMPLE_DOC,
             "title": "Test Title",
             "digest": "never",
+            "source_type": "summary",
         }),
     );
     assert_eq!(created.get("ok"), Some(&json!(true)), "{created}");
