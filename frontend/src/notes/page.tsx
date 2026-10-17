@@ -371,7 +371,7 @@ export function NotesMain({ routeParams }: { routeParams: Record<string, string>
           <NotesDocList
             entries={group?.entries || []}
             date={date || ''}
-            empty={emptyFilter || emptyFolder}
+            empty={emptyFolder}
             emptyMessage={emptyFolder ? 'No documents directly in this folder. Open it in the tree.' : undefined}
           />
         ) : null}
