@@ -72,9 +72,10 @@ fn a_new_workspace_is_writable_at_once_and_files_land_in_its_folder() {
     let ws = new_workspace("AI memory");
     let created = write(Some(&ws), None);
     let id = text(ok(&created), "id");
-    assert_eq!((text(&created, "workspace"), text(&created, "project")), (ws.clone(), inbox_of(&ws)));
+    let inbox = inbox_of(&ws);
+    assert_eq!((text(&created, "workspace"), text(&created, "project")), (ws.clone(), inbox.clone()));
 
-    let on_disk = fs::read_dir(workspaces_dir(&sandbox).join(&ws).join("raw/inbox/notes")).expect("dir");
+    let on_disk = fs::read_dir(workspaces_dir(&sandbox).join(&ws).join("raw").join(&inbox).join("notes")).expect("dir");
     assert_eq!(on_disk.count(), 1);
     let read = get_file(&json!({ "workspace": ws, "id": id }));
     assert_eq!(read["content"], json!(BODY));

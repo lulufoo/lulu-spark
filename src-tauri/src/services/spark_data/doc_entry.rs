@@ -38,7 +38,7 @@ pub fn find_doc(conn: &Connection, id: &str) -> Result<Option<FoundDoc>, String>
     Ok(None)
 }
 
-/// Folder of the project `project_id`; the folder is the middle path segment on disk.
+/// Folder column of the project `project_id` (index entries still expose it).
 pub fn project_folder(conn: &Connection, project_id: &str) -> Result<String, String> {
     get_project(conn, project_id)?
         .map(|project| project.folder)

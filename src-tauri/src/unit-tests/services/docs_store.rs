@@ -48,7 +48,7 @@ fn two_workspaces_never_share_a_path_for_the_same_project_and_file() {
 fn doc_file_path_refuses_escapes_and_unknown_layers() {
     let tmp = tempfile::tempdir().expect("tmp");
     let root = workspace_folder(tmp.path(), "ws1");
-    for (layer, folder, rel) in [
+    for (layer, project_id, rel) in [
         ("raw", "", "notes/a.md"),
         ("raw", "..", "notes/a.md"),
         ("raw", "a/b", "notes/a.md"),
@@ -56,7 +56,7 @@ fn doc_file_path_refuses_escapes_and_unknown_layers() {
         ("raw", "proj", "../a.md"),
         ("other", "proj", "notes/a.md"),
     ] {
-        let err = doc_file_path(&root, layer, folder, rel).expect_err(rel);
-        assert_eq!(err["_status"], json!(400), "{layer} {folder} {rel}");
+        let err = doc_file_path(&root, layer, project_id, rel).expect_err(rel);
+        assert_eq!(err["_status"], json!(400), "{layer} {project_id} {rel}");
     }
 }

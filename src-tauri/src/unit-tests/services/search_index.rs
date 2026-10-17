@@ -107,7 +107,7 @@ fn desktop_spark_hits_always_expose_raw_layer() {
         assert_eq!(hits[0]["layer"], "raw");
         assert_eq!(hits[0]["id"], "doc-n");
         assert!(hits[0].get("common_path").is_none());
-        assert_eq!(hits[0]["topic"], "proj");
+        assert_eq!(hits[0]["topic"], "seed-proj");
     });
 }
 
@@ -128,7 +128,7 @@ fn hits_of_a_deleted_doc_are_dropped() {
         let ids: Vec<&str> = all.iter().map(|h| h.doc_id.as_str()).collect();
         assert_eq!(ids, vec!["doc-live"], "the deleted doc has no row, so no hit");
         assert_eq!(all[0].common_path, "live.md");
-        assert_eq!(all[0].topic, "proj");
+        assert_eq!(all[0].topic, "seed-proj");
     });
 }
 

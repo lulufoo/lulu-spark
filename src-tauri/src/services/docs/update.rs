@@ -119,7 +119,7 @@ fn update_from_body(payload: &Value, source: &str) -> Value {
         Ok(r) => r,
         Err(v) => return v,
     };
-    let raw_path = match doc_file_path(&root, "raw", &project.folder, &rel) {
+    let raw_path = match doc_file_path(&root, "raw", &project.id, &rel) {
         Ok(p) => p,
         Err(v) => return v,
     };
@@ -136,7 +136,7 @@ fn update_from_body(payload: &Value, source: &str) -> Value {
 
     let mut digest_rel: Option<String> = None;
     if let Some(digest_md) = digest_body.as_deref().filter(|_| want_digest) {
-        match write_digest_file_overwrite(&root, &project.folder, &rel, digest_md) {
+        match write_digest_file_overwrite(&root, &project.id, &rel, digest_md) {
             Ok(rel) => digest_rel = Some(rel),
             Err(v) => return restore_raw(&raw_path, &prev_raw, v),
         }

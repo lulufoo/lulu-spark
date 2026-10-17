@@ -170,10 +170,10 @@ fn get_doc_asset_returns_png_bytes() {
     let id = "dddddddddddddddddddddddddddddddd";
     with_notes_repo(
         move |_, notes| {
-            let png = notes.join("raw").join("ai").join("note.png");
+            let png = notes.join("raw").join("seed-ai").join("note.png");
             fs::create_dir_all(png.parent().unwrap()).expect("mkdir");
             fs::write(&png, b"\x89PNG\r\n").expect("write");
-            fs::write(notes.join("raw").join("ai").join("note.md"), b"# x").expect("md");
+            fs::write(notes.join("raw").join("seed-ai").join("note.md"), b"# x").expect("md");
             seed_note_entries(&json!({ id: { "common_path": "ai/note.md" } }));
         },
         move |_cfg_dir| {
@@ -189,8 +189,8 @@ fn get_doc_asset_rejects_traversal() {
     let id = "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
     with_notes_repo(
         move |_, notes| {
-            fs::create_dir_all(notes.join("raw").join("ai")).expect("mkdir");
-            fs::write(notes.join("raw").join("ai").join("note.md"), b"# x").expect("md");
+            fs::create_dir_all(notes.join("raw").join("seed-ai")).expect("mkdir");
+            fs::write(notes.join("raw").join("seed-ai").join("note.md"), b"# x").expect("md");
             seed_note_entries(&json!({ id: { "common_path": "ai/note.md" } }));
         },
         move |_cfg_dir| {

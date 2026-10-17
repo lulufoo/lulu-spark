@@ -1,8 +1,8 @@
 //! Chunks of the documents in the per-workspace tables (`doc_<workspace id>`).
 //!
-//! Files live at `{workspaces_root}/{workspace id}/{layer}/{project folder}/{rel}`.
+//! Files live at `{workspaces_root}/{workspace id}/{layer}/{project id}/{rel}`.
 
-use std::collections::HashMap;
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use rusqlite::Connection;
@@ -24,7 +24,7 @@ fn workspace_root(workspace_id: &str) -> Result<PathBuf, String> {
 
 /// Chunks of one document: its raw file, plus its digest file when the row says there is one.
 /// A file that is missing or unreadable contributes no chunks.
-fn doc_chunks(root: &Path, workspace_id: &str, doc: &DocRow, folder: &str) -> Vec<SourceChunk> {
+fn doc_chunks(root: &Path, workspace_id: &str, doc: &DocRow, project_id: &str) -> Vec<SourceChunk> {
     let created_at = doc.created_at.as_deref().unwrap_or("");
     let mut layers = vec![("raw", doc.raw_path.as_str())];
     if let Some(digest) = doc.digest_path.as_deref().filter(|p| !p.is_empty()) {
@@ -34,7 +34,7 @@ fn doc_chunks(root: &Path, workspace_id: &str, doc: &DocRow, folder: &str) -> Ve
         .into_iter()
         .filter(|(_, rel)| !rel.is_empty() && !rel.contains(".."))
         .flat_map(|(layer, rel)| {
-            let Ok(abs) = doc_file_path(root, layer, folder, rel) else {
+            let Ok(abs) = doc_file_path(root, layer, project_id, rel) else {
                 return Vec::new();
             };
             chunks_from_file(DOCS_CATEGORY, layer, &abs, &doc.doc_id, created_at)
@@ -47,9 +47,9 @@ fn doc_chunks(root: &Path, workspace_id: &str, doc: &DocRow, folder: &str) -> Ve
 
 fn workspace_chunks(conn: &Connection, workspace: &WorkspaceRow) -> Result<Vec<SourceChunk>, String> {
     let root = workspace_root(&workspace.id)?;
-    let folders: HashMap<String, String> = list_projects(conn, &workspace.id)?
+    let known: HashSet<String> = list_projects(conn, &workspace.id)?
         .into_iter()
-        .map(|p| (p.id, p.folder))
+        .map(|p| p.id)
         .collect();
     let hide = compiled_hide_regexes(&workspace.id);
     let mut chunks = Vec::new();
@@ -57,8 +57,8 @@ fn workspace_chunks(conn: &Connection, workspace: &WorkspaceRow) -> Result<Vec<S
         if path_is_hidden(&doc.raw_path, &hide) {
             continue;
         }
-        if let Some(folder) = folders.get(&doc.project_id) {
-            chunks.extend(doc_chunks(&root, &workspace.id, &doc, folder));
+        if known.contains(&doc.project_id) {
+            chunks.extend(doc_chunks(&root, &workspace.id, &doc, &doc.project_id));
         }
     }
     Ok(chunks)
@@ -95,5 +95,5 @@ pub fn workspace_doc_chunks(workspace_id: &str, doc_id: &str) -> Result<Vec<Sour
     if path_is_hidden(&doc.raw_path, &compiled_hide_regexes(workspace_id)) {
         return Ok(Vec::new());
     }
-    Ok(doc_chunks(&workspace_root(workspace_id)?, workspace_id, &doc, &project.folder))
+    Ok(doc_chunks(&workspace_root(workspace_id)?, workspace_id, &doc, &project.id))
 }

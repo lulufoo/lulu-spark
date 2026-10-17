@@ -39,17 +39,21 @@ pub fn workspace_dir(workspaces_root: &Path, workspace_id: &str) -> Result<PathB
     Ok(workspaces_root.join(workspace_id))
 }
 
-/// Disk path: `{workspace_root}/{layer}/{folder}/{rel}` where `folder` is the project folder
-/// and `rel` is `{folder}/{filename}` inside it. `workspace_root` is a workspace folder
+/// Disk path: `{workspace_root}/{layer}/{project_id}/{rel}` where `rel` is the
+/// document-internal path (`notes/…`). `workspace_root` is a workspace folder
 /// (see [`workspace_dir`]).
 pub fn doc_file_path(
     workspace_root: &Path,
     layer: &str,
-    folder: &str,
+    project_id: &str,
     rel: &str,
 ) -> Result<PathBuf, Value> {
-    if folder.is_empty() || folder.contains("..") || folder.contains('/') || folder.contains('\\') {
-        return Err(json!({ "error": "Invalid folder", "_status": 400 }));
+    if project_id.is_empty()
+        || project_id.contains("..")
+        || project_id.contains('/')
+        || project_id.contains('\\')
+    {
+        return Err(json!({ "error": "Invalid project id", "_status": 400 }));
     }
     if rel.is_empty() || rel.contains("..") {
         return Err(json!({ "error": "Invalid path", "_status": 400 }));
@@ -64,7 +68,7 @@ pub fn doc_file_path(
         Ok(p) => p,
         Err(e) => return Err(json!({ "error": e.to_string(), "_status": 500 })),
     };
-    Ok(root_canon.join(layer).join(folder).join(rel))
+    Ok(root_canon.join(layer).join(project_id).join(rel))
 }
 
 pub(crate) fn write_markdown_atomic(path: &Path, content: &str) -> Result<(), String> {

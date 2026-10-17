@@ -85,8 +85,7 @@ fn note_disk(notes: &std::path::Path, layer: &str, id: &str) -> PathBuf {
         .expect("get")
         .expect("row")
         .doc;
-    let folder = crate::services::spark_data::project_folder(&conn, &note.project_id).expect("folder");
-    crate::services::docs::doc_file_path(notes, layer, &folder, &note.raw_path).expect("path")
+    crate::services::docs::doc_file_path(notes, layer, &note.project_id, &note.raw_path).expect("path")
 }
 
 fn filename_has_ts_rand(common_path: &str) -> bool {

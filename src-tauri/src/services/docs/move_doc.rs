@@ -70,11 +70,11 @@ pub fn move_doc(payload: &Value) -> Value {
 
     let mut moves: Vec<(PathBuf, PathBuf)> = Vec::new();
     for layer in LAYERS {
-        let src = match doc_file_path(&root, layer, &old_project.folder, &rel) {
+        let src = match doc_file_path(&root, layer, &old_project.id, &rel) {
             Ok(p) => p,
             Err(v) => return v,
         };
-        let dst = match doc_file_path(&root, layer, &new_project.folder, &rel) {
+        let dst = match doc_file_path(&root, layer, &new_project.id, &rel) {
             Ok(p) => p,
             Err(v) => return v,
         };
@@ -90,11 +90,11 @@ pub fn move_doc(payload: &Value) -> Value {
         let Some(new_rel) = expected_lang_common_path(&rel, lang) else {
             return bad_request("Invalid path");
         };
-        let src = match doc_file_path(&root, "raw", &old_project.folder, old_rel) {
+        let src = match doc_file_path(&root, "raw", &old_project.id, old_rel) {
             Ok(p) => p,
             Err(v) => return v,
         };
-        let dst = match doc_file_path(&root, "raw", &new_project.folder, &new_rel) {
+        let dst = match doc_file_path(&root, "raw", &new_project.id, &new_rel) {
             Ok(p) => p,
             Err(v) => return v,
         };

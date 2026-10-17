@@ -114,8 +114,8 @@ fn write_doc(source: &str, payload: &Value, source_basename: Option<&str>) -> Va
         Err(v) => return v,
     };
 
-    let folder = project.folder.as_str();
-    let raw_path = match doc_file_path(&root, "raw", folder, &meta.common_path) {
+    let project_id = project.id.as_str();
+    let raw_path = match doc_file_path(&root, "raw", project_id, &meta.common_path) {
         Ok(p) => p,
         Err(v) => return v,
     };
@@ -124,7 +124,7 @@ fn write_doc(source: &str, payload: &Value, source_basename: Option<&str>) -> Va
     }
     let mut extra_paths: Vec<PathBuf> = Vec::new();
     for t in &translations {
-        let path = match doc_file_path(&root, "raw", folder, &t.common_path) {
+        let path = match doc_file_path(&root, "raw", project_id, &t.common_path) {
             Ok(p) => p,
             Err(v) => return v,
         };
@@ -152,7 +152,7 @@ fn write_doc(source: &str, payload: &Value, source_basename: Option<&str>) -> Va
     }
     let mut digest_rel: Option<String> = None;
     if let Some(digest_md) = digest_body.as_deref().filter(|_| want_digest) {
-        match write_digest_file(&root, folder, &meta.common_path, digest_md, &mut written) {
+        match write_digest_file(&root, project_id, &meta.common_path, digest_md, &mut written) {
             Ok(rel) => digest_rel = Some(rel),
             Err(v) => {
                 rollback_written(&written);
