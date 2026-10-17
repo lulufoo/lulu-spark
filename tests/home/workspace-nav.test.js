@@ -102,6 +102,8 @@ describe('Home workspace nav commands', () => {
 
 describe('HomeWorkspaceNav', () => {
   const ROW_H = 32;
+  const GAP_H = 8;
+  const GAPS = rows.length - 1;
   let listHeight;
   let observers;
   let hosts;
@@ -157,8 +159,9 @@ describe('HomeWorkspaceNav', () => {
     return host;
   }
 
+  /** A list tall enough for `rowCount` whole rows plus the gaps between the workspaces. */
   function resizeTo(rowCount) {
-    listHeight = rowCount * ROW_H;
+    listHeight = rowCount * ROW_H + GAPS * GAP_H;
     act(() => observers.forEach((o) => o.callback([])));
   }
 
@@ -218,6 +221,27 @@ describe('HomeWorkspaceNav', () => {
     expect(host.querySelectorAll('.home-desktop-shortcut')).toHaveLength(3);
     expect(host.querySelector('.home-nav-project')).toBeNull();
     expect(host.querySelector('.home-nav-hidden-count')).toBeNull();
+  });
+
+  it('counts the gaps between workspaces: one pixel short of rows + gaps cuts a row', () => {
+    // Needs are 3 + 5 + 1 = 9 rows; with 2 gaps of 8px the exact height shows everything.
+    const host = render();
+    resizeTo(9);
+    expect(host.querySelector('.home-nav-hidden-count')).toBeNull();
+    expect(projectsOf(host, 'knowledge')).toEqual(['a', 'b', 'c', 'd']);
+    listHeight -= 1;
+    act(() => observers.forEach((o) => o.callback([])));
+    expect(projectsOf(host, 'knowledge')).toHaveLength(3);
+    expect(host.querySelector('[data-home-entry="knowledge"] .home-nav-hidden-count').dataset.homeHiddenCount).toBe('1');
+  });
+
+  it('puts an 8px gap above every workspace but the first, and none inside a workspace', () => {
+    const css = readFileSync(join(repoRoot, 'frontend/app.css'), 'utf8');
+    expect(css).toMatch(/\.home-chat-sidebar \{[\s\S]*?--home-nav-group-gap: 8px;/);
+    expect(css).toMatch(/\.home-nav-workspace \+ \.home-nav-workspace \{[^}]*margin-top: var\(--home-nav-group-gap\);/);
+    expect(css).not.toMatch(/(?<!\+ )\.home-nav-workspace \{[^}]*margin/);
+    expect(css).not.toMatch(/\.home-chat-nav-notes \{[^}]*margin/);
+    expect(css).not.toMatch(/\.home-nav-project \{[^}]*margin/);
   });
 
   it('never renders more rows than were measured', () => {

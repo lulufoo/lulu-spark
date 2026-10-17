@@ -127,7 +127,8 @@ describe('HomeWorkspaceNav icons', () => {
   });
 
   it('icons do not change which rows are shown, and the … badge carries no icon', () => {
-    listHeight = 7 * 32;
+    // 7 whole rows plus the two 8px gaps between the three workspaces.
+    listHeight = 7 * 32 + 2 * 8;
     const host = render(rows(), {
       default: [
         { folder: 'inbox', title: 'Inbox', icon: ICON_P },
