@@ -43,7 +43,7 @@ export {
   updateHidePattern,
   updateProject,
 } from './api/workspaces.ts';
-export type { HidePatternRow, ViewMode } from './api/workspaces.ts';
+export type { HidePatternRow, ViewMode, ViewerProjectState, ViewerState } from './api/workspaces.ts';
 
 export {
   createNote,

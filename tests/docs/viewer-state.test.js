@@ -8,12 +8,12 @@ let hold = null;
 vi.mock('../../frontend/src/host/api.ts', () => ({
   fetchViewerState: async (ws) => {
     if (hold) await hold;
-    return { id: remembered[ws] ?? '' };
+    return { version: 2, project: 'inbox', projects: { inbox: { node: '', doc: remembered[ws] ?? '', date: '' } } };
   },
-  saveViewerState: async (ws, id) => {
-    saved.push([ws, id]);
-    remembered[ws] = id;
-    return { id };
+  saveViewerState: async (ws, patch) => {
+    saved.push([ws, patch.project, patch.doc]);
+    remembered[ws] = patch.doc;
+    return {};
   },
 }));
 
@@ -29,6 +29,7 @@ function setup({ view = 'directory', hash = '#/spark', ws = 'default' } = {}) {
     { id: 'default', name: 'Default', view_mode: view, is_default: true },
     { id: 'ws2', name: 'Wiki', view_mode: view, is_default: false },
   ];
+  state.ui.activeTopic = 'inbox';
   state.index.data = { d1: { id: 'd1', _id: 'd1' } };
   window.location.hash = hash;
 }
@@ -49,7 +50,7 @@ describe('Open-document memory', () => {
     state.workspaces.current = 'ws2';
     viewerState.forgetOpenDoc();
     await Promise.resolve();
-    expect(saved).toEqual([['default', 'd1'], ['ws2', '']]);
+    expect(saved).toEqual([['default', 'inbox', 'd1'], ['ws2', 'inbox', '']]);
   });
 
   it('reopens the remembered document on the list page of a directory workspace', async () => {
@@ -74,7 +75,7 @@ describe('Open-document memory', () => {
     remembered.default = 'gone';
     await viewerState.restoreOpenDoc();
     expect(opened).toEqual([]);
-    expect(saved).toEqual([['default', '']]);
+    expect(saved).toEqual([['default', 'inbox', '']]);
   });
 
   it('does not open anything when the workspace changed while the cache was read', async () => {

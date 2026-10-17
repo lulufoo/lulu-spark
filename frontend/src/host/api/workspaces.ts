@@ -111,11 +111,24 @@ export async function removeHidePattern(workspace: string, id: string) {
   return writePost('/api/hide-pattern-remove', { workspace, id });
 }
 
-/** The document a workspace's page had open (`{ id }`, empty when none). */
+/** What one project had selected: directory node + document (directory view) or day (timeline). */
+export type ViewerProjectState = { node: string; doc: string; date: string };
+
+/** The selection a workspace's page remembers, per project; `project` empty = All. */
+export type ViewerState = { version: number; project: string; projects: Record<string, ViewerProjectState> };
+
+/** What a workspace's page remembers; nothing remembered reads as empty. */
 export async function fetchViewerState(workspace: string) {
   return readGet(`/api/viewer-state?workspace=${encodeURIComponent(workspace)}&_=${Date.now()}`);
 }
 
-export async function saveViewerState(workspace: string, id: string) {
-  return writePost('/api/viewer-state', { workspace, id });
+/**
+ * Record the last selected `project` ('' = All) and update that project's entry: a field left
+ * out is kept, `''` clears it.
+ */
+export async function saveViewerState(
+  workspace: string,
+  patch: { project: string; node?: string; doc?: string; date?: string },
+) {
+  return writePost('/api/viewer-state', { workspace, ...patch });
 }

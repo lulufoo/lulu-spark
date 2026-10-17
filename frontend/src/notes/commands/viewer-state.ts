@@ -6,7 +6,7 @@ import { isDirectoryView } from './workspace.ts';
 /** Best-effort: a failed cache write must never get in the way of reading. */
 async function save(workspace: string, id: string) {
   try {
-    await api.saveViewerState(workspace, id);
+    await api.saveViewerState(workspace, { project: state.ui.activeTopic ?? '', doc: id });
   } catch {
     /* ignore */
   }
@@ -14,8 +14,9 @@ async function save(workspace: string, id: string) {
 
 async function load(workspace: string): Promise<string> {
   try {
-    const rec = (await api.fetchViewerState(workspace)) as { id?: unknown } | null;
-    return typeof rec?.id === 'string' ? rec.id.trim() : '';
+    const rec = (await api.fetchViewerState(workspace)) as Partial<api.ViewerState> | null;
+    const doc = rec?.projects?.[rec.project ?? '']?.doc;
+    return typeof doc === 'string' ? doc.trim() : '';
   } catch {
     return '';
   }

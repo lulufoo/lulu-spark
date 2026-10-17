@@ -1,8 +1,16 @@
-//! The document each workspace's page had open:
+//! What each workspace's page had selected, per Project:
 //! `{cache_dir}/workspace-viewer-state/{workspace_id}.json`.
 //!
-//! File missing or corrupt → empty `{ id }`, no overwrite. A missing file is not seeded.
+//! ```json
+//! { "version": 2, "project": "<last project folder, empty = All>",
+//!   "projects": { "<folder>": { "node": "<dir node key>", "doc": "<doc id>", "date": "<day>" } } }
+//! ```
+//!
+//! The directory view records `node` + `doc`, the timeline only `date`. A project without an
+//! entry has no record. File missing, corrupt or of the old `{ id }` shape → empty, no overwrite;
+//! a missing file is not seeded.
 
+use std::collections::BTreeMap;
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Mutex;
@@ -14,20 +22,43 @@ use crate::config::paths;
 use crate::repositories::atomic_json;
 use crate::services::spark_data::validate_workspace_id;
 
-use super::resolve::{internal, open_data, resolve_workspace, text_field};
+use super::resolve::{bad_request, internal, open_data, resolve_workspace, text_field};
 
 static WRITE_LOCK: Mutex<()> = Mutex::new(());
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-struct ViewerStateFile {
-    #[serde(default = "default_version")]
-    version: u32,
+const VERSION: u32 = 2;
+
+/// What one project had selected; an empty field means nothing was recorded for it.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+struct ProjectState {
     #[serde(default)]
-    id: String,
+    node: String,
+    #[serde(default)]
+    doc: String,
+    #[serde(default)]
+    date: String,
 }
 
-fn default_version() -> u32 {
-    1
+impl ProjectState {
+    fn is_empty(&self) -> bool {
+        self.node.is_empty() && self.doc.is_empty() && self.date.is_empty()
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct ViewerStateFile {
+    #[serde(default)]
+    version: u32,
+    #[serde(default)]
+    project: String,
+    #[serde(default)]
+    projects: BTreeMap<String, ProjectState>,
+}
+
+impl Default for ViewerStateFile {
+    fn default() -> Self {
+        Self { version: VERSION, project: String::new(), projects: BTreeMap::new() }
+    }
 }
 
 fn file_path(workspace_id: &str) -> Result<PathBuf, String> {
@@ -43,11 +74,25 @@ fn load_unlocked(workspace_id: &str) -> ViewerStateFile {
         return ViewerStateFile::default();
     };
     match serde_json::from_str::<ViewerStateFile>(&text) {
-        Ok(data) => ViewerStateFile {
-            version: 1,
-            id: data.id.trim().to_string(),
+        Ok(data) if data.version == VERSION => ViewerStateFile {
+            version: VERSION,
+            project: data.project.trim().to_string(),
+            projects: data
+                .projects
+                .into_iter()
+                .filter(|(folder, _)| !folder.trim().is_empty())
+                .map(|(folder, st)| {
+                    let st = ProjectState {
+                        node: st.node.trim().to_string(),
+                        doc: st.doc.trim().to_string(),
+                        date: st.date.trim().to_string(),
+                    };
+                    (folder, st)
+                })
+                .filter(|(_, st)| !st.is_empty())
+                .collect(),
         },
-        Err(_) => ViewerStateFile::default(),
+        _ => ViewerStateFile::default(),
     }
 }
 
@@ -56,31 +101,70 @@ fn workspace_id_of(payload: &Value) -> Result<String, Value> {
     resolve_workspace(&conn, text_field(payload, "workspace")).map(|ws| ws.id)
 }
 
-/// `{ workspace? }` → `{ id }`; `id` is empty when nothing is remembered.
+/// A field of the patch: `None` = not given (leave alone), `Some("")` = clear.
+fn patch_field(payload: &Value, key: &str) -> Result<Option<String>, Value> {
+    match payload.get(key) {
+        None | Some(Value::Null) => Ok(None),
+        Some(Value::String(s)) => Ok(Some(s.trim().to_string())),
+        Some(_) => Err(bad_request(format!("{key} must be a string"))),
+    }
+}
+
+fn to_value(data: &ViewerStateFile) -> Value {
+    json!({ "version": data.version, "project": data.project, "projects": data.projects })
+}
+
+/// `{ workspace? }` → `{ version, project, projects }`; empty when nothing is remembered.
 pub fn get_viewer_state(payload: &Value) -> Value {
     let workspace = match workspace_id_of(payload) {
         Ok(id) => id,
         Err(v) => return v,
     };
     let _guard = WRITE_LOCK.lock().ok();
-    json!({ "id": load_unlocked(&workspace).id })
+    to_value(&load_unlocked(&workspace))
 }
 
-/// `{ workspace?, id }` → `{ id }`. An empty `id` forgets the document.
+/// `{ workspace?, project, node?, doc?, date? }` → the whole state. `project` (empty = All) is
+/// the last selected project; the other fields update that project's entry: left out = kept,
+/// empty = cleared.
 pub fn set_viewer_state(payload: &Value) -> Value {
     let workspace = match workspace_id_of(payload) {
         Ok(id) => id,
         Err(v) => return v,
     };
-    let id = text_field(payload, "id").unwrap_or("").to_string();
+    let project = match patch_field(payload, "project") {
+        Ok(Some(project)) => project,
+        Ok(None) => return bad_request("Missing project"),
+        Err(v) => return v,
+    };
+    let mut patch = Vec::new();
+    for key in ["node", "doc", "date"] {
+        match patch_field(payload, key) {
+            Ok(value) => patch.push(value),
+            Err(v) => return v,
+        }
+    }
     let _guard = WRITE_LOCK.lock().ok();
     let path = match file_path(&workspace) {
         Ok(path) => path,
         Err(e) => return internal(e),
     };
-    let value = json!({ "version": 1, "id": id });
-    match atomic_json::write_json(&path, &value) {
-        Ok(()) => json!({ "id": id }),
+    let mut data = load_unlocked(&workspace);
+    if !project.is_empty() {
+        let mut entry = data.projects.remove(&project).unwrap_or_default();
+        let mut patch = patch.into_iter();
+        for field in [&mut entry.node, &mut entry.doc, &mut entry.date] {
+            if let Some(Some(value)) = patch.next() {
+                *field = value;
+            }
+        }
+        if !entry.is_empty() {
+            data.projects.insert(project.clone(), entry);
+        }
+    }
+    data.project = project;
+    match atomic_json::write_json(&path, &to_value(&data)) {
+        Ok(()) => to_value(&data),
         Err(e) => internal(e),
     }
 }

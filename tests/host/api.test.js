@@ -288,12 +288,12 @@ test('hidden-files rules are read and written per workspace', async () => {
 })
 
 test('the remembered open document is read and written per workspace', async () => {
-  mockFetch({ id: 'abc' })
-  expect((await fetchViewerState('ws1')).id).toBe('abc')
+  mockFetch({ version: 2, project: 'p', projects: { p: { node: '', doc: 'abc', date: '' } } })
+  expect((await fetchViewerState('ws1')).projects.p.doc).toBe('abc')
   expect(fetch.mock.calls[0][0]).toMatch(new RegExp(`^${API_READ_PREFIX}/viewer-state\\?workspace=ws1&_=\\d+$`))
-  await saveViewerState('ws1', 'abc')
+  await saveViewerState('ws1', { project: 'p', doc: 'abc' })
   expect(fetch.mock.calls[1][0]).toBe(`${DEFAULT_DEV_BASE}/api/viewer-state`)
-  expect(JSON.parse(fetch.mock.calls[1][1].body)).toEqual({ workspace: 'ws1', id: 'abc' })
+  expect(JSON.parse(fetch.mock.calls[1][1].body)).toEqual({ workspace: 'ws1', project: 'p', doc: 'abc' })
 })
 
 test('fetchProjects calls /api/projects for one workspace', async () => {
