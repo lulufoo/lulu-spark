@@ -77,11 +77,11 @@ describe('readApi contract map', () => {
   it('resolveInvokeFromPath maps doc-highlights to get_doc_highlights', () => {
     expect(
       resolveInvokeFromPath(
-        '/api/doc-highlights?key=notes%3A20260827%2Fwhy-cache.md',
+        '/api/doc-highlights?key=doc%3A20260827%2Fwhy-cache.md',
       ),
     ).toEqual({
       cmd: 'get_doc_highlights',
-      args: { key: 'notes:20260827/why-cache.md' },
+      args: { key: 'doc:20260827/why-cache.md' },
     });
   });
 

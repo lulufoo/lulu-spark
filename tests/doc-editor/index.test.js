@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { readFrontendJs, readNotesViewerSource } from '../helpers/read-frontend-js.js';
 import * as identity from '../../frontend/src/doc-editor/identity.ts';
 import * as docEditor from '../../frontend/src/doc-editor/index.ts';
-import { notesDocKey } from '../../frontend/src/doc-editor/identity.ts';
+import { docKey } from '../../frontend/src/doc-editor/identity.ts';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 
@@ -15,8 +15,9 @@ function read(rel) {
 }
 
 describe('doc-editor identity and comment cut', () => {
-  it('builds the prefixed notes key only', () => {
-    expect(notesDocKey('20260827/why-cache.md')).toBe('notes:20260827/why-cache.md');
+  it('builds the prefixed doc key only', () => {
+    expect(docKey('20260827/why-cache.md')).toBe('doc:20260827/why-cache.md');
+    expect(identity).not.toHaveProperty('notesDocKey');
     expect(identity).not.toHaveProperty('knowledgeDocKey');
     expect(identity).not.toHaveProperty('todosDocKey');
     expect(docEditor).not.toHaveProperty('todosDocKey');
@@ -26,7 +27,7 @@ describe('doc-editor identity and comment cut', () => {
   it('does not ship todos identity or todo bind', () => {
     expect(existsSync(join(repoRoot, 'frontend/src/doc-editor/todo-bind.ts'))).toBe(false);
     const identitySrc = read('frontend/src/doc-editor/identity.ts');
-    expect(identitySrc).not.toMatch(/todos:/);
+    expect(identitySrc).not.toMatch(/todos:|notes:|knowledge:/);
     expect(identitySrc).not.toMatch(/todosDocKey/);
     const indexSrc = read('frontend/src/doc-editor/index.ts');
     expect(indexSrc).not.toMatch(/todosDocKey|todo-bind|bindTodoDocHighlights/);

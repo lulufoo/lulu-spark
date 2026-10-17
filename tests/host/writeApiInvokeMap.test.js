@@ -129,14 +129,14 @@ describe('writeApiInvokeMap', () => {
   it('resolveWriteInvoke maps doc-highlights to update_doc_highlights', () => {
     expect(
       resolveWriteInvoke('/api/doc-highlights', {
-        key: 'notes:20260827/why-cache.md',
+        key: 'doc:20260827/why-cache.md',
         highlight: { text: 'cache', occurrence: 0 },
         ts: '20260827T154000',
       }),
     ).toEqual({
       cmd: 'update_doc_highlights',
       args: {
-        key: 'notes:20260827/why-cache.md',
+        key: 'doc:20260827/why-cache.md',
         highlight: { text: 'cache', occurrence: 0 },
         ts: '20260827T154000',
       },
@@ -145,7 +145,7 @@ describe('writeApiInvokeMap', () => {
 
   it('doc-highlights invoke does not route to Annotation write commands', () => {
     const resolved = resolveWriteInvoke('/api/doc-highlights', {
-      key: 'todos:task_1',
+      key: 'doc:task_1',
       highlight: { id: 'h1' },
       ts: 't',
     });

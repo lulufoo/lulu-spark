@@ -1,4 +1,4 @@
-export { notesDocKey } from './identity.ts';
+export { docKey } from './identity.ts';
 export { renderDocMarkdown, setDocEditMode } from './view.tsx';
 export {
   applyCachedHighlights,
