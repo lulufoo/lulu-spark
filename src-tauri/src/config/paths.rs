@@ -55,6 +55,11 @@ pub fn read_later_path() -> Result<PathBuf, PathsError> {
     Ok(runtime_data_dir()?.join("read_later").join("read_later.json"))
 }
 
+/// Document classification list: `{runtime_data_dir}/doc_categories.json`.
+pub fn doc_categories_path() -> Result<PathBuf, PathsError> {
+    Ok(runtime_data_dir()?.join("doc_categories.json"))
+}
+
 /// Runtime unread ledger: `{runtime_cache_dir}/message_center/message_center.json`.
 /// Does not follow `cache_dir` or `spark_root` in config.
 pub fn message_center_path() -> Result<PathBuf, PathsError> {

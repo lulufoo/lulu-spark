@@ -86,6 +86,14 @@ fn repo_root_matches_cargo_manifest_parent() {
 }
 
 #[test]
+fn doc_categories_path_under_runtime_data_dir() {
+    let sandbox = TestSandbox::new();
+    let path = doc_categories_path().expect("doc_categories");
+    assert_eq!(path, sandbox.data_dir().join("doc_categories.json"));
+    sandbox.assert_not_prod_path(&path).expect("sandbox path");
+}
+
+#[test]
 fn read_later_path_under_runtime_data_dir() {
     let sandbox = TestSandbox::new();
     let path = read_later_path().expect("read_later");
