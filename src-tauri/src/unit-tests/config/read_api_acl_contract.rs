@@ -34,35 +34,25 @@ fn parse_acl_manifest_allow(text: &str) -> BTreeSet<String> {
 
 /// 与 `frontend/src/host/readApiInvokeMap.ts` 中 `cmd` 字段保持同步。
 const INVOKE_MAP_COMMANDS: &[&str] = &[
-    "get_notes_index",
-    "get_notes_file",
+    "get_docs_index",
+    "get_doc_file",
     "read_abs_file",
-    "get_notes_asset",
-    "list_notes_categories",
-    "get_topics",
-    "search_knowledge",
+    "get_doc_asset",
+    "list_workspaces",
+    "list_projects",
+    "list_hide_patterns",
+    "get_viewer_state",
     "search_spark",
     "get_annotations",
     "get_annotation",
     "get_draft",
-    "get_note_draft",
+    "get_doc_draft",
     "get_config",
-    "kb_read",
-    "get_kb_asset",
-    "kb_list",
-    "kb_annotation",
-    "get_kb_hide_patterns",
-    "get_kb_viewer_state",
     "fetch_link_title",
     "get_tags_registry",
     "get_read_later",
     "get_todo_tasks",
     "get_doc_highlights",
-];
-
-const SEDIMENT_KB_READ_COMMANDS: &[&str] = &[
-    "get_sediment_kb_categories",
-    "get_sediment_kb_repos",
 ];
 
 const BIND_READ_COMMANDS: &[&str] = &["read_bind_session"];
@@ -75,7 +65,7 @@ const MESSAGE_CENTER_READ_COMMANDS: &[&str] = &["get_message_channel_unread"];
 
 const PACKAGE_SNAPSHOT_READ_COMMANDS: &[&str] = &["get_package_snapshot"];
 
-const NOTE_OPEN_READ_COMMANDS: &[&str] = &["resolve_note_for_open", "resolve_knowledge_for_open"];
+const NOTE_OPEN_READ_COMMANDS: &[&str] = &["resolve_doc_for_open"];
 
 const DEFAULT_CAPABILITY_PERMISSIONS: &[&str] = &[
     "core:default",
@@ -164,33 +154,6 @@ fn bind_read_commands_are_acl_allowed() {
 }
 
 #[test]
-fn sediment_kb_read_commands_are_acl_allowed() {
-    let root = manifest_dir();
-    let toml = fs::read_to_string(root.join("permissions/read-api.toml")).expect("toml");
-    let allow = parse_read_api_toml_allow(&toml);
-    let missing: Vec<_> = SEDIMENT_KB_READ_COMMANDS
-        .iter()
-        .filter(|cmd| !allow.contains(**cmd))
-        .copied()
-        .collect();
-    assert!(
-        missing.is_empty(),
-        "commands missing from read-api.toml ACL: {missing:?}"
-    );
-}
-
-#[test]
-fn kb_doc_count_command_is_acl_allowed() {
-    let root = manifest_dir();
-    let toml = fs::read_to_string(root.join("permissions/read-api.toml")).expect("toml");
-    let allow = parse_read_api_toml_allow(&toml);
-    assert!(
-        allow.contains("kb_doc_count"),
-        "kb_doc_count must be in read-api.toml ACL"
-    );
-}
-
-#[test]
 fn settings_github_infer_commands_are_not_acl_allowed() {
     let root = manifest_dir();
     let toml = fs::read_to_string(root.join("permissions/read-api.toml")).expect("toml");
@@ -217,7 +180,7 @@ fn package_snapshot_read_command_is_acl_allowed() {
 }
 
 #[test]
-fn note_open_read_command_is_acl_allowed() {
+fn doc_open_read_command_is_acl_allowed() {
     let root = manifest_dir();
     let toml = fs::read_to_string(root.join("permissions/read-api.toml")).expect("toml");
     let allow = parse_read_api_toml_allow(&toml);

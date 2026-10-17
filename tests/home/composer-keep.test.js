@@ -15,7 +15,7 @@ import { stopHomeHub, resetHomeCommands } from '../../frontend/src/home/commands
 import { composerDisabled, composerValue, setComposerValue } from '../helpers/composer.js';
 
 const NOTE_ID = 'f6692dc5d5242eec5206b6400e704bd6';
-const NOTE = `[Agent Mock](note:${NOTE_ID})`;
+const NOTE = `[Agent Mock](doc:${NOTE_ID})`;
 
 describe('composer keep (store)', () => {
   beforeEach(resetComposerKeep);
@@ -120,8 +120,8 @@ describe('composer text survives leaving and returning to home', () => {
 
   it('lets a new prefill replace what was kept', async () => {
     saveComposerText('old draft');
-    requestComposerDraft('[New](note:' + NOTE_ID + ') ');
+    requestComposerDraft('[New](doc:' + NOTE_ID + ') ');
     const input = await mountHome();
-    await vi.waitFor(() => expect(composerValue(input)).toBe(`[New](note:${NOTE_ID}) `));
+    await vi.waitFor(() => expect(composerValue(input)).toBe(`[New](doc:${NOTE_ID}) `));
   });
 });

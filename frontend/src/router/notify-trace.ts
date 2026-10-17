@@ -35,12 +35,12 @@ export function lastNotifyTrace(): string | null {
 
 export function businessFromSparkHost(
   scheme: string,
-): 'notes' | 'read_later' | 'login' | 'app' {
+): 'docs' | 'read_later' | 'login' | 'app' {
   if (!extractPassIdFromScheme(scheme)) return 'app';
   try {
     const url = new URL(scheme);
     if (url.protocol !== 'spark:') return 'app';
-    if (url.hostname === 'notes') return 'notes';
+    if (url.hostname === 'docs') return 'docs';
     if (url.hostname === 'read-later') return 'read_later';
     if (url.hostname === 'auth-login') return 'login';
     return 'app';

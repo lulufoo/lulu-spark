@@ -16,7 +16,7 @@ fn read_abs_file_returns_content() {
 #[test]
 fn write_abs_file_overwrites() {
     let sandbox = TestSandbox::new();
-    let file = sandbox.knowledge_root().join("demo").join("doc.md");
+    let file = sandbox.data_dir().join("demo").join("doc.md");
     fs::create_dir_all(file.parent().unwrap()).expect("mkdir");
     fs::write(&file, "old").expect("write");
     let v = write_abs_file(&file.to_string_lossy(), "new");

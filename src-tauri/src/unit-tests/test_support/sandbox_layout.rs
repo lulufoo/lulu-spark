@@ -22,12 +22,11 @@ fn prod_config_mtime() -> Option<SystemTime> {
 }
 
 #[test]
-fn test_sandbox_new_creates_isolated_three_roots() {
+fn test_sandbox_new_creates_isolated_roots() {
     let sandbox = TestSandbox::new();
     let cfg = settings::load().expect("load");
     let base = sandbox.sandbox_dir().join("cache");
     assert!(cfg.spark_root.starts_with(&base));
-    assert!(cfg.knowledge_root.starts_with(&base));
     assert!(cfg.cache_dir.starts_with(&base));
     assert_ne!(cfg.cache_dir, default_cache_dir());
     assert_eq!(
@@ -47,7 +46,7 @@ fn write_test_config_persists_to_sandbox_config_toml() {
     let path = settings::config_file_path().expect("cfg path");
     let text = fs::read_to_string(&path).expect("read config");
     assert!(text.contains("spark_root"));
-    assert!(text.contains("knowledge_root"));
+    assert!(!text.contains("knowledge_root"));
     assert!(text.contains("cache_dir"));
     assert!(path.ends_with("config.toml"));
     let _ = sandbox;
@@ -61,7 +60,6 @@ fn test_config_writer_uses_explicit_target_path() {
     settings::write_test_config_with_cache(
         &expected,
         sandbox.config_dir(),
-        Some(sandbox.config_dir()),
         Some(&sandbox.config_dir().join("cache")),
         http_port,
         mcp_port,
@@ -120,16 +118,12 @@ fn lib_tests_do_not_touch_prod_config_mtime() {
 }
 
 #[test]
-fn test_sandbox_records_prod_three_roots_at_new() {
+fn test_sandbox_records_prod_roots_at_new() {
     let sandbox = TestSandbox::new();
     // Prod roots are the fake prod under the sandbox HOME, not the machine prod.
     assert_eq!(
         sandbox.prod_spark_root(),
         sandbox.config_dir().join("prod-wb")
-    );
-    assert_eq!(
-        sandbox.prod_knowledge_root(),
-        sandbox.config_dir().join("prod-knowledge-clones")
     );
     assert_eq!(sandbox.prod_cache_dir(), sandbox.config_dir().join("prod-cache"));
     let _ = load_prod_settings();
@@ -144,10 +138,6 @@ fn test_sandbox_write_paths_not_equal_prod_roots() {
         sandbox.prod_spark_root()
     );
     assert_ne!(cfg.cache_dir, sandbox.prod_cache_dir());
-    assert_ne!(
-        cfg.knowledge_root,
-        sandbox.prod_knowledge_root()
-    );
 }
 
 #[test]
@@ -194,14 +184,12 @@ fn sandbox_roots_all_start_with_sandbox_cache() {
     assert_eq!(sandbox.cache_dir(), cache);
     for path in [
         sandbox.spark_root(),
-        sandbox.knowledge_root(),
         sandbox.cache_dir(),
         sandbox.data_dir(),
     ] {
         assert!(path.starts_with(&cache), "{} outside {}", path.display(), cache.display());
     }
     assert_eq!(sandbox.data_dir(), cache.join("data"));
-    assert_eq!(sandbox.knowledge_root(), cache.join("data").join("knowledge"));
 }
 
 #[test]
@@ -210,7 +198,6 @@ fn fake_prod_roots_stay_outside_sandbox_dir() {
     let dir = sandbox.sandbox_dir();
     for prod in [
         sandbox.prod_spark_root(),
-        sandbox.prod_knowledge_root(),
         sandbox.prod_cache_dir(),
     ] {
         assert!(!prod.starts_with(&dir));

@@ -77,7 +77,6 @@ function mountSettingsDom() {
 function baseConfig(overrides = {}) {
   return {
     spark_root: '',
-    knowledge_root: '',
     assistant_engine: 'host',
     mcp_port: MCP_PORT,
     llm: {
@@ -148,11 +147,11 @@ const consoleSpies = [];
 let writeText;
 
 describe('Settings MCP panel markup', () => {
-  it('adds an independent MCP nav item and panel beside Notes / Knowledge / Agent', () => {
+  it('adds an independent MCP nav item and panel beside Notes / Agent', () => {
     const nav = indexHtml.match(/<nav id="settings-nav">([\s\S]*?)<\/nav>/)?.[1] ?? '';
     expect(nav).not.toMatch(/data-panel="spark"/);
     expect(nav).toMatch(/data-panel="notes"/);
-    expect(nav).toMatch(/data-panel="knowledge"/);
+    expect(nav).not.toMatch(/data-panel="knowledge"/);
     expect(nav).toMatch(/data-panel="llm"/);
     expect(nav).not.toMatch(/data-panel="github"/);
     expect(nav).toMatch(/data-panel="mcp"[^>]*>\s*MCP/);
@@ -176,7 +175,7 @@ describe('Settings MCP panel markup', () => {
     expect(indexHtml).toMatch(/id="settings-panel-mcp"/);
     expect(indexHtml).not.toMatch(/id="settings-panel-spark"/);
     expect(indexHtml).toMatch(/id="settings-panel-notes"/);
-    expect(indexHtml).toMatch(/id="settings-panel-knowledge"/);
+    expect(indexHtml).not.toMatch(/id="settings-panel-knowledge"/);
     expect(indexHtml).toMatch(/id="settings-panel-llm"/);
     expect(indexHtml).not.toMatch(/id="settings-panel-github"/);
     expect(indexHtml).toMatch(/value="cursor">Cursor</);

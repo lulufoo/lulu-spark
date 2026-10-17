@@ -2,164 +2,10 @@ use serde_json::Value;
 use tauri::AppHandle;
 
 use crate::config::paths;
-use crate::services::sediment_kb::{self, SedimentKbError};
-use crate::services::{annotation, knowledge, doc_highlights, entry_write, notes, tag_write};
+use crate::services::{annotation, docs, doc_highlights, entry_write, tag_write};
 
 fn repo_root() -> Result<std::path::PathBuf, String> {
     paths::repo_root().map_err(|e| format!("{e:?}"))
-}
-
-pub fn map_sediment_kb_error(err: SedimentKbError) -> Value {
-    match err {
-        SedimentKbError::InvalidFormat => serde_json::json!({
-            "error": "Invalid directory name",
-            "code": "invalid_format",
-            "_status": 400,
-        }),
-        SedimentKbError::NotAccessible(msg) => serde_json::json!({
-            "error": msg,
-            "code": "not_accessible",
-            "_status": 403,
-        }),
-        SedimentKbError::Duplicate => serde_json::json!({
-            "error": "That directory is already listed",
-            "code": "duplicate",
-            "_status": 409,
-        }),
-        SedimentKbError::InvalidName => serde_json::json!({
-            "error": "invalid category name",
-            "code": "invalid_name",
-            "_status": 400,
-        }),
-        SedimentKbError::ProtectedCategory => serde_json::json!({
-            "error": "protected category",
-            "code": "protected_category",
-            "_status": 400,
-        }),
-        SedimentKbError::CategoryNotFound => serde_json::json!({
-            "error": "category not found",
-            "code": "category_not_found",
-            "_status": 404,
-        }),
-        SedimentKbError::RepoNotFound => serde_json::json!({
-            "error": "repo not found",
-            "code": "repo_not_found",
-            "_status": 404,
-        }),
-        SedimentKbError::Io(msg) => serde_json::json!({
-            "error": msg,
-            "code": "io_error",
-            "_status": 500,
-        }),
-    }
-}
-
-fn sediment_kb_ok() -> Value {
-    serde_json::json!({ "ok": true })
-}
-
-pub fn sediment_kb_add_repo_json(payload: Value) -> Result<Value, String> {
-    let name = payload
-        .get("name")
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| "missing name".to_string())?;
-    match sediment_kb::add_directory(name) {
-        Ok(()) => Ok(sediment_kb_ok()),
-        Err(e) => Ok(map_sediment_kb_error(e)),
-    }
-}
-
-pub fn sediment_kb_remove_repo_json(payload: Value) -> Result<Value, String> {
-    let full_name = payload
-        .get("full_name")
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| "missing full_name".to_string())?;
-    match sediment_kb::remove_repo(full_name) {
-        Ok(()) => Ok(sediment_kb_ok()),
-        Err(e) => Ok(map_sediment_kb_error(e)),
-    }
-}
-
-pub fn sediment_kb_update_repo_category_json(payload: Value) -> Result<Value, String> {
-    let full_name = payload
-        .get("full_name")
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| "missing full_name".to_string())?;
-    let category_id = payload
-        .get("category_id")
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| "missing category_id".to_string())?;
-    match sediment_kb::update_repo_category(full_name, category_id) {
-        Ok(()) => Ok(sediment_kb_ok()),
-        Err(e) => Ok(map_sediment_kb_error(e)),
-    }
-}
-
-pub fn sediment_kb_add_category_json(payload: Value) -> Result<Value, String> {
-    let name = payload
-        .get("name")
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| "missing name".to_string())?;
-    match sediment_kb::add_category(name) {
-        Ok(id) => Ok(serde_json::json!({ "ok": true, "id": id })),
-        Err(e) => Ok(map_sediment_kb_error(e)),
-    }
-}
-
-pub fn sediment_kb_rename_category_json(payload: Value) -> Result<Value, String> {
-    let id = payload
-        .get("id")
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| "missing id".to_string())?;
-    let name = payload
-        .get("name")
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| "missing name".to_string())?;
-    match sediment_kb::rename_category(id, name) {
-        Ok(()) => Ok(sediment_kb_ok()),
-        Err(e) => Ok(map_sediment_kb_error(e)),
-    }
-}
-
-pub fn sediment_kb_remove_category_json(payload: Value) -> Result<Value, String> {
-    let id = payload
-        .get("id")
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| "missing id".to_string())?;
-    match sediment_kb::remove_category(id) {
-        Ok(()) => Ok(sediment_kb_ok()),
-        Err(e) => Ok(map_sediment_kb_error(e)),
-    }
-}
-
-#[tauri::command]
-pub fn sediment_kb_add_repo(_app: AppHandle, payload: Value) -> Result<Value, String> {
-    sediment_kb_add_repo_json(payload)
-}
-
-#[tauri::command]
-pub fn sediment_kb_remove_repo(_app: AppHandle, payload: Value) -> Result<Value, String> {
-    sediment_kb_remove_repo_json(payload)
-}
-
-#[tauri::command]
-pub fn sediment_kb_update_repo_category(_app: AppHandle, payload: Value) -> Result<Value, String> {
-    sediment_kb_update_repo_category_json(payload)
-}
-
-#[tauri::command]
-pub fn sediment_kb_add_category(_app: AppHandle, payload: Value) -> Result<Value, String> {
-    sediment_kb_add_category_json(payload)
-}
-
-#[tauri::command]
-pub fn sediment_kb_rename_category(_app: AppHandle, payload: Value) -> Result<Value, String> {
-    sediment_kb_rename_category_json(payload)
-}
-
-#[tauri::command]
-pub fn sediment_kb_remove_category(_app: AppHandle, payload: Value) -> Result<Value, String> {
-    sediment_kb_remove_category_json(payload)
 }
 
 #[tauri::command]
@@ -271,51 +117,6 @@ pub fn write_abs_file(_app: AppHandle, path: String, content: String) -> Result<
 }
 
 #[tauri::command]
-pub fn kb_save(_app: AppHandle, id: String, content: String) -> Result<Value, String> {
-    Ok(knowledge::kb_save(id, content))
-}
-
-#[tauri::command]
-pub fn kb_rename(
-    _app: AppHandle,
-    repo: String,
-    path: String,
-    name: String,
-) -> Result<Value, String> {
-    Ok(knowledge::kb_rename(&repo_root()?, repo, path, name))
-}
-
-#[tauri::command]
-pub fn kb_update_comments(
-    _app: AppHandle,
-    id: String,
-    comment: Value,
-    ts: String,
-) -> Result<Value, String> {
-    Ok(knowledge::kb_update_comments(id, comment, ts))
-}
-
-#[tauri::command]
-pub fn kb_reorder_comments(_app: AppHandle, id: String, ids: Vec<String>) -> Result<Value, String> {
-    Ok(knowledge::kb_reorder_comments(id, ids))
-}
-
-#[tauri::command]
-pub fn kb_update_highlights(
-    _app: AppHandle,
-    id: String,
-    highlight: Value,
-    ts: String,
-) -> Result<Value, String> {
-    Ok(knowledge::kb_update_highlights(id, highlight, ts))
-}
-
-#[tauri::command]
-pub fn kb_update_links(_app: AppHandle, id: String, links: Value) -> Result<Value, String> {
-    Ok(knowledge::kb_update_links(id, links))
-}
-
-#[tauri::command]
 pub fn tag_attach(
     _app: AppHandle,
     id: String,
@@ -354,12 +155,12 @@ pub fn tag_update_value(
     Ok(tag_write::tag_update_value(&repo_root()?, &key, &value))
 }
 
-/// Thin Tauri/HTTP-parity wrapper around `notes::create_note`.
+/// Thin Tauri wrapper around the docs service: `workspace` + `project` in the payload locate
+/// the new document (default workspace, `inbox`).
 /// Business errors stay in the Value (`error` + `_status`); do not convert to Err.
 /// App jot-create may pass `{ body, source_type: "jot" }` (no `source_path`) → Host synthesis.
-/// MCP/HTTP path create uses `source_path` + `title`; `document` is rejected.
+/// Path create uses `source_path` + `title`; `document` is rejected.
 pub fn create_note_json(payload: Value) -> Result<Value, String> {
-    let root = repo_root()?;
     if payload.get("document").is_some() {
         return Ok(serde_json::json!({
             "error": "document is not supported; use source_path",
@@ -372,11 +173,9 @@ pub fn create_note_json(payload: Value) -> Result<Value, String> {
             .and_then(|v| v.as_str())
             .unwrap_or("");
         if source_type == "jot" {
-            return match notes::create_jot(
-                &root,
-                body,
-                &notes::JotCreateOpts::default(),
-            ) {
+            let workspace = payload.get("workspace").and_then(|v| v.as_str());
+            let project = payload.get("project").and_then(|v| v.as_str());
+            return match docs::create_jot(workspace, project, body, &docs::JotCreateOpts::default()) {
                 Ok(v) => Ok(v),
                 Err(msg) => {
                     let (status, error) = match msg.split_once(':') {
@@ -391,7 +190,11 @@ pub fn create_note_json(payload: Value) -> Result<Value, String> {
             };
         }
     }
-    Ok(notes::create_note(&root, &payload))
+    Ok(if payload.get("source_path").is_some() {
+        docs::create_doc(&payload)
+    } else {
+        docs::create_doc_content(&payload)
+    })
 }
 
 #[tauri::command]
@@ -407,10 +210,6 @@ pub fn mark_message_channel_read_json(channel: &str) -> Result<(), String> {
 pub fn mark_message_channel_read(_app: AppHandle, channel: String) -> Result<(), String> {
     mark_message_channel_read_json(&channel)
 }
-
-#[cfg(test)]
-#[path = "../unit-tests/commands/sediment_kb_write.rs"]
-mod sediment_kb_write_tests;
 
 #[cfg(test)]
 #[path = "../unit-tests/commands/create_note_write.rs"]

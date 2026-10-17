@@ -85,9 +85,9 @@ describe('paintFilePopupDoc', () => {
     await paintFilePopupDoc({
       editing: false,
       content: '# Hello',
-      identityKey: 'todos:task_alpha:att:notes.md',
+      identityKey: 'doc:inbox/notes.md',
     });
-    expect(api.fetchDocHighlights).toHaveBeenCalledWith('todos:task_alpha:att:notes.md');
+    expect(api.fetchDocHighlights).toHaveBeenCalledWith('doc:inbox/notes.md');
   });
 
   it('skips markdown paint while editing', async () => {

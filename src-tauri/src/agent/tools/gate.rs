@@ -52,7 +52,7 @@ pub fn prepare_outside_write(
         }
     }
     session
-        .register_staged(&canon.to_string_lossy(), None, None)
+        .register_staged(&canon.to_string_lossy(), None)
         .map_err(GateError::Denied)?;
     let _ = session::save_session(session);
     Ok(canon)

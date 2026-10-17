@@ -12,7 +12,10 @@ import {
   saveFile,
   updateComments, updateLinks, setImportance, setDone,
   deleteEntry,
-  fetchTopics, fetchNotesCategories, createNotesCategory, updateNotesCategory, deleteNotesCategory, moveToProject,
+  fetchWorkspaces, createWorkspace, renameWorkspace, setWorkspaceViewMode, setWorkspaceIcon, disableWorkspace, enableWorkspace, fetchDisabledWorkspaces, fetchDisabledProjects,
+  fetchProjects, createProject, updateProject, disableProject, enableProject, moveToProject,
+  reorderWorkspaces, reorderProjects,
+  fetchHidePatterns, addHidePattern, updateHidePattern, removeHidePattern, fetchViewerState, saveViewerState,
 } from '../../frontend/src/host/api.ts'
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..')
@@ -46,19 +49,19 @@ test('api.js 无裸 fetch（读路径均经 readGet / writePost）', () => {
     'frontend/src/host/api.ts',
     'frontend/src/host/api/transport.ts',
     'frontend/src/host/api/spark.ts',
-    'frontend/src/host/api/knowledge.ts',
+    'frontend/src/host/api/search.ts',
   ].map((rel) => readFileSync(join(repoRoot, rel), 'utf8')).join('\n')
   expect([...src.matchAll(/await fetch\(/g)]).toHaveLength(0)
 })
 
 // ── GET endpoints ──────────────────────────────────────────────────────────
 
-test('fetchIndex 调用 /api/notes-index 并返回 JSON', async () => {
+test('fetchIndex 调用 /api/docs-index 并返回 JSON', async () => {
   mockFetch({ entries: [] })
   const result = await fetchIndex()
   expect(fetch).toHaveBeenCalledOnce()
   expect(fetch.mock.calls[0][0]).toMatch(
-    new RegExp(`^${API_READ_PREFIX}/notes-index`)
+    new RegExp(`^${API_READ_PREFIX}/docs-index`)
   )
   expect(result).toEqual({ entries: [] })
 })
@@ -114,12 +117,12 @@ test('setConfig 发送 POST 到 /api/config', async () => {
   expect(body.llm_api_key).toEqual({ engine: 'host', value: 'sk-test' })
 })
 
-test('fetchFileContent 调用 /api/notes-file 并返回 content', async () => {
+test('fetchFileContent 调用 /api/doc-file 并返回 content', async () => {
   mockFetch({ content: '# Hello' })
   const text = await fetchFileContent('raw', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')
   expect(fetch.mock.calls[0][0]).toMatch(
     new RegExp(
-      `^${API_READ_PREFIX}/notes-file\\?layer=raw&id=${encodeURIComponent('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')}`
+      `^${API_READ_PREFIX}/doc-file\\?layer=raw&id=${encodeURIComponent('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')}`
     )
   )
   expect(text).toBe('# Hello')
@@ -197,32 +200,6 @@ test('deleteEntry 发送 id', async () => {
   expect(body.id).toBe('abc123')
 })
 
-// ── fetchTopics ────────────────────────────────────────────────────────────
-
-test('fetchTopics 调用 /api/topics?_=<timestamp> 并返回数据', async () => {
-  mockFetch({ topics: [{ dir: 'ai', description: 'AI notes' }] })
-  const result = await fetchTopics()
-  expect(fetch.mock.calls[0][0]).toMatch(new RegExp(`^${API_READ_PREFIX}/topics\\?_=\\d+$`))
-  expect(result.topics).toHaveLength(1)
-  expect(result.topics[0].dir).toBe('ai')
-})
-
-test('fetchTopics API 错误时抛出服务器返回的错误信息', async () => {
-  mockFetch({ error: 'sediment-kb repos unavailable' }, false, 404)
-  await expect(fetchTopics()).rejects.toThrow('sediment-kb repos unavailable')
-})
-
-// 回归测试：复现 BUG —— 服务器返回 HTML 404 时 res.json() 在 res.ok 检查前抛出
-// SyntaxError，导致用户看到 "Unexpected token '<'..." 而非可读错误。
-// 修复后此测试应通过；修复前会 FAIL。
-test('fetchTopics 服务器返回 HTML 时抛出可读错误而非 JSON 解析异常', async () => {
-  mockFetchHtml(404)
-  const err = await fetchTopics().catch(e => e)
-  expect(err).toBeInstanceOf(Error)
-  expect(err.message).not.toMatch(/Unexpected token/)
-  expect(err.message).toMatch(/HTTP 404/)
-})
-
 // ── moveToProject ──────────────────────────────────────────────────────────
 
 test('moveToProject 发送正确 POST body 并返回响应', async () => {
@@ -246,37 +223,145 @@ test('moveToProject 服务器返回 HTML 时不抛出 JSON 解析异常', async 
   expect(err.message).toBe('not found')
 })
 
-test('fetchNotesCategories calls /api/notes-categories', async () => {
-  mockFetch({ categories: [{ id: 'inbox', title: 'Inbox', description: '' }] })
-  const result = await fetchNotesCategories()
-  expect(fetch.mock.calls[0][0]).toMatch(new RegExp(`^${API_READ_PREFIX}/notes-categories\\?_=\\d+$`))
-  expect(result.categories[0].id).toBe('inbox')
+test('fetchWorkspaces calls /api/workspaces', async () => {
+  mockFetch({ workspaces: [{ id: 'default', name: 'Default', view_mode: 'directory', is_default: true }] })
+  const result = await fetchWorkspaces()
+  expect(fetch.mock.calls[0][0]).toMatch(new RegExp(`^${API_READ_PREFIX}/workspaces\\?_=\\d+$`))
+  expect(result.workspaces[0].id).toBe('default')
 })
 
-test('createNotesCategory posts title description', async () => {
-  mockFetch({ ok: true })
-  await createNotesCategory('Ops', 'desc')
-  expect(fetch.mock.calls[0][0]).toBe(`${DEFAULT_DEV_BASE}/api/notes-category-create`)
-  expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({
-    title: 'Ops',
-    description: 'desc',
-  })
+test('fetchDisabledWorkspaces and fetchDisabledProjects read the disabled lists', async () => {
+  mockFetch({ workspaces: [], projects: [] })
+  await fetchDisabledWorkspaces()
+  await fetchDisabledProjects('ws1')
+  expect(fetch.mock.calls[0][0]).toMatch(new RegExp(`^${API_READ_PREFIX}/workspaces-disabled\\?_=\\d+$`))
+  expect(fetch.mock.calls[1][0]).toMatch(new RegExp(`^${API_READ_PREFIX}/projects-disabled\\?workspace=ws1&_=\\d+$`))
 })
 
-test('updateNotesCategory posts id title description', async () => {
+test('createWorkspace posts name and view mode', async () => {
   mockFetch({ ok: true })
-  await updateNotesCategory('ops', 'Operations', 'runbooks')
-  expect(fetch.mock.calls[0][0]).toBe(`${DEFAULT_DEV_BASE}/api/notes-category-update`)
-  expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({
-    id: 'ops',
-    title: 'Operations',
-    description: 'runbooks',
-  })
+  await createWorkspace('Research', 'timeline')
+  expect(fetch.mock.calls[0][0]).toBe(`${DEFAULT_DEV_BASE}/api/workspace-create`)
+  expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({ name: 'Research', view_mode: 'timeline' })
 })
 
-test('deleteNotesCategory posts id', async () => {
+test('renameWorkspace, setWorkspaceViewMode, disableWorkspace and enableWorkspace post the workspace id', async () => {
   mockFetch({ ok: true })
-  await deleteNotesCategory('ops')
-  expect(fetch.mock.calls[0][0]).toBe(`${DEFAULT_DEV_BASE}/api/notes-category-delete`)
-  expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({ id: 'ops' })
+  await renameWorkspace('ws1', 'Notes')
+  await setWorkspaceViewMode('ws1', 'timeline')
+  await disableWorkspace('ws1')
+  await enableWorkspace('ws1')
+  expect(fetch.mock.calls.map((call) => call[0])).toEqual([
+    `${DEFAULT_DEV_BASE}/api/workspace-rename`,
+    `${DEFAULT_DEV_BASE}/api/workspace-view-mode`,
+    `${DEFAULT_DEV_BASE}/api/workspace-disable`,
+    `${DEFAULT_DEV_BASE}/api/workspace-enable`,
+  ])
+  expect(fetch.mock.calls.map((call) => JSON.parse(call[1].body))).toEqual([
+    { id: 'ws1', name: 'Notes' },
+    { id: 'ws1', view_mode: 'timeline' },
+    { id: 'ws1' },
+    { id: 'ws1' },
+  ])
+})
+
+test('hidden-files rules are read and written per workspace', async () => {
+  mockFetch({ patterns: [{ id: 'seed00', pattern: '^\\.git$' }] })
+  const listed = await fetchHidePatterns('ws1')
+  expect(fetch.mock.calls[0][0]).toMatch(new RegExp(`^${API_READ_PREFIX}/hide-patterns\\?workspace=ws1&_=\\d+$`))
+  expect(listed.patterns[0].id).toBe('seed00')
+
+  mockFetch({ patterns: [] })
+  await addHidePattern('ws1', '^draft$')
+  await updateHidePattern('ws1', 'seed00', '^x$')
+  await removeHidePattern('ws1', 'seed00')
+  expect(fetch.mock.calls.map((call) => call[0])).toEqual([
+    `${DEFAULT_DEV_BASE}/api/hide-pattern-add`,
+    `${DEFAULT_DEV_BASE}/api/hide-pattern-update`,
+    `${DEFAULT_DEV_BASE}/api/hide-pattern-remove`,
+  ])
+  expect(fetch.mock.calls.map((call) => JSON.parse(call[1].body))).toEqual([
+    { workspace: 'ws1', pattern: '^draft$' },
+    { workspace: 'ws1', id: 'seed00', pattern: '^x$' },
+    { workspace: 'ws1', id: 'seed00' },
+  ])
+})
+
+test('the remembered open document is read and written per workspace', async () => {
+  mockFetch({ version: 2, project: 'p', projects: { p: { node: '', doc: 'abc', date: '' } } })
+  expect((await fetchViewerState('ws1')).projects.p.doc).toBe('abc')
+  expect(fetch.mock.calls[0][0]).toMatch(new RegExp(`^${API_READ_PREFIX}/viewer-state\\?workspace=ws1&_=\\d+$`))
+  await saveViewerState('ws1', { project: 'p', doc: 'abc' })
+  expect(fetch.mock.calls[1][0]).toBe(`${DEFAULT_DEV_BASE}/api/viewer-state`)
+  expect(JSON.parse(fetch.mock.calls[1][1].body)).toEqual({ workspace: 'ws1', project: 'p', doc: 'abc' })
+})
+
+test('fetchProjects calls /api/projects for one workspace', async () => {
+  mockFetch({ projects: [{ folder: 'inbox', title: 'Inbox', description: '' }] })
+  const result = await fetchProjects('ws1')
+  expect(fetch.mock.calls[0][0]).toMatch(new RegExp(`^${API_READ_PREFIX}/projects\\?workspace=ws1&_=\\d+$`))
+  expect(result.projects[0].folder).toBe('inbox')
+})
+
+test('project writes post workspace, project, title and description', async () => {
+  mockFetch({ ok: true })
+  await createProject('ws1', 'Ops', 'desc')
+  await updateProject('ws1', 'ops', 'Operations', 'runbooks')
+  await disableProject('ws1', 'ops')
+  await enableProject('ws1', 'ops')
+  expect(fetch.mock.calls.map((call) => call[0])).toEqual([
+    `${DEFAULT_DEV_BASE}/api/project-create`,
+    `${DEFAULT_DEV_BASE}/api/project-update`,
+    `${DEFAULT_DEV_BASE}/api/project-disable`,
+    `${DEFAULT_DEV_BASE}/api/project-enable`,
+  ])
+  expect(fetch.mock.calls.map((call) => JSON.parse(call[1].body))).toEqual([
+    { workspace: 'ws1', title: 'Ops', description: 'desc' },
+    { workspace: 'ws1', project: 'ops', title: 'Operations', description: 'runbooks' },
+    { workspace: 'ws1', project: 'ops' },
+    { workspace: 'ws1', project: 'ops' },
+  ])
+})
+
+test('reorder posts the whole list of ids or folders', async () => {
+  mockFetch({ ok: true })
+  await reorderWorkspaces(['b', 'default', 'a'])
+  await reorderProjects('ws1', ['two', 'one'])
+  expect(fetch.mock.calls.map((call) => call[0])).toEqual([
+    `${DEFAULT_DEV_BASE}/api/workspaces-reorder`,
+    `${DEFAULT_DEV_BASE}/api/projects-reorder`,
+  ])
+  expect(fetch.mock.calls.map((call) => JSON.parse(call[1].body))).toEqual([
+    { ids: ['b', 'default', 'a'] },
+    { workspace: 'ws1', folders: ['two', 'one'] },
+  ])
+})
+
+test('icons ride along on create and update only when given, and setWorkspaceIcon posts id and icon', async () => {
+  mockFetch({ ok: true })
+  await createWorkspace('Research', 'timeline', '03ab12')
+  await createWorkspace('Plain')
+  await setWorkspaceIcon('ws1', '05zz99')
+  await setWorkspaceIcon('ws1', '')
+  await createProject('ws1', 'Ops', 'desc', '03k7x2')
+  await updateProject('ws1', 'ops', 'Operations', 'runbooks', '')
+  await updateProject('ws1', 'ops', 'Operations', 'runbooks')
+  expect(fetch.mock.calls.map((call) => call[0])).toEqual([
+    `${DEFAULT_DEV_BASE}/api/workspace-create`,
+    `${DEFAULT_DEV_BASE}/api/workspace-create`,
+    `${DEFAULT_DEV_BASE}/api/workspace-icon`,
+    `${DEFAULT_DEV_BASE}/api/workspace-icon`,
+    `${DEFAULT_DEV_BASE}/api/project-create`,
+    `${DEFAULT_DEV_BASE}/api/project-update`,
+    `${DEFAULT_DEV_BASE}/api/project-update`,
+  ])
+  expect(fetch.mock.calls.map((call) => JSON.parse(call[1].body))).toEqual([
+    { name: 'Research', view_mode: 'timeline', icon: '03ab12' },
+    { name: 'Plain', view_mode: 'directory' },
+    { id: 'ws1', icon: '05zz99' },
+    { id: 'ws1', icon: '' },
+    { workspace: 'ws1', title: 'Ops', description: 'desc', icon: '03k7x2' },
+    { workspace: 'ws1', project: 'ops', title: 'Operations', description: 'runbooks', icon: '' },
+    { workspace: 'ws1', project: 'ops', title: 'Operations', description: 'runbooks' },
+  ])
 })

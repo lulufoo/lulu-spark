@@ -42,6 +42,11 @@ const GLYPHS = {
 
 export type HomeNavIconName = keyof typeof GLYPHS;
 
+/** The icon of a workspace that has none configured: a book for Knowledge, notes for the rest. */
+export function defaultWorkspaceIconName(workspaceId: string): HomeNavIconName {
+  return workspaceId === 'knowledge' ? 'knowledge' : 'notes';
+}
+
 export function HomeNavIcon({ name }: { name: HomeNavIconName }) {
   return (
     <span className="home-desktop-shortcut-icon" data-home-icon={name} aria-hidden="true">

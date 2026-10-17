@@ -11,14 +11,13 @@ const NOTE_ID = 'f6692dc5d5242eec5206b6400e704bd6';
 const READ_LATER_ID = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
 
 describe('reference kinds', () => {
-  it('registers note, knowledge, and read-later out of the box', () => {
-    const note = referenceKindByScheme('note');
-    const knowledge = referenceKindByScheme('knowledge');
+  it('registers doc and read-later out of the box; note and knowledge are gone', () => {
+    const doc = referenceKindByScheme('doc');
     const readLater = referenceKindByScheme('read-later');
-    expect(note?.kind).toBe('note');
-    expect(note?.label).toBe('note');
-    expect(knowledge?.kind).toBe('knowledge');
-    expect(knowledge?.label).toBe('knowledge');
+    expect(doc?.kind).toBe('doc');
+    expect(doc?.label).toBe('doc');
+    expect(referenceKindByScheme('note')).toBeUndefined();
+    expect(referenceKindByScheme('knowledge')).toBeUndefined();
     expect(readLater?.kind).toBe('read-later');
     expect(readLater?.label).toBe('read-later');
     expect(referenceKindByScheme('file')).toBeUndefined();
@@ -43,20 +42,20 @@ describe('parseReferences', () => {
     expect(parseReferences('')).toEqual([]);
   });
 
-  it('splits text around a note reference', () => {
-    const raw = `read [Agent Mock](note:${NOTE_ID}) first`;
+  it('splits text around a document reference', () => {
+    const raw = `read [Default：Agent Mock](doc:${NOTE_ID}) first`;
     expect(parseReferences(raw)).toEqual([
       { type: 'text', text: 'read ' },
-      { type: 'ref', kind: 'note', id: NOTE_ID, title: 'Agent Mock', raw: `[Agent Mock](note:${NOTE_ID})` },
+      { type: 'ref', kind: 'doc', id: NOTE_ID, title: 'Default：Agent Mock', raw: `[Default：Agent Mock](doc:${NOTE_ID})` },
       { type: 'text', text: ' first' },
     ]);
   });
 
-  it('accepts a knowledge id of any hex length', () => {
-    const long = parseReferences('[A](knowledge:b5c48a6383d20ccb1251d2cc0feb9e3a)');
-    const legacy = parseReferences('[B](knowledge:b5c48a6383d2)');
-    expect(long[0]).toMatchObject({ type: 'ref', kind: 'knowledge' });
-    expect(legacy[0]).toMatchObject({ type: 'ref', kind: 'knowledge', id: 'b5c48a6383d2' });
+  it('accepts a plain 32-hex id and a `<workspace id>-<32 hex>` id', () => {
+    const prefixed = parseReferences(`[A](doc:default-${NOTE_ID})`);
+    const other = parseReferences(`[B](doc:k3x9ab-${NOTE_ID})`);
+    expect(prefixed[0]).toMatchObject({ type: 'ref', kind: 'doc', id: `default-${NOTE_ID}` });
+    expect(other[0]).toMatchObject({ type: 'ref', kind: 'doc', id: `k3x9ab-${NOTE_ID}` });
   });
 
   it('accepts a 32-hex read-later id and leaves a short id as text', () => {
@@ -73,18 +72,21 @@ describe('parseReferences', () => {
   });
 
   it('parses adjacent references', () => {
-    const segments = parseReferences(`[A](note:${NOTE_ID})[B](knowledge:abc123)`);
+    const segments = parseReferences(`[A](doc:${NOTE_ID})[B](doc:default-${NOTE_ID})`);
     expect(segments.map((s) => s.type)).toEqual(['ref', 'ref']);
   });
 
   it('leaves anything that is not a valid registered reference as text', () => {
     const cases = [
-      '[x](note:abc)', // note ids are 32 hex
-      `[x](note:${NOTE_ID.toUpperCase()})`,
+      '[x](doc:abc)', // doc ids are 32 hex, optionally behind a workspace id
+      `[x](doc:${NOTE_ID.toUpperCase()})`,
+      `[x](doc:Bad-${NOTE_ID})`,
+      `[x](note:${NOTE_ID})`, // the old schemes are no longer references
+      `[x](knowledge:${NOTE_ID})`,
       '[x](https://example.com)',
       '[x](unknown:abc123)',
-      `[](note:${NOTE_ID})`,
-      `[multi\nline](note:${NOTE_ID})`,
+      `[](doc:${NOTE_ID})`,
+      `[multi\nline](doc:${NOTE_ID})`,
     ];
     for (const raw of cases) {
       expect(parseReferences(raw), raw).toEqual([{ type: 'text', text: raw }]);
@@ -92,7 +94,7 @@ describe('parseReferences', () => {
   });
 
   it('never loses or reorders characters', () => {
-    const raw = `a [b](note:${NOTE_ID}) c [d](note:zz) e\n[f](knowledge:ab12)`;
+    const raw = `a [b](doc:${NOTE_ID}) c [d](doc:zz) e\n[f](note:ab12)`;
     const joined = parseReferences(raw)
       .map((s) => (s.type === 'text' ? s.text : s.raw))
       .join('');
@@ -102,20 +104,20 @@ describe('parseReferences', () => {
 
 describe('serializeReference', () => {
   it('writes the markdown link the model sees', () => {
-    expect(serializeReference({ kind: 'note', id: NOTE_ID, title: 'Agent Mock' })).toBe(
-      `[Agent Mock](note:${NOTE_ID})`,
+    expect(serializeReference({ kind: 'doc', id: NOTE_ID, title: 'Default：Agent Mock' })).toBe(
+      `[Default：Agent Mock](doc:${NOTE_ID})`,
     );
   });
 
   it('flattens newlines and drops brackets in the title', () => {
-    expect(serializeReference({ kind: 'knowledge', id: 'ab12', title: 'a[b]\nc' })).toBe(
-      '[ab c](knowledge:ab12)',
+    expect(serializeReference({ kind: 'doc', id: NOTE_ID, title: 'a[b]\nc' })).toBe(
+      `[ab c](doc:${NOTE_ID})`,
     );
   });
 
   it('round-trips through the parser', () => {
-    const raw = serializeReference({ kind: 'note', id: NOTE_ID, title: 'T' });
-    expect(parseReferences(raw)[0]).toMatchObject({ type: 'ref', kind: 'note', id: NOTE_ID, title: 'T' });
+    const raw = serializeReference({ kind: 'doc', id: NOTE_ID, title: 'T' });
+    expect(parseReferences(raw)[0]).toMatchObject({ type: 'ref', kind: 'doc', id: NOTE_ID, title: 'T' });
   });
 
   it('round-trips a read-later reference', () => {

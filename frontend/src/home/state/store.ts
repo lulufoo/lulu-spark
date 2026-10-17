@@ -23,16 +23,10 @@ export type LiveThinking = {
   ms?: number;
 };
 
-export type HubStagedSource = {
-  kind: string;
-  id: string;
-};
-
 export type HubStagedEntry = {
   id: string;
   path: string;
   title: string;
-  source?: HubStagedSource;
 };
 
 export type HubWorkspaceFile = {
@@ -41,8 +35,16 @@ export type HubWorkspaceFile = {
 };
 
 export type ChannelUnread = {
-  notes: boolean;
+  docs: boolean;
   read_later: boolean;
+};
+
+/** A project of a workspace as the Home sidebar lists it. */
+export type HomeProject = {
+  folder: string;
+  title: string;
+  /** Id of the configured icon; empty = the default project icon. */
+  icon: string;
 };
 
 export type ContextUsageCategory = {
@@ -56,8 +58,14 @@ export type ContextUsage = {
   categories: ContextUsageCategory[];
 };
 
+/** Chats shown the first time, and how many more each scroll to the bottom reveals. */
+export const HOME_CHAT_FIRST_PAGE = 10;
+export const HOME_CHAT_PAGE_STEP = 10;
+
 export type HomeState = {
+  /** Every chat session, newest first; the sidebar reveals them `sessionsShown` at a time. */
   sessions: HubSession[];
+  sessionsShown: number;
   currentSessionId: string;
   messages: HubMessage[];
   staged: HubStagedEntry[];
@@ -69,15 +77,18 @@ export type HomeState = {
   thinkingByChat: Record<string, LiveThinking>;
   inFlightIds: string[];
   channelUnread: ChannelUnread;
+  /** Enabled projects per workspace id, in title order. */
+  workspaceProjects: Record<string, HomeProject[]>;
 };
 
 function emptyUnread(): ChannelUnread {
-  return { notes: false, read_later: false };
+  return { docs: false, read_later: false };
 }
 
 function emptyState(): HomeState {
   return {
     sessions: [],
+    sessionsShown: HOME_CHAT_FIRST_PAGE,
     currentSessionId: '',
     messages: [],
     staged: [],
@@ -89,6 +100,7 @@ function emptyState(): HomeState {
     thinkingByChat: Object.create(null) as Record<string, LiveThinking>,
     inFlightIds: [],
     channelUnread: emptyUnread(),
+    workspaceProjects: {},
   };
 }
 
@@ -114,6 +126,18 @@ export function resetHomeState() {
 
 export function useHomeState() {
   return useSyncExternalStore(homeStore.subscribe, homeStore.getSnapshot, homeStore.getSnapshot);
+}
+
+/**
+ * How many chats the sidebar lists: the revealed count, stretched to include the current chat
+ * (so a chat picked far down is never hidden), never more than exist.
+ */
+export function visibleSessionCount(state: HomeState) {
+  const total = state.sessions.length;
+  const currentIndex = state.currentSessionId
+    ? state.sessions.findIndex((s) => String(s.session_id || '') === state.currentSessionId)
+    : -1;
+  return Math.min(total, Math.max(state.sessionsShown, currentIndex + 1));
 }
 
 export function composerLocked(state: HomeState) {
@@ -181,16 +205,10 @@ export function hydrateStaged(raw: unknown): HubStagedEntry[] {
     const path = String((row as { path?: unknown }).path ?? '').trim();
     if (!path) continue;
     const title = String((row as { title?: unknown }).title ?? '').trim();
-    const rawSource = (row as { source?: { kind?: unknown; id?: unknown } }).source;
-    const sourceKind = String(rawSource?.kind ?? '').trim();
-    const sourceId = String(rawSource?.id ?? '').trim();
-    const source =
-      sourceKind && sourceId ? { kind: sourceKind, id: sourceId } : undefined;
     out.push({
       id: String((row as { id?: unknown }).id ?? ''),
       path,
       title: title || path.split('/').pop() || path,
-      ...(source ? { source } : {}),
     });
   }
   return out;

@@ -4,6 +4,9 @@ import { createRoot, type Root } from 'react-dom/client';
 import { flushSync } from 'react-dom';
 import { getAuthUser, signOutAuth, startAuthLogin } from '../auth/oauth.ts';
 import { authUserStore } from '../auth/state/user.ts';
+import { state, useHostState } from '../host/state.ts';
+import { openProject, openWorkspace, refreshWorkspaceProjects } from './commands/workspace-nav.ts';
+import { HomeWorkspaceNav, type HomeWorkspaceRow } from './ui/workspace-nav.tsx';
 import { openAbout } from './commands/about.ts';
 import { loadPackageDebug } from './commands/package-debug.ts';
 import { packageDebugStore } from './state/package-debug.ts';
@@ -31,6 +34,7 @@ import {
   selectSession,
   sendMessage,
   showActionError,
+  showMoreSessions,
   startHomeHub,
   stopHomeHub,
 } from './commands/hub.ts';
@@ -48,14 +52,17 @@ import {
   progressHint,
   resetHomeState,
   useHomeState,
+  visibleSessionCount,
   type HubMessage,
   type LiveThinking,
 } from './state/store.ts';
 import { ThinkingFold } from './ui/thinking.tsx';
-import { openCreateNote } from '../notes/commands/viewer/create.ts';
 import { openBindDialog } from '../app-shell/ui/bind-dialog.tsx';
 import { openSettingsDialog } from '../app-shell/ui/settings/dialog.tsx';
 import { WindowDragStrip } from '../shared/window-drag-strip.tsx';
+
+/** Scrolling this close to the bottom of the Chats list (about one row) reveals more chats. */
+const SESSION_LIST_LOAD_MORE_PX = 40;
 
 export type HomePageChrome = {
   navigate?: (hash: string) => void;
@@ -133,16 +140,24 @@ const MessageThread = memo(function MessageThread({
   );
 });
 
-function goHomeEntry(
-  dest: string | undefined,
-  navigateFn?: (hash: string) => void,
-  openReadLater?: () => void,
-) {
-  if (dest === 'spark') navigateFn?.('#/spark');
-  else if (dest === 'read-later') {
-    if (typeof openReadLater === 'function') openReadLater();
-    else navigateFn?.('#/read-later');
-  } else if (dest === 'knowledge') navigateFn?.('#/knowledge');
+const DEFAULT_WORKSPACE_ID = 'default';
+
+/** Seed rows, used until the workspace registry is loaded. */
+const SEED_WORKSPACES: HomeWorkspaceRow[] = [
+  { id: DEFAULT_WORKSPACE_ID, name: 'Default', isDefault: true, icon: '' },
+  { id: 'knowledge', name: 'Knowledge', isDefault: false, icon: '' },
+];
+
+/** One row per enabled workspace; the label follows its current name, so a rename shows up here. */
+function navWorkspaces(): HomeWorkspaceRow[] {
+  const list = state.workspaces.list;
+  if (list.length === 0) return SEED_WORKSPACES;
+  return list.map((w) => ({ id: w.id, name: w.name, isDefault: w.is_default, icon: w.icon }));
+}
+
+function goReadLater(navigateFn?: (hash: string) => void, openReadLater?: () => void) {
+  if (typeof openReadLater === 'function') openReadLater();
+  else navigateFn?.('#/read-later');
 }
 
 function unreadProps(unread: boolean) {
@@ -155,6 +170,8 @@ export function HomePage({
   openReadLater,
 }: HomePageChrome = {}) {
   const state = useHomeState();
+  const host = useHostState();
+  const workspaceIds = host.workspaces.list.map((w) => w.id).join(',');
   const authUser = useSyncExternalStore(authUserStore.subscribe, authUserStore.getSnapshot);
   const isDebug = useSyncExternalStore(
     packageDebugStore.subscribe,
@@ -174,6 +191,10 @@ export function HomePage({
   const lastPaintKeyRef = useRef('');
   const mdPaintGenRef = useRef(0);
   const paintKey = messagePaintKey(state);
+
+  useEffect(() => {
+    void refreshWorkspaceProjects();
+  }, [workspaceIds]);
 
   useEffect(() => {
     startHomeHub();
@@ -296,52 +317,19 @@ export function HomePage({
         <nav className="home-chat-nav" aria-label="Lulu Spark">
           <div className="home-chat-nav-group" data-home-nav-group="workspace">
             <div className="home-chat-nav-label">Workspace</div>
-            <div className="home-chat-nav-notes">
-              <button
-                type="button"
-                className="home-chat-nav-item home-desktop-shortcut"
-                data-home-entry="spark"
-                {...unreadProps(state.channelUnread.notes)}
-                onClick={() => {
-                  void markHomeEntryRead('spark');
-                  goHomeEntry('spark', navigateFn, openReadLater);
-                }}
-              >
-                <HomeNavIcon name="notes" />
-                <span className="home-desktop-shortcut-label">Notes</span>
-              </button>
-              <button
-                type="button"
-                className="home-chat-new"
-                data-role="create-note"
-                aria-label="New note"
-                title="New note"
-                onClick={() => {
-                  const temp_id =
-                    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-                      ? crypto.randomUUID()
-                      : `note-${Date.now()}`;
-                  goHomeEntry('spark', navigateFn, openReadLater);
-                  void openCreateNote({ temp_id });
-                }}
-              >
-                <svg className="home-chat-new-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                  <path
-                    fill="currentColor"
-                    d="M11 5a1 1 0 1 1 2 0v6h6a1 1 0 1 1 0 2h-6v6a1 1 0 1 1-2 0v-6H5a1 1 0 1 1 0-2h6V5z"
-                  />
-                </svg>
-              </button>
-            </div>
-            <button
-              type="button"
-              className="home-chat-nav-item home-desktop-shortcut"
-              data-home-entry="knowledge"
-              onClick={() => goHomeEntry('knowledge', navigateFn, openReadLater)}
-            >
-              <HomeNavIcon name="knowledge" />
-              <span className="home-desktop-shortcut-label">Knowledge</span>
-            </button>
+            <HomeWorkspaceNav
+              workspaces={navWorkspaces()}
+              projects={state.workspaceProjects}
+              unreadDocs={state.channelUnread.docs}
+              onOpenWorkspace={(id) => {
+                if (id === DEFAULT_WORKSPACE_ID) void markHomeEntryRead('spark');
+                openWorkspace(id, navigateFn);
+              }}
+              onOpenProject={(id, folder) => {
+                if (id === DEFAULT_WORKSPACE_ID) void markHomeEntryRead('spark');
+                void openProject(id, folder, navigateFn);
+              }}
+            />
             <button
               type="button"
               className="home-chat-nav-item home-desktop-shortcut"
@@ -349,7 +337,7 @@ export function HomePage({
               {...unreadProps(state.channelUnread.read_later)}
               onClick={() => {
                 void markHomeEntryRead('read-later');
-                goHomeEntry('read-later', navigateFn, openReadLater);
+                goReadLater(navigateFn, openReadLater);
               }}
             >
               <HomeNavIcon name="read-later" />
@@ -381,9 +369,19 @@ export function HomePage({
             </svg>
           </button>
         </div>
-        <div className="home-chat-sessions" data-role="session-list" role="list">
+        <div
+          className="home-chat-sessions"
+          data-role="session-list"
+          role="list"
+          onScroll={(e) => {
+            const el = e.currentTarget;
+            if (el.scrollHeight - el.scrollTop - el.clientHeight <= SESSION_LIST_LOAD_MORE_PX) {
+              showMoreSessions();
+            }
+          }}
+        >
           <SessionList
-            sessions={state.sessions}
+            sessions={state.sessions.slice(0, visibleSessionCount(state))}
             currentSessionId={state.currentSessionId}
             progressByChat={state.progressByChat}
             inFlightIds={state.inFlightIds}

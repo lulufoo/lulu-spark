@@ -26,7 +26,7 @@ pub fn business_from_scheme_host(scheme: &str) -> &'static str {
         return "app";
     };
     match rest.split(['/', '?', '#']).next().unwrap_or("") {
-        "notes" => "notes",
+        "docs" => "docs",
         "read-later" => "read_later",
         "auth-login" => "login",
         _ => "app",

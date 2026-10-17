@@ -36,10 +36,10 @@ fn get_and_set_round_trip_in_sandbox() {
         .as_array()
         .expect("mobile")
         .iter()
-        .any(|n| n.as_str() == Some("create_note")));
+        .any(|n| n.as_str() == Some("create_doc")));
     set_enabled(
         "mobile",
-        vec!["list_notes_categories".into(), "create_note".into()],
+        vec!["list_projects".into(), "create_doc".into()],
     )
     .expect("subset");
     let after = super::get_mcp_channel_tools().expect("get after");
@@ -49,10 +49,10 @@ fn get_and_set_round_trip_in_sandbox() {
         .iter()
         .filter_map(|v| v.as_str())
         .collect();
-    assert_eq!(mobile, vec!["create_note", "list_notes_categories"]);
+    assert_eq!(mobile, vec!["create_doc", "list_projects"]);
     let resp = super::set_mcp_channel_tools(
         "mobile".into(),
-        vec!["list_notes_categories".into(), "update_note".into()],
+        vec!["list_projects".into(), "update_doc".into()],
     )
     .expect("set via command");
     assert_eq!(resp["ok"], true);

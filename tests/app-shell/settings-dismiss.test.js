@@ -17,8 +17,8 @@ vi.mock('../../frontend/src/host/api.ts', () => ({
   fetchConfig: vi.fn(),
   setConfig: vi.fn(),
   invoke: vi.fn(),
-  fetchNotesCategories: vi.fn(),
-  fetchKbHidePatterns: vi.fn(),
+  fetchProjects: vi.fn(),
+  fetchHidePatterns: vi.fn(),
 }));
 
 import * as api from '../../frontend/src/host/api.ts';
@@ -49,7 +49,6 @@ function seedNotesEditor({ busy = false } = {}) {
 function baseConfig() {
   return {
     spark_root: '',
-    knowledge_root: '',
     assistant_engine: 'host',
     mcp_port: 19876,
     llm: {
@@ -69,8 +68,8 @@ describe('Settings header and footer dismiss', () => {
     vi.clearAllMocks();
     api.fetchConfig.mockResolvedValue(baseConfig());
     api.setConfig.mockResolvedValue(baseConfig());
-    api.fetchNotesCategories.mockResolvedValue({ categories: [] });
-    api.fetchKbHidePatterns.mockResolvedValue({ patterns: [] });
+    api.fetchProjects.mockResolvedValue({ projects: [] });
+    api.fetchHidePatterns.mockResolvedValue({ patterns: [] });
     api.invoke.mockResolvedValue({
       channels: [],
       groups: [],
@@ -139,8 +138,8 @@ describe('Settings close hook without #btn-settings-close', () => {
     vi.clearAllMocks();
     api.fetchConfig.mockResolvedValue(baseConfig());
     api.setConfig.mockResolvedValue(baseConfig());
-    api.fetchNotesCategories.mockResolvedValue({ categories: [] });
-    api.fetchKbHidePatterns.mockResolvedValue({ patterns: [] });
+    api.fetchProjects.mockResolvedValue({ projects: [] });
+    api.fetchHidePatterns.mockResolvedValue({ patterns: [] });
     api.invoke.mockResolvedValue({ channels: [], groups: [], enabled: {} });
 
     document.body.innerHTML = renderToHtml(createElement(SettingsDialog));

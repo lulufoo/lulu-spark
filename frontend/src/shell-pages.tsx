@@ -2,7 +2,6 @@ import { useEffect, type CSSProperties } from 'react';
 import { applySearchNavChrome } from './app-shell/ui/nav-chrome.ts';
 import { useHostState } from './host/state.ts';
 import { HomePage } from './home/page.tsx';
-import { KnowledgeDocPage } from './knowledge/page.tsx';
 import { NotesMain, NotesSidebar } from './notes/page.tsx';
 import { openReadLaterDialog } from './read-later/commands/dialog.ts';
 import { navigate } from './router/index.ts';
@@ -11,7 +10,7 @@ function slotStyle(visible: boolean, shown: CSSProperties): CSSProperties {
   return visible ? shown : { ...shown, display: 'none' };
 }
 
-/** Five hash pages. Always mounted so leftover island code can keep writing into these IDs. */
+/** Hash pages. Always mounted so leftover island code can keep writing into these IDs. */
 export function ShellPages({
   routeName,
   routeParams = {},
@@ -21,7 +20,6 @@ export function ShellPages({
 }) {
   const host = useHostState();
   const homeOn = routeName === 'home' || routeName === 'read-later';
-  const knowledgeOn = routeName === 'knowledge-doc';
   const notesOn = routeName === 'spark';
 
   useEffect(() => {
@@ -39,22 +37,6 @@ export function ShellPages({
         })}
       >
         {homeOn ? <HomePage navigate={navigate} openReadLater={openReadLaterDialog} /> : null}
-      </div>
-      <div
-        id="knowledge-doc-view"
-        style={slotStyle(knowledgeOn, {
-          height: '100%',
-          boxSizing: 'border-box',
-        })}
-      >
-        {knowledgeOn ? (
-          <KnowledgeDocPage
-            key={routeParams.repo ?? ''}
-            repo={routeParams.repo ?? ''}
-            docId={routeParams.id ?? ''}
-            navigate={navigate}
-          />
-        ) : null}
       </div>
       <div
         className="layout"

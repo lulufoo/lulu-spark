@@ -18,8 +18,8 @@ class McpToolsJsonTest {
     fun parseToolsKeepsHostInputSchemaAndDescription() {
         val tools = parseTools(LIST_TOOLS_WITH_SCHEMA)
         assertEquals(1, tools.size)
-        assertEquals("create_note", tools[0].name)
-        assertEquals("Create a note from Markdown content.", tools[0].description)
+        assertEquals("create_doc", tools[0].name)
+        assertEquals("Create a document from Markdown content.", tools[0].description)
         assertTrue(tools[0].inputSchemaJson.contains("\"properties\""))
         assertTrue(tools[0].inputSchemaJson.contains("\"title\""))
         assertTrue(tools[0].inputSchemaJson.contains("\"content\""))
@@ -29,8 +29,8 @@ class McpToolsJsonTest {
     @Test
     fun parseToolsDoesNotTreatNestedNameAsTool() {
         val body =
-            """{"result":{"tools":[{"name":"create_note","description":"Add a note.","inputSchema":{"type":"object","properties":{"title":{"type":"string","description":"name of the note"}}}}]}}"""
-        assertEquals(listOf("create_note"), parseToolNames(body))
+            """{"result":{"tools":[{"name":"create_doc","description":"Add a document.","inputSchema":{"type":"object","properties":{"title":{"type":"string","description":"name of the note"}}}}]}}"""
+        assertEquals(listOf("create_doc"), parseToolNames(body))
     }
 
     @Test

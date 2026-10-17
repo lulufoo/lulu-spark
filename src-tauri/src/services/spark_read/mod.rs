@@ -2,18 +2,14 @@
 
 mod annotations;
 mod config;
-mod note_open;
-mod notes;
-mod notes_catalog;
+mod doc;
+mod doc_open;
 
-pub use crate::config::roots::{
-    knowledge_root_string, spark_root_path,
-};
+pub use crate::config::roots::spark_root_path;
 pub use annotations::*;
 pub use config::*;
-pub use note_open::resolve_note_for_open;
-pub use notes::*;
-pub use notes_catalog::*;
+pub use doc::*;
+pub use doc_open::resolve_doc_for_open;
 
 #[cfg(test)]
 #[path = "../../unit-tests/services/spark_read.rs"]

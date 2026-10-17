@@ -1,9 +1,9 @@
 import * as api from '../../host/api.ts';
 import { setHomeState } from '../state/store.ts';
 
-const UNREAD_CHANNELS = ['notes', 'read_later'] as const;
+const UNREAD_CHANNELS = ['docs', 'read_later'] as const;
 const ENTRY_CHANNEL: Record<string, (typeof UNREAD_CHANNELS)[number]> = {
-  spark: 'notes',
+  spark: 'docs',
   'read-later': 'read_later',
 };
 
@@ -15,7 +15,7 @@ export function resetChannelUnread() {
 
 export async function refreshChannelUnread() {
   const gen = unreadGen;
-  const next = { notes: false, read_later: false };
+  const next = { docs: false, read_later: false };
   for (const channel of UNREAD_CHANNELS) {
     try {
       next[channel] = (await api.getMessageChannelUnread(channel)) === true;

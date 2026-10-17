@@ -3,7 +3,7 @@ import { state } from '../host/state.ts';
 import * as api from '../host/api.ts';
 import { nowTs } from './utils.ts';
 import { createModuleStore } from './module-store.ts';
-import type { Annotation, CommentLike, LayerData, WriteResult } from './types.ts';
+import type { Annotation, LayerData, WriteResult } from './types.ts';
 
 const openStore = createModuleStore(false);
 
@@ -30,16 +30,6 @@ export function confirmDeleteComment() {
     openStore.set(true);
     document.getElementById('comment-delete-dialog')?.classList.add('open');
   });
-}
-
-export async function removeKbComment(comment: { id: string }) {
-  const { kbId, annotation } = state.viewer;
-  const data = (await api.updateKbComment(kbId, { id: comment.id, text: '' }, nowTs())) as WriteResult;
-  if (!data.ok) throw new Error(data.error || 'failed');
-  const ann = annotation as Annotation;
-  if (Array.isArray(ann.comments)) {
-    ann.comments = (ann.comments as CommentLike[]).filter((c) => c.id !== comment.id);
-  }
 }
 
 export async function removeNoteComment(

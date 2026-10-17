@@ -1,6 +1,7 @@
 import { LOGIN_EVENT_EXCHANGE, LOGIN_EVENT_ROUTE, logLoginHop } from '../auth/hop.ts';
 import { completeAuthLogin } from '../auth/oauth.ts';
 import { encodePassBag, extractPassIdFromScheme, PASS_QUERY } from '../auth/pass.ts';
+import { entryGroupKey } from '../notes/commands/workspace.ts';
 import { state } from '../host/state.ts';
 import { openReadLaterDialog } from '../read-later/commands/dialog.ts';
 import { navigateToNote } from './index.ts';
@@ -18,7 +19,7 @@ export type SparkEnvelope = {
 };
 
 export type ParsedSparkScheme =
-  | { kind: 'notes-open'; id: string }
+  | { kind: 'docs-open'; id: string }
   | { kind: 'read-later-list' }
   | { kind: 'auth-login-callback'; code: string | null; error: string | null };
 
@@ -43,10 +44,10 @@ export function composeSparkScheme(
   if (!hop) return null;
   const passQuery = `${PASS_QUERY}=${encodePassBag(hop)}`;
 
-  if (envelope.business === 'notes' && (envelope.action === 'create' || envelope.action === 'update')) {
+  if (envelope.business === 'docs' && (envelope.action === 'create' || envelope.action === 'update')) {
     const id = stringParam(params, 'archive_id');
     if (!id) return null;
-    return `spark://notes/open?id=${encodeURIComponent(id)}&${passQuery}`;
+    return `spark://docs/open?id=${encodeURIComponent(id)}&${passQuery}`;
   }
 
   if (envelope.business === 'read_later' && envelope.action === 'create') {
@@ -69,11 +70,11 @@ export function parseSparkScheme(scheme: string): ParsedSparkScheme | null {
   if (url.protocol !== 'spark:') return null;
   const path = url.pathname.replace(/\/+$/, '');
 
-  if (url.hostname === 'notes' && path === '/open') {
+  if (url.hostname === 'docs' && path === '/open') {
     if (url.searchParams.has(TRACE_QUERY) || !extractPassIdFromScheme(scheme)) return null;
     const id = url.searchParams.get('id') ?? '';
     if (!id) return null;
-    return { kind: 'notes-open', id };
+    return { kind: 'docs-open', id };
   }
 
   if (url.hostname === 'read-later' && path === '/list') {
@@ -101,9 +102,8 @@ export function resolveNotesLanding(id: string): NotesLanding | null {
 
   const entry = data[id] ?? Object.values(data).find((item) => item._id === id || item.id === id);
 
-  const created = typeof entry?.created_at === 'string' ? entry.created_at : '';
-  if (created.length < 8) return null;
-  return { date: created.slice(0, 8), note: id };
+  if (!entry) return null;
+  return { date: entryGroupKey(entry), note: id };
 }
 
 function isAuthLoginScheme(scheme: string): boolean {
@@ -159,7 +159,7 @@ export function openSparkScheme(scheme: string): boolean {
   if (!landing) {
     logNotifyHop('route.to_business', hop, {
       outcome: 'landing_miss',
-      kind: 'notes-open',
+      kind: 'docs-open',
       id: parsed.id,
     }, business);
     return false;
@@ -167,7 +167,7 @@ export function openSparkScheme(scheme: string): boolean {
   const ok = navigateToNote({ date: landing.date, note: landing.note });
   logNotifyHop('route.to_business', hop, {
     outcome: ok ? 'ok' : 'nav_fail',
-    kind: 'notes-open',
+    kind: 'docs-open',
     id: parsed.id,
     date: landing.date,
     note: landing.note,

@@ -93,67 +93,6 @@ export const WRITE_API_INVOKE_MAP: Record<string, WriteInvokeEntry> = {
       ...(body.title != null ? { title: body.title } : {}),
     }),
   },
-  '/api/kb/save': {
-    cmd: 'kb_save',
-    args: (body) => ({
-      id: body.id,
-      content: body.content,
-    }),
-  },
-  '/api/kb/rename': {
-    cmd: 'kb_rename',
-    args: (body) => ({
-      repo: body.repo,
-      path: body.path,
-      name: body.name,
-    }),
-  },
-  '/api/kb/create': {
-    cmd: 'kb_create',
-    args: (body) => ({
-      repo: body.repo,
-      parent: body.parent,
-      name: body.name,
-      kind: body.kind,
-    }),
-  },
-  '/api/kb/delete': {
-    cmd: 'kb_delete',
-    args: (body) => ({
-      repo: body.repo,
-      path: body.path,
-    }),
-  },
-  '/api/kb/update-comments': {
-    cmd: 'kb_update_comments',
-    args: (body) => ({
-      id: body.id,
-      comment: body.comment,
-      ts: body.ts,
-    }),
-  },
-  '/api/kb/reorder-comments': {
-    cmd: 'kb_reorder_comments',
-    args: (body) => ({
-      id: body.id,
-      ids: body.ids,
-    }),
-  },
-  '/api/kb/update-highlights': {
-    cmd: 'kb_update_highlights',
-    args: (body) => ({
-      id: body.id,
-      highlight: body.highlight,
-      ts: body.ts,
-    }),
-  },
-  '/api/kb/update-links': {
-    cmd: 'kb_update_links',
-    args: (body) => ({
-      id: body.id,
-      links: body.links,
-    }),
-  },
   '/api/tag/attach': {
     cmd: 'tag_attach',
     args: (body) => ({
@@ -176,73 +115,83 @@ export const WRITE_API_INVOKE_MAP: Record<string, WriteInvokeEntry> = {
       value: body.value,
     }),
   },
-  '/api/sediment-kb/repos/add': {
-    cmd: 'sediment_kb_add_repo',
-    args: (body) => ({ payload: body ?? {} }),
-  },
-  '/api/sediment-kb/repos/remove': {
-    cmd: 'sediment_kb_remove_repo',
-    args: (body) => ({ payload: body ?? {} }),
-  },
-  '/api/sediment-kb/repos/update-category': {
-    cmd: 'sediment_kb_update_repo_category',
-    args: (body) => ({ payload: body ?? {} }),
-  },
-  '/api/sediment-kb/categories/add': {
-    cmd: 'sediment_kb_add_category',
-    args: (body) => ({ payload: body ?? {} }),
-  },
-  '/api/sediment-kb/categories/rename': {
-    cmd: 'sediment_kb_rename_category',
-    args: (body) => ({ payload: body ?? {} }),
-  },
-  '/api/sediment-kb/categories/remove': {
-    cmd: 'sediment_kb_remove_category',
-    args: (body) => ({ payload: body ?? {} }),
-  },
-  '/api/kb/hide-patterns/add': {
-    cmd: 'add_kb_hide_pattern',
-    args: (body) => ({ payload: body ?? {} }),
-  },
-  '/api/kb/hide-patterns/update': {
-    cmd: 'update_kb_hide_pattern',
-    args: (body) => ({ payload: body ?? {} }),
-  },
-  '/api/kb/hide-patterns/remove': {
-    cmd: 'remove_kb_hide_pattern',
-    args: (body) => ({ payload: body ?? {} }),
-  },
-  '/api/kb/viewer-state': {
-    cmd: 'set_kb_viewer_state',
-    args: (body) => ({
-      id: body.id ?? '',
-    }),
-  },
   '/api/create-note': {
     cmd: 'create_note',
     args: (body) => ({ payload: body ?? {} }),
   },
-  '/api/notes-category-create': {
-    cmd: 'create_notes_category',
+  '/api/workspace-create': {
+    cmd: 'create_workspace',
     args: (body) => ({ payload: body ?? {} }),
   },
-  '/api/notes-category-update': {
-    cmd: 'update_notes_category',
+  '/api/workspace-rename': {
+    cmd: 'rename_workspace',
     args: (body) => ({ payload: body ?? {} }),
   },
-  '/api/notes-category-delete': {
-    cmd: 'delete_notes_category',
+  '/api/workspace-view-mode': {
+    cmd: 'set_workspace_view_mode',
     args: (body) => ({ payload: body ?? {} }),
   },
-  '/api/note-draft': {
-    cmd: 'save_note_draft',
+  '/api/workspace-icon': {
+    cmd: 'set_workspace_icon',
+    args: (body) => ({ payload: body ?? {} }),
+  },
+  '/api/workspaces-reorder': {
+    cmd: 'reorder_workspaces',
+    args: (body) => ({ payload: body ?? {} }),
+  },
+  '/api/workspace-disable': {
+    cmd: 'disable_workspace',
+    args: (body) => ({ payload: body ?? {} }),
+  },
+  '/api/workspace-enable': {
+    cmd: 'enable_workspace',
+    args: (body) => ({ payload: body ?? {} }),
+  },
+  '/api/project-create': {
+    cmd: 'create_project',
+    args: (body) => ({ payload: body ?? {} }),
+  },
+  '/api/project-update': {
+    cmd: 'update_project',
+    args: (body) => ({ payload: body ?? {} }),
+  },
+  '/api/projects-reorder': {
+    cmd: 'reorder_projects',
+    args: (body) => ({ payload: body ?? {} }),
+  },
+  '/api/project-disable': {
+    cmd: 'disable_project',
+    args: (body) => ({ payload: body ?? {} }),
+  },
+  '/api/project-enable': {
+    cmd: 'enable_project',
+    args: (body) => ({ payload: body ?? {} }),
+  },
+  '/api/hide-pattern-add': {
+    cmd: 'add_hide_pattern',
+    args: (body) => ({ payload: body ?? {} }),
+  },
+  '/api/hide-pattern-update': {
+    cmd: 'update_hide_pattern',
+    args: (body) => ({ payload: body ?? {} }),
+  },
+  '/api/hide-pattern-remove': {
+    cmd: 'remove_hide_pattern',
+    args: (body) => ({ payload: body ?? {} }),
+  },
+  '/api/viewer-state': {
+    cmd: 'set_viewer_state',
+    args: (body) => ({ payload: body ?? {} }),
+  },
+  '/api/doc-draft': {
+    cmd: 'save_doc_draft',
     args: (body) => ({
       tempId: body?.temp_id ?? '',
       content: body?.content ?? '',
     }),
   },
-  '/api/note-draft/clear': {
-    cmd: 'clear_note_draft',
+  '/api/doc-draft/clear': {
+    cmd: 'clear_doc_draft',
     args: (body) => ({ tempId: body?.temp_id ?? '' }),
   },
   '/api/file': {

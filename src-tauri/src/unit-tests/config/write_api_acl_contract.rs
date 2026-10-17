@@ -32,32 +32,6 @@ fn parse_acl_manifest_allow(text: &str) -> BTreeSet<String> {
         .collect()
 }
 
-const SEDIMENT_KB_WRITE_COMMANDS: &[&str] = &[
-    "sediment_kb_add_repo",
-    "sediment_kb_remove_repo",
-    "sediment_kb_update_repo_category",
-    "sediment_kb_add_category",
-    "sediment_kb_rename_category",
-    "sediment_kb_remove_category",
-];
-
-const KB_HIDE_WRITE_COMMANDS: &[&str] = &[
-    "add_kb_hide_pattern",
-    "update_kb_hide_pattern",
-    "remove_kb_hide_pattern",
-];
-
-const KB_VIEWER_STATE_WRITE_COMMANDS: &[&str] = &["set_kb_viewer_state"];
-
-const KB_RENAME_WRITE_COMMANDS: &[&str] = &["kb_rename"];
-
-const KB_ENTRY_WRITE_COMMANDS: &[&str] = &[
-    "kb_create",
-    "kb_delete",
-    "remember_knowledge_doc",
-    "kb_doc_id",
-];
-
 const TODO_TASK_WRITE_COMMANDS: &[&str] = &[
     "create_todo_task",
     "delete_todo_task",
@@ -100,9 +74,22 @@ const TODO_TASK_CATEGORY_COMMANDS: &[&str] = &[
 
 const NOTE_WRITE_COMMANDS: &[&str] = &[
     "create_note",
-    "create_notes_category",
-    "update_notes_category",
-    "delete_notes_category",
+    "create_workspace",
+    "rename_workspace",
+    "set_workspace_view_mode",
+    "set_workspace_icon",
+    "reorder_workspaces",
+    "disable_workspace",
+    "enable_workspace",
+    "create_project",
+    "update_project",
+    "reorder_projects",
+    "disable_project",
+    "enable_project",
+    "add_hide_pattern",
+    "update_hide_pattern",
+    "remove_hide_pattern",
+    "set_viewer_state",
 ];
 
 const DOC_HIGHLIGHTS_WRITE_COMMANDS: &[&str] = &["update_doc_highlights"];
@@ -140,70 +127,6 @@ const OS_NOTIFICATION_WRITE_COMMANDS: &[&str] = &["show_os_notification"];
 const APP_LOG_WRITE_COMMANDS: &[&str] = &["log_app_event"];
 
 #[test]
-fn kb_entry_write_commands_are_acl_allowed() {
-    let root = manifest_dir();
-    let toml = fs::read_to_string(root.join("permissions/write-api.toml")).expect("toml");
-    let allow = parse_write_api_toml_allow(&toml);
-    let missing: Vec<_> = KB_ENTRY_WRITE_COMMANDS
-        .iter()
-        .filter(|cmd| !allow.contains(**cmd))
-        .copied()
-        .collect();
-    assert!(
-        missing.is_empty(),
-        "commands missing from write-api.toml ACL: {missing:?}"
-    );
-}
-
-#[test]
-fn kb_rename_write_command_is_acl_allowed() {
-    let root = manifest_dir();
-    let toml = fs::read_to_string(root.join("permissions/write-api.toml")).expect("toml");
-    let allow = parse_write_api_toml_allow(&toml);
-    let missing: Vec<_> = KB_RENAME_WRITE_COMMANDS
-        .iter()
-        .filter(|cmd| !allow.contains(**cmd))
-        .copied()
-        .collect();
-    assert!(
-        missing.is_empty(),
-        "commands missing from write-api.toml ACL: {missing:?}"
-    );
-}
-
-#[test]
-fn kb_viewer_state_write_command_is_acl_allowed() {
-    let root = manifest_dir();
-    let toml = fs::read_to_string(root.join("permissions/write-api.toml")).expect("toml");
-    let allow = parse_write_api_toml_allow(&toml);
-    let missing: Vec<_> = KB_VIEWER_STATE_WRITE_COMMANDS
-        .iter()
-        .filter(|cmd| !allow.contains(**cmd))
-        .copied()
-        .collect();
-    assert!(
-        missing.is_empty(),
-        "commands missing from write-api.toml ACL: {missing:?}"
-    );
-}
-
-#[test]
-fn kb_hide_write_commands_are_acl_allowed() {
-    let root = manifest_dir();
-    let toml = fs::read_to_string(root.join("permissions/write-api.toml")).expect("toml");
-    let allow = parse_write_api_toml_allow(&toml);
-    let missing: Vec<_> = KB_HIDE_WRITE_COMMANDS
-        .iter()
-        .filter(|cmd| !allow.contains(**cmd))
-        .copied()
-        .collect();
-    assert!(
-        missing.is_empty(),
-        "commands missing from write-api.toml ACL: {missing:?}"
-    );
-}
-
-#[test]
 fn abs_file_write_command_is_acl_allowed() {
     let root = manifest_dir();
     let toml = fs::read_to_string(root.join("permissions/write-api.toml")).expect("toml");
@@ -227,22 +150,6 @@ fn write_api_toml_and_acl_manifest_allow_lists_match() {
     let toml_allow = parse_write_api_toml_allow(&toml);
     let acl_allow = parse_acl_manifest_allow(&acl);
     assert_eq!(toml_allow, acl_allow, "write-api.toml vs acl-manifests.json");
-}
-
-#[test]
-fn sediment_kb_write_commands_are_acl_allowed() {
-    let root = manifest_dir();
-    let toml = fs::read_to_string(root.join("permissions/write-api.toml")).expect("toml");
-    let allow = parse_write_api_toml_allow(&toml);
-    let missing: Vec<_> = SEDIMENT_KB_WRITE_COMMANDS
-        .iter()
-        .filter(|cmd| !allow.contains(**cmd))
-        .copied()
-        .collect();
-    assert!(
-        missing.is_empty(),
-        "commands missing from write-api.toml ACL: {missing:?}"
-    );
 }
 
 #[test]

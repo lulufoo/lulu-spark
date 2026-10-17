@@ -1,5 +1,5 @@
 use super::*;
-use crate::services::spark_data::{get_note, open};
+use crate::services::spark_data::{find_doc, open};
 use crate::test_support::{seed_note_entries, with_sandbox_notes};
 
 /// Seed one note at `cp` and return its row id.
@@ -9,8 +9,8 @@ fn seed(cp: &str) -> String {
     id
 }
 
-fn row(id: &str) -> crate::services::spark_data::NoteRow {
-    get_note(&open().expect("db"), id).expect("get").expect("row")
+fn row(id: &str) -> crate::services::spark_data::DocRow {
+    find_doc(&open().expect("db"), id).expect("get").expect("row").doc
 }
 
 #[test]

@@ -64,16 +64,16 @@ fn sample_openai_tool_defs() -> Vec<Value> {
 }
 
 
-fn assert_under_cache_not_knowledge_root(path: &Path, sandbox: &TestSandbox) {
+fn assert_under_cache_not_workspaces_root(path: &Path, sandbox: &TestSandbox) {
     let cache = sandbox.cache_dir();
-    let knowledge = sandbox.knowledge_root();
+    let workspaces = sandbox.data_dir().join("workspaces");
     assert!(
         path.starts_with(&cache),
         "path {path:?} must be under cache_dir {cache:?}"
     );
     assert!(
-        !path.starts_with(&knowledge),
-        "path {path:?} must not be under knowledge_root {knowledge:?}"
+        !path.starts_with(&workspaces),
+        "path {path:?} must not be under workspaces_root {workspaces:?}"
     );
 }
 
@@ -129,7 +129,7 @@ fn session_save_load_roundtrip_under_cache_agent_sessions() {
         assert_eq!(sess.steps.len(), 0);
 
         let path = session::session_file_path(&sess.session_id).expect("path");
-        assert_under_cache_not_knowledge_root(&path, sandbox);
+        assert_under_cache_not_workspaces_root(&path, sandbox);
         let expected_dir = sandbox
             .cache_dir()
             .join("agent-exec")
@@ -205,7 +205,7 @@ fn agent_error_log_writes_under_cache_agent_without_secrets() {
         .expect("log");
 
         let log_dir = session::agent_log_dir().expect("log dir");
-        assert_under_cache_not_knowledge_root(&log_dir, sandbox);
+        assert_under_cache_not_workspaces_root(&log_dir, sandbox);
         assert!(
             log_dir.file_name().and_then(|n| n.to_str()) == Some("agent-exec"),
             "log dir should be cache/agent-exec, got {log_dir:?}"
@@ -248,7 +248,7 @@ fn assistant_diagnostic_log_is_versioned_jsonl_with_safe_metadata_only() {
         diagnostics::log(event).expect("write diagnostic event");
 
         let path = diagnostics::session_log_path("sess_abcdef123456").expect("session log path");
-        assert_under_cache_not_knowledge_root(&path, sandbox);
+        assert_under_cache_not_workspaces_root(&path, sandbox);
         let log = fs::read_to_string(&path).expect("read diagnostic log");
         let line = log
             .lines()

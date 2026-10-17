@@ -4,31 +4,21 @@ import { flushSync } from 'react-dom';
 import { state, useHostState } from '../state/host.ts';
 import { formatDate } from '../../shared/utils.ts';
 import { closeFloatingListSelect, createFloatingListSelect } from '../../shared/floating-list-select.ts';
-import {
-  applyListFilters,
-  buildGroups,
-  clearTagFilter,
-  renderTagFilterChip,
-  selectDate,
-  selectTag,
-  selectTopic,
-} from '../commands/sidebar.ts';
+import { applyListFilters, buildGroups, selectDate, selectTopic } from '../commands/sidebar.ts';
+import { enterProject } from '../commands/restore.ts';
+import { startCreateDocument } from '../commands/create-document.ts';
+import { isTimelineView } from '../commands/workspace.ts';
 import { PageBackHome } from '../../shared/home-mark.tsx';
 import { WindowDragStrip } from '../../shared/window-drag-strip.tsx';
+import { DirTree } from './dir-tree.tsx';
+import { ProjectPicker } from './project-picker.tsx';
 import { attachNotesSidebarResize } from './sidebar-resize.ts';
 
-export {
-  applyListFilters,
-  buildGroups,
-  clearTagFilter,
-  renderTagFilterChip,
-  selectDate,
-  selectTag,
-  selectTopic,
-};
+export { applyListFilters, buildGroups, selectDate, selectTopic };
 
 function _renderTopicFilter(parent: HTMLElement) {
-  const allEntries = Object.values(state.index.data || {});
+  // Count what the list shows: every grouped document, so the picker and the list agree.
+  const allEntries = (state.index.groupedByDate || []).flatMap((group) => group.entries.map(({ entry }) => entry));
   if (allEntries.length === 0) return;
   const topicCounts: Record<string, number> = {};
   for (const entry of allEntries) {
@@ -36,9 +26,9 @@ function _renderTopicFilter(parent: HTMLElement) {
     topicCounts[topic] = (topicCounts[topic] || 0) + 1;
   }
   const total = allEntries.length;
-  const topics = Object.keys(topicCounts)
-    .filter((t) => t !== 'unknown')
-    .sort();
+  const counted = Object.keys(topicCounts).filter((t) => t !== 'unknown');
+  const arranged = state.index.topicOrder.filter((t) => counted.includes(t));
+  const topics = [...arranged, ...counted.filter((t) => !arranged.includes(t)).sort()];
 
   const wrap = document.createElement('div');
   wrap.className = 'topic-filter';
@@ -60,11 +50,11 @@ function _renderTopicFilter(parent: HTMLElement) {
   }
 
   const { picker } = createFloatingListSelect({
-    ariaLabel: 'Filter by topic',
+    ariaLabel: 'Filter by project',
     pickerClass: 'topic-select',
     value: state.ui.activeTopic || '',
     options,
-    onSelect: (v: string) => selectTopic(v || null),
+    onSelect: (v: string) => enterProject(v || null),
   });
   wrap.appendChild(picker);
 
@@ -72,67 +62,6 @@ function _renderTopicFilter(parent: HTMLElement) {
   countEl.className = 'topic-count';
   if (state.ui.activeTopic) {
     countEl.textContent = `${topicCounts[state.ui.activeTopic] || 0} / ${total}`;
-    countEl.style.display = '';
-  } else {
-    countEl.style.display = 'none';
-  }
-  wrap.appendChild(countEl);
-  parent.appendChild(wrap);
-}
-
-function _entriesInTagCountScope() {
-  const allEntries = Object.values(state.index.data || {});
-  const topic = state.ui.activeTopic;
-  if (!topic) return allEntries;
-  return allEntries.filter((entry) => (entry.folder || 'unknown') === topic);
-}
-
-function _tagLabel(key: string) {
-  return state.index.tagsRegistry?.keys?.[key]?.value || key;
-}
-
-function _renderTagFilter(parent: HTMLElement) {
-  const scopeEntries = _entriesInTagCountScope();
-  if (scopeEntries.length === 0) return;
-
-  const tagCounts: Record<string, number> = {};
-  for (const entry of scopeEntries) {
-    for (const key of entry.tag_keys || []) {
-      tagCounts[key] = (tagCounts[key] || 0) + 1;
-    }
-  }
-
-  const total = scopeEntries.length;
-  const activeKey = state.ui.activeTagKey;
-
-  const wrap = document.createElement('div');
-  wrap.className = 'tag-filter';
-
-  const options: { value: string; label: string }[] = [{ value: '', label: `All (${total})` }];
-  const sortedKeys = Object.keys(tagCounts).sort((a, b) => _tagLabel(a).localeCompare(_tagLabel(b)));
-  for (const key of sortedKeys) {
-    options.push({ value: key, label: `${_tagLabel(key)} (${tagCounts[key]})` });
-  }
-  if (activeKey && !tagCounts[activeKey]) {
-    options.push({ value: activeKey, label: `${_tagLabel(activeKey)} (0)` });
-  }
-
-  const { picker } = createFloatingListSelect({
-    ariaLabel: 'Filter by tag',
-    pickerClass: 'tag-select',
-    value: activeKey || '',
-    options,
-    onSelect: (v: string) => {
-      if (v) selectTag(v);
-      else clearTagFilter();
-    },
-  });
-  wrap.appendChild(picker);
-
-  const countEl = document.createElement('div');
-  countEl.className = 'tag-count';
-  if (activeKey) {
-    countEl.textContent = `${tagCounts[activeKey] || 0} / ${total}`;
     countEl.style.display = '';
   } else {
     countEl.style.display = 'none';
@@ -168,25 +97,25 @@ export function NotesSidebar() {
   const channelRef = useRef<HTMLDivElement | null>(null);
   const data = host.index.data;
   const topic = host.ui.activeTopic;
-  const tag = host.ui.activeTagKey;
-  const registry = host.index.tagsRegistry;
+  const workspaces = host.workspaces;
+  const workspaceName = workspaces.list.find((w) => w.id === workspaces.current)?.name ?? '';
   const groups = host.index.filteredGroups || [];
   const activeDate = host.ui.activeDate;
+  const canCreate = Object.keys(host.index.topicTitles || {}).length > 0;
 
   useLayoutEffect(() => {
     const parent = channelRef.current;
     if (!parent) return;
     const sidebar = parent.closest('#sidebar') || document.getElementById('sidebar');
     closeFloatingListSelect();
-    sidebar?.querySelectorAll('.topic-filter, .tag-filter').forEach((el) => el.remove());
+    sidebar?.querySelectorAll('.topic-filter').forEach((el) => el.remove());
     parent.replaceChildren();
-    _renderTopicFilter(parent);
-    _renderTagFilter(parent);
+    if (isTimelineView()) _renderTopicFilter(parent);
     return () => {
       closeFloatingListSelect();
       parent.replaceChildren();
     };
-  }, [data, topic, tag, registry]);
+  }, [data, topic, workspaces.current, workspaces.list, host.index.topicTitles, host.index.topicOrder]);
 
   useLayoutEffect(() => {
     const aside = document.getElementById('sidebar');
@@ -200,7 +129,35 @@ export function NotesSidebar() {
         <WindowDragStrip>
           <PageBackHome />
         </WindowDragStrip>
-        <div id="sidebar-channel-zone" className="sidebar-channel-zone" ref={channelRef} />
+        <div className="sidebar-workspace-row">
+          <div id="sidebar-workspace-title" className="sidebar-workspace-title" title={workspaceName}>
+            {workspaceName}
+          </div>
+          <button
+            type="button"
+            className="sidebar-new-doc"
+            data-role="create-note"
+            aria-label="New document"
+            title={canCreate ? 'New document' : 'Create a project first'}
+            disabled={!canCreate}
+            onClick={() => startCreateDocument()}
+          >
+            <svg className="sidebar-new-doc-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path
+                fill="currentColor"
+                d="M11 5a1 1 0 1 1 2 0v6h6a1 1 0 1 1 0 2h-6v6a1 1 0 1 1-2 0v-6H5a1 1 0 1 1 0-2h6V5z"
+              />
+            </svg>
+          </button>
+        </div>
+        {isTimelineView() ? (
+          <div key="timeline-zone" id="sidebar-channel-zone" className="sidebar-channel-zone" ref={channelRef} />
+        ) : (
+          <div key="directory-zone" id="sidebar-channel-zone" className="knowledge-doc-sidebar-header">
+            <ProjectPicker />
+          </div>
+        )}
+        {isTimelineView() ? (
         <div id="sidebar-date-zone" className="sidebar-date-zone">
           {groups.map(({ date, entries }) => {
             const d = formatDate(date);
@@ -216,6 +173,11 @@ export function NotesSidebar() {
             );
           })}
         </div>
+        ) : (
+          <div id="sidebar-tree-zone" className="knowledge-doc-sidebar-tree">
+            <DirTree />
+          </div>
+        )}
       </div>
       <div
         id="sidebar-resizer"

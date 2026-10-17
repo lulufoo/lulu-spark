@@ -60,11 +60,11 @@ export function writePlanMdToDisk(tasksDir, masterId, content) {
 const E2E_REPO_ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 const NOTES_TOOLS_E2E = [
-  'list_notes_categories',
-  'get_note_digest',
-  'get_note_file',
+  'list_projects',
+  'get_doc_digest',
+  'get_doc_file',
   'search',
-  'create_note',
+  'create_doc',
 ];
 
 /**

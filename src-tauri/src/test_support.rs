@@ -70,7 +70,6 @@ pub struct TestSandbox {
     config_env: TestConfigEnv,
     dir: tempfile::TempDir,
     prod_spark_root: PathBuf,
-    prod_knowledge_root: PathBuf,
     prod_cache_dir: PathBuf,
 }
 
@@ -85,24 +84,14 @@ impl TestSandbox {
 
         let prod = settings::load_prod_settings();
         let prod_spark_root = prod.spark_root.clone();
-        let prod_knowledge_root = prod.knowledge_root.clone();
         let prod_cache_dir = prod.cache_dir.clone();
 
         let sandbox_dir = config_path.parent().expect("sandbox dir").to_path_buf();
-        let (wb, clones, cache) = prepare_sandbox_roots(&sandbox_dir);
-        write_sandbox_config(&config_path, &wb, &clones, &cache, ports);
+        let (wb, cache) = prepare_sandbox_roots(&sandbox_dir);
+        write_sandbox_config(&config_path, &wb, &cache, ports);
         let cfg = settings::load().expect("load");
-        for path in [
-            cfg.spark_root.as_path(),
-            cfg.knowledge_root.as_path(),
-            cfg.cache_dir.as_path(),
-        ] {
-            assert_path_not_under_prod_roots(
-                path,
-                &prod_spark_root,
-                &prod_knowledge_root,
-                &prod_cache_dir,
-            )
+        for path in [cfg.spark_root.as_path(), cfg.cache_dir.as_path()] {
+            assert_path_not_under_prod_roots(path, &prod_spark_root, &prod_cache_dir)
             .expect("TestSandbox must not use prod roots");
         }
 
@@ -110,7 +99,6 @@ impl TestSandbox {
             config_env,
             dir,
             prod_spark_root,
-            prod_knowledge_root,
             prod_cache_dir,
         }
     }
@@ -142,12 +130,6 @@ impl TestSandbox {
             .spark_root
     }
 
-    pub fn knowledge_root(&self) -> PathBuf {
-        let dir = self.data_dir().join("knowledge");
-        std::fs::create_dir_all(&dir).expect("mkdir knowledge");
-        dir
-    }
-
     pub fn cache_dir(&self) -> PathBuf {
         settings::load().expect("load sandbox config").cache_dir
     }
@@ -164,21 +146,12 @@ impl TestSandbox {
         &self.prod_spark_root
     }
 
-    pub fn prod_knowledge_root(&self) -> &Path {
-        &self.prod_knowledge_root
-    }
-
     pub fn prod_cache_dir(&self) -> &Path {
         &self.prod_cache_dir
     }
 
     pub fn assert_not_prod_path(&self, path: &Path) -> Result<(), ProdPathGuardError> {
-        assert_path_not_under_prod_roots(
-            path,
-            &self.prod_spark_root,
-            &self.prod_knowledge_root,
-            &self.prod_cache_dir,
-        )
+        assert_path_not_under_prod_roots(path, &self.prod_spark_root, &self.prod_cache_dir)
     }
 }
 

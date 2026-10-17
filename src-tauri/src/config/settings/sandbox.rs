@@ -2,7 +2,7 @@ use std::path::Path;
 
 use super::runtime_mode::{runtime_mode, runtime_normalize_prod_paths, RuntimeMode};
 use super::types::{
-    default_cache_dir, default_knowledge_root, default_spark_root, AppSettings, SettingsError, DEFAULT_PROD_GATEWAY_PORT, DEFAULT_PROD_HTTP_PORT,
+    default_cache_dir, default_spark_root, AppSettings, SettingsError, DEFAULT_PROD_GATEWAY_PORT, DEFAULT_PROD_HTTP_PORT,
     DEFAULT_PROD_MCP_PORT, PROD_CONFIG_FILE_NAME,
 };
 
@@ -27,11 +27,6 @@ pub fn validate_sandbox_against_prod(
             "spark_root",
             sandbox.spark_root.as_path(),
             prod.spark_root.as_path(),
-        ),
-        (
-            "knowledge_root",
-            sandbox.knowledge_root.as_path(),
-            prod.knowledge_root.as_path(),
         ),
         (
             "cache_dir",
@@ -117,9 +112,6 @@ pub(crate) fn normalize_prod_paths(settings: &mut AppSettings) {
     }
     if is_unstable_path(&settings.spark_root) {
         settings.spark_root = default_spark_root();
-    }
-    if is_unstable_path(&settings.knowledge_root) {
-        settings.knowledge_root = default_knowledge_root();
     }
 }
 

@@ -1,5 +1,5 @@
 import { flushSync } from 'react-dom';
-import { getEntryId } from '../state/host.ts';
+import { getEntryId, state } from '../state/host.ts';
 import * as api from '../../host/api.ts';
 import { moveProjectOpenStore } from '../state/dialog-open.ts';
 import { emptyMoveProjectView, moveProjectViewStore, patchMoveProject } from '../state/move-project.ts';
@@ -8,7 +8,7 @@ import type { NoteEntry } from '../state/types.ts';
 export { moveProjectOpenStore };
 export { moveProjectViewStore } from '../state/move-project.ts';
 
-type NotesCatRec = { id?: string; folder?: string; title?: string; description?: string };
+type ProjectRec = { folder?: string; title?: string; description?: string };
 
 let currentEntry: NoteEntry | null = null;
 
@@ -28,12 +28,10 @@ async function loadProjects(currentProject: string) {
   });
 
   try {
-    const data = (await api.fetchNotesCategories()) as { categories?: NotesCatRec[] };
-    const items = (data.categories || [])
+    const data = (await api.fetchProjects(state.workspaces.current)) as { projects?: ProjectRec[] };
+    const items = (data.projects || [])
       .map((c) => {
-        const id = typeof c.id === 'string' ? c.id.trim() : '';
-        const folder =
-          typeof c.folder === 'string' && c.folder.trim() ? c.folder.trim() : id;
+        const folder = typeof c.folder === 'string' ? c.folder.trim() : '';
         if (!folder || folder === currentProject) return null;
         return {
           proj: folder,

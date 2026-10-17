@@ -9,7 +9,8 @@ use serde_json::{json, Map, Value};
 use crate::config::paths;
 use crate::services::id::random_hex12;
 
-const KEY_PREFIXES: [&str; 3] = ["notes:", "knowledge:", "todos:"];
+/// A highlight key is `doc:<document id>`.
+const KEY_PREFIXES: [&str; 1] = ["doc:"];
 
 pub fn highlight_key_md5(key: &str) -> String {
     format!("{:x}", Md5::digest(key.as_bytes()))

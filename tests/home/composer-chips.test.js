@@ -3,25 +3,22 @@ import { act, createElement, createRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const openNote = vi.hoisted(() => vi.fn());
-const openKnowledge = vi.hoisted(() => vi.fn());
-vi.mock('../../frontend/src/home/commands/open-note-link.ts', () => ({ openNoteById: openNote }));
-vi.mock('../../frontend/src/home/commands/open-knowledge-link.ts', () => ({
-  openKnowledgeById: openKnowledge,
-}));
+const openDoc = vi.hoisted(() => vi.fn());
+vi.mock('../../frontend/src/home/commands/open-doc-link.ts', () => ({ openDocById: openDoc }));
 
 import { ComposerInput } from '../../frontend/src/home/ui/composer-input.tsx';
 import { registerReferenceKind } from '../../frontend/src/home/references/index.ts';
 
 const NOTE_ID = 'f6692dc5d5242eec5206b6400e704bd6';
-const NOTE = `[Agent Mock](note:${NOTE_ID})`;
+const GUIDE_ID = 'knowledge-0123456789abcdef0123456789abcdef';
+const NOTE = `[Default：Agent Mock](doc:${NOTE_ID})`;
+const GUIDE = `[Knowledge：Guide](doc:${GUIDE_ID})`;
 
 let container;
 let root;
 
 beforeEach(() => {
-  openNote.mockClear();
-  openKnowledge.mockClear();
+  openDoc.mockClear();
 });
 
 afterEach(() => {
@@ -77,33 +74,39 @@ function clipboardEvent(el, type, data = {}) {
 }
 
 describe('chips in the composer', () => {
-  it('shows a note reference as a chip and keeps the markdown underneath', () => {
+  it('shows a document reference as a chip and keeps the markdown underneath', () => {
     const { ref, el } = render();
     ref.current.setText(`read ${NOTE} now`);
     const chips = el.querySelectorAll('.home-ref-chip');
     expect(chips).toHaveLength(1);
     const chip = chips[0];
     expect(chip.getAttribute('contenteditable')).toBe('false');
-    expect(chip.getAttribute('data-ref-kind')).toBe('note');
+    expect(chip.getAttribute('data-ref-kind')).toBe('doc');
     expect(chip.getAttribute('data-ref-id')).toBe(NOTE_ID);
-    expect(chip.textContent).toBe('note: Agent Mock');
-    expect(chip.querySelector('.home-ref-chip-label')?.textContent).toBe('note: Agent Mock');
-    expect(el.textContent).not.toContain('(note:');
+    expect(chip.textContent).toBe('doc: Default：Agent Mock');
+    expect(chip.querySelector('.home-ref-chip-label')?.textContent).toBe('doc: Default：Agent Mock');
+    expect(el.textContent).not.toContain('(doc:');
     expect(ref.current.getText()).toBe(`read ${NOTE} now`);
   });
 
-  it('shows a knowledge reference with its own label', () => {
+  it('shows a document of another workspace the same way, with its workspace name', () => {
     const { ref, el } = render();
-    ref.current.setText('[Guide](knowledge:ab12cd)');
-    expect(el.querySelector('.home-ref-chip').textContent).toBe('knowledge: Guide');
-    expect(ref.current.getText()).toBe('[Guide](knowledge:ab12cd)');
+    ref.current.setText(GUIDE);
+    expect(el.querySelector('.home-ref-chip').textContent).toBe('doc: Knowledge：Guide');
+    expect(ref.current.getText()).toBe(GUIDE);
+  });
+
+  it('no longer turns the old note: and knowledge: links into chips', () => {
+    const { ref, el } = render();
+    ref.current.setText(`[A](note:${NOTE_ID}) [B](knowledge:${NOTE_ID})`);
+    expect(el.querySelector('.home-ref-chip')).toBeNull();
   });
 
   it('keeps an invalid reference as plain text', () => {
     const { ref, el } = render();
-    ref.current.setText('[x](note:abc) and [y](https://a.b)');
+    ref.current.setText('[x](doc:abc) and [y](https://a.b)');
     expect(el.querySelector('.home-ref-chip')).toBeNull();
-    expect(ref.current.getText()).toBe('[x](note:abc) and [y](https://a.b)');
+    expect(ref.current.getText()).toBe('[x](doc:abc) and [y](https://a.b)');
   });
 
   it('counts a lone chip as content', () => {
@@ -116,7 +119,7 @@ describe('chips in the composer', () => {
   it('inserts a reference at the caret followed by a space', () => {
     const { ref, el } = render();
     ref.current.setText('see ');
-    ref.current.insertReference({ kind: 'note', id: NOTE_ID, title: 'Agent Mock' });
+    ref.current.insertReference({ kind: 'doc', id: NOTE_ID, title: 'Default：Agent Mock' });
     expect(el.querySelectorAll('.home-ref-chip')).toHaveLength(1);
     expect(ref.current.getText()).toBe(`see ${NOTE} `);
   });
@@ -249,26 +252,21 @@ describe('Command-Backspace line delete', () => {
 });
 
 describe('clicking a chip', () => {
-  it('opens a note through the note opener', () => {
+  it('opens a document through the document opener, whatever its workspace', () => {
     const { ref, el } = render();
-    ref.current.setText(NOTE);
-    act(() => el.querySelector('.home-ref-chip').click());
-    expect(openNote).toHaveBeenCalledWith(NOTE_ID);
-    expect(openKnowledge).not.toHaveBeenCalled();
-  });
-
-  it('opens a knowledge document through the knowledge opener', () => {
-    const { ref, el } = render();
-    ref.current.setText('[Guide](knowledge:ab12cd)');
-    act(() => el.querySelector('.home-ref-chip').click());
-    expect(openKnowledge).toHaveBeenCalledWith('ab12cd');
+    ref.current.setText(`${NOTE} ${GUIDE}`);
+    const [first, second] = el.querySelectorAll('.home-ref-chip');
+    act(() => first.click());
+    act(() => second.click());
+    expect(openDoc).toHaveBeenNthCalledWith(1, NOTE_ID);
+    expect(openDoc).toHaveBeenNthCalledWith(2, GUIDE_ID);
   });
 
   it('opens any registered kind through its own opener', () => {
     const open = vi.fn();
-    registerReferenceKind({ kind: 'doc', scheme: 'doc', label: 'doc', idPattern: /^[a-z]+$/, open });
+    registerReferenceKind({ kind: 'skill', scheme: 'skill', label: 'skill', idPattern: /^[a-z]+$/, open });
     const { ref, el } = render();
-    ref.current.setText('[T](doc:abc)');
+    ref.current.setText('[T](skill:abc)');
     act(() => el.querySelector('.home-ref-chip').click());
     expect(open).toHaveBeenCalledWith('abc');
   });
@@ -277,7 +275,7 @@ describe('clicking a chip', () => {
     const { ref, el } = render();
     ref.current.setText(`hello ${NOTE}`);
     act(() => el.firstChild.parentElement.click());
-    expect(openNote).not.toHaveBeenCalled();
+    expect(openDoc).not.toHaveBeenCalled();
   });
 });
 

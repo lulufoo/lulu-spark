@@ -51,9 +51,7 @@ CREATE TABLE IF NOT EXISTS summaries (
 CREATE TABLE IF NOT EXISTS staged (
   staged_id TEXT PRIMARY KEY,
   path TEXT NOT NULL,
-  title TEXT NOT NULL,
-  source_kind TEXT,
-  source_id TEXT
+  title TEXT NOT NULL
 );
 "#;
 

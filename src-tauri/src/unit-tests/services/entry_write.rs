@@ -6,7 +6,7 @@ use crate::test_support::{seed_note_entries, TestSandbox};
 #[test]
 fn save_entry_updates_file() {
     let sandbox = TestSandbox::new();
-    let notes = sandbox.data_dir().join("notes");
+    let notes = sandbox.data_dir().join("workspaces").join("default");
     let md = notes.join("digest").join("inbox").join("foo.md");
     fs::create_dir_all(md.parent().unwrap()).expect("mkdir");
     fs::write(&md, "old").expect("w");
@@ -28,10 +28,10 @@ fn save_entry_updates_file() {
 /// vanished file drops its rows — without a full rebuild.
 #[test]
 fn save_entry_syncs_search_index_for_touched_file() {
-    use crate::services::search_index::{open, search, search_desktop_spark, SearchFilter};
+    use crate::services::search_index::{open, search, search_desktop_docs, SearchFilter};
 
     let sandbox = TestSandbox::new();
-    let notes = sandbox.data_dir().join("notes");
+    let notes = sandbox.data_dir().join("workspaces").join("default");
     let md = notes.join("raw").join("proj").join("sync.md");
     fs::create_dir_all(md.parent().unwrap()).expect("mkdir");
     fs::write(&md, "# Sync\n\nold body without keywords").expect("w");
@@ -47,7 +47,7 @@ fn save_entry_syncs_search_index_for_touched_file() {
         None,
     );
     assert_eq!(v["ok"], json!(true));
-    let out = search_desktop_spark(&sandbox.cache_dir(), "角色扮演", Some(5));
+    let out = search_desktop_docs(&sandbox.cache_dir(), "角色扮演", Some(5), None);
     let hits = out["hits"].as_array().expect("hits");
     assert_eq!(hits.len(), 1, "{out}");
     assert_eq!(hits[0]["id"], id);
@@ -55,11 +55,11 @@ fn save_entry_syncs_search_index_for_touched_file() {
     assert!(hits[0].get("common_path").is_none());
 
     fs::remove_file(&md).expect("rm");
-    crate::services::search_index::sync_note_docs(sandbox.config_dir(), &[&id])
+    crate::services::search_index::sync_workspace_docs("default", &[&id])
         .expect("sync delete");
     let conn = open(&sandbox.cache_dir()).expect("open");
     let filter = SearchFilter {
-        category: Some("notes".into()),
+        category: Some("docs".into()),
         ..SearchFilter::default()
     };
     assert!(search(&conn, "角色扮演", &filter, 5).expect("search").is_empty());

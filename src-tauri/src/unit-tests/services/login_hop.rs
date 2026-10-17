@@ -15,7 +15,7 @@ fn pass_id_reads_encoded_bag_and_ignores_hash() {
 #[test]
 fn pass_id_missing_on_notes_or_bare_callback() {
     assert!(!is_auth_login_scheme(
-        "spark://notes/open?id=a&path=p.md&trace=trace_12345678"
+        "spark://docs/open?id=a&path=p.md&trace=trace_12345678"
     ));
     assert!(pass_id_from_scheme("spark://auth-login/callback").is_none());
     assert!(

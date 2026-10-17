@@ -46,29 +46,9 @@ pub fn spark_data_db_path() -> Result<PathBuf, PathsError> {
     Ok(runtime_data_dir()?.join("spark-data.sqlite"))
 }
 
-/// Notes files live at `{runtime_data_dir}/notes/`.
-pub fn notes_root() -> Result<PathBuf, PathsError> {
-    Ok(runtime_data_dir()?.join("notes"))
-}
-
-/// Notes category registry: `{runtime_data_dir}/notes/categories.json`.
-pub fn notes_categories_path() -> Result<PathBuf, PathsError> {
-    Ok(notes_root()?.join("categories.json"))
-}
-
-/// Knowledge clones: `{runtime_data_dir}/knowledge`.
-/// Does not follow `knowledge_root` or `cache_dir` in config.
-pub fn runtime_knowledge_dir() -> Result<PathBuf, PathsError> {
-    Ok(runtime_data_dir()?.join("knowledge"))
-}
-
-pub fn knowledge_root() -> Result<PathBuf, PathsError> {
-    runtime_knowledge_dir()
-}
-
-/// Knowledge registry (repo list / categories) at `{runtime_data_dir}/knowledge/`.
-pub fn sediment_kb_dir() -> Result<PathBuf, PathsError> {
-    Ok(runtime_data_dir()?.join("knowledge"))
+/// One folder per workspace: `{runtime_data_dir}/workspaces/{workspace_id}/`.
+pub fn workspaces_root() -> Result<PathBuf, PathsError> {
+    Ok(runtime_data_dir()?.join("workspaces"))
 }
 
 pub fn read_later_path() -> Result<PathBuf, PathsError> {
@@ -130,14 +110,26 @@ pub fn cache_todo_tasks_v1_path() -> Result<PathBuf, PathsError> {
     Ok(cache_dir()?.join("todo_tasks.json"))
 }
 
-/// Knowledge hide-pattern records: `{cache_dir}/knowledge-hide-patterns.json`.
-pub fn knowledge_hide_patterns_path() -> Result<PathBuf, PathsError> {
+/// Hidden files rules of one workspace: `{cache_dir}/workspace-hide-patterns/{workspace_id}.json`.
+/// The caller validates `workspace_id`.
+pub fn workspace_hide_patterns_path(workspace_id: &str) -> Result<PathBuf, PathsError> {
+    Ok(cache_dir()?
+        .join("workspace-hide-patterns")
+        .join(format!("{workspace_id}.json")))
+}
+
+/// The single global rule list from before rules were per workspace:
+/// `{cache_dir}/knowledge-hide-patterns.json`. Read only, to seed a workspace's first rules.
+pub fn legacy_hide_patterns_path() -> Result<PathBuf, PathsError> {
     Ok(cache_dir()?.join("knowledge-hide-patterns.json"))
 }
 
-/// Knowledge viewer current repo + md: `{cache_dir}/knowledge-viewer-state.json`.
-pub fn knowledge_viewer_state_path() -> Result<PathBuf, PathsError> {
-    Ok(cache_dir()?.join("knowledge-viewer-state.json"))
+/// The document a workspace's page had open: `{cache_dir}/workspace-viewer-state/{workspace_id}.json`.
+/// The caller validates `workspace_id`.
+pub fn workspace_viewer_state_path(workspace_id: &str) -> Result<PathBuf, PathsError> {
+    Ok(cache_dir()?
+        .join("workspace-viewer-state")
+        .join(format!("{workspace_id}.json")))
 }
 
 /// Local highlight cache root: `{cache_dir}/doc-highlights`.
@@ -159,14 +151,6 @@ pub fn doc_highlights_file(md5_hex: &str) -> Result<PathBuf, PathsError> {
     Ok(target)
 }
 
-pub fn sediment_kb_categories_path() -> Result<PathBuf, PathsError> {
-    Ok(sediment_kb_dir()?.join("categories.json"))
-}
-
-pub fn sediment_kb_repos_path() -> Result<PathBuf, PathsError> {
-    Ok(sediment_kb_dir()?.join("repos.json"))
-}
-
 pub fn draft_path(common_path: &str) -> Result<PathBuf, PathsError> {
     let drafts_dir = cache_dir()?.join("drafts");
     let mut target = drafts_dir.clone();
@@ -182,8 +166,8 @@ pub fn draft_path(common_path: &str) -> Result<PathBuf, PathsError> {
     Ok(target)
 }
 
-/// Crash-buffer path for note create: `{cache_dir}/drafts/notes/<temp_id>`.
-pub fn notes_draft_path(temp_id: &str) -> Result<PathBuf, PathsError> {
+/// Crash-buffer path for note create: `{cache_dir}/drafts/docs/<temp_id>`.
+pub fn doc_draft_path(temp_id: &str) -> Result<PathBuf, PathsError> {
     if temp_id.trim().is_empty() {
         return Err(PathsError::RepoRootUnavailable);
     }

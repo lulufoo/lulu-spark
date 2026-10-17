@@ -7,8 +7,6 @@ import {
 const REINDEX_KEYS = [
   'reindexAll',
   'getReindexAllStatus',
-  'reindexKbRepo',
-  'getReindexStatus',
 ];
 
 describe('searchApiInvokeMap', () => {
@@ -25,21 +23,10 @@ describe('searchApiInvokeMap', () => {
     expect(REINDEX_INVOKE_MAP.getReindexSparkStatus).toBeUndefined();
   });
 
-  it('resolveReindexInvoke maps kb repo body', () => {
-    expect(resolveReindexInvoke('reindexKbRepo', { repo: 'foo' })).toEqual({
-      cmd: 'reindex_kb_repo',
-      args: { repo: 'foo' },
-    });
-  });
-
   it('resolveReindexInvoke maps header rebuild and status commands without args', () => {
     expect(resolveReindexInvoke('reindexAll')).toEqual({ cmd: 'reindex_all', args: {} });
     expect(resolveReindexInvoke('getReindexAllStatus')).toEqual({
       cmd: 'get_reindex_all_status',
-      args: {},
-    });
-    expect(resolveReindexInvoke('getReindexStatus')).toEqual({
-      cmd: 'get_reindex_status',
       args: {},
     });
   });

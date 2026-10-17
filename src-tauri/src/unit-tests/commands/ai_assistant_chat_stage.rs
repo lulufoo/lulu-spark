@@ -31,7 +31,7 @@ fn stage_external(session_id: &str, file: &Path) {
     let fence = base.with_session_scratch(session_id).unwrap_or(base);
     let canon = validate_stage_file(&file.to_string_lossy(), &fence).expect("validate");
     let mut live = session::load_session(session_id).expect("load");
-    live.register_staged(&canon.to_string_lossy(), None, None)
+    live.register_staged(&canon.to_string_lossy(), None)
         .expect("register");
     session::save_session(&live).expect("save");
 }

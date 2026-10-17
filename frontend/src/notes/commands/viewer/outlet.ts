@@ -1,5 +1,7 @@
 import { notifyState, state } from '../../state/host.ts';
 import { formatDate } from '../../../shared/utils.ts';
+import { dirKeyLabel, isDirKey, normalizeGroupKey } from '../../state/dir-tree.ts';
+import { entryGroupKey, isDirectoryView } from '../workspace.ts';
 import type { HostNoteGroup, HostOutletMode } from '../../../host/snapshot-types.ts';
 import type { NoteEntry } from '../../state/types.ts';
 
@@ -7,16 +9,16 @@ export function notesDateHeadingText(
   dateStr: string | null | undefined,
   group: { entries?: unknown[] } | null | undefined,
 ) {
-  const date = String(dateStr || '').slice(0, 8);
-  if (!/^\d{8}$/.test(date)) return '';
-  const datePart = formatDate(date).full;
+  const date = normalizeGroupKey(dateStr);
+  if (!date) return '';
+  const datePart = isDirKey(date) ? dirKeyLabel(date, state.index.topicTitles) : formatDate(date).full;
   const count = group?.entries?.length;
   return count != null ? `${datePart}  ·  ${count} items` : datePart;
 }
 
 export function findNotesDateGroup(dateStr: string | null | undefined): HostNoteGroup | null {
-  const date = String(dateStr || '').slice(0, 8);
-  if (!/^\d{8}$/.test(date)) return null;
+  const date = normalizeGroupKey(dateStr);
+  if (!date) return null;
   return (
     state.index.filteredGroups?.find((g) => g.date === date) ||
     state.index.groupedByDate?.find((g) => g.date === date) ||
@@ -28,15 +30,14 @@ export function resolveNotesListDate(
   activeDate?: string | null,
   routeDate?: string | null,
 ) {
-  const picks = [
-    activeDate,
-    routeDate,
-    state.index.filteredGroups[0]?.date,
-    state.index.groupedByDate[0]?.date,
-  ];
+  // The directory view shows only what its tree selected: with nothing selected the pane stays
+  // blank instead of falling back to a timeline day that has nothing to do with the project.
+  const picks = isDirectoryView()
+    ? [activeDate, routeDate]
+    : [activeDate, routeDate, state.index.filteredGroups[0]?.date, state.index.groupedByDate[0]?.date];
   for (const pick of picks) {
-    const date = String(pick || '').slice(0, 8);
-    if (!/^\d{8}$/.test(date)) continue;
+    const date = normalizeGroupKey(pick);
+    if (!date) continue;
     const group = findNotesDateGroup(date);
     if (group) return { date, group };
   }
@@ -46,9 +47,11 @@ export function resolveNotesListDate(
 export function setNotePanelTitle(entryOrDate?: string | NoteEntry | null) {
   const titleEl = document.getElementById('md-panel-title');
   const dateStr = typeof entryOrDate === 'string'
-    ? entryOrDate
-    : String(entryOrDate?.created_at || state.ui.activeDate || '').slice(0, 8);
-  if (!/^\d{8}$/.test(dateStr)) {
+    ? normalizeGroupKey(entryOrDate)
+    : entryOrDate
+      ? entryGroupKey(entryOrDate)
+      : normalizeGroupKey(state.ui.activeDate);
+  if (!dateStr) {
     if (titleEl) {
       titleEl.textContent = '';
       titleEl.removeAttribute('title');

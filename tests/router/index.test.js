@@ -53,26 +53,6 @@ describe('parseHash', () => {
     expect(result.params).not.toHaveProperty('layer');
   });
 
-  it('parses #/knowledge as empty repo knowledge-doc', () => {
-    expect(parseHash('#/knowledge')).toEqual({ name: 'knowledge-doc', params: { repo: '' } });
-  });
-
-  it('parses legacy #/knowledge/pick as empty repo knowledge-doc', () => {
-    expect(parseHash('#/knowledge/pick')).toEqual({ name: 'knowledge-doc', params: { repo: '' } });
-  });
-
-  it('parses #/knowledge/:topic as a folder name', () => {
-    expect(parseHash('#/knowledge/myrepo')).toEqual({
-      name: 'knowledge-doc',
-      params: { repo: 'myrepo' },
-    });
-  });
-
-  it('rejects leftover owner/name knowledge hashes', () => {
-    expect(parseHash('#/knowledge/lulufoo/myrepo')).toEqual({ name: 'unknown', params: {} });
-    expect(parseHash('#/knowledge/lulufoo%2Fmyrepo')).toEqual({ name: 'unknown', params: {} });
-  });
-
   it('parses #/home', () => {
     expect(parseHash('#/home')).toEqual({ name: 'home', params: {} });
   });
@@ -85,49 +65,10 @@ describe('parseHash', () => {
     expect(parseHash('#/read-later/')).toEqual({ name: 'read-later', params: {} });
   });
 
-  it('parses #/knowledge/:topic?id= for deep link', () => {
-    expect(parseHash('#/knowledge/myrepo?id=abcdefabcdefabcdefabcdefabcdefab')).toEqual({
-      name: 'knowledge-doc',
-      params: { repo: 'myrepo', id: 'abcdefabcdefabcdefabcdefabcdefab' },
-    });
-  });
-
-  it('decodes topic and id when encoded', () => {
-    expect(parseHash('#/knowledge/my%20repo?id=readme')).toEqual({
-      name: 'knowledge-doc',
-      params: { repo: 'my repo', id: 'readme' },
-    });
-  });
-
-  it('omits id when ?id= query is absent', () => {
-    const result = parseHash('#/knowledge/myrepo');
-    expect(result).toEqual({
-      name: 'knowledge-doc',
-      params: { repo: 'myrepo' },
-    });
-    expect(result.params).not.toHaveProperty('id');
-    expect(result.params).not.toHaveProperty('path');
-  });
-
-  it('handles empty ?id= value', () => {
-    expect(parseHash('#/knowledge/myrepo?id=')).toEqual({
-      name: 'knowledge-doc',
-      params: { repo: 'myrepo', id: '' },
-    });
-  });
-
-  it('keeps query off the topic folder', () => {
-    expect(parseHash('#/knowledge/myrepo?id=a.md')).toEqual({
-      name: 'knowledge-doc',
-      params: { repo: 'myrepo', id: 'a.md' },
-    });
-  });
-
-  it('returns unknown for invalid repo encoding with query', () => {
-    expect(parseHash('#/knowledge/%?id=foo.md')).toEqual({
-      name: 'unknown',
-      params: {},
-    });
+  it('treats the retired knowledge hashes as unknown', () => {
+    for (const hash of ['#/knowledge', '#/knowledge/pick', '#/knowledge/myrepo', '#/knowledge/myrepo?id=abc']) {
+      expect(parseHash(hash)).toEqual({ name: 'unknown', params: {} });
+    }
   });
 });
 
@@ -140,7 +81,6 @@ describe('initRouter fallback (library API; app entry uses mountHashRouter)', ()
     handlers = {
       spark: vi.fn(),
       home: vi.fn(),
-      'knowledge-doc': vi.fn(),
     };
     hashValue = '';
     listeners = {};
@@ -205,7 +145,6 @@ describe('hash navigation', () => {
     handlers = {
       spark: vi.fn(),
       home: vi.fn(),
-      'knowledge-doc': vi.fn(() => navigate('#/spark')),
     };
     vi.stubGlobal('window', {
       addEventListener(type, fn) {
@@ -240,30 +179,6 @@ describe('hash navigation', () => {
     hashValue = '#/home';
     listeners.hashchange();
     expect(handlers.home).toHaveBeenCalledTimes(1);
-
-    handlers.home.mockClear();
-    hashValue = '#/knowledge/myrepo';
-    listeners.popstate();
-    expect(handlers['knowledge-doc']).toHaveBeenCalledTimes(1);
-  });
-
-  it('back navigation from knowledge route does not leave blank mount', () => {
-    initRouter(handlers, { fallback: '#/spark' });
-    expect(handlers.spark).toHaveBeenCalledTimes(1);
-
-    hashValue = '#/knowledge/myrepo';
-    listeners.hashchange();
-    expect(handlers['knowledge-doc']).toHaveBeenCalledTimes(1);
-
-    const sparkCallsAfterRedirect = handlers.spark.mock.calls.length;
-    expect(sparkCallsAfterRedirect).toBeGreaterThanOrEqual(1);
-
-    handlers.spark.mockClear();
-    hashValue = '#/spark';
-    listeners.popstate();
-
-    expect(handlers.spark).toHaveBeenCalledTimes(1);
-    expect(() => handlers.spark.mock.results[0]?.value).not.toThrow();
   });
 });
 
@@ -309,7 +224,6 @@ describe('Phase2 fallback via initRouter (library API; app entry uses mountHashR
     handlers = {
       spark: vi.fn(),
       home: vi.fn(),
-      'knowledge-doc': vi.fn(),
     };
     hashValue = '';
     listeners = {};
@@ -389,20 +303,6 @@ describe('Phase2 fallback via initRouter (library API; app entry uses mountHashR
     hashValue = '#/spark';
     listeners.hashchange();
     expect(handlers.spark).toHaveBeenCalledTimes(1);
-
-    handlers.home.mockClear();
-    hashValue = '#/home';
-    listeners.popstate();
-    expect(handlers.home).toHaveBeenCalledTimes(1);
-  });
-
-  it('back navigation from knowledge doc returns to home hub', () => {
-    initRouter(handlers);
-    expect(handlers.home).toHaveBeenCalledTimes(1);
-
-    hashValue = '#/knowledge/myrepo';
-    listeners.hashchange();
-    expect(handlers['knowledge-doc']).toHaveBeenCalledTimes(1);
 
     handlers.home.mockClear();
     hashValue = '#/home';

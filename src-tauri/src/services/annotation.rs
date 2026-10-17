@@ -1,9 +1,9 @@
 //! Notes annotation write handlers: done, importance, links, comments, highlights.
-//! They live on the `note` row; comments and highlights belong to the raw layer.
+//! They live on the document row; comments and highlights belong to the raw layer.
 
 use serde_json::{json, Map, Value};
 
-use crate::services::note_edit::{clean_note_id, edit_note, find_note};
+use crate::services::docs::edit::{clean_doc_id, edit_doc, require_doc};
 use crate::services::spark_data::{self, annotation_object};
 
 use super::id::random_hex12;
@@ -34,15 +34,15 @@ fn invalid_state() -> Value {
 
 /// The annotation object of the note `id`; `{}` when there is none.
 pub fn read_annotation_object(id: &str) -> Value {
-    let Ok(id) = clean_note_id(id) else {
+    let Ok(id) = clean_doc_id(id) else {
         return json!({});
     };
-    let found = spark_data::open().ok().and_then(|conn| find_note(&conn, id).ok());
-    found.map_or_else(|| json!({}), |note| annotation_object(&note))
+    let found = spark_data::open().ok().and_then(|conn| require_doc(&conn, id).ok());
+    found.map_or_else(|| json!({}), |found| annotation_object(&found.doc))
 }
 
 pub fn set_done(_repo_root: &std::path::Path, id: &str, done: bool) -> Value {
-    edit_note(id, |_, note| {
+    edit_doc(id, |_, note| {
         note.done = done;
         Ok(json!({ "ok": true }))
     })
@@ -55,7 +55,7 @@ pub fn set_importance(_repo_root: &std::path::Path, id: &str, importance: Option
             return json!({ "error": format!("Invalid importance: {v}"), "_status": 400 });
         }
     }
-    edit_note(id, |_, note| {
+    edit_doc(id, |_, note| {
         note.importance = imp.map(String::from);
         Ok(json!({ "ok": true }))
     })
@@ -71,7 +71,7 @@ pub fn update_links(_repo_root: &std::path::Path, id: &str, links: Value) -> Val
             return json!({ "error": format!("Invalid url: {url}"), "_status": 400 });
         }
     }
-    edit_note(id, |_, note| {
+    edit_doc(id, |_, note| {
         note.links = Value::Array(links_arr);
         Ok(json!({ "ok": true }))
     })
@@ -92,7 +92,7 @@ pub fn update_comments(
         return reply;
     }
     let (cid, text, ts) = (text_of(&comment, "id"), text_of(&comment, "text"), ts.trim().to_string());
-    edit_note(id, |_, note| {
+    edit_doc(id, |_, note| {
         let Value::Array(comments) = &mut note.comments else {
             return Err(invalid_state());
         };
@@ -130,7 +130,7 @@ pub fn reorder_comments(
     if let Err(reply) = check_layer(layer) {
         return reply;
     }
-    edit_note(id, |_, note| {
+    edit_doc(id, |_, note| {
         let comments = note.comments.as_array().cloned().unwrap_or_default();
         let by_id: Map<String, Value> = comments
             .into_iter()
@@ -164,7 +164,7 @@ pub fn update_highlights(
     }
     let (hid, text, ts) = (text_of(&highlight, "id"), text_of(&highlight, "text"), ts.trim().to_string());
     let occurrence = occurrence_of(&highlight);
-    edit_note(id, |_, note| {
+    edit_doc(id, |_, note| {
         let Value::Array(highlights) = &mut note.highlights else {
             return Err(invalid_state());
         };

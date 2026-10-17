@@ -12,25 +12,42 @@ export {
 
 export { showOsNotification } from './api/os-notification.ts';
 
-export { resolveNoteForOpen } from './api/note-open.ts';
-export type { ResolvedNote } from './api/note-open.ts';
+export { resolveDocForOpen } from './api/doc-open.ts';
+export type { ResolvedNote } from './api/doc-open.ts';
 
-export { resolveKnowledgeForOpen } from './api/knowledge-open.ts';
-export type { ResolvedKnowledgeDoc } from './api/knowledge-open.ts';
 
 export { getPackageSnapshot } from './api/package-snapshot.ts';
 export type { PackageSnapshot } from './api/package-snapshot.ts';
 
 export {
-  createNotesCategory,
-  deleteNotesCategory,
-  fetchNotesCategories,
-  updateNotesCategory,
-} from './api/notes-categories.ts';
+  addHidePattern,
+  createProject,
+  createWorkspace,
+  disableProject,
+  disableWorkspace,
+  enableProject,
+  enableWorkspace,
+  fetchDisabledProjects,
+  fetchDisabledWorkspaces,
+  fetchHidePatterns,
+  fetchProjects,
+  fetchViewerState,
+  fetchWorkspaces,
+  removeHidePattern,
+  renameWorkspace,
+  reorderProjects,
+  reorderWorkspaces,
+  saveViewerState,
+  setWorkspaceIcon,
+  setWorkspaceViewMode,
+  updateHidePattern,
+  updateProject,
+} from './api/workspaces.ts';
+export type { HidePatternRow, ViewMode, ViewerProjectState, ViewerState } from './api/workspaces.ts';
 
 export {
   createNote,
-  clearNoteDraft,
+  clearDocDraft,
   deleteEntry,
   fetchAnnotation,
   fetchAnnotationsSummary,
@@ -41,14 +58,13 @@ export {
   fetchIndex,
   fetchLinkTitle,
   fetchTagsRegistry,
-  fetchTopics,
   getDraft,
-  getNoteDraft,
+  getDocDraft,
   moveToProject,
   reorderComments,
   saveDraft,
   saveFile,
-  saveNoteDraft,
+  saveDocDraft,
   setConfig,
   setDone,
   setImportance,
@@ -61,39 +77,4 @@ export {
   updateLinks,
 } from './api/spark.ts';
 
-export {
-  addSedimentKbCategory,
-  addSedimentKbRepo,
-  fetchKbAnnotation,
-  fetchKbDocId,
-  addKbHidePattern,
-  fetchKbDocCount,
-  fetchKbHidePatterns,
-  fetchKbViewerState,
-  fetchKbAssetAsBlobUrl,
-  fetchKbFileContent,
-  fetchKbList,
-  fetchSedimentKbCategories,
-  fetchSedimentKbRepos,
-  getReindexAllStatus,
-  getReindexStatus,
-  reindexAll,
-  reindexKbRepo,
-  removeKbHidePattern,
-  createKbEntry,
-  deleteKbEntry,
-  renameKbEntry,
-  removeSedimentKbCategory,
-  removeSedimentKbRepo,
-  renameSedimentKbCategory,
-  reorderKbComments,
-  saveKbFile,
-  saveKbViewerState,
-  searchKnowledge,
-  searchSpark,
-  updateKbHidePattern,
-  updateKbComment,
-  updateKbHighlight,
-  updateKbLinks,
-  updateSedimentKbRepoCategory,
-} from './api/knowledge.ts';
+export { getReindexAllStatus, reindexAll, searchSpark } from './api/search.ts';

@@ -1,6 +1,6 @@
 import { getEntryId, state } from '../../state/host.ts';
 import * as api from '../../../host/api.ts';
-import { notesDocKey } from '../../../doc-editor/identity.ts';
+import { docKey } from '../../../doc-editor/identity.ts';
 import { applyCachedHighlights, initDocHighlightOverlay } from '../../../doc-editor/highlights.ts';
 import { renderDocMarkdown } from '../../../doc-editor/view.tsx';
 import { renderMermaidBlocks } from '../../../shared/mermaid-render.ts';
@@ -48,7 +48,7 @@ async function postProcessImages(container: Element, layer: string, id: string) 
 
 function notesIdentityKey() {
   const id = getEntryId(state.viewer.entry);
-  return id ? notesDocKey(id) : '';
+  return id ? docKey(id) : '';
 }
 
 function applyHighlights() {

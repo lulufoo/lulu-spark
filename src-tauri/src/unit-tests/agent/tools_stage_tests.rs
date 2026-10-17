@@ -89,7 +89,7 @@ fn catalog_registers_stage_trio_off_cursor_ide_and_mobile() {
         .expect("stage");
     assert_eq!(
         stage_def.pointer("/function/description").and_then(|v| v.as_str()),
-        Some("Add an external file to this Chat's Stage. Asks the user first. After allow, grants read and write for that path and shows it to the user. The path may not exist yet. Spark's own data and .git cannot be requested. Notes and knowledge documents are not staged: use get_note_file or get_knowledge_file.")
+        Some("Add an external file to this Chat's Stage. Asks the user first. After allow, grants read and write for that path and shows it to the user. The path may not exist yet. Spark's own data and .git cannot be requested. Workspace documents are not staged: use get_doc_file.")
     );
     assert_eq!(
         stage_def
@@ -116,7 +116,7 @@ fn stage_into_appends_default_title_without_body() {
         assert!(!result.is_error && !result.content.contains(SECRET_BODY), "{}", result.content);
         assert_eq!(sess.staged.len(), 1);
         assert_eq!(sess.staged[0].id, "F1");
-        assert!(sess.staged[0].source.is_none());
+        assert!(serde_json::to_value(&sess.staged[0]).unwrap().get("source").is_none());
         let stored_path = stored(&path);
         assert_path_only(&serde_json::to_value(&sess.staged[0]).unwrap(), &stored_path, "my-note");
         assert_path_only(&as_json(&result.content), &stored_path, "my-note");

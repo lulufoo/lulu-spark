@@ -9,8 +9,8 @@ fn with_channel_tools<F: FnOnce()>(f: F) {
     mcp_channel_tools::set_enabled(
         "spark",
         vec![
-            "list_notes_categories".into(),
-            "create_note".into(),
+            "list_projects".into(),
+            "create_doc".into(),
         ],
     )
     .expect("seed enabled");
@@ -21,8 +21,8 @@ fn with_channel_tools<F: FnOnce()>(f: F) {
 fn enabled_grouped_partitions_flat_settings_by_business() {
     with_channel_tools(|| {
         let grouped = enabled_grouped("spark");
-        assert!(grouped.notes.contains(&"list_notes_categories".into()));
-        assert!(grouped.notes.contains(&"create_note".into()));
+        assert!(grouped.docs.contains(&"list_projects".into()));
+        assert!(grouped.docs.contains(&"create_doc".into()));
         assert!(!mcp_channel_tools::is_enabled(
             "spark",
             "list_todo_tasks"
@@ -35,11 +35,11 @@ fn enabled_grouped_respects_spark_only_policy() {
     with_channel_tools(|| {
         mcp_channel_tools::set_enabled(
             "mobile",
-            vec!["delete_note".into()],
+            vec!["delete_doc".into()],
         )
         .expect("mobile enabled");
         let grouped = enabled_grouped("mobile");
-        assert!(!grouped.notes.iter().any(|n| n == "delete_note"));
+        assert!(!grouped.docs.iter().any(|n| n == "delete_doc"));
         assert!(!mcp_channel_tools::is_enabled("mobile", "list_todo_tasks"));
     });
 }
@@ -47,8 +47,7 @@ fn enabled_grouped_respects_spark_only_policy() {
 #[test]
 fn enabled_grouped_unknown_channel_is_empty() {
     let grouped = enabled_grouped("not-a-channel");
-    assert!(grouped.notes.is_empty());
-    assert!(grouped.knowledge.is_empty());
+    assert!(grouped.docs.is_empty());
     assert!(grouped.global.is_empty());
 }
 
@@ -58,7 +57,7 @@ fn enabled_grouped_default_is_full_catalog_when_unconfigured() {
         let flat: HashSet<String> = mcp_channel_tools::enabled_names("cursor_ide");
         let grouped = enabled_grouped("cursor_ide");
         let grouped_count =
-            grouped.notes.len() + grouped.knowledge.len() + grouped.global.len();
+            grouped.docs.len() + grouped.global.len();
         assert_eq!(grouped_count, flat.len());
     });
 }

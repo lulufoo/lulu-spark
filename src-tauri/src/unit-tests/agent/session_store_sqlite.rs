@@ -258,12 +258,44 @@ fn save_truncates_only_the_removed_turn_suffix() {
 }
 
 #[test]
+fn staged_rows_from_older_databases_with_source_columns_still_load() {
+    with_sandbox(|_| {
+        let sess = session::create_session().expect("create");
+        let path = session::session_file_path(&sess.session_id).expect("path");
+        let conn = Connection::open(&path).expect("open");
+        conn.execute_batch(
+            "ALTER TABLE staged ADD COLUMN source_kind TEXT;
+             ALTER TABLE staged ADD COLUMN source_id TEXT;
+             INSERT INTO staged (staged_id, path, title, source_kind, source_id)
+             VALUES ('F1', '/sandbox/old.md', 'Old', 'notes', 'abc');",
+        )
+        .expect("simulate older schema");
+        drop(conn);
+
+        let mut loaded = session::load_session(&sess.session_id).expect("load");
+        assert_eq!(loaded.staged.len(), 1);
+        assert_eq!(loaded.staged[0].path, "/sandbox/old.md");
+        assert!(serde_json::to_value(&loaded.staged[0])
+            .unwrap()
+            .get("source")
+            .is_none());
+
+        loaded
+            .register_staged("/sandbox/new.md", Some("New"))
+            .expect("stage");
+        session::save_session(&loaded).expect("save with older columns");
+        let reloaded = session::load_session(&sess.session_id).expect("reload");
+        assert_eq!(reloaded.staged.len(), 2);
+    });
+}
+
+#[test]
 fn save_writes_only_changed_staged_entries() {
     with_sandbox(|_| {
         let sess = session::create_session().expect("create");
         let mut loaded = session::load_session(&sess.session_id).expect("load");
         loaded
-            .register_staged("/sandbox/plan.md", Some("Plan"), None)
+            .register_staged("/sandbox/plan.md", Some("Plan"))
             .expect("stage");
         session::save_session(&loaded).expect("save stage");
 

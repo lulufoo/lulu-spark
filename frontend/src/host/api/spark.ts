@@ -1,8 +1,10 @@
 import { asRecord, type PathArg } from '../api-types.ts';
 import { getReadDriver, readGet, writePost } from './transport.ts';
 
-export async function fetchIndex() {
-  return readGet('/api/notes-index?_=' + Date.now());
+/** Sidebar index of one workspace (the default workspace when `workspace` is omitted). */
+export async function fetchIndex(workspace?: string) {
+  const ws = workspace ? `workspace=${encodeURIComponent(workspace)}&` : '';
+  return readGet(`/api/docs-index?${ws}_=${Date.now()}`);
 }
 
 export async function fetchAnnotationsSummary() {
@@ -31,7 +33,7 @@ export async function setConfig(payload?: unknown) {
 export async function fetchFileContent(layer: PathArg, id: PathArg, lang?: PathArg): Promise<string> {
   const langQ = lang ? `&lang=${encodeURIComponent(String(lang))}` : '';
   const data = await readGet(
-    `/api/notes-file?layer=${encodeURIComponent(String(layer ?? ''))}&id=${encodeURIComponent(String(id ?? ''))}${langQ}&_=${Date.now()}`
+    `/api/doc-file?layer=${encodeURIComponent(String(layer ?? ''))}&id=${encodeURIComponent(String(id ?? ''))}${langQ}&_=${Date.now()}`
   );
   if (typeof data === 'string') return data;
   const content = asRecord(data)?.content;
@@ -47,7 +49,7 @@ export async function fetchNotesAssetAsBlobUrl(
 ) {
   const langQ = lang ? `&lang=${encodeURIComponent(lang)}` : '';
   const data = await readGet(
-    `/api/notes-asset?layer=${encodeURIComponent(layer)}&id=${encodeURIComponent(id)}&href=${encodeURIComponent(href)}${langQ}&_=${Date.now()}`
+    `/api/doc-asset?layer=${encodeURIComponent(layer)}&id=${encodeURIComponent(id)}&href=${encodeURIComponent(href)}${langQ}&_=${Date.now()}`
   );
   const rec = asRecord(data);
   if (rec?.error) {
@@ -155,21 +157,6 @@ export async function updateDocHighlights(key: string, highlight: unknown, ts?: 
   return writePost('/api/doc-highlights', { key, highlight, ts });
 }
 
-export async function fetchTopics() {
-  const res = await getReadDriver().fetchGet('/api/topics?_=' + Date.now());
-  const text = await res.text();
-  let data: unknown;
-  try {
-    data = text ? JSON.parse(text) : {};
-  } catch {
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    throw new Error('Invalid JSON response');
-  }
-  const rec = asRecord(data);
-  if (!res.ok) throw new Error(String(rec?.error || `HTTP ${res.status}`));
-  return data;
-}
-
 export async function getDraft(id: string) {
   const res = await getReadDriver().fetchGet(`/api/draft?id=${encodeURIComponent(id)}`);
   if (!res.ok) return { content: '' };
@@ -190,24 +177,25 @@ export async function moveToProject(id: string, newProject: string) {
 }
 
 /** Create a note via HTTP/MCP `create_note` parity.
- * Jot create: `{ body, source_type: 'jot' }` (Host synthesize; digest=never).
+ * Jot create: `{ body, source_type: 'jot', workspace?, project? }` (Host synthesize; digest=never);
+ * `project` is a project folder of that workspace, `inbox` when left out.
  * Path create: `{ source_path, title, digest, asset_paths? }` — no `document` body. */
 export async function createNote(payload?: unknown) {
   return writePost('/api/create-note', payload || {});
 }
 
-/** Note-create crash buffer under `drafts/notes/<temp_id>`. */
-export async function saveNoteDraft(tempId: string, content?: string) {
-  return writePost('/api/note-draft', { temp_id: tempId, content: content ?? '' });
+/** Note-create crash buffer under `drafts/docs/<temp_id>`. */
+export async function saveDocDraft(tempId: string, content?: string) {
+  return writePost('/api/doc-draft', { temp_id: tempId, content: content ?? '' });
 }
 
-export async function clearNoteDraft(tempId: string) {
-  return writePost('/api/note-draft/clear', { temp_id: tempId });
+export async function clearDocDraft(tempId: string) {
+  return writePost('/api/doc-draft/clear', { temp_id: tempId });
 }
 
-export async function getNoteDraft(tempId: string) {
+export async function getDocDraft(tempId: string) {
   const res = await getReadDriver().fetchGet(
-    `/api/note-draft?temp_id=${encodeURIComponent(tempId)}`,
+    `/api/doc-draft?temp_id=${encodeURIComponent(tempId)}`,
   );
   if (!res.ok) return { content: '' };
   return res.json();

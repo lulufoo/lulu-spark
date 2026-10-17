@@ -8,8 +8,8 @@ use std::time::Duration;
 
 use super::*;
 use crate::main_host;
-use crate::mcp_host::catalog::groups::notes::{
-    create_note_from_content, create_note_from_source, note_file_invoke, note_path_invoke,
+use crate::mcp_host::catalog::groups::docs::{
+    create_doc_from_content, create_doc_from_source,
 };
 use crate::services::mcp_oauth::{
     issue_for_device, issue_for_slot, revoke_for_device, revoke_for_slot, OAuthError, Slot,
@@ -147,34 +147,33 @@ fn assert_uniform_401(status: u16, body: &str, secret: Option<&str>) {
     );
 }
 
-/// Notes tools from Node `buildServer()` when `includeNotes` is true.
-const NOTES_TOOLS: &[&str] = &[
-    "get_note_digest",
-    "get_note_file",
-    "create_note",
-    "update_note",
-    "delete_note",
-    "list_notes_categories",
-    "create_notes_category",
-    "update_notes_category",
-    "delete_notes_category",
+/// Docs tools on `/mcp/spark`.
+const DOCS_TOOLS: &[&str] = &[
+    "list_workspaces",
+    "create_workspace",
+    "rename_workspace",
+    "list_projects",
+    "create_project",
+    "update_project",
+    "get_doc_digest",
+    "get_doc_file",
+    "create_doc",
+    "update_doc",
+    "delete_doc",
 ];
 
-/// Notes tools exposed on `/mcp/cursor_ide` and `/mcp/mobile` (channel hard-gate).
-const NOTES_TOOLS_NON_SPARK: &[&str] = &[
-    "get_note_digest",
-    "get_note_file",
-    "create_note",
-    "update_note",
-    "list_notes_categories",
-    "create_notes_category",
-    "update_notes_category",
-    "delete_notes_category",
-];
-
-const KNOWLEDGE_TOOLS: &[&str] = &[
-    "list_knowledge_categories",
-    "get_knowledge_file",
+/// Docs tools exposed on `/mcp/cursor_ide` and `/mcp/mobile` (channel hard-gate).
+const DOCS_TOOLS_NON_SPARK: &[&str] = &[
+    "list_workspaces",
+    "create_workspace",
+    "rename_workspace",
+    "list_projects",
+    "create_project",
+    "update_project",
+    "get_doc_digest",
+    "get_doc_file",
+    "create_doc",
+    "update_doc",
 ];
 
 const GLOBAL_TOOLS: &[&str] = &["search"];
@@ -183,35 +182,30 @@ const SPARK_SLOT: &str = "spark";
 const CURSOR_IDE_SLOT: &str = "cursor_ide";
 
 fn spark_expected_tool_names() -> BTreeSet<&'static str> {
-    let mut names: BTreeSet<&'static str> = NOTES_TOOLS.iter().copied().collect();
-    names.extend(KNOWLEDGE_TOOLS.iter().copied());
+    let mut names: BTreeSet<&'static str> = DOCS_TOOLS.iter().copied().collect();
     names.extend(GLOBAL_TOOLS.iter().copied());
     names.insert("get_read_later");
     names
 }
 
 fn cursor_ide_expected_tool_names() -> BTreeSet<&'static str> {
-    let mut names: BTreeSet<&'static str> = NOTES_TOOLS_NON_SPARK.iter().copied().collect();
-    names.extend(KNOWLEDGE_TOOLS.iter().copied());
+    let mut names: BTreeSet<&'static str> = DOCS_TOOLS_NON_SPARK.iter().copied().collect();
     names.extend(GLOBAL_TOOLS.iter().copied());
     names
 }
 
-/// Mobile = cursor_ide set with the desktop-only `get_*_file` swapped for `get_*_content`.
+/// Mobile = cursor_ide set with the desktop-only `get_doc_file` swapped for `get_doc_content`.
 fn mobile_expected_tool_names() -> BTreeSet<&'static str> {
     let mut names = cursor_ide_expected_tool_names();
-    names.remove("get_note_file");
-    names.remove("get_knowledge_file");
-    names.insert("get_note_content");
-    names.insert("get_knowledge_content");
+    names.remove("get_doc_file");
+    names.insert("get_doc_content");
     names
 }
 
 /// Slot catalog = every tool any channel can expose (Settings view): spark set plus mobile-only reads.
 fn slot_catalog_tool_names() -> BTreeSet<&'static str> {
     let mut names = spark_expected_tool_names();
-    names.insert("get_note_content");
-    names.insert("get_knowledge_content");
+    names.insert("get_doc_content");
     names
 }
 
@@ -227,8 +221,8 @@ fn plant_todo_migration_gate() {
 }
 
 fn plant_empty_notes_index() {
-    let notes = crate::config::paths::notes_root().expect("notes dir");
-    fs::create_dir_all(&notes).expect("notes root");
+    let root = crate::config::paths::workspaces_root().expect("workspaces dir");
+    fs::create_dir_all(&root).expect("workspaces root");
 }
 
 /// Boundary: Cargo must pin `rmcp` on the 3.1.x line (decision verify point 3.1.0).
@@ -518,7 +512,7 @@ fn tools_list_spark_and_cursor_ide_are_notes_todo() {
         !ide_names.contains("get_notes_selection"),
         "cursor_ide must not include get_notes_selection"
     );
-    for tool in NOTES_TOOLS {
+    for tool in DOCS_TOOLS {
         assert!(
             ide_names.contains(*tool),
             "cursor_ide must include notes tool {tool}"
@@ -526,16 +520,6 @@ fn tools_list_spark_and_cursor_ide_are_notes_todo() {
         assert!(
             wb_names.contains(*tool),
             "spark must include notes tool {tool}"
-        );
-    }
-    for tool in KNOWLEDGE_TOOLS {
-        assert!(
-            ide_names.contains(*tool),
-            "cursor_ide must include knowledge tool {tool}"
-        );
-        assert!(
-            wb_names.contains(*tool),
-            "spark must include knowledge tool {tool}"
         );
     }
     for tool in GLOBAL_TOOLS {
@@ -634,8 +618,8 @@ fn mcp_tools_list_publishes_descriptions_schemas_and_mutation_hints() {
     }
     let catalog = notes_tools
         .iter()
-        .find(|tool| tool.name == "list_notes_categories")
-        .expect("list_notes_categories");
+        .find(|tool| tool.name == "list_projects")
+        .expect("list_projects");
     assert!(
         catalog
             .input_schema
@@ -646,7 +630,7 @@ fn mcp_tools_list_publishes_descriptions_schemas_and_mutation_hints() {
         "catalog list must not require mode"
     );
     assert!(
-        notes_tools.iter().any(|tool| tool.name == "get_note_file"),
+        notes_tools.iter().any(|tool| tool.name == "get_doc_file"),
         "note file copy must be hung"
     );
     assert!(
@@ -828,7 +812,7 @@ fn representative_tools_call_per_registered_slot_hits_services() {
         .block_on(proxy_tool_call(
             SPARK_SLOT,
             SPARK_SLOT,
-            "list_notes_categories",
+            "list_projects",
             serde_json::json!({}),
         ))
         .expect("proxy")
@@ -837,7 +821,7 @@ fn representative_tools_call_per_registered_slot_hits_services() {
         serde_json::from_str(mcp_text_ok(&catalogs)).expect("catalogs JSON");
     assert!(
         catalog_json.is_object() || catalog_json.is_array(),
-        "list_notes_categories must return Services wire, got {}",
+        "list_projects must return Services wire, got {}",
         mcp_text_ok(&catalogs)
     );
 
@@ -845,7 +829,7 @@ fn representative_tools_call_per_registered_slot_hits_services() {
         .block_on(proxy_tool_call(
             CURSOR_IDE_SLOT,
             CURSOR_IDE_SLOT,
-            "list_notes_categories",
+            "list_projects",
             serde_json::json!({}),
         ))
         .expect("proxy")
@@ -853,8 +837,8 @@ fn representative_tools_call_per_registered_slot_hits_services() {
     let catalog_json: serde_json::Value =
         serde_json::from_str(mcp_text_ok(&catalogs)).expect("catalogs JSON");
     assert!(
-        catalog_json.get("categories").is_some(),
-        "list_notes_categories must return categories, got {}",
+        catalog_json.get("projects").is_some(),
+        "list_projects must return categories, got {}",
         mcp_text_ok(&catalogs)
     );
 }
@@ -920,8 +904,8 @@ fn tool_dispatch_is_in_process_services() {
         "/src/mcp_host/catalog/groups"
     ));
     assert!(
-        catalog.contains("crate::services::spark_read")
-            && catalog.contains("crate::services::notes"),
+        catalog.contains("crate::services::docs")
+            && catalog.contains("crate::services::message_center"),
         "catalog invoke must call L4 Services"
     );
 }
@@ -1122,7 +1106,7 @@ fn p3_t10_host_dual_slot_list_call_and_unknown_hard_fail_smoke() {
             &spark_ticket,
         ))
         .expect("spark tools/list on Host MCP");
-    for tool in NOTES_TOOLS {
+    for tool in DOCS_TOOLS {
         assert!(
             spark_names.iter().any(|n| n == *tool),
             "T10/V2: spark missing notes tool {tool}"
@@ -1137,15 +1121,15 @@ fn p3_t10_host_dual_slot_list_call_and_unknown_hard_fail_smoke() {
             &ide_ticket,
         ))
         .expect("cursor_ide tools/list on Host MCP");
-    for tool in NOTES_TOOLS_NON_SPARK {
+    for tool in DOCS_TOOLS_NON_SPARK {
         assert!(
             ide_names.iter().any(|n| n == *tool),
             "T10/V2: cursor_ide missing {tool}; got {ide_names:?}"
         );
     }
     assert!(
-        !ide_names.iter().any(|n| n == "delete_note"),
-        "T10/V2: cursor_ide must not expose spark-only delete_note"
+        !ide_names.iter().any(|n| n == "delete_doc"),
+        "T10/V2: cursor_ide must not expose spark-only delete_doc"
     );
     assert!(
         spark_names.iter().any(|n| n == "get_read_later"),
@@ -1221,10 +1205,10 @@ fn p3_t10_host_dual_slot_list_call_and_unknown_hard_fail_smoke() {
             mcp_port,
             SPARK_SLOT,
             &spark_ticket,
-            "list_notes_categories",
+            "list_projects",
             serde_json::json!({}),
         ))
-        .expect("spark list_notes_categories");
+        .expect("spark list_projects");
     assert!(
         !notes_err,
         "T10/V2: spark representative tools/call must succeed via Host→Sidecar; got {notes_text}"
@@ -1235,10 +1219,10 @@ fn p3_t10_host_dual_slot_list_call_and_unknown_hard_fail_smoke() {
             mcp_port,
             "cursor_ide",
             &ide_ticket,
-            "list_notes_categories",
+            "list_projects",
             serde_json::json!({}),
         ))
-        .expect("cursor_ide list_notes_categories");
+        .expect("cursor_ide list_projects");
     assert!(
         !ide_err,
         "T10/V2: cursor_ide representative tools/call must succeed via Host→Sidecar; got {ide_text}"
@@ -1560,7 +1544,7 @@ fn registered_spark_live_ticket_enters_streamable_http() {
         ))
         .expect("tools/list with Live ticket");
     assert!(
-        names.iter().any(|n| n == "list_notes_categories"),
+        names.iter().any(|n| n == "list_projects"),
         "spark tools/list must remain available, got {names:?}"
     );
     assert!(
@@ -1586,7 +1570,7 @@ fn registered_cursor_ide_live_ticket_enters_streamable_http() {
         ))
         .expect("cursor_ide tools/list with Live ticket");
     assert!(
-        names.iter().any(|n| n == "list_notes_categories"),
+        names.iter().any(|n| n == "list_projects"),
         "cursor_ide tools/list must remain available, got {names:?}"
     );
     assert!(
@@ -2047,15 +2031,15 @@ fn t3_mcp_mobile_tools_match_spark_table() {
         let expected = mobile_expected_tool_names();
         assert_eq!(
             got, expected,
-            "/mcp/mobile tools = cursor_ide set minus desktop-only (get_note_file)"
+            "/mcp/mobile tools = cursor_ide set minus desktop-only (get_doc_file)"
         );
         assert!(
             !got.contains("get_notes_selection"),
             "/mcp/mobile must not include get_notes_selection"
         );
         assert!(
-            !got.contains("delete_note"),
-            "/mcp/mobile must not include delete_note"
+            !got.contains("delete_doc"),
+            "/mcp/mobile must not include delete_doc"
         );
         let table = build_channel_tool_table(SPARK_SLOT, MOBILE_PATH).expect("mobile channel");
         let table_names: BTreeSet<_> = table.tools.iter().map(|t| t.name.as_str()).collect();
@@ -2082,7 +2066,7 @@ fn t3_live_device_ticket_can_call_full_spark_tools_on_mobile() {
             .build()
             .expect("tokio");
 
-        let cases = [("list_notes_categories", serde_json::json!({}))];
+        let cases = [("list_projects", serde_json::json!({}))];
         for (tool, args) in cases {
             let (names, is_error, text) = rt
                 .block_on(list_and_call_mobile(port, &token, tool, args))
@@ -2174,7 +2158,7 @@ fn channel_filter_hides_and_rejects_create_note_on_mobile() {
         let enabled: Vec<String> = all
             .iter()
             .copied()
-            .filter(|name| *name != "create_note")
+            .filter(|name| *name != "create_doc")
             .map(str::to_string)
             .collect();
         crate::services::settings::mcp_channel_tools::set_enabled("mobile", enabled).expect("save");
@@ -2195,14 +2179,14 @@ fn channel_filter_hides_and_rejects_create_note_on_mobile() {
             ))
             .expect("mobile list");
         let got: BTreeSet<_> = names.iter().map(String::as_str).collect();
-        assert!(!got.contains("create_note"), "unchecked tool must leave list");
-        assert!(got.contains("list_notes_categories"));
+        assert!(!got.contains("create_doc"), "unchecked tool must leave list");
+        assert!(got.contains("list_projects"));
         assert_ne!(got, all, "mobile list must no longer equal the full table");
 
         let err = rt.block_on(list_and_call_mobile(
             port,
             &token,
-            "create_note",
+            "create_doc",
             serde_json::json!({"source_path": "/tmp/x.md"}),
         ));
         assert!(
@@ -2214,18 +2198,18 @@ fn channel_filter_hides_and_rejects_create_note_on_mobile() {
     });
 }
 
-/// Plan B: same MCP name, mobile channel invokes create_note_content.
+/// Plan B: same MCP name, mobile channel invokes create_doc_from_content.
 #[test]
 fn mobile_channel_create_note_hits_content_api() {
     let table = build_channel_tool_table(SPARK_SLOT, MOBILE_PATH).expect("overlay");
     let create = table
         .tools
         .iter()
-        .find(|t| t.name == "create_note")
-        .expect("create_note");
+        .find(|t| t.name == "create_doc")
+        .expect("create_doc");
     assert!(
-        invoke_eq(create.invoke, create_note_from_content),
-        "mobile create_note must invoke create_note_content"
+        invoke_eq(create.invoke, create_doc_from_content),
+        "mobile create_doc must invoke create_doc_from_content"
     );
     let required = create.input_schema["required"]
         .as_array()
@@ -2239,11 +2223,11 @@ fn mobile_channel_create_note_hits_content_api() {
     let path_create = path_table
         .tools
         .iter()
-        .find(|t| t.name == "create_note")
-        .expect("create_note");
+        .find(|t| t.name == "create_doc")
+        .expect("create_doc");
     assert!(
-        invoke_eq(path_create.invoke, create_note_from_source),
-        "spark create_note must invoke create_note from source_path"
+        invoke_eq(path_create.invoke, create_doc_from_source),
+        "spark create_doc must invoke create_doc from source_path"
     );
     let path_required = path_create.input_schema["required"]
         .as_array()
@@ -2274,32 +2258,32 @@ fn note_content_tool(table: &SlotToolTable) -> &ToolRoute {
     table
         .tools
         .iter()
-        .find(|t| t.name == "get_note_content")
-        .expect("get_note_content")
+        .find(|t| t.name == "get_doc_content")
+        .expect("get_doc_content")
 }
 
-/// Normal: desktop channels expose get_note_file (not get_note_content) on the file-copy Services.
+/// Normal: desktop channels expose get_doc_file (not get_doc_content) on the file-copy Services.
 #[test]
 fn desktop_channels_expose_get_note_file_instead_of_get_note_content() {
     for (slot, channel) in [(SPARK_SLOT, SPARK_SLOT), (CURSOR_IDE_SLOT, CURSOR_IDE_SLOT)] {
         let table = build_channel_tool_table(slot, channel).expect("table");
         assert!(
-            table.tools.iter().all(|t| t.name != "get_note_content"),
-            "{channel} must not expose get_note_content"
+            table.tools.iter().all(|t| t.name != "get_doc_content"),
+            "{channel} must not expose get_doc_content"
         );
         let file = table
             .tools
             .iter()
-            .find(|t| t.name == "get_note_file")
-            .unwrap_or_else(|| panic!("{channel} must expose get_note_file"));
+            .find(|t| t.name == "get_doc_file")
+            .unwrap_or_else(|| panic!("{channel} must expose get_doc_file"));
         assert!(
-            invoke_eq(file.invoke, note_file_invoke),
-            "{channel} get_note_file must invoke the file-copy Service"
+            invoke_eq(file.invoke, crate::services::docs::export_file),
+            "{channel} get_doc_file must invoke the file-copy Service"
         );
     }
 }
 
-/// Normal: mobile keeps get_note_content on note_path (absolute path, no body) and has no file copy.
+/// Normal: mobile keeps get_doc_content on note_path (absolute path, no body) and has no file copy.
 /// Boundary: /mcp/mobile still uses spark scene_slot; the split is by channel, not slot.
 #[test]
 fn mobile_get_note_content_hits_note_path() {
@@ -2310,10 +2294,10 @@ fn mobile_get_note_content_hits_note_path() {
 
     let mobile = build_channel_tool_table(SPARK_SLOT, MOBILE_PATH).expect("mobile overlay");
     let mobile_tool = note_content_tool(&mobile);
-    assert_eq!(mobile_tool.name, "get_note_content");
+    assert_eq!(mobile_tool.name, "get_doc_content");
     assert!(
-        invoke_eq(mobile_tool.invoke, note_path_invoke),
-        "mobile get_note_content must invoke note_path"
+        invoke_eq(mobile_tool.invoke, crate::services::docs::get_path),
+        "mobile get_doc_content must invoke note_path"
     );
     assert!(
         mobile_tool.description.contains("absolute file path")
@@ -2326,28 +2310,28 @@ fn mobile_get_note_content_hits_note_path() {
         "mobile description must not mention Stage: {}",
         mobile_tool.description
     );
-    assert!(mobile.tools.iter().all(|t| t.name != "get_note_file"));
+    assert!(mobile.tools.iter().all(|t| t.name != "get_doc_file"));
 }
 
-/// Product hard-gate: delete_note only on spark channel.
+/// Product hard-gate: delete_doc only on spark channel.
 #[test]
 fn delete_note_is_spark_channel_only() {
     let wb = build_channel_tool_table(SPARK_SLOT, SPARK_SLOT).expect("spark");
     assert!(
-        wb.tools.iter().any(|t| t.name == "delete_note"),
-        "spark must expose delete_note"
+        wb.tools.iter().any(|t| t.name == "delete_doc"),
+        "spark must expose delete_doc"
     );
 
     let ide = build_channel_tool_table(CURSOR_IDE_SLOT, CURSOR_IDE_SLOT).expect("cursor_ide");
     assert!(
-        ide.tools.iter().all(|t| t.name != "delete_note"),
-        "cursor_ide must not list delete_note"
+        ide.tools.iter().all(|t| t.name != "delete_doc"),
+        "cursor_ide must not list delete_doc"
     );
 
     let mobile = build_channel_tool_table(SPARK_SLOT, MOBILE_PATH).expect("mobile");
     assert!(
-        mobile.tools.iter().all(|t| t.name != "delete_note"),
-        "mobile must not list delete_note even with scene_slot=spark"
+        mobile.tools.iter().all(|t| t.name != "delete_doc"),
+        "mobile must not list delete_doc even with scene_slot=spark"
     );
 
     let rt = tokio::runtime::Builder::new_current_thread()
@@ -2357,12 +2341,12 @@ fn delete_note_is_spark_channel_only() {
     let err = rt.block_on(proxy_tool_call(
         CURSOR_IDE_SLOT,
         CURSOR_IDE_SLOT,
-        "delete_note",
+        "delete_doc",
         serde_json::json!({ "id": "11111111111111111111111111111111" }),
     ));
     assert!(
         err.is_err(),
-        "cursor_ide delete_note must fail allowlist before Services"
+        "cursor_ide delete_doc must fail allowlist before Services"
     );
 }
 
@@ -2384,13 +2368,13 @@ fn crate_registers_mcp_host_as_in_process_module() {
     );
 }
 
-/// Boundary: retired names stay gone; digest hangs get_note_digest on every channel.
+/// Boundary: retired names stay gone; digest hangs get_doc_digest on every channel.
 #[test]
 fn note_content_names_and_digest_route() {
     for (slot, channel, content) in [
-        (SPARK_SLOT, SPARK_SLOT, "get_note_file"),
-        (CURSOR_IDE_SLOT, CURSOR_IDE_SLOT, "get_note_file"),
-        (SPARK_SLOT, MOBILE_PATH, "get_note_content"),
+        (SPARK_SLOT, SPARK_SLOT, "get_doc_file"),
+        (CURSOR_IDE_SLOT, CURSOR_IDE_SLOT, "get_doc_file"),
+        (SPARK_SLOT, MOBILE_PATH, "get_doc_content"),
     ] {
         let table = build_channel_tool_table(slot, channel).expect("table");
         assert!(
@@ -2408,9 +2392,9 @@ fn note_content_names_and_digest_route() {
         let digest = table
             .tools
             .iter()
-            .find(|t| t.name == "get_note_digest")
-            .expect("get_note_digest");
-        assert_eq!(digest.name, "get_note_digest");
+            .find(|t| t.name == "get_doc_digest")
+            .expect("get_doc_digest");
+        assert_eq!(digest.name, "get_doc_digest");
         assert!(
             digest.invoke as usize != 0,
             "{channel} digest must keep a Services invoke"

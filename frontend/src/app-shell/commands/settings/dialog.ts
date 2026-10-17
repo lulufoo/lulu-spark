@@ -1,4 +1,3 @@
-import { loadKbHidePatterns } from './kb-hide-patterns.ts';
 import {
   applyEngineCategorySelection,
   clearSavedCredentialPlaceholder,
@@ -25,13 +24,19 @@ import {
 } from '../../state/settings/store.ts';
 import { settingsOpenStore } from '../../state/dialog-open.ts';
 import {
-  clearNotesCategoryError,
   closeNotesCategoryEditor,
-  loadNotesCategories,
+  selectProjectsWorkspace,
 } from './notes-categories.ts';
+import { selectHidePatternsWorkspace } from './hide-patterns.ts';
+import { closeWorkspaceEditor, loadDisabledWorkspaces } from './workspaces.ts';
 import { loadSettingsSnapshot } from './snapshot.ts';
 import { saveThemeSelection } from './theme.ts';
-import { switchPanel, switchSettingsTab } from '../../ui/settings/tabs.ts';
+import {
+  isWorkspacePanel,
+  switchPanel,
+  switchSettingsTab,
+  workspaceIdOfPanel,
+} from '../../ui/settings/tabs.ts';
 import { mountSettingsListSelects } from '../../ui/settings/list-select.ts';
 
 export { settingsOpenStore };
@@ -57,18 +62,42 @@ export function ensureWired() {
   wired = true;
 }
 
-export function closeSettingsDialog() {
+/** Dialogs of the Workspaces and workspace pages never outlive their page. */
+function closeEditors() {
   closeNotesCategoryEditor();
+  closeWorkspaceEditor();
+}
+
+export function closeSettingsDialog() {
+  closeEditors();
   settingsOpenStore.set(false);
   document.getElementById('settings-dialog')?.classList.remove('open');
 }
 
+/**
+ * Show one settings panel, always on its Directory tab. A `workspace:<id>` panel also loads that
+ * workspace's projects and hidden-file rules.
+ */
+function showPanel(panelId: string): Promise<void> {
+  closeEditors();
+  switchPanel(panelId);
+  if (isWorkspacePanel(panelId)) {
+    switchSettingsTab('workspace', 'directory');
+    const workspaceId = workspaceIdOfPanel(panelId);
+    return Promise.all([
+      selectProjectsWorkspace(workspaceId),
+      selectHidePatternsWorkspace(workspaceId),
+    ]).then(() => undefined);
+  }
+  if (panelId === 'notes') switchSettingsTab('notes', 'directory');
+  return Promise.resolve();
+}
+
 export async function openSettingsDialog(opts: SettingsOpenOpts = {}) {
-  closeNotesCategoryEditor();
+  closeEditors();
   settingsOpenStore.set(true);
   document.getElementById('settings-dialog')?.classList.add('open');
   ensureWired();
-  setResult('settings-result-knowledge', '');
   setResult('settings-result-llm', '');
   setResult('settings-result-mcp', '');
   setResult('settings-result-mcp-tools', '');
@@ -76,17 +105,15 @@ export async function openSettingsDialog(opts: SettingsOpenOpts = {}) {
   const keyInput = input('settings-llm-api-key');
   if (keyInput) keyInput.value = '';
   const panelId = opts.panel || 'notes';
-  switchSettingsTab('notes', panelId === 'notes' ? (opts.tab || 'directory') : 'directory');
-  switchSettingsTab('knowledge', panelId === 'knowledge' ? (opts.tab || 'directory') : 'directory');
   switchSettingsTab('llm', 'engine');
   switchSettingsTab('mcp', panelId === 'mcp' ? (opts.tab || 'tickets') : 'tickets');
-  switchPanel(panelId);
+  const loadingWorkspace = showPanel(panelId);
   await loadSettingsSnapshot();
-  await loadKbHidePatterns();
-  await loadNotesCategories();
+  await loadDisabledWorkspaces();
   await loadMcpChannelTools();
   requestAnimationFrame(() => paintMcpToolGroups());
   await loadMcpTicketView();
+  await loadingWorkspace;
 }
 
 function wireSettingsDialog() {
@@ -95,20 +122,16 @@ function wireSettingsDialog() {
       const panel = tabBtn.closest('.settings-panel');
       const panelId = panel?.id?.replace(/^settings-panel-/, '');
       const tab = (tabBtn as HTMLElement).dataset.tab;
-      if (panelId !== 'notes' || tab !== 'edit') closeNotesCategoryEditor();
-      if (panelId === 'notes') clearNotesCategoryError();
       if (panelId && tab) switchSettingsTab(panelId, tab);
       if (panelId === 'mcp' && tab === 'tools') void loadMcpChannelTools();
     });
   });
 
-  document.querySelectorAll('.settings-nav-item').forEach((navBtn) => {
-    navBtn.addEventListener('click', async () => {
-      const panelId = (navBtn as HTMLElement).dataset.panel;
-      if (!panelId) return;
-      if (panelId !== 'notes') closeNotesCategoryEditor();
-      switchPanel(panelId);
-    });
+  // Workspace nav items are painted by React and change with the registry: delegate.
+  document.getElementById('settings-nav')?.addEventListener('click', (event) => {
+    const navBtn = (event.target as HTMLElement | null)?.closest('.settings-nav-item') as HTMLElement | null;
+    const panelId = navBtn?.dataset.panel;
+    if (panelId) void showPanel(panelId);
   });
 
   btn('btn-settings-close')?.addEventListener('click', closeSettingsDialog);

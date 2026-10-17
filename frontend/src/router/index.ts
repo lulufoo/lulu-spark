@@ -31,32 +31,6 @@ export function parseHash(hash?: string): ParsedRoute {
     return { name: 'spark', params };
   }
 
-  if (path === 'knowledge' || path === 'knowledge/pick') return { name: 'knowledge-doc', params: { repo: '' } };
-
-  if (path.startsWith('knowledge/')) {
-    const repoPart = path.slice('knowledge/'.length);
-    if (repoPart) {
-      try {
-        const [repoEncoded, ...queryParts] = repoPart.split('?');
-        const queryString = queryParts.length > 0 ? queryParts.join('?') : '';
-        const repo = decodeURIComponent(repoEncoded);
-        if (!repo || repo.includes('/') || repo.includes('\\')) {
-          return { name: 'unknown', params: {} };
-        }
-        const params: Record<string, string> = { repo };
-        if (queryString) {
-          const searchParams = new URLSearchParams(queryString);
-          if (searchParams.has('id')) {
-            params.id = searchParams.get('id') ?? '';
-          }
-        }
-        return { name: 'knowledge-doc', params };
-      } catch {
-        return { name: 'unknown', params: {} };
-      }
-    }
-  }
-
   return { name: 'unknown', params: {} };
 }
 

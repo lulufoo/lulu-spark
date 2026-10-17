@@ -1,15 +1,41 @@
 //! The `tag(key, value)` table. Reference counts are never stored: they are counted
-//! from `note.tags` when asked for.
+//! from the `tags` of every workspace's document table when asked for.
 
 use rusqlite::{params, Connection, OptionalExtension};
 use serde_json::{json, Map, Value};
 
-const REFS: &str = "(SELECT COUNT(*) FROM note, json_each(note.tags) WHERE json_each.value = tag.key)";
+use super::doc_table::validate_doc_table_name;
+
+/// One row per tag use, across every workspace's document table.
+fn tag_uses(conn: &Connection) -> Result<String, String> {
+    let mut stmt = conn.prepare("SELECT doc_table FROM workspace").map_err(|e| e.to_string())?;
+    let tables = stmt
+        .query_map([], |row| row.get::<_, String>(0))
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+    let mut selects = Vec::new();
+    for table in tables {
+        validate_doc_table_name(&table)?;
+        selects.push(format!("SELECT json_each.value AS key FROM {table}, json_each({table}.tags)"));
+    }
+    Ok(if selects.is_empty() {
+        "SELECT NULL AS key WHERE 0".to_string()
+    } else {
+        selects.join(" UNION ALL ")
+    })
+}
+
+/// SQL expression: how many documents carry `tag.key`.
+fn refs(conn: &Connection) -> Result<String, String> {
+    Ok(format!("(SELECT COUNT(*) FROM ({}) AS uses WHERE uses.key = tag.key)", tag_uses(conn)?))
+}
 
 /// `{ "keys": { key: { value, refs } } }`, the shape `/api/tags-registry` has always had.
 pub fn read_tag_registry(conn: &Connection) -> Result<Value, String> {
+    let refs = refs(conn)?;
     let mut stmt = conn
-        .prepare(&format!("SELECT key, value, {REFS} FROM tag ORDER BY key"))
+        .prepare(&format!("SELECT key, value, {refs} FROM tag ORDER BY key"))
         .map_err(|e| e.to_string())?;
     let rows = stmt
         .query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?, row.get::<_, i64>(2)?)))
@@ -31,8 +57,9 @@ pub fn has_tag(conn: &Connection, key: &str) -> Result<bool, String> {
 
 /// The key carrying `value`; when several do, the most referenced one.
 pub fn find_tag_key_by_value(conn: &Connection, value: &str) -> Result<Option<String>, String> {
+    let refs = refs(conn)?;
     conn.query_row(
-        &format!("SELECT key FROM tag WHERE value = ?1 ORDER BY {REFS} DESC, key LIMIT 1"),
+        &format!("SELECT key FROM tag WHERE value = ?1 ORDER BY {refs} DESC, key LIMIT 1"),
         params![value],
         |row| row.get(0),
     )
@@ -53,11 +80,9 @@ pub fn update_tag_value(conn: &Connection, key: &str, value: &str) -> Result<boo
         .map_err(|e| e.to_string())
 }
 
-/// Drop every tag no note references any more.
+/// Drop every tag no document references any more.
 pub fn delete_unused_tags(conn: &Connection) -> Result<usize, String> {
-    conn.execute(
-        "DELETE FROM tag WHERE key NOT IN (SELECT json_each.value FROM note, json_each(note.tags))",
-        [],
-    )
+    let uses = tag_uses(conn)?;
+    conn.execute(&format!("DELETE FROM tag WHERE key NOT IN (SELECT key FROM ({uses}) AS uses)"), [])
     .map_err(|e| e.to_string())
 }

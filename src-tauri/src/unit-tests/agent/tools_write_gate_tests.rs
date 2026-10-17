@@ -111,7 +111,7 @@ fn staged_rewrite_does_not_ask() {
         let path = outside(sandbox, "already.md");
         fs::create_dir_all(path.parent().unwrap()).expect("dir");
         fs::write(&path, "old").expect("seed");
-        sess.register_staged(path.to_str().unwrap(), None, None)
+        sess.register_staged(path.to_str().unwrap(), None)
             .expect("stage");
         fence.grant_staged_file(stored_path(path.clone()));
         let result = call_write(&mut sess, &fence, path.to_str().unwrap(), "new");

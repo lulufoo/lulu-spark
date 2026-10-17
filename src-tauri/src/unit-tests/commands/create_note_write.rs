@@ -46,7 +46,7 @@ fn create_note_json_success_returns_entry_handle() {
     .expect("command Result");
     assert_eq!(v.get("ok"), Some(&json!(true)), "archive failed: {v}");
     let id = v["id"].as_str().expect("id");
-    assert_eq!(id.len(), 32);
+    assert!(crate::services::spark_data::is_valid_doc_id(id) && id.starts_with("default-"), "{id}");
     assert!(v.get("common_path").is_none());
     assert!(v.get("error").is_none());
 }
@@ -95,4 +95,19 @@ fn create_note_json_second_write_gets_new_filename() {
     assert_eq!(first.get("ok"), Some(&json!(true)));
     assert_eq!(second.get("ok"), Some(&json!(true)));
     assert_ne!(first["id"], second["id"]);
+}
+
+#[test]
+fn create_note_json_jot_takes_an_optional_project() {
+    let _sandbox = TestSandbox::new();
+    let made = crate::services::docs::create_project(&json!({ "folder": "plans", "title": "Plans" }));
+    assert_eq!(made["ok"], json!(true), "{made}");
+    let into_project = create_note_json(json!({ "body": "写进计划", "source_type": "jot", "project": "plans" }))
+        .expect("jot with project");
+    assert_eq!(into_project["project"], json!("plans"), "{into_project}");
+    let default = create_note_json(json!({ "body": "没有项目", "source_type": "jot" })).expect("jot");
+    assert_eq!(default["project"], json!("inbox"), "{default}");
+    let missing = create_note_json(json!({ "body": "项目不存在", "source_type": "jot", "project": "ghost" }))
+        .expect("jot with missing project");
+    assert_eq!(missing["_status"], json!(400), "{missing}");
 }

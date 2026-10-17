@@ -12,7 +12,7 @@ function snap(overrides = {}) {
     hostBound: true,
     progressByChat: {},
     inFlightIds: [],
-    channelUnread: { notes: false, read_later: false, todos: false },
+    channelUnread: { docs: false, read_later: false, todos: false },
     ...overrides,
   };
 }

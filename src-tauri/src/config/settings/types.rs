@@ -85,8 +85,6 @@ impl LlmSettingsEntry {
 pub struct AppSettings {
     #[serde(default = "default_spark_root")]
     pub spark_root: PathBuf,
-    #[serde(default = "default_knowledge_root")]
-    pub knowledge_root: PathBuf,
     #[serde(default = "default_cache_dir")]
     pub cache_dir: PathBuf,
     /// Assistant engine selection: `host` (Agent Loop + GLM). Default `host`.
@@ -148,10 +146,6 @@ pub(super) fn default_spark_root() -> PathBuf {
     home_dir().join("Code")
 }
 
-pub(super) fn default_knowledge_root() -> PathBuf {
-    home_dir().join("Code")
-}
-
 pub fn default_cache_dir() -> PathBuf {
     home_dir().join(".cache").join("lulu-spark")
 }
@@ -177,7 +171,6 @@ impl Default for AppSettings {
     fn default() -> Self {
         Self {
             spark_root: default_spark_root(),
-            knowledge_root: default_knowledge_root(),
             cache_dir: default_cache_dir(),
             assistant_engine: default_assistant_engine(),
             theme: default_theme(),

@@ -11,7 +11,6 @@ import { NotesDocList } from './ui/cards.tsx';
 import { NotesLinksBar } from './ui/links-bar.tsx';
 import { NotesSidebar } from './ui/sidebar.tsx';
 import { NotesTagsBar } from './ui/tags-bar.tsx';
-import { clearTagFilter } from './commands/sidebar.ts';
 import { copyNoteReference, openNoteInChat } from './commands/open-in-chat.ts';
 import type { HostNoteEntry } from '../host/state.ts';
 import { closeModal, enterEditMode, exitEditMode, saveDoc, switchLang } from './viewer.ts';
@@ -22,7 +21,10 @@ import {
 } from './commands/viewer/outlet.ts';
 import { renderDocBody } from './ui/viewer/body.tsx';
 import { SparkSearch } from './ui/search.tsx';
-import { openCreateNote } from './commands/viewer/create.ts';
+import { startCreateDocument } from './commands/create-document.ts';
+import { CreateTargetDialog } from './ui/create-target-dialog.tsx';
+import { normalizeGroupKey } from './state/dir-tree.ts';
+import { entryGroupKey, isDirectoryView } from './commands/workspace.ts';
 
 export { NotesSidebar };
 
@@ -63,31 +65,19 @@ function NotesStatus() {
       </div>
     );
   }
-  if (host.ui.activeDate) return <div id="status" style={{ display: 'none' }} />;
+  return <div id="status" style={{ display: 'none' }} />;
+}
+
+/** What the toolbar shows while nothing is selected; it sits in the heading's place, beside the search. */
+function emptySelectionHint(): string {
+  return isDirectoryView() ? 'Select a document in the tree' : 'Select a date to view documents';
+}
+
+function NotesDateHeading({ text, hint }: { text: string; hint?: boolean }) {
   return (
-    <div id="status">
-      <div style={{ color: '#8c959f', fontSize: '13px' }}>← Select a date to view documents</div>
+    <div id="date-heading" className={hint ? 'date-heading-hint' : undefined}>
+      {text}
     </div>
-  );
-}
-
-function NotesDateHeading({ text }: { text: string }) {
-  return <div id="date-heading">{text}</div>;
-}
-
-function NotesTagChip() {
-  const host = useHostState();
-  const key = host.ui.activeTagKey;
-  if (!key) return null;
-  const registry = host.index.tagsRegistry;
-  const label = registry.keys?.[key]?.value || key;
-  return (
-    <span id="tag-filter-chip" className="tag-filter-chip">
-      <span>{`Tag: ${label} `}</span>
-      <button type="button" className="tag-filter-chip-clear" title="Clear tag filter" onClick={() => clearTagFilter()}>
-        ×
-      </button>
-    </span>
   );
 }
 
@@ -162,7 +152,9 @@ function NotesOutletChrome({ routeParams }: { routeParams: Record<string, string
   const fileSize = viewer.fileSize || (viewer.rawText ? formatBytes(viewer.rawText) : '');
   const loadFailed = Boolean(viewer.loadError);
 
-  const dateStr = String(entry?.created_at || host.ui.activeDate || routeParams.date || '').slice(0, 8);
+  const dateStr = entry
+    ? entryGroupKey(entry)
+    : normalizeGroupKey(host.ui.activeDate) || normalizeGroupKey(routeParams.date);
   const panelTitle = notesDateHeadingText(dateStr, findNotesDateGroup(dateStr));
 
   return (
@@ -214,12 +206,12 @@ function NotesOutletChrome({ routeParams }: { routeParams: Record<string, string
             id="btn-goto-kb"
             type="button"
             style={{ display: kbUrl && !creating ? undefined : 'none' }}
-            title="Go to Knowledge"
+            title="Go to workspace"
             onClick={() => {
               if (kbUrl) window.open(kbUrl, '_blank', 'noopener,noreferrer');
             }}
           >
-            📚 Knowledge
+            📚 Workspace
           </button>
           <button
             className="md-header-btn viewer-chrome-persisted"
@@ -339,12 +331,14 @@ export function NotesMain({ routeParams }: { routeParams: Record<string, string>
   }, [host.ui.activeDate, showOutlet]);
 
   const { date, group } = resolveNotesListDate(host.ui.activeDate, routeParams.date);
-  const emptyFilter = Boolean(
-    !group && (host.ui.activeTopic || host.ui.activeTagKey),
-  );
-  const headingText = emptyFilter
+  const directory = isDirectoryView();
+  const emptyFilter = Boolean(!group && host.ui.activeTopic && !directory);
+  const emptyFolder = Boolean(directory && group && group.entries.length === 0);
+  const selectedHeading = emptyFilter
     ? 'No matching items'
     : notesDateHeadingText(date, group);
+  const headingIsHint = !selectedHeading;
+  const headingText = selectedHeading || emptySelectionHint();
 
   return (
     <>
@@ -353,7 +347,7 @@ export function NotesMain({ routeParams }: { routeParams: Record<string, string>
         hidden={showOutlet}
         data-tauri-drag-region="deep"
       >
-        <NotesDateHeading text={headingText} />
+        <NotesDateHeading text={headingText} hint={headingIsHint} />
         <SparkSearch />
       </div>
       <button
@@ -361,18 +355,12 @@ export function NotesMain({ routeParams }: { routeParams: Record<string, string>
         className="notes-new-fab"
         data-role="create-note"
         hidden={showOutlet}
-        onClick={() => {
-          const temp_id =
-            typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-              ? crypto.randomUUID()
-              : `note-${Date.now()}`;
-          void openCreateNote({ temp_id });
-        }}
+        disabled={Object.keys(host.index.topicTitles || {}).length === 0}
+        onClick={() => startCreateDocument()}
       >
-        + New note
+        + New document
       </button>
       <NotesStatus />
-      <NotesTagChip />
       <div
         id="doc-list"
         ref={listRef}
@@ -383,7 +371,8 @@ export function NotesMain({ routeParams }: { routeParams: Record<string, string>
           <NotesDocList
             entries={group?.entries || []}
             date={date || ''}
-            empty={Boolean(!group && (host.ui.activeTopic || host.ui.activeTagKey))}
+            empty={emptyFilter || emptyFolder}
+            emptyMessage={emptyFolder ? 'No documents directly in this folder. Open it in the tree.' : undefined}
           />
         ) : null}
       </div>
@@ -408,6 +397,7 @@ export function NotesPage({ routeParams }: { routeParams: Record<string, string>
       <main id="main">
         <NotesMain routeParams={routeParams} />
       </main>
+      <CreateTargetDialog />
     </>
   );
 }

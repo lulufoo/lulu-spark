@@ -9,8 +9,11 @@ export type HostNoteTag = {
 export type HostNoteEntry = {
   _id?: string;
   id?: string;
-  category_id?: string;
+  workspace?: string;
+  project_id?: string;
   folder?: string;
+  /** Path of the raw file relative to the project folder; read-only, drives the directory tree. */
+  raw_path?: string;
   created_at?: string;
   layers?: string[];
   translations?: { zh?: string };
@@ -54,15 +57,15 @@ export type HostIndex = {
   titleFetchCache: Map<string, string>;
   topicDescriptions: Record<string, string>;
   topicTitles: Record<string, string>;
+  /** Project folders in the order Settings arranged them (the order the backend lists them). */
+  topicOrder: string[];
   topicRepos: Record<string, string>;
 };
 
 export type HostUi = {
   activeDate: string | null;
   sparkRoot: string;
-  knowledgeRoot: string;
   activeTopic: string | null;
-  activeTagKey: string | null;
   loadError: string | null;
 };
 
@@ -72,6 +75,9 @@ export type HostViewerAnnotation = Record<string, unknown>;
 export type HostCreateSession = {
   tempId: string;
   status: 'creating' | 'saving';
+  /** Where the document goes: set when the session starts, never guessed at save time. */
+  workspace?: string;
+  project?: string;
 };
 
 export type HostOutletMode = '' | 'open' | 'create' | 'safe-empty';
@@ -84,8 +90,6 @@ export type HostViewer = {
   annotation: HostViewerAnnotation;
   commentEditCtx: unknown | null;
   scrollCache: Record<string, number>;
-  isKb: boolean;
-  kbId: string | null;
   createSession: HostCreateSession | null;
   outletMode: HostOutletMode;
   outletMessage: string;
@@ -98,7 +102,25 @@ export type HostViewer = {
   panelTitle: string;
 };
 
+export type HostWorkspace = {
+  id: string;
+  name: string;
+  view_mode: 'directory' | 'timeline';
+  is_default: boolean;
+  /** Id of the configured icon; empty = the default icon. */
+  icon: string;
+  /** Position in the order Settings arranged; the list is already in this order. */
+  sort_index?: number;
+};
+
+export type HostWorkspaces = {
+  /** Id of the workspace the page shows. */
+  current: string;
+  list: HostWorkspace[];
+};
+
 export type HostState = {
+  workspaces: HostWorkspaces;
   index: HostIndex;
   ui: HostUi;
   viewer: HostViewer;

@@ -41,7 +41,7 @@ describe('FilePopup chrome', () => {
       open: true,
       path: '/kb/notes/raw/inbox/a.md',
       title: 'Sample note',
-      identityKey: 'notes:inbox/a.md',
+      identityKey: 'doc:inbox/a.md',
       content: '# Hello',
       editing: false,
       loading: false,

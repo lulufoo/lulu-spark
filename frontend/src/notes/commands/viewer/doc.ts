@@ -1,11 +1,12 @@
 import { state, getEntryId, notifyState } from '../../state/host.ts';
-import { noteFileLang } from '../../../knowledge/state/path.ts';
+import { docFileLang } from '../../state/doc-lang.ts';
+import { entryGroupKey } from '../workspace.ts';
 import { resetEditAreaScroll } from '../../../shared/utils.ts';
 import * as api from '../../../host/api.ts';
 import { setDocEditMode } from '../../../doc-editor/view.tsx';
-import { saveKbDoc } from '../../../knowledge/viewer.ts';
 import { initHighlightUI } from '../../ui/viewer/body.tsx';
 import { setNotePanelTitle, showNoteOutlet } from './outlet.ts';
+import { rememberOpenDoc } from '../viewer-state.ts';
 import type { HostViewerAnnotation } from '../../../host/snapshot-types.ts';
 import type { NoteEntry } from '../../state/types.ts';
 
@@ -53,7 +54,8 @@ export async function openDoc(entry: NoteEntry, layer = 'raw') {
   notifyState();
 
   const entryId = getEntryId(entry);
-  const lang = noteFileLang(entry, state.viewer.lang || '', layer);
+  if (entryId) rememberOpenDoc(entry, entryId);
+  const lang = docFileLang(entry, state.viewer.lang || '', layer);
   const [mdResult, annResult] = await Promise.allSettled([
     api.fetchFileContent(layer, entryId, lang),
     api.fetchAnnotation(entryId).catch(() => ({})),
@@ -98,7 +100,7 @@ export async function switchLang(lang: string | null) {
   state.viewer.bodyPaintKey += 1;
   notifyState();
 
-  const langKey = noteFileLang(entry, lang || '', layer);
+  const langKey = docFileLang(entry, lang || '', layer);
   try {
     const text = await api.fetchFileContent(layer, getEntryId(entry), langKey);
     if (gen !== openDocGen) return;
@@ -159,10 +161,6 @@ export function exitEditMode(rerender = true) {
 }
 
 export async function saveDoc() {
-  if (state.viewer.isKb) {
-    await saveKbDoc();
-    return;
-  }
   if (!state.viewer.entry) return;
   const editArea = asTextArea(document.getElementById('md-edit-area'));
   const newContent = editArea?.value ?? state.viewer.rawText;
@@ -170,12 +168,12 @@ export async function saveDoc() {
   notifyState();
 
   try {
-    const lang = noteFileLang(state.viewer.entry, state.viewer.lang || '', state.viewer.layer);
+    const lang = docFileLang(state.viewer.entry, state.viewer.lang || '', state.viewer.layer);
     const data = (await api.saveFile(state.viewer.layer, getEntryId(state.viewer.entry), newContent, lang)) as { error?: string };
     if (data.error) throw new Error(data.error);
 
     state.viewer.rawText = newContent;
-    const date = (state.viewer.entry.created_at || '').slice(0, 8);
+    const date = entryGroupKey(state.viewer.entry);
     const h1Match = newContent.match(/^#\s+(.+)/m);
     const newTitle = h1Match ? h1Match[1].trim() : (state.viewer.entry.title || 'Untitled note');
     const entryId = getEntryId(state.viewer.entry);

@@ -24,6 +24,11 @@ fn chunk(id: &str, doc: &str, category: &str, body: &str) -> SourceChunk {
     )
 }
 
+/// A chunk of a document of the default workspace.
+fn doc_chunk(id: &str, doc: &str, body: &str) -> SourceChunk {
+    chunk(id, doc, "docs", body).in_workspace("default")
+}
+
 #[test]
 fn open_drops_tables_from_older_schema_version() {
     let (_dir, cache) = temp_cache();
@@ -66,9 +71,9 @@ fn replace_doc_chunks_drops_stale_tail_chunks() {
 }
 
 #[test]
-fn sync_note_docs_is_noop_without_index_file() {
-    let sandbox = crate::test_support::TestSandbox::new();
-    let n = sync_note_docs(sandbox.config_dir(), &["x"]).expect("noop");
+fn sync_workspace_docs_is_noop_without_index_file() {
+    let _sandbox = crate::test_support::TestSandbox::new();
+    let n = sync_workspace_docs("default", &["x"]).expect("noop");
     assert_eq!(n, 0);
     assert!(
         !index_exists(&cache_dir_or_err().expect("cache")),
@@ -85,17 +90,18 @@ fn desktop_spark_hits_always_expose_raw_layer() {
         let cache = cache_dir_or_err().expect("cache");
         let conn = open(&cache).expect("open");
         let digest_only = SourceChunk::from_text(
-            "notes",
+            "docs",
             "digest",
             "doc-n",
             "Note N",
             "摘要里提到角色扮演的设计",
             "",
             0,
-        );
+        )
+        .in_workspace("default");
         upsert_chunks(&conn, &[digest_only]).expect("seed");
         drop(conn);
-        let out = search_desktop_spark(&cache, "角色扮演", Some(5));
+        let out = search_desktop_docs(&cache, "角色扮演", Some(5), None);
         let hits = out["hits"].as_array().expect("hits");
         assert_eq!(hits.len(), 1);
         assert_eq!(hits[0]["layer"], "raw");
@@ -106,85 +112,32 @@ fn desktop_spark_hits_always_expose_raw_layer() {
 }
 
 #[test]
-fn hits_of_a_deleted_note_or_a_missing_knowledge_doc_are_dropped() {
-    use crate::services::spark_data::{
-        open as open_data, register_knowledge_doc, update_knowledge_doc, get_knowledge_doc, KnowledgeStatus,
-    };
+fn hits_of_a_deleted_doc_are_dropped() {
     crate::test_support::with_sandbox_notes(|_, _| {
         crate::test_support::seed_note_entries(&serde_json::json!({
             "doc-live": { "common_path": "proj/live.md" }
         }));
-        let data = open_data().expect("data");
-        let kb_id = register_knowledge_doc(&data, "demo", "guide/a.md").expect("register");
         let cache = cache_dir_or_err().expect("cache");
         let conn = open(&cache).expect("open");
         upsert_chunks(&conn, &[
-            chunk("a:0", "doc-live", "notes", "共同关键词出现在笔记里"),
-            chunk("b:0", "doc-gone", "notes", "共同关键词出现在已删除笔记里"),
-            chunk("c:0", &kb_id, "knowledge", "共同关键词出现在知识库里"),
+            doc_chunk("a:0", "doc-live", "共同关键词出现在笔记里"),
+            doc_chunk("b:0", "doc-gone", "共同关键词出现在已删除笔记里"),
         ])
         .expect("seed");
         let all = search_in_cache(&cache, "共同关键词", &SearchFilter::default(), 10).expect("search");
-        let mut ids: Vec<&str> = all.iter().map(|h| h.doc_id.as_str()).collect();
-        ids.sort_unstable();
-        let mut want = vec!["doc-live", kb_id.as_str()];
-        want.sort_unstable();
-        assert_eq!(ids, want, "the deleted note has no row, so no hit");
-        let note = all.iter().find(|h| h.doc_id == "doc-live").expect("note hit");
-        assert_eq!(note.common_path, "live.md");
-        assert_eq!(note.topic, "proj");
-        let kb = all.iter().find(|h| h.doc_id == kb_id).expect("kb hit");
-        assert_eq!(kb.common_path, "guide/a.md");
-        assert_eq!(kb.topic, "demo");
-        assert_eq!(kb.repo, "");
-
-        let mut row = get_knowledge_doc(&data, &kb_id).expect("get").expect("row");
-        row.status = KnowledgeStatus::Missing;
-        update_knowledge_doc(&data, &row).expect("update");
-        let after = search_in_cache(&cache, "共同关键词", &SearchFilter::default(), 10).expect("search");
-        assert!(after.iter().all(|h| h.doc_id != kb_id), "a missing document is not a hit");
-    });
-}
-
-#[test]
-fn desktop_knowledge_hits_have_no_github_url() {
-    crate::test_support::with_sandbox_notes(|_, _| {
-        let data = crate::services::spark_data::open().expect("data");
-        let kb_id = crate::services::spark_data::register_knowledge_doc(&data, "demo", "guide/a.md")
-            .expect("register");
-        let cache = cache_dir_or_err().expect("cache");
-        let conn = open(&cache).expect("open");
-        upsert_chunks(
-            &conn,
-            &[chunk("c:0", &kb_id, "knowledge", "共同关键词出现在知识库里")],
-        )
-        .expect("seed");
-        drop(conn);
-        let out = search_desktop_knowledge(&cache, "共同关键词", Some(5));
-        let hits = out["hits"].as_array().expect("hits");
-        assert_eq!(hits.len(), 1);
-        assert_eq!(hits[0]["id"], kb_id);
-        assert_eq!(hits[0]["topic"], "demo");
-        assert!(hits[0].get("url").is_none());
-        assert!(hits[0].get("path").is_none());
-        assert!(hits[0].get("repo").is_none());
-        let dumped = out.to_string();
-        assert!(!dumped.contains("github.com"), "{dumped}");
-        assert!(!dumped.contains("/blob/"), "{dumped}");
+        let ids: Vec<&str> = all.iter().map(|h| h.doc_id.as_str()).collect();
+        assert_eq!(ids, vec!["doc-live"], "the deleted doc has no row, so no hit");
+        assert_eq!(all[0].common_path, "live.md");
+        assert_eq!(all[0].topic, "proj");
     });
 }
 
 #[test]
 fn desktop_search_reports_not_indexed_when_sqlite_missing() {
     let (_dir, cache) = temp_cache();
-    let wb = search_desktop_spark(&cache, "角色扮演", Some(5));
+    let out = search_desktop_docs(&cache, "角色扮演", Some(5), None);
     assert_eq!(
-        wb.get("error").and_then(|v| v.as_str()),
-        Some("not_indexed")
-    );
-    let kb = search_desktop_knowledge(&cache, "角色扮演", Some(5));
-    assert_eq!(
-        kb.get("error").and_then(|v| v.as_str()),
+        out.get("error").and_then(|v| v.as_str()),
         Some("not_indexed")
     );
 }
@@ -352,8 +305,8 @@ fn chunk_table_has_no_location_columns() {
 fn chunk_unique_key_is_enforced_by_the_database() {
     let (_dir, cache) = temp_cache();
     let conn = open(&cache).expect("open");
-    let insert = "INSERT INTO chunk(doc_id, layer, idx, category, title, content_hash, created_at)
-                  VALUES ('d', 'raw', 0, 'notes', '', 'h', '')";
+    let insert = "INSERT INTO chunk(doc_id, layer, idx, category, workspace_id, title, content_hash, created_at)
+                  VALUES ('d', 'raw', 0, 'notes', 'default', '', 'h', '')";
     conn.execute(insert, []).expect("first insert");
     assert!(conn.execute(insert, []).is_err(), "duplicate (doc_id, layer, idx) must fail");
 }

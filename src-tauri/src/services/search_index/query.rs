@@ -8,6 +8,7 @@ use serde_json::{json, Value};
 
 use super::chunk::char_len;
 use super::hit_meta::resolve_hits;
+use crate::services::spark_data::DEFAULT_WORKSPACE_ID;
 use super::store::{index_exists, open};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -23,6 +24,8 @@ pub enum QueryRoute {
 #[derive(Debug, Clone, Default)]
 pub struct SearchFilter {
     pub category: Option<String>,
+    /// Only chunks of this workspace; every workspace when `None`.
+    pub workspace: Option<String>,
     pub layer: Option<String>,
 }
 
@@ -30,12 +33,13 @@ pub struct SearchFilter {
 pub struct QueryHit {
     pub doc_id: String,
     pub category: String,
+    pub workspace_id: String,
     pub layer: String,
-    /// Filled from `spark-data.sqlite` by `resolve_hits`: note `raw_path` or knowledge `path`.
+    /// Filled from `spark-data.sqlite` by `resolve_hits`: the document path inside its project.
     pub common_path: String,
-    /// Filled by `resolve_hits`. Knowledge no longer uses this as identity.
+    /// Filled by `resolve_hits`: the project folder.
     pub repo: String,
-    /// Notes: category folder. Knowledge: topic folder.
+    /// Folder inside the project.
     pub topic: String,
     pub title: String,
     pub body: String,
@@ -124,6 +128,10 @@ fn apply_filters(sql: &mut String, args: &mut Vec<String>, filter: &SearchFilter
         sql.push_str(" AND chunk.category = ?");
         args.push(c.clone());
     }
+    if let Some(w) = &filter.workspace {
+        sql.push_str(" AND chunk.workspace_id = ?");
+        args.push(w.clone());
+    }
     if let Some(l) = &filter.layer {
         sql.push_str(" AND chunk.layer = ?");
         args.push(l.clone());
@@ -139,7 +147,8 @@ fn query_tri(
 ) -> Result<Vec<QueryHit>, String> {
     let mut sql = String::from(
         "SELECT chunk.doc_id, chunk.category, chunk.layer, chunk.title, docs_tri.body,
-                snippet(docs_tri, 0, '<em>', '</em>', '…', 16), bm25(docs_tri), chunk.created_at
+                snippet(docs_tri, 0, '<em>', '</em>', '…', 16), bm25(docs_tri), chunk.created_at,
+                chunk.workspace_id
          FROM docs_tri JOIN chunk ON chunk.id = docs_tri.rowid
          WHERE docs_tri MATCH ?",
     );
@@ -166,7 +175,7 @@ fn query_bi(
     let mut sql = String::from(
         "SELECT chunk.doc_id, chunk.category, chunk.layer, chunk.title,
                 COALESCE((SELECT body FROM docs_tri WHERE rowid = chunk.id), ''),
-                '', bm25(docs_bi), chunk.created_at
+                '', bm25(docs_bi), chunk.created_at, chunk.workspace_id
          FROM docs_bi JOIN chunk ON chunk.id = docs_bi.rowid
          WHERE docs_bi MATCH ?",
     );
@@ -189,6 +198,7 @@ fn row_to_hit(row: &rusqlite::Row<'_>) -> rusqlite::Result<QueryHit> {
     Ok(QueryHit {
         doc_id: row.get(0)?,
         category: row.get(1)?,
+        workspace_id: row.get(8)?,
         layer: row.get(2)?,
         common_path: String::new(),
         repo: String::new(),
@@ -258,7 +268,13 @@ pub fn parse_limit(limit: Option<u32>, default: u32) -> u32 {
     }
 }
 
-pub fn search_desktop_spark(cache_dir: &Path, q: &str, limit: Option<u32>) -> Value {
+/// Search the documents of one workspace (default: the Default workspace) for the page search box.
+pub fn search_desktop_docs(
+    cache_dir: &Path,
+    q: &str,
+    limit: Option<u32>,
+    workspace: Option<&str>,
+) -> Value {
     let q = q.trim();
     if q.is_empty() {
         return json!({ "error": "q parameter required" });
@@ -267,53 +283,21 @@ pub fn search_desktop_spark(cache_dir: &Path, q: &str, limit: Option<u32>) -> Va
     if !index_exists(cache_dir) {
         return json!({ "hits": [], "error": "not_indexed" });
     }
+    let workspace = workspace.map(str::trim).filter(|w| !w.is_empty()).unwrap_or(DEFAULT_WORKSPACE_ID);
     let filter = SearchFilter {
-        category: Some("notes".into()),
+        workspace: Some(workspace.into()),
         ..SearchFilter::default()
     };
     match search_in_cache(cache_dir, q, &filter, limit) {
         Ok(hits) => json!({
             "hits": hits
                 .into_iter()
-                .filter(|h| h.category == "notes")
                 .map(|h| {
-                    // digest chunks only help recall; the UI always opens the note itself.
+                    // digest chunks only help recall; the UI always opens the document itself.
                     json!({
                         "title": h.title,
                         "id": h.doc_id,
                         "layer": "raw",
-                        "topic": h.topic,
-                        "body": h.snippet,
-                        "_formatted": { "body": h.snippet },
-                    })
-                })
-                .collect::<Vec<_>>()
-        }),
-        Err(e) => json!({ "hits": [], "error": e }),
-    }
-}
-
-pub fn search_desktop_knowledge(cache_dir: &Path, q: &str, limit: Option<u32>) -> Value {
-    let q = q.trim();
-    if q.is_empty() {
-        return json!({ "error": "q parameter required" });
-    }
-    let limit = parse_limit(limit, 10);
-    if !index_exists(cache_dir) {
-        return json!({ "hits": [], "error": "not_indexed" });
-    }
-    let filter = SearchFilter {
-        category: Some("knowledge".into()),
-        ..SearchFilter::default()
-    };
-    match search_in_cache(cache_dir, q, &filter, limit) {
-        Ok(hits) => json!({
-            "hits": hits
-                .into_iter()
-                .map(|h| {
-                    json!({
-                        "title": h.title,
-                        "id": h.doc_id,
                         "topic": h.topic,
                         "body": h.snippet,
                         "_formatted": { "body": h.snippet },

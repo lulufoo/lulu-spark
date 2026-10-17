@@ -20,7 +20,7 @@ const NOTE_PATH = 'inbox/x.md';
 const NOTE_DATE = '20260719';
 const HOP_ID = 'trace_12345678';
 const PASS = encodePassBag(HOP_ID);
-const NOTES_OPEN = `spark://notes/open?id=${NOTE_ID}&${PASS_QUERY}=${PASS}`;
+const NOTES_OPEN = `spark://docs/open?id=${NOTE_ID}&${PASS_QUERY}=${PASS}`;
 const READ_LATER_LIST = `spark://read-later/list?${PASS_QUERY}=${PASS}`;
 
 function readRel(rel) {
@@ -75,7 +75,7 @@ afterEach(() => {
 });
 
 describe('handleOsNotifyClicked', () => {
-  it('hands a notes/open scheme to L2 and opens that note', async () => {
+  it('hands a docs/open scheme to L2 and opens that note', async () => {
     const openSpy = vi.spyOn(scheme, 'openSparkScheme');
     await expect(handleOsNotifyClicked({ scheme: NOTES_OPEN })).resolves.toBe(true);
     expect(openSpy).toHaveBeenCalledTimes(1);
@@ -107,12 +107,12 @@ describe('handleOsNotifyClicked', () => {
   });
 
   it.each([
-    'https://notes/open?id=abc&path=inbox/x.md',
+    'https://docs/open?id=abc&path=inbox/x.md',
     'spark://unknown/open?id=abc&path=inbox/x.md',
-    'spark://notes/open?id=abc',
-    'spark://notes/open?path=inbox/x.md',
+    'spark://docs/open?id=abc',
+    'spark://docs/open?path=inbox/x.md',
     'spark://read-later/open',
-    'notes/open?id=abc&path=inbox/x.md',
+    'docs/open?id=abc&path=inbox/x.md',
   ])('forwards unrecognized or incomplete %s to L2 which ignores it', async (badScheme) => {
     const openSpy = vi.spyOn(scheme, 'openSparkScheme');
     await expect(handleOsNotifyClicked({ scheme: badScheme })).resolves.toBe(false);
@@ -121,7 +121,7 @@ describe('handleOsNotifyClicked', () => {
     expect(dialogEl()?.classList.contains('open')).toBe(false);
   });
 
-  it('reloads Host index once and retries notes/open after a landing miss', async () => {
+  it('reloads Host index once and retries docs/open after a landing miss', async () => {
     state.index.data = {};
     vi.spyOn(api, 'fetchIndex').mockResolvedValue({
       entries: {

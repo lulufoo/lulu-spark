@@ -39,9 +39,9 @@ fn envelope(business: &str, action: &str, params: Value) -> Envelope {
     }
 }
 
-fn notes_create_envelope() -> Envelope {
+fn docs_create_envelope() -> Envelope {
     envelope(
-        "notes",
+        "docs",
         "create",
         json!({ "archive_id": "a", "common_path": "p.md" }),
     )
@@ -120,7 +120,7 @@ fn install_notify_counter() -> Arc<AtomicUsize> {
 fn produce_keeps_valid_hop_id() {
     with_message_center_sandbox(|| {
         let incoming = envelope(
-            "notes",
+            "docs",
             "create",
             json!({
                 "archive_id": "a",
@@ -143,13 +143,13 @@ fn produce_keeps_valid_hop_id() {
 }
 
 #[test]
-fn produce_notes_marks_channel_unread() {
+fn produce_docs_marks_channel_unread() {
     with_message_center_sandbox(|| {
-        assert!(!channel_unread("notes"));
-        let record = produce(notes_create_envelope()).expect("produce notes");
-        assert_eq!(record.channel, "notes");
+        assert!(!channel_unread("docs"));
+        let record = produce(docs_create_envelope()).expect("produce docs");
+        assert_eq!(record.channel, "docs");
         assert!(record.unread);
-        assert!(channel_unread("notes"));
+        assert!(channel_unread("docs"));
     });
 }
 
@@ -157,8 +157,8 @@ fn produce_notes_marks_channel_unread() {
 fn produce_notifies_once_after_persist() {
     with_message_center_sandbox(|| {
         let hits = install_notify_counter();
-        let incoming = notes_create_envelope();
-        produce(incoming.clone()).expect("produce notes");
+        let incoming = docs_create_envelope();
+        produce(incoming.clone()).expect("produce docs");
         assert_eq!(hits.load(Ordering::SeqCst), 1);
         assert_last_envelope_matches_with_hop(&incoming);
         assert!(persist_exists());
@@ -168,15 +168,15 @@ fn produce_notifies_once_after_persist() {
 #[test]
 fn mark_channel_read_clears_unread() {
     with_message_center_sandbox(|| {
-        produce(notes_create_envelope()).expect("produce notes");
-        assert!(channel_unread("notes"));
-        mark_channel_read("notes").expect("mark notes read");
-        assert!(!channel_unread("notes"));
+        produce(docs_create_envelope()).expect("produce docs");
+        assert!(channel_unread("docs"));
+        mark_channel_read("docs").expect("mark docs read");
+        assert!(!channel_unread("docs"));
     });
 }
 
 #[test]
-fn only_notes_read_later_todos_channels_and_unread_is_independent() {
+fn only_docs_read_later_todos_channels_and_unread_is_independent() {
     with_message_center_sandbox(|| {
         let hits = install_notify_counter();
         let before = last_changed_envelope();
@@ -189,19 +189,19 @@ fn only_notes_read_later_todos_channels_and_unread_is_independent() {
         assert_eq!(hits.load(Ordering::SeqCst), 0);
         assert_eq!(last_changed_envelope(), before);
 
-        for business in ["notes", "read_later", "todos"] {
+        for business in ["docs", "read_later", "todos"] {
             let incoming = envelope(business, "create", json!({}));
             assert_eq!(produce(incoming.clone()).expect(business).channel, business);
             assert!(channel_unread(business));
             assert_last_envelope_matches_with_hop(&incoming);
         }
 
-        mark_channel_read("notes").expect("mark notes read");
-        assert!(!channel_unread("notes"));
+        mark_channel_read("docs").expect("mark docs read");
+        assert!(!channel_unread("docs"));
         assert!(channel_unread("read_later"));
         assert!(channel_unread("todos"));
         produce(envelope(
-            "notes",
+            "docs",
             "update",
             json!({ "archive_id": "a", "common_path": "p.md", "extra": true }),
         ))
@@ -212,13 +212,13 @@ fn only_notes_read_later_todos_channels_and_unread_is_independent() {
 #[test]
 fn one_produce_one_record_with_only_min_fields() {
     with_message_center_sandbox(|| {
-        let first = produce(notes_create_envelope()).expect("first produce");
-        let second = produce(notes_create_envelope()).expect("second produce");
+        let first = produce(docs_create_envelope()).expect("first produce");
+        let second = produce(docs_create_envelope()).expect("second produce");
         assert_ne!(first.id, second.id);
         assert!(first.unread && second.unread);
         assert!(is_iso8601(&first.created_at));
         assert!(is_iso8601(&second.created_at));
-        assert_last_envelope_matches_with_hop(&notes_create_envelope());
+        assert_last_envelope_matches_with_hop(&docs_create_envelope());
 
         for record in [&first, &second] {
             let value = serde_json::to_value(record).expect("serialize record");
@@ -265,7 +265,7 @@ fn missing_store_means_all_channels_read() {
     with_message_center_sandbox(|| {
         let path = paths::message_center_path().expect("message_center_path");
         assert!(!path.exists());
-        assert!(!channel_unread("notes"));
+        assert!(!channel_unread("docs"));
         assert!(!channel_unread("read_later"));
         assert!(!channel_unread("todos"));
     });
@@ -282,10 +282,10 @@ fn persist_failure_does_not_notify() {
         }
         fs::create_dir_all(&path).expect("occupy persist path as directory");
 
-        assert!(produce(notes_create_envelope()).is_err());
+        assert!(produce(docs_create_envelope()).is_err());
         assert_eq!(hits.load(Ordering::SeqCst), 0);
         assert_eq!(last_changed_envelope(), before);
-        assert!(!channel_unread("notes"));
+        assert!(!channel_unread("docs"));
     });
 }
 
@@ -335,17 +335,17 @@ fn produce_rejects_empty_action_or_non_object_params() {
         let hits = install_notify_counter();
         let before = last_changed_envelope();
         for incoming in [
-            envelope("notes", "", json!({ "id": "a" })),
-            envelope("notes", "create", json!([])),
-            envelope("notes", "create", json!("x")),
-            envelope("notes", "create", Value::Null),
-            envelope("notes", "create", json!(1)),
+            envelope("docs", "", json!({ "id": "a" })),
+            envelope("docs", "create", json!([])),
+            envelope("docs", "create", json!("x")),
+            envelope("docs", "create", Value::Null),
+            envelope("docs", "create", json!(1)),
         ] {
             assert!(produce(incoming).is_err());
         }
         assert_eq!(hits.load(Ordering::SeqCst), 0);
         assert_eq!(last_changed_envelope(), before);
         assert!(!persist_exists());
-        assert!(!channel_unread("notes"));
+        assert!(!channel_unread("docs"));
     });
 }

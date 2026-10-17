@@ -100,7 +100,6 @@ export function readMainSource() {
     readFrontendJs('frontend/src/App.tsx'),
     readFrontendJs('frontend/src/hash-router.tsx'),
     readFrontendJs('frontend/src/shell-pages.tsx'),
-    readFrontendJs('frontend/src/app-shell/ui/settings/sediment-kb.tsx'),
     readFrontendJs('frontend/src/app-shell/routes.ts'),
     readFrontendJs('frontend/src/app-shell/ui/tooltip.ts'),
   ].join('\n');
@@ -134,21 +133,6 @@ export function readNotesViewerSource() {
   ];
   return [
     readFrontendJs('frontend/src/notes/viewer.ts'),
-    ...viewerDirs.flatMap((dir) =>
-      listFrontendSourceFiles(dir)
-        .sort()
-        .map((abs) => readFileSync(abs, 'utf8')),
-    ),
-  ].join('\n');
-}
-
-export function readKnowledgeViewerSource() {
-  const viewerDirs = [
-    join(repoRoot, 'frontend/src/knowledge/ui/viewer'),
-    join(repoRoot, 'frontend/src/knowledge/commands/viewer'),
-  ];
-  return [
-    readFrontendJs('frontend/src/knowledge/viewer.ts'),
     ...viewerDirs.flatMap((dir) =>
       listFrontendSourceFiles(dir)
         .sort()

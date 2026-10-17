@@ -27,7 +27,7 @@ describe('notify-trace', () => {
 
   it('reads trace from a spark URL', () => {
     expect(
-      extractTraceFromScheme('spark://notes/open?id=a&path=p.md&trace=trace_12345678'),
+      extractTraceFromScheme('spark://docs/open?id=a&path=p.md&trace=trace_12345678'),
     ).toBe('trace_12345678');
     expect(extractTraceFromScheme('spark://read-later/list')).toBeNull();
   });
@@ -38,12 +38,12 @@ describe('notify-trace', () => {
     expect(rememberNotifyTrace(null)).toBe('trace_abcdef12');
   });
 
-  it('maps spark host to notes / read_later / login only when pass is valid', () => {
+  it('maps spark host to docs / read_later / login only when pass is valid', () => {
     expect(
       businessFromSparkHost(
-        `spark://notes/open?id=abc&path=p.md&${PASS_QUERY}=${PASS}`,
+        `spark://docs/open?id=abc&path=p.md&${PASS_QUERY}=${PASS}`,
       ),
-    ).toBe('notes');
+    ).toBe('docs');
     expect(businessFromSparkHost(`spark://read-later/list?${PASS_QUERY}=${PASS}`)).toBe(
       'read_later',
     );
@@ -56,9 +56,9 @@ describe('notify-trace', () => {
   });
 
   it('does not host-map leftover missing-pass or trace-only schemes', () => {
-    expect(businessFromSparkHost('spark://notes/open?id=a&path=p.md')).toBe('app');
+    expect(businessFromSparkHost('spark://docs/open?id=a&path=p.md')).toBe('app');
     expect(
-      businessFromSparkHost('spark://notes/open?id=a&path=p.md&trace=trace_12345678'),
+      businessFromSparkHost('spark://docs/open?id=a&path=p.md&trace=trace_12345678'),
     ).toBe('app');
     expect(businessFromSparkHost('spark://read-later/list')).toBe('app');
     expect(businessFromSparkHost('spark://read-later/list?trace=trace_12345678')).toBe(
@@ -69,9 +69,9 @@ describe('notify-trace', () => {
 
   it('writes the given business and hop id and never writes os-notify', () => {
     const logSpy = vi.spyOn(appLog, 'logAppEvent').mockImplementation(() => {});
-    logNotifyHop('route.to_business', HOP_ID, { outcome: 'ok' }, 'notes');
+    logNotifyHop('route.to_business', HOP_ID, { outcome: 'ok' }, 'docs');
     expect(logSpy).toHaveBeenCalledWith({
-      business: 'notes',
+      business: 'docs',
       event: 'route.to_business',
       traceId: HOP_ID,
       params: { outcome: 'ok' },

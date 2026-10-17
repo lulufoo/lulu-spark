@@ -6,7 +6,7 @@ export async function handleNotesOsNotifyEnvelope(
   envelope: SparkEnvelope,
 ): Promise<void> {
   if (!envelope || typeof envelope !== 'object') return;
-  if (envelope.business !== 'notes') return;
+  if (envelope.business !== 'docs') return;
   if (envelope.action === 'create' || envelope.action === 'update') {
     await refreshNotesIndex();
   }
@@ -15,8 +15,8 @@ export async function handleNotesOsNotifyEnvelope(
   if (!scheme) return;
   try {
     await showOsNotification({
-      title: 'New note',
-      body: 'A note was added',
+      title: 'New document',
+      body: 'A document was added',
       scheme,
     });
   } catch {

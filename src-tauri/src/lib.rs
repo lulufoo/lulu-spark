@@ -34,14 +34,12 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             ping,
-            commands::read::search_knowledge,
             commands::read::search_spark,
-            commands::read::get_topics,
             commands::read::get_annotations,
             commands::read::get_tags_registry,
             commands::read::get_annotation,
             commands::read::get_draft,
-            commands::read::get_note_draft,
+            commands::read::get_doc_draft,
             commands::read::get_doc_highlights,
             commands::read::get_config,
             commands::config_cmd::set_config,
@@ -55,30 +53,38 @@ pub fn run() {
             commands::bind::issue_bind,
             commands::bind::read_bind_session,
             commands::sync::save_comment_draft,
-            commands::sync::save_note_draft,
-            commands::sync::clear_note_draft,
+            commands::sync::save_doc_draft,
+            commands::sync::clear_doc_draft,
             commands::sync::delete_entry,
             commands::sync::move_entry_project,
-            commands::read::kb_read,
-            commands::read::get_kb_asset,
-            commands::read::kb_list,
-            commands::read::kb_doc_count,
-            commands::read::get_kb_hide_patterns,
-            commands::kb_viewer_state::get_kb_viewer_state,
-            commands::read::kb_annotation,
             commands::read::fetch_link_title,
-            commands::read::get_notes_index,
-            commands::read::get_notes_file,
-            commands::read::resolve_note_for_open,
-            commands::read::resolve_knowledge_for_open,
+            commands::read::get_docs_index,
+            commands::read::get_doc_file,
+            commands::read::resolve_doc_for_open,
             commands::read::read_abs_file,
-            commands::read::get_notes_asset,
-            commands::notes_categories::list_notes_categories,
-            commands::notes_categories::create_notes_category,
-            commands::notes_categories::update_notes_category,
-            commands::notes_categories::delete_notes_category,
-            commands::read::get_sediment_kb_categories,
-            commands::read::get_sediment_kb_repos,
+            commands::read::get_doc_asset,
+            commands::workspaces::list_workspaces,
+            commands::workspaces::create_workspace,
+            commands::workspaces::rename_workspace,
+            commands::workspaces::set_workspace_view_mode,
+            commands::workspaces::set_workspace_icon,
+            commands::workspaces::reorder_workspaces,
+            commands::workspaces::list_disabled_workspaces,
+            commands::workspaces::disable_workspace,
+            commands::workspaces::enable_workspace,
+            commands::workspaces::list_projects,
+            commands::workspaces::create_project,
+            commands::workspaces::update_project,
+            commands::workspaces::reorder_projects,
+            commands::workspaces::list_disabled_projects,
+            commands::workspaces::disable_project,
+            commands::workspaces::enable_project,
+            commands::workspaces::list_hide_patterns,
+            commands::workspaces::add_hide_pattern,
+            commands::workspaces::update_hide_pattern,
+            commands::workspaces::remove_hide_pattern,
+            commands::workspaces::get_viewer_state,
+            commands::workspaces::set_viewer_state,
             commands::read::get_message_channel_unread,
             commands::read_later::create_read_later,
             commands::read_later::get_read_later,
@@ -105,8 +111,6 @@ pub fn run() {
             commands::ai_assistant::agent_chat_turn,
             commands::search::reindex_all,
             commands::search::get_reindex_all_status,
-            commands::search::reindex_kb_repo,
-            commands::search::get_reindex_status,
             commands::write::set_done,
             commands::write::set_importance,
             commands::write::update_links,
@@ -116,29 +120,9 @@ pub fn run() {
             commands::write::update_doc_highlights,
             commands::write::save_entry,
             commands::write::write_abs_file,
-            commands::write::kb_save,
-            commands::write::kb_rename,
-            commands::kb_entry::kb_create,
-            commands::kb_entry::kb_delete,
-            commands::kb_entry::remember_knowledge_doc,
-            commands::kb_entry::kb_doc_id,
-            commands::write::kb_update_comments,
-            commands::write::kb_reorder_comments,
-            commands::write::kb_update_highlights,
-            commands::write::kb_update_links,
             commands::write::tag_attach,
             commands::write::tag_detach,
             commands::write::tag_update_value,
-            commands::write::sediment_kb_add_repo,
-            commands::write::sediment_kb_remove_repo,
-            commands::write::sediment_kb_update_repo_category,
-            commands::write::sediment_kb_add_category,
-            commands::write::sediment_kb_rename_category,
-            commands::write::sediment_kb_remove_category,
-            commands::kb_hide_patterns::add_kb_hide_pattern,
-            commands::kb_hide_patterns::update_kb_hide_pattern,
-            commands::kb_hide_patterns::remove_kb_hide_pattern,
-            commands::kb_viewer_state::set_kb_viewer_state,
             commands::write::create_note,
             commands::write::mark_message_channel_read,
             commands::os_notification::show_os_notification,
@@ -214,40 +198,80 @@ pub fn run() {
             host::create_main_window(app)?;
             app.manage(services::reindex::ReindexState::new());
 
-            // Keyword index: rebuild on every launch (index only, no git pull).
-            // The header does not show this job.
+            // Startup, in order: copy the legacy files into their workspaces (the index reads them),
+            // rebuild the keyword index (index only, no git pull; the header does not show this
+            // job), then back up the database. No Agent Loop warmup: the first chat pays cold start.
             {
                 use tauri::Manager;
                 let reindex = app.state::<services::reindex::ReindexState>();
-                let wb_slot = std::sync::Arc::clone(&reindex.spark_job);
-                let kb_slot = std::sync::Arc::clone(&reindex.knowledge_job);
+                let spark_slot = std::sync::Arc::clone(&reindex.spark_job);
                 std::thread::spawn(move || {
-                    let Ok(repo_root) = crate::config::paths::repo_root() else {
-                        return;
-                    };
-                    let _ = services::reindex::run_all_reindex_blocking(&repo_root, &wb_slot, &kb_slot);
+                    use crate::services::app_log::{log, Level, Side};
+                    if let Ok(data) = crate::config::paths::runtime_data_dir() {
+                        match crate::services::legacy_copy::copy_legacy_files_at_startup(&data) {
+                            Ok(report) if report.already_done && report.removed == 0 => {}
+                            Ok(report) => log(
+                                "workspaces",
+                                "legacy_copy_done",
+                                None,
+                                Some(serde_json::json!({
+                                    "copied": report.copied,
+                                    "skipped_existing": report.skipped_existing,
+                                    "missing_folders": report.missing_folders,
+                                    "removed": report.removed,
+                                })),
+                                Side::Host,
+                                Level::Info,
+                            ),
+                            Err(error) => log(
+                                "workspaces",
+                                "legacy_copy_failed",
+                                None,
+                                Some(serde_json::json!({ "error": error })),
+                                Side::Host,
+                                Level::Error,
+                            ),
+                        }
+                    }
+                    // Ids are unique inside each document table, not across tables. Report any
+                    // id that two workspaces share; nothing is repaired.
+                    match crate::services::spark_data::open().and_then(|c| crate::services::spark_data::duplicate_doc_ids(&c)) {
+                        Ok(dups) if dups.is_empty() => {}
+                        Ok(dups) => log(
+                            "workspaces",
+                            "duplicate_doc_ids",
+                            None,
+                            Some(serde_json::json!({
+                                "count": dups.len(),
+                                "ids": dups.iter().map(|(id, workspaces)| serde_json::json!({ "id": id, "workspaces": workspaces })).collect::<Vec<_>>(),
+                            })),
+                            Side::Host,
+                            Level::Warn,
+                        ),
+                        Err(error) => log(
+                            "workspaces",
+                            "duplicate_doc_ids_check_failed",
+                            None,
+                            Some(serde_json::json!({ "error": error })),
+                            Side::Host,
+                            Level::Error,
+                        ),
+                    }
+                    if let Ok(repo_root) = crate::config::paths::repo_root() {
+                        let _ = services::reindex::run_all_reindex_blocking(&repo_root, &spark_slot);
+                    }
+                    if let Err(error) = crate::services::spark_data::backup_daily() {
+                        log(
+                            "spark_data",
+                            "backup_failed",
+                            None,
+                            Some(serde_json::json!({ "error": error })),
+                            Side::Host,
+                            Level::Error,
+                        );
+                    }
                 });
             }
-
-            // No Agent Loop startup warmup: first chat pays cold start (MCP/LLM).
-
-            std::thread::spawn(move || {
-                let Ok(data) = crate::config::paths::runtime_data_dir() else {
-                    return;
-                };
-                let _ = crate::services::knowledge_layout::ensure_knowledge_registry_layout(&data);
-                if let Err(error) = crate::services::spark_data::backup_daily() {
-                    use crate::services::app_log::{log, Level, Side};
-                    log(
-                        "spark_data",
-                        "backup_failed",
-                        None,
-                        Some(serde_json::json!({ "error": error })),
-                        Side::Host,
-                        Level::Error,
-                    );
-                }
-            });
 
             Ok(())
         })

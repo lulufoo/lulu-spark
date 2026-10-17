@@ -6,7 +6,7 @@ use serde_json::{json, Value};
 use super::schema::{SESSION_SCHEMA, SESSION_STATUS_IDLE};
 use super::step_codec::{decode_step, StepRow};
 use super::turn_store;
-use super::types::{Session, StagedEntry, StagedSource};
+use super::types::{Session, StagedEntry};
 
 pub fn sidecar_paths(path: &PathBuf) -> [PathBuf; 2] {
     let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
@@ -30,8 +30,6 @@ fn open(path: &PathBuf) -> Result<Connection, String> {
         .map_err(|e| e.to_string())?;
     ensure_last_prompt_columns(&conn)?;
     ensure_column(&conn, "meta", "llm", "TEXT")?;
-    ensure_column(&conn, "staged", "source_kind", "TEXT")?;
-    ensure_column(&conn, "staged", "source_id", "TEXT")?;
     for column in ["finish_reason", "model", "usage", "reasoning_content"] {
         ensure_column(&conn, "model_steps", column, "TEXT")?;
     }
@@ -376,20 +374,12 @@ fn sync_staged(
             continue;
         }
         tx.execute(
-            "INSERT INTO staged (staged_id, path, title, source_kind, source_id)
-             VALUES (?1, ?2, ?3, ?4, ?5)
+            "INSERT INTO staged (staged_id, path, title)
+             VALUES (?1, ?2, ?3)
              ON CONFLICT(staged_id) DO UPDATE SET
                path = excluded.path,
-               title = excluded.title,
-               source_kind = excluded.source_kind,
-               source_id = excluded.source_id",
-            params![
-                entry.id,
-                entry.path,
-                entry.title,
-                entry.source.as_ref().map(|s| s.kind.as_str()),
-                entry.source.as_ref().map(|s| s.id.as_str()),
-            ],
+               title = excluded.title",
+            params![entry.id, entry.path, entry.title],
         )
         .map_err(|e| e.to_string())?;
     }
@@ -404,19 +394,14 @@ fn sync_staged(
 
 fn load_staged(conn: &Connection) -> Result<Vec<StagedEntry>, String> {
     let mut stmt = conn
-        .prepare(
-            "SELECT staged_id, path, title, source_kind, source_id FROM staged ORDER BY rowid ASC",
-        )
+        .prepare("SELECT staged_id, path, title FROM staged ORDER BY rowid ASC")
         .map_err(|e| e.to_string())?;
     let rows = stmt
         .query_map([], |row| {
-            let source_kind: Option<String> = row.get(3)?;
-            let source_id: Option<String> = row.get(4)?;
             Ok(StagedEntry {
                 id: row.get(0)?,
                 path: row.get(1)?,
                 title: row.get(2)?,
-                source: StagedSource::parse(source_kind.as_deref(), source_id.as_deref()).ok(),
             })
         })
         .map_err(|e| e.to_string())?;

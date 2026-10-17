@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { flushSync } from 'react-dom';
 import { searchSpark } from '../../host/api.ts';
+import { state } from '../../host/state.ts';
 
 const HIST_KEY = 'gs-history-wb';
 const HIST_MAX = 10;
@@ -143,7 +144,7 @@ export function SparkSearchFields() {
   async function runSearch(q: string) {
     flushSync(() => setView({ kind: 'status', text: 'Searching…' }));
     try {
-      const data = await searchSpark(q, 8);
+      const data = await searchSpark(q, 8, state.workspaces.current);
       if (data.error && data.error !== 'not_indexed') {
         flushSync(() => setView({ kind: 'status', text: 'Search error' }));
         return;
@@ -197,7 +198,7 @@ export function SparkSearchFields() {
         id="gs-wb-input"
         className="gs-search-input"
         type="text"
-        placeholder="Search notes…"
+        placeholder="Search this workspace…"
         autoComplete="off"
         spellCheck={false}
         value={query}

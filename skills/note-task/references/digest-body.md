@@ -4,7 +4,7 @@ Load when composing `digest_body` and `digest` is `auto` or `always`.
 
 ## Whether to write
 
-`digest` is required on `create_note`.
+`digest` is required on `create_doc`.
 
 | Value | Do |
 |-------|----|
@@ -50,4 +50,4 @@ theme-line: one digest on the primary raw, not on `-zh.md`.
 
 ## Submit
 
-Pass `digest_body` on the same `create_note` call. On success, `digest_written` is present when a digest was written and absent when `auto` skipped it.
+Pass `digest_body` on the same `create_doc` call. On success, `digest_written` is present when a digest was written and absent when `auto` skipped it.

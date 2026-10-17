@@ -65,11 +65,6 @@ describe('read-api ACL 与前端 invoke 映射一致', () => {
     expect(aclAllow).not.toContain('kb_status')
   })
 
-  it('kb doc count command 已加入 read-api ACL', () => {
-    expect(tomlAllow).toContain('kb_doc_count')
-    expect(aclAllow).toContain('kb_doc_count')
-  })
-
   it('doc highlights read command 已加入 read-api ACL', () => {
     expect(tomlAllow).toContain('get_doc_highlights')
     expect(aclAllow).toContain('get_doc_highlights')
@@ -103,10 +98,10 @@ describe('read-api ACL 与前端 invoke 映射一致', () => {
 
   it('resolveInvokeFromPath 将 snake_case channel 查询映射为 camelCase invoke 参数', () => {
     expect(
-      resolveInvokeFromPath('/api/message-channel-unread?channel=notes'),
+      resolveInvokeFromPath('/api/message-channel-unread?channel=docs'),
     ).toEqual({
       cmd: 'get_message_channel_unread',
-      args: { channel: 'notes' },
+      args: { channel: 'docs' },
     })
   })
 
@@ -119,9 +114,9 @@ describe('read-api ACL 与前端 invoke 映射一致', () => {
       json: async () => true,
       text: async () => 'true',
     })
-    await api.getMessageChannelUnread('notes')
+    await api.getMessageChannelUnread('docs')
     expect(globalThis.fetch.mock.calls[0][0]).toMatch(
-      /message-channel-unread.*channel=notes/,
+      /message-channel-unread.*channel=docs/,
     )
   })
 
@@ -129,7 +124,6 @@ describe('read-api ACL 与前端 invoke 映射一致', () => {
     const pageFiles = [
       'frontend/src/home/page.tsx',
       'frontend/src/notes/page.tsx',
-      'frontend/src/knowledge/page.tsx',
     ]
     for (const rel of pageFiles) {
       const src = readFileSync(join(repoRoot, rel), 'utf8')

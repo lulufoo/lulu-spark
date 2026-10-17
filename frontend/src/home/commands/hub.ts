@@ -1,6 +1,8 @@
 import * as api from '../../host/api.ts';
 import { refreshStagedFromBinding } from './staged.ts';
 import { refreshWorkspace } from './workspace.ts';
+import { refreshWorkspaceProjects } from './workspace-nav.ts';
+import { REGISTRY_CHANGED_EVENT } from '../../shared/registry-events.ts';
 import {
   markHomeEntryRead,
   refreshChannelUnread,
@@ -8,6 +10,8 @@ import {
 } from './channel-unread.ts';
 import {
   getHomeState,
+  HOME_CHAT_PAGE_STEP,
+  visibleSessionCount,
   contextPercentFrom,
   contextUsageFrom,
   hydrateStaged,
@@ -23,7 +27,6 @@ import {
 
 export const BINDING_CHANGED_EVENT = 'ai-assistant:binding-changed';
 export const MESSAGE_CENTER_CHANGED_EVENT = 'message-center:changed';
-export const HOME_CHAT_LIST_LIMIT = 20;
 export { markHomeEntryRead, refreshChannelUnread };
 
 type TauriListen = (
@@ -44,12 +47,15 @@ function getTauriListen(): TauriListen | null {
 let fetchGen = 0;
 let unlistenBinding: (() => void) | null = null;
 let unlistenMessageCenter: (() => void) | null = null;
+let unlistenRegistry: (() => void) | null = null;
 
 function clearHomeListens() {
   if (typeof unlistenBinding === 'function') unlistenBinding();
   unlistenBinding = null;
   if (typeof unlistenMessageCenter === 'function') unlistenMessageCenter();
   unlistenMessageCenter = null;
+  unlistenRegistry?.();
+  unlistenRegistry = null;
 }
 
 export function resetHomeCommands() {
@@ -82,12 +88,21 @@ export async function refreshList(gen?: number) {
   if (gen != null && gen !== fetchGen) return;
   setHomeState((prev) => ({
     ...prev,
-    sessions: Array.isArray(listed?.sessions)
-      ? listed.sessions.slice(0, HOME_CHAT_LIST_LIMIT)
-      : [],
+    sessions: Array.isArray(listed?.sessions) ? listed.sessions : [],
     currentSessionId: listed?.current_session_id
       ? String(listed.current_session_id)
       : prev.currentSessionId,
+  }));
+}
+
+/** Reveal the next page of chats; called when the Chats list is scrolled to the bottom. */
+export function showMoreSessions() {
+  const snap = getHomeState();
+  const visible = visibleSessionCount(snap);
+  if (visible >= snap.sessions.length) return;
+  setHomeState((prev) => ({
+    ...prev,
+    sessionsShown: Math.min(visible + HOME_CHAT_PAGE_STEP, prev.sessions.length),
   }));
 }
 
@@ -361,6 +376,10 @@ export function startHomeHub() {
   });
   void applyBindingState();
   void refreshChannelUnread();
+  unlistenRegistry?.();
+  const onRegistryChanged = () => void refreshWorkspaceProjects();
+  document.addEventListener(REGISTRY_CHANGED_EVENT, onRegistryChanged);
+  unlistenRegistry = () => document.removeEventListener(REGISTRY_CHANGED_EVENT, onRegistryChanged);
   if (!listen) {
     console.info('[DEBUG-assistant] home: binding-changed listen missing');
     return;

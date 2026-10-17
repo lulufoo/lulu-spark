@@ -16,6 +16,7 @@ struct StoredChunk {
     id: i64,
     content_hash: String,
     category: String,
+    workspace_id: String,
     title: String,
     created_at: String,
 }
@@ -24,6 +25,7 @@ impl StoredChunk {
     /// Same body, but some metadata column is out of date.
     fn metadata_differs(&self, chunk: &SourceChunk) -> bool {
         self.category != chunk.category
+            || self.workspace_id != chunk.workspace_id
             || self.title != chunk.title
             || self.created_at != chunk.created_at
     }
@@ -32,7 +34,7 @@ impl StoredChunk {
 fn load_existing(conn: &Connection) -> Result<HashMap<ChunkKey, StoredChunk>, String> {
     let mut stmt = conn
         .prepare(
-            "SELECT id, doc_id, layer, idx, content_hash, category, title, created_at
+            "SELECT id, doc_id, layer, idx, content_hash, category, title, created_at, workspace_id
              FROM chunk",
         )
         .map_err(|e| e.to_string())?;
@@ -51,6 +53,7 @@ fn load_existing(conn: &Connection) -> Result<HashMap<ChunkKey, StoredChunk>, St
                     category: row.get(5)?,
                     title: row.get(6)?,
                     created_at: row.get(7)?,
+                    workspace_id: row.get(8)?,
                 },
             ))
         })
@@ -87,13 +90,14 @@ fn select_chunk_ids(
 
 fn insert_chunk(conn: &Connection, chunk: &SourceChunk) -> Result<(), String> {
     conn.execute(
-        "INSERT INTO chunk(doc_id, layer, idx, category, title, content_hash, created_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+        "INSERT INTO chunk(doc_id, layer, idx, category, workspace_id, title, content_hash, created_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
         params![
             chunk.doc_id,
             chunk.layer,
             chunk.idx as i64,
             chunk.category,
+            chunk.workspace_id,
             chunk.title,
             chunk.content_hash,
             chunk.created_at,
@@ -126,8 +130,8 @@ pub fn upsert_chunks(conn: &Connection, chunks: &[SourceChunk]) -> Result<IndexS
             Some(old) if old.content_hash == chunk.content_hash => {
                 if old.metadata_differs(chunk) {
                     tx.execute(
-                        "UPDATE chunk SET category = ?1, title = ?2, created_at = ?3 WHERE id = ?4",
-                        params![chunk.category, chunk.title, chunk.created_at, old.id],
+                        "UPDATE chunk SET category = ?1, workspace_id = ?2, title = ?3, created_at = ?4 WHERE id = ?5",
+                        params![chunk.category, chunk.workspace_id, chunk.title, chunk.created_at, old.id],
                     )
                     .map_err(|e| e.to_string())?;
                 }

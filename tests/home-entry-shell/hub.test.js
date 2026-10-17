@@ -4,6 +4,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as api from '../../frontend/src/host/api.ts';
+import { state } from '../../frontend/src/host/state.ts';
 import { mountHomeHub } from '../../frontend/src/home/hub.tsx';
 import * as chatRender from '../../frontend/src/home/ui/chat-render.ts';
 import { readFrontendJs, readMainSource } from '../helpers/read-frontend-js.js';
@@ -57,17 +58,32 @@ describe('mountHomeHub', () => {
     expect(readLaterEntry).not.toBeNull();
     expect(knowledgeEntry).not.toBeNull();
     expect(todoTasksEntry).toBeNull();
-    expect(sparkEntry.textContent).toMatch(/Notes/);
+    expect(sparkEntry.textContent).toMatch(/Default/);
     expect(readLaterEntry.textContent).toMatch(/Read Later/);
     expect(knowledgeEntry.textContent).toMatch(/Knowledge/);
     const labels = [...shortcuts].map((entry) => entry.querySelector('.home-desktop-shortcut-label')?.textContent);
-    expect(labels).toEqual(['Notes', 'Knowledge', 'Read Later']);
+    expect(labels).toEqual(['Default', 'Knowledge', 'Read Later']);
     expect(container.querySelector('#btn-bind')).toBeNull();
     expect(container.querySelector('#btn-settings')).toBeNull();
     expect(container.querySelector('[data-role="help-menu-trigger"] [data-home-icon="settings"]')).not.toBeNull();
     expect(container.querySelector('[data-home-entry="spark"] [data-home-icon="notes"]')).not.toBeNull();
     expect(container.querySelector('[data-home-entry="knowledge"] [data-home-icon="knowledge"]')).not.toBeNull();
     expect(container.querySelector('[data-home-entry="read-later"] [data-home-icon="read-later"]')).not.toBeNull();
+  });
+
+  it('shows the current workspace names on the two document shortcuts', () => {
+    const before = state.workspaces.list;
+    state.workspaces.list = [
+      { id: 'default', name: 'Inbox', view_mode: 'directory', is_default: true },
+      { id: 'knowledge', name: 'Library', view_mode: 'timeline', is_default: false },
+    ];
+    try {
+      cleanup = mountHomeHub(container, { navigate });
+      const labels = [...container.querySelectorAll('.home-desktop-shortcut-label')].map((el) => el.textContent);
+      expect(labels).toEqual(['Inbox', 'Library', 'Read Later']);
+    } finally {
+      state.workspaces.list = before;
+    }
   });
 
   it('navigates to #/spark when spark entry is clicked', () => {
@@ -77,11 +93,11 @@ describe('mountHomeHub', () => {
     expect(navigate).toHaveBeenCalledWith('#/spark');
   });
 
-  it('navigates to #/knowledge when knowledge entry is clicked', () => {
+  it('opens the Notes page when knowledge entry is clicked', () => {
     cleanup = mountHomeHub(container, { navigate });
 
     container.querySelector('[data-home-entry="knowledge"]').click();
-    expect(navigate).toHaveBeenCalledWith('#/knowledge');
+    expect(navigate).toHaveBeenCalledWith('#/spark');
   });
 
   it('opens read-later dialog when read-later entry is clicked', () => {
@@ -705,7 +721,7 @@ describe('home hub chat sessions', () => {
     });
   });
 
-  it('keeps only the 20 most recent sessions from the host list', async () => {
+  it('lists the first 10 sessions of the host list and keeps the rest for scrolling', async () => {
     sessions = Array.from({ length: 25 }, (_, i) => ({
       session_id: `s${i}`,
       title: `Chat ${i}`,
@@ -713,7 +729,7 @@ describe('home hub chat sessions', () => {
     currentId = 's0';
     cleanup = mountHomeHub(container, { navigate: vi.fn() });
     await vi.waitFor(() => {
-      expect(container.querySelectorAll('.home-chat-session')).toHaveLength(20);
+      expect(container.querySelectorAll('.home-chat-session')).toHaveLength(10);
     });
   });
 

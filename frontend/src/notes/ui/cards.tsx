@@ -45,7 +45,6 @@ function TagBadges({ tags }: { tags?: NoteTag[] }) {
             type="button"
             className="badge badge-tag"
             data-tag-key={key}
-            title="Filter by this tag"
           >
             🏷 {tag.value || key}
           </button>
@@ -58,18 +57,6 @@ function TagBadges({ tags }: { tags?: NoteTag[] }) {
 export function tagsBadgesHtml(entry: NoteEntry): string {
   if (!entry.tags?.length) return '';
   return renderToHtml(<TagBadges tags={entry.tags} />);
-}
-
-function attachTagBadgeListeners(card: Element) {
-  card.querySelectorAll('.badge-tag[data-tag-key]').forEach((btn) => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const key = (btn as HTMLElement).dataset.tagKey;
-      if (key) {
-        document.dispatchEvent(new CustomEvent('cta:filter-tag', { detail: { key } }));
-      }
-    });
-  });
 }
 
 export function updateCardTagsBadge(_entry: NoteEntry) {
@@ -237,7 +224,6 @@ function bindCardActions(card: HTMLElement, entry: NoteEntry) {
       }),
     );
   });
-  attachTagBadgeListeners(card);
   card.querySelector('[data-action="toggle-done"]')?.addEventListener('click', () => toggleDone(entry));
   card.querySelector('[data-action="cycle-importance"]')?.addEventListener('click', () => cycleImportance(entry));
   card.querySelector('[data-action="move-project"]')?.addEventListener('click', () => openMoveProjectDialog(entry));
@@ -324,14 +310,9 @@ export function DocCard({
 
   function onClick(e: { target: EventTarget | null; stopPropagation: () => void }) {
     const t = (e.target as HTMLElement | null)?.closest?.(
-      '[data-tag-key], [data-action], .doc-title-btn',
+      '[data-action], .doc-title-btn',
     ) as HTMLElement | null;
     if (!t) return;
-    if (t.dataset.tagKey) {
-      e.stopPropagation();
-      document.dispatchEvent(new CustomEvent('cta:filter-tag', { detail: { key: t.dataset.tagKey } }));
-      return;
-    }
     if (t.dataset.action === 'toggle-done') {
       void toggleDone(entry);
       return;
@@ -365,13 +346,15 @@ export function NotesDocList({
   entries,
   date,
   empty,
+  emptyMessage = 'No documents match the current filters',
 }: {
   entries: { id: string; entry: NoteEntry }[];
   date: string;
   empty?: boolean;
+  emptyMessage?: string;
 }) {
   if (empty) {
-    return <div className="empty-filter-msg">No documents match the current filters</div>;
+    return <div className="empty-filter-msg">{emptyMessage}</div>;
   }
 
   return (
@@ -439,7 +422,6 @@ export function updateTitlesInDOM(date: string) {
           <MoveBadge />
         </>,
       );
-      attachTagBadgeListeners(card);
       card.classList.toggle('done', !!entry.done);
       card.classList.remove('importance-high', 'importance-medium', 'importance-low');
       if (entry.importance) card.classList.add(`importance-${entry.importance}`);
@@ -458,7 +440,9 @@ export function updateTitlesInDOM(date: string) {
 
 export function updateDiffInDOM() {
   if (!state.ui.activeDate) return;
-  const group = state.index.groupedByDate.find((g) => g.date === state.ui.activeDate);
+  const group =
+    state.index.groupedByDate.find((g) => g.date === state.ui.activeDate) ||
+    state.index.filteredGroups.find((g) => g.date === state.ui.activeDate);
   if (!group) return;
   for (const { id, entry } of group.entries) {
     const card = document.querySelector(`.doc-card[data-id="${id}"]`);

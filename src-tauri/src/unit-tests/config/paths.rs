@@ -22,29 +22,33 @@ fn spark_data_db_path_under_runtime_data_dir() {
 }
 
 #[test]
-fn knowledge_hide_patterns_path_under_cache_dir() {
+fn workspace_hide_patterns_path_is_one_file_per_workspace_under_cache_dir() {
     let sandbox = TestSandbox::new();
     let cache = cache_dir().expect("cache");
-    let got = knowledge_hide_patterns_path().expect("hide");
-    assert_eq!(got, cache.join("knowledge-hide-patterns.json"));
+    let got = workspace_hide_patterns_path("knowledge").expect("hide");
+    assert_eq!(got, cache.join("workspace-hide-patterns").join("knowledge.json"));
     sandbox.assert_not_prod_path(&got).expect("sandbox hide");
+    assert_eq!(
+        legacy_hide_patterns_path().expect("legacy"),
+        cache.join("knowledge-hide-patterns.json")
+    );
 }
 
 #[test]
-fn knowledge_viewer_state_path_under_cache_dir() {
+fn workspace_viewer_state_path_is_one_file_per_workspace_under_cache_dir() {
     let sandbox = TestSandbox::new();
     let cache = cache_dir().expect("cache");
-    let got = knowledge_viewer_state_path().expect("viewer");
-    assert_eq!(got, cache.join("knowledge-viewer-state.json"));
+    let got = workspace_viewer_state_path("default").expect("viewer");
+    assert_eq!(got, cache.join("workspace-viewer-state").join("default.json"));
     sandbox.assert_not_prod_path(&got).expect("sandbox viewer");
 }
 
 #[test]
-fn notes_draft_path_resolves_under_cache_drafts_notes() {
+fn doc_draft_path_resolves_under_cache_drafts_notes() {
     let _sandbox = TestSandbox::new();
     let cache = cache_dir().expect("cache");
     let temp_id = "tmp-path-1";
-    let got = notes_draft_path(temp_id).expect("notes_draft_path");
+    let got = doc_draft_path(temp_id).expect("doc_draft_path");
     assert_eq!(got, cache.join("drafts").join("notes").join(temp_id));
 }
 
@@ -64,11 +68,11 @@ fn doc_highlights_file_uses_md5_under_cache() {
 }
 
 #[test]
-fn notes_draft_path_rejects_empty_or_traversal_temp_id() {
+fn doc_draft_path_rejects_empty_or_traversal_temp_id() {
     let _sandbox = TestSandbox::new();
-    assert!(notes_draft_path("").is_err());
-    assert!(notes_draft_path("..").is_err());
-    assert!(notes_draft_path("a/../b").is_err());
+    assert!(doc_draft_path("").is_err());
+    assert!(doc_draft_path("..").is_err());
+    assert!(doc_draft_path("a/../b").is_err());
 }
 
 #[test]
@@ -79,28 +83,6 @@ fn repo_root_matches_cargo_manifest_parent() {
         .expect("parent")
         .to_path_buf();
     assert_eq!(root, expected);
-}
-
-#[test]
-fn notes_categories_path_under_notes_not_knowledge() {
-    let sandbox = TestSandbox::new();
-    let data = sandbox.data_dir();
-    let path = notes_categories_path().expect("notes cats");
-    assert_eq!(path, data.join("notes").join("categories.json"));
-    assert_ne!(path, sediment_kb_categories_path().expect("kb cats"));
-}
-
-#[test]
-fn sediment_kb_paths_under_runtime_data_dir() {
-    let sandbox = TestSandbox::new();
-    let data = sandbox.data_dir();
-    let dir = sediment_kb_dir().expect("dir");
-    let cats = sediment_kb_categories_path().expect("cats");
-    let repos = sediment_kb_repos_path().expect("repos");
-    assert_eq!(dir, data.join("knowledge"));
-    assert_eq!(cats, dir.join("categories.json"));
-    assert_eq!(repos, dir.join("repos.json"));
-    assert_ne!(dir, sandbox.spark_root().join("knowledge"));
 }
 
 #[test]
@@ -152,49 +134,22 @@ fn todo_tasks_path_under_spark_root() {
 }
 
 #[test]
-fn knowledge_root_is_runtime_knowledge_dir() {
-    let sandbox = TestSandbox::new();
-    let kb = knowledge_root().expect("knowledge_root");
-    assert_eq!(kb, sandbox.knowledge_root());
-    assert_eq!(kb, runtime_knowledge_dir().expect("runtime knowledge"));
-    assert_eq!(kb, sandbox.data_dir().join("knowledge"));
-    assert_eq!(kb, sediment_kb_dir().expect("sediment"));
-    assert_ne!(
-        kb,
-        crate::config::settings::load()
-            .expect("load")
-            .knowledge_root
-    );
-}
-
-#[test]
-fn notes_root_is_runtime_data_notes() {
-    let sandbox = TestSandbox::new();
-    let notes = notes_root().expect("notes_root");
-    assert_eq!(notes, sandbox.data_dir().join("notes"));
-    assert_ne!(notes, sandbox.spark_root().join("notes"));
-}
-
-#[test]
 fn ssot_paths_use_configured_spark_root_not_cache() {
     let sandbox = TestSandbox::new();
     let wb = sandbox.spark_root();
-    let sediment = sediment_kb_dir().expect("sediment");
+    let workspaces = workspaces_root().expect("workspaces");
     let read_later = read_later_path().expect("read_later");
-    let notes = notes_root().expect("notes");
     let todo_tasks = todo_tasks_path().expect("todo_tasks");
     let message_center = message_center_path().expect("message_center");
     let data = sandbox.data_dir();
-    assert!(sediment.starts_with(&data));
+    assert!(workspaces.starts_with(&data));
     assert!(read_later.starts_with(&data));
-    assert!(notes.starts_with(&data));
     assert!(todo_tasks.starts_with(&wb));
     // One sandbox = one dir: runtime data and message center live under `<id>/cache`.
     let cache = sandbox.sandbox_dir().join("cache");
-    assert!(!sediment.starts_with(&wb));
+    assert!(!workspaces.starts_with(&wb));
     assert!(!read_later.starts_with(&wb));
-    assert!(!notes.starts_with(&wb));
-    assert!(sediment.starts_with(&cache));
+    assert!(workspaces.starts_with(&cache));
     assert!(read_later.starts_with(&cache));
     assert!(!message_center.starts_with(&wb));
     assert!(message_center.starts_with(&cache));
@@ -278,16 +233,16 @@ fn todo_tasks_v2_path_helpers_err_when_settings_unavailable() {
 }
 
 #[test]
-fn todo_tasks_categories_path_under_todo_tasks_dir_not_sediment() {
+fn todo_tasks_categories_path_under_todo_tasks_dir_not_knowledge() {
     let sandbox = TestSandbox::new();
     let wb = sandbox.spark_root();
     let dir = todo_tasks_dir().expect("todo_tasks_dir");
     let cats = todo_tasks_categories_path().expect("todo_tasks_categories_path");
     assert_eq!(cats, dir.join("categories.json"));
     assert_eq!(cats, wb.join("todo_tasks").join("categories.json"));
-    let sediment_cats = sediment_kb_categories_path().expect("sediment cats");
     assert_ne!(
-        cats, sediment_cats,
-        "todo categories registry must not reuse sediment_kb path"
+        cats,
+        workspaces_root().expect("workspaces").join("categories.json"),
+        "todo categories registry must not reuse the workspaces path"
     );
 }

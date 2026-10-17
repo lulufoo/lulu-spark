@@ -1,15 +1,30 @@
 use crate::mcp_host::build_channel_tool_table;
 use crate::mcp_host::invoke_eq;
-use crate::mcp_host::catalog::groups::global;
-use crate::mcp_host::catalog::groups::knowledge::{self, knowledge_file_invoke};
-use crate::mcp_host::catalog::groups::notes::{
-    self, create_note_from_content, create_note_from_source, note_file_invoke, note_path_invoke,
-    update_note_from_content, update_note_from_source,
+use crate::mcp_host::catalog::groups::docs::{
+    self, create_doc_from_content, create_doc_from_source, update_doc_from_content,
+    update_doc_from_source,
 };
+use crate::mcp_host::catalog::groups::global;
 use crate::mcp_host::catalog::{build, build_routes_for_channel, catalog_groups, group_for_migrated_api};
+use crate::services::docs as docs_service;
 use crate::services::settings::mcp_catalog::GroupedEnabledCatalog;
 
-const NOTES_APIS: &[&str] = &[
+const DOCS_APIS: &[&str] = &[
+    "list_workspaces",
+    "create_workspace",
+    "rename_workspace",
+    "list_projects",
+    "create_project",
+    "update_project",
+    "get_doc_digest",
+    "get_doc_content",
+    "get_doc_file",
+    "create_doc",
+    "update_doc",
+    "delete_doc",
+];
+
+const RETIRED_APIS: &[&str] = &[
     "get_note_digest",
     "get_note_content",
     "get_note_file",
@@ -20,12 +35,12 @@ const NOTES_APIS: &[&str] = &[
     "create_notes_category",
     "update_notes_category",
     "delete_notes_category",
-];
-
-const KNOWLEDGE_APIS: &[&str] = &[
     "list_knowledge_categories",
     "get_knowledge_content",
     "get_knowledge_file",
+    "search_notes",
+    "search_knowledge",
+    "search_document",
 ];
 
 const GLOBAL_APIS: &[&str] = &["search", "get_read_later"];
@@ -49,20 +64,11 @@ const TODO_APIS: &[&str] = &[
 ];
 
 #[test]
-fn notes_registry_covers_all_snapshot_tools() {
-    let snapshot = notes::catalog_snapshot_routes();
-    assert_eq!(snapshot.len(), NOTES_APIS.len());
-    for api in NOTES_APIS {
-        assert!(notes::contains(api), "missing registry entry for {api}");
-    }
-}
-
-#[test]
-fn knowledge_registry_covers_all_snapshot_tools() {
-    let snapshot = knowledge::catalog_snapshot_routes();
-    assert_eq!(snapshot.len(), KNOWLEDGE_APIS.len());
-    for api in KNOWLEDGE_APIS {
-        assert!(knowledge::contains(api), "missing registry entry for {api}");
+fn docs_registry_covers_all_snapshot_tools() {
+    let snapshot = docs::catalog_snapshot_routes();
+    assert_eq!(snapshot.len(), DOCS_APIS.len());
+    for api in DOCS_APIS {
+        assert!(docs::contains(api), "missing registry entry for {api}");
     }
 }
 
@@ -75,15 +81,14 @@ fn global_registry_covers_all_snapshot_tools() {
     }
 }
 
-#[test]
-fn factory_builds_all_notes_apis_with_channel_parity() {
+fn assert_channel_parity(group: &str, apis: &[&str]) {
     for (slot, channel) in [
         ("spark", "spark"),
         ("cursor_ide", "cursor_ide"),
         ("spark", "mobile"),
     ] {
-        for api in NOTES_APIS {
-            let built = build("notes", api, channel);
+        for api in apis {
+            let built = build(group, api, channel);
             let legacy = build_channel_tool_table(slot, channel)
                 .and_then(|table| table.tools.into_iter().find(|r| r.name == *api));
             assert_eq!(
@@ -104,57 +109,13 @@ fn factory_builds_all_notes_apis_with_channel_parity() {
 }
 
 #[test]
-fn factory_builds_all_knowledge_apis_with_channel_parity() {
-    for (slot, channel) in [
-        ("spark", "spark"),
-        ("cursor_ide", "cursor_ide"),
-        ("spark", "mobile"),
-    ] {
-        for api in KNOWLEDGE_APIS {
-            let built = build("knowledge", api, channel);
-            let legacy = build_channel_tool_table(slot, channel)
-                .and_then(|table| table.tools.into_iter().find(|r| r.name == *api));
-            assert_eq!(
-                built.is_some(),
-                legacy.is_some(),
-                "{api} availability mismatch on slot={slot} channel={channel}"
-            );
-            if let (Some(built), Some(legacy)) = (built, legacy) {
-                assert_eq!(built.name, legacy.name, "{api} name on {channel}");
-                assert!(
-                    invoke_eq(built.invoke, legacy.invoke),
-                    "{api} invoke on {channel}"
-                );
-            }
-        }
-    }
+fn factory_builds_all_docs_apis_with_channel_parity() {
+    assert_channel_parity("docs", DOCS_APIS);
 }
 
 #[test]
 fn factory_builds_all_global_apis_with_channel_parity() {
-    for (slot, channel) in [
-        ("spark", "spark"),
-        ("cursor_ide", "cursor_ide"),
-        ("spark", "mobile"),
-    ] {
-        for api in GLOBAL_APIS {
-            let built = build("global", api, channel);
-            let legacy = build_channel_tool_table(slot, channel)
-                .and_then(|table| table.tools.into_iter().find(|r| r.name == *api));
-            assert_eq!(
-                built.is_some(),
-                legacy.is_some(),
-                "{api} availability mismatch on slot={slot} channel={channel}"
-            );
-            if let (Some(built), Some(legacy)) = (built, legacy) {
-                assert_eq!(built.name, legacy.name, "{api} name on {channel}");
-                assert!(
-                    invoke_eq(built.invoke, legacy.invoke),
-                    "{api} invoke on {channel}"
-                );
-            }
-        }
-    }
+    assert_channel_parity("global", GLOBAL_APIS);
 }
 
 #[test]
@@ -171,83 +132,80 @@ fn factory_does_not_build_todo_apis() {
 
 #[test]
 fn group_for_migrated_api_maps_all_catalog_keys() {
-    for api in NOTES_APIS {
-        assert_eq!(group_for_migrated_api(api), Some("notes"), "{api}");
+    for api in DOCS_APIS {
+        assert_eq!(group_for_migrated_api(api), Some("docs"), "{api}");
     }
     for api in TODO_APIS {
         assert_eq!(group_for_migrated_api(api), None, "{api}");
-    }
-    for api in KNOWLEDGE_APIS {
-        assert_eq!(group_for_migrated_api(api), Some("knowledge"), "{api}");
     }
     for api in GLOBAL_APIS {
         assert_eq!(group_for_migrated_api(api), Some("global"), "{api}");
     }
     assert_eq!(group_for_migrated_api("not_a_tool"), None);
-    assert_eq!(group_for_migrated_api("search_notes"), None);
-    assert_eq!(group_for_migrated_api("search_knowledge"), None);
-    assert_eq!(group_for_migrated_api("search_document"), None);
+    for api in RETIRED_APIS {
+        assert_eq!(group_for_migrated_api(api), None, "{api} is retired");
+    }
 }
 
 #[test]
 fn runtime_builds_enabled_routes_from_factory_only() {
     let enabled = GroupedEnabledCatalog {
-        notes: vec!["list_notes_categories".into(), "create_note".into()],
-        knowledge: vec!["get_knowledge_file".into()],
+        docs: vec!["list_projects".into(), "create_doc".into(), "get_doc_file".into()],
         global: vec!["search".into()],
-        ..GroupedEnabledCatalog::default()
     };
     let routes = build_routes_for_channel("spark", "spark", &enabled);
     let names: Vec<_> = routes.iter().map(|r| r.name.as_str()).collect();
-    assert!(names.contains(&"list_notes_categories"));
-    assert!(names.contains(&"create_note"));
+    assert!(names.contains(&"list_projects"));
+    assert!(names.contains(&"create_doc"));
     assert!(!names.contains(&"list_todo_tasks"));
     assert!(!names.contains(&"create_todo_task"));
-    assert!(names.contains(&"get_knowledge_file"));
+    assert!(names.contains(&"get_doc_file"));
     assert!(names.contains(&"search"));
-    assert!(!names.contains(&"search_notes"));
-    assert!(!names.contains(&"search_knowledge"));
+    assert!(!names.contains(&"create_note"));
 }
 
 #[test]
-fn mobile_create_note_uses_content_invoke() {
-    let route = build("notes", "create_note", "mobile").expect("mobile create_note");
-    assert!(invoke_eq(route.invoke, create_note_from_content));
-    assert!(!invoke_eq(route.invoke, create_note_from_source));
+fn mobile_create_doc_uses_content_invoke() {
+    let route = build("docs", "create_doc", "mobile").expect("mobile create_doc");
+    assert!(invoke_eq(route.invoke, create_doc_from_content));
+    assert!(!invoke_eq(route.invoke, create_doc_from_source));
     assert!(route.input_schema["properties"].get("asset_paths").is_none());
+    assert!(route.input_schema["properties"].get("workspace").is_some());
 }
 
 #[test]
-fn desktop_create_note_schema_includes_asset_paths() {
-    let route = build("notes", "create_note", "spark").expect("spark create_note");
-    assert!(invoke_eq(route.invoke, create_note_from_source));
+fn desktop_create_doc_schema_includes_asset_paths() {
+    let route = build("docs", "create_doc", "spark").expect("spark create_doc");
+    assert!(invoke_eq(route.invoke, create_doc_from_source));
     assert!(route.input_schema["properties"].get("asset_paths").is_some());
     assert!(route.input_schema["properties"].get("source_path").is_some());
+    assert!(route.input_schema["properties"].get("workspace").is_some());
+    assert!(route.input_schema["properties"].get("project").is_some());
 }
 
 #[test]
-fn mobile_update_note_uses_content_invoke() {
-    let route = build("notes", "update_note", "mobile").expect("mobile update_note");
-    assert!(invoke_eq(route.invoke, update_note_from_content));
-    assert!(!invoke_eq(route.invoke, update_note_from_source));
+fn mobile_update_doc_uses_content_invoke() {
+    let route = build("docs", "update_doc", "mobile").expect("mobile update_doc");
+    assert!(invoke_eq(route.invoke, update_doc_from_content));
+    assert!(!invoke_eq(route.invoke, update_doc_from_source));
 }
 
 #[test]
-fn spark_update_note_uses_source_invoke() {
-    let route = build("notes", "update_note", "spark").expect("spark update_note");
-    assert!(invoke_eq(route.invoke, update_note_from_source));
-    assert!(!invoke_eq(route.invoke, update_note_from_content));
+fn spark_update_doc_uses_source_invoke() {
+    let route = build("docs", "update_doc", "spark").expect("spark update_doc");
+    assert!(invoke_eq(route.invoke, update_doc_from_source));
+    assert!(!invoke_eq(route.invoke, update_doc_from_content));
 }
 
 #[test]
-fn create_and_update_note_descriptions_omit_internal_paths() {
+fn create_and_update_doc_descriptions_omit_internal_paths() {
     for (api, channel) in [
-        ("create_note", "spark"),
-        ("create_note", "mobile"),
-        ("update_note", "spark"),
-        ("update_note", "mobile"),
+        ("create_doc", "spark"),
+        ("create_doc", "mobile"),
+        ("update_doc", "spark"),
+        ("update_doc", "mobile"),
     ] {
-        let route = build("notes", api, channel).expect(api);
+        let route = build("docs", api, channel).expect(api);
         assert!(
             !route.description.contains("common_path"),
             "{api} {channel}: {}",
@@ -259,7 +217,7 @@ fn create_and_update_note_descriptions_omit_internal_paths() {
             route.description
         );
         assert!(
-            route.description.contains("{ok, id}"),
+            route.description.contains("{ok, id"),
             "{api} {channel}: {}",
             route.description
         );
@@ -267,50 +225,43 @@ fn create_and_update_note_descriptions_omit_internal_paths() {
 }
 
 #[test]
-fn get_note_content_is_mobile_only() {
+fn get_doc_content_is_mobile_only() {
     for channel in ["spark", "cursor", "cursor_ide", "codex", "claude"] {
-        assert!(build("notes", "get_note_content", channel).is_none(), "{channel}");
+        assert!(build("docs", "get_doc_content", channel).is_none(), "{channel}");
     }
-    let mobile = build("notes", "get_note_content", "mobile").expect("mobile");
-    assert!(invoke_eq(mobile.invoke, note_path_invoke));
+    let mobile = build("docs", "get_doc_content", "mobile").expect("mobile");
+    assert!(invoke_eq(mobile.invoke, docs_service::get_path));
     assert!(mobile.description.contains("absolute file path"));
     assert!(!mobile.description.contains("Stage"));
 }
 
 #[test]
-fn get_note_file_is_desktop_only_and_requires_dest_dir() {
+fn get_doc_file_is_desktop_only_and_requires_dest_dir() {
     for channel in ["spark", "cursor", "cursor_ide", "codex", "claude"] {
-        let route = build("notes", "get_note_file", channel).expect(channel);
-        assert!(invoke_eq(route.invoke, note_file_invoke), "{channel}");
+        let route = build("docs", "get_doc_file", channel).expect(channel);
+        assert!(invoke_eq(route.invoke, docs_service::export_file), "{channel}");
         assert_eq!(route.input_schema["required"], serde_json::json!(["id", "dest_dir"]));
         assert!(route.input_schema["properties"]["dest_dir"]["description"]
             .as_str()
             .unwrap()
             .contains("read and write"));
+        assert!(route.input_schema["properties"].get("workspace").is_some());
     }
-    assert!(build("notes", "get_note_file", "mobile").is_none());
+    assert!(build("docs", "get_doc_file", "mobile").is_none());
 }
 
 #[test]
-fn get_knowledge_file_is_desktop_only_and_requires_dest_dir() {
-    for channel in ["spark", "cursor", "cursor_ide", "codex", "claude"] {
-        let route = build("knowledge", "get_knowledge_file", channel).expect(channel);
-        assert!(invoke_eq(route.invoke, knowledge_file_invoke), "{channel}");
-        assert_eq!(route.input_schema["required"], serde_json::json!(["id", "dest_dir"]));
-    }
-    assert!(build("knowledge", "get_knowledge_file", "mobile").is_none());
-}
-
-#[test]
-fn delete_note_only_available_on_spark() {
-    assert!(build("notes", "delete_note", "spark").is_some());
-    assert!(build("notes", "delete_note", "cursor_ide").is_none());
-    assert!(build("notes", "delete_note", "mobile").is_none());
+fn delete_doc_only_available_on_spark() {
+    assert!(build("docs", "delete_doc", "spark").is_some());
+    assert!(build("docs", "delete_doc", "cursor_ide").is_none());
+    assert!(build("docs", "delete_doc", "mobile").is_none());
 }
 
 #[test]
 fn factory_unknown_group_returns_none() {
-    assert!(build("unknown", "list_notes_categories", "spark").is_none());
+    assert!(build("unknown", "list_projects", "spark").is_none());
+    assert!(build("notes", "create_doc", "spark").is_none());
+    assert!(build("knowledge", "get_doc_file", "spark").is_none());
 }
 
 #[test]
@@ -325,35 +276,22 @@ fn get_read_later_is_spark_only() {
 }
 
 #[test]
-fn get_knowledge_content_is_mobile_only() {
-    for channel in ["spark", "cursor", "cursor_ide", "codex", "claude"] {
-        assert!(build("knowledge", "get_knowledge_content", channel).is_none(), "{channel}");
-    }
-    let mobile = build("knowledge", "get_knowledge_content", "mobile").expect("mobile");
-    assert!(mobile.description.contains("absolute file path"));
-    assert!(!mobile.description.contains("Stage"));
-}
-
-#[test]
 fn search_points_each_channel_at_its_own_follow_up_tools() {
     for channel in ["spark", "cursor", "cursor_ide", "codex", "claude"] {
         let route = build("global", "search", channel).expect(channel);
         assert!(route.description.contains("own library"), "{channel}");
-        assert!(route.description.contains("Currently notes and knowledge"), "{channel}");
+        assert!(route.description.contains("workspace"), "{channel}");
         assert!(!route.description.to_lowercase().contains("read later"), "{channel}");
         assert!(!route.description.contains("read-later"), "{channel}");
-        assert!(route.description.contains("get_note_file"), "{channel}");
-        assert!(route.description.contains("get_knowledge_file"), "{channel}");
-        assert!(!route.description.contains("get_note_content"), "{channel}");
-        assert!(!route.description.contains("get_knowledge_content"), "{channel}");
+        assert!(route.description.contains("get_doc_file"), "{channel}");
+        assert!(!route.description.contains("get_doc_content"), "{channel}");
+        assert!(route.input_schema["properties"].get("workspace").is_some(), "{channel}");
     }
     let mobile = build("global", "search", "mobile").expect("mobile");
     assert!(mobile.description.contains("own library"));
-    assert!(mobile.description.contains("Currently notes and knowledge"));
     assert!(!mobile.description.to_lowercase().contains("read later"));
-    assert!(mobile.description.contains("get_note_content"));
-    assert!(mobile.description.contains("get_knowledge_content"));
-    assert!(!mobile.description.contains("get_note_file"));
+    assert!(mobile.description.contains("get_doc_content"));
+    assert!(!mobile.description.contains("get_doc_file"));
 }
 
 #[test]
@@ -362,8 +300,7 @@ fn settings_snapshot_keeps_mobile_only_tools() {
         .into_iter()
         .flat_map(|(_, tools)| tools.into_iter().map(|t| t.name))
         .collect();
-    assert!(names.contains(&"get_note_content".to_string()));
-    assert!(names.contains(&"get_knowledge_content".to_string()));
+    assert!(names.contains(&"get_doc_content".to_string()));
 }
 
 #[path = "produce_wiring.rs"]

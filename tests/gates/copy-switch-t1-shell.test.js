@@ -6,7 +6,9 @@ import { readShellHtml } from '../helpers/read-frontend-js.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const shellSrc = readFileSync(join(repoRoot, 'frontend/src/shell.tsx'), 'utf8');
-const homeSrc = readFileSync(join(repoRoot, 'frontend/src/home/page.tsx'), 'utf8');
+const homeSrc = ['page.tsx', 'ui/workspace-nav.tsx']
+  .map((file) => readFileSync(join(repoRoot, 'frontend/src/home', file), 'utf8'))
+  .join('\n');
 const helpMenuSrc = readFileSync(join(repoRoot, 'frontend/src/home/ui/help-menu.tsx'), 'utf8');
 const indexHtml = [
   readShellHtml(),
@@ -16,8 +18,6 @@ const indexHtml = [
   readFileSync(join(repoRoot, 'frontend/src/notes/page.tsx'), 'utf8'),
   readFileSync(join(repoRoot, 'frontend/src/notes/ui/sidebar.tsx'), 'utf8'),
   readFileSync(join(repoRoot, 'frontend/src/notes/ui/search.tsx'), 'utf8'),
-  readFileSync(join(repoRoot, 'frontend/src/knowledge/ui/sidebar.tsx'), 'utf8'),
-  readFileSync(join(repoRoot, 'frontend/src/knowledge/ui/search.tsx'), 'utf8'),
 ].join('\n');
 
 function extractTagOuter(html, id) {
@@ -42,12 +42,16 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
     expect(css).toMatch(/\.home-chat-sidebar \{[\s\S]*?--home-rail: 16px;/);
     expect(css).toMatch(/\.home-chat-sidebar \{[\s\S]*?--home-chat-row-inset: 8px;/);
     expect(css).toMatch(/\.home-chat-nav \{[\s\S]*?padding: 8px var\(--home-chat-row-inset\) 12px;/);
-    expect(css).toMatch(/\.home-chat-nav-label \{[\s\S]*?font-size: 11px;[\s\S]*?padding: 6px 8px 16px;/);
-    expect(css).toMatch(/\.home-chat-nav-item \{[\s\S]*?padding: 7px 8px;/);
+    expect(css).toMatch(/\.home-chat-nav-label,\s*\.home-chat-sessions-title \{[\s\S]*?font-size: 12px;/);
+    expect(css).toMatch(/\.home-chat-nav-label \{[\s\S]*?height: var\(--home-nav-label-h\);[\s\S]*?padding: 0 8px;/);
+    expect(css).toMatch(/\.home-chat-nav-item \{[\s\S]*?height: var\(--home-nav-row-h\);[\s\S]*?padding: 0 8px;/);
     expect(css).toMatch(
-      /\.home-chat-sessions-head \{[\s\S]*?padding: 14px var\(--home-chat-row-inset\) 8px var\(--home-rail\);/,
+      /\.home-chat-sessions-head \{[\s\S]*?padding: 0 var\(--home-chat-row-inset\) 0 var\(--home-rail\);/,
     );
-    expect(css).toMatch(/\.home-chat-sessions \{[\s\S]*?padding: 2px var\(--home-chat-row-inset\) 16px;/);
+    expect(css).toMatch(/--home-chat-list-pad: 2px;/);
+    expect(css).toMatch(
+      /\.home-chat-sessions \{[\s\S]*?padding: var\(--home-chat-list-pad\) var\(--home-chat-row-inset\);/,
+    );
     const llmMark = readFileSync(join(repoRoot, 'frontend/src/shared/llm-mark.tsx'), 'utf8');
     expect(llmMark).toMatch(/translate\(2 2\) scale\(1\.17647\) translate\(-3\.5 -3\.5\)/);
     expect(css).toMatch(/\.home-chat-session\.is-active \{\s*background: var\(--bg-surface\);\s*\}/);
@@ -66,7 +70,7 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
     expect(indexHtml).toMatch(/<PageBackHome/);
     expect(indexHtml).not.toMatch(/id="btn-nav-home-title"/);
     expect(indexHtml).not.toMatch(/id="btn-nav-home"(?!-)/);
-    expect(indexHtml).toMatch(/data-panel="knowledge">Knowledge</);
+    expect(indexHtml).not.toMatch(/data-panel="knowledge"/);
     expect(indexHtml).not.toContain('id="btn-repo-menu"');
     expect(indexHtml).not.toContain('id="repo-menu-wrap"');
   });
@@ -75,7 +79,7 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
     const notesPage = readFileSync(join(repoRoot, 'frontend/src/notes/page.tsx'), 'utf8');
     const css = readFileSync(join(repoRoot, 'frontend/app.css'), 'utf8');
     expect(notesPage).toMatch(
-      /className="page-toolbar notes-page-toolbar"[\s\S]*hidden=\{showOutlet\}[\s\S]*<NotesDateHeading text=\{headingText\} \/>[\s\S]*<SparkSearch \/>/,
+      /className="page-toolbar notes-page-toolbar"[\s\S]*hidden=\{showOutlet\}[\s\S]*<NotesDateHeading text=\{headingText\} hint=\{headingIsHint\} \/>[\s\S]*<SparkSearch \/>/,
     );
     expect(notesPage).toMatch(/className="page-toolbar notes-page-toolbar"/);
     expect(notesPage).toMatch(/id="md-header" className="viewer-header" data-tauri-drag-region="deep"/);
@@ -103,21 +107,10 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
     expect(css).toMatch(/#md-header\.viewer-header \{[\s\S]*?padding: 20px 24px 16px;/);
     expect(css).not.toMatch(/\.viewer-panel-title \{\s*display:\s*none/);
     const notesSidebar = readFileSync(join(repoRoot, 'frontend/src/notes/ui/sidebar.tsx'), 'utf8');
-    const knowledgeSidebar = readFileSync(join(repoRoot, 'frontend/src/knowledge/ui/sidebar.tsx'), 'utf8');
     expect(notesSidebar).toMatch(/<WindowDragStrip>\s*<PageBackHome \/>\s*<\/WindowDragStrip>/);
-    expect(knowledgeSidebar).toMatch(/<WindowDragStrip>\s*<PageBackHome \/>\s*<\/WindowDragStrip>/);
-    expect(knowledgeSidebar).not.toMatch(/knowledge-page-toolbar/);
-    expect(knowledgeSidebar).not.toMatch(/page-toolbar-title/);
-    expect(knowledgeSidebar).toMatch(/M20 20a2 2 0 0 0 2-2V8/);
-    expect(knowledgeSidebar).toMatch(/M15 2H6a2 2 0 0 0-2 2v16/);
-    expect(knowledgeSidebar).toMatch(/fill: 'none'/);
-    expect(css).toMatch(/\.knowledge-doc-tree-icon \{[\s\S]*?color: var\(--fg-muted\);/);
-    expect(css).not.toMatch(/\.knowledge-doc-tree-icon \{[^}]*#54aeff/);
-    expect(css).toMatch(/\.knowledge-doc-tree-label\.selected \.knowledge-doc-tree-icon \{[\s\S]*?color: var\(--fg-muted\);/);
     expect(css).toMatch(/\.kb-reader-header\.viewer-header \{[\s\S]*?padding-left: 24px;/);
     expect(css).toMatch(/\.kb-reader-header\.viewer-header \{[\s\S]*?overflow: visible;/);
     expect(css).toMatch(/\.kb-reader \{[\s\S]*?overflow: visible;/);
-    expect(css).toMatch(/\.knowledge-doc-reader-pane \{[\s\S]*?overflow: visible;/);
     expect(css).toMatch(/\.viewer-header-actions \{[\s\S]*?gap: 0;/);
     expect(css).toMatch(/#md-lang-bar \{[\s\S]*?margin-right: 10px;/);
     expect(css).toMatch(/#bind-dialog-box \{[\s\S]*?width: min\(720px, 94vw\);/);
@@ -126,7 +119,8 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
     expect(css).toMatch(/#read-later-dialog-box \{[\s\S]*?width: min\(720px, 94vw\);/);
     expect(css).toMatch(/#read-later-dialog-box \{[\s\S]*?height: min\(560px, 86vh\);/);
     expect(css).toMatch(/#read-later-dialog-box \{[\s\S]*?max-height: 86vh;/);
-    expect(css).toMatch(/\.settings-select-menu \{[\s\S]*?z-index: 2100;/);
+    expect(css).toMatch(/\.ui-select-menu \{[\s\S]*?z-index: 2200;/);
+    expect(css).not.toMatch(/\.settings-select-menu|\.settings-list-select/);
     const settingsDialog = readFileSync(join(repoRoot, 'frontend/src/app-shell/commands/settings/dialog.ts'), 'utf8');
     expect(settingsDialog).toMatch(/mountSettingsListSelects\(\)/);
     expect(css).toMatch(/\.comment-item \{[\s\S]*?background: var\(--bg-canvas\);/);
@@ -147,14 +141,6 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
     expect(css).toMatch(
       /\.kb-reader-header-actions,[\s\S]*?\.kb-reader-header \.gs-search-dropdown \{[\s\S]*?-webkit-app-region: no-drag;/,
     );
-    const knowledgeShell = readFileSync(join(repoRoot, 'frontend/src/knowledge/ui/viewer/shell.tsx'), 'utf8');
-    expect(knowledgeShell).toMatch(/class="kb-reader-header viewer-header" data-tauri-drag-region="deep"/);
-    expect(knowledgeShell).toMatch(/className="kb-reader-header viewer-header" data-tauri-drag-region="deep"/);
-    expect(knowledgeShell).toMatch(/<KnowledgeSearch hidden=\{false\} \/>/);
-    expect(knowledgeShell).not.toMatch(/viewer-header-rule/);
-    expect(knowledgeShell).toMatch(/kb-reader-header-actions[\s\S]*<KnowledgeSearch hidden=\{false\} \/>/);
-    expect(knowledgeShell).toMatch(/className="viewer-header-actions kb-reader-header-actions"/);
-    expect(knowledgeShell).toMatch(/kb-btn-add-comment/);
     expect(notesPage).toMatch(/className="viewer-header-actions"/);
     expect(notesPage).toMatch(/id="btn-add-comment"/);
     expect(notesPage).toMatch(/<ViewerHeaderIcon name="copy" \/>/);
@@ -166,14 +152,6 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
     expect(notesPage).toMatch(/id="btn-save"[\s\S]*?\{viewer\.saving \? 'Saving…' : 'Save'\}/);
     expect(notesPage).not.toMatch(/id="btn-save"[\s\S]*?primary/);
     expect(notesPage).not.toMatch(/💾 Save/);
-    expect(knowledgeShell).not.toMatch(/kb-btn-save[\s\S]*?primary/);
-    expect(knowledgeShell).not.toMatch(/💾 Save/);
-    expect(knowledgeShell).toMatch(/<ViewerHeaderIcon name="copy" \/>/);
-    expect(knowledgeShell).toMatch(/<ViewerHeaderIcon name="chat" filled \/>/);
-    expect(knowledgeShell).toMatch(/<ViewerHeaderIcon name="edit" \/>/);
-    expect(knowledgeShell).toMatch(/<ViewerHeaderIcon name="comment" \/>/);
-    expect(knowledgeShell).not.toMatch(/<ViewerHeaderIcon name="copy" \/> Copy/);
-    expect(knowledgeShell).toMatch(/kb-btn-cancel-edit[\s\S]*?kb-btn-open-in-chat/);
     expect(notesPage).not.toMatch(/📁|🗨️|✏️|💬/);
     expect(css).toMatch(/\.viewer-header-actions \.md-header-btn \{[\s\S]*?padding: 5px 10px;/);
     expect(css).toMatch(/\.viewer-header-actions \.md-header-btn \{[\s\S]*?gap: 6px;/);
@@ -188,15 +166,10 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
     expect(headerIcons).toMatch(/M21\.174 6\.812/);
     expect(headerIcons).toMatch(/M21 15a2 2 0 0 1-2 2H7l-4 4V5/);
     const notesLinks = readFileSync(join(repoRoot, 'frontend/src/notes/ui/links-bar.tsx'), 'utf8');
-    const kbLinks = readFileSync(join(repoRoot, 'frontend/src/knowledge/ui/links-bar.tsx'), 'utf8');
     const notesLinkCmd = readFileSync(join(repoRoot, 'frontend/src/notes/commands/links-bar.ts'), 'utf8');
-    const kbLinkCmd = readFileSync(join(repoRoot, 'frontend/src/knowledge/commands/links-bar.ts'), 'utf8');
     expect(notesLinks).not.toMatch(/Add link/);
-    expect(kbLinks).not.toMatch(/Add link/);
     expect(notesLinks).not.toMatch(/add-link/);
-    expect(kbLinks).not.toMatch(/kb-link-add/);
     expect(notesLinkCmd).not.toMatch(/export async function addNoteLink/);
-    expect(kbLinkCmd).not.toMatch(/export async function addKbLink/);
     expect(css).not.toMatch(/kb-btn-tree-toggle/);
     expect(css).not.toMatch(/is-tree-collapsed/);
     const homeMark = readFileSync(join(repoRoot, 'frontend/src/shared/home-mark.tsx'), 'utf8');
@@ -213,23 +186,20 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
     expect(dragStrip).not.toMatch(/Lulu Spark/);
     expect(dragStrip).not.toMatch(/isFullscreen/);
     expect(css).toMatch(/#sidebar \.window-drag-strip\.is-chrome \{[\s\S]*?padding-right: var\(--notes-rail\);/);
-    expect(css).toMatch(/\.knowledge-doc-sidebar \.window-drag-strip\.is-chrome \{[\s\S]*?padding-right: 16px;/);
-    expect(css).toMatch(/#sidebar \.window-drag-strip \.page-back-home,[\s\S]*?padding-right: 0;/);
+    expect(css).toMatch(/#sidebar \.window-drag-strip \.page-back-home \{[\s\S]*?padding-right: 0;/);
     expect(notesSidebar).not.toMatch(/notes-sidebar-label/);
     expect(notesSidebar).not.toMatch(/>Notes</);
     expect(css).toMatch(/#sidebar \{[\s\S]*?--notes-rail: 16px;/);
     expect(css).toMatch(/\.topic-filter \{[\s\S]*?padding: 8px var\(--notes-rail\) 6px;/);
     expect(css).toMatch(/\.topic-count \{[\s\S]*?text-align: right;/);
-    expect(css).toMatch(/\.tag-count \{[\s\S]*?text-align: right;/);
     expect(notesSidebar).not.toMatch(/\/ \$\{total\} items/);
     expect(css).toMatch(/\.badge-done \{[\s\S]*?border-color: transparent;/);
     expect(css).toMatch(/\.doc-card\.done \.badge-done \{[\s\S]*?border-color: transparent;/);
     expect(css).not.toMatch(/\.badge-done \{[^}]*border-color: #e2e8ee/);
     expect(css).not.toMatch(/\.topic-filter \{[^}]*border-bottom:/);
-    expect(css).toMatch(/\.tag-filter \{[\s\S]*?padding: 8px var\(--notes-rail\) 16px;/);
-    expect(css).toMatch(/\.tag-filter \{[\s\S]*?border-bottom: 1px solid var\(--border-muted\);/);
-    expect(css).toMatch(/\.knowledge-doc-sidebar-header \{[\s\S]*?padding: 8px 16px 16px;/);
-    expect(css).toMatch(/\.knowledge-doc-sidebar-header \{[\s\S]*?border-bottom: 1px solid var\(--border-muted\);/);
+    expect(css).toMatch(/\.sidebar-workspace-title \{[\s\S]*?padding: 10px var\(--notes-rail\) 2px;/);
+    expect(css).toMatch(/\.sidebar-channel-zone \{[\s\S]*?max-height: 140px;/);
+    expect(css).not.toMatch(/\.sidebar-channel-zone \{[^}]*border-bottom:/);
     expect(css).toMatch(/\.list-select-trigger \{[\s\S]*?border: 1px solid var\(--border-muted\);/);
     expect(css).toMatch(/\.list-select-trigger \{[\s\S]*?background: var\(--bg-canvas\);/);
     expect(css).not.toMatch(/\.list-select-trigger \{[^}]*border: 1px solid #d0d7de/);
@@ -258,8 +228,7 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
     expect(homeSrc).not.toMatch(/home-chat-nav-label">Library</);
     expect(helpMenuSrc).toMatch(/id="btn-bind"/);
     expect(helpMenuSrc).toMatch(/id="btn-bind"[\s\S]*?Devices/);
-    expect(homeSrc).toMatch(/<HomeNavIcon name="notes"/);
-    expect(homeSrc).toMatch(/<HomeNavIcon name="knowledge"/);
+    expect(homeSrc).toMatch(/<HomeNavIcon name=\{defaultWorkspaceIconName\(row\.id\)\}/);
     expect(homeSrc).toMatch(/<HomeNavIcon name="read-later"/);
     expect(homeSrc).not.toMatch(/<HomeNavIcon name="bind"/);
     expect(helpMenuSrc).toMatch(/<HomeNavIcon name="settings"/);
@@ -294,18 +263,9 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
   });
 
   it('search placeholders use table B; the header has no index rebuild control', () => {
-    expect(indexHtml).toMatch(/id="gs-wb-input"[^>]*placeholder="Search notes…"/);
-    expect(indexHtml).toMatch(/id="gs-kb-input"[^>]*placeholder="Search knowledge…"/);
+    expect(indexHtml).toMatch(/id="gs-wb-input"[^>]*placeholder="Search this workspace…"/);
     expect(indexHtml).not.toMatch(/id="gs-wb-rebuild-btn"/);
-    expect(indexHtml).not.toMatch(/id="gs-kb-rebuild-btn"/);
     expect(indexHtml).not.toMatch(/IndexRebuildStatus|IndexRebuildButton|header-index-status|btn-index-rebuild/);
-  });
-
-  it('repo list title uses table B2 knowledge list label', () => {
-    expect(indexHtml).toMatch(/data-tab="list"[^>]*>List</);
-    expect(indexHtml).not.toContain('id="repo-list-title-group"');
-    expect(indexHtml).not.toContain('id="btn-repo-list-refresh"');
-    expect(indexHtml).not.toContain('☰ 沉淀知识库列表');
   });
 
   it('sidebar resizer aria-label uses table B', () => {
@@ -317,37 +277,19 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
     expect(indexHtml).not.toContain('Read Later 待读');
   });
 
-  it('settings nav uses Notes, Knowledge, Agent, then MCP', () => {
+  it('settings nav uses Workspaces, Agent, then MCP', () => {
     expect(indexHtml).not.toMatch(/data-panel="spark">Data</);
-    expect(indexHtml).toMatch(/data-panel="notes">Notes</);
-    expect(indexHtml).toMatch(/data-panel="knowledge">Knowledge</);
+    expect(indexHtml).toMatch(/data-panel="notes">Workspaces</);
+    expect(indexHtml).not.toMatch(/data-panel="knowledge"/);
     expect(indexHtml).toMatch(/data-panel="llm">Agent</);
     expect(indexHtml).not.toMatch(/data-panel="llm">Assistant/);
     expect(indexHtml).not.toMatch(/data-panel="github">Sync</);
     expect(indexHtml).not.toMatch(/data-panel="github">GitHub account</);
     expect(indexHtml).toMatch(/data-panel="mcp">MCP</);
-    expect(indexHtml).toMatch(/data-tab="hidden"[^>]*>Hidden files</);
-    const knowledgeTabs = indexHtml.match(/id="settings-panel-knowledge"[\s\S]*?role="tablist">([\s\S]*?)<\/div>/)?.[1] ?? '';
-    expect(knowledgeTabs.indexOf('data-tab="directory"')).toBeGreaterThan(-1);
-    expect(knowledgeTabs.indexOf('data-tab="directory"')).toBeLessThan(
-      knowledgeTabs.indexOf('data-tab="categories"'),
-    );
-    expect(knowledgeTabs.indexOf('data-tab="categories"')).toBeLessThan(
-      knowledgeTabs.indexOf('data-tab="list"'),
-    );
-    expect(knowledgeTabs.indexOf('data-tab="list"')).toBeLessThan(
-      knowledgeTabs.indexOf('data-tab="add"'),
-    );
-    expect(knowledgeTabs.indexOf('data-tab="add"')).toBeLessThan(
-      knowledgeTabs.indexOf('data-tab="hidden"'),
-    );
     const nav = indexHtml.match(/<nav id="settings-nav">([\s\S]*?)<\/nav>/)?.[1] ?? '';
     expect(nav).not.toMatch(/data-panel="spark"/);
     expect(nav.indexOf('data-panel="notes"')).toBeGreaterThan(-1);
     expect(nav.indexOf('data-panel="notes"')).toBeLessThan(
-      nav.indexOf('data-panel="knowledge"'),
-    );
-    expect(nav.indexOf('data-panel="knowledge"')).toBeLessThan(
       nav.indexOf('data-panel="llm"'),
     );
     expect(nav.indexOf('data-panel="llm"')).toBeLessThan(

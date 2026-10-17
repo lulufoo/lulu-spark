@@ -33,12 +33,12 @@ function mountOne(select: HTMLSelectElement) {
   }
   select.classList.add('settings-native-select');
   const host = document.createElement('div');
-  host.className = 'settings-list-select';
+  host.className = 'ui-select-host';
   const { picker, sync } = createFloatingListSelect({
     ariaLabel: select.getAttribute('aria-label') || select.id,
     value: select.value,
     options: readOptions(select),
-    pickerClass: 'settings-select',
+    pickerClass: 'ui-select',
     onSelect: (next) => {
       if (select.value === next) return;
       select.value = next;

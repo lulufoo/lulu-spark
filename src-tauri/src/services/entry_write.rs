@@ -5,20 +5,16 @@ use std::path::Path;
 
 use serde_json::{json, Value};
 
-use crate::config::roots::notes_root_path;
 use crate::services::archive_parse::expected_lang_common_path;
-use crate::services::notes::notes_file_path;
+use crate::services::docs::workspace_root;
+use crate::services::docs::doc_file_path;
 use crate::services::search_index;
-use crate::services::spark_data::{self, category_folder, get_note};
+use crate::services::spark_data::{self, find_doc, project_folder};
 
 const EDITABLE_LAYERS: &[&str] = &["raw", "digest"];
 
-fn is_valid_entry_id(id: &str) -> bool {
-    id.len() == 32 && id.chars().all(|c| c.is_ascii_hexdigit())
-}
-
 pub fn save_entry(
-    repo_root: &Path,
+    _repo_root: &Path,
     layer: String,
     id: String,
     content: String,
@@ -32,7 +28,7 @@ pub fn save_entry(
         });
     }
     let id = id.trim();
-    if !is_valid_entry_id(id) {
+    if !spark_data::is_valid_doc_id(id) {
         return json!({ "error": "Invalid id", "_status": 400 });
     }
 
@@ -40,12 +36,13 @@ pub fn save_entry(
         Ok(c) => c,
         Err(e) => return json!({ "error": e, "_status": 500 }),
     };
-    let note = match get_note(&conn, id) {
-        Ok(Some(n)) => n,
+    let found = match find_doc(&conn, id) {
+        Ok(Some(found)) => found,
         Ok(None) => return json!({ "error": "File not found", "_status": 404 }),
         Err(e) => return json!({ "error": e, "_status": 500 }),
     };
-    let folder = match category_folder(&conn, &note.category_id) {
+    let (workspace, note) = (found.workspace, found.doc);
+    let folder = match project_folder(&conn, &note.project_id) {
         Ok(f) => f,
         Err(e) => return json!({ "error": e, "_status": 500 }),
     };
@@ -61,8 +58,11 @@ pub fn save_entry(
         return json!({ "error": "Invalid path", "_status": 400 });
     }
 
-    let notes = notes_root_path(repo_root);
-    let target = match notes_file_path(&notes, layer, &folder, &rel) {
+    let root = match workspace_root(&workspace) {
+        Ok(root) => root,
+        Err(v) => return v,
+    };
+    let target = match doc_file_path(&root, layer, &folder, &rel) {
         Ok(p) => p,
         Err(v) => return v,
     };
@@ -77,7 +77,7 @@ pub fn save_entry(
     if let Err(e) = fs::write(&target, content) {
         return json!({ "error": e.to_string(), "_status": 500 });
     }
-    search_index::sync_note_docs_best_effort(repo_root, &[id]);
+    search_index::sync_workspace_docs_best_effort(&workspace.id, &[id]);
     json!({ "ok": true })
 }
 

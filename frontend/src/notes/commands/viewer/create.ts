@@ -3,6 +3,9 @@ import { resetEditAreaScroll } from '../../../shared/utils.ts';
 import * as api from '../../../host/api.ts';
 import { navigateToNote, navigateBackToList, parseHash } from '../../../router/index.ts';
 import { exitEditMode } from './doc.ts';
+import { forgetOpenDoc } from '../viewer-state.ts';
+import { refreshNotesIndex } from '../reload-index.ts';
+import { landOnNewDocument } from '../land-on-document.ts';
 import { hideNoteOutlet, setNotePanelTitle, showNoteOutlet } from './outlet.ts';
 
 const CREATE_CHROME_HIDDEN_IDS = [
@@ -64,6 +67,7 @@ export function locationDate() {
 }
 
 export function dismissViewerModal() {
+  forgetOpenDoc();
   clearCreateChrome();
   hideNoteOutlet();
   document.body.style.overflow = '';
@@ -73,30 +77,36 @@ export function dismissViewerModal() {
 
 /**
  * Enter create session on the shared viewer (body-only chrome).
- * Binds crash buffer at drafts/notes/<temp_id>. Does not pretend an index entry exists.
+ * Binds crash buffer at drafts/docs/<temp_id>. Does not pretend an index entry exists.
  * @param {{ temp_id: string }} opts
  */
-export async function openCreateNote({ temp_id }: { temp_id?: string } = {}) {
+export async function openCreateNote(
+  { temp_id, workspace, project }: { temp_id?: string; workspace?: string; project?: string } = {},
+) {
   if (!temp_id) return;
   const prevMode = state.viewer.outletMode || '';
   try {
     let content = '';
     try {
-      const draft = await api.getNoteDraft(temp_id);
+      const draft = await api.getDocDraft(temp_id);
       content = typeof draft?.content === 'string' ? draft.content : '';
     } catch {
       content = '';
     }
-    await api.saveNoteDraft(temp_id, content);
+    await api.saveDocDraft(temp_id, content);
 
     state.viewer.entry = null;
     state.viewer.layer = 'raw';
     state.viewer.lang = null;
     state.viewer.annotation = {};
     state.viewer.rawText = content;
-    state.viewer.isKb = false;
     state.viewer.editing = true;
-    state.viewer.createSession = { tempId: temp_id, status: 'creating' };
+    state.viewer.createSession = {
+      tempId: temp_id,
+      status: 'creating',
+      ...(workspace ? { workspace } : {}),
+      ...(project ? { project } : {}),
+    };
     state.viewer.bodyPaintKey += 1;
 
     applyCreateChrome();
@@ -127,7 +137,7 @@ export async function finalizeCreateSession() {
   const trimmed = (editArea && 'value' in editArea ? String((editArea as HTMLTextAreaElement).value) : '').trim();
 
   if (!trimmed) {
-    await api.clearNoteDraft(session.tempId);
+    await api.clearDocDraft(session.tempId);
     state.viewer.createSession = null;
     dismissViewerModal();
     return;
@@ -135,15 +145,25 @@ export async function finalizeCreateSession() {
 
   session.status = 'saving';
   try {
-    await api.saveNoteDraft(session.tempId, trimmed);
-    const archived = (await api.createNote({ body: trimmed, source_type: 'jot' })) as {
-      id?: string;
-    };
+    await api.saveDocDraft(session.tempId, trimmed);
+    const workspace = session.workspace || state.workspaces.current;
+    const archived = (await api.createNote({
+      body: trimmed,
+      source_type: 'jot',
+      workspace,
+      ...(session.project ? { project: session.project } : {}),
+    })) as { id?: string };
     const id = archived?.id;
-    await api.clearNoteDraft(session.tempId);
+    await api.clearDocDraft(session.tempId);
     state.viewer.createSession = null;
     clearCreateChrome();
-    const date = locationDate();
+    let date = '';
+    if (id && workspace === state.workspaces.current) {
+      // The new document is not in the page's index yet; read it, then land where it lives.
+      await refreshNotesIndex();
+      date = landOnNewDocument(id, session.project || '');
+    }
+    date = date || locationDate();
     if (id && date) {
       navigateToNote({ date, note: id });
     }

@@ -1,7 +1,7 @@
 //! Global business group — APIs that span more than one domain.
 
 mod get_read_later;
-mod search_document;
+mod search;
 
 use crate::mcp_host::ToolRoute;
 
@@ -12,7 +12,7 @@ const SNAPSHOT_CHANNEL: &str = "cursor_ide";
 type BuildFn = fn(&str) -> Option<ToolRoute>;
 
 const REGISTRY: &[(&str, BuildFn)] = &[
-    ("search", search_document::build as BuildFn),
+    ("search", search::build as BuildFn),
     ("get_read_later", get_read_later::build as BuildFn),
 ];
 

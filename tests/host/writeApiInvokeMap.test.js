@@ -15,35 +15,30 @@ const P2_WRITE_PATHS = [
   '/api/set-done',
   '/api/set-importance',
   '/api/read-later',
-  '/api/kb/save',
-  '/api/kb/rename',
-  '/api/kb/create',
-  '/api/kb/delete',
-  '/api/kb/update-comments',
-  '/api/kb/reorder-comments',
-  '/api/kb/update-highlights',
-  '/api/kb/update-links',
   '/api/tag/attach',
   '/api/tag/detach',
   '/api/tag/update-value',
-  '/api/sediment-kb/repos/add',
-  '/api/sediment-kb/repos/remove',
-  '/api/sediment-kb/repos/update-category',
-  '/api/sediment-kb/categories/add',
-  '/api/sediment-kb/categories/rename',
-  '/api/sediment-kb/categories/remove',
   '/api/create-note',
-  '/api/note-draft',
-  '/api/note-draft/clear',
-  '/api/notes-category-create',
-  '/api/notes-category-update',
-  '/api/notes-category-delete',
+  '/api/doc-draft',
+  '/api/doc-draft/clear',
+  '/api/workspace-create',
+  '/api/workspace-rename',
+  '/api/workspace-view-mode',
+  '/api/workspace-icon',
+  '/api/workspaces-reorder',
+  '/api/workspace-disable',
+  '/api/workspace-enable',
+  '/api/project-create',
+  '/api/project-update',
+  '/api/projects-reorder',
+  '/api/project-disable',
+  '/api/project-enable',
+  '/api/hide-pattern-add',
+  '/api/hide-pattern-update',
+  '/api/hide-pattern-remove',
+  '/api/viewer-state',
   '/api/mark-message-channel-read',
   '/api/show-os-notification',
-  '/api/kb/hide-patterns/add',
-  '/api/kb/hide-patterns/update',
-  '/api/kb/hide-patterns/remove',
-  '/api/kb/viewer-state',
 ];
 
 const ANNOTATION_WRITE_CMDS = new Set([
@@ -60,7 +55,7 @@ describe('writeApiInvokeMap', () => {
     for (const p of P2_WRITE_PATHS) {
       expect(WRITE_API_INVOKE_MAP[p]?.cmd, p).toBeTruthy();
     }
-    expect(Object.keys(WRITE_API_INVOKE_MAP)).toHaveLength(40);
+    expect(Object.keys(WRITE_API_INVOKE_MAP)).toHaveLength(35);
   });
 
   it('maps /api/file absolute-path write to write_abs_file', () => {
@@ -90,7 +85,7 @@ describe('writeApiInvokeMap', () => {
 
   it('resolveWriteInvoke returns null for unknown path', () => {
     expect(resolveWriteInvoke('/api/commit', {})).toBeNull();
-    expect(resolveWriteInvoke('/api/sediment-kb/unknown', {})).toBeNull();
+    expect(resolveWriteInvoke('/api/kb/unknown', {})).toBeNull();
   });
 
   it('resolveWriteInvoke maps save_entry fields', () => {
@@ -143,14 +138,14 @@ describe('writeApiInvokeMap', () => {
   it('resolveWriteInvoke maps doc-highlights to update_doc_highlights', () => {
     expect(
       resolveWriteInvoke('/api/doc-highlights', {
-        key: 'notes:20260827/why-cache.md',
+        key: 'doc:20260827/why-cache.md',
         highlight: { text: 'cache', occurrence: 0 },
         ts: '20260827T154000',
       }),
     ).toEqual({
       cmd: 'update_doc_highlights',
       args: {
-        key: 'notes:20260827/why-cache.md',
+        key: 'doc:20260827/why-cache.md',
         highlight: { text: 'cache', occurrence: 0 },
         ts: '20260827T154000',
       },
@@ -159,7 +154,7 @@ describe('writeApiInvokeMap', () => {
 
   it('doc-highlights invoke does not route to Annotation write commands', () => {
     const resolved = resolveWriteInvoke('/api/doc-highlights', {
-      key: 'todos:task_1',
+      key: 'doc:task_1',
       highlight: { id: 'h1' },
       ts: 't',
     });
@@ -187,11 +182,11 @@ describe('writeApiInvokeMap', () => {
   it('resolveWriteInvoke maps mark-message-channel-read body channel (snake HTTP → camel invoke)', () => {
     expect(
       resolveWriteInvoke('/api/mark-message-channel-read', {
-        channel: 'notes',
+        channel: 'docs',
       }),
     ).toEqual({
       cmd: 'mark_message_channel_read',
-      args: { channel: 'notes' },
+      args: { channel: 'docs' },
     });
   });
 
@@ -206,14 +201,14 @@ describe('writeApiInvokeMap', () => {
       resolveWriteInvoke('/api/show-os-notification', {
         title: 'New note',
         body: 'A note was added',
-        scheme: 'spark://notes/open?id=a',
+        scheme: 'spark://docs/open?id=a',
       }),
     ).toEqual({
       cmd: 'show_os_notification',
       args: {
         title: 'New note',
         body: 'A note was added',
-        scheme: 'spark://notes/open?id=a',
+        scheme: 'spark://docs/open?id=a',
       },
     });
   });
@@ -250,11 +245,11 @@ describe('writeApiInvokeMap', () => {
       json: async () => ({}),
       text: async () => '{}',
     });
-    await api.markMessageChannelRead('notes');
+    await api.markMessageChannelRead('docs');
     expect(globalThis.fetch.mock.calls[0][0]).toMatch(/mark-message-channel-read/);
     expect(globalThis.fetch.mock.calls[0][1].method).toBe('POST');
     expect(JSON.parse(globalThis.fetch.mock.calls[0][1].body)).toEqual({
-      channel: 'notes',
+      channel: 'docs',
     });
   });
 });

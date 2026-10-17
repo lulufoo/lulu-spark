@@ -12,7 +12,7 @@ pub fn catalog() -> ToolCatalog {
     ToolCatalog::from_local_tools(vec![
         local_tool(
             "stage",
-            "Add an external file to this Chat's Stage. Asks the user first. After allow, grants read and write for that path and shows it to the user. The path may not exist yet. Spark's own data and .git cannot be requested. Notes and knowledge documents are not staged: use get_note_file or get_knowledge_file.",
+            "Add an external file to this Chat's Stage. Asks the user first. After allow, grants read and write for that path and shows it to the user. The path may not exist yet. Spark's own data and .git cannot be requested. Workspace documents are not staged: use get_doc_file.",
             json!({
                 "type": "object",
                 "properties": {
@@ -136,7 +136,7 @@ pub fn register_stage(session: &mut Session, checked: CheckedStage) -> ToolResul
 }
 
 fn register(session: &mut Session, checked: CheckedStage) -> Result<String, String> {
-    let entry = session.register_staged(&checked.path, checked.title.as_deref(), None)?;
+    let entry = session.register_staged(&checked.path, checked.title.as_deref())?;
     entry_json(&entry)
 }
 

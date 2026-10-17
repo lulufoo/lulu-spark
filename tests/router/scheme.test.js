@@ -27,9 +27,9 @@ const NOTE_PATH = 'inbox/x.md';
 const NOTE_DATE = '20260719';
 const HOP_ID = 'trace_12345678';
 const PASS = encodePassBag(HOP_ID);
-const NOTES_OPEN = `spark://notes/open?id=${NOTE_ID}&${PASS_QUERY}=${PASS}`;
+const NOTES_OPEN = `spark://docs/open?id=${NOTE_ID}&${PASS_QUERY}=${PASS}`;
 const READ_LATER_LIST = `spark://read-later/list?${PASS_QUERY}=${PASS}`;
-const NOTES_OPEN_NO_PASS = `spark://notes/open?id=${NOTE_ID}`;
+const NOTES_OPEN_NO_PASS = `spark://docs/open?id=${NOTE_ID}`;
 const NOTES_OPEN_TRACE_ONLY = `${NOTES_OPEN_NO_PASS}&trace=trace_12345678`;
 const NOTES_OPEN_BAD_PASS = `${NOTES_OPEN_NO_PASS}&${PASS_QUERY}=not-json`;
 const READ_LATER_TRACE_ONLY = 'spark://read-later/list?trace=trace_12345678';
@@ -62,7 +62,7 @@ function dialogEl() {
 
 function notesEnvelope(action = 'create', params = {}) {
   return {
-    business: 'notes',
+    business: 'docs',
     action,
     params: { id: HOP_ID, archive_id: NOTE_ID, ...params },
   };
@@ -93,7 +93,7 @@ afterEach(() => {
 });
 
 describe('composeSparkScheme', () => {
-  it('encodes notes create as notes/open with id and a pass bag from hop id', () => {
+  it('encodes notes create as docs/open with id and a pass bag from hop id', () => {
     const scheme = composeSparkScheme(notesEnvelope('create'));
     expect(scheme).toBe(NOTES_OPEN);
     expect(queryKeys(scheme)).toEqual(['id', 'pass']);
@@ -106,7 +106,7 @@ describe('composeSparkScheme', () => {
     expect(decodePassBag(new URL(scheme).searchParams.get(PASS_QUERY))).toBe(HOP_ID);
   });
 
-  it('encodes notes update as the same notes/open form', () => {
+  it('encodes notes update as the same docs/open form', () => {
     expect(composeSparkScheme(notesEnvelope('update'))).toBe(NOTES_OPEN);
   });
 
@@ -138,12 +138,12 @@ describe('composeSparkScheme', () => {
 
   it.each([
     [{ business: 'todos', action: 'create', params: { id: HOP_ID } }],
-    [{ business: 'notes', action: 'changed', params: { id: HOP_ID, archive_id: NOTE_ID, common_path: NOTE_PATH } }],
-    [{ business: 'notes', action: 'create', params: { archive_id: NOTE_ID, common_path: NOTE_PATH } }],
-    [{ business: 'notes', action: 'create', params: { id: HOP_ID, common_path: NOTE_PATH } }],
-    [{ business: 'notes', action: 'create', params: { id: '', archive_id: NOTE_ID, common_path: NOTE_PATH } }],
-    [{ business: 'notes', action: 'create', params: { id: HOP_ID, archive_id: '', common_path: NOTE_PATH } }],
-    [{ business: 'notes', action: 'create', params: { id: NOTE_ID, common_path: NOTE_PATH } }],
+    [{ business: 'docs', action: 'changed', params: { id: HOP_ID, archive_id: NOTE_ID, common_path: NOTE_PATH } }],
+    [{ business: 'docs', action: 'create', params: { archive_id: NOTE_ID, common_path: NOTE_PATH } }],
+    [{ business: 'docs', action: 'create', params: { id: HOP_ID, common_path: NOTE_PATH } }],
+    [{ business: 'docs', action: 'create', params: { id: '', archive_id: NOTE_ID, common_path: NOTE_PATH } }],
+    [{ business: 'docs', action: 'create', params: { id: HOP_ID, archive_id: '', common_path: NOTE_PATH } }],
+    [{ business: 'docs', action: 'create', params: { id: NOTE_ID, common_path: NOTE_PATH } }],
     [{ business: 'read_later', action: 'update', params: { id: HOP_ID } }],
     [{ business: 'read_later', action: 'create', params: {} }],
   ])('returns null for rejected envelope %j', (envelope) => {
@@ -152,9 +152,9 @@ describe('composeSparkScheme', () => {
 });
 
 describe('parseSparkScheme', () => {
-  it('parses notes/open id when pass is valid', () => {
+  it('parses docs/open id when pass is valid', () => {
     expect(parseSparkScheme(NOTES_OPEN)).toEqual({
-      kind: 'notes-open',
+      kind: 'docs-open',
       id: NOTE_ID,
     });
   });
@@ -195,20 +195,20 @@ describe('parseSparkScheme', () => {
     expect(scheme).not.toMatch(/path=/);
     expect(scheme).not.toMatch(/trace=/);
     expect(parseSparkScheme(scheme)).toEqual({
-      kind: 'notes-open',
+      kind: 'docs-open',
       id: NOTE_ID,
     });
   });
 
   it.each([
-    'https://notes/open?id=abc&path=inbox/x.md',
-    'notes/open?id=abc&path=inbox/x.md',
+    'https://docs/open?id=abc&path=inbox/x.md',
+    'docs/open?id=abc&path=inbox/x.md',
     'spark://unknown/open?id=abc&path=inbox/x.md',
-    'spark://notes/list?id=abc&path=inbox/x.md',
-    'spark://notes/open?id=abc',
-    'spark://notes/open?path=inbox/x.md',
-    'spark://notes/open?id=&path=inbox/x.md',
-    'spark://notes/open?id=abc&path=',
+    'spark://docs/list?id=abc&path=inbox/x.md',
+    'spark://docs/open?id=abc',
+    'spark://docs/open?path=inbox/x.md',
+    'spark://docs/open?id=&path=inbox/x.md',
+    'spark://docs/open?id=abc&path=',
     'spark://read-later/open',
     'spark://read-later/list?id=e1',
     'https://auth-login/callback?code=abc',
@@ -242,7 +242,7 @@ describe('resolveNotesLanding', () => {
 });
 
 describe('openSparkScheme', () => {
-  it('lands notes/open on #/spark and logs notes route.to_business from pass', () => {
+  it('lands docs/open on #/spark and logs notes route.to_business from pass', () => {
     const logSpy = vi.spyOn(appLog, 'logAppEvent').mockImplementation(() => {});
     expect(openSparkScheme(NOTES_OPEN)).toBe(true);
     expect(parseHash(window.location.hash)).toEqual({
@@ -252,10 +252,10 @@ describe('openSparkScheme', () => {
     expect(dialogEl()?.classList.contains('open')).toBe(false);
     expect(logSpy).toHaveBeenCalledWith(
       expect.objectContaining({
-        business: 'notes',
+        business: 'docs',
         event: 'route.to_business',
         traceId: HOP_ID,
-        params: expect.objectContaining({ outcome: 'ok', kind: 'notes-open' }),
+        params: expect.objectContaining({ outcome: 'ok', kind: 'docs-open' }),
       }),
     );
     expect(logSpy.mock.calls.some(([input]) => input.business === 'os-notify')).toBe(false);
@@ -289,12 +289,12 @@ describe('openSparkScheme', () => {
   });
 
   it.each([
-    'https://notes/open?id=abc&path=inbox/x.md',
+    'https://docs/open?id=abc&path=inbox/x.md',
     'spark://unknown/open?id=abc&path=inbox/x.md',
-    'spark://notes/open?id=abc',
-    'spark://notes/open?path=inbox/x.md',
+    'spark://docs/open?id=abc',
+    'spark://docs/open?path=inbox/x.md',
     'spark://read-later/open',
-    'notes/open?id=abc&path=inbox/x.md',
+    'docs/open?id=abc&path=inbox/x.md',
     NOTES_OPEN_NO_PASS,
     NOTES_OPEN_TRACE_ONLY,
     NOTES_OPEN_BAD_PASS,
@@ -331,7 +331,7 @@ describe('openSparkScheme', () => {
     logSpy.mockRestore();
   });
 
-  it('ignores a well-formed notes/open that the index cannot land', () => {
+  it('ignores a well-formed docs/open that the index cannot land', () => {
     state.index.data = {};
     expect(openSparkScheme(NOTES_OPEN)).toBe(false);
     expect(window.location.hash).toBe('#/home');

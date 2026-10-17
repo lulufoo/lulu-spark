@@ -1,11 +1,11 @@
-//! Tag attach / detach / update_value on the `note` and `tag` tables.
+//! Tag attach / detach / update_value on the document tables and the `tag` table.
 
 use std::path::Path;
 
 use serde_json::{json, Value};
 
 use crate::services::id::random_hex12;
-use crate::services::note_edit::edit_note;
+use crate::services::docs::edit::edit_doc;
 use crate::services::spark_data::{
     self, find_tag_key_by_value, has_tag, insert_tag, update_tag_value,
 };
@@ -60,7 +60,7 @@ pub fn tag_attach(_repo_root: &Path, id: &str, payload: &Value) -> Value {
         if key.is_empty() {
             return json!({ "error": "Invalid key", "_status": 400 });
         }
-        return edit_note(id, |conn, note| {
+        return edit_doc(id, |conn, note| {
             if !has_tag(conn, key).map_err(internal)? {
                 return Err(json!({ "error": "Unknown tag key", "_status": 400 }));
             }
@@ -74,7 +74,7 @@ pub fn tag_attach(_repo_root: &Path, id: &str, payload: &Value) -> Value {
         },
         None => return json!({ "error": "value required when key omitted", "_status": 400 }),
     };
-    edit_note(id, |conn, note| {
+    edit_doc(id, |conn, note| {
         let key = match find_tag_key_by_value(conn, &value).map_err(internal)? {
             Some(existing) => existing,
             None => {
@@ -92,8 +92,8 @@ pub fn tag_detach(_repo_root: &Path, id: &str, key: &str) -> Value {
     if key.is_empty() {
         return json!({ "error": "Invalid key", "_status": 400 });
     }
-    // A tag no note references any more is dropped by `edit_note` once the row is written.
-    edit_note(id, |_, note| {
+    // A tag no note references any more is dropped by `edit_doc` once the row is written.
+    edit_doc(id, |_, note| {
         let mut keys = note_keys(&note.tags);
         keys.retain(|k| k != key);
         set_note_keys(&mut note.tags, keys);

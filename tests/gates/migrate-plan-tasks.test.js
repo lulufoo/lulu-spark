@@ -31,7 +31,6 @@ function makeSandbox() {
     join(configDir, 'config.toml'),
     [
       `spark_root = "${wbRoot}"`,
-      `knowledge_root = "${wbRoot}"`,
       `cache_dir = "${cacheDir}"`,
       '',
     ].join('\n'),

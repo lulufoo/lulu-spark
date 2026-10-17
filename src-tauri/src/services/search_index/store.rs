@@ -1,6 +1,8 @@
 //! Single-file index: plain `chunk` table (metadata, unique key) + FTS5 text tables
 //! `docs_tri` (trigram) and `docs_bi` (unicode61 over CJK bigrams).
 //!
+//! `workspace_id` says which workspace a chunk belongs to, so a search can be limited to one.
+//!
 //! A chunk carries no path, repo or mtime: `doc_id` is the key into `spark-data.sqlite`,
 //! which knows where the document lives.
 //!
@@ -19,7 +21,7 @@ use super::collect::{ChunkKey, SourceChunk};
 pub const INDEX_FILE: &str = "search-index.sqlite";
 
 /// Bump when table columns change; mismatched files are dropped and rebuilt.
-pub const SCHEMA_VERSION: i32 = 4;
+pub const SCHEMA_VERSION: i32 = 5;
 
 #[derive(Debug, Clone, Default)]
 pub struct IndexStats {
@@ -43,6 +45,7 @@ CREATE TABLE IF NOT EXISTS chunk (
   layer TEXT NOT NULL,
   idx INTEGER NOT NULL,
   category TEXT NOT NULL,
+  workspace_id TEXT NOT NULL,
   title TEXT NOT NULL,
   content_hash TEXT NOT NULL,
   created_at TEXT NOT NULL,

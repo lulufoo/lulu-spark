@@ -1,11 +1,12 @@
 //! Per-channel MCP tool allowlist (`/mcp/spark`, `/mcp/cursor`, `/mcp/codex`,
 //! `/mcp/claude`, `/mcp/mobile`). `cursor_ide` is a legacy alias of `cursor`.
 //!
-//! Persists nested `{ channel: { notes: [], knowledge: [], global: [] } }`.
-//! Legacy flat arrays are migrated on read. UI commands still accept/return flat enabled lists.
-//! Retired `search_notes` / `search_knowledge` / `search_document` names rewrite to `search`.
+//! Persists nested `{ channel: { docs: [], global: [] } }`.
+//! Legacy flat arrays and the older `notes` / `knowledge` groups are migrated on read.
+//! UI commands still accept/return flat enabled lists.
+//! Retired tool names (`create_note`, `search_notes`, ...) rewrite to their replacement.
 //! Tools a channel does not expose (per the tool's own `build`) are never enabled there;
-//! on desktop channels saved `get_*_content` entries migrate to `get_*_file`.
+//! on desktop channels a saved `get_doc_content` entry migrates to `get_doc_file`.
 
 use std::collections::{BTreeMap, HashSet};
 use std::fs;
@@ -19,7 +20,7 @@ use crate::repositories::atomic_json;
 use crate::mcp_host::catalog::{catalog_groups, factory};
 use super::mcp_channel_classify::{
     classify_flat, filter_groups, groups_to_flat, migrate_content_tools_to_file,
-    migrate_retired_search_groups, rewrite_retired_search_names, sort_enabled_groups,
+    sort_enabled_groups,
 };
 
 pub const MCP_CHANNELS: &[&str] = &["spark", "cursor", "codex", "claude", "mobile"];
@@ -36,16 +37,14 @@ fn canonical_channel(name: &str) -> Option<&'static str> {
 }
 
 /// Catalog tools that Settings may list, but only `/mcp/spark` may enable or expose.
-pub const SPARK_ONLY_TOOLS: &[&str] = &["delete_note"];
+pub const SPARK_ONLY_TOOLS: &[&str] = &["delete_doc"];
 
 static LOCK: Mutex<()> = Mutex::new(());
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct EnabledByGroup {
     #[serde(default)]
-    pub notes: Vec<String>,
-    #[serde(default)]
-    pub knowledge: Vec<String>,
+    pub docs: Vec<String>,
     #[serde(default)]
     pub global: Vec<String>,
 }
@@ -88,10 +87,10 @@ fn apply_channel_tool_policy(channel: &str, mut names: HashSet<String>) -> HashS
 fn apply_group_policy(channel: &str, mut groups: EnabledByGroup) -> EnabledByGroup {
     if channel != "spark" {
         groups
-            .notes
+            .docs
             .retain(|name| !SPARK_ONLY_TOOLS.contains(&name.as_str()));
     }
-    for names in [&mut groups.notes, &mut groups.knowledge, &mut groups.global] {
+    for names in [&mut groups.docs, &mut groups.global] {
         names.retain(|name| !hidden_on_channel(channel, name));
     }
     sort_enabled_groups(&mut groups);
@@ -106,10 +105,21 @@ fn normalize_channel_entry(value: &Value, catalog: &HashSet<String>) -> EnabledB
             .collect();
         return classify_flat(names, catalog);
     }
-    if let Ok(groups) = serde_json::from_value::<EnabledByGroup>(value.clone()) {
-        return filter_groups(migrate_retired_search_groups(groups), catalog);
-    }
-    EnabledByGroup::default()
+    let Some(object) = value.as_object() else {
+        return EnabledByGroup::default();
+    };
+    let names = |key: &str| -> Vec<String> {
+        object
+            .get(key)
+            .and_then(Value::as_array)
+            .map(|list| list.iter().filter_map(|v| v.as_str().map(str::to_string)).collect())
+            .unwrap_or_default()
+    };
+    let groups = EnabledByGroup {
+        docs: names("docs"),
+        global: names("global"),
+    };
+    filter_groups(groups, catalog)
 }
 
 fn store_path() -> Result<std::path::PathBuf, String> {
@@ -185,7 +195,6 @@ pub fn set_enabled(channel: &str, enabled: Vec<String>) -> Result<(), String> {
         return Err(format!("unknown mcp channel: {channel}"));
     };
     let catalog = catalog_names();
-    let enabled = rewrite_retired_search_names(enabled);
     for name in &enabled {
         if !catalog.contains(name) {
             return Err(format!("unknown tool: {name}"));
@@ -224,8 +233,7 @@ pub fn snapshot() -> Result<Value, String> {
         enabled_grouped.insert(
             (*channel).to_string(),
             json!({
-                "notes": grouped.notes,
-                "knowledge": grouped.knowledge,
+                "docs": grouped.docs,
                 "global": grouped.global,
             }),
         );
@@ -237,8 +245,7 @@ pub fn snapshot() -> Result<Value, String> {
             json!({
                 "id": id,
                 "label": match *id {
-                    "notes" => "Notes",
-                    "knowledge" => "Knowledge",
+                    "docs" => "Documents",
                     "global" => "Global",
                     other => other,
                 },

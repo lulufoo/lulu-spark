@@ -10,25 +10,19 @@ const ID = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
 
 describe('formatReferenceText', () => {
   it('writes the kind, title and id on three lines', () => {
-    expect(formatReferenceText({ kind: 'note', title: 'My note', id: ID })).toBe(
-      `Lulu Spark note\ntitle: My note\nid: ${ID}`,
-    );
-  });
-
-  it('names the knowledge kind', () => {
-    expect(formatReferenceText({ kind: 'knowledge', title: 'Design', id: 'ab12' })).toBe(
-      'Lulu Spark knowledge\ntitle: Design\nid: ab12',
+    expect(formatReferenceText({ kind: 'doc', title: 'My note', id: ID })).toBe(
+      `Lulu Spark doc\ntitle: My note\nid: ${ID}`,
     );
   });
 
   it('flattens newlines and repeated spaces in the title to one line', () => {
-    expect(formatReferenceText({ kind: 'note', title: ' A\n  draft;\tv2 ', id: ID })).toBe(
-      `Lulu Spark note\ntitle: A draft; v2\nid: ${ID}`,
+    expect(formatReferenceText({ kind: 'doc', title: ' A\n  draft;\tv2 ', id: ID })).toBe(
+      `Lulu Spark doc\ntitle: A draft; v2\nid: ${ID}`,
     );
   });
 
   it('keeps no file path in the text', () => {
-    expect(formatReferenceText({ kind: 'note', title: 'T', id: ID })).not.toContain('/');
+    expect(formatReferenceText({ kind: 'doc', title: 'T', id: ID })).not.toContain('/');
   });
 });
 

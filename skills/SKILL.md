@@ -7,7 +7,7 @@ description: >-
 
 # lulu-spark-skills — 安装
 
-Spark 笔记相关 skill。包根可继续加子 skill。
+Spark 文档（workspace / project）相关 skill。包根可继续加子 skill。
 
 ## Platform Context
 
@@ -42,16 +42,16 @@ git -C "$SRC" pull --rebase
 
 ## 前置条件
 
-`note-task` 执行前 **Lulu Spark App 必须运行**（MCP `spark-knowledge` 可用，`http://127.0.0.1:9876/mcp/cursor_ide`）。notes 根目录由 Lulu Spark 管理，**无需**本地配置文件。槽位名是 `spark`。
+`note-task` 执行前 **Lulu Spark App 必须运行**（MCP `spark-knowledge` 可用，`http://127.0.0.1:9876/mcp/cursor_ide`）。文档数据目录由 Lulu Spark 管理，**无需**本地配置文件。槽位名是 `spark`。
 
 ## 子 skill
 
 | 指令 | 目录 | 说明 |
 |------|------|------|
-| `note-task` | [note-task/](note-task/) | 笔记 MCP 地图：`create_note` / catalog / files |
+| `note-task` | [note-task/](note-task/) | 文档 MCP 地图：`create_doc` / workspace / project / files |
 
 ## 验收
 
 触发 `note-task` 时，首步确认 Lulu Spark MCP 可用；写入成功后 MCP 返回 `ok` / `id`，以及按需出现的 `digest_written` / `zh_written` / `assets_copied`。
 
-digest 写法由 note-task 自己的 references 说明（随 `create_note` 的 `digest_body`）。
+digest 写法由 note-task 自己的 references 说明（随 `create_doc` 的 `digest_body`）。
