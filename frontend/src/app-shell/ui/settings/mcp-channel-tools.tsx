@@ -12,8 +12,9 @@ export function McpChannelToolsHost() {
         </select>
         <span className="settings-field-hint">
           Only checked tools appear in tools/list and are allowed on call_tool for that door.
-          Changes apply immediately. create_note on /mcp/spark, /mcp/cursor, /mcp/codex, and
-          /mcp/claude uses a Host file path; on /mcp/mobile it uses Markdown content.
+          Changes apply immediately. create_doc and update_doc on /mcp/spark, /mcp/cursor,
+          /mcp/codex, and /mcp/claude take a Host file path; on /mcp/mobile they take Markdown
+          content.
         </span>
       </div>
       <div id="settings-mcp-tool-groups" />

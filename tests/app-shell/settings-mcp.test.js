@@ -70,6 +70,34 @@ const TOOLS_SNAPSHOT = {
   },
 };
 
+const FIVE_GROUP_SNAPSHOT = {
+  channels: ['spark', 'cursor', 'codex', 'claude', 'mobile'],
+  spark_only_tools: ['delete_doc'],
+  unavailable_by_channel: {
+    spark: [],
+    cursor: ['get_read_later'],
+    codex: ['get_read_later'],
+    claude: ['get_read_later'],
+    mobile: ['get_read_later'],
+  },
+  groups: [
+    { id: 'global', label: 'Global', tools: [{ name: 'search' }] },
+    {
+      id: 'workspace',
+      label: 'Workspace',
+      tools: [{ name: 'list_workspaces' }, { name: 'create_workspace' }],
+    },
+    { id: 'project', label: 'Project', tools: [{ name: 'list_projects' }] },
+    {
+      id: 'document',
+      label: 'Document',
+      tools: [{ name: 'get_doc_file' }, { name: 'create_doc' }, { name: 'delete_doc' }],
+    },
+    { id: 'read_later', label: 'Read Later', tools: [{ name: 'get_read_later' }] },
+  ],
+  enabled: {},
+};
+
 function mountSettingsDom() {
   document.body.innerHTML = renderToHtml(createElement(SettingsDialog));
 }
@@ -689,6 +717,58 @@ describe('Settings MCP panel actions', () => {
     const boxes = [...document.querySelectorAll('#settings-mcp-tool-groups input[data-mcp-tool]')];
     expect(boxes.length).toBe(3);
     expect(boxes.every((el) => !el.checked)).toBe(true);
+  });
+
+  it('renders the five MCP tool groups in the order the host returns them', async () => {
+    const fallback = api.invoke.getMockImplementation();
+    api.invoke.mockImplementation(async (cmd, args) => {
+      if (cmd === 'get_mcp_channel_tools') return structuredClone(FIVE_GROUP_SNAPSHOT);
+      return fallback(cmd, args);
+    });
+    const { openSettingsDialog } = await import(
+      '../../frontend/src/app-shell/commands/settings/dialog.ts'
+    );
+    await openSettingsDialog({ panel: 'mcp', tab: 'tools' });
+    const panel = () =>
+      [...document.querySelectorAll('#settings-mcp-tool-groups fieldset')].map((fs) => ({
+        title: fs.querySelector('legend').textContent,
+        tools: [...fs.querySelectorAll('input[data-mcp-tool]')].map((el) => el.dataset.mcpTool),
+      }));
+    expect(panel()).toEqual([
+      { title: 'Global', tools: ['search'] },
+      { title: 'Workspace', tools: ['list_workspaces', 'create_workspace'] },
+      { title: 'Project', tools: ['list_projects'] },
+      { title: 'Document', tools: ['get_doc_file', 'create_doc', 'delete_doc'] },
+      { title: 'Read Later', tools: ['get_read_later'] },
+    ]);
+
+    // A channel that exposes none of a group's tools shows no empty box for it.
+    document.getElementById('settings-mcp-channel').value = 'cursor';
+    document.getElementById('settings-mcp-channel').dispatchEvent(new Event('change'));
+    expect(panel().map((group) => group.title)).toEqual([
+      'Global',
+      'Workspace',
+      'Project',
+      'Document',
+    ]);
+    expect(panel()[3].tools).toEqual(['get_doc_file', 'create_doc']);
+
+    // All / None cover every group.
+    api.invoke.mockClear();
+    document.getElementById('btn-settings-mcp-tools-deselect-all').click();
+    await vi.waitFor(() =>
+      expect(api.invoke).toHaveBeenCalledWith('set_mcp_channel_tools', {
+        channel: 'cursor',
+        enabled: [],
+      }),
+    );
+  });
+
+  it('describes create_doc, not the retired create_note, in the panel hint', () => {
+    const hint = document.querySelector('#settings-mcp-channel')?.closest('.settings-field')
+      ?.textContent;
+    expect(hint).toContain('create_doc');
+    expect(hint).not.toContain('create_note');
   });
 
   it('hides tools a channel does not expose and never writes them back', async () => {
