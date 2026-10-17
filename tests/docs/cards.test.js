@@ -114,7 +114,7 @@ describe('buildCard source_type badge', () => {
     expect(card.querySelector('.badge-source')).toBeNull();
   });
 
-  it('jot 仍显示 badge，但选择器不含 jot', async () => {
+  it('jot still shows a badge and the picker includes jot', async () => {
     const entry = {
       folder: 'proj',
       created_at: '202605181200',
@@ -129,8 +129,11 @@ describe('buildCard source_type badge', () => {
     const menu = document.querySelector('.list-select-menu');
     expect(menu).not.toBeNull();
     const values = [...menu.querySelectorAll('[data-value]')].map((el) => el.dataset.value);
-    expect(values).toEqual(['summary', 'dialogue', 'video', 'article']);
-    expect(values).not.toContain('jot');
+    const labels = [...menu.querySelectorAll('[data-value]')].map((el) => el.textContent);
+    expect(values).toEqual(['summary', 'dialogue', 'video', 'article', 'jot']);
+    expect(labels).toEqual(['Summary', 'Dialogue', 'Video', 'Article', 'Jot']);
+    expect(menu.style.width).toBe('max-content');
+    expect(menu.style.minWidth).toBe(`${badge.getBoundingClientRect().width}px`);
     closeFloatingListSelect();
   });
 

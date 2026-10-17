@@ -18,11 +18,11 @@ export function categoryLabel(id?: string): string | undefined {
   return docCategoryCatalogStore.getSnapshot().items.find((item) => item.id === id)?.label;
 }
 
-export function exposedCategoryOptions(): { value: string; label: string }[] {
+/** Every local classification, including items MCP does not expose. */
+export function categoryPickerOptions(): { value: string; label: string }[] {
   return docCategoryCatalogStore
     .getSnapshot()
-    .items.filter((item) => item.exposed)
-    .map((item) => ({ value: item.id, label: item.label }));
+    .items.map((item) => ({ value: item.id, label: item.label }));
 }
 
 /** Load the local classification list for badges and pickers. */
