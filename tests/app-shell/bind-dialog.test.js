@@ -140,7 +140,7 @@ describe('bind-dialog markup and wiring', () => {
     const chrome = readSrc('frontend/src/app-shell/ui/settings/chrome.tsx');
     expect(help).not.toMatch(/btn-bind|Devices/);
     expect(home).not.toMatch(/openBindDialog|onDevices/);
-    expect(chrome).toMatch(/data-panel="mcp"[\s\S]*?data-panel="document"[\s\S]*?data-panel="devices"[\s\S]*?data-panel="theme"/);
+    expect(chrome).toMatch(/data-panel="document"[\s\S]*?data-panel="llm"[\s\S]*?data-panel="mcp"[\s\S]*?data-panel="devices"[\s\S]*?data-panel="theme"/);
     expect(chrome).toMatch(/<BindPanel\s*\/>/);
   });
 

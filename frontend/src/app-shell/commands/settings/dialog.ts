@@ -96,7 +96,10 @@ function showPanel(panelId: string): Promise<void> {
     ]).then(() => undefined);
   }
   if (panelId === 'notes') switchSettingsTab('notes', 'directory');
-  if (panelId === 'document') return loadDocCategories();
+  if (panelId === 'document') {
+    switchSettingsTab('document', 'list');
+    return loadDocCategories();
+  }
   return Promise.resolve();
 }
 

@@ -18,9 +18,9 @@ export function SettingsDialogChrome() {
         <nav id="settings-nav">
           <button type="button" className="settings-nav-item active" data-panel="notes">Workspaces</button>
           <WorkspaceNavItems />
+          <button type="button" className="settings-nav-item" data-panel="document">Document</button>
           <button type="button" className="settings-nav-item" data-panel="llm">Agent</button>
           <button type="button" className="settings-nav-item" data-panel="mcp">MCP</button>
-          <button type="button" className="settings-nav-item" data-panel="document">Document</button>
           <button type="button" className="settings-nav-item" data-panel="devices">Devices</button>
           <button type="button" className="settings-nav-item" data-panel="theme">Theme</button>
         </nav>
