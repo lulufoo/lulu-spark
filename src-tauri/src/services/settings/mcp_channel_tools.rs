@@ -20,7 +20,7 @@ use crate::repositories::atomic_json;
 use crate::mcp_host::catalog::{catalog_groups, factory};
 use super::mcp_channel_classify::{
     classify_flat, filter_groups, groups_to_flat, migrate_content_tools_to_file,
-    migrate_retired_groups, rewrite_retired_tool_names, sort_enabled_groups,
+    sort_enabled_groups,
 };
 
 pub const MCP_CHANNELS: &[&str] = &["spark", "cursor", "codex", "claude", "mobile"];
@@ -115,7 +115,10 @@ fn normalize_channel_entry(value: &Value, catalog: &HashSet<String>) -> EnabledB
             .map(|list| list.iter().filter_map(|v| v.as_str().map(str::to_string)).collect())
             .unwrap_or_default()
     };
-    let groups = migrate_retired_groups(names("docs"), names("notes"), names("knowledge"), names("global"));
+    let groups = EnabledByGroup {
+        docs: names("docs"),
+        global: names("global"),
+    };
     filter_groups(groups, catalog)
 }
 
@@ -192,7 +195,6 @@ pub fn set_enabled(channel: &str, enabled: Vec<String>) -> Result<(), String> {
         return Err(format!("unknown mcp channel: {channel}"));
     };
     let catalog = catalog_names();
-    let enabled = rewrite_retired_tool_names(enabled);
     for name in &enabled {
         if !catalog.contains(name) {
             return Err(format!("unknown tool: {name}"));

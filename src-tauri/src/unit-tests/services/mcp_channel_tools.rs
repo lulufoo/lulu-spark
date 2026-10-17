@@ -123,124 +123,25 @@ fn delete_note_never_enables_on_non_spark_even_if_listed() {
     assert!(is_enabled("spark", "delete_doc"));
 }
 
-#[test]
-fn load_rewrites_retired_search_tools_to_search() {
-    let sandbox = TestSandbox::new();
-    write_channels(serde_json::json!({
-        "cursor_ide": {
-            "notes": ["list_notes_categories", "search_notes"],
-            "todo": [],
-            "knowledge": ["search_knowledge"],
-            "global": ["search_document"]
-        }
-    }));
-    let path = paths::mcp_channel_tools_path().expect("path");
-    sandbox.assert_not_prod_path(&path).expect("sandbox file");
-    let grouped = crate::services::settings::mcp_channel_tools::enabled_by_group("cursor_ide");
-    assert!(grouped.global.contains(&"search".into()));
-    assert!(grouped.docs.contains(&"list_projects".into()));
-    assert!(is_enabled("cursor_ide", "search"));
-    for retired in ["search_document", "search_notes", "search_knowledge", "list_notes_categories"] {
-        assert!(!is_enabled("cursor_ide", retired), "{retired}");
-    }
-}
-
 fn write_channels(channels: serde_json::Value) {
     let path = paths::mcp_channel_tools_path().expect("path");
     fs::write(&path, serde_json::json!({ "channels": channels }).to_string()).expect("write");
 }
 
 #[test]
-fn load_folds_notes_and_knowledge_groups_into_docs() {
-    let sandbox = TestSandbox::new();
-    write_channels(serde_json::json!({
-        "cursor_ide": {
-            "notes": ["create_note", "update_note", "get_note_digest", "create_notes_category"],
-            "knowledge": ["list_knowledge_categories", "get_knowledge_file"],
-            "global": ["get_read_later"]
-        }
-    }));
-    let path = paths::mcp_channel_tools_path().expect("path");
-    sandbox.assert_not_prod_path(&path).expect("sandbox file");
-    let grouped = crate::services::settings::mcp_channel_tools::enabled_by_group("cursor_ide");
-    assert_eq!(
-        grouped.docs,
-        vec!["create_doc", "create_project", "get_doc_digest", "get_doc_file", "list_projects", "update_doc"]
-    );
-    assert!(is_enabled("cursor_ide", "create_doc"));
-    assert!(!is_enabled("cursor_ide", "create_note"));
-    // Tools that did not exist before stay off in a saved selection.
-    assert!(!is_enabled("cursor_ide", "list_workspaces"));
-}
-
-#[test]
-fn load_rewrites_retired_note_content_name() {
-    let sandbox = TestSandbox::new();
-    write_channels(serde_json::json!({
-        "cursor_ide": {
-            "notes": ["list_notes_categories", "get_note_content_by_id"],
-            "todo": [],
-            "knowledge": []
-        },
-        "mobile": { "notes": ["get_note_content_by_id"], "knowledge": [] }
-    }));
-    let path = paths::mcp_channel_tools_path().expect("path");
-    sandbox.assert_not_prod_path(&path).expect("sandbox file");
-    let grouped = crate::services::settings::mcp_channel_tools::enabled_by_group("cursor_ide");
-    assert!(!is_enabled("cursor_ide", "get_note_content_by_id"));
-    // Desktop: retired name → get_doc_content → get_doc_file.
-    assert!(grouped.docs.contains(&"get_doc_file".into()));
-    assert!(!is_enabled("cursor_ide", "get_doc_content"));
-    // Mobile keeps get_doc_content.
-    assert!(is_enabled("mobile", "get_doc_content"));
-    assert!(!is_enabled("mobile", "get_doc_file"));
-}
-
-#[test]
-fn load_rewrites_retired_note_digest_name() {
-    let sandbox = TestSandbox::new();
-    write_channels(serde_json::json!({
-        "cursor_ide": {
-            "notes": ["list_notes_categories", "get_note_digest_by_id"],
-            "todo": [],
-            "knowledge": []
-        },
-        "mobile": { "notes": ["get_note_digest_by_id"], "knowledge": [] }
-    }));
-    let path = paths::mcp_channel_tools_path().expect("path");
-    sandbox.assert_not_prod_path(&path).expect("sandbox file");
-    let desktop = crate::services::settings::mcp_channel_tools::enabled_by_group("cursor_ide");
-    assert!(desktop.docs.contains(&"get_doc_digest".into()));
-    assert!(is_enabled("cursor_ide", "get_doc_digest"));
-    assert!(!is_enabled("cursor_ide", "get_note_digest_by_id"));
-    let mobile = crate::services::settings::mcp_channel_tools::enabled_by_group("mobile");
-    assert!(mobile.docs.contains(&"get_doc_digest".into()));
-    assert!(is_enabled("mobile", "get_doc_digest"));
-}
-
-#[test]
-fn set_enabled_accepts_a_retired_name_as_its_replacement() {
-    let _sandbox = TestSandbox::new();
-    set_enabled("cursor_ide", vec!["create_note".into(), "search_notes".into()]).expect("save");
-    assert!(is_enabled("cursor_ide", "create_doc"));
-    assert!(is_enabled("cursor_ide", "search"));
-    assert!(!is_enabled("cursor_ide", "update_doc"));
-}
-
-#[test]
-fn load_migrates_legacy_flat_channel_lists() {
+fn load_reads_flat_channel_lists() {
     let sandbox = TestSandbox::new();
     let path = paths::mcp_channel_tools_path().expect("path");
     fs::write(
         &path,
         serde_json::json!({
             "channels": {
-                "mobile": ["list_notes_categories", "list_todo_tasks"]
+                "mobile": ["list_projects", "list_todo_tasks"]
             }
         })
         .to_string(),
     )
-    .expect("write legacy");
+    .expect("write flat list");
     sandbox.assert_not_prod_path(&path).expect("sandbox file");
     let grouped = crate::services::settings::mcp_channel_tools::enabled_by_group("mobile");
     assert!(grouped.docs.contains(&"list_projects".into()));
@@ -249,28 +150,40 @@ fn load_migrates_legacy_flat_channel_lists() {
 }
 
 #[test]
-fn load_ignores_retired_get_all_notes_catalog() {
+fn load_ignores_retired_tool_names_and_old_groups() {
     let sandbox = TestSandbox::new();
     write_channels(serde_json::json!({
         "cursor_ide": {
-            "notes": ["get_all_notes_catalog", "create_note"],
-            "knowledge": []
+            "docs": ["get_all_notes_catalog", "create_note", "get_doc_digest"],
+            "notes": ["update_note", "list_notes_categories"],
+            "knowledge": ["get_knowledge_file"],
+            "global": ["search_notes", "search"]
         },
-        "mobile": ["get_all_notes_catalog", "get_note_digest"]
+        "mobile": ["get_all_notes_catalog", "get_note_digest", "get_doc_digest"]
     }));
     let path = paths::mcp_channel_tools_path().expect("path");
     sandbox.assert_not_prod_path(&path).expect("sandbox file");
-    for channel in ["cursor_ide", "mobile"] {
-        let grouped = crate::services::settings::mcp_channel_tools::enabled_by_group(channel);
-        assert!(
-            !grouped.docs.contains(&"get_all_notes_catalog".into()),
-            "{channel}: retired name must be dropped on load"
-        );
-        assert!(!is_enabled(channel, "get_all_notes_catalog"), "{channel}");
+    let desktop = crate::services::settings::mcp_channel_tools::enabled_by_group("cursor_ide");
+    assert_eq!(desktop.docs, vec!["get_doc_digest"]);
+    assert_eq!(desktop.global, vec!["search"]);
+    let mobile = crate::services::settings::mcp_channel_tools::enabled_by_group("mobile");
+    assert_eq!(mobile.docs, vec!["get_doc_digest"]);
+    for retired in [
+        "get_all_notes_catalog",
+        "create_note",
+        "update_note",
+        "list_notes_categories",
+        "get_knowledge_file",
+        "search_notes",
+        "get_note_digest",
+    ] {
+        assert!(!is_enabled("cursor_ide", retired), "{retired}");
+        assert!(!is_enabled("mobile", retired), "{retired}");
     }
-    assert!(is_enabled("cursor_ide", "create_doc"));
-    assert!(is_enabled("mobile", "get_doc_digest"));
-    let snap = snapshot().expect("snapshot must not fail on a stored retired name");
+    // Old names are not rewritten to their replacements.
+    assert!(!is_enabled("cursor_ide", "create_doc"));
+    assert!(!is_enabled("cursor_ide", "update_doc"));
+    let snap = snapshot().expect("snapshot must not fail on stored retired names");
     let listed: HashSet<&str> = snap["groups"]
         .as_array()
         .expect("groups")
@@ -280,6 +193,28 @@ fn load_ignores_retired_get_all_notes_catalog() {
         .collect();
     assert!(!listed.contains("get_all_notes_catalog"));
     assert!(listed.contains("list_projects"));
+}
+
+#[test]
+fn load_moves_desktop_content_tool_to_file_and_keeps_mobile() {
+    let sandbox = TestSandbox::new();
+    write_channels(serde_json::json!({
+        "cursor_ide": { "docs": ["get_doc_content"], "global": [] },
+        "mobile": { "docs": ["get_doc_content"], "global": [] }
+    }));
+    let path = paths::mcp_channel_tools_path().expect("path");
+    sandbox.assert_not_prod_path(&path).expect("sandbox file");
+    assert!(is_enabled("cursor_ide", "get_doc_file"));
+    assert!(!is_enabled("cursor_ide", "get_doc_content"));
+    assert!(is_enabled("mobile", "get_doc_content"));
+    assert!(!is_enabled("mobile", "get_doc_file"));
+}
+
+#[test]
+fn set_enabled_rejects_a_retired_name() {
+    let _sandbox = TestSandbox::new();
+    let err = set_enabled("cursor_ide", vec!["create_note".into()]).expect_err("retired name");
+    assert!(err.contains("unknown tool: create_note"), "{err}");
 }
 
 #[test]

@@ -1,4 +1,4 @@
-//! Classify flat/grouped MCP tool names and rewrite retired tool names.
+//! Classify flat/grouped MCP tool names into their business groups.
 
 use std::collections::HashSet;
 
@@ -9,48 +9,10 @@ use super::mcp_channel_tools::EnabledByGroup;
 const DOC_CONTENT: &str = "get_doc_content";
 const DOC_FILE: &str = "get_doc_file";
 
-/// Tool names that existed before workspaces and projects, and what replaced them.
-/// Saved settings and callers still using an old name keep working through this table.
-const RETIRED_TOOLS: &[(&str, &str)] = &[
-    ("search_notes", "search"),
-    ("search_knowledge", "search"),
-    ("search_document", "search"),
-    ("get_note_content_by_id", "get_doc_content"),
-    ("get_note_content", "get_doc_content"),
-    ("get_knowledge_content", "get_doc_content"),
-    ("get_note_digest_by_id", "get_doc_digest"),
-    ("get_note_digest", "get_doc_digest"),
-    ("get_note_file", "get_doc_file"),
-    ("get_knowledge_file", "get_doc_file"),
-    ("create_note", "create_doc"),
-    ("update_note", "update_doc"),
-    ("delete_note", "delete_doc"),
-    ("list_notes_categories", "list_projects"),
-    ("list_knowledge_categories", "list_projects"),
-    ("create_notes_category", "create_project"),
-    ("update_notes_category", "update_project"),
-    ("delete_notes_category", "delete_project"),
-];
-
 fn push_unique(out: &mut Vec<String>, name: &str) {
     if !out.iter().any(|n| n == name) {
         out.push(name.to_string());
     }
-}
-
-fn current_name(name: &str) -> &str {
-    RETIRED_TOOLS
-        .iter()
-        .find(|(old, _)| *old == name)
-        .map_or(name, |(_, new)| *new)
-}
-
-pub fn rewrite_retired_tool_names(names: impl IntoIterator<Item = String>) -> Vec<String> {
-    let mut out = Vec::new();
-    for name in names {
-        push_unique(&mut out, current_name(&name));
-    }
-    out
 }
 
 /// Desktop channels moved from `get_doc_content` to `get_doc_file`; mobile keeps the old tool.
@@ -65,23 +27,11 @@ pub fn migrate_content_tools_to_file(channel: &str, mut groups: EnabledByGroup) 
     groups
 }
 
-/// Saved grouped settings from before the `docs` group: `notes` and `knowledge` fold into
-/// `docs`, and every retired tool name is rewritten.
-pub fn migrate_retired_groups(
-    docs: Vec<String>,
-    notes: Vec<String>,
-    knowledge: Vec<String>,
-    global: Vec<String>,
-) -> EnabledByGroup {
-    EnabledByGroup {
-        docs: rewrite_retired_tool_names(docs.into_iter().chain(notes).chain(knowledge)),
-        global: rewrite_retired_tool_names(global),
-    }
-}
-
 fn sort_groups(groups: &mut EnabledByGroup) {
     groups.docs.sort();
+    groups.docs.dedup();
     groups.global.sort();
+    groups.global.dedup();
 }
 
 fn group_for_tool(name: &str) -> Option<&'static str> {
@@ -98,7 +48,7 @@ pub fn classify_flat(
     catalog: &HashSet<String>,
 ) -> EnabledByGroup {
     let mut groups = EnabledByGroup::default();
-    for name in rewrite_retired_tool_names(names) {
+    for name in names {
         if !catalog.contains(&name) {
             continue;
         }
