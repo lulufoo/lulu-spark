@@ -6296,6 +6296,10 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   --home-chat-sidebar-width: 248px;
   --home-rail: 16px;
   --home-chat-row-inset: 8px;
+  /* One chat row (8px padding + 24px icon + 8px padding); the Chats block holds exactly five. */
+  --home-chat-row-h: 40px;
+  --home-chat-list-rows: 5;
+  --home-chat-list-pad: 2px;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -6451,10 +6455,11 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   display: block;
 }
 .home-chat-sessions {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-  padding: 2px var(--home-chat-row-inset) 16px;
+  flex: 0 0 auto;
+  height: calc(var(--home-chat-list-rows) * var(--home-chat-row-h) + 2 * var(--home-chat-list-pad));
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: var(--home-chat-list-pad) var(--home-chat-row-inset);
 }
 .home-account-row {
   display: flex;
@@ -6746,6 +6751,8 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   display: flex;
   align-items: center;
   width: 100%;
+  height: var(--home-chat-row-h);
+  flex: 0 0 auto;
   border-radius: 8px;
   background: transparent;
 }

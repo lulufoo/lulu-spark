@@ -56,8 +56,14 @@ export type ContextUsage = {
   categories: ContextUsageCategory[];
 };
 
+/** Chats shown the first time, and how many more each scroll to the bottom reveals. */
+export const HOME_CHAT_FIRST_PAGE = 10;
+export const HOME_CHAT_PAGE_STEP = 10;
+
 export type HomeState = {
+  /** Every chat session, newest first; the sidebar reveals them `sessionsShown` at a time. */
   sessions: HubSession[];
+  sessionsShown: number;
   currentSessionId: string;
   messages: HubMessage[];
   staged: HubStagedEntry[];
@@ -80,6 +86,7 @@ function emptyUnread(): ChannelUnread {
 function emptyState(): HomeState {
   return {
     sessions: [],
+    sessionsShown: HOME_CHAT_FIRST_PAGE,
     currentSessionId: '',
     messages: [],
     staged: [],
@@ -117,6 +124,18 @@ export function resetHomeState() {
 
 export function useHomeState() {
   return useSyncExternalStore(homeStore.subscribe, homeStore.getSnapshot, homeStore.getSnapshot);
+}
+
+/**
+ * How many chats the sidebar lists: the revealed count, stretched to include the current chat
+ * (so a chat picked far down is never hidden), never more than exist.
+ */
+export function visibleSessionCount(state: HomeState) {
+  const total = state.sessions.length;
+  const currentIndex = state.currentSessionId
+    ? state.sessions.findIndex((s) => String(s.session_id || '') === state.currentSessionId)
+    : -1;
+  return Math.min(total, Math.max(state.sessionsShown, currentIndex + 1));
 }
 
 export function composerLocked(state: HomeState) {

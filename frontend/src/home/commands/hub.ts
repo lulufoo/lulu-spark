@@ -10,6 +10,8 @@ import {
 } from './channel-unread.ts';
 import {
   getHomeState,
+  HOME_CHAT_PAGE_STEP,
+  visibleSessionCount,
   contextPercentFrom,
   contextUsageFrom,
   hydrateStaged,
@@ -25,7 +27,6 @@ import {
 
 export const BINDING_CHANGED_EVENT = 'ai-assistant:binding-changed';
 export const MESSAGE_CENTER_CHANGED_EVENT = 'message-center:changed';
-export const HOME_CHAT_LIST_LIMIT = 20;
 export { markHomeEntryRead, refreshChannelUnread };
 
 type TauriListen = (
@@ -87,12 +88,21 @@ export async function refreshList(gen?: number) {
   if (gen != null && gen !== fetchGen) return;
   setHomeState((prev) => ({
     ...prev,
-    sessions: Array.isArray(listed?.sessions)
-      ? listed.sessions.slice(0, HOME_CHAT_LIST_LIMIT)
-      : [],
+    sessions: Array.isArray(listed?.sessions) ? listed.sessions : [],
     currentSessionId: listed?.current_session_id
       ? String(listed.current_session_id)
       : prev.currentSessionId,
+  }));
+}
+
+/** Reveal the next page of chats; called when the Chats list is scrolled to the bottom. */
+export function showMoreSessions() {
+  const snap = getHomeState();
+  const visible = visibleSessionCount(snap);
+  if (visible >= snap.sessions.length) return;
+  setHomeState((prev) => ({
+    ...prev,
+    sessionsShown: Math.min(visible + HOME_CHAT_PAGE_STEP, prev.sessions.length),
   }));
 }
 

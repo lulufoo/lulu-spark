@@ -721,7 +721,7 @@ describe('home hub chat sessions', () => {
     });
   });
 
-  it('keeps only the 20 most recent sessions from the host list', async () => {
+  it('lists the first 10 sessions of the host list and keeps the rest for scrolling', async () => {
     sessions = Array.from({ length: 25 }, (_, i) => ({
       session_id: `s${i}`,
       title: `Chat ${i}`,
@@ -729,7 +729,7 @@ describe('home hub chat sessions', () => {
     currentId = 's0';
     cleanup = mountHomeHub(container, { navigate: vi.fn() });
     await vi.waitFor(() => {
-      expect(container.querySelectorAll('.home-chat-session')).toHaveLength(20);
+      expect(container.querySelectorAll('.home-chat-session')).toHaveLength(10);
     });
   });
 

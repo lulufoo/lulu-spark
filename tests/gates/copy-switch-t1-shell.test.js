@@ -47,7 +47,10 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
     expect(css).toMatch(
       /\.home-chat-sessions-head \{[\s\S]*?padding: 14px var\(--home-chat-row-inset\) 8px var\(--home-rail\);/,
     );
-    expect(css).toMatch(/\.home-chat-sessions \{[\s\S]*?padding: 2px var\(--home-chat-row-inset\) 16px;/);
+    expect(css).toMatch(/--home-chat-list-pad: 2px;/);
+    expect(css).toMatch(
+      /\.home-chat-sessions \{[\s\S]*?padding: var\(--home-chat-list-pad\) var\(--home-chat-row-inset\);/,
+    );
     const llmMark = readFileSync(join(repoRoot, 'frontend/src/shared/llm-mark.tsx'), 'utf8');
     expect(llmMark).toMatch(/translate\(2 2\) scale\(1\.17647\) translate\(-3\.5 -3\.5\)/);
     expect(css).toMatch(/\.home-chat-session\.is-active \{\s*background: var\(--bg-surface\);\s*\}/);

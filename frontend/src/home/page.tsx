@@ -34,6 +34,7 @@ import {
   selectSession,
   sendMessage,
   showActionError,
+  showMoreSessions,
   startHomeHub,
   stopHomeHub,
 } from './commands/hub.ts';
@@ -51,6 +52,7 @@ import {
   progressHint,
   resetHomeState,
   useHomeState,
+  visibleSessionCount,
   type HubMessage,
   type LiveThinking,
 } from './state/store.ts';
@@ -59,6 +61,9 @@ import { openCreateNote } from '../notes/commands/viewer/create.ts';
 import { openBindDialog } from '../app-shell/ui/bind-dialog.tsx';
 import { openSettingsDialog } from '../app-shell/ui/settings/dialog.tsx';
 import { WindowDragStrip } from '../shared/window-drag-strip.tsx';
+
+/** Scrolling this close to the bottom of the Chats list (about one row) reveals more chats. */
+const SESSION_LIST_LOAD_MORE_PX = 40;
 
 export type HomePageChrome = {
   navigate?: (hash: string) => void;
@@ -373,9 +378,19 @@ export function HomePage({
             </svg>
           </button>
         </div>
-        <div className="home-chat-sessions" data-role="session-list" role="list">
+        <div
+          className="home-chat-sessions"
+          data-role="session-list"
+          role="list"
+          onScroll={(e) => {
+            const el = e.currentTarget;
+            if (el.scrollHeight - el.scrollTop - el.clientHeight <= SESSION_LIST_LOAD_MORE_PX) {
+              showMoreSessions();
+            }
+          }}
+        >
           <SessionList
-            sessions={state.sessions}
+            sessions={state.sessions.slice(0, visibleSessionCount(state))}
             currentSessionId={state.currentSessionId}
             progressByChat={state.progressByChat}
             inFlightIds={state.inFlightIds}
