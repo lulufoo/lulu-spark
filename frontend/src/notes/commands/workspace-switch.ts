@@ -1,7 +1,7 @@
 import * as api from '../../host/api.ts';
 import { notifyState, state } from '../state/host.ts';
 import { applyListFilters, selectDate, selectDirNode } from './sidebar.ts';
-import { getCurrentWorkspace, isDirectoryView, storeWorkspaceId } from './workspace.ts';
+import { isDirectoryView, storeWorkspaceId } from './workspace.ts';
 
 /** Show another workspace: the page reloads its index and project titles. */
 export function switchWorkspace(id: string) {
@@ -11,16 +11,6 @@ export function switchWorkspace(id: string) {
   state.ui.activeTopic = null;
   state.ui.activeDate = null;
   document.dispatchEvent(new CustomEvent('cta:reload'));
-}
-
-/** Switch the current workspace between directory and timeline; the choice is stored on the workspace. */
-export async function changeViewMode(mode: api.ViewMode) {
-  const workspace = getCurrentWorkspace();
-  if (!workspace || workspace.view_mode === mode) return;
-  const data = (await api.setWorkspaceViewMode(workspace.id, mode)) as { error?: string };
-  if (data?.error) throw new Error(data.error);
-  state.workspaces.list = state.workspaces.list.map((w) => (w.id === workspace.id ? { ...w, view_mode: mode } : w));
-  applyViewModeChange();
 }
 
 /**

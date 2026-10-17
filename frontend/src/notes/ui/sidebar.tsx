@@ -6,7 +6,6 @@ import { formatDate } from '../../shared/utils.ts';
 import { closeFloatingListSelect, createFloatingListSelect } from '../../shared/floating-list-select.ts';
 import { applyListFilters, buildGroups, selectDate, selectTopic } from '../commands/sidebar.ts';
 import { isTimelineView } from '../commands/workspace.ts';
-import { changeViewMode, switchWorkspace } from '../commands/workspace-switch.ts';
 import { PageBackHome } from '../../shared/home-mark.tsx';
 import { WindowDragStrip } from '../../shared/window-drag-strip.tsx';
 import { DirTree } from './dir-tree.tsx';
@@ -68,39 +67,6 @@ function _renderTopicFilter(parent: HTMLElement) {
   parent.appendChild(wrap);
 }
 
-function _renderWorkspaceSwitch(parent: HTMLElement) {
-  const { current, list } = state.workspaces;
-  if (list.length === 0) return;
-  const wrap = document.createElement('div');
-  wrap.className = 'workspace-filter';
-
-  const { picker } = createFloatingListSelect({
-    ariaLabel: 'Select workspace',
-    pickerClass: 'workspace-select',
-    value: current,
-    options: list.map((w) => ({ value: w.id, label: w.name })),
-    onSelect: (id: string) => switchWorkspace(id),
-  });
-  wrap.appendChild(picker);
-
-  const modes = document.createElement('div');
-  modes.className = 'view-mode-switch';
-  const active = isTimelineView() ? 'timeline' : 'directory';
-  for (const mode of ['directory', 'timeline'] as const) {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = `view-mode-btn${mode === active ? ' active' : ''}`;
-    button.dataset.viewMode = mode;
-    button.textContent = mode === 'directory' ? 'Directory' : 'Timeline';
-    button.addEventListener('click', () => {
-      void changeViewMode(mode).catch((err) => alert(err instanceof Error ? err.message : String(err)));
-    });
-    modes.appendChild(button);
-  }
-  wrap.appendChild(modes);
-  parent.appendChild(wrap);
-}
-
 function DateTabInner({
   label,
   year,
@@ -129,6 +95,7 @@ export function NotesSidebar() {
   const data = host.index.data;
   const topic = host.ui.activeTopic;
   const workspaces = host.workspaces;
+  const workspaceName = workspaces.list.find((w) => w.id === workspaces.current)?.name ?? '';
   const groups = host.index.filteredGroups || [];
   const activeDate = host.ui.activeDate;
 
@@ -137,9 +104,8 @@ export function NotesSidebar() {
     if (!parent) return;
     const sidebar = parent.closest('#sidebar') || document.getElementById('sidebar');
     closeFloatingListSelect();
-    sidebar?.querySelectorAll('.workspace-filter, .topic-filter').forEach((el) => el.remove());
+    sidebar?.querySelectorAll('.topic-filter').forEach((el) => el.remove());
     parent.replaceChildren();
-    _renderWorkspaceSwitch(parent);
     if (isTimelineView()) _renderTopicFilter(parent);
     return () => {
       closeFloatingListSelect();
@@ -159,6 +125,9 @@ export function NotesSidebar() {
         <WindowDragStrip>
           <PageBackHome />
         </WindowDragStrip>
+        <div id="sidebar-workspace-title" className="sidebar-workspace-title" title={workspaceName}>
+          {workspaceName}
+        </div>
         <div id="sidebar-channel-zone" className="sidebar-channel-zone" ref={channelRef} />
         {isTimelineView() ? (
         <div id="sidebar-date-zone" className="sidebar-date-zone">

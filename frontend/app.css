@@ -808,29 +808,15 @@
     text-align: right;
   }
 
-  /* ── Workspace switch ───────────────────────────────────────────────────── */
-  .workspace-filter {
-    padding: 8px var(--notes-rail) 6px;
-  }
-  .view-mode-switch {
-    display: flex;
-    gap: 4px;
-    margin-top: 6px;
-  }
-  .view-mode-btn {
-    flex: 1;
-    padding: 3px 0;
-    font-size: 12px;
-    color: var(--fg-muted);
-    background: var(--bg-canvas);
-    border: 1px solid var(--border-muted);
-    border-radius: 6px;
-    cursor: pointer;
-  }
-  .view-mode-btn.active {
-    color: var(--fg-accent-emphasis);
-    background: var(--bg-hex-b6e3ff);
-    border-color: transparent;
+  /* ── Workspace title (read-only; the workspace is chosen on Home) ───────── */
+  .sidebar-workspace-title {
+    padding: 10px var(--notes-rail) 2px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--fg-emphasis);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   /* ── Floating list select (sidebar filters, knowledge repo picker) ── */

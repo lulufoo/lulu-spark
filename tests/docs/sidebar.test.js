@@ -151,13 +151,29 @@ describe('directory view', () => {
   });
 });
 
-describe('renderSidebar workspace switch', () => {
-  it('lists the workspaces by name and marks the current view mode', () => {
+describe('renderSidebar workspace title', () => {
+  it('shows the current workspace name read-only, with no picker and no view buttons', () => {
     applyListFilters();
     renderSidebar();
-    expect(optionTexts(findSelect('.workspace-select'))).toEqual(['Default', 'Research']);
-    const active = sidebarEl()?.querySelector('.view-mode-btn.active');
-    expect(active?.dataset.viewMode).toBe('timeline');
+    const title = sidebarEl()?.querySelector('#sidebar-workspace-title');
+    expect(title?.textContent).toBe('Default');
+    expect(title?.tagName).toBe('DIV');
+    expect(title?.querySelector('button, select, input')).toBeNull();
+    expect(sidebarEl()?.querySelector('.workspace-select, .workspace-filter')).toBeNull();
+    expect(sidebarEl()?.querySelector('.view-mode-btn, .view-mode-switch')).toBeNull();
+  });
+
+  it('follows the workspace that is shown and its renames', () => {
+    renderSidebar();
+    state.workspaces = {
+      current: 'research',
+      list: [
+        { id: 'default', name: 'Default', view_mode: 'timeline', is_default: true },
+        { id: 'research', name: 'Wiki', view_mode: 'timeline', is_default: false },
+      ],
+    };
+    act(() => notifyState());
+    expect(sidebarEl()?.querySelector('#sidebar-workspace-title')?.textContent).toBe('Wiki');
   });
 
   it('counts undated documents and lists them under an Undated tab', () => {
@@ -188,7 +204,6 @@ describe('renderSidebar workspace switch', () => {
     expect(sidebarEl()?.querySelectorAll('.topic-filter')).toHaveLength(0);
     expect(sidebarEl()?.querySelector('.date-tab')).toBeNull();
     expect(sidebarEl()?.querySelector('#sidebar-dir-tree')).not.toBeNull();
-    expect(sidebarEl()?.querySelector('.view-mode-btn.active')?.dataset.viewMode).toBe('directory');
   });
 
   it('has no tag filter any more', () => {
@@ -197,13 +212,13 @@ describe('renderSidebar workspace switch', () => {
     expect(sidebarEl()?.querySelectorAll('.tag-filter, .tag-select')).toHaveLength(0);
   });
 
-  it('remount keeps one workspace picker and one project picker', () => {
+  it('remount keeps one workspace title and one project picker', () => {
     applyListFilters();
     renderSidebar();
     renderSidebar();
-    expect(sidebarEl()?.querySelectorAll('.workspace-filter')).toHaveLength(1);
+    expect(sidebarEl()?.querySelectorAll('#sidebar-workspace-title')).toHaveLength(1);
     expect(sidebarEl()?.querySelectorAll('.topic-filter')).toHaveLength(1);
-    expect(sidebarEl()?.querySelectorAll('.list-select-picker')).toHaveLength(2);
+    expect(sidebarEl()?.querySelectorAll('.list-select-picker')).toHaveLength(1);
   });
 
   it('clears leftover filters when the channel effect re-paints', () => {
@@ -219,7 +234,7 @@ describe('renderSidebar workspace switch', () => {
     });
     expect(sidebarEl()?.querySelector('[data-stray]')).toBeNull();
     expect(sidebarEl()?.querySelectorAll('.topic-filter')).toHaveLength(1);
-    expect(sidebarEl()?.querySelectorAll('.list-select-picker')).toHaveLength(2);
+    expect(sidebarEl()?.querySelectorAll('.list-select-picker')).toHaveLength(1);
   });
 });
 

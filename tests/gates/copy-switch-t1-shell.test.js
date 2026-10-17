@@ -192,7 +192,7 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
     expect(css).toMatch(/\.doc-card\.done \.badge-done \{[\s\S]*?border-color: transparent;/);
     expect(css).not.toMatch(/\.badge-done \{[^}]*border-color: #e2e8ee/);
     expect(css).not.toMatch(/\.topic-filter \{[^}]*border-bottom:/);
-    expect(css).toMatch(/\.workspace-filter \{[\s\S]*?padding: 8px var\(--notes-rail\) 6px;/);
+    expect(css).toMatch(/\.sidebar-workspace-title \{[\s\S]*?padding: 10px var\(--notes-rail\) 2px;/);
     expect(css).toMatch(/\.sidebar-channel-zone \{[\s\S]*?border-bottom: 1px solid var\(--border-muted\);/);
     expect(css).toMatch(/\.list-select-trigger \{[\s\S]*?border: 1px solid var\(--border-muted\);/);
     expect(css).toMatch(/\.list-select-trigger \{[\s\S]*?background: var\(--bg-canvas\);/);
