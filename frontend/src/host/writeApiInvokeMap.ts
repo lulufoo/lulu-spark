@@ -131,8 +131,12 @@ export const WRITE_API_INVOKE_MAP: Record<string, WriteInvokeEntry> = {
     cmd: 'set_workspace_view_mode',
     args: (body) => ({ payload: body ?? {} }),
   },
-  '/api/workspace-delete': {
-    cmd: 'delete_workspace',
+  '/api/workspace-disable': {
+    cmd: 'disable_workspace',
+    args: (body) => ({ payload: body ?? {} }),
+  },
+  '/api/workspace-enable': {
+    cmd: 'enable_workspace',
     args: (body) => ({ payload: body ?? {} }),
   },
   '/api/project-create': {
@@ -143,8 +147,12 @@ export const WRITE_API_INVOKE_MAP: Record<string, WriteInvokeEntry> = {
     cmd: 'update_project',
     args: (body) => ({ payload: body ?? {} }),
   },
-  '/api/project-delete': {
-    cmd: 'delete_project',
+  '/api/project-disable': {
+    cmd: 'disable_project',
+    args: (body) => ({ payload: body ?? {} }),
+  },
+  '/api/project-enable': {
+    cmd: 'enable_project',
     args: (body) => ({ payload: body ?? {} }),
   },
   '/api/doc-draft': {

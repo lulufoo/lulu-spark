@@ -1,5 +1,7 @@
-//! MCP APIs for workspaces: `list_workspaces`, `create_workspace`, `rename_workspace`,
-//! `delete_workspace`.
+//! MCP APIs for workspaces: `list_workspaces`, `create_workspace`, `rename_workspace`.
+//!
+//! There is no delete, disable or enable tool: a workspace is disabled and enabled by a person
+//! in Settings only.
 
 use serde_json::json;
 
@@ -57,19 +59,5 @@ pub fn build_rename(_channel: &str) -> Option<ToolRoute> {
         false,
         false,
         docs::rename_workspace,
-    ))
-}
-
-pub fn build_delete(_channel: &str) -> Option<ToolRoute> {
-    Some(route(
-        "delete_workspace",
-        "Delete an empty workspace. The Default workspace and any workspace that still holds documents are refused.",
-        object_schema(
-            json!({ "id": { "type": "string", "description": "Workspace id from list_workspaces." } }),
-            &["id"],
-        ),
-        false,
-        false,
-        docs::delete_workspace,
     ))
 }

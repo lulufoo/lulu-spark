@@ -76,10 +76,14 @@ pub fn workspace_doc_chunks(workspace_id: &str, doc_id: &str) -> Result<Vec<Sour
     let Some(workspace) = get_workspace(&conn, workspace_id)? else {
         return Ok(Vec::new());
     };
+    // A disabled workspace or project drops out of the index, like a deleted document.
+    if workspace.disabled_at.is_some() {
+        return Ok(Vec::new());
+    }
     let Some(doc) = get_doc(&conn, &workspace.doc_table, doc_id)? else {
         return Ok(Vec::new());
     };
-    let Some(project) = get_project(&conn, &doc.project_id)? else {
+    let Some(project) = get_project(&conn, &doc.project_id)?.filter(|p| p.disabled_at.is_none()) else {
         return Ok(Vec::new());
     };
     Ok(doc_chunks(&workspace_root(workspace_id)?, workspace_id, &doc, &project.folder))

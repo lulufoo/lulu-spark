@@ -33,8 +33,13 @@ export const READ_API_INVOKE_MAP: Record<string, ReadInvokeEntry> = {
     }),
   },
   '/api/workspaces': { cmd: 'list_workspaces' },
+  '/api/workspaces-disabled': { cmd: 'list_disabled_workspaces' },
   '/api/projects': {
     cmd: 'list_projects',
+    args: (url) => ({ payload: { workspace: url.searchParams.get('workspace') || undefined } }),
+  },
+  '/api/projects-disabled': {
+    cmd: 'list_disabled_projects',
     args: (url) => ({ payload: { workspace: url.searchParams.get('workspace') || undefined } }),
   },
   '/api/search-spark': {

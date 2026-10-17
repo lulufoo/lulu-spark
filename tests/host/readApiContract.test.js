@@ -25,6 +25,17 @@ describe('readApi contract map', () => {
     });
   });
 
+  it('resolveInvokeFromPath maps the disabled workspace and project lists', () => {
+    expect(resolveInvokeFromPath('/api/workspaces-disabled?_=1')).toEqual({
+      cmd: 'list_disabled_workspaces',
+      args: {},
+    });
+    expect(resolveInvokeFromPath('/api/projects-disabled?workspace=ws1&_=1')).toEqual({
+      cmd: 'list_disabled_projects',
+      args: { payload: { workspace: 'ws1' } },
+    });
+  });
+
   it('resolveInvokeFromPath no longer maps the knowledge routes', () => {
     for (const path of ['/api/kb/read?id=x', '/api/kb/list', '/api/sediment-kb/repos', '/api/search-knowledge?q=x', '/api/topics']) {
       expect(resolveInvokeFromPath(path), path).toBeNull();

@@ -139,9 +139,9 @@ fn delete_doc_removes_files_and_row() {
 }
 
 #[test]
-fn default_workspace_cannot_be_deleted_and_the_default_can_be_renamed() {
+fn default_workspace_cannot_be_disabled_and_the_default_can_be_renamed() {
     let _sandbox = TestSandbox::new();
-    assert_eq!(status(&delete_workspace(&json!({ "id": "default" }))), 400);
+    assert_eq!(status(&disable_workspace(&json!({ "id": "default" }))), 400);
     let renamed = rename_workspace(&json!({ "id": "default", "name": "Home" }));
     assert_eq!(ok(&renamed)["workspace"]["name"], json!("Home"));
     assert_eq!(ok(&renamed)["workspace"]["id"], json!("default"));
@@ -150,19 +150,39 @@ fn default_workspace_cannot_be_deleted_and_the_default_can_be_renamed() {
 }
 
 #[test]
-fn a_workspace_with_documents_is_kept_and_an_empty_one_goes_with_its_folder() {
+fn a_disabled_workspace_is_hidden_keeps_its_documents_and_can_be_enabled_again() {
     let sandbox = TestSandbox::new();
     let ws = new_workspace("Temp");
     let id = text(ok(&write(Some(&ws), None)), "id");
 
-    assert_eq!(status(&delete_workspace(&json!({ "id": ws }))), 409);
-    ok(&delete_doc(&json!({ "workspace": ws, "id": id })));
-    ok(&delete_workspace(&json!({ "id": ws })));
+    let disabled = disable_workspace(&json!({ "id": ws }));
+    assert!(ok(&disabled)["workspace"]["disabled_at"].is_string());
+    let names = |v: &Value| -> Vec<String> {
+        v["workspaces"].as_array().expect("array").iter().map(|w| text(w, "id")).collect()
+    };
+    assert!(!names(&list_workspaces()).contains(&ws), "hidden from the list");
+    assert_eq!(names(&list_disabled_workspaces()), vec![ws.clone()]);
 
+    // The data stays: files, rows, and the document still opens by its id.
+    assert!(workspaces_dir(&sandbox).join(&ws).exists());
+    assert_eq!(get_file(&json!({ "id": id }))["content"], json!(BODY));
     let conn = spark_data::open().expect("db");
-    assert!(get_workspace(&conn, &ws).expect("get").is_none());
-    assert!(!workspaces_dir(&sandbox).join(&ws).exists());
-    assert_eq!(status(&delete_workspace(&json!({ "id": ws }))), 404);
+    let row = get_workspace(&conn, &ws).expect("get").expect("row");
+    assert!(spark_data::list_doc_entries(&conn, &row).expect("entries").is_empty(), "hidden from the index");
+
+    // Writes are refused and the name stays taken.
+    assert_eq!(status(&write(Some(&ws), None)), 409);
+    let again = create_workspace(&json!({ "name": "Temp" }));
+    assert_eq!(status(&again), 409);
+    assert!(text(&again, "error").contains("disabled"), "{again}");
+
+    ok(&enable_workspace(&json!({ "id": ws })));
+    assert!(names(&list_workspaces()).contains(&ws));
+    assert!(names(&list_disabled_workspaces()).is_empty());
+    let row = get_workspace(&conn, &ws).expect("get").expect("row");
+    assert_eq!(spark_data::list_doc_entries(&conn, &row).expect("entries").len(), 1);
+    ok(&write(Some(&ws), None));
+    assert_eq!(status(&disable_workspace(&json!({ "id": "ghost" }))), 404);
 }
 
 #[test]
@@ -202,15 +222,58 @@ fn project_crud_follows_the_workspace_and_protects_inbox_and_documents() {
     assert_eq!((text(&ok(&updated)["project"], "title"), text(&updated["project"], "folder")), ("Roadmaps".into(), "plans".into()));
     assert_eq!(status(&update_project(&json!({ "workspace": ws, "project": "ghost", "title": "x" }))), 400);
 
-    assert_eq!(status(&delete_project(&json!({ "workspace": ws, "project": "inbox" }))), 400);
-    let id = text(ok(&write(Some(&ws), Some("plans"))), "id");
-    assert_eq!(status(&delete_project(&json!({ "workspace": ws, "project": "plans" }))), 409);
-    ok(&delete_doc(&json!({ "workspace": ws, "id": id })));
-    ok(&delete_project(&json!({ "workspace": ws, "project": "plans" })));
+    assert_eq!(status(&disable_project(&json!({ "workspace": ws, "project": "inbox" }))), 400);
+}
 
+#[test]
+fn a_disabled_project_is_hidden_keeps_its_documents_and_can_be_enabled_again() {
+    let _sandbox = TestSandbox::new();
+    let ws = new_workspace("Work");
+    ok(&create_project(&json!({ "workspace": ws, "folder": "plans", "title": "Plans" })));
+    let id = text(ok(&write(Some(&ws), Some("plans"))), "id");
+    let folders = |v: &Value| -> Vec<String> {
+        v["projects"].as_array().expect("array").iter().map(|p| text(p, "folder")).collect()
+    };
+
+    let disabled = disable_project(&json!({ "workspace": ws, "project": "plans" }));
+    assert!(ok(&disabled)["project"]["disabled_at"].is_string(), "documents do not block it");
+    assert!(!folders(&list_projects(&json!({ "workspace": ws }))).contains(&"plans".to_string()));
+    assert_eq!(folders(&list_disabled_projects(&json!({ "workspace": ws }))), vec!["plans".to_string()]);
+
+    // Hidden from the index, still readable by id, and not writable.
     let conn = spark_data::open().expect("db");
-    let table = get_workspace(&conn, &ws).expect("get").expect("row").doc_table;
-    assert_eq!(count_docs_in_project(&conn, &table, "none").expect("count"), 0);
+    let row = get_workspace(&conn, &ws).expect("get").expect("row");
+    assert!(spark_data::list_doc_entries(&conn, &row).expect("entries").is_empty());
+    assert_eq!(get_file(&json!({ "workspace": ws, "id": id }))["content"], json!(BODY));
+    assert_eq!(status(&write(Some(&ws), Some("plans"))), 409);
+    let update = update_doc_content(&json!({ "workspace": ws, "id": id, "content": BODY, "digest": "never" }));
+    assert_eq!(status(&update), 409);
+    ok(&create_project(&json!({ "workspace": ws, "folder": "other", "title": "Other" })));
+    assert_eq!(status(&move_doc(&json!({ "workspace": ws, "id": id, "project": "other" }))), 409);
+    assert_eq!(status(&update_project(&json!({ "workspace": ws, "project": "plans", "title": "x" }))), 409);
+
+    // The folder stays taken.
+    let again = create_project(&json!({ "workspace": ws, "folder": "plans", "title": "Again" }));
+    assert_eq!(status(&again), 409);
+    assert!(text(&again, "error").contains("disabled"), "{again}");
+
+    ok(&enable_project(&json!({ "workspace": ws, "project": "plans" })));
+    assert!(folders(&list_projects(&json!({ "workspace": ws }))).contains(&"plans".to_string()));
+    assert_eq!(spark_data::list_doc_entries(&conn, &row).expect("entries").len(), 1);
+    ok(&write(Some(&ws), Some("plans")));
+}
+
+#[test]
+fn a_project_of_a_disabled_workspace_cannot_be_enabled_on_its_own() {
+    let _sandbox = TestSandbox::new();
+    let ws = new_workspace("Work");
+    ok(&create_project(&json!({ "workspace": ws, "folder": "plans", "title": "Plans" })));
+    ok(&disable_project(&json!({ "workspace": ws, "project": "plans" })));
+    ok(&disable_workspace(&json!({ "id": ws })));
+    assert_eq!(status(&enable_project(&json!({ "workspace": ws, "project": "plans" }))), 409);
+    assert_eq!(status(&create_project(&json!({ "workspace": ws, "folder": "x", "title": "X" }))), 409);
+    ok(&enable_workspace(&json!({ "id": ws })));
+    ok(&enable_project(&json!({ "workspace": ws, "project": "plans" })));
 }
 
 #[test]

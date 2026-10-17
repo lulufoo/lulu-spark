@@ -13,8 +13,8 @@ use crate::services::search_index;
 use crate::services::spark_data::{translation_common_paths, update_doc as update_doc_row};
 
 use super::resolve::{
-    bad_request, doc_id_field, internal, open_data, resolve_doc, resolve_doc_workspace, resolve_project,
-    text_field, workspace_root,
+    bad_request, doc_id_field, ensure_project_enabled, ensure_workspace_enabled, internal, open_data,
+    resolve_doc, resolve_doc_workspace, resolve_project, text_field, workspace_root,
 };
 
 const LAYERS: &[&str] = &["raw", "digest"];
@@ -50,6 +50,12 @@ pub fn move_doc(payload: &Value) -> Value {
         Ok(p) => p,
         Err(v) => return v,
     };
+    if let Err(v) = ensure_workspace_enabled(&workspace)
+        .and(ensure_project_enabled(&old_project))
+        .and(ensure_project_enabled(&new_project))
+    {
+        return v;
+    }
     if new_project.id == old_project.id {
         return bad_request("Already in this project");
     }

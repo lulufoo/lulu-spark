@@ -12,7 +12,7 @@ use rusqlite::Connection;
 use crate::services::id::random_entry_id;
 
 use super::doc_table::{validate_doc_table_name, validate_workspace_id};
-use super::workspace_row::list_workspaces;
+use super::workspace_row::list_all_workspaces;
 
 fn is_hex32(s: &str) -> bool {
     s.len() == 32 && s.chars().all(|c| c.is_ascii_hexdigit())
@@ -40,7 +40,7 @@ pub fn is_valid_doc_id(id: &str) -> bool {
 /// Each table keeps its ids unique on its own; nothing enforces it across tables.
 pub fn duplicate_doc_ids(conn: &Connection) -> Result<Vec<(String, Vec<String>)>, String> {
     let mut owners: BTreeMap<String, Vec<String>> = BTreeMap::new();
-    for workspace in list_workspaces(conn)? {
+    for workspace in list_all_workspaces(conn)? {
         validate_doc_table_name(&workspace.doc_table)?;
         let mut stmt = conn
             .prepare(&format!("SELECT doc_id FROM {}", workspace.doc_table))

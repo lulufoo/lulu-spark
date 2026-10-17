@@ -1,5 +1,7 @@
 //! A document row in the shape of the docs-index entry, and lookup of a document by id.
 
+use std::collections::HashMap;
+
 use rusqlite::Connection;
 use serde_json::{json, Map, Value};
 
@@ -7,8 +9,8 @@ use crate::services::archive_parse::expected_lang_common_path;
 
 use super::doc_id::split_doc_id;
 use super::doc_row::{get_doc, list_docs, DocRow};
-use super::project_row::get_project;
-use super::workspace_row::{get_workspace, list_workspaces, WorkspaceRow};
+use super::project_row::{get_project, list_all_projects};
+use super::workspace_row::{get_workspace, list_all_workspaces, WorkspaceRow};
 
 /// A document together with the workspace whose table holds it.
 #[derive(Debug, Clone)]
@@ -27,7 +29,8 @@ pub fn find_doc(conn: &Connection, id: &str) -> Result<Option<FoundDoc>, String>
         };
         return Ok(get_doc(conn, &workspace.doc_table, id)?.map(|doc| FoundDoc { workspace, doc }));
     }
-    for workspace in list_workspaces(conn)? {
+    // Disabled workspaces stay searchable by id: a known id keeps opening.
+    for workspace in list_all_workspaces(conn)? {
         if let Some(doc) = get_doc(conn, &workspace.doc_table, id)? {
             return Ok(Some(FoundDoc { workspace, doc }));
         }
@@ -85,12 +88,25 @@ pub fn entry_from_doc(doc: &DocRow, workspace_id: &str, folder: &str) -> Result<
     Ok(Value::Object(entry))
 }
 
-/// `doc_id → entry` for every document of the workspace.
+/// `doc_id → entry` for every document of the workspace that is still shown: none for a
+/// disabled workspace, and none from a disabled project. Those stay readable by id.
 pub fn list_doc_entries(conn: &Connection, workspace: &WorkspaceRow) -> Result<Map<String, Value>, String> {
     let mut entries = Map::new();
+    if workspace.disabled_at.is_some() {
+        return Ok(entries);
+    }
+    let projects: HashMap<String, (String, bool)> = list_all_projects(conn, &workspace.id)?
+        .into_iter()
+        .map(|p| (p.id, (p.folder, p.disabled_at.is_some())))
+        .collect();
     for doc in list_docs(conn, &workspace.doc_table)? {
-        let folder = project_folder(conn, &doc.project_id)?;
-        entries.insert(doc.doc_id.clone(), entry_from_doc(&doc, &workspace.id, &folder)?);
+        let Some((folder, disabled)) = projects.get(&doc.project_id) else {
+            return Err(format!("project {} missing", doc.project_id));
+        };
+        if *disabled {
+            continue;
+        }
+        entries.insert(doc.doc_id.clone(), entry_from_doc(&doc, &workspace.id, folder)?);
     }
     Ok(entries)
 }

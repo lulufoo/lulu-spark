@@ -77,10 +77,12 @@ const NOTE_WRITE_COMMANDS: &[&str] = &[
     "create_workspace",
     "rename_workspace",
     "set_workspace_view_mode",
-    "delete_workspace",
+    "disable_workspace",
+    "enable_workspace",
     "create_project",
     "update_project",
-    "delete_project",
+    "disable_project",
+    "enable_project",
 ];
 
 const DOC_HIGHLIGHTS_WRITE_COMMANDS: &[&str] = &["update_doc_highlights"];

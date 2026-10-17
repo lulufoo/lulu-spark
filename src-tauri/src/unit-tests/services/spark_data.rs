@@ -162,11 +162,11 @@ fn full_migration_chain_from_the_earliest_version_to_the_latest() {
     assert_eq!(count(&conn, "SELECT count(*) FROM tag"), 1, "tags are untouched");
 }
 
-/// Running the last step on a file that no longer has the legacy tables must not fail.
+/// Running step 8 (drop the legacy tables) on a file that no longer has them must not fail.
 #[test]
 fn dropping_the_legacy_tables_is_repeatable() {
     let (_dir, path) = temp_db();
     drop(open_at(&path).expect("latest"));
     let conn = Connection::open(&path).expect("raw");
-    conn.execute_batch(MIGRATIONS[LATEST as usize - 1]).expect("step runs again");
+    conn.execute_batch(MIGRATIONS[8]).expect("step runs again");
 }

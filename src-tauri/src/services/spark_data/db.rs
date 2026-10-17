@@ -68,8 +68,9 @@ macro_rules! doc_table_sql {
 /// NOT NULL default plus FK when the table already has rows.
 /// Step 6 adds the workspace / project containers: empty tables plus the two seed
 /// registry rows. Step 7 copies the legacy rows into them and step 8 drops the legacy
-/// tables (both in `legacy_rows_step`).
-pub(crate) const MIGRATIONS: [&str; 9] = [r#"
+/// tables (both in `legacy_rows_step`). Step 9 adds `disabled_at` to `workspace` and
+/// `project`: a workspace or project is disabled (hidden, data kept), never deleted.
+pub(crate) const MIGRATIONS: [&str; 10] = [r#"
 CREATE TABLE IF NOT EXISTS note (
   doc_id       TEXT PRIMARY KEY,
   raw_path     TEXT NOT NULL,
@@ -214,7 +215,10 @@ CREATE TABLE project (
 INSERT INTO workspace (id, name, doc_table, view_mode, is_default, created_at) VALUES
   ('default',   'Default',   'doc_default',   'directory', 1, strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
   ('knowledge', 'Knowledge', 'doc_knowledge', 'timeline',  0, strftime('%Y-%m-%dT%H:%M:%SZ', 'now'));
-"#, doc_table_sql!("doc_default"), doc_table_sql!("doc_knowledge")), LEGACY_ROWS_STEP, DROP_LEGACY_STEP];
+"#, doc_table_sql!("doc_default"), doc_table_sql!("doc_knowledge")), LEGACY_ROWS_STEP, DROP_LEGACY_STEP, r#"
+ALTER TABLE workspace ADD COLUMN disabled_at TEXT;
+ALTER TABLE project ADD COLUMN disabled_at TEXT;
+"#];
 
 pub fn db_path() -> Result<PathBuf, String> {
     paths::spark_data_db_path().map_err(|e| format!("{e:?}"))

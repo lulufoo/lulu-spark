@@ -1,4 +1,7 @@
-//! MCP APIs for projects: `list_projects`, `create_project`, `update_project`, `delete_project`.
+//! MCP APIs for projects: `list_projects`, `create_project`, `update_project`.
+//!
+//! There is no delete, disable or enable tool: a project is disabled and enabled by a person in
+//! Settings only.
 
 use serde_json::json;
 
@@ -61,21 +64,5 @@ pub fn build_update(_channel: &str) -> Option<ToolRoute> {
         false,
         false,
         docs::update_project,
-    ))
-}
-
-pub fn build_delete(_channel: &str) -> Option<ToolRoute> {
-    Some(route(
-        "delete_project",
-        "Delete a project. The inbox project and a project that still holds documents are refused.",
-        object_schema(
-            with(json!({
-                "project": { "type": "string", "description": "Project folder from list_projects." }
-            })),
-            &["project"],
-        ),
-        false,
-        false,
-        docs::delete_project,
     ))
 }

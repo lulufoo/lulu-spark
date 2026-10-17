@@ -9,6 +9,8 @@ pub struct ProjectRow {
     pub folder: String,
     pub title: String,
     pub description: String,
+    /// `None` = active; a timestamp = disabled (hidden from lists and search, data kept).
+    pub disabled_at: Option<String>,
 }
 
 impl ProjectRow {
@@ -19,11 +21,12 @@ impl ProjectRow {
             folder: folder.to_string(),
             title: title.to_string(),
             description: description.to_string(),
+            disabled_at: None,
         }
     }
 }
 
-const COLUMNS: &str = "id, workspace_id, folder, title, description";
+const COLUMNS: &str = "id, workspace_id, folder, title, description, disabled_at";
 
 fn map_row(row: &Row<'_>) -> rusqlite::Result<ProjectRow> {
     Ok(ProjectRow {
@@ -32,12 +35,13 @@ fn map_row(row: &Row<'_>) -> rusqlite::Result<ProjectRow> {
         folder: row.get(2)?,
         title: row.get(3)?,
         description: row.get(4)?,
+        disabled_at: row.get(5)?,
     })
 }
 
 pub fn insert_project(conn: &Connection, row: &ProjectRow) -> Result<(), String> {
     conn.execute(
-        &format!("INSERT INTO project({COLUMNS}) VALUES (?1, ?2, ?3, ?4, ?5)"),
+        "INSERT INTO project(id, workspace_id, folder, title, description) VALUES (?1, ?2, ?3, ?4, ?5)",
         params![row.id, row.workspace_id, row.folder, row.title, row.description],
     )
     .map(|_| ())
@@ -79,20 +83,47 @@ pub fn get_project_by_folder(
     .map_err(|e| e.to_string())
 }
 
-/// Projects of one workspace, by title (case-insensitive).
-pub fn list_projects(conn: &Connection, workspace_id: &str) -> Result<Vec<ProjectRow>, String> {
+fn list_where(conn: &Connection, workspace_id: &str, condition: &str) -> Result<Vec<ProjectRow>, String> {
     let mut stmt = conn
         .prepare(&format!(
-            "SELECT {COLUMNS} FROM project WHERE workspace_id = ?1 ORDER BY lower(title)"
+            "SELECT {COLUMNS} FROM project WHERE workspace_id = ?1 AND {condition} ORDER BY lower(title)"
         ))
         .map_err(|e| e.to_string())?;
     let rows = stmt.query_map(params![workspace_id], map_row).map_err(|e| e.to_string())?;
     rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
 }
 
-/// `false` when the row did not exist. Fails while documents still reference it.
-pub fn delete_project(conn: &Connection, id: &str) -> Result<bool, String> {
-    conn.execute("DELETE FROM project WHERE id = ?1", params![id])
+/// Active projects of one workspace, by title (case-insensitive).
+pub fn list_projects(conn: &Connection, workspace_id: &str) -> Result<Vec<ProjectRow>, String> {
+    list_where(conn, workspace_id, "disabled_at IS NULL")
+}
+
+/// Disabled projects of one workspace. Only the Settings "Disabled" section reads them.
+pub fn list_disabled_projects(conn: &Connection, workspace_id: &str) -> Result<Vec<ProjectRow>, String> {
+    list_where(conn, workspace_id, "disabled_at IS NOT NULL")
+}
+
+/// Every project of one workspace, disabled ones included.
+pub fn list_all_projects(conn: &Connection, workspace_id: &str) -> Result<Vec<ProjectRow>, String> {
+    list_where(conn, workspace_id, "1 = 1")
+}
+
+/// Disable a project: it disappears from lists, pickers and search, its documents stay and
+/// stay readable by id. Disabling twice keeps the first timestamp. `false` when it does not exist.
+pub fn disable_project(conn: &Connection, id: &str) -> Result<bool, String> {
+    let exists = get_project(conn, id)?.is_some();
+    conn.execute(
+        "UPDATE project SET disabled_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
+         WHERE id = ?1 AND disabled_at IS NULL",
+        params![id],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(exists)
+}
+
+/// Enable a disabled project again. `false` when it does not exist.
+pub fn enable_project(conn: &Connection, id: &str) -> Result<bool, String> {
+    conn.execute("UPDATE project SET disabled_at = NULL WHERE id = ?1", params![id])
         .map(|changed| changed > 0)
         .map_err(|e| e.to_string())
 }

@@ -153,7 +153,7 @@ export async function saveNotesCategory() {
 export async function removeNotesCategory(id: string) {
   patchNotesCategories({ error: '', busy: true });
   try {
-    const data = (await api.deleteProject(state.workspaces.current, id)) as { error?: string };
+    const data = (await api.disableProject(state.workspaces.current, id)) as { error?: string };
     if (data.error) throw new Error(data.error);
     closeNotesCategoryEditor();
     await loadNotesCategories();

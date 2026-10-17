@@ -1,7 +1,9 @@
 //! The `workspace` registry: one row per workspace, pointing at its document table.
 //!
 //! `id` and `doc_table` never change after creation (a trigger enforces it);
-//! only `name` and `view_mode` are editable. The default workspace cannot be deleted.
+//! only `name`, `view_mode` and `disabled_at` are editable. A workspace is never deleted:
+//! it is disabled (hidden, data kept) and can be enabled again. The default workspace
+//! cannot be disabled.
 
 use rusqlite::{params, Connection, OptionalExtension, Row};
 
@@ -44,9 +46,12 @@ pub struct WorkspaceRow {
     pub view_mode: ViewMode,
     pub is_default: bool,
     pub created_at: Option<String>,
+    /// `None` = active; a timestamp = disabled (hidden from lists and search, data kept).
+    pub disabled_at: Option<String>,
 }
 
-const COLUMNS: &str = "id, name, doc_table, view_mode, is_default, created_at";
+const COLUMNS: &str = "id, name, doc_table, view_mode, is_default, created_at, disabled_at";
+const INSERT_COLUMNS: &str = "id, name, doc_table, view_mode, is_default, created_at";
 
 fn map_row(row: &Row<'_>) -> rusqlite::Result<WorkspaceRow> {
     let mode: String = row.get(3)?;
@@ -59,6 +64,7 @@ fn map_row(row: &Row<'_>) -> rusqlite::Result<WorkspaceRow> {
         })?,
         is_default: row.get::<_, i64>(4)? != 0,
         created_at: row.get(5)?,
+        disabled_at: row.get(6)?,
     })
 }
 
@@ -94,7 +100,7 @@ pub fn create_workspace(
     let doc_table = doc_table_for_id(&id)?;
     tx.execute(
         &format!(
-            "INSERT INTO workspace({COLUMNS})
+            "INSERT INTO workspace({INSERT_COLUMNS})
              VALUES (?1, ?2, ?3, ?4, 0, strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))"
         ),
         params![id, name, doc_table, mode.as_str()],
@@ -116,15 +122,41 @@ pub fn get_workspace(conn: &Connection, id: &str) -> Result<Option<WorkspaceRow>
     .map_err(|e| e.to_string())
 }
 
-/// Default workspace first, then name (case-insensitive).
-pub fn list_workspaces(conn: &Connection) -> Result<Vec<WorkspaceRow>, String> {
+/// The workspace named `name`, disabled or not (the name stays taken after disabling).
+pub fn get_workspace_by_name(conn: &Connection, name: &str) -> Result<Option<WorkspaceRow>, String> {
+    conn.query_row(
+        &format!("SELECT {COLUMNS} FROM workspace WHERE name = ?1"),
+        params![name],
+        map_row,
+    )
+    .optional()
+    .map_err(|e| e.to_string())
+}
+
+fn list_where(conn: &Connection, condition: &str) -> Result<Vec<WorkspaceRow>, String> {
     let mut stmt = conn
         .prepare(&format!(
-            "SELECT {COLUMNS} FROM workspace ORDER BY is_default DESC, lower(name)"
+            "SELECT {COLUMNS} FROM workspace WHERE {condition} ORDER BY is_default DESC, lower(name)"
         ))
         .map_err(|e| e.to_string())?;
     let rows = stmt.query_map([], map_row).map_err(|e| e.to_string())?;
     rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
+}
+
+/// Active workspaces: default first, then name (case-insensitive).
+pub fn list_workspaces(conn: &Connection) -> Result<Vec<WorkspaceRow>, String> {
+    list_where(conn, "disabled_at IS NULL")
+}
+
+/// Disabled workspaces, same order. Only the Settings "Disabled" section reads them.
+pub fn list_disabled_workspaces(conn: &Connection) -> Result<Vec<WorkspaceRow>, String> {
+    list_where(conn, "disabled_at IS NOT NULL")
+}
+
+/// Every workspace, disabled ones included. For lookups by document id, which must keep
+/// working for a disabled workspace.
+pub fn list_all_workspaces(conn: &Connection) -> Result<Vec<WorkspaceRow>, String> {
+    list_where(conn, "1 = 1")
 }
 
 /// `false` when the workspace does not exist.
@@ -149,15 +181,41 @@ pub fn set_workspace_view_mode(
     .map_err(|e| e.to_string())
 }
 
-/// Delete a workspace that holds no documents: drops its (empty) projects, its document
-/// table and its registry row together. Refuses the default workspace and any workspace
-/// that still has documents. `false` when it did not exist.
-pub fn delete_workspace(conn: &Connection, id: &str) -> Result<bool, String> {
+/// Disable a workspace: it disappears from lists and search, its documents and table stay.
+/// Disabling twice keeps the first timestamp. Refuses the default workspace.
+/// `false` when it does not exist.
+pub fn disable_workspace(conn: &Connection, id: &str) -> Result<bool, String> {
     let Some(row) = get_workspace(conn, id)? else {
         return Ok(false);
     };
     if row.is_default {
-        return Err("the default workspace cannot be deleted".to_string());
+        return Err("the default workspace cannot be disabled".to_string());
+    }
+    conn.execute(
+        "UPDATE workspace SET disabled_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
+         WHERE id = ?1 AND disabled_at IS NULL",
+        params![id],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(true)
+}
+
+/// Enable a disabled workspace again. `false` when it does not exist.
+pub fn enable_workspace(conn: &Connection, id: &str) -> Result<bool, String> {
+    conn.execute("UPDATE workspace SET disabled_at = NULL WHERE id = ?1", params![id])
+        .map(|changed| changed > 0)
+        .map_err(|e| e.to_string())
+}
+
+/// Undo a `create_workspace` whose follow-up steps failed: drops the (still empty) projects,
+/// the document table and the registry row together. Not a user operation: refuses the
+/// default workspace and any workspace that holds documents. `false` when it did not exist.
+pub fn discard_new_workspace(conn: &Connection, id: &str) -> Result<bool, String> {
+    let Some(row) = get_workspace(conn, id)? else {
+        return Ok(false);
+    };
+    if row.is_default {
+        return Err("the default workspace cannot be discarded".to_string());
     }
     // `doc_table` came out of the registry, whose CHECK ties it to a valid id.
     validate_doc_table_name(&row.doc_table)?;

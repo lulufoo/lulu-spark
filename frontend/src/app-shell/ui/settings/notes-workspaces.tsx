@@ -145,7 +145,7 @@ export function NotesWorkspacesHost() {
             workspaceId={workspace.id}
             busy={busy}
             onRename={(id, next) => run(() => api.renameWorkspace(id, next))}
-            onDelete={(id) => run(() => api.deleteWorkspace(id))}
+            onDelete={(id) => run(() => api.disableWorkspace(id))}
           />
         ))}
       </div>

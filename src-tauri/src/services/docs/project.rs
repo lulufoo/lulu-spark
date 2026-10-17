@@ -1,4 +1,8 @@
-//! Project CRUD inside one workspace: `list` / `create` / `update` / `delete`.
+//! Project operations inside one workspace: `list` / `create` / `update` / `disable` / `enable`.
+//!
+//! A project is never deleted. Disabling hides it (and its documents) from lists, pickers and
+//! search; the documents stay readable by id and `enable` brings the project back. Its folder
+//! stays taken while it is disabled.
 //!
 //! A project is addressed by its folder (unique per workspace). The id is Host-made and
 //! internal; the folder never changes after creation because documents live under it.
@@ -10,14 +14,14 @@ use chrono::{FixedOffset, Utc};
 
 use crate::services::id::random_alnum6;
 use crate::services::spark_data::{
-    count_docs_in_project, delete_project as delete_project_row, get_project,
-    get_project_by_folder, insert_project,
+    disable_project as disable_project_row, enable_project as enable_project_row, get_project,
+    get_project_by_folder, insert_project, list_disabled_projects as list_disabled_project_rows,
     list_projects as list_project_rows, update_project as update_project_row, ProjectRow,
 };
 
 use super::resolve::{
-    bad_request, conflict, internal, open_data, remove_empty_tree, resolve_project,
-    resolve_workspace, text_field, workspace_root, DEFAULT_PROJECT_FOLDER,
+    bad_request, conflict, ensure_project_enabled, ensure_workspace_enabled, internal, open_data,
+    resolve_project, resolve_workspace, text_field, DEFAULT_PROJECT_FOLDER,
 };
 
 const FOLDER_MAX_LEN: usize = 64;
@@ -29,6 +33,7 @@ fn project_value(row: &ProjectRow) -> Value {
         "folder": row.folder,
         "title": row.title,
         "description": row.description,
+        "disabled_at": row.disabled_at,
     })
 }
 
@@ -81,6 +86,19 @@ pub fn list_projects(payload: &Value) -> Value {
     }
 }
 
+/// `{ workspace? }` → `{ projects: [...] }` of the disabled projects, for the Settings
+/// "Disabled" section.
+pub fn list_disabled_projects(payload: &Value) -> Value {
+    let result = open_data().and_then(|conn| {
+        let ws = resolve_workspace(&conn, text_field(payload, "workspace"))?;
+        list_disabled_project_rows(&conn, &ws.id).map_err(internal)
+    });
+    match result {
+        Ok(rows) => json!({ "projects": rows.iter().map(project_value).collect::<Vec<_>>() }),
+        Err(v) => v,
+    }
+}
+
 /// `{ workspace?, folder?, title, description? }` → `{ ok, project }`.
 pub fn create_project(payload: &Value) -> Value {
     let Some(title) = text_field(payload, "title") else {
@@ -93,10 +111,15 @@ pub fn create_project(payload: &Value) -> Value {
     let description = text_field(payload, "description").unwrap_or("");
     let result = open_data().and_then(|conn| {
         let ws = resolve_workspace(&conn, text_field(payload, "workspace"))?;
+        ensure_workspace_enabled(&ws)?;
         let id = mint_project_id(&conn).map_err(internal)?;
         let folder = requested.unwrap_or(&id);
-        if get_project_by_folder(&conn, &ws.id, folder).map_err(internal)?.is_some() {
-            return Err(conflict(format!("Duplicate project folder: {folder}")));
+        if let Some(holder) = get_project_by_folder(&conn, &ws.id, folder).map_err(internal)? {
+            return Err(conflict(if holder.disabled_at.is_some() {
+                format!("Project folder is held by a disabled project: {folder}")
+            } else {
+                format!("Duplicate project folder: {folder}")
+            }));
         }
         let row = ProjectRow::new(&id, &ws.id, folder, title, description);
         insert_project(&conn, &row).map_err(internal)?;
@@ -118,6 +141,7 @@ pub fn update_project(payload: &Value) -> Value {
     let result = open_data().and_then(|conn| {
         let ws = resolve_workspace(&conn, text_field(payload, "workspace"))?;
         let mut row = resolve_project(&conn, &ws, folder)?;
+        ensure_project_enabled(&row)?;
         row.title = title.to_string();
         row.description = description.to_string();
         update_project_row(&conn, &row).map_err(internal)?;
@@ -129,33 +153,43 @@ pub fn update_project(payload: &Value) -> Value {
     }
 }
 
-/// `{ workspace?, project }`. `inbox` and a project that still holds documents are refused.
-pub fn delete_project(payload: &Value) -> Value {
+/// `{ workspace?, project }` → `{ ok, project }`. `inbox` is refused. The documents stay; they
+/// are hidden from lists and search and still open by id.
+pub fn disable_project(payload: &Value) -> Value {
     let Some(folder) = text_field(payload, "project") else {
         return bad_request("Missing project");
     };
     if folder == DEFAULT_PROJECT_FOLDER {
-        return bad_request("Cannot delete inbox");
+        return bad_request("Cannot disable inbox");
     }
+    toggle_project(payload, folder, disable_project_row)
+}
+
+/// `{ workspace?, project }` → `{ ok, project }`. The project and its documents show up again.
+/// A disabled workspace has to be enabled first.
+pub fn enable_project(payload: &Value) -> Value {
+    let Some(folder) = text_field(payload, "project") else {
+        return bad_request("Missing project");
+    };
+    toggle_project(payload, folder, enable_project_row)
+}
+
+fn toggle_project(
+    payload: &Value,
+    folder: &str,
+    apply: impl FnOnce(&Connection, &str) -> Result<bool, String>,
+) -> Value {
     let result = open_data().and_then(|conn| {
         let ws = resolve_workspace(&conn, text_field(payload, "workspace"))?;
         let row = resolve_project(&conn, &ws, folder)?;
-        let docs = count_docs_in_project(&conn, &ws.doc_table, &row.id).map_err(internal)?;
-        if docs > 0 {
-            return Err(conflict(format!("Project {folder} still has {docs} document(s)")));
+        if row.disabled_at.is_some() {
+            ensure_workspace_enabled(&ws)?;
         }
-        delete_project_row(&conn, &row.id).map_err(internal)?;
-        Ok((ws, row))
+        apply(&conn, &row.id).map_err(internal)?;
+        get_project(&conn, &row.id).map_err(internal)?.ok_or_else(|| internal("project missing"))
     });
     match result {
-        Ok((ws, row)) => {
-            if let Ok(root) = workspace_root(&ws) {
-                for layer in ["raw", "digest"] {
-                    remove_empty_tree(&root.join(layer).join(&row.folder));
-                }
-            }
-            json!({ "ok": true })
-        }
+        Ok(row) => json!({ "ok": true, "project": project_value(&row) }),
         Err(v) => v,
     }
 }

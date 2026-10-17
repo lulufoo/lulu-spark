@@ -45,8 +45,18 @@ pub async fn set_workspace_view_mode(_app: AppHandle, payload: Value) -> Result<
 }
 
 #[tauri::command]
-pub async fn delete_workspace(_app: AppHandle, payload: Value) -> Result<Value, String> {
-    run(move || docs::delete_workspace(&payload)).await
+pub async fn list_disabled_workspaces(_app: AppHandle) -> Result<Value, String> {
+    run(|| docs::list_disabled_workspaces()).await
+}
+
+#[tauri::command]
+pub async fn disable_workspace(_app: AppHandle, payload: Value) -> Result<Value, String> {
+    run(move || docs::disable_workspace(&payload)).await
+}
+
+#[tauri::command]
+pub async fn enable_workspace(_app: AppHandle, payload: Value) -> Result<Value, String> {
+    run(move || docs::enable_workspace(&payload)).await
 }
 
 #[tauri::command]
@@ -65,6 +75,16 @@ pub async fn update_project(_app: AppHandle, payload: Value) -> Result<Value, St
 }
 
 #[tauri::command]
-pub async fn delete_project(_app: AppHandle, payload: Value) -> Result<Value, String> {
-    run(move || docs::delete_project(&payload)).await
+pub async fn list_disabled_projects(_app: AppHandle, payload: Value) -> Result<Value, String> {
+    run(move || docs::list_disabled_projects(&payload)).await
+}
+
+#[tauri::command]
+pub async fn disable_project(_app: AppHandle, payload: Value) -> Result<Value, String> {
+    run(move || docs::disable_project(&payload)).await
+}
+
+#[tauri::command]
+pub async fn enable_project(_app: AppHandle, payload: Value) -> Result<Value, String> {
+    run(move || docs::enable_project(&payload)).await
 }

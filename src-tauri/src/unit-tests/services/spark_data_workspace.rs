@@ -112,10 +112,11 @@ fn table_names_with_anything_but_doc_prefix_and_lowercase_id_are_refused() {
 }
 
 #[test]
-fn default_workspace_cannot_be_deleted_even_by_raw_sql() {
+fn default_workspace_cannot_be_disabled_and_not_deleted_even_by_raw_sql() {
     let (_dir, path) = temp_db();
     let conn = open_at(&path).expect("open");
-    assert!(delete_workspace(&conn, "default").is_err());
+    assert!(disable_workspace(&conn, "default").is_err());
+    assert!(discard_new_workspace(&conn, "default").is_err());
     assert!(conn.execute("DELETE FROM workspace WHERE id = 'default'", []).is_err(), "trigger");
     assert!(get_workspace(&conn, "default").expect("get").is_some());
     assert!(table_exists(&conn, "doc_default"));
@@ -132,22 +133,68 @@ fn only_one_workspace_can_be_default() {
 }
 
 #[test]
-fn delete_drops_a_workspace_without_documents_and_refuses_one_with_documents() {
+fn discard_drops_a_fresh_workspace_without_documents_and_refuses_one_with_documents() {
     let (_dir, path) = temp_db();
     let conn = open_at(&path).expect("open");
     let made = create_workspace(&conn, "Temp", None).expect("create");
     insert_project(&conn, &ProjectRow::new("p1", &made.id, "notes", "Notes", "")).expect("project");
     insert_doc(&conn, &made.doc_table, "d1", "p1").expect("doc");
-    assert!(delete_workspace(&conn, &made.id).is_err(), "has a document");
+    assert!(discard_new_workspace(&conn, &made.id).is_err(), "has a document");
     assert!(table_exists(&conn, &made.doc_table));
     assert!(get_project(&conn, "p1").expect("get").is_some());
 
     conn.execute(&format!("DELETE FROM {} WHERE doc_id = 'd1'", made.doc_table), []).expect("remove doc");
-    assert!(delete_workspace(&conn, &made.id).expect("delete"), "the empty project goes with it");
+    assert!(discard_new_workspace(&conn, &made.id).expect("discard"), "the empty project goes with it");
     assert!(get_project(&conn, "p1").expect("get").is_none());
     assert!(!table_exists(&conn, &made.doc_table));
     assert!(get_workspace(&conn, &made.id).expect("get").is_none());
-    assert!(!delete_workspace(&conn, &made.id).expect("again"), "already gone");
+    assert!(!discard_new_workspace(&conn, &made.id).expect("again"), "already gone");
+}
+
+#[test]
+fn disable_hides_a_workspace_keeps_its_data_and_enable_brings_it_back() {
+    let (_dir, path) = temp_db();
+    let conn = open_at(&path).expect("open");
+    let made = create_workspace(&conn, "Temp", None).expect("create");
+    insert_project(&conn, &ProjectRow::new("p1", &made.id, "notes", "Notes", "")).expect("project");
+    insert_doc(&conn, &made.doc_table, "d1", "p1").expect("doc");
+    assert!(made.disabled_at.is_none());
+
+    assert!(disable_workspace(&conn, &made.id).expect("disable"), "a workspace with documents can be disabled");
+    let first = get_workspace(&conn, &made.id).expect("get").expect("row").disabled_at;
+    assert!(first.is_some());
+    assert!(disable_workspace(&conn, &made.id).expect("again"));
+    assert_eq!(get_workspace(&conn, &made.id).expect("get").expect("row").disabled_at, first, "kept");
+
+    let ids = |rows: Vec<WorkspaceRow>| rows.into_iter().map(|w| w.id).collect::<Vec<_>>();
+    assert!(!ids(list_workspaces(&conn).expect("list")).contains(&made.id));
+    assert_eq!(ids(list_disabled_workspaces(&conn).expect("disabled")), vec![made.id.clone()]);
+    assert!(ids(list_all_workspaces(&conn).expect("all")).contains(&made.id));
+    assert_eq!(count(&conn, &made.doc_table), 1, "the document stays");
+    assert!(create_workspace(&conn, "Temp", None).is_err(), "the name stays taken");
+    assert_eq!(
+        get_workspace_by_name(&conn, "Temp").expect("by name").map(|w| w.id),
+        Some(made.id.clone())
+    );
+
+    assert!(enable_workspace(&conn, &made.id).expect("enable"));
+    assert!(ids(list_workspaces(&conn).expect("list")).contains(&made.id));
+    assert!(list_disabled_workspaces(&conn).expect("disabled").is_empty());
+    assert!(!disable_workspace(&conn, "ghost").expect("missing"));
+    assert!(!enable_workspace(&conn, "ghost").expect("missing"));
+}
+
+#[test]
+fn the_disabled_at_column_is_empty_for_every_existing_row() {
+    let (_dir, path) = temp_db();
+    let conn = open_at(&path).expect("open");
+    for table in ["workspace", "project"] {
+        assert!(columns(&conn, table).iter().any(|c| c.0 == "disabled_at"), "{table}");
+        let disabled: i64 = conn
+            .query_row(&format!("SELECT count(*) FROM {table} WHERE disabled_at IS NOT NULL"), [], |r| r.get(0))
+            .expect("count");
+        assert_eq!(disabled, 0, "{table}");
+    }
 }
 
 #[test]
@@ -219,14 +266,39 @@ fn projects_are_unique_per_workspace_and_need_a_real_workspace() {
 }
 
 #[test]
-fn doc_tables_need_a_real_project_and_block_its_deletion() {
+fn doc_tables_need_a_real_project_and_block_a_raw_delete_of_it() {
     let (_dir, path) = temp_db();
     let conn = open_at(&path).expect("open");
     insert_project(&conn, &ProjectRow::new("p1", "default", "work", "Work", "")).expect("project");
     assert!(insert_doc(&conn, "doc_default", "d1", "missing").is_err(), "FK to project");
     insert_doc(&conn, "doc_default", "d1", "p1").expect("doc");
     assert!(insert_doc(&conn, "doc_default", "d1", "p1").is_err(), "primary key");
-    assert!(delete_project(&conn, "p1").is_err(), "a document still references it");
+    assert!(
+        conn.execute("DELETE FROM project WHERE id = 'p1'", []).is_err(),
+        "a document still references it"
+    );
     conn.execute("DELETE FROM doc_default WHERE doc_id = 'd1'", []).expect("remove doc");
-    assert!(delete_project(&conn, "p1").expect("delete"));
+    assert!(conn.execute("DELETE FROM project WHERE id = 'p1'", []).is_ok());
+}
+
+#[test]
+fn disable_hides_a_project_keeps_it_by_id_and_enable_brings_it_back() {
+    let (_dir, path) = temp_db();
+    let conn = open_at(&path).expect("open");
+    insert_project(&conn, &ProjectRow::new("p1", "default", "work", "Work", "")).expect("project");
+    insert_doc(&conn, "doc_default", "d1", "p1").expect("doc");
+
+    assert!(disable_project(&conn, "p1").expect("disable"), "a project with documents can be disabled");
+    let folders = |rows: Vec<ProjectRow>| rows.into_iter().map(|p| p.folder).collect::<Vec<_>>();
+    assert!(!folders(list_projects(&conn, "default").expect("list")).contains(&"work".to_string()));
+    assert_eq!(folders(list_disabled_projects(&conn, "default").expect("disabled")), vec!["work".to_string()]);
+    assert!(folders(list_all_projects(&conn, "default").expect("all")).contains(&"work".to_string()));
+    let kept = get_project(&conn, "p1").expect("get").expect("row");
+    assert!(kept.disabled_at.is_some(), "still found by id");
+    assert_eq!(get_project_by_folder(&conn, "default", "work").expect("by folder").map(|p| p.id), Some("p1".into()));
+
+    assert!(enable_project(&conn, "p1").expect("enable"));
+    assert!(folders(list_projects(&conn, "default").expect("list")).contains(&"work".to_string()));
+    assert!(!disable_project(&conn, "ghost").expect("missing"));
+    assert!(!enable_project(&conn, "ghost").expect("missing"));
 }

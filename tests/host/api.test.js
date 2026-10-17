@@ -12,8 +12,8 @@ import {
   saveFile,
   updateComments, updateLinks, setImportance, setDone,
   deleteEntry,
-  fetchWorkspaces, createWorkspace, renameWorkspace, setWorkspaceViewMode, deleteWorkspace,
-  fetchProjects, createProject, updateProject, deleteProject, moveToProject,
+  fetchWorkspaces, createWorkspace, renameWorkspace, setWorkspaceViewMode, disableWorkspace, enableWorkspace, fetchDisabledWorkspaces, fetchDisabledProjects,
+  fetchProjects, createProject, updateProject, disableProject, enableProject, moveToProject,
 } from '../../frontend/src/host/api.ts'
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..')
@@ -228,6 +228,14 @@ test('fetchWorkspaces calls /api/workspaces', async () => {
   expect(result.workspaces[0].id).toBe('default')
 })
 
+test('fetchDisabledWorkspaces and fetchDisabledProjects read the disabled lists', async () => {
+  mockFetch({ workspaces: [], projects: [] })
+  await fetchDisabledWorkspaces()
+  await fetchDisabledProjects('ws1')
+  expect(fetch.mock.calls[0][0]).toMatch(new RegExp(`^${API_READ_PREFIX}/workspaces-disabled\\?_=\\d+$`))
+  expect(fetch.mock.calls[1][0]).toMatch(new RegExp(`^${API_READ_PREFIX}/projects-disabled\\?workspace=ws1&_=\\d+$`))
+})
+
 test('createWorkspace posts name and view mode', async () => {
   mockFetch({ ok: true })
   await createWorkspace('Research', 'timeline')
@@ -235,19 +243,22 @@ test('createWorkspace posts name and view mode', async () => {
   expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({ name: 'Research', view_mode: 'timeline' })
 })
 
-test('renameWorkspace, setWorkspaceViewMode and deleteWorkspace post the workspace id', async () => {
+test('renameWorkspace, setWorkspaceViewMode, disableWorkspace and enableWorkspace post the workspace id', async () => {
   mockFetch({ ok: true })
   await renameWorkspace('ws1', 'Notes')
   await setWorkspaceViewMode('ws1', 'timeline')
-  await deleteWorkspace('ws1')
+  await disableWorkspace('ws1')
+  await enableWorkspace('ws1')
   expect(fetch.mock.calls.map((call) => call[0])).toEqual([
     `${DEFAULT_DEV_BASE}/api/workspace-rename`,
     `${DEFAULT_DEV_BASE}/api/workspace-view-mode`,
-    `${DEFAULT_DEV_BASE}/api/workspace-delete`,
+    `${DEFAULT_DEV_BASE}/api/workspace-disable`,
+    `${DEFAULT_DEV_BASE}/api/workspace-enable`,
   ])
   expect(fetch.mock.calls.map((call) => JSON.parse(call[1].body))).toEqual([
     { id: 'ws1', name: 'Notes' },
     { id: 'ws1', view_mode: 'timeline' },
+    { id: 'ws1' },
     { id: 'ws1' },
   ])
 })
@@ -263,15 +274,18 @@ test('project writes post workspace, project, title and description', async () =
   mockFetch({ ok: true })
   await createProject('ws1', 'Ops', 'desc')
   await updateProject('ws1', 'ops', 'Operations', 'runbooks')
-  await deleteProject('ws1', 'ops')
+  await disableProject('ws1', 'ops')
+  await enableProject('ws1', 'ops')
   expect(fetch.mock.calls.map((call) => call[0])).toEqual([
     `${DEFAULT_DEV_BASE}/api/project-create`,
     `${DEFAULT_DEV_BASE}/api/project-update`,
-    `${DEFAULT_DEV_BASE}/api/project-delete`,
+    `${DEFAULT_DEV_BASE}/api/project-disable`,
+    `${DEFAULT_DEV_BASE}/api/project-enable`,
   ])
   expect(fetch.mock.calls.map((call) => JSON.parse(call[1].body))).toEqual([
     { workspace: 'ws1', title: 'Ops', description: 'desc' },
     { workspace: 'ws1', project: 'ops', title: 'Operations', description: 'runbooks' },
+    { workspace: 'ws1', project: 'ops' },
     { workspace: 'ws1', project: 'ops' },
   ])
 })
