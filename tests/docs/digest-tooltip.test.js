@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { TIP_DELAY_MS } from '../../frontend/src/shared/tooltip/tooltip.ts';
 import { digestPreviewText, attachDigestTooltip, digestCache } from '../../frontend/src/notes/ui/digest-tooltip.tsx';
 import * as api from '../../frontend/src/host/api.ts';
 
@@ -73,7 +74,7 @@ function hoverFrom(row, target) {
 }
 
 function tooltipEl() {
-  return document.querySelector('.digest-tooltip');
+  return document.querySelector('.ui-tip-preview');
 }
 
 beforeEach(() => {
@@ -131,23 +132,29 @@ describe('digestPreviewText', () => {
 });
 
 describe('digest-tooltip paint', () => {
-  it('paints the tooltip from theme tokens, not Light hex', () => {
+  it('paints the tooltip from the shared .ui-tip tokens, not Light hex', () => {
     const src = readRel('frontend/src/notes/ui/digest-tooltip.tsx');
     const css = readRel('frontend/app.css');
     expect(src).not.toMatch(/#fff|#24292f|#d0d7de/);
-    expect(css).toMatch(
-      /\.digest-tooltip\s*\{[^}]*background:\s*var\(--bg-surface\)/,
-    );
-    expect(css).toMatch(/\.digest-tooltip\s*\{[^}]*color:\s*var\(--fg-default\)/);
-    expect(css).toMatch(/\.digest-tooltip\s*\{[^}]*max-width:\s*360px/);
+    expect(css).toMatch(/\.ui-tip\s*\{[^}]*background:\s*var\(--bg-surface\)/);
+    expect(css).toMatch(/\.ui-tip\s*\{[^}]*color:\s*var\(--fg-default\)/);
+    expect(css).toMatch(/\.ui-tip\.ui-tip-preview\s*\{[^}]*max-width:\s*360px/);
+    expect(css).not.toMatch(/\.digest-tooltip/);
+  });
+
+  it('uses the shared delay and placement instead of its own', () => {
+    const src = readRel('frontend/src/notes/ui/digest-tooltip.tsx');
+    expect(src).toMatch(/TIP_DELAY_MS/);
+    expect(src).toMatch(/placeTip\(/);
+    expect(src).not.toMatch(/HOVER_DELAY_MS|placeTooltip/);
   });
 });
 
 describe('attachDigestTooltip 正常分支：digest 存在', () => {
-  it('mouseenter 300ms 后显示纯文本预览：markdown 剥离、样式与锚点下方左对齐', async () => {
+  it('mouseenter 延迟后显示纯文本预览：markdown 剥离、样式与锚点下方左对齐', async () => {
     Object.defineProperty(window, 'innerHeight', { value: 768, configurable: true });
     const rectSpy = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function () {
-      if (this.classList && this.classList.contains('digest-tooltip')) {
+      if (this.classList && this.classList.contains('ui-tip-preview')) {
         return { x: 0, y: 0, top: 500, bottom: 540, left: 100, right: 460, width: 360, height: 40, toJSON() {} };
       }
       return { x: 100, y: 100, top: 100, bottom: 120, left: 100, right: 300, width: 200, height: 20, toJSON() {} };
@@ -157,7 +164,7 @@ describe('attachDigestTooltip 正常分支：digest 存在', () => {
     attachDigestTooltip(el, CP);
 
     hover(el);
-    await vi.advanceTimersByTimeAsync(299);
+    await vi.advanceTimersByTimeAsync(TIP_DELAY_MS - 1);
     expect(tooltipEl()).toBeNull();
     expect(api.fetchFileContent).not.toHaveBeenCalled();
 
@@ -168,7 +175,7 @@ describe('attachDigestTooltip 正常分支：digest 存在', () => {
     expect(tip).not.toBeNull();
     expect(tip.id).not.toBe('_tip');
     expect(document.getElementById('_tip')).toBeNull();
-    expect(tip.className).toBe('digest-tooltip');
+    expect(tip.className).toBe('ui-tip ui-tip-preview');
     expect(tip.textContent).toBe('Default digest');
     expect(tip.style.background).toBe('');
     expect(tip.style.color).toBe('');
@@ -219,16 +226,16 @@ describe('attachDigestTooltip 边界分支：徽章行可点子控件不触发',
     expect(api.fetchFileContent).not.toHaveBeenCalled();
   });
 
-  it('锚点为徽章行且目标不是可点控件：300ms 后显示 token 浮层', async () => {
+  it('锚点为徽章行且目标不是可点控件：延迟后显示 token 浮层', async () => {
     const parts = badgeRow();
     attachDigestTooltip(parts.row, CP);
     hoverFrom(parts.row, parts.source);
-    await vi.advanceTimersByTimeAsync(299);
+    await vi.advanceTimersByTimeAsync(TIP_DELAY_MS - 1);
     expect(tooltipEl()).toBeNull();
     await vi.advanceTimersByTimeAsync(1);
     const tip = tooltipEl();
     expect(tip).not.toBeNull();
-    expect(tip.className).toBe('digest-tooltip');
+    expect(tip.className).toBe('ui-tip ui-tip-preview');
     expect(document.getElementById('_tip')).toBeNull();
     expect(tip.style.background).toBe('');
     expect(tip.style.color).toBe('');
@@ -309,7 +316,7 @@ describe('attachDigestTooltip 边界分支：视同无 digest', () => {
   it('锚点下方空间不足时 tooltip 翻转到上方', async () => {
     Object.defineProperty(window, 'innerHeight', { value: 768, configurable: true });
     const rectSpy = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function () {
-      if (this.classList && this.classList.contains('digest-tooltip')) {
+      if (this.classList && this.classList.contains('ui-tip-preview')) {
         return { x: 0, y: 0, top: 500, bottom: 540, left: 100, right: 460, width: 360, height: 40, toJSON() {} };
       }
       // 锚点贴近视口底部：下方剩余 18px < tooltip 高 40 + 间距
@@ -343,11 +350,11 @@ describe('attachDigestTooltip 异常分支：关闭与解绑', () => {
     expect(tooltipEl()).toBeNull();
   });
 
-  it('300ms 延迟内 mouseleave：不触发请求也不显示', async () => {
+  it('延迟内 mouseleave：不触发请求也不显示', async () => {
     const el = anchor();
     attachDigestTooltip(el, CP);
     hover(el);
-    await vi.advanceTimersByTimeAsync(100);
+    await vi.advanceTimersByTimeAsync(TIP_DELAY_MS - 50);
     leave(el);
     await vi.advanceTimersByTimeAsync(500);
     expect(api.fetchFileContent).not.toHaveBeenCalled();

@@ -60,7 +60,7 @@ describe('mountHomeHub', () => {
     expect(todoTasksEntry).toBeNull();
     expect(sparkEntry.textContent).toMatch(/Default/);
     expect(readLaterEntry.getAttribute('aria-label')).toBe('Read Later');
-    expect(readLaterEntry.getAttribute('title')).toBe('Read Later');
+    expect(readLaterEntry.getAttribute('data-tip')).toBe('Read Later');
     expect(readLaterEntry.closest('.window-drag-strip')).not.toBeNull();
     expect(readLaterEntry.closest('[data-home-nav-group="workspace"]')).toBeNull();
     expect(knowledgeEntry.textContent).toMatch(/Knowledge/);
@@ -69,7 +69,7 @@ describe('mountHomeHub', () => {
     expect(container.querySelector('#btn-bind')).toBeNull();
     expect(container.querySelector('#btn-settings')).toBeNull();
     expect(container.querySelector('[data-role="help-menu-trigger"] [data-home-icon="help"]')).not.toBeNull();
-    expect(container.querySelector('.window-drag-strip [data-role="top-settings"][title="Settings"]')).not.toBeNull();
+    expect(container.querySelector('.window-drag-strip [data-role="top-settings"][data-tip="Settings"]')).not.toBeNull();
     expect(container.querySelector('[data-home-entry="spark"] [data-home-icon="notes"]')).not.toBeNull();
     expect(container.querySelector('[data-home-entry="knowledge"] [data-home-icon="knowledge"]')).not.toBeNull();
     expect(container.querySelector('[data-home-entry="read-later"] [data-home-icon="read-later"]')).not.toBeNull();

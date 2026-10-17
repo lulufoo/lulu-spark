@@ -36,7 +36,7 @@ describe('OverlayDismissButton', () => {
   }
 
   function accessibleName(button) {
-    return button.getAttribute('aria-label') || button.getAttribute('title') || visibleCopy(button).trim();
+    return button.getAttribute('aria-label') || visibleCopy(button).trim();
   }
 
   it('renders the Settings glyph and no visible Close copy by default', () => {
@@ -47,7 +47,7 @@ describe('OverlayDismissButton', () => {
   });
 
   it('keeps caller id and exposes accessible name Close without visible Close copy', () => {
-    const button = render({ id: 'btn-demo-close', title: 'Close' });
+    const button = render({ id: 'btn-demo-close', label: 'Close' });
     expect(button.id).toBe('btn-demo-close');
     expect(accessibleName(button)).toBe('Close');
     expect(visibleCopy(button).trim()).toBe(GLYPH);

@@ -77,7 +77,7 @@ function LinkEntry({ entry }: { entry: ReadLaterEntry }) {
           className="read-later-open-in-chat"
           data-id={entry.id}
           aria-label="Open in chat"
-          title="Open in chat"
+          data-tip="Open in chat"
         >
           <ViewerHeaderIcon name="chat" filled />
         </button>

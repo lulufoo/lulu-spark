@@ -22,7 +22,7 @@ export function UserMessageText({ text }: { text: string }) {
             className="home-ref-chip"
             role="link"
             tabIndex={0}
-            title={segment.title}
+            data-tip={segment.title}
             data-ref-kind={segment.kind}
             data-ref-id={segment.id}
             onClick={open}

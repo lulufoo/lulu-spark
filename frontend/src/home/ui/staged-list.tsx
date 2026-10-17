@@ -56,7 +56,7 @@ export function StagedList({
                 data-role="remove-staged"
                 data-staged-id={item.id}
                 aria-label={`Remove ${item.id} from Stage`}
-                title="Remove from Stage"
+                data-tip="Remove from Stage"
                 onClick={() => setPendingId(item.id)}
               >
                 ×

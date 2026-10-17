@@ -82,7 +82,7 @@ export function LlmMark({
   const label = getEnginePreset(id)?.displayName ?? 'LLM';
   const Glyph = GLYPHS[id];
   return (
-    <span className={className} data-llm={id} title={label} aria-hidden="true">
+    <span className={className} data-llm={id} data-tip={label} aria-hidden="true">
       <svg viewBox="0 0 24 24" focusable="false">
         <Glyph />
       </svg>

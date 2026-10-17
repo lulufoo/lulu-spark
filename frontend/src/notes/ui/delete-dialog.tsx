@@ -50,7 +50,7 @@ export function DeleteDialog() {
           <button
             id="btn-copy-confirm-word"
             type="button"
-            title="Copy CONFIRM"
+            data-tip="Copy CONFIRM"
             onClick={() => {
               void navigator.clipboard.writeText('CONFIRM');
               setCopyLabel('✓');

@@ -72,7 +72,7 @@ export function ReorderRows({
                 className="reorder-handle"
                 role="button"
                 aria-label="Drag to reorder"
-                title="Drag to reorder"
+                data-tip="Drag to reorder"
                 onPointerDown={(event) => begin(event, row.id)}
               >
                 <svg width="10" height="16" viewBox="0 0 10 16" aria-hidden="true">

@@ -18,7 +18,7 @@ export function TopActions({
         data-home-entry="read-later"
         {...(readLaterUnread ? { 'data-home-unread': 'true' } : {})}
         aria-label="Read Later"
-        title="Read Later"
+        data-tip="Read Later"
         onClick={onReadLater}
       >
         <HomeNavIcon name="read-later" />
@@ -28,7 +28,7 @@ export function TopActions({
         className="home-top-action"
         data-role="top-settings"
         aria-label="Settings"
-        title="Settings"
+        data-tip="Settings"
         onClick={onSettings}
       >
         <HomeNavIcon name="settings" />

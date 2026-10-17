@@ -19,7 +19,7 @@ export function AboutDialog() {
       <div id="about-dialog-box" role="dialog" aria-modal="true" aria-labelledby="about-dialog-title">
         <div id="about-dialog-header">
           <h3 id="about-dialog-title">About</h3>
-          <OverlayDismissButton id="btn-about-close" title="Close" onClick={() => closeAbout()} />
+          <OverlayDismissButton id="btn-about-close" label="Close" onClick={() => closeAbout()} />
         </div>
         <p data-role="about-product-name">{about.product_name}</p>
         <p data-role="about-version">{about.version}</p>

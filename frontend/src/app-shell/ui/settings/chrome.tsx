@@ -11,7 +11,7 @@ export function SettingsDialogChrome() {
     <div id="settings-dialog-box">
       <div id="settings-dialog-header">
         <span>Settings</span>
-        <OverlayDismissButton id="btn-settings-close" title="Close" />
+        <OverlayDismissButton id="btn-settings-close" label="Close" />
       </div>
       <div id="settings-dialog-body">
         <nav id="settings-nav">

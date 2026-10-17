@@ -44,7 +44,7 @@ export function SessionMenu({
         aria-label="Chat actions"
         aria-haspopup="menu"
         aria-expanded={open ? 'true' : 'false'}
-        title="Chat actions"
+        data-tip="Chat actions"
         onClick={() => {
           setOpen((prev) => !prev);
           setCopied(false);

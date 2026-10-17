@@ -159,7 +159,7 @@ export function NotesTagsBar() {
               <button
                 type="button"
                 className="md-tag-chip"
-                title="Edit tag text"
+                data-tip="Edit tag text"
                 data-action="edit"
                 onClick={() => {
                   setEditingIndex(i);
@@ -172,7 +172,8 @@ export function NotesTagsBar() {
               <button
                 type="button"
                 className="md-tag-chip-del"
-                title="Remove this tag"
+                data-tip="Remove this tag"
+                aria-label="Remove this tag"
                 data-action="detach"
                 onClick={() => void onDetach(tag.key)}
               >

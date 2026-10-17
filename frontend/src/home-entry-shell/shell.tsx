@@ -44,7 +44,7 @@ function ShellView({ entries }: { entries: EntryConfig[] }) {
                 data-role="entry"
                 data-entry-id={entry.id}
                 data-fab-class={entry.fabClass}
-                title={entry.title}
+                data-tip={entry.title}
                 aria-label={`Open ${entry.title}`}
               >
                 {entry.iconPaths ? (
@@ -68,7 +68,7 @@ function ShellView({ entries }: { entries: EntryConfig[] }) {
           data-role="hub"
           aria-label="Open entry hub"
           aria-expanded="false"
-          title="Entries"
+          data-tip="Entries"
         >
           <svg className="home-entry-shell__hub-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
             <path

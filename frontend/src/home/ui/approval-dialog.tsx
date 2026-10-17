@@ -45,7 +45,7 @@ export function ApprovalDialog() {
             <h3 id="approval-dialog-title">需要文件权限</h3>
             <OverlayDismissButton
               id="btn-approval-close"
-              title="拒绝"
+              label="拒绝"
               onClick={() => {
                 void dismissVisibleApproval();
               }}

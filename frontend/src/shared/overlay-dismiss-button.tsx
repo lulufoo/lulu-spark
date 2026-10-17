@@ -1,13 +1,14 @@
 export type OverlayDismissButtonProps = {
   id?: string;
-  title?: string;
+  /** Accessible name and hover tip, e.g. "Close". */
+  label?: string;
   disabled?: boolean;
   onClick?: () => void;
 };
 
 export function OverlayDismissButton({
   id,
-  title,
+  label,
   disabled,
   onClick,
 }: OverlayDismissButtonProps) {
@@ -16,8 +17,8 @@ export function OverlayDismissButton({
       type="button"
       id={id}
       className="overlay-dismiss-button"
-      title={title}
-      aria-label={title}
+      data-tip={label}
+      aria-label={label}
       disabled={disabled}
       onClick={onClick}
     >

@@ -41,7 +41,7 @@ export function ChatTurn({
           className="home-chat-turn-copy"
           data-role="copy-message"
           aria-label={copyLabel}
-          title={copyLabel}
+          data-tip={copyLabel}
           onClick={() => {
             void onCopy().then((ok) => {
               if (ok) setCopied(true);

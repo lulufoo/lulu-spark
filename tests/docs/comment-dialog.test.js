@@ -98,7 +98,7 @@ describe('NoteCommentDialog', () => {
 
     const btn = document.getElementById('btn-delete');
     expect(btn).toBeTruthy();
-    expect(btn.getAttribute('title')).not.toMatch(/raw|digest/i);
+    expect(btn.getAttribute('data-tip')).not.toMatch(/raw|digest/i);
     expect(btn.textContent).toContain('Delete this entry');
   });
 
