@@ -1,0 +1,247 @@
+/* Home redesign. Loaded after app.css; overrides the Home chat rules there. Colours come from the theme tokens. */
+.home-chat {
+  --home-chat-col: 720px;
+  --home-chat-rail: 24px;
+  --home-accent: var(--bg-accent);
+  --home-accent-soft: color-mix(in srgb, var(--home-accent) 9%, var(--bg-surface));
+  --home-accent-line: color-mix(in srgb, var(--home-accent) 18%, transparent);
+  --home-hover: color-mix(in srgb, var(--fg-default) 6%, transparent);
+}
+
+/* ── Sidebar ── */
+.home-chat-sidebar {
+  --home-chat-row-h: 36px;
+  --home-chat-list-rows: 3;
+  --home-nav-row-h: 30px;
+  background: var(--bg-canvas);
+  border-right-color: var(--border-muted);
+}
+.home-chat-nav { border-bottom: none; padding-top: 4px; }
+.home-chat-nav-label,
+.home-chat-sessions-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--fg-subtle);
+}
+.home-chat-nav .home-desktop-shortcut:hover,
+.home-chat-nav-item:hover { background: var(--home-hover); }
+.home-chat-nav .home-desktop-shortcut-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--fg-default) 86%, var(--bg-canvas));
+}
+.home-chat-nav .home-desktop-shortcut-icon,
+.home-chat-nav .home-desktop-shortcut-icon svg { width: 16px; height: 16px; }
+.home-nav-workspace + .home-nav-workspace { margin-top: 10px; }
+.home-chat-nav .home-nav-project {
+  padding-left: 30px;
+  font-size: 14px;
+  color: color-mix(in srgb, var(--fg-default) 80%, var(--bg-canvas));
+}
+.home-nav-project-icon { color: var(--fg-subtle); flex-basis: 14px; width: 14px; height: 14px; }
+.home-nav-project-icon svg { width: 14px; height: 14px; }
+
+.home-chat-sessions-head {
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-muted);
+  height: calc(var(--home-nav-label-h) + 8px);
+}
+.home-chat-new {
+  width: 24px;
+  height: 24px;
+  border-color: transparent;
+  background: transparent;
+  border-radius: 6px;
+}
+.home-chat-new:hover { background: var(--home-hover); border-color: transparent; }
+.home-chat-new-icon { width: 13px; height: 13px; }
+
+.home-chat-session { border-radius: 8px; }
+.home-chat-session:hover { background: var(--home-hover); }
+.home-chat-session.is-active {
+  background: var(--bg-surface);
+  box-shadow: 0 0 0 1px var(--border-muted), 0 1px 2px var(--shadow-rgba-1f2328-06);
+}
+.home-chat-session-open { gap: 10px; padding: 0 8px; font-size: 14px; }
+.home-chat-session-icon,
+.home-chat-session-icon svg { width: 18px; height: 18px; }
+.home-chat-session-icon { color: var(--fg-subtle); }
+.home-chat-session.is-active .home-chat-session-open { font-weight: 500; }
+
+/* ── All chats (history popover) ── */
+.home-chat-sessions-actions { display: inline-flex; align-items: center; gap: 2px; }
+.home-history-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fg-muted);
+  cursor: pointer;
+}
+.home-history-trigger:hover,
+.home-history-trigger[aria-expanded="true"] { background: var(--home-hover); color: var(--fg-default); }
+.home-history-trigger:focus-visible { outline: 2px solid var(--home-accent); outline-offset: 1px; }
+.home-history-icon { width: 15px; height: 15px; }
+.home-history-backdrop { position: fixed; inset: 0; z-index: 40; }
+.home-history-panel {
+  position: fixed;
+  z-index: 41;
+  display: flex;
+  flex-direction: column;
+  width: 340px;
+  overflow: hidden;
+  border: 1px solid var(--border-default);
+  border-radius: 14px;
+  background: var(--bg-surface);
+  box-shadow: 0 16px 40px var(--shadow-rgba-1f2328-16), 0 2px 6px var(--shadow-rgba-1f2328-06);
+}
+.home-history-head {
+  flex: none;
+  padding: 12px 16px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--fg-subtle);
+}
+.home-history-list { flex: 1; min-height: 0; overflow-y: auto; padding: 0 8px 8px; }
+
+.home-account-row { border-top-color: var(--border-muted); }
+.home-account-bar-trigger:hover,
+.home-account-bar-trigger:focus-visible,
+.home-help-menu-trigger:hover,
+.home-help-menu-trigger:focus-visible { background: var(--home-hover); }
+.home-top-action:hover { background: var(--home-hover); }
+
+/* ── Main header ── */
+.home-chat-main-drag {
+  display: flex;
+  align-items: center;
+  height: 48px;
+  padding: 0 52px 0 var(--home-chat-rail);
+  border-bottom: 1px solid var(--border-muted);
+}
+.home-chat-title {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+  letter-spacing: -0.005em;
+  color: var(--fg-emphasis);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.home-chat-session-menu { top: 10px; right: 14px; }
+
+/* ── Messages ── */
+.home-chat-messages { padding: 28px var(--home-chat-rail) 120px; }
+.home-chat-turn { margin-bottom: 26px; }
+.home-chat-bubble { font-size: 15px; line-height: 1.7; }
+.home-chat-bubble--user {
+  max-width: 82%;
+  padding: 10px 16px;
+  border: 1px solid var(--home-accent-line);
+  border-radius: 18px 18px 6px 18px;
+  background: var(--home-accent-soft);
+}
+.home-chat-md p { margin-bottom: 12px; }
+.home-chat-md li { margin: 4px 0; }
+.home-chat-md code { border-radius: 5px; font-size: 0.88em; }
+.home-chat-turn--assistant .home-chat-turn-copy,
+.home-chat-turn--error .home-chat-turn-copy { opacity: 0; }
+.home-chat-turn--assistant:hover .home-chat-turn-copy,
+.home-chat-turn--assistant:focus-within .home-chat-turn-copy,
+.home-chat-turn--error:hover .home-chat-turn-copy,
+.home-chat-turn--error:focus-within .home-chat-turn-copy { opacity: 1; }
+
+/* ── Composer ── */
+.home-chat-composer {
+  padding: 32px var(--home-chat-rail) 24px;
+  background: linear-gradient(180deg, transparent 0%, var(--bg-surface) 38%);
+}
+.home-chat-composer-dock {
+  min-height: 60px;
+  padding: 14px 16px 12px 18px;
+  border-color: var(--border-default);
+  border-radius: 20px;
+  box-shadow: 0 6px 24px var(--shadow-rgba-1f2328-08), 0 1px 2px var(--shadow-rgba-1f2328-06);
+}
+.home-chat-composer-dock:focus-within,
+[data-theme="light"] .home-chat-composer-dock:focus-within {
+  border-color: var(--home-accent);
+  box-shadow: 0 6px 24px var(--shadow-rgba-1f2328-08), 0 0 0 3px var(--home-accent-line);
+}
+.home-chat-input { min-height: 24px; padding: 0 64px 26px 0; font-size: 15px; line-height: 24px; }
+.home-chat-input[data-empty="true"]::before { top: 0; }
+.home-chat-composer-corner { right: 12px; bottom: 12px; gap: 8px; }
+.home-chat-send { width: 30px; height: 30px; }
+.home-chat-send-icon { width: 16px; height: 16px; }
+.home-chat-send:not(:disabled) { background: var(--home-accent); }
+.home-chat-send:not(:disabled):hover { background: var(--bg-accent-emphasis); }
+.home-chat-progress { margin-bottom: 14px; }
+
+/* ── Welcome (empty state) ── */
+/* Centred between the header and the composer: the messages box pads its bottom by the composer height. */
+.home-chat-thread--welcome {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 100%;
+}
+.home-welcome {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+.home-welcome-mark {
+  width: 52px;
+  height: 52px;
+  margin-bottom: 14px;
+  filter: drop-shadow(0 6px 14px var(--shadow-rgba-1f2328-16));
+}
+.home-welcome-title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: var(--fg-emphasis);
+}
+.home-welcome-hint { margin: 8px 0 28px; font-size: 14px; color: var(--fg-muted); }
+.home-welcome-prompts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  width: 100%;
+}
+.home-welcome-prompt {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
+  border: 1px solid var(--border-muted);
+  border-radius: 14px;
+  background: var(--bg-surface);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+.home-welcome-prompt:hover {
+  border-color: var(--home-accent-line);
+  box-shadow: 0 6px 18px var(--shadow-rgba-1f2328-08);
+  transform: translateY(-1px);
+}
+.home-welcome-prompt:focus-visible { outline: 2px solid var(--home-accent); outline-offset: 2px; }
+.home-welcome-prompt-label { font-size: 12px; font-weight: 600; color: var(--home-accent); }
+.home-welcome-prompt-text { font-size: 13px; line-height: 1.45; color: var(--fg-default); }
+@media (max-width: 760px) { .home-welcome-prompts { grid-template-columns: 1fr; } }

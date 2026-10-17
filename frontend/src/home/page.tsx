@@ -1,4 +1,4 @@
-import { memo, useEffect, useLayoutEffect, useRef, useSyncExternalStore, type FormEvent, type KeyboardEvent } from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useRef, useSyncExternalStore, type FormEvent, type KeyboardEvent } from 'react';
 import { attachHomeSidebarResize, detachHomeSidebarResize } from './ui/sidebar-resize.ts';
 import { createRoot, type Root } from 'react-dom/client';
 import { flushSync } from 'react-dom';
@@ -16,7 +16,9 @@ import { AboutDialog } from './ui/about-dialog.tsx';
 import { ApprovalDialog } from './ui/approval-dialog.tsx';
 import { AccountBar } from './ui/account-bar.tsx';
 import { HelpMenu } from './ui/help-menu.tsx';
+import { SessionHistory } from './ui/session-history.tsx';
 import { SessionList } from './ui/session-list.tsx';
+import { SIDEBAR_CHAT_LIMIT, sidebarSessions } from './state/sidebar-sessions.ts';
 import { SessionMenu } from './ui/session-menu.tsx';
 import { ContextPercent } from './ui/context-percent.tsx';
 import { ComposerFileLists } from './ui/composer-file-lists.tsx';
@@ -50,18 +52,17 @@ import {
   liveThinkingOf,
   progressHint,
   resetHomeState,
+  sessionListLabel,
   useHomeState,
   visibleSessionCount,
   type HubMessage,
   type LiveThinking,
 } from './state/store.ts';
 import { ThinkingFold } from './ui/thinking.tsx';
+import { ChatWelcome } from './ui/welcome.tsx';
 import { openSettingsDialog } from '../app-shell/ui/settings/dialog.tsx';
 import { WindowDragStrip } from '../shared/window-drag-strip.tsx';
 import { TopActions } from './ui/top-actions.tsx';
-
-/** Scrolling this close to the bottom of the Chats list (about one row) reveals more chats. */
-const SESSION_LIST_LOAD_MORE_PX = 40;
 
 export type HomePageChrome = {
   navigate?: (hash: string) => void;
@@ -73,11 +74,13 @@ const MessageThread = memo(function MessageThread({
   currentSessionId,
   messages,
   liveThinking,
+  onPickPrompt,
 }: {
   hostBound: boolean;
   currentSessionId: string;
   messages: HubMessage[];
   liveThinking: LiveThinking | null;
+  onPickPrompt: (text: string) => void;
 }) {
   if (!hostBound) {
     return (
@@ -86,17 +89,10 @@ const MessageThread = memo(function MessageThread({
       </div>
     );
   }
-  if (!currentSessionId) {
+  if (!currentSessionId || !messages.length) {
     return (
-      <div className="home-chat-thread">
-        <p className="home-chat-empty">Select a conversation or start a new one.</p>
-      </div>
-    );
-  }
-  if (!messages.length) {
-    return (
-      <div className="home-chat-thread">
-        <p className="home-chat-empty">No messages yet.</p>
+      <div className="home-chat-thread home-chat-thread--welcome">
+        <ChatWelcome onPick={onPickPrompt} />
       </div>
     );
   }
@@ -270,6 +266,22 @@ export function HomePage({
     syncComposerHeight();
   });
 
+  const pickPrompt = useCallback((text: string) => {
+    inputRef.current?.setText(text);
+    inputRef.current?.focus();
+    saveComposerText(text);
+  }, []);
+
+  function pickSession(id: string) {
+    void selectSession(id).catch(showActionError);
+  }
+
+  function removeSession(id: string) {
+    void deleteSession(id);
+  }
+
+  const currentSession = state.sessions.find((s) => String(s.session_id || '') === state.currentSessionId);
+
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const input = inputRef.current;
@@ -340,50 +352,54 @@ export function HomePage({
         </nav>
         <div className="home-chat-sessions-head">
           <span className="home-chat-sessions-title">Chats</span>
-          <button
-            type="button"
-            className="home-chat-new"
-            data-role="new-session"
-            aria-label="New conversation"
-            data-tip="New conversation"
-            onClick={() => {
-              void createSession()
-                .then((ok) => {
-                  if (ok) inputRef.current?.focus();
-                })
-                .catch(showActionError);
-            }}
-          >
-            <svg className="home-chat-new-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-              <path
-                fill="currentColor"
-                d="M11 5a1 1 0 1 1 2 0v6h6a1 1 0 1 1 0 2h-6v6a1 1 0 1 1-2 0v-6H5a1 1 0 1 1 0-2h6V5z"
+          <span className="home-chat-sessions-actions">
+            {state.sessions.length > SIDEBAR_CHAT_LIMIT ? (
+              <SessionHistory
+                total={state.sessions.length}
+                sessions={state.sessions.slice(0, visibleSessionCount(state))}
+                currentSessionId={state.currentSessionId}
+                progressByChat={state.progressByChat}
+                inFlightIds={state.inFlightIds}
+                onSelect={pickSession}
+                onDelete={removeSession}
+                onNearEnd={showMoreSessions}
               />
-            </svg>
-          </button>
+            ) : null}
+            <button
+              type="button"
+              className="home-chat-new"
+              data-role="new-session"
+              aria-label="New conversation"
+              data-tip="New conversation"
+              onClick={() => {
+                void createSession()
+                  .then((ok) => {
+                    if (ok) inputRef.current?.focus();
+                  })
+                  .catch(showActionError);
+              }}
+            >
+              <svg className="home-chat-new-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path
+                  fill="currentColor"
+                  d="M11 5a1 1 0 1 1 2 0v6h6a1 1 0 1 1 0 2h-6v6a1 1 0 1 1-2 0v-6H5a1 1 0 1 1 0-2h6V5z"
+                />
+              </svg>
+            </button>
+          </span>
         </div>
         <div
           className="home-chat-sessions"
           data-role="session-list"
           role="list"
-          onScroll={(e) => {
-            const el = e.currentTarget;
-            if (el.scrollHeight - el.scrollTop - el.clientHeight <= SESSION_LIST_LOAD_MORE_PX) {
-              showMoreSessions();
-            }
-          }}
         >
           <SessionList
-            sessions={state.sessions.slice(0, visibleSessionCount(state))}
+            sessions={sidebarSessions(state.sessions, state.currentSessionId)}
             currentSessionId={state.currentSessionId}
             progressByChat={state.progressByChat}
             inFlightIds={state.inFlightIds}
-            onSelect={(id) => {
-              void selectSession(id).catch(showActionError);
-            }}
-            onDelete={(id) => {
-              void deleteSession(id);
-            }}
+            onSelect={pickSession}
+            onDelete={removeSession}
           />
         </div>
         <div className="home-account-row" data-role="account-row">
@@ -409,6 +425,9 @@ export function HomePage({
       </aside>
       <section className="home-chat-main">
         <div className="home-chat-main-drag" data-tauri-drag-region="deep">
+          {currentSession ? (
+            <h1 className="home-chat-title">{sessionListLabel(currentSession)}</h1>
+          ) : null}
           <SessionMenu sessionId={state.currentSessionId} onCopy={copyCurrentSessionId} />
         </div>
         <div ref={messagesRef} className="home-chat-messages" data-role="messages" aria-live="polite">
@@ -417,6 +436,7 @@ export function HomePage({
             currentSessionId={state.currentSessionId}
             messages={state.messages}
             liveThinking={liveThinking}
+            onPickPrompt={pickPrompt}
           />
           <p className="home-chat-progress" data-role="progress-hint" hidden={!showProgress}>
             {hint ? <span className="home-chat-progress-text">{hint}</span> : '\u00a0'}
