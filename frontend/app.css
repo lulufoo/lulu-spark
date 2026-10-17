@@ -6545,8 +6545,14 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* The `...` row has no icon; it lines up with the project titles (24 indent + 16 icon + 8 gap). */
-.home-chat-nav .home-nav-more { padding-left: 48px; letter-spacing: .12em; }
+/* Cut-off projects: a grey `+N` at the right of the workspace row; it never squeezes the title. */
+.home-nav-hidden-count {
+  flex: none;
+  margin-left: auto;
+  font-size: 12px;
+  line-height: 1;
+  color: var(--fg-subtle);
+}
 .home-chat-nav-notes {
   display: flex;
   align-items: center;

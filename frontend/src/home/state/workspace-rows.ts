@@ -8,9 +8,9 @@
  *   it leaves go back to the others, and the equal share is computed again (max-min fairness).
  * - The rest each get the equal share; the few rows left over go one by one, in list order, to
  *   workspaces that are still cut off.
- * - A cut-off workspace with `a` rows shows `a - 2` projects and a `...` row. With fewer than
- *   three rows that would show nothing useful, so it folds to its title row and gives its rows
- *   back; this repeats until nothing changes.
+ * - A cut-off workspace with `a` rows shows `a - 1` projects under its title row and reports how
+ *   many it hid (`hidden`); the caller shows that as a `+N` badge on the title row, which takes
+ *   no row of its own.
  * - If even the title rows do not fit, nothing is shared: every workspace shows its title row
  *   only and `overflow` tells the caller to let the area scroll.
  */
@@ -18,8 +18,8 @@
 export type RowPlan = {
   /** Projects shown under the title row. */
   shown: number;
-  /** Whether a `...` row follows the shown projects. */
-  more: boolean;
+  /** Projects cut off, not shown; the title row carries them as `+N`. */
+  hidden: number;
 };
 
 export type RowAllocation = {
@@ -28,18 +28,14 @@ export type RowAllocation = {
   overflow: boolean;
 };
 
-/** Title + one project + `...`: the smallest cut-off block worth showing. */
-const MIN_CUT_OFF_ROWS = 3;
-
 function wholeRows(value: number): number {
   return Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
 }
 
-/** One round of sharing; workspaces in `folded` already take exactly their title row. */
-function shareRows(total: number, need: number[], folded: ReadonlySet<number>): number[] {
-  const rows: number[] = need.map((_, i) => (folded.has(i) ? 1 : 0));
-  let left = total - folded.size;
-  let open = need.map((_, i) => i).filter((i) => !folded.has(i));
+function shareRows(total: number, need: number[]): number[] {
+  const rows: number[] = need.map(() => 0);
+  let left = total;
+  let open = need.map((_, i) => i);
 
   for (;;) {
     if (open.length === 0) return rows;
@@ -68,25 +64,15 @@ export function allocateWorkspaceRows(availableRows: number, projectCounts: numb
   const total = wholeRows(availableRows);
   if (counts.length === 0) return { plans: [], overflow: false };
   if (total < counts.length) {
-    return { plans: counts.map(() => ({ shown: 0, more: false })), overflow: true };
+    return { plans: counts.map(() => ({ shown: 0, hidden: 0 })), overflow: true };
   }
 
   const need = counts.map((count) => 1 + count);
-  const folded = new Set<number>();
-  let rows = shareRows(total, need, folded);
-  for (;;) {
-    const cutOffTooSmall = rows
-      .map((given, i) => (!folded.has(i) && given < need[i] && given < MIN_CUT_OFF_ROWS ? i : -1))
-      .filter((i) => i >= 0);
-    if (cutOffTooSmall.length === 0) break;
-    for (const i of cutOffTooSmall) folded.add(i);
-    rows = shareRows(total, need, folded);
-  }
-
+  const rows = shareRows(total, need);
   const plans = rows.map((given, i): RowPlan => {
-    if (folded.has(i)) return { shown: 0, more: false };
-    if (given >= need[i]) return { shown: counts[i], more: false };
-    return { shown: given - 2, more: true };
+    if (given >= need[i]) return { shown: counts[i], hidden: 0 };
+    const shown = Math.max(0, given - 1);
+    return { shown, hidden: counts[i] - shown };
   });
   return { plans, overflow: false };
 }

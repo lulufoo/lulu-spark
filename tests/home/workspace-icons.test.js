@@ -127,7 +127,7 @@ describe('HomeWorkspaceNav icons', () => {
     }
   });
 
-  it('puts no icon on the ... row, and icons do not change which rows are shown', () => {
+  it('icons do not change which rows are shown, and the +N badge carries no icon', () => {
     listHeight = 7 * 32;
     const host = render(rows(), {
       default: [
@@ -137,13 +137,12 @@ describe('HomeWorkspaceNav icons', () => {
       knowledge: ['a', 'b', 'c', 'd'].map((folder) => ({ folder, title: folder, icon: ICON_P })),
       wiki: [],
     });
-    const more = host.querySelector('[data-home-more="knowledge"]');
-    expect(more).not.toBeNull();
-    expect(more.querySelector('svg')).toBeNull();
-    expect(more.querySelector('.home-nav-project-icon')).toBeNull();
-    const shown = [...host.querySelectorAll('.home-nav-project:not(.home-nav-more)')].map((b) => b.dataset.homeProject);
-    expect(shown).toEqual(['inbox', 'work', 'a']);
-    for (const button of host.querySelectorAll('.home-nav-project:not(.home-nav-more)')) {
+    const badge = host.querySelector('[data-home-hidden="knowledge"]');
+    expect(badge.textContent).toBe('+2');
+    expect(badge.querySelector('svg')).toBeNull();
+    const shown = [...host.querySelectorAll('.home-nav-project')].map((b) => b.dataset.homeProject);
+    expect(shown).toEqual(['inbox', 'work', 'a', 'b']);
+    for (const button of host.querySelectorAll('.home-nav-project')) {
       expect(button.querySelector('.home-nav-project-icon svg')).not.toBeNull();
     }
     const rowCount = host.querySelectorAll('.home-chat-nav-notes, .home-nav-project').length;
@@ -156,7 +155,8 @@ describe('HomeWorkspaceNav icons', () => {
     const projectRule = css.match(/\.home-chat-nav \.home-nav-project \{[^}]*\}/)[0];
     expect(projectRule).toMatch(/padding: 0 8px 0 24px;/);
     expect(projectRule).not.toMatch(/\bheight:/);
-    expect(css).toMatch(/\.home-chat-nav \.home-nav-more \{ padding-left: 48px;/);
+    expect(css).not.toMatch(/home-nav-more/);
+    expect(css).toMatch(/\.home-nav-hidden-count \{[^}]*margin-left: auto;/);
     expect(css).toMatch(/\.home-nav-project-icon \{[^}]*width: 16px;/);
   });
 

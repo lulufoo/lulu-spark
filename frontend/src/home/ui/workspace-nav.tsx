@@ -79,9 +79,10 @@ function useAvailableRows(ref: React.RefObject<HTMLDivElement | null>): number |
 }
 
 /**
- * Workspace rows, each with the projects the row allocation grants it (title order) and `...`
- * when some are cut off. The list fills the height the sidebar has left; when even the titles
- * do not fit it scrolls. Until the list is measured only the titles are shown.
+ * Workspace rows, each with the projects the row allocation grants it (the order Settings
+ * arranged) and a `+N` badge on the title row when some are cut off. The list fills the height
+ * the sidebar has left; when even the titles do not fit it scrolls. Until the list is measured
+ * only the titles are shown.
  */
 export function HomeWorkspaceNav({
   workspaces,
@@ -109,8 +110,9 @@ export function HomeWorkspaceNav({
     >
       {workspaces.map((row, index) => {
         const list = projects[row.id] ?? [];
-        const plan = measured ? allocation.plans[index] : { shown: 0, more: false };
+        const plan = measured ? allocation.plans[index] : { shown: 0, hidden: 0 };
         const shown = list.slice(0, plan.shown);
+        const hiddenNames = list.slice(plan.shown).map((project) => project.title);
         return (
           <div key={row.id} className="home-nav-workspace" data-home-workspace={row.id}>
             <div className="home-chat-nav-notes">
@@ -123,6 +125,15 @@ export function HomeWorkspaceNav({
               >
                 <WorkspaceIcon row={row} />
                 <span className="home-desktop-shortcut-label">{row.name}</span>
+                {plan.hidden > 0 ? (
+                  <span
+                    className="home-nav-hidden-count"
+                    data-home-hidden={row.id}
+                    title={hiddenNames.join('\n')}
+                  >
+                    +{plan.hidden}
+                  </span>
+                ) : null}
               </button>
               {row.isDefault ? (
                 <button
@@ -151,17 +162,6 @@ export function HomeWorkspaceNav({
                 <span className="home-nav-project-label">{project.title}</span>
               </button>
             ))}
-            {plan.more ? (
-              <button
-                type="button"
-                className="home-chat-nav-item home-nav-project home-nav-more"
-                data-home-more={row.id}
-                aria-label={`All projects of ${row.name}`}
-                onClick={() => onOpenWorkspace(row.id)}
-              >
-                <span className="home-nav-project-label">...</span>
-              </button>
-            ) : null}
           </div>
         );
       })}

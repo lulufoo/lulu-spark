@@ -164,46 +164,48 @@ describe('HomeWorkspaceNav', () => {
   }
 
   const projectsOf = (host, id) =>
-    [...host.querySelectorAll(`[data-home-workspace="${id}"] .home-nav-project:not(.home-nav-more)`)].map(
+    [...host.querySelectorAll(`[data-home-workspace="${id}"] .home-nav-project`)].map(
       (b) => b.dataset.homeProject,
     );
 
-  it('shows every project and no ... when all of them fit', () => {
+  it('shows every project and no +N badge when all of them fit', () => {
     const host = render();
     expect(projectsOf(host, 'default')).toEqual(['inbox', 'work']);
     expect(projectsOf(host, 'knowledge')).toEqual(['a', 'b', 'c', 'd']);
     expect(projectsOf(host, 'empty')).toEqual([]);
-    expect(host.querySelector('.home-nav-more')).toBeNull();
+    expect(host.querySelector('.home-nav-hidden-count')).toBeNull();
     expect(host.querySelector('.home-nav-workspaces').dataset.homeNavOverflow).toBe('false');
   });
 
-  it('cuts the largest workspace off with a ... row when the rows run short', () => {
-    // Needs are 3, 5 and 1 rows; 7 rows leave Knowledge three: title, one project, `...`.
+  it('cuts the largest workspace off and shows the hidden count on its title row', () => {
+    // Needs are 3, 5 and 1 rows; 7 rows leave Knowledge three: title and two projects.
     const host = render();
     resizeTo(7);
     expect(projectsOf(host, 'default')).toEqual(['inbox', 'work']);
-    expect(projectsOf(host, 'knowledge')).toEqual(['a']);
-    expect(host.querySelector('[data-home-more="knowledge"]').textContent).toBe('...');
-    expect(host.querySelector('[data-home-more="default"]')).toBeNull();
-    expect(host.querySelector('[data-home-more="empty"]')).toBeNull();
+    expect(projectsOf(host, 'knowledge')).toEqual(['a', 'b']);
+    const badge = host.querySelector('[data-home-entry="knowledge"] .home-nav-hidden-count');
+    expect(badge.textContent).toBe('+2');
+    expect(badge.dataset.homeHidden).toBe('knowledge');
+    expect(badge.getAttribute('title')).toBe('C\nD');
+    expect(host.querySelectorAll('.home-nav-hidden-count')).toHaveLength(1);
+    expect(host.querySelector('[data-home-more]')).toBeNull();
   });
 
-  it('folds a workspace to its title when it would get fewer than three rows', () => {
+  it('keeps a title and one project even with only two rows, the rest counted in the badge', () => {
     const host = render();
     resizeTo(6);
-    expect(projectsOf(host, 'knowledge')).toEqual([]);
-    expect(host.querySelector('[data-home-more="knowledge"]')).toBeNull();
+    expect(projectsOf(host, 'knowledge')).toEqual(['a']);
+    expect(host.querySelector('[data-home-entry="knowledge"] .home-nav-hidden-count').textContent).toBe('+3');
     expect(projectsOf(host, 'default')).toEqual(['inbox', 'work']);
-    expect(host.querySelector('[data-home-entry="knowledge"]')).not.toBeNull();
   });
 
   it('recomputes when the list is resized', () => {
     const host = render();
     resizeTo(7);
-    expect(projectsOf(host, 'knowledge')).toEqual(['a']);
+    expect(projectsOf(host, 'knowledge')).toEqual(['a', 'b']);
     resizeTo(20);
     expect(projectsOf(host, 'knowledge')).toEqual(['a', 'b', 'c', 'd']);
-    expect(host.querySelector('.home-nav-more')).toBeNull();
+    expect(host.querySelector('.home-nav-hidden-count')).toBeNull();
   });
 
   it('scrolls and keeps every title when even the titles do not fit', () => {
@@ -213,6 +215,7 @@ describe('HomeWorkspaceNav', () => {
     expect(list.dataset.homeNavOverflow).toBe('true');
     expect(host.querySelectorAll('.home-desktop-shortcut')).toHaveLength(3);
     expect(host.querySelector('.home-nav-project')).toBeNull();
+    expect(host.querySelector('.home-nav-hidden-count')).toBeNull();
   });
 
   it('never renders more rows than were measured', () => {
@@ -252,15 +255,15 @@ describe('HomeWorkspaceNav', () => {
     expect(host.querySelector('[data-home-entry="knowledge"]').dataset.homeUnread).toBeUndefined();
   });
 
-  it('routes clicks: project selects it, workspace and ... select nothing', () => {
+  it('routes clicks: a project selects it, the workspace row and its +N badge enter the workspace', () => {
     const onOpenWorkspace = vi.fn();
     const onOpenProject = vi.fn();
     const host = render({ onOpenWorkspace, onOpenProject });
-    resizeTo(8); // Knowledge shows a, b and a `...` row.
+    resizeTo(8); // Knowledge shows a, b, c and a +1 badge.
     host.querySelector('[data-home-project="b"]').click();
     expect(onOpenProject).toHaveBeenCalledWith('knowledge', 'b');
     host.querySelector('[data-home-entry="knowledge"]').click();
-    host.querySelector('[data-home-more="knowledge"]').click();
+    host.querySelector('[data-home-hidden="knowledge"]').click();
     expect(onOpenWorkspace).toHaveBeenCalledTimes(2);
     expect(onOpenWorkspace).toHaveBeenCalledWith('knowledge');
     expect(onOpenProject).toHaveBeenCalledTimes(1);
