@@ -131,6 +131,10 @@ export const WRITE_API_INVOKE_MAP: Record<string, WriteInvokeEntry> = {
     cmd: 'set_workspace_view_mode',
     args: (body) => ({ payload: body ?? {} }),
   },
+  '/api/workspace-icon': {
+    cmd: 'set_workspace_icon',
+    args: (body) => ({ payload: body ?? {} }),
+  },
   '/api/workspace-disable': {
     cmd: 'disable_workspace',
     args: (body) => ({ payload: body ?? {} }),

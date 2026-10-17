@@ -499,3 +499,83 @@ fn search_and_create_return_the_workspace_name_a_chat_link_shows() {
     assert_eq!(text(hit, "workspace_name"), "Research", "the current name, after the rename");
     assert_eq!(text(hit, "workspace"), ws);
 }
+
+fn icon_of(value: &Value) -> String {
+    text(value, "icon")
+}
+
+#[test]
+fn a_workspace_icon_is_set_on_create_changed_cleared_and_checked() {
+    let _sandbox = TestSandbox::new();
+    let plain = create_workspace(&json!({ "name": "Plain" }));
+    assert_eq!(icon_of(&ok(&plain)["workspace"]), "", "no icon means empty");
+
+    let made = create_workspace(&json!({ "name": "Iconic", "icon": "03ab12" }));
+    assert_eq!(icon_of(&ok(&made)["workspace"]), "03ab12");
+    let ws = text(&made["workspace"], "id");
+
+    let listed = list_workspaces();
+    let row = listed["workspaces"].as_array().expect("array").iter().find(|w| text(w, "id") == ws).expect("row").clone();
+    assert_eq!(icon_of(&row), "03ab12");
+
+    assert_eq!(icon_of(&ok(&set_icon(&json!({ "id": ws, "icon": "05zz99" })))["workspace"]), "05zz99");
+    assert_eq!(icon_of(&ok(&set_icon(&json!({ "id": ws, "icon": "" })))["workspace"]), "", "empty clears");
+    assert_eq!(icon_of(&ok(&set_icon(&json!({ "id": ws, "icon": "  04a0b0 " })))["workspace"]), "04a0b0", "trimmed");
+
+    // A well-formed id the frontend does not know is kept; the backend cannot tell.
+    assert_eq!(icon_of(&ok(&set_icon(&json!({ "id": ws, "icon": "00zzzz" })))["workspace"]), "00zzzz");
+
+    for bad in ["7", "07abcd", "03ABCD", "03abc", "03abcde", "03ab-d", "folder"] {
+        assert_eq!(status(&set_icon(&json!({ "id": ws, "icon": bad }))), 400, "{bad}");
+    }
+    assert_eq!(status(&set_icon(&json!({ "id": ws, "icon": 5 }))), 400);
+    assert_eq!(status(&set_icon(&json!({ "id": ws }))), 400, "icon is required here");
+    assert_eq!(status(&set_icon(&json!({ "icon": "03ab12" }))), 400);
+    assert_eq!(status(&set_icon(&json!({ "id": "ghost", "icon": "03ab12" }))), 404);
+
+    // Rejected input never leaves a half-made workspace behind.
+    assert_eq!(status(&create_workspace(&json!({ "name": "Bad", "icon": "nope" }))), 400);
+    let names: Vec<_> = list_workspaces()["workspaces"].as_array().expect("array").iter().map(|w| text(w, "name")).collect();
+    assert!(!names.contains(&"Bad".to_string()), "{names:?}");
+}
+
+#[test]
+fn a_disabled_workspace_keeps_and_lists_its_icon() {
+    let _sandbox = TestSandbox::new();
+    let ws = text(&ok(&create_workspace(&json!({ "name": "Temp", "icon": "02aa11" })))["workspace"], "id");
+    ok(&disable_workspace(&json!({ "id": ws })));
+    let disabled = list_disabled_workspaces();
+    assert_eq!(icon_of(&disabled["workspaces"][0]), "02aa11");
+    assert_eq!(icon_of(&ok(&enable_workspace(&json!({ "id": ws })))["workspace"]), "02aa11");
+}
+
+#[test]
+fn a_project_icon_is_kept_unless_changed_and_cleared_by_an_empty_string() {
+    let _sandbox = TestSandbox::new();
+    let ws = new_workspace("Work");
+    let plain = create_project(&json!({ "workspace": ws, "folder": "plain", "title": "Plain" }));
+    assert_eq!(icon_of(&ok(&plain)["project"]), "");
+
+    let made = create_project(&json!({ "workspace": ws, "folder": "plans", "title": "Plans", "icon": "03k7x2" }));
+    assert_eq!(icon_of(&ok(&made)["project"]), "03k7x2");
+
+    let renamed = update_project(&json!({ "workspace": ws, "project": "plans", "title": "Roadmaps" }));
+    assert_eq!(icon_of(&ok(&renamed)["project"]), "03k7x2", "absent icon keeps it");
+    let changed = update_project(&json!({ "workspace": ws, "project": "plans", "title": "Roadmaps", "icon": "01aa00" }));
+    assert_eq!(icon_of(&ok(&changed)["project"]), "01aa00");
+    let cleared = update_project(&json!({ "workspace": ws, "project": "plans", "title": "Roadmaps", "icon": "" }));
+    assert_eq!(icon_of(&ok(&cleared)["project"]), "");
+
+    assert_eq!(status(&create_project(&json!({ "workspace": ws, "folder": "x1", "title": "X", "icon": "9" }))), 400);
+    assert_eq!(status(&update_project(&json!({ "workspace": ws, "project": "plans", "title": "R", "icon": "bad" }))), 400);
+    let folders: Vec<_> = list_projects(&json!({ "workspace": ws }))["projects"]
+        .as_array().expect("array").iter().map(|p| text(p, "folder")).collect();
+    assert!(!folders.contains(&"x1".to_string()), "a rejected create leaves nothing: {folders:?}");
+
+    ok(&update_project(&json!({ "workspace": ws, "project": "plans", "title": "R", "icon": "02bb22" })));
+    let listed = list_projects(&json!({ "workspace": ws }));
+    let plans = listed["projects"].as_array().expect("array").iter().find(|p| text(p, "folder") == "plans").expect("row").clone();
+    assert_eq!(icon_of(&plans), "02bb22");
+    ok(&disable_project(&json!({ "workspace": ws, "project": "plans" })));
+    assert_eq!(icon_of(&list_disabled_projects(&json!({ "workspace": ws }))["projects"][0]), "02bb22");
+}

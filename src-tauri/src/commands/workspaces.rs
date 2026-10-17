@@ -45,6 +45,11 @@ pub async fn set_workspace_view_mode(_app: AppHandle, payload: Value) -> Result<
 }
 
 #[tauri::command]
+pub async fn set_workspace_icon(_app: AppHandle, payload: Value) -> Result<Value, String> {
+    run(move || docs::set_icon(&payload)).await
+}
+
+#[tauri::command]
 pub async fn list_disabled_workspaces(_app: AppHandle) -> Result<Value, String> {
     run(|| docs::list_disabled_workspaces()).await
 }

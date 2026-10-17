@@ -11,6 +11,8 @@ pub struct ProjectRow {
     pub description: String,
     /// `None` = active; a timestamp = disabled (hidden from lists and search, data kept).
     pub disabled_at: Option<String>,
+    /// Id of a built-in icon; `None` = the default icon. The frontend owns the icon list.
+    pub icon: Option<String>,
 }
 
 impl ProjectRow {
@@ -22,11 +24,12 @@ impl ProjectRow {
             title: title.to_string(),
             description: description.to_string(),
             disabled_at: None,
+            icon: None,
         }
     }
 }
 
-const COLUMNS: &str = "id, workspace_id, folder, title, description, disabled_at";
+const COLUMNS: &str = "id, workspace_id, folder, title, description, disabled_at, icon";
 
 fn map_row(row: &Row<'_>) -> rusqlite::Result<ProjectRow> {
     Ok(ProjectRow {
@@ -36,24 +39,26 @@ fn map_row(row: &Row<'_>) -> rusqlite::Result<ProjectRow> {
         title: row.get(3)?,
         description: row.get(4)?,
         disabled_at: row.get(5)?,
+        icon: row.get(6)?,
     })
 }
 
 pub fn insert_project(conn: &Connection, row: &ProjectRow) -> Result<(), String> {
     conn.execute(
-        "INSERT INTO project(id, workspace_id, folder, title, description) VALUES (?1, ?2, ?3, ?4, ?5)",
-        params![row.id, row.workspace_id, row.folder, row.title, row.description],
+        "INSERT INTO project(id, workspace_id, folder, title, description, icon)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+        params![row.id, row.workspace_id, row.folder, row.title, row.description, row.icon],
     )
     .map(|_| ())
     .map_err(|e| e.to_string())
 }
 
-/// Replace `folder`, `title` and `description` of the row with this `id`.
+/// Replace `folder`, `title`, `description` and `icon` of the row with this `id`.
 /// A project never moves between workspaces. `false` when it does not exist.
 pub fn update_project(conn: &Connection, row: &ProjectRow) -> Result<bool, String> {
     conn.execute(
-        "UPDATE project SET folder = ?2, title = ?3, description = ?4 WHERE id = ?1",
-        params![row.id, row.folder, row.title, row.description],
+        "UPDATE project SET folder = ?2, title = ?3, description = ?4, icon = ?5 WHERE id = ?1",
+        params![row.id, row.folder, row.title, row.description, row.icon],
     )
     .map(|changed| changed > 0)
     .map_err(|e| e.to_string())

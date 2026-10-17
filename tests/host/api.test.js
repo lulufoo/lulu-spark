@@ -12,7 +12,7 @@ import {
   saveFile,
   updateComments, updateLinks, setImportance, setDone,
   deleteEntry,
-  fetchWorkspaces, createWorkspace, renameWorkspace, setWorkspaceViewMode, disableWorkspace, enableWorkspace, fetchDisabledWorkspaces, fetchDisabledProjects,
+  fetchWorkspaces, createWorkspace, renameWorkspace, setWorkspaceViewMode, setWorkspaceIcon, disableWorkspace, enableWorkspace, fetchDisabledWorkspaces, fetchDisabledProjects,
   fetchProjects, createProject, updateProject, disableProject, enableProject, moveToProject,
   fetchHidePatterns, addHidePattern, updateHidePattern, removeHidePattern, fetchViewerState, saveViewerState,
 } from '../../frontend/src/host/api.ts'
@@ -319,5 +319,34 @@ test('project writes post workspace, project, title and description', async () =
     { workspace: 'ws1', project: 'ops', title: 'Operations', description: 'runbooks' },
     { workspace: 'ws1', project: 'ops' },
     { workspace: 'ws1', project: 'ops' },
+  ])
+})
+
+test('icons ride along on create and update only when given, and setWorkspaceIcon posts id and icon', async () => {
+  mockFetch({ ok: true })
+  await createWorkspace('Research', 'timeline', '03ab12')
+  await createWorkspace('Plain')
+  await setWorkspaceIcon('ws1', '05zz99')
+  await setWorkspaceIcon('ws1', '')
+  await createProject('ws1', 'Ops', 'desc', '03k7x2')
+  await updateProject('ws1', 'ops', 'Operations', 'runbooks', '')
+  await updateProject('ws1', 'ops', 'Operations', 'runbooks')
+  expect(fetch.mock.calls.map((call) => call[0])).toEqual([
+    `${DEFAULT_DEV_BASE}/api/workspace-create`,
+    `${DEFAULT_DEV_BASE}/api/workspace-create`,
+    `${DEFAULT_DEV_BASE}/api/workspace-icon`,
+    `${DEFAULT_DEV_BASE}/api/workspace-icon`,
+    `${DEFAULT_DEV_BASE}/api/project-create`,
+    `${DEFAULT_DEV_BASE}/api/project-update`,
+    `${DEFAULT_DEV_BASE}/api/project-update`,
+  ])
+  expect(fetch.mock.calls.map((call) => JSON.parse(call[1].body))).toEqual([
+    { name: 'Research', view_mode: 'timeline', icon: '03ab12' },
+    { name: 'Plain', view_mode: 'directory' },
+    { id: 'ws1', icon: '05zz99' },
+    { id: 'ws1', icon: '' },
+    { workspace: 'ws1', title: 'Ops', description: 'desc', icon: '03k7x2' },
+    { workspace: 'ws1', project: 'ops', title: 'Operations', description: 'runbooks', icon: '' },
+    { workspace: 'ws1', project: 'ops', title: 'Operations', description: 'runbooks' },
   ])
 })

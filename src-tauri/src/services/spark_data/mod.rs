@@ -33,7 +33,7 @@ pub use tag_rows::{
 pub use workspace_row::{
     create_workspace, disable_workspace, discard_new_workspace, enable_workspace, get_workspace,
     get_workspace_by_name, list_all_workspaces, list_disabled_workspaces, list_workspaces,
-    rename_workspace, set_workspace_view_mode, ViewMode, WorkspaceRow, DEFAULT_WORKSPACE_ID,
+    rename_workspace, set_workspace_icon, set_workspace_view_mode, ViewMode, WorkspaceRow, DEFAULT_WORKSPACE_ID,
     KNOWLEDGE_WORKSPACE_ID,
 };
 

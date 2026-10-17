@@ -102,6 +102,8 @@ export type HostWorkspace = {
   name: string;
   view_mode: 'directory' | 'timeline';
   is_default: boolean;
+  /** Id of the configured icon; empty = the default icon. */
+  icon: string;
 };
 
 export type HostWorkspaces = {

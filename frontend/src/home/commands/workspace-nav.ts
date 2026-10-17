@@ -6,13 +6,20 @@ import { showWorkspace, switchWorkspace } from '../../notes/commands/workspace-s
 import { setHomeState, type HomeProject } from '../state/store.ts';
 
 function asProjects(data: unknown): HomeProject[] {
-  const rec = data as { projects?: Array<{ folder?: unknown; title?: unknown }>; error?: string } | null;
+  const rec = data as {
+    projects?: Array<{ folder?: unknown; title?: unknown; icon?: unknown }>;
+    error?: string;
+  } | null;
   if (rec?.error) throw new Error(rec.error);
   const out: HomeProject[] = [];
   for (const row of rec?.projects ?? []) {
     const folder = typeof row.folder === 'string' ? row.folder : '';
     if (!folder) continue;
-    out.push({ folder, title: typeof row.title === 'string' && row.title ? row.title : folder });
+    out.push({
+      folder,
+      title: typeof row.title === 'string' && row.title ? row.title : folder,
+      icon: typeof row.icon === 'string' ? row.icon : '',
+    });
   }
   return out;
 }

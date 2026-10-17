@@ -36,6 +36,7 @@ export {
   removeHidePattern,
   renameWorkspace,
   saveViewerState,
+  setWorkspaceIcon,
   setWorkspaceViewMode,
   updateHidePattern,
   updateProject,

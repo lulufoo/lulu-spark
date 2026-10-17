@@ -43,6 +43,8 @@ export type ChannelUnread = {
 export type HomeProject = {
   folder: string;
   title: string;
+  /** Id of the configured icon; empty = the default project icon. */
+  icon: string;
 };
 
 export type ContextUsageCategory = {

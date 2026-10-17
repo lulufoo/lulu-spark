@@ -21,6 +21,7 @@ const P2_PATHS = [
   ['/api/workspace-create', 'create_workspace', ['payload']],
   ['/api/workspace-rename', 'rename_workspace', ['payload']],
   ['/api/workspace-view-mode', 'set_workspace_view_mode', ['payload']],
+  ['/api/workspace-icon', 'set_workspace_icon', ['payload']],
   ['/api/workspace-disable', 'disable_workspace', ['payload']],
   ['/api/workspace-enable', 'enable_workspace', ['payload']],
   ['/api/project-create', 'create_project', ['payload']],

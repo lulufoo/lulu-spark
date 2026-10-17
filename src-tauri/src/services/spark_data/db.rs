@@ -70,7 +70,8 @@ macro_rules! doc_table_sql {
 /// registry rows. Step 7 copies the legacy rows into them and step 8 drops the legacy
 /// tables (both in `legacy_rows_step`). Step 9 adds `disabled_at` to `workspace` and
 /// `project`: a workspace or project is disabled (hidden, data kept), never deleted.
-pub(crate) const MIGRATIONS: [&str; 10] = [r#"
+/// Step 10 adds `icon` (a built-in icon id, NULL = default) to both tables.
+pub(crate) const MIGRATIONS: [&str; 11] = [r#"
 CREATE TABLE IF NOT EXISTS note (
   doc_id       TEXT PRIMARY KEY,
   raw_path     TEXT NOT NULL,
@@ -218,6 +219,9 @@ INSERT INTO workspace (id, name, doc_table, view_mode, is_default, created_at) V
 "#, doc_table_sql!("doc_default"), doc_table_sql!("doc_knowledge")), LEGACY_ROWS_STEP, DROP_LEGACY_STEP, r#"
 ALTER TABLE workspace ADD COLUMN disabled_at TEXT;
 ALTER TABLE project ADD COLUMN disabled_at TEXT;
+"#, r#"
+ALTER TABLE workspace ADD COLUMN icon TEXT;
+ALTER TABLE project ADD COLUMN icon TEXT;
 "#];
 
 pub fn db_path() -> Result<PathBuf, String> {

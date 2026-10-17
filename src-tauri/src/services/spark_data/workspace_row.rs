@@ -1,7 +1,7 @@
 //! The `workspace` registry: one row per workspace, pointing at its document table.
 //!
 //! `id` and `doc_table` never change after creation (a trigger enforces it);
-//! only `name`, `view_mode` and `disabled_at` are editable. A workspace is never deleted:
+//! only `name`, `view_mode`, `icon` and `disabled_at` are editable. A workspace is never deleted:
 //! it is disabled (hidden, data kept) and can be enabled again. The default workspace
 //! cannot be disabled.
 
@@ -48,9 +48,11 @@ pub struct WorkspaceRow {
     pub created_at: Option<String>,
     /// `None` = active; a timestamp = disabled (hidden from lists and search, data kept).
     pub disabled_at: Option<String>,
+    /// Id of a built-in icon; `None` = the default icon. The frontend owns the icon list.
+    pub icon: Option<String>,
 }
 
-const COLUMNS: &str = "id, name, doc_table, view_mode, is_default, created_at, disabled_at";
+const COLUMNS: &str = "id, name, doc_table, view_mode, is_default, created_at, disabled_at, icon";
 const INSERT_COLUMNS: &str = "id, name, doc_table, view_mode, is_default, created_at";
 
 fn map_row(row: &Row<'_>) -> rusqlite::Result<WorkspaceRow> {
@@ -65,6 +67,7 @@ fn map_row(row: &Row<'_>) -> rusqlite::Result<WorkspaceRow> {
         is_default: row.get::<_, i64>(4)? != 0,
         created_at: row.get(5)?,
         disabled_at: row.get(6)?,
+        icon: row.get(7)?,
     })
 }
 
@@ -179,6 +182,14 @@ pub fn set_workspace_view_mode(
     )
     .map(|changed| changed > 0)
     .map_err(|e| e.to_string())
+}
+
+/// Set the icon id, or clear it with `None` (back to the default icon).
+/// `false` when the workspace does not exist.
+pub fn set_workspace_icon(conn: &Connection, id: &str, icon: Option<&str>) -> Result<bool, String> {
+    conn.execute("UPDATE workspace SET icon = ?2 WHERE id = ?1", params![id, icon])
+        .map(|changed| changed > 0)
+        .map_err(|e| e.to_string())
 }
 
 /// Disable a workspace: it disappears from lists and search, its documents and table stay.

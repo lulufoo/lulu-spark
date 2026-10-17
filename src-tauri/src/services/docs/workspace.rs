@@ -1,4 +1,5 @@
-//! Workspace operations: `list` / `create` / `rename` / `set_view_mode` / `disable` / `enable`.
+//! Workspace operations: `list` / `create` / `rename` / `set_view_mode` / `set_icon` / `disable` /
+//! `enable`.
 //!
 //! A workspace is never deleted. Disabling hides it (and its documents) from lists and search;
 //! the data stays and `enable` brings it back. Its name stays taken while it is disabled.
@@ -11,15 +12,17 @@ use serde_json::{json, Value};
 
 use crate::services::spark_data::{
     create_workspace as create_workspace_row, disable_workspace as disable_workspace_row,
-    discard_new_workspace, enable_workspace as enable_workspace_row, get_workspace_by_name,
+    discard_new_workspace, enable_workspace as enable_workspace_row, get_workspace,
+    get_workspace_by_name,
     list_disabled_workspaces as list_disabled_workspace_rows, list_workspaces as list_workspace_rows,
-    rename_workspace as rename_workspace_row, set_workspace_view_mode, ViewMode, WorkspaceRow,
+    rename_workspace as rename_workspace_row, set_workspace_icon as set_workspace_icon_row,
+    set_workspace_view_mode, ViewMode, WorkspaceRow,
 };
 
 use super::project::insert_inbox_project;
 use super::resolve::{
-    bad_request, conflict, internal, not_found, open_data, resolve_workspace, text_field,
-    workspace_root,
+    bad_request, conflict, icon_field, internal, not_found, open_data, resolve_workspace,
+    text_field, workspace_root,
 };
 
 fn workspace_value(row: &WorkspaceRow) -> Value {
@@ -30,6 +33,7 @@ fn workspace_value(row: &WorkspaceRow) -> Value {
         "is_default": row.is_default,
         "created_at": row.created_at,
         "disabled_at": row.disabled_at,
+        "icon": row.icon.clone().unwrap_or_default(),
     })
 }
 
@@ -82,13 +86,17 @@ pub fn list_disabled_workspaces() -> Value {
     }
 }
 
-/// `{ name, view_mode? }` → `{ ok, workspace }`.
+/// `{ name, view_mode?, icon? }` → `{ ok, workspace }`.
 pub fn create_workspace(payload: &Value) -> Value {
     let Some(name) = text_field(payload, "name") else {
         return bad_request("Missing name");
     };
     let mode = match parse_view_mode(payload) {
         Ok(m) => m,
+        Err(v) => return v,
+    };
+    let icon = match icon_field(payload) {
+        Ok(icon) => icon.flatten(),
         Err(v) => return v,
     };
     let conn = match open_data() {
@@ -110,6 +118,20 @@ pub fn create_workspace(payload: &Value) -> Value {
         let _ = discard_new_workspace(&conn, &row.id);
         return v;
     }
+    let row = match icon {
+        None => row,
+        Some(icon) => {
+            let saved = set_workspace_icon_row(&conn, &row.id, Some(&icon))
+                .and_then(|_| get_workspace(&conn, &row.id).map(|r| r.unwrap_or(row.clone())));
+            match saved {
+                Ok(updated) => updated,
+                Err(e) => {
+                    let _ = discard_new_workspace(&conn, &row.id);
+                    return internal(e);
+                }
+            }
+        }
+    };
     json!({ "ok": true, "workspace": workspace_value(&row) })
 }
 
@@ -135,6 +157,19 @@ pub fn set_view_mode(payload: &Value) -> Value {
         Err(v) => return v,
     };
     update_workspace(id, |conn| set_workspace_view_mode(conn, id, mode))
+}
+
+/// `{ id, icon }` → `{ ok, workspace }`. An empty `icon` clears it (back to the default icon).
+pub fn set_icon(payload: &Value) -> Value {
+    let Some(id) = text_field(payload, "id") else {
+        return bad_request("Missing id");
+    };
+    let icon = match icon_field(payload) {
+        Ok(Some(icon)) => icon,
+        Ok(None) => return bad_request("Missing icon"),
+        Err(v) => return v,
+    };
+    update_workspace(id, |conn| set_workspace_icon_row(conn, id, icon.as_deref()))
 }
 
 fn update_workspace(

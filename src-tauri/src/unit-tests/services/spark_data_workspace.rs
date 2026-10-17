@@ -302,3 +302,26 @@ fn disable_hides_a_project_keeps_it_by_id_and_enable_brings_it_back() {
     assert!(!disable_project(&conn, "ghost").expect("missing"));
     assert!(!enable_project(&conn, "ghost").expect("missing"));
 }
+
+#[test]
+fn icons_are_stored_per_workspace_and_project_and_can_be_cleared() {
+    let (_dir, path) = temp_db();
+    let conn = open_at(&path).expect("open");
+    let made = create_workspace(&conn, "Iconic", None).expect("create");
+    assert_eq!(made.icon, None, "new rows start without an icon");
+
+    assert!(set_workspace_icon(&conn, &made.id, Some("03abcd")).expect("set"));
+    assert_eq!(get_workspace(&conn, &made.id).expect("get").expect("row").icon.as_deref(), Some("03abcd"));
+    assert!(set_workspace_icon(&conn, "default", Some("00zz09")).expect("default may have one"));
+    assert!(set_workspace_icon(&conn, &made.id, None).expect("clear"));
+    assert_eq!(get_workspace(&conn, &made.id).expect("get").expect("row").icon, None);
+    assert!(!set_workspace_icon(&conn, "missing", Some("03abcd")).expect("missing"));
+
+    let mut row = ProjectRow::new("pi", &made.id, "work", "Work", "");
+    row.icon = Some("01a1b2".into());
+    insert_project(&conn, &row).expect("insert with icon");
+    assert_eq!(get_project(&conn, "pi").expect("get").expect("row").icon.as_deref(), Some("01a1b2"));
+    row.icon = None;
+    assert!(update_project(&conn, &row).expect("update"));
+    assert_eq!(get_project(&conn, "pi").expect("get").expect("row").icon, None);
+}

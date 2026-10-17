@@ -20,8 +20,8 @@ use crate::services::spark_data::{
 };
 
 use super::resolve::{
-    bad_request, conflict, ensure_project_enabled, ensure_workspace_enabled, internal, open_data,
-    resolve_project, resolve_workspace, text_field, DEFAULT_PROJECT_FOLDER,
+    bad_request, conflict, ensure_project_enabled, ensure_workspace_enabled, icon_field, internal,
+    open_data, resolve_project, resolve_workspace, text_field, DEFAULT_PROJECT_FOLDER,
 };
 
 const FOLDER_MAX_LEN: usize = 64;
@@ -34,6 +34,7 @@ fn project_value(row: &ProjectRow) -> Value {
         "title": row.title,
         "description": row.description,
         "disabled_at": row.disabled_at,
+        "icon": row.icon.clone().unwrap_or_default(),
     })
 }
 
@@ -99,7 +100,7 @@ pub fn list_disabled_projects(payload: &Value) -> Value {
     }
 }
 
-/// `{ workspace?, folder?, title, description? }` → `{ ok, project }`.
+/// `{ workspace?, folder?, title, description?, icon? }` → `{ ok, project }`.
 pub fn create_project(payload: &Value) -> Value {
     let Some(title) = text_field(payload, "title") else {
         return bad_request("Missing title");
@@ -109,6 +110,10 @@ pub fn create_project(payload: &Value) -> Value {
         return bad_request("Invalid folder");
     }
     let description = text_field(payload, "description").unwrap_or("");
+    let icon = match icon_field(payload) {
+        Ok(icon) => icon.flatten(),
+        Err(v) => return v,
+    };
     let result = open_data().and_then(|conn| {
         let ws = resolve_workspace(&conn, text_field(payload, "workspace"))?;
         ensure_workspace_enabled(&ws)?;
@@ -121,7 +126,8 @@ pub fn create_project(payload: &Value) -> Value {
                 format!("Duplicate project folder: {folder}")
             }));
         }
-        let row = ProjectRow::new(&id, &ws.id, folder, title, description);
+        let mut row = ProjectRow::new(&id, &ws.id, folder, title, description);
+        row.icon = icon;
         insert_project(&conn, &row).map_err(internal)?;
         Ok(row)
     });
@@ -131,19 +137,27 @@ pub fn create_project(payload: &Value) -> Value {
     }
 }
 
-/// `{ workspace?, project, title, description? }` → `{ ok, project }`. Folder is kept.
+/// `{ workspace?, project, title, description?, icon? }` → `{ ok, project }`. Folder is kept.
+/// `icon` absent keeps the icon, an empty string clears it.
 pub fn update_project(payload: &Value) -> Value {
     let (Some(folder), Some(title)) = (text_field(payload, "project"), text_field(payload, "title"))
     else {
         return bad_request("Missing project or title");
     };
     let description = text_field(payload, "description").unwrap_or("");
+    let icon = match icon_field(payload) {
+        Ok(icon) => icon,
+        Err(v) => return v,
+    };
     let result = open_data().and_then(|conn| {
         let ws = resolve_workspace(&conn, text_field(payload, "workspace"))?;
         let mut row = resolve_project(&conn, &ws, folder)?;
         ensure_project_enabled(&row)?;
         row.title = title.to_string();
         row.description = description.to_string();
+        if let Some(icon) = icon {
+            row.icon = icon;
+        }
         update_project_row(&conn, &row).map_err(internal)?;
         Ok(row)
     });

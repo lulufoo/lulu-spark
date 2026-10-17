@@ -47,6 +47,35 @@ pub(super) fn text_field<'a>(payload: &'a Value, key: &str) -> Option<&'a str> {
         .filter(|s| !s.is_empty())
 }
 
+/// Whether `value` is shaped like a built-in icon id: a two-digit category `00`-`06` and four
+/// lowercase letters or digits. Whether that icon exists is the frontend's business.
+pub(super) fn is_icon_id(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    bytes.len() == 6
+        && bytes[0] == b'0'
+        && (b'0'..=b'6').contains(&bytes[1])
+        && bytes[2..].iter().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit())
+}
+
+/// The `icon` field of a payload: `None` when absent (leave as it is), `Some(None)` for an empty
+/// string (clear it), `Some(Some(id))` for a well-formed id. Anything else is a 400.
+pub(super) fn icon_field(payload: &Value) -> Result<Option<Option<String>>, Value> {
+    match payload.get("icon") {
+        None | Some(Value::Null) => Ok(None),
+        Some(Value::String(raw)) => {
+            let icon = raw.trim();
+            if icon.is_empty() {
+                Ok(Some(None))
+            } else if is_icon_id(icon) {
+                Ok(Some(Some(icon.to_string())))
+            } else {
+                Err(bad_request("Invalid icon"))
+            }
+        }
+        Some(_) => Err(bad_request("Invalid icon")),
+    }
+}
+
 /// `workspace` (an id) or the default workspace when it is absent.
 pub(super) fn resolve_workspace(conn: &Connection, requested: Option<&str>) -> Result<WorkspaceRow, Value> {
     match requested {

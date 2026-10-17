@@ -6,8 +6,13 @@ export async function fetchWorkspaces() {
   return readGet('/api/workspaces?_=' + Date.now());
 }
 
-export async function createWorkspace(name: string, viewMode: ViewMode = 'directory') {
-  return writePost('/api/workspace-create', { name, view_mode: viewMode });
+/** `icon` is an icon id; leave it out for the default icon, `''` also means none. */
+export async function createWorkspace(name: string, viewMode: ViewMode = 'directory', icon?: string) {
+  return writePost('/api/workspace-create', {
+    name,
+    view_mode: viewMode,
+    ...(icon !== undefined ? { icon } : {}),
+  });
 }
 
 export async function renameWorkspace(id: string, name: string) {
@@ -16,6 +21,11 @@ export async function renameWorkspace(id: string, name: string) {
 
 export async function setWorkspaceViewMode(id: string, viewMode: ViewMode) {
   return writePost('/api/workspace-view-mode', { id, view_mode: viewMode });
+}
+
+/** Set the workspace icon; `''` clears it (back to the default icon). */
+export async function setWorkspaceIcon(id: string, icon: string) {
+  return writePost('/api/workspace-icon', { id, icon });
 }
 
 export async function fetchDisabledWorkspaces() {
@@ -34,17 +44,30 @@ export async function fetchProjects(workspace: string) {
   return readGet(`/api/projects?workspace=${encodeURIComponent(workspace)}&_=${Date.now()}`);
 }
 
-export async function createProject(workspace: string, title: string, description = '') {
-  return writePost('/api/project-create', { workspace, title, description });
+export async function createProject(workspace: string, title: string, description = '', icon?: string) {
+  return writePost('/api/project-create', {
+    workspace,
+    title,
+    description,
+    ...(icon !== undefined ? { icon } : {}),
+  });
 }
 
+/** `icon` left out keeps the project's icon; `''` clears it (back to the default icon). */
 export async function updateProject(
   workspace: string,
   project: string,
   title: string,
   description = '',
+  icon?: string,
 ) {
-  return writePost('/api/project-update', { workspace, project, title, description });
+  return writePost('/api/project-update', {
+    workspace,
+    project,
+    title,
+    description,
+    ...(icon !== undefined ? { icon } : {}),
+  });
 }
 
 export async function fetchDisabledProjects(workspace: string) {

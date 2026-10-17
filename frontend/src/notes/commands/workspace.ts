@@ -16,6 +16,7 @@ function parseWorkspace(raw: unknown): HostWorkspace | null {
     name: typeof rec.name === 'string' && rec.name ? rec.name : rec.id,
     view_mode: rec.view_mode === 'timeline' ? 'timeline' : 'directory',
     is_default: Boolean(rec.is_default),
+    icon: typeof rec.icon === 'string' ? rec.icon : '',
   };
 }
 

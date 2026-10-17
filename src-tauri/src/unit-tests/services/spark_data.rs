@@ -170,3 +170,23 @@ fn dropping_the_legacy_tables_is_repeatable() {
     let conn = Connection::open(&path).expect("raw");
     conn.execute_batch(MIGRATIONS[8]).expect("step runs again");
 }
+
+/// Step 10 adds a nullable `icon` to `workspace` and `project`; rows made before it have none.
+#[test]
+fn the_icon_step_leaves_existing_rows_without_an_icon() {
+    let (_dir, path) = temp_db();
+    let before = open_with_steps(&path, &MIGRATIONS[..9]).expect("v9");
+    assert_eq!(user_version(&before), 9);
+    before
+        .execute(
+            "INSERT INTO project(id, workspace_id, folder, title) VALUES ('p9', 'default', 'old', 'Old')",
+            [],
+        )
+        .expect("project at v9");
+    drop(before);
+
+    let conn = open_at(&path).expect("latest");
+    assert_eq!(count(&conn, "SELECT count(*) FROM workspace WHERE icon IS NOT NULL"), 0);
+    assert_eq!(count(&conn, "SELECT count(*) FROM project WHERE icon IS NOT NULL"), 0);
+    assert_eq!(count(&conn, "SELECT count(*) FROM project WHERE id = 'p9'"), 1);
+}
