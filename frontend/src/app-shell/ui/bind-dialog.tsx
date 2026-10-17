@@ -28,13 +28,13 @@ export function BindPanel() {
               <div id="bind-countdown"></div>
             </div>
             <p id="bind-host" hidden></p>
-            <ol id="bind-steps">
-              <li>Open the Lulu Spark Android app.</li>
-              <li>Scan this code on the same local network.</li>
-              <li>Keep this page open until binding succeeds.</li>
-            </ol>
           </div>
         </div>
+        <ol id="bind-steps">
+          <li>Open the Lulu Spark Android app.</li>
+          <li>Scan this code on the same local network.</li>
+          <li>Keep this page open until binding succeeds.</li>
+        </ol>
         <div id="bind-dialog-footer">
           <p id="bind-footer-hint">A new code is available if this one expires.</p>
           <button id="btn-bind-refresh" type="button" hidden onClick={() => { void openBindDialog(); }}>
