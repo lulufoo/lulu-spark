@@ -346,15 +346,16 @@ export function NotesDocList({
   entries,
   date,
   empty,
-  emptyMessage = 'No documents match the current filters',
+  emptyMessage,
 }: {
   entries: { id: string; entry: NoteEntry }[];
   date: string;
   empty?: boolean;
+  /** Shown when `empty`; without one the list stays blank (the toolbar heading already says it). */
   emptyMessage?: string;
 }) {
   if (empty) {
-    return <div className="empty-filter-msg">{emptyMessage}</div>;
+    return emptyMessage ? <div className="empty-filter-msg">{emptyMessage}</div> : null;
   }
 
   return (
