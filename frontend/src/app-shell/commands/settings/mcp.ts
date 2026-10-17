@@ -66,13 +66,14 @@ export function paintMcpToolGroups() {
   const enabled = enabledNamesForChannel(toolsSnapshot, channel);
   const hidden = hiddenTools(toolsSnapshot, channel);
   for (const group of groups) {
+    const visibleTools = (group.tools || []).filter((tool) => !hidden.has(tool.name));
+    if (!visibleTools.length) continue;
     const fieldset = document.createElement('fieldset');
     fieldset.className = 'settings-mcp-tool-group';
     const legend = document.createElement('legend');
     legend.textContent = group.label || group.id;
     fieldset.appendChild(legend);
-    for (const tool of group.tools || []) {
-      if (hidden.has(tool.name)) continue;
+    for (const tool of visibleTools) {
       const label = document.createElement('label');
       label.className = 'settings-mcp-tool';
       const input = document.createElement('input');

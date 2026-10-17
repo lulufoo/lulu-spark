@@ -13,7 +13,7 @@ import { navigate, navigateToNote } from './router/index.ts';
 import { setRouteHandlers } from './route-handlers.ts';
 import { setSparkBinding } from './app-shell/commands/spark-binding.ts';
 import { normalizeDocIndex } from './notes/state/doc-index.ts';
-import { initTooltip } from './app-shell/ui/tooltip.ts';
+import { initTooltip } from './shared/tooltip/tooltip.ts';
 import {
   getHomeEntryShell,
   mountHomeRoute,

@@ -12,18 +12,28 @@ const gone = [
   "theme-transcribe",
 ];
 
-describe("spark skills pack keeps only note-task", () => {
+describe("spark skills pack keeps only spark-task", () => {
   it("producer directories are gone", () => {
     for (const name of gone) {
       assert.equal(fs.existsSync(path.join(root, name)), false, name);
     }
   });
 
-  it("note-task remains and pack name is unchanged", () => {
-    assert.equal(fs.existsSync(path.join(root, "note-task/SKILL.md")), true);
+  it("spark-task is the only sub-skill, note-task is gone, and the pack name is unchanged", () => {
+    assert.equal(fs.existsSync(path.join(root, "spark-task/SKILL.md")), true);
+    assert.equal(fs.existsSync(path.join(root, "note-task")), false);
+    const subSkills = fs
+      .readdirSync(root, { withFileTypes: true })
+      .filter((e) => e.isDirectory() && fs.existsSync(path.join(root, e.name, "SKILL.md")))
+      .map((e) => e.name);
+    assert.deepEqual(subSkills, ["spark-task"]);
+    assert.match(
+      fs.readFileSync(path.join(root, "spark-task/SKILL.md"), "utf8"),
+      /^name: spark-task$/m,
+    );
     const text = fs.readFileSync(path.join(root, "SKILL.md"), "utf8");
     assert.match(text, /^name: lulu-spark-skills$/m);
-    assert.match(text, /发现子 skill（`note-task`）/);
+    assert.match(text, /发现子 skill（`spark-task`）/);
     for (const name of gone) {
       assert.equal(
         new RegExp(`发现子 skill（[^）]*${name}`).test(text),

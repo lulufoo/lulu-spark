@@ -33,7 +33,7 @@ function TagBadges({ tags }: { tags?: NoteTag[] }) {
       {tags.map((tag, i) => {
         if (tag.unknown) {
           return (
-            <span key={`u-${tag.value || tag.key || i}`} className="badge badge-tag tag-unknown" title="Unknown tag">
+            <span key={`u-${tag.value || tag.key || i}`} className="badge badge-tag tag-unknown" data-tip="Unknown tag">
               🏷 {tag.value || tag.key || ''}
             </span>
           );
@@ -96,7 +96,7 @@ function LinksBadge({ links }: { links?: unknown[] }) {
   const linkCount = links && links.length;
   if (!linkCount) return null;
   return (
-    <span className="badge badge-links" title={`${linkCount} linked items`}>
+    <span className="badge badge-links" data-tip={`${linkCount} linked items`}>
       👍 ×{linkCount}
     </span>
   );
@@ -108,7 +108,7 @@ function OpenInChatBadge() {
       type="button"
       className="badge badge-open-in-chat"
       data-action="open-in-chat"
-      title="Open in chat"
+      data-tip="Open in chat"
       aria-label="Open in chat"
     >
       <ViewerHeaderIcon name="chat" filled />
@@ -131,13 +131,13 @@ function ImportanceBadge({ importance }: { importance?: string }) {
   const m = importance ? map[importance] : undefined;
   if (m) {
     return (
-      <button className={`badge badge-importance ${m.cls}`} data-action="cycle-importance" title="Cycle importance">
+      <button className={`badge badge-importance ${m.cls}`} data-action="cycle-importance" data-tip="Cycle importance">
         {m.label}
       </button>
     );
   }
   return (
-    <button className="badge badge-importance badge-importance-unset" data-action="cycle-importance" title="Set importance">
+    <button className="badge badge-importance badge-importance-unset" data-action="cycle-importance" data-tip="Set importance">
       ☆
     </button>
   );
@@ -145,11 +145,11 @@ function ImportanceBadge({ importance }: { importance?: string }) {
 
 function DoneBadge({ done }: { done?: boolean }) {
   return done ? (
-    <button className="badge badge-done" data-action="toggle-done" title="Mark as not done">
+    <button className="badge badge-done" data-action="toggle-done" data-tip="Mark as not done">
       ✓ Done
     </button>
   ) : (
-    <button className="badge badge-done" data-action="toggle-done" title="Mark as done">
+    <button className="badge badge-done" data-action="toggle-done" data-tip="Mark as done">
       ○ Mark done
     </button>
   );
@@ -157,7 +157,7 @@ function DoneBadge({ done }: { done?: boolean }) {
 
 function MoveBadge() {
   return (
-    <button className="badge badge-move-project" data-action="move-project" title="Move to another project">
+    <button className="badge badge-move-project" data-action="move-project" data-tip="Move to another project">
       <span className="move-icon">↳</span>
       <span>Move project</span>
     </button>
@@ -346,15 +346,16 @@ export function NotesDocList({
   entries,
   date,
   empty,
-  emptyMessage = 'No documents match the current filters',
+  emptyMessage,
 }: {
   entries: { id: string; entry: NoteEntry }[];
   date: string;
   empty?: boolean;
+  /** Shown when `empty`; without one the list stays blank (the toolbar heading already says it). */
   emptyMessage?: string;
 }) {
   if (empty) {
-    return <div className="empty-filter-msg">{emptyMessage}</div>;
+    return emptyMessage ? <div className="empty-filter-msg">{emptyMessage}</div> : null;
   }
 
   return (

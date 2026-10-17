@@ -1,4 +1,5 @@
 import { OverlayDismissButton } from '../../../shared/overlay-dismiss-button.tsx';
+import { BindPanel } from '../bind-dialog.tsx';
 import { McpChannelToolsHost } from './mcp-channel-tools.tsx';
 import { McpTicketsHost } from './mcp-tickets.tsx';
 import { NotesSettingsPanel } from './notes-panel.tsx';
@@ -10,7 +11,7 @@ export function SettingsDialogChrome() {
     <div id="settings-dialog-box">
       <div id="settings-dialog-header">
         <span>Settings</span>
-        <OverlayDismissButton id="btn-settings-close" title="Close" />
+        <OverlayDismissButton id="btn-settings-close" label="Close" />
       </div>
       <div id="settings-dialog-body">
         <nav id="settings-nav">
@@ -18,6 +19,7 @@ export function SettingsDialogChrome() {
           <WorkspaceNavItems />
           <button type="button" className="settings-nav-item" data-panel="llm">Agent</button>
           <button type="button" className="settings-nav-item" data-panel="mcp">MCP</button>
+          <button type="button" className="settings-nav-item" data-panel="devices">Devices</button>
           <button type="button" className="settings-nav-item" data-panel="theme">Theme</button>
         </nav>
         <div id="settings-panels">
@@ -99,6 +101,7 @@ export function SettingsDialogChrome() {
               <McpChannelToolsHost />
             </div>
           </div>
+          <BindPanel />
           <div id="settings-panel-theme" className="settings-panel">
             <div className="settings-field">
               <label htmlFor="settings-theme">Theme</label>

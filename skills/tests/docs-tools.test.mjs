@@ -25,15 +25,22 @@ const RETIRED_TOOLS = [
   "list_knowledge_categories",
 ];
 
-const GENERIC_TOOLS = [
-  "list_workspaces",
-  "list_projects",
-  "create_doc",
-  "get_doc_digest",
-  "get_doc_file",
-  "update_doc",
-  "search",
-];
+// The five MCP groups (LW-404), in Settings order.
+const GROUPS = {
+  Global: ["search"],
+  Workspace: ["list_workspaces", "create_workspace", "rename_workspace"],
+  Project: ["list_projects", "create_project", "update_project"],
+  Document: [
+    "get_doc_digest",
+    "get_doc_file",
+    "get_doc_content",
+    "create_doc",
+    "update_doc",
+    "delete_doc",
+  ],
+  "Read Later": ["get_read_later"],
+};
+const ALL_TOOLS = Object.values(GROUPS).flat();
 
 describe("skills use the generic docs MCP tools", () => {
   it("no skill document mentions a retired notes or knowledge tool", () => {
@@ -49,15 +56,45 @@ describe("skills use the generic docs MCP tools", () => {
     }
   });
 
-  it("note-task lists every generic tool", () => {
-    const text = fs.readFileSync(path.join(root, "note-task", "SKILL.md"), "utf8");
-    for (const tool of GENERIC_TOOLS) {
-      assert.match(text, new RegExp(`\`${tool}\``), `note-task must list ${tool}`);
+  it("spark-task lists every tool of the five groups, each under its group", () => {
+    const text = fs.readFileSync(path.join(root, "spark-task", "SKILL.md"), "utf8");
+    for (const tool of ALL_TOOLS) {
+      assert.match(text, new RegExp(`\`${tool}\``), `spark-task must list ${tool}`);
+    }
+    for (const [group, tools] of Object.entries(GROUPS)) {
+      for (const tool of tools) {
+        const row = new RegExp(`^\\| \`${tool}\` \\| ${group} \\|`, "m");
+        assert.match(text, row, `${tool} must be listed under ${group}`);
+      }
     }
   });
 
-  it("note-task confirms the workspace and project, and defaults to Default / inbox", () => {
-    const text = fs.readFileSync(path.join(root, "note-task", "SKILL.md"), "utf8");
+  it("spark-task routes workspace, project, document, search and Read Later intents", () => {
+    const text = fs.readFileSync(path.join(root, "spark-task", "SKILL.md"), "utf8");
+    for (const intent of [
+      "Create a workspace",
+      "Rename a workspace",
+      "Create a project",
+      "Edit a project",
+      "Create / save / archive a document",
+      "Search documents",
+      "Read one document body",
+      "Edit an existing document",
+      "Delete a document",
+      "Open a Read Later link",
+    ]) {
+      assert.match(text, new RegExp(`^\\| ${intent}`, "m"), `missing route: ${intent}`);
+    }
+  });
+
+  it("spark-task states which tools are not on every channel", () => {
+    const text = fs.readFileSync(path.join(root, "spark-task", "SKILL.md"), "utf8");
+    assert.match(text, /`get_doc_content`[^\n]*mobile-only/);
+    assert.match(text, /`delete_doc` and `get_read_later` are offered on `\/mcp\/spark` only/);
+  });
+
+  it("spark-task confirms the workspace and project, and defaults to Default / inbox", () => {
+    const text = fs.readFileSync(path.join(root, "spark-task", "SKILL.md"), "utf8");
     assert.match(text, /list_workspaces/);
     assert.match(text, /list_projects/);
     assert.match(text, /`Default`/);
@@ -65,7 +102,7 @@ describe("skills use the generic docs MCP tools", () => {
   });
 
   it("path-or-paste names `folder`, not the retired `theme` field", () => {
-    const text = fs.readFileSync(path.join(root, "note-task", "references", "path-or-paste.md"), "utf8");
+    const text = fs.readFileSync(path.join(root, "spark-task", "references", "path-or-paste.md"), "utf8");
     assert.match(text, /^\| `folder` \|/m);
     assert.equal(/^\| `theme` \|/m.test(text), false);
   });

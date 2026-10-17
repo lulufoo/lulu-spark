@@ -52,7 +52,7 @@ export function WorkspaceList({
                 data-role="remove-workspace"
                 data-workspace-path={item.path}
                 aria-label={`Delete ${item.title} from Workspace`}
-                title="Delete from Workspace"
+                data-tip="Delete from Workspace"
                 onClick={() => setPendingPath(item.path)}
               >
                 ×

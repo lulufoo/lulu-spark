@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { TIP_DELAY_MS } from '../../frontend/src/shared/tooltip/tooltip.ts';
 import { createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { flushSync } from 'react-dom';
@@ -204,7 +205,7 @@ describe('digest tooltip 挂在最底徽章行（buildCard / DocCard）', () => 
   }
 
   function tooltipEl() {
-    return document.querySelector('.digest-tooltip');
+    return document.querySelector('.ui-tip-preview');
   }
 
   function makeEntry(commonPath, overrides = {}) {
@@ -247,10 +248,10 @@ describe('digest tooltip 挂在最底徽章行（buildCard / DocCard）', () => 
       reactRoot = undefined;
     }
     vi.useRealTimers();
-    document.querySelector('.digest-tooltip')?.remove();
+    document.querySelector('.ui-tip-preview')?.remove();
   });
 
-  it('buildCard：悬停 .badges 300ms 后显示纯文本预览；空 digest 无 DOM 反应', async () => {
+  it('buildCard：悬停 .badges 延迟后显示纯文本预览；空 digest 无 DOM 反应', async () => {
     const cp = 'proj/topic/202605181200-tip.md';
     api.fetchFileContent.mockResolvedValueOnce('# **Plain** digest preview');
     const card = buildCard('tip1', makeEntry(cp), 'Title');
@@ -258,7 +259,7 @@ describe('digest tooltip 挂在最底徽章行（buildCard / DocCard）', () => 
     const badges = card.querySelector('.badges');
 
     hover(badges);
-    await vi.advanceTimersByTimeAsync(299);
+    await vi.advanceTimersByTimeAsync(TIP_DELAY_MS - 1);
     expect(api.fetchFileContent).not.toHaveBeenCalled();
     expect(tooltipEl()).toBeNull();
 

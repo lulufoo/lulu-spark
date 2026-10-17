@@ -5,8 +5,9 @@ import { DEFAULT_PROJECT_ICON_ID, getIcon } from '../../shared/icons/index.ts';
 import { allocateWorkspaceRows } from '../state/workspace-rows.ts';
 import type { HomeProject } from '../state/store.ts';
 
-/** Used when `--home-nav-row-h` cannot be read (the stylesheet is not applied). */
+/** Used when `--home-nav-row-h` / `--home-nav-group-gap` cannot be read (the stylesheet is not applied). */
 const FALLBACK_ROW_HEIGHT = 32;
+const FALLBACK_GROUP_GAP = 8;
 
 export type HomeWorkspaceRow = {
   id: string;
@@ -49,33 +50,47 @@ function hiddenTitle(count: number): string {
   return `${count} ${count === 1 ? 'project' : 'projects'} collapsed`;
 }
 
-/** The sidebar's row height, from the `--home-nav-row-h` custom property. */
-function rowHeightOf(el: HTMLElement): number {
-  const raw = parseFloat(getComputedStyle(el).getPropertyValue('--home-nav-row-h'));
-  return Number.isFinite(raw) && raw > 0 ? raw : FALLBACK_ROW_HEIGHT;
+function pixelsOf(el: HTMLElement, property: string, fallback: number): number {
+  const raw = parseFloat(getComputedStyle(el).getPropertyValue(property));
+  return Number.isFinite(raw) && raw >= 0 ? raw : fallback;
 }
 
-/** How many whole rows fit in the list; `null` until the list has been measured. */
-function useAvailableRows(ref: React.RefObject<HTMLDivElement | null>): number | null {
-  const [rows, setRows] = useState<number | null>(null);
+type Measure = {
+  /** The list height in rows; fractional, since the gaps between workspaces are not whole rows. */
+  rows: number;
+  /** The gap above each workspace but the first, in rows. */
+  gapRows: number;
+};
+
+/** The list's height and gap in rows; `null` until the list has been measured. */
+function useMeasure(ref: React.RefObject<HTMLDivElement | null>): Measure | null {
+  const [measure, setMeasure] = useState<Measure | null>(null);
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return undefined;
-    const measure = () => setRows(Math.floor(el.clientHeight / rowHeightOf(el)));
-    measure();
+    const update = () => {
+      const rowHeight = pixelsOf(el, '--home-nav-row-h', FALLBACK_ROW_HEIGHT) || FALLBACK_ROW_HEIGHT;
+      const gap = pixelsOf(el, '--home-nav-group-gap', FALLBACK_GROUP_GAP);
+      const next = { rows: el.clientHeight / rowHeight, gapRows: gap / rowHeight };
+      setMeasure((prev) =>
+        prev && prev.rows === next.rows && prev.gapRows === next.gapRows ? prev : next,
+      );
+    };
+    update();
     if (typeof ResizeObserver === 'undefined') return undefined;
-    const observer = new ResizeObserver(measure);
+    const observer = new ResizeObserver(update);
     observer.observe(el);
     return () => observer.disconnect();
   }, [ref]);
-  return rows;
+  return measure;
 }
 
 /**
  * Workspace rows, each with the projects the row allocation grants it (the order Settings
- * arranged) and a `…` mark (hover: "N projects collapsed") on the title row when some are cut off. The list fills the height
- * the sidebar has left; when even the titles do not fit it scrolls. Until the list is measured
- * only the titles are shown.
+ * arranged) and a `…` mark (hover: "N projects collapsed") on the title row when some are cut off.
+ * Every workspace but the first has a small gap above it (`--home-nav-group-gap`); the allocation
+ * counts those gaps. The list fills the height the sidebar has left; when even the titles and
+ * gaps do not fit it scrolls. Until the list is measured only the titles are shown.
  */
 export function HomeWorkspaceNav({
   workspaces,
@@ -85,14 +100,19 @@ export function HomeWorkspaceNav({
   onOpenProject,
 }: Props) {
   const listRef = useRef<HTMLDivElement | null>(null);
-  const availableRows = useAvailableRows(listRef);
+  const measure = useMeasure(listRef);
   const counts = workspaces.map((row) => (projects[row.id] ?? []).length);
   const countKey = counts.join(',');
   const allocation = useMemo(
-    () => allocateWorkspaceRows(availableRows ?? 0, countKey ? countKey.split(',').map(Number) : []),
-    [availableRows, countKey],
+    () =>
+      allocateWorkspaceRows(
+        measure?.rows ?? 0,
+        countKey ? countKey.split(',').map(Number) : [],
+        measure?.gapRows ?? 0,
+      ),
+    [measure, countKey],
   );
-  const measured = availableRows !== null;
+  const measured = measure !== null;
   return (
     <div
       ref={listRef}
@@ -121,7 +141,7 @@ export function HomeWorkspaceNav({
                     className="home-nav-hidden-count"
                     data-home-hidden={row.id}
                     data-home-hidden-count={plan.hidden}
-                    title={hiddenTitle(plan.hidden)}
+                    data-tip={hiddenTitle(plan.hidden)}
                     aria-label={hiddenTitle(plan.hidden)}
                   >
                     …

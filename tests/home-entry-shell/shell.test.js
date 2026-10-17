@@ -118,7 +118,7 @@ describe('home-entry-shell shell · entry cluster + OverlayChrome + triggers (T3
       const btn = entryBtn(anchor, entry.id);
       expect(btn).not.toBeNull();
       expect(btn.getAttribute('aria-label')).toContain(entry.title);
-      expect(btn.title).toBe(entry.title);
+      expect(btn.dataset.tip).toBe(entry.title);
       if (entry.fabClass) {
         expect(btn.classList.contains(entry.fabClass)).toBe(true);
       }

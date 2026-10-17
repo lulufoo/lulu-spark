@@ -1,46 +1,31 @@
 //! Global business group — APIs that span more than one domain.
 
-mod get_read_later;
 mod search;
 
+use super::{
+    registry_build, registry_contains, registry_routes_for_channel, registry_snapshot_routes,
+    BuildFn, Registry,
+};
 use crate::mcp_host::ToolRoute;
 
 pub const GROUP_ID: &str = "global";
 
-const SNAPSHOT_CHANNEL: &str = "cursor_ide";
-
-type BuildFn = fn(&str) -> Option<ToolRoute>;
-
-const REGISTRY: &[(&str, BuildFn)] = &[
+const REGISTRY: Registry = &[
     ("search", search::build as BuildFn),
-    ("get_read_later", get_read_later::build as BuildFn),
 ];
 
 pub fn contains(api: &str) -> bool {
-    REGISTRY.iter().any(|(key, _)| *key == api)
+    registry_contains(REGISTRY, api)
 }
 
 pub fn build(api: &str, channel: &str) -> Option<ToolRoute> {
-    REGISTRY
-        .iter()
-        .find(|(key, _)| *key == api)
-        .and_then(|(_, build)| build(channel))
+    registry_build(REGISTRY, api, channel)
 }
 
 pub fn catalog_snapshot_routes() -> Vec<ToolRoute> {
-    REGISTRY
-        .iter()
-        .map(|(key, build_fn)| {
-            build_fn(SNAPSHOT_CHANNEL)
-                .or_else(|| build_fn("spark"))
-                .unwrap_or_else(|| panic!("catalog snapshot missing for {key}"))
-        })
-        .collect()
+    registry_snapshot_routes(REGISTRY)
 }
 
 pub fn routes_for_channel(channel: &str) -> Vec<ToolRoute> {
-    REGISTRY
-        .iter()
-        .filter_map(|(_, build_fn)| build_fn(channel))
-        .collect()
+    registry_routes_for_channel(REGISTRY, channel)
 }

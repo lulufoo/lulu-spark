@@ -1,8 +1,3 @@
-//! MCP APIs for workspaces: `list_workspaces`, `create_workspace`, `rename_workspace`.
-//!
-//! There is no delete, disable or enable tool: a workspace is disabled and enabled by a person
-//! in Settings only.
-
 use serde_json::json;
 
 use crate::mcp_host::catalog::route_util::{object_schema, route};

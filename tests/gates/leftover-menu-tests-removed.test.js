@@ -109,16 +109,16 @@ describe('leftover Convert / qr / move tests rewritten', () => {
     const t1 = readFileSync(t1Path, 'utf8');
     expect(t1).toMatch(/not\.toContain\('id="btn-tools-menu"'\)/);
     expect(t1).not.toMatch(/⛓ Tools/);
-    expect(t1).toMatch(/id="btn-bind"/);
-    expect(t1).toMatch(/openBindDialog/);
+    expect(t1).toMatch(/moves Bind into Settings Devices/);
+    expect(t1).toMatch(/BindDialog/);
   });
 
   it('keeps bind-dialog.test.js as Bind-only coverage', () => {
     expect(existsSync(bindTestPath)).toBe(true);
     const bindTest = readFileSync(bindTestPath, 'utf8');
     expect(bindTest).toMatch(/openBindDialog/);
-    expect(bindTest).toMatch(/id="btn-bind"/);
-    expect(bindTest).toMatch(/id="bind-dialog"/);
+    expect(bindTest).toMatch(/id="btn-bind-refresh"/);
+    expect(bindTest).toMatch(/settings-panel-devices/);
     expect(bindTest).not.toContain('qr-dialog.tsx');
     expect(bindTest).not.toContain('qr-dialog.ts');
     expect(bindTest).not.toContain('convert-dialog.tsx');
@@ -159,7 +159,7 @@ describe('leftover Convert / qr / move tests rewritten', () => {
     const bindCmd = readFileSync(join(repoRoot, 'frontend/src/app-shell/commands/bind-dialog.ts'), 'utf8');
     const bindRs = readFileSync(join(repoRoot, 'src-tauri/src/commands/bind.rs'), 'utf8');
     expect(bindUi).toMatch(
-      /export\s+(?:async\s+)?(?:function BindDialog|const BindDialog|class BindDialog|type BindDialog)\b/,
+      /export\s+(?:async\s+)?(?:function BindPanel|const BindPanel|class BindPanel|type BindPanel)\b/,
     );
     expect(bindCmd).toMatch(
       /export\s+(?:async\s+)?(?:function openBindDialog|const openBindDialog|class openBindDialog|type openBindDialog)\b/,

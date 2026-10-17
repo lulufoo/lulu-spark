@@ -74,6 +74,7 @@
     app-region: drag;
   }
   .window-drag-strip .page-back-home,
+  .window-drag-strip .home-top-actions,
   .home-chat-main-drag button,
   .notes-page-toolbar .gs-search-wrap,
   .notes-page-toolbar .gs-search-dropdown,
@@ -3570,19 +3571,6 @@
   }
   .doc-title-btn:hover { text-decoration: underline; }
 
-  .digest-tooltip {
-    z-index: 1000;
-    max-width: 360px;
-    padding: 6px 10px;
-    border-radius: 6px;
-    background: var(--bg-surface);
-    color: var(--fg-default);
-    border: 1px solid var(--border-default);
-    font-size: 12px;
-    line-height: 1.5;
-    white-space: pre-wrap;
-    box-shadow: 0 8px 24px var(--shadow-rgba-1b1f24-14);
-  }
   .doc-card.done .doc-title-btn {
     color: var(--fg-subtle);
     font-weight: 400;
@@ -3940,19 +3928,11 @@
     background: var(--bg-subtle);
     color: var(--fg-default);
   }
-  /* floating comment preview tooltip */
+  /* floating comment preview: look from .ui-tip.ui-tip-preview, follows the pointer */
   #comment-preview-tip {
-    position: fixed;
-    z-index: 9999;
     max-width: 300px;
     max-height: 300px;
     overflow-y: auto;
-    background: var(--bg-canvas);
-    border: 1px solid var(--border-muted);
-    border-radius: 6px;
-    padding: 8px 10px;
-    pointer-events: none;
-    box-shadow: 0 4px 16px var(--shadow-rgba-000000-18);
     display: none;
   }
   /* edit textarea */
@@ -3994,35 +3974,6 @@
   }
   #file-popup .viewer-header {
     overflow: visible;
-  }
-  #file-popup [data-role="copy-file-path"] {
-    position: relative;
-  }
-  #file-popup .file-popup-path-tip {
-    display: none;
-    position: absolute;
-    top: calc(100% + 6px);
-    right: 0;
-    left: auto;
-    z-index: 3;
-    padding: 4px 8px;
-    border: 1px solid var(--border-default);
-    border-radius: 4px;
-    background: var(--bg-surface);
-    color: var(--fg-default);
-    font-size: 11px;
-    line-height: 1.3;
-    font-weight: 400;
-    text-align: left;
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
-    width: max-content;
-    max-width: min(480px, calc(100vw - 64px));
-    box-shadow: 0 1px 2px var(--shadow-rgba-000000-08);
-    pointer-events: none;
-  }
-  #file-popup [data-role="copy-file-path"]:hover .file-popup-path-tip {
-    display: block;
   }
   #file-popup .file-popup-actions {
     display: flex;
@@ -4837,24 +4788,6 @@
   }
   .md-tag-suggest-item:hover { background: var(--bg-canvas); }
 
-  /* ── Fast custom tooltip ── */
-  #_tip {
-    position: fixed;
-    z-index: 9999;
-    background: var(--bg-emphasis);
-    color: var(--fg-hex-f0f6fc);
-    font-size: 11px;
-    padding: 4px 8px;
-    border-radius: 5px;
-    pointer-events: none;
-    white-space: pre-wrap;
-    max-width: 480px;
-    word-break: break-all;
-    box-shadow: 0 2px 8px var(--shadow-rgba-000000-30);
-    opacity: 0;
-    transition: opacity .1s;
-  }
-  #_tip.visible { opacity: 1; }
 
 /* ── Feed ────────────────────────────────────────────────────────────────── */
 #btn-feed {
@@ -6057,37 +5990,12 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
 }
 .qr-error { color: var(--fg-hex-e5534b); }
 
-/* ── Bind device dialog ── */
-#bind-dialog {
-  position: fixed;
-  inset: 0;
-  z-index: 2000;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  background: var(--bg-rgba-000000-55);
-}
-#bind-dialog.open { display: flex; }
+/* ── Devices page of Settings (pairing code) ── */
 #bind-dialog-box {
-  background: var(--bg-surface);
-  border-radius: 8px;
-  padding: 0;
-  width: min(720px, 94vw);
-  height: min(560px, 86vh);
-  max-height: 86vh;
-  box-shadow: 0 8px 32px var(--shadow-rgba-010409-18), 0 0 0 1px var(--shadow-rgba-1f2328-08);
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-}
-#bind-dialog-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
   gap: 16px;
-  padding: 16px 20px 14px;
-  border-bottom: 1px solid var(--border-default);
-  flex-shrink: 0;
+  padding: 20px 24px;
 }
 #bind-dialog-heading {
   min-width: 0;
@@ -6108,24 +6016,20 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
 }
 #bind-dialog-body {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) minmax(220px, 1.1fr);
-  gap: 24px;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 28px;
   align-items: center;
-  flex: 1;
   min-height: 0;
-  padding: 20px 24px;
-  background: var(--bg-canvas);
-  overflow: auto;
 }
 #bind-qr-card {
   display: flex;
   align-items: center;
   justify-content: center;
   justify-self: center;
-  width: min(100%, 280px);
+  width: 240px;
   aspect-ratio: 1;
   min-height: 0;
-  padding: 16px;
+  padding: 12px;
   background: var(--bg-surface);
   border: 1px solid var(--border-default);
   border-radius: 10px;
@@ -6151,11 +6055,13 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
 #bind-dialog-box.bind-state-error #bind-preview:empty::before {
   content: 'No code to display.';
 }
+/* The QR library writes a fixed px height on the canvas inline; scale by width and keep it square. */
 #bind-preview canvas,
 #bind-preview img {
   display: block;
-  max-width: 100%;
-  max-height: 100%;
+  width: 100% !important;
+  height: auto !important;
+  aspect-ratio: 1;
 }
 #bind-dialog-meta {
   display: flex;
@@ -6227,22 +6133,38 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
 }
 #bind-host[hidden] { display: none; }
 #bind-steps {
-  margin: 2px 0 0;
-  padding-left: 18px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: bind-step;
   color: var(--fg-muted);
   font-size: 12px;
-  line-height: 1.55;
+  line-height: 1.5;
   overflow-wrap: anywhere;
 }
-#bind-steps li + li { margin-top: 4px; }
+#bind-steps li {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  counter-increment: bind-step;
+}
+#bind-steps li::before {
+  content: counter(bind-step);
+  flex: none;
+  color: var(--fg-subtle);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
 #bind-dialog-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 12px 20px;
+  padding-top: 12px;
   border-top: 1px solid var(--border-default);
-  background: var(--bg-surface);
   flex-shrink: 0;
 }
 #bind-footer-hint {
@@ -6553,6 +6475,8 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   --home-nav-label-h: 28px;
   /* Every row of the Workspace area (workspace, project, ...) and Read Later has this height. */
   --home-nav-row-h: 32px;
+  /* Space above every workspace but the first; the row allocation takes it off the list height. */
+  --home-nav-group-gap: 8px;
   --home-chat-list-rows: 5;
   --home-chat-list-pad: 2px;
   position: relative;
@@ -6586,7 +6510,7 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
 .home-chat-nav-group > .home-desktop-shortcut {
   flex: 0 0 auto;
 }
-/* The Workspace list is measured: rows are fixed-height with no gaps, so whole rows add up. */
+/* The Workspace list is measured: rows are fixed-height with no gaps inside a workspace, and the gap between workspaces is known, so whole rows add up. */
 .home-nav-workspaces {
   flex: 1 1 0;
   min-height: 0;
@@ -6633,6 +6557,9 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   display: flex;
   flex-direction: column;
 }
+.home-nav-workspace + .home-nav-workspace {
+  margin-top: var(--home-nav-group-gap);
+}
 /* Projects sit under their workspace: icon indented past the workspace icon, then the title. */
 .home-chat-nav .home-nav-project {
   gap: 8px;
@@ -6656,10 +6583,17 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* Cut-off projects: a grey `…` at the right of the workspace row (the count is in its hover text); it never squeezes the title. */
+/* Cut-off projects: a grey `…` at the right of the workspace row (the count is in its hover text); it never squeezes the title.
+   The glyph is tiny, so its box is a 28px square (hover target) that reaches the row's right edge; the glyph keeps its place. */
 .home-nav-hidden-count {
   flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
   margin-left: auto;
+  margin-right: -8px;
   font-size: 12px;
   line-height: 1;
   color: var(--fg-subtle);
@@ -6711,6 +6645,56 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   position: absolute;
   top: -2px;
   right: -2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--bg-danger);
+}
+.home-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.home-top-action {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--fg-muted);
+  cursor: pointer;
+}
+.home-top-action:hover {
+  background: var(--bg-subtle);
+  color: var(--fg-default);
+}
+.home-top-action:focus-visible {
+  outline: 2px solid var(--border-accent);
+  outline-offset: 1px;
+}
+.home-top-action .home-desktop-shortcut-icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+}
+.home-top-action .home-desktop-shortcut-icon svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+.home-top-action[data-home-unread="true"] .home-desktop-shortcut-icon::after {
+  content: "";
+  position: absolute;
+  top: -3px;
+  right: -3px;
   width: 8px;
   height: 8px;
   border-radius: 50%;
@@ -8198,4 +8182,36 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   background: var(--bg-hex-ffebe9);
   color: var(--fg-hex-82071e);
   border: 1px solid var(--border-hex-ff8182);
+}
+
+/* ── Shared tooltip (shared/tooltip/tooltip.ts) ──
+   The one tooltip look, taken from the Stage copy-path tip. Do not restyle it per place. */
+.ui-tip {
+  position: fixed;
+  z-index: 9999;
+  box-sizing: border-box;
+  width: max-content;
+  max-width: min(480px, calc(100vw - 16px));
+  padding: 4px 8px;
+  border: 1px solid var(--border-default);
+  border-radius: 4px;
+  background: var(--bg-surface);
+  color: var(--fg-default);
+  font-size: 11px;
+  line-height: 1.3;
+  font-weight: 400;
+  text-align: left;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  box-shadow: 0 1px 2px var(--shadow-rgba-000000-08);
+  pointer-events: none;
+}
+/* Rich previews (digest, comment): same colours and border, roomier box. */
+.ui-tip.ui-tip-preview {
+  max-width: 360px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+  box-shadow: 0 8px 24px var(--shadow-rgba-1b1f24-14);
 }

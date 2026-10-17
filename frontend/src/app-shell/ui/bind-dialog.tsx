@@ -1,26 +1,18 @@
-import { useSyncExternalStore } from 'react';
-import { OverlayDismissButton } from '../../shared/overlay-dismiss-button.tsx';
-import { bindOpenStore, closeBindDialog, openBindDialog } from '../commands/bind-dialog.ts';
+import { openBindDialog } from '../commands/bind-dialog.ts';
 
 export { closeBindDialog, openBindDialog } from '../commands/bind-dialog.ts';
 
-export function BindDialog() {
-  const open = useSyncExternalStore(bindOpenStore.subscribe, bindOpenStore.getSnapshot);
+/**
+ * The Devices page of Settings: pairing code for the Android app. Opening the page issues a code
+ * (`openBindDialog`); leaving the page or closing Settings stops it (`closeBindDialog`).
+ */
+export function BindPanel() {
   return (
-    <div
-      id="bind-dialog"
-      className={open ? 'open' : undefined}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) closeBindDialog();
-      }}
-    >
+    <div id="settings-panel-devices" className="settings-panel">
       <div id="bind-dialog-box">
-        <div id="bind-dialog-header">
-          <div id="bind-dialog-heading">
-            <span id="bind-dialog-title">Pair device</span>
-            <p id="bind-dialog-lead">Pair this Mac with the Lulu Spark Android app on the same local network.</p>
-          </div>
-          <OverlayDismissButton id="btn-bind-close" onClick={() => closeBindDialog()} />
+        <div id="bind-dialog-heading">
+          <span id="bind-dialog-title">Pair device</span>
+          <p id="bind-dialog-lead">Pair this Mac with the Lulu Spark Android app on the same local network.</p>
         </div>
         <div id="bind-dialog-body">
           <div id="bind-qr-card">
@@ -36,13 +28,13 @@ export function BindDialog() {
               <div id="bind-countdown"></div>
             </div>
             <p id="bind-host" hidden></p>
-            <ol id="bind-steps">
-              <li>Open the Lulu Spark Android app.</li>
-              <li>Scan this code on the same local network.</li>
-              <li>Keep this window open until binding succeeds.</li>
-            </ol>
           </div>
         </div>
+        <ol id="bind-steps">
+          <li>Open the Lulu Spark Android app.</li>
+          <li>Scan this code on the same local network.</li>
+          <li>Keep this page open until binding succeeds.</li>
+        </ol>
         <div id="bind-dialog-footer">
           <p id="bind-footer-hint">A new code is available if this one expires.</p>
           <button id="btn-bind-refresh" type="button" hidden onClick={() => { void openBindDialog(); }}>

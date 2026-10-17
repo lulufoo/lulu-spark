@@ -134,34 +134,35 @@ function assertNoAddresses(call) {
 }
 
 describe('bind-dialog markup and wiring', () => {
-  it('keeps Bind on the account Settings menu', () => {
+  it('puts Devices in Settings between MCP and Theme, not in the account menu', () => {
     const home = readSrc('frontend/src/home/page.tsx');
     const help = readSrc('frontend/src/home/ui/help-menu.tsx');
-    expect(help).toMatch(/id="btn-bind"/);
-    expect(home).not.toMatch(/data-home-nav-group="settings"/);
-    expect(home).toMatch(/onDevices=\{\(\) => openBindDialog\(\)\}/);
+    const chrome = readSrc('frontend/src/app-shell/ui/settings/chrome.tsx');
+    expect(help).not.toMatch(/btn-bind|Devices/);
+    expect(home).not.toMatch(/openBindDialog|onDevices/);
+    expect(chrome).toMatch(/data-panel="mcp"[\s\S]*?data-panel="devices"[\s\S]*?data-panel="theme"/);
+    expect(chrome).toMatch(/<BindPanel\s*\/>/);
   });
 
-  it('adds an independent bind overlay with its own preview node', () => {
-    const html = shellHtml;
-    const overlay = extractById(html, 'bind-dialog');
-    expect(overlay).toMatch(/id="bind-dialog"/);
-    expect(overlay).toMatch(/id="bind-preview"/);
-    expect(overlay).toMatch(/id="bind-status"/);
-    expect(overlay).toMatch(/id="bind-countdown"/);
-    expect(overlay).toMatch(/id="btn-bind-close"/);
-    expect(overlay).toMatch(/id="btn-bind-refresh"/);
+  it('renders the pairing UI as the Devices settings panel with its own preview node', () => {
+    const panel = readSrc('frontend/src/app-shell/ui/bind-dialog.tsx');
+    expect(panel).toMatch(/id="settings-panel-devices" className="settings-panel"/);
+    expect(panel).toMatch(/id="bind-dialog-box"/);
+    expect(panel).toMatch(/id="bind-preview"/);
+    expect(panel).toMatch(/id="bind-status"/);
+    expect(panel).toMatch(/id="bind-countdown"/);
+    expect(panel).toMatch(/id="btn-bind-refresh"/);
+    expect(panel).not.toMatch(/btn-bind-close/);
+    expect(shellHtml).not.toMatch(/id="bind-dialog"/);
+    expect(panel).not.toMatch(/id="bind-dialog"/);
   });
 
-  it('wires the bind entry to openBindDialog', () => {
+  it('issues a code when the Devices page is shown and stops it otherwise', () => {
     const shell = readSrc('frontend/src/shell.tsx');
-    expect(shell).toMatch(/from ['"]\.\/app-shell\/ui\/bind-dialog\.tsx['"]/);
-    expect(shell).toMatch(/<BindDialog\s*\/>/);
-    const home = readSrc('frontend/src/home/page.tsx');
-    const help = readSrc('frontend/src/home/ui/help-menu.tsx');
-    expect(home).toMatch(/from ['"]\.\.\/app-shell\/ui\/bind-dialog\.tsx['"]/);
-    expect(help).toMatch(/id="btn-bind"/);
-    expect(home).toMatch(/onDevices=\{\(\) => openBindDialog\(\)\}/);
+    expect(shell).not.toMatch(/BindDialog/);
+    const dialog = readSrc('frontend/src/app-shell/commands/settings/dialog.ts');
+    expect(dialog).toMatch(/panelId === 'devices'\) void openBindDialog\(\);\s*else closeBindDialog\(\);/);
+    expect(dialog).toMatch(/export function closeSettingsDialog\(\) \{\s*closeEditors\(\);\s*closeBindDialog\(\);/);
   });
 
   it('does not reuse renderQr, qr-dialog, list_devices, or a frontend address', () => {
@@ -180,11 +181,8 @@ describe('bind-dialog markup and wiring', () => {
     expect(src).not.toMatch(/getElementById\(\s*['"]qr-preview['"]/);
     expect(src).not.toMatch(/getElementById\(\s*['"]qr-dialog['"]/);
     expect(src).not.toMatch(/getElementById\(\s*['"]btn-qr['"]/);
-    expect(src).toMatch(/export function BindDialog/);
+    expect(src).toMatch(/export function BindPanel/);
     expect(src).toMatch(/createModuleStore/);
-    expect(src).toMatch(/useSyncExternalStore/);
-    expect(src).toMatch(/<OverlayDismissButton[\s\S]*?\bid=["']btn-bind-close["']/);
-    expect(src).toMatch(/id="btn-bind-close"[\s\S]*?onClick/);
     expect(src).toMatch(/id="btn-bind-refresh"[\s\S]*?onClick/);
     expect(src).not.toMatch(/✕ Close/);
     expect(src).not.toMatch(/addEventListener/);

@@ -102,6 +102,8 @@ describe('Home workspace nav commands', () => {
 
 describe('HomeWorkspaceNav', () => {
   const ROW_H = 32;
+  const GAP_H = 8;
+  const GAPS = rows.length - 1;
   let listHeight;
   let observers;
   let hosts;
@@ -157,8 +159,9 @@ describe('HomeWorkspaceNav', () => {
     return host;
   }
 
+  /** A list tall enough for `rowCount` whole rows plus the gaps between the workspaces. */
   function resizeTo(rowCount) {
-    listHeight = rowCount * ROW_H;
+    listHeight = rowCount * ROW_H + GAPS * GAP_H;
     act(() => observers.forEach((o) => o.callback([])));
   }
 
@@ -186,7 +189,9 @@ describe('HomeWorkspaceNav', () => {
     expect(badge.textContent).toBe('…');
     expect(badge.dataset.homeHidden).toBe('knowledge');
     expect(badge.dataset.homeHiddenCount).toBe('2');
-    expect(badge.getAttribute('title')).toBe('2 projects collapsed');
+    expect(badge.getAttribute('data-tip')).toBe('2 projects collapsed');
+    expect(badge.hasAttribute('title')).toBe(false);
+    expect(badge.getAttribute('aria-label')).toBe('2 projects collapsed');
     expect(host.querySelectorAll('.home-nav-hidden-count')).toHaveLength(1);
     expect(host.querySelector('[data-home-more]')).toBeNull();
   });
@@ -197,7 +202,8 @@ describe('HomeWorkspaceNav', () => {
     expect(projectsOf(host, 'knowledge')).toEqual(['a']);
     const badge = host.querySelector('[data-home-entry="knowledge"] .home-nav-hidden-count');
     expect(badge.textContent).toBe('…');
-    expect(badge.getAttribute('title')).toBe('3 projects collapsed');
+    expect(badge.getAttribute('data-tip')).toBe('3 projects collapsed');
+    expect(badge.hasAttribute('title')).toBe(false);
     expect(projectsOf(host, 'default')).toEqual(['inbox', 'work']);
   });
 
@@ -220,6 +226,27 @@ describe('HomeWorkspaceNav', () => {
     expect(host.querySelector('.home-nav-hidden-count')).toBeNull();
   });
 
+  it('counts the gaps between workspaces: one pixel short of rows + gaps cuts a row', () => {
+    // Needs are 3 + 5 + 1 = 9 rows; with 2 gaps of 8px the exact height shows everything.
+    const host = render();
+    resizeTo(9);
+    expect(host.querySelector('.home-nav-hidden-count')).toBeNull();
+    expect(projectsOf(host, 'knowledge')).toEqual(['a', 'b', 'c', 'd']);
+    listHeight -= 1;
+    act(() => observers.forEach((o) => o.callback([])));
+    expect(projectsOf(host, 'knowledge')).toHaveLength(3);
+    expect(host.querySelector('[data-home-entry="knowledge"] .home-nav-hidden-count').dataset.homeHiddenCount).toBe('1');
+  });
+
+  it('puts an 8px gap above every workspace but the first, and none inside a workspace', () => {
+    const css = readFileSync(join(repoRoot, 'frontend/app.css'), 'utf8');
+    expect(css).toMatch(/\.home-chat-sidebar \{[\s\S]*?--home-nav-group-gap: 8px;/);
+    expect(css).toMatch(/\.home-nav-workspace \+ \.home-nav-workspace \{[^}]*margin-top: var\(--home-nav-group-gap\);/);
+    expect(css).not.toMatch(/(?<!\+ )\.home-nav-workspace \{[^}]*margin/);
+    expect(css).not.toMatch(/\.home-chat-nav-notes \{[^}]*margin/);
+    expect(css).not.toMatch(/\.home-nav-project \{[^}]*margin/);
+  });
+
   it('never renders more rows than were measured', () => {
     const host = render();
     for (const count of [3, 4, 5, 6, 7, 8, 9, 12]) {
@@ -229,11 +256,14 @@ describe('HomeWorkspaceNav', () => {
     }
   });
 
-  it('does not own Read Later, which stays a fixed row outside the measured list', () => {
+  it('does not own Read Later, which lives in the top bar and not in the Workspace group', () => {
     const host = render();
     expect(host.querySelector('[data-home-entry="read-later"]')).toBeNull();
     const page = readFileSync(join(repoRoot, 'frontend/src/home/page.tsx'), 'utf8');
-    expect(page.indexOf('<HomeWorkspaceNav')).toBeLessThan(page.indexOf('data-home-entry="read-later"'));
+    expect(page.indexOf('<TopActions')).toBeLessThan(page.indexOf('<HomeWorkspaceNav'));
+    expect(page).not.toMatch(/data-home-entry="read-later"/);
+    const group = page.slice(page.indexOf('data-home-nav-group="workspace"'), page.indexOf('</nav>'));
+    expect(group).not.toMatch(/read-later|Read Later/);
     const css = readFileSync(join(repoRoot, 'frontend/app.css'), 'utf8');
     expect(css).toMatch(/\.home-nav-workspaces \{[^}]*flex: 1 1 0;[^}]*min-height: 0;/);
     expect(css).toMatch(/--home-nav-row-h: 32px;/);

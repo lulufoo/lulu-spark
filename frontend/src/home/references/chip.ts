@@ -17,7 +17,7 @@ export function createChipElement(doc: Document, ref: ReferenceValue): HTMLEleme
   chip.setAttribute('data-ref-kind', ref.kind);
   chip.setAttribute('data-ref-id', ref.id);
   chip.setAttribute('data-ref-title', ref.title);
-  chip.setAttribute('title', ref.title);
+  chip.dataset.tip = ref.title;
   const label = doc.createElement('span');
   label.className = CHIP_LABEL_CLASS;
   label.textContent = chipLabelText(ref.kind, ref.title);

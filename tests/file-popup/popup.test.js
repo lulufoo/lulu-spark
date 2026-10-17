@@ -146,17 +146,17 @@ describe('FilePopup chrome', () => {
     expect(css).not.toMatch(/#file-popup\s+\.file-popup-box\s*\{[^}]*--shadow-rgba-1f2328-18/);
   });
 
-  it('path tip uses digest tokens and shows the full path without clipping', () => {
+  it('path tip is the shared tooltip on the copy button, showing the full path', () => {
     const css = readRel('frontend/app.css');
-    expect(css).toMatch(/#file-popup \.file-popup-path-tip\s*\{[^}]*background:\s*var\(--bg-surface\)/);
-    expect(css).toMatch(/#file-popup \.file-popup-path-tip\s*\{[^}]*color:\s*var\(--fg-default\)/);
-    expect(css).toMatch(/#file-popup \.file-popup-path-tip\s*\{[^}]*white-space:\s*pre-wrap/);
-    expect(css).toMatch(/#file-popup \.file-popup-path-tip\s*\{[^}]*width:\s*max-content/);
-    expect(css).toMatch(/#file-popup \.file-popup-path-tip\s*\{[^}]*max-width:\s*min\(480px, calc\(100vw - 64px\)\)/);
-    expect(css).not.toMatch(/#file-popup \.file-popup-path-tip\s*\{[^}]*max-height/);
-    expect(css).not.toMatch(/#file-popup \.file-popup-path-tip\s*\{[^}]*overflow:\s*hidden/);
-    expect(css).not.toMatch(/#file-popup \.file-popup-path-tip\s*\{[^}]*color-scheme:\s*light/);
-    expect(css).not.toMatch(/#file-popup \.file-popup-path-tip\s*\{[^}]*background:\s*#fff/);
+    const popup = readRel('frontend/src/file-popup/ui/popup.tsx');
+    expect(popup).toMatch(/data-role="copy-file-path"[\s\S]*?data-tip=\{view\.path \|\| undefined\}/);
+    expect(popup).not.toMatch(/file-popup-path-tip/);
+    expect(css).not.toMatch(/file-popup-path-tip/);
+    expect(css).toMatch(/\.ui-tip\s*\{[^}]*white-space:\s*pre-wrap/);
+    expect(css).toMatch(/\.ui-tip\s*\{[^}]*width:\s*max-content/);
+    expect(css).toMatch(/\.ui-tip\s*\{[^}]*max-width:\s*min\(480px, calc\(100vw - 16px\)\)/);
+    expect(css).not.toMatch(/\.ui-tip\s*\{[^}]*max-height/);
+    expect(css).not.toMatch(/\.ui-tip\s*\{[^}]*overflow:\s*hidden/);
   });
 
   it('keeps File popup close in commands and not inside the shared control', () => {

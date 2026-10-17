@@ -105,6 +105,6 @@ export function importanceBadgeHtml(importance: string | null | undefined): stri
     low:    { cls: 'badge-importance-low',    label: '↓ Low' },
   };
   const m = importance ? map[importance] : undefined;
-  if (m) return `<button class="badge badge-importance ${m.cls}" data-action="cycle-importance" title="Cycle importance">${m.label}</button>`;
-  return `<button class="badge badge-importance badge-importance-unset" data-action="cycle-importance" title="Set importance">☆</button>`;
+  if (m) return `<button class="badge badge-importance ${m.cls}" data-action="cycle-importance" data-tip="Cycle importance">${m.label}</button>`;
+  return `<button class="badge badge-importance badge-importance-unset" data-action="cycle-importance" data-tip="Set importance" aria-label="Set importance">☆</button>`;
 }

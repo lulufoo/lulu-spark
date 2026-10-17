@@ -85,7 +85,7 @@ export function SessionList({
                 data-role="delete-session"
                 data-session-id={id}
                 aria-label="Delete conversation"
-                title="Delete conversation"
+                data-tip="Delete conversation"
                 onClick={() => {
                   if (id) setPendingId(id);
                 }}

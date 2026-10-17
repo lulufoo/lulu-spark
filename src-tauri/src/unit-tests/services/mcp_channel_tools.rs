@@ -34,9 +34,9 @@ fn set_enabled_subset_filters_only_that_channel() {
     let stored: serde_json::Value = serde_json::from_str(&fs::read_to_string(&path).expect("read"))
         .expect("json");
     assert!(stored["channels"].get("spark").is_none());
-    let mobile_docs = stored["channels"]["mobile"]["docs"]
+    let mobile_docs = stored["channels"]["mobile"]["document"]
         .as_array()
-        .expect("mobile docs");
+        .expect("mobile document group");
     assert!(mobile_docs
         .iter()
         .all(|n| n.as_str() != Some("create_doc")));
@@ -88,8 +88,11 @@ fn snapshot_lists_groups_and_per_channel_enabled() {
     );
     let groups = snap["groups"].as_array().expect("groups");
     let ids: Vec<_> = groups.iter().filter_map(|g| g["id"].as_str()).collect();
-    assert!(ids.contains(&"docs"));
-    assert!(ids.contains(&"global"));
+    assert_eq!(
+        ids,
+        vec!["global", "workspace", "project", "document", "read_later"]
+    );
+    assert!(!ids.contains(&"docs"));
     assert!(!ids.contains(&"notes"));
     assert!(!ids.contains(&"knowledge"));
     assert!(!ids.contains(&"todo"));
@@ -144,7 +147,7 @@ fn load_reads_flat_channel_lists() {
     .expect("write flat list");
     sandbox.assert_not_prod_path(&path).expect("sandbox file");
     let grouped = crate::services::settings::mcp_channel_tools::enabled_by_group("mobile");
-    assert!(grouped.docs.contains(&"list_projects".into()));
+    assert!(grouped.project.contains(&"list_projects".into()));
     assert!(is_enabled("mobile", "list_projects"));
     assert!(!is_enabled("mobile", "list_todo_tasks"));
 }
@@ -164,10 +167,10 @@ fn load_ignores_retired_tool_names_and_old_groups() {
     let path = paths::mcp_channel_tools_path().expect("path");
     sandbox.assert_not_prod_path(&path).expect("sandbox file");
     let desktop = crate::services::settings::mcp_channel_tools::enabled_by_group("cursor_ide");
-    assert_eq!(desktop.docs, vec!["get_doc_digest"]);
+    assert_eq!(desktop.document, vec!["get_doc_digest"]);
     assert_eq!(desktop.global, vec!["search"]);
     let mobile = crate::services::settings::mcp_channel_tools::enabled_by_group("mobile");
-    assert_eq!(mobile.docs, vec!["get_doc_digest"]);
+    assert_eq!(mobile.document, vec!["get_doc_digest"]);
     for retired in [
         "get_all_notes_catalog",
         "create_note",
@@ -193,6 +196,55 @@ fn load_ignores_retired_tool_names_and_old_groups() {
         .collect();
     assert!(!listed.contains("get_all_notes_catalog"));
     assert!(listed.contains("list_projects"));
+}
+
+#[test]
+fn load_sorts_the_old_docs_group_into_the_five_groups() {
+    let sandbox = TestSandbox::new();
+    write_channels(serde_json::json!({
+        "spark": {
+            "docs": [
+                "list_workspaces", "rename_workspace", "list_projects", "update_project",
+                "get_doc_digest", "create_doc"
+            ],
+            "global": ["search", "get_read_later"]
+        }
+    }));
+    let path = paths::mcp_channel_tools_path().expect("path");
+    sandbox.assert_not_prod_path(&path).expect("sandbox file");
+    let grouped = crate::services::settings::mcp_channel_tools::enabled_by_group("spark");
+    assert_eq!(grouped.workspace, vec!["list_workspaces", "rename_workspace"]);
+    assert_eq!(grouped.project, vec!["list_projects", "update_project"]);
+    assert_eq!(grouped.document, vec!["create_doc", "get_doc_digest"]);
+    assert_eq!(grouped.global, vec!["search"]);
+    assert_eq!(grouped.read_later, vec!["get_read_later"]);
+    // Nothing the user had switched off comes back on.
+    assert!(!is_enabled("spark", "create_workspace"));
+    assert!(!is_enabled("spark", "create_project"));
+    assert!(!is_enabled("spark", "update_doc"));
+    assert!(!is_enabled("spark", "get_doc_file"));
+}
+
+#[test]
+fn load_keeps_a_saved_five_group_entry() {
+    let sandbox = TestSandbox::new();
+    write_channels(serde_json::json!({
+        "mobile": {
+            "global": ["search"],
+            "workspace": ["list_workspaces"],
+            "project": [],
+            "document": ["get_doc_content"],
+            "read_later": []
+        }
+    }));
+    let path = paths::mcp_channel_tools_path().expect("path");
+    sandbox.assert_not_prod_path(&path).expect("sandbox file");
+    let grouped = crate::services::settings::mcp_channel_tools::enabled_by_group("mobile");
+    assert_eq!(grouped.global, vec!["search"]);
+    assert_eq!(grouped.workspace, vec!["list_workspaces"]);
+    assert!(grouped.project.is_empty());
+    assert_eq!(grouped.document, vec!["get_doc_content"]);
+    assert!(grouped.read_later.is_empty());
 }
 
 #[test]
@@ -222,7 +274,7 @@ fn snapshot_exposes_grouped_enabled() {
     let _sandbox = TestSandbox::new();
     set_enabled("mobile", without("create_doc")).expect("save");
     let snap = snapshot().expect("snapshot");
-    assert!(snap["enabled_grouped"]["mobile"]["docs"]
+    assert!(snap["enabled_grouped"]["mobile"]["document"]
         .as_array()
         .expect("mobile notes grouped")
         .iter()

@@ -130,7 +130,8 @@ function CommentItem({
       <button
         type="button"
         className="comment-item-del-x"
-        title="Delete"
+        data-tip="Delete"
+        aria-label="Delete"
         data-action="delete"
         onClick={() => void onDeleteComment(c, layer, entry)}
       >
@@ -156,7 +157,8 @@ function CommentItem({
           <button
             type="button"
             className="comment-item-action-btn comment-item-order-btn"
-            title="Move up"
+            data-tip="Move up"
+            aria-label="Move up"
             data-action="up"
             onClick={() => void moveNoteComment(layer, entry, idx, -1)}
           >
@@ -167,7 +169,8 @@ function CommentItem({
           <button
             type="button"
             className="comment-item-action-btn comment-item-order-btn"
-            title="Move down"
+            data-tip="Move down"
+            aria-label="Move down"
             data-action="down"
             onClick={() => void moveNoteComment(layer, entry, idx, 1)}
           >
@@ -225,7 +228,7 @@ export function NotesCommentFloatNav() {
           type="button"
           className="comment-float-btn"
           data-index={i}
-          title={`Edit comment ${i + 1}`}
+          aria-label={`Edit comment ${i + 1}`}
           onClick={() => void openCommentDialog(c, COMMENT_LAYER, entry, i + 1)}
           onMouseEnter={(e) => _showTip(c.text, e.nativeEvent)}
           onMouseMove={(e) => _moveTip(e.nativeEvent)}
@@ -556,7 +559,7 @@ export function NotesDeleteZone() {
       <button
         id="btn-delete"
         type="button"
-        title="Deletes all linked files"
+        data-tip="Deletes all linked files"
         onClick={() => {
           void import('./delete-dialog.tsx').then(({ openDeleteDialog }) => openDeleteDialog());
         }}

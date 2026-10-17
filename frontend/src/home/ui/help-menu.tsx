@@ -1,15 +1,11 @@
 import { useState } from 'react';
 import { HomeNavIcon } from './nav-icons.tsx';
 
-export function HelpMenu({
-  onSettings,
-  onDevices,
-  onAbout,
-}: {
-  onSettings?: () => void;
-  onDevices?: () => void;
-  onAbout?: () => void;
-}) {
+/**
+ * The `?` at the right of the account row. Its menu holds About today; more help entries go in
+ * the same list. Settings stays in the top bar; device pairing is a page inside Settings.
+ */
+export function HelpMenu({ onAbout }: { onAbout?: () => void }) {
   const [open, setOpen] = useState(false);
 
   function close() {
@@ -33,11 +29,11 @@ export function HelpMenu({
         data-role="help-menu-trigger"
         aria-haspopup="menu"
         aria-expanded={open ? 'true' : 'false'}
-        aria-label="Settings"
-        title="Settings"
+        aria-label="About"
+        data-tip="About"
         onClick={() => setOpen((prev) => !prev)}
       >
-        <HomeNavIcon name="settings" />
+        <HomeNavIcon name="help" />
       </button>
       {open ? (
         <>
@@ -47,24 +43,6 @@ export function HelpMenu({
             onClick={close}
           />
           <div className="home-help-menu-panel" role="menu">
-            <button
-              type="button"
-              role="menuitem"
-              id="btn-settings"
-              data-role="help-menu-settings"
-              onClick={() => choose(onSettings)}
-            >
-              Settings
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              id="btn-bind"
-              data-role="help-menu-devices"
-              onClick={() => choose(onDevices)}
-            >
-              Devices
-            </button>
             <button
               type="button"
               role="menuitem"

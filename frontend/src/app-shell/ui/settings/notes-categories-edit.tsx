@@ -134,7 +134,7 @@ export function NotesCategoriesEditHost() {
               <OverlayDismissButton
                 id="btn-notes-cat-edit-close"
                 disabled={snap.busy}
-                title="Close"
+                label="Close"
                 onClick={() => closeNotesCategoryEditor()}
               />
             </div>

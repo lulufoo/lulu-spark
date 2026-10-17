@@ -1,4 +1,3 @@
-import { BindDialog } from './app-shell/ui/bind-dialog.tsx';
 import { SettingsDialog } from './app-shell/ui/settings/dialog.tsx';
 import { SettingsDialogChrome } from './app-shell/ui/settings/chrome.tsx';
 
@@ -13,13 +12,10 @@ import { CommentDeleteDialog } from './shared/comment-delete.tsx';
 export function Shell() {
   return (
     <>
-      {/* <!-- Bind device dialog --> */}
-      <BindDialog />
-
       {/* <!-- Floating highlight button --> */}
       <button id="highlight-add-btn" className="viewer-highlight-btn" style={{ display: 'none', position: 'fixed', zIndex: 9999 }}>Highlight</button>
       {/* <!-- Comment preview tooltip --> */}
-      <div id="comment-preview-tip"></div>
+      <div id="comment-preview-tip" className="ui-tip ui-tip-preview"></div>
 
       {/* <!-- Comment dialog --> */}
       <NoteCommentDialog />

@@ -127,7 +127,8 @@ describe('HomeWorkspaceNav icons', () => {
   });
 
   it('icons do not change which rows are shown, and the … badge carries no icon', () => {
-    listHeight = 7 * 32;
+    // 7 whole rows plus the two 8px gaps between the three workspaces.
+    listHeight = 7 * 32 + 2 * 8;
     const host = render(rows(), {
       default: [
         { folder: 'inbox', title: 'Inbox', icon: ICON_P },
@@ -156,12 +157,16 @@ describe('HomeWorkspaceNav icons', () => {
     expect(projectRule).not.toMatch(/\bheight:/);
     expect(css).not.toMatch(/home-nav-more/);
     expect(css).toMatch(/\.home-nav-hidden-count \{[^}]*margin-left: auto;/);
+    // the hover target is a 28px square at the row's right edge, not just the glyph
+    expect(css).toMatch(/\.home-nav-hidden-count \{[^}]*width: 28px;[^}]*height: 28px;/);
+    expect(css).toMatch(/\.home-nav-hidden-count \{[^}]*margin-right: -8px;/);
+    expect(css).toMatch(/\.home-nav-hidden-count \{[^}]*display: inline-flex;[^}]*justify-content: center;/);
     expect(css).toMatch(/\.home-nav-project-icon \{[^}]*width: 16px;/);
   });
 
   it('leaves Read Later on its own fixed icon, which cannot be configured', () => {
-    const page = readFileSync(join(repoRoot, 'frontend/src/home/page.tsx'), 'utf8');
-    expect(page).toMatch(/<HomeNavIcon name="read-later" \/>/);
+    const topActions = readFileSync(join(repoRoot, 'frontend/src/home/ui/top-actions.tsx'), 'utf8');
+    expect(topActions).toMatch(/<HomeNavIcon name="read-later" \/>/);
     const nav = readFileSync(join(repoRoot, 'frontend/src/home/ui/workspace-nav.tsx'), 'utf8');
     expect(nav).not.toMatch(/read-later/);
   });

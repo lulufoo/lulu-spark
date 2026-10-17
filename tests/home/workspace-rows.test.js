@@ -126,4 +126,61 @@ describe('allocateWorkspaceRows', () => {
     expect(source).not.toMatch(/from 'react/);
     expect(source).not.toMatch(/\bdocument\b|\bwindow\b/);
   });
+
+  describe('with a gap between workspaces', () => {
+    // A gap is a fraction of a row (8px of a 32px row = 0.25); there is one before every
+    // workspace except the first, and it is taken off the height before the rows are counted.
+    const GAP = 8 / 32;
+
+    it('takes the gaps off the available height before counting whole rows', () => {
+      // 4 workspaces, 3 gaps = 0.75 row: 20 rows of height leave 19.25, i.e. 19 whole rows.
+      const withGap = allocateWorkspaceRows(20, [20, 20, 20, 20], GAP);
+      const used19 = allocateWorkspaceRows(19, [20, 20, 20, 20]);
+      expect(withGap).toEqual(used19);
+      expect(withGap.plans.reduce((sum, plan) => sum + used(plan), 0)).toBeLessThanOrEqual(19);
+    });
+
+    it('never cuts the last workspace to half a row: the gaps are counted in', () => {
+      // 3 workspaces needing 4 rows each, 12 rows: no gap shows everything, but 2 gaps (0.5 row)
+      // leave 11.5, so one row is cut and a "…" appears instead of a half-visible row.
+      expect(hiddenOf(allocateWorkspaceRows(12, [3, 3, 3]))).toEqual([0, 0, 0]);
+      const result = allocateWorkspaceRows(12, [3, 3, 3], GAP);
+      expect(result.overflow).toBe(false);
+      expect(result.plans.map(used).reduce((a, b) => a + b, 0)).toBe(11);
+      expect(hiddenOf(result).reduce((a, b) => a + b, 0)).toBe(1);
+    });
+
+    it('shows everything when the height is exactly the rows plus the gaps', () => {
+      // 3 workspaces needing 4 rows each, plus 2 gaps: 12.5 rows of height.
+      const result = allocateWorkspaceRows(12 + 2 * GAP, [3, 3, 3], GAP);
+      expect(hiddenOf(result)).toEqual([0, 0, 0]);
+      expect(hiddenOf(allocateWorkspaceRows(12 + 2 * GAP - 0.01, [3, 3, 3], GAP)).some((h) => h > 0)).toBe(true);
+    });
+
+    it('is not thrown off by floating point noise at the exact fit', () => {
+      // Needs 3 + 3 + 2 = 8 rows; the gap is a fraction that has no exact binary form.
+      const gap = 0.1;
+      const result = allocateWorkspaceRows(8 + gap * 2, [2, 2, 1], gap);
+      expect(hiddenOf(result)).toEqual([0, 0, 0]);
+    });
+
+    it('has no gap for a single workspace and for an empty list', () => {
+      expect(allocateWorkspaceRows(6, [10], GAP).plans[0]).toEqual({ shown: 5, hidden: 5 });
+      expect(allocateWorkspaceRows(10, [], GAP)).toEqual({ plans: [], overflow: false });
+    });
+
+    it('asks to scroll when the titles and gaps together do not fit, though the titles alone would', () => {
+      expect(allocateWorkspaceRows(3.4, [5, 5, 5]).overflow).toBe(false);
+      const result = allocateWorkspaceRows(3.4, [5, 5, 5], GAP);
+      expect(result.overflow).toBe(true);
+      expect(result.plans.every((plan) => plan.shown === 0 && plan.hidden === 0)).toBe(true);
+    });
+
+    it('stays fair: the same sharing rules apply to the rows left after the gaps', () => {
+      // 20 rows + 3 gaps = 20.75 of height; whole rows left = 20, shared as in the no-gap case.
+      const result = allocateWorkspaceRows(20 + 3 * GAP, [2, 3, 9, 11], GAP);
+      expect(shownOf(result)).toEqual([2, 3, 6, 5]);
+      expect(hiddenOf(result)).toEqual([0, 0, 3, 6]);
+    });
+  });
 });

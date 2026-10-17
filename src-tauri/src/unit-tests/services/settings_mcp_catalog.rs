@@ -21,8 +21,11 @@ fn with_channel_tools<F: FnOnce()>(f: F) {
 fn enabled_grouped_partitions_flat_settings_by_business() {
     with_channel_tools(|| {
         let grouped = enabled_grouped("spark");
-        assert!(grouped.docs.contains(&"list_projects".into()));
-        assert!(grouped.docs.contains(&"create_doc".into()));
+        assert!(grouped.project.contains(&"list_projects".into()));
+        assert!(grouped.document.contains(&"create_doc".into()));
+        assert!(grouped.workspace.is_empty());
+        assert!(grouped.global.is_empty());
+        assert!(grouped.read_later.is_empty());
         assert!(!mcp_channel_tools::is_enabled(
             "spark",
             "list_todo_tasks"
@@ -39,7 +42,7 @@ fn enabled_grouped_respects_spark_only_policy() {
         )
         .expect("mobile enabled");
         let grouped = enabled_grouped("mobile");
-        assert!(!grouped.docs.iter().any(|n| n == "delete_doc"));
+        assert!(!grouped.document.iter().any(|n| n == "delete_doc"));
         assert!(!mcp_channel_tools::is_enabled("mobile", "list_todo_tasks"));
     });
 }
@@ -47,8 +50,9 @@ fn enabled_grouped_respects_spark_only_policy() {
 #[test]
 fn enabled_grouped_unknown_channel_is_empty() {
     let grouped = enabled_grouped("not-a-channel");
-    assert!(grouped.docs.is_empty());
-    assert!(grouped.global.is_empty());
+    for (_, names) in grouped.groups() {
+        assert!(names.is_empty());
+    }
 }
 
 #[test]
@@ -56,8 +60,7 @@ fn enabled_grouped_default_is_full_catalog_when_unconfigured() {
     with_channel_tools(|| {
         let flat: HashSet<String> = mcp_channel_tools::enabled_names("cursor_ide");
         let grouped = enabled_grouped("cursor_ide");
-        let grouped_count =
-            grouped.docs.len() + grouped.global.len();
+        let grouped_count: usize = grouped.groups().iter().map(|(_, names)| names.len()).sum();
         assert_eq!(grouped_count, flat.len());
     });
 }

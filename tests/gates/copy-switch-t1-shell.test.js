@@ -6,7 +6,7 @@ import { readShellHtml } from '../helpers/read-frontend-js.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const shellSrc = readFileSync(join(repoRoot, 'frontend/src/shell.tsx'), 'utf8');
-const homeSrc = ['page.tsx', 'ui/workspace-nav.tsx']
+const homeSrc = ['page.tsx', 'ui/workspace-nav.tsx', 'ui/top-actions.tsx']
   .map((file) => readFileSync(join(repoRoot, 'frontend/src/home', file), 'utf8'))
   .join('\n');
 const helpMenuSrc = readFileSync(join(repoRoot, 'frontend/src/home/ui/help-menu.tsx'), 'utf8');
@@ -113,9 +113,6 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
     expect(css).toMatch(/\.kb-reader \{[\s\S]*?overflow: visible;/);
     expect(css).toMatch(/\.viewer-header-actions \{[\s\S]*?gap: 0;/);
     expect(css).toMatch(/#md-lang-bar \{[\s\S]*?margin-right: 10px;/);
-    expect(css).toMatch(/#bind-dialog-box \{[\s\S]*?width: min\(720px, 94vw\);/);
-    expect(css).toMatch(/#bind-dialog-box \{[\s\S]*?height: min\(560px, 86vh\);/);
-    expect(css).toMatch(/#bind-dialog-box \{[\s\S]*?max-height: 86vh;/);
     expect(css).toMatch(/#read-later-dialog-box \{[\s\S]*?width: min\(720px, 94vw\);/);
     expect(css).toMatch(/#read-later-dialog-box \{[\s\S]*?height: min\(560px, 86vh\);/);
     expect(css).toMatch(/#read-later-dialog-box \{[\s\S]*?max-height: 86vh;/);
@@ -226,12 +223,11 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
     expect(homeSrc).toMatch(/home-chat-nav-label">Workspace</);
     expect(homeSrc).not.toMatch(/home-chat-nav-label">Settings</);
     expect(homeSrc).not.toMatch(/home-chat-nav-label">Library</);
-    expect(helpMenuSrc).toMatch(/id="btn-bind"/);
-    expect(helpMenuSrc).toMatch(/id="btn-bind"[\s\S]*?Devices/);
+    expect(helpMenuSrc).not.toMatch(/btn-bind|Devices/);
     expect(homeSrc).toMatch(/<HomeNavIcon name=\{defaultWorkspaceIconName\(row\.id\)\}/);
     expect(homeSrc).toMatch(/<HomeNavIcon name="read-later"/);
     expect(homeSrc).not.toMatch(/<HomeNavIcon name="bind"/);
-    expect(helpMenuSrc).toMatch(/<HomeNavIcon name="settings"/);
+    expect(helpMenuSrc).toMatch(/<HomeNavIcon name="help"/);
     expect(homeSrc).not.toMatch(/📂|📚|📑|📱|📲|⚙️|⚙/);
     const navIcons = readFileSync(join(repoRoot, 'frontend/src/home/ui/nav-icons.tsx'), 'utf8');
     expect(navIcons).toMatch(/data-home-icon=\{name\}/);
@@ -245,15 +241,15 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
     expect(navIcons).toMatch(/width="14" height="20" x="5" y="2"/);
     expect(navIcons).toMatch(/settings: \(/);
     expect(navIcons).toMatch(/<circle cx="12" cy="12" r="3"/);
-    expect(extractTagOuter(indexHtml, 'btn-settings')).toMatch(/Settings/);
+    expect(readFileSync(join(repoRoot, 'frontend/src/home/ui/top-actions.tsx'), 'utf8')).toMatch(/data-role="top-settings"[\s\S]*?Settings/);
   });
 
-  it('keeps Bind on the home rail and unmounts GitHub and Convert', () => {
+  it('moves Bind into Settings Devices and unmounts GitHub and Convert', () => {
     expect(shellSrc).not.toMatch(/id="btn-tools-menu"/);
-    expect(shellSrc).toMatch(/<BindDialog\s*\/>/);
-    expect(helpMenuSrc).toMatch(/id="btn-bind"/);
-    expect(homeSrc).toMatch(/onDevices=\{\(\) => openBindDialog\(\)\}/);
-    expect(helpMenuSrc).toMatch(/id="btn-settings"/);
+    expect(shellSrc).not.toMatch(/BindDialog/);
+    expect(helpMenuSrc).not.toMatch(/btn-bind/);
+    expect(homeSrc).not.toMatch(/openBindDialog|onDevices/);
+    expect(helpMenuSrc).not.toMatch(/btn-settings/);
     expect(shellSrc).not.toContain('id="btn-move-doc-header"');
     expect(shellSrc).not.toContain('id="btn-convert"');
     expect(shellSrc).not.toMatch(/\bConvertDialog\b/);
@@ -307,7 +303,7 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
     expect(deleteDialog).not.toMatch(/⚠️/);
     expect(deleteDialog).toMatch(/id="delete-dialog-desc"[^>]*>[\s\S]*Cannot be undone/);
     expect(deleteDialog).toMatch(/placeholder="Enter CONFIRM here"/);
-    expect(deleteDialog).toMatch(/title="Copy CONFIRM"/);
+    expect(deleteDialog).toMatch(/data-tip="Copy CONFIRM"/);
   });
 
   it('comment editor placeholder uses table B2', () => {

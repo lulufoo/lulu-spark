@@ -130,7 +130,7 @@ export function NotesSidebar() {
           <PageBackHome />
         </WindowDragStrip>
         <div className="sidebar-workspace-row">
-          <div id="sidebar-workspace-title" className="sidebar-workspace-title" title={workspaceName}>
+          <div id="sidebar-workspace-title" className="sidebar-workspace-title" data-tip={workspaceName} data-tip-truncated>
             {workspaceName}
           </div>
           <button
@@ -138,7 +138,7 @@ export function NotesSidebar() {
             className="sidebar-new-doc"
             data-role="create-note"
             aria-label="New document"
-            title={canCreate ? 'New document' : 'Create a project first'}
+            data-tip={canCreate ? 'New document' : 'Create a project first'}
             disabled={!canCreate}
             onClick={() => startCreateDocument()}
           >

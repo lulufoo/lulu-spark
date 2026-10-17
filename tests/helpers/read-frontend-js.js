@@ -101,7 +101,7 @@ export function readMainSource() {
     readFrontendJs('frontend/src/hash-router.tsx'),
     readFrontendJs('frontend/src/shell-pages.tsx'),
     readFrontendJs('frontend/src/app-shell/routes.ts'),
-    readFrontendJs('frontend/src/app-shell/ui/tooltip.ts'),
+    readFrontendJs('frontend/src/shared/tooltip/tooltip.ts'),
   ].join('\n');
 }
 

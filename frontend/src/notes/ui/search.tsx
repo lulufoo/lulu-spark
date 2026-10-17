@@ -237,7 +237,8 @@ export function SparkSearchFields() {
                   type="button"
                   className="gs-hist-remove"
                   data-q={q}
-                  title="Delete"
+                  data-tip="Delete"
+                  aria-label="Delete"
                   onClick={(e) => {
                     e.stopPropagation();
                     removeHistory(q);

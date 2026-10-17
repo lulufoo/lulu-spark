@@ -206,7 +206,7 @@ function NotesOutletChrome({ routeParams }: { routeParams: Record<string, string
             id="btn-goto-kb"
             type="button"
             style={{ display: kbUrl && !creating ? undefined : 'none' }}
-            title="Go to workspace"
+            data-tip="Go to workspace"
             onClick={() => {
               if (kbUrl) window.open(kbUrl, '_blank', 'noopener,noreferrer');
             }}
@@ -218,7 +218,7 @@ function NotesOutletChrome({ routeParams }: { routeParams: Record<string, string
             id="btn-copy-path"
             type="button"
             style={{ display: entry && !creating ? undefined : 'none' }}
-            title="Copy reference"
+            data-tip="Copy reference"
             aria-label="Copy reference"
             onClick={() => copyReference(entry)}
           >
@@ -272,7 +272,7 @@ function NotesOutletChrome({ routeParams }: { routeParams: Record<string, string
             className="md-header-btn viewer-chrome-persisted"
             id="btn-open-in-chat"
             type="button"
-            title="Open in chat"
+            data-tip="Open in chat"
             aria-label="Open in chat"
             style={{ display: entry && !creating ? undefined : 'none' }}
             onClick={(event) => {
@@ -283,7 +283,7 @@ function NotesOutletChrome({ routeParams }: { routeParams: Record<string, string
           >
             <ViewerHeaderIcon name="chat" filled />
           </button>
-          <OverlayDismissButton id="md-close" title="Close" onClick={() => void closeModal()} />
+          <OverlayDismissButton id="md-close" label="Close" onClick={() => void closeModal()} />
           </div>
         </div>
         <NotesLinksBar />
@@ -371,7 +371,7 @@ export function NotesMain({ routeParams }: { routeParams: Record<string, string>
           <NotesDocList
             entries={group?.entries || []}
             date={date || ''}
-            empty={emptyFilter || emptyFolder}
+            empty={emptyFolder}
             emptyMessage={emptyFolder ? 'No documents directly in this folder. Open it in the tree.' : undefined}
           />
         ) : null}

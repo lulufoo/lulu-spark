@@ -126,7 +126,7 @@ export function NotesWorkspacesEditHost() {
               <OverlayDismissButton
                 id="btn-notes-ws-edit-close"
                 disabled={snap.busy}
-                title="Close"
+                label="Close"
                 onClick={() => closeWorkspaceEditor()}
               />
             </div>

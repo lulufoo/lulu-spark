@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use serde_json::{json, Value};
 
 use crate::config::paths;
-use crate::mcp_host::catalog::groups::docs::{
+use crate::mcp_host::catalog::groups::document::{
     create_doc_from_content, create_doc_from_source,
 };
 use crate::test_support::TestSandbox;

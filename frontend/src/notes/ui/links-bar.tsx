@@ -86,7 +86,8 @@ export function NotesLinksBar() {
             ) : (
               <button
                 type="button"
-                title="Delete this link"
+                data-tip="Delete this link"
+                aria-label="Delete this link"
                 data-action="delete-link"
                 style={{
                   fontSize: 10,
