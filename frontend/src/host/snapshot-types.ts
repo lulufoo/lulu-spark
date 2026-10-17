@@ -75,6 +75,9 @@ export type HostViewerAnnotation = Record<string, unknown>;
 export type HostCreateSession = {
   tempId: string;
   status: 'creating' | 'saving';
+  /** Where the document goes: set when the session starts, never guessed at save time. */
+  workspace?: string;
+  project?: string;
 };
 
 export type HostOutletMode = '' | 'open' | 'create' | 'safe-empty';

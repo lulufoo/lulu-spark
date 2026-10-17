@@ -896,7 +896,15 @@
   }
 
   /* ── Workspace title (read-only; the workspace is chosen on Home) ───────── */
+  .sidebar-workspace-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-right: var(--notes-rail);
+  }
   .sidebar-workspace-title {
+    flex: 1;
+    min-width: 0;
     padding: 10px var(--notes-rail) 2px;
     font-size: 13px;
     font-weight: 600;
@@ -6310,6 +6318,7 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   font-weight: 300;
 }
 .ui-select-menu {
+  z-index: 2200;
   max-height: 480px;
   overflow-y: auto;
   overflow-x: hidden;
@@ -6320,6 +6329,77 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
 }
 .ui-select-menu::-webkit-scrollbar {
   display: none;
+}
+
+/* "+" at the right of the workspace title: a new document in the selected project. */
+.sidebar-new-doc {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  margin-top: 8px;
+  padding: 0;
+  border: 1px solid var(--border-neutral);
+  border-radius: 6px;
+  background: var(--bg-surface);
+  color: var(--fg-muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.sidebar-new-doc:hover:not(:disabled) {
+  background: var(--bg-subtle);
+  color: var(--fg-default);
+}
+.sidebar-new-doc:focus-visible {
+  outline: 2px solid var(--border-accent);
+  outline-offset: 1px;
+}
+.sidebar-new-doc:disabled { opacity: .45; cursor: default; }
+.sidebar-new-doc-icon { width: 12px; height: 12px; display: block; }
+
+/* Which project a new document goes to (timeline All). */
+.create-target-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-rgba-000000-55);
+}
+.create-target-box {
+  width: min(380px, 92vw);
+  background: var(--bg-surface);
+  border-radius: 8px;
+  box-shadow: 0 8px 32px var(--shadow-rgba-010409-18), 0 0 0 1px var(--shadow-rgba-1f2328-08);
+}
+.create-target-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid var(--border-default);
+}
+.create-target-header h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--fg-emphasis);
+}
+.create-target-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+}
+.create-target-label { font-size: 12px; color: var(--fg-muted); }
+.create-target-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 6px;
 }
 
 #knowledge-tree-menu {

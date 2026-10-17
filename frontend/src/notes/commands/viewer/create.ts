@@ -4,6 +4,8 @@ import * as api from '../../../host/api.ts';
 import { navigateToNote, navigateBackToList, parseHash } from '../../../router/index.ts';
 import { exitEditMode } from './doc.ts';
 import { forgetOpenDoc } from '../viewer-state.ts';
+import { refreshNotesIndex } from '../reload-index.ts';
+import { landOnNewDocument } from '../land-on-document.ts';
 import { hideNoteOutlet, setNotePanelTitle, showNoteOutlet } from './outlet.ts';
 
 const CREATE_CHROME_HIDDEN_IDS = [
@@ -78,7 +80,9 @@ export function dismissViewerModal() {
  * Binds crash buffer at drafts/docs/<temp_id>. Does not pretend an index entry exists.
  * @param {{ temp_id: string }} opts
  */
-export async function openCreateNote({ temp_id }: { temp_id?: string } = {}) {
+export async function openCreateNote(
+  { temp_id, workspace, project }: { temp_id?: string; workspace?: string; project?: string } = {},
+) {
   if (!temp_id) return;
   const prevMode = state.viewer.outletMode || '';
   try {
@@ -97,7 +101,12 @@ export async function openCreateNote({ temp_id }: { temp_id?: string } = {}) {
     state.viewer.annotation = {};
     state.viewer.rawText = content;
     state.viewer.editing = true;
-    state.viewer.createSession = { tempId: temp_id, status: 'creating' };
+    state.viewer.createSession = {
+      tempId: temp_id,
+      status: 'creating',
+      ...(workspace ? { workspace } : {}),
+      ...(project ? { project } : {}),
+    };
     state.viewer.bodyPaintKey += 1;
 
     applyCreateChrome();
@@ -137,14 +146,24 @@ export async function finalizeCreateSession() {
   session.status = 'saving';
   try {
     await api.saveDocDraft(session.tempId, trimmed);
-    const archived = (await api.createNote({ body: trimmed, source_type: 'jot', workspace: state.workspaces.current })) as {
-      id?: string;
-    };
+    const workspace = session.workspace || state.workspaces.current;
+    const archived = (await api.createNote({
+      body: trimmed,
+      source_type: 'jot',
+      workspace,
+      ...(session.project ? { project: session.project } : {}),
+    })) as { id?: string };
     const id = archived?.id;
     await api.clearDocDraft(session.tempId);
     state.viewer.createSession = null;
     clearCreateChrome();
-    const date = locationDate();
+    let date = '';
+    if (id && workspace === state.workspaces.current) {
+      // The new document is not in the page's index yet; read it, then land where it lives.
+      await refreshNotesIndex();
+      date = landOnNewDocument(id, session.project || '');
+    }
+    date = date || locationDate();
     if (id && date) {
       navigateToNote({ date, note: id });
     }

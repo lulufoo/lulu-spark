@@ -287,6 +287,23 @@ describe('create session exit', () => {
     expect(state.viewer.createSession).toBeNull();
   });
 
+  it('a session started for a Project saves into exactly that workspace and Project', async () => {
+    await closeModal();
+    await openCreateNote({ temp_id: 'tmp-proj', workspace: 'default', project: 'ideas' });
+    expect(state.viewer.createSession).toMatchObject({ workspace: 'default', project: 'ideas' });
+    makeEl('md-edit-area').value = 'into ideas';
+    api.createNote.mockClear();
+
+    await closeModal();
+
+    expect(api.createNote).toHaveBeenCalledWith({
+      body: 'into ideas',
+      source_type: 'jot',
+      workspace: 'default',
+      project: 'ideas',
+    });
+  });
+
   it('empty exit: clear draft + closeModal, no Primary create', async () => {
     makeEl('md-edit-area').value = '   \n  ';
 

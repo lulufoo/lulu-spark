@@ -6,6 +6,7 @@ import { formatDate } from '../../shared/utils.ts';
 import { closeFloatingListSelect, createFloatingListSelect } from '../../shared/floating-list-select.ts';
 import { applyListFilters, buildGroups, selectDate, selectTopic } from '../commands/sidebar.ts';
 import { enterProject } from '../commands/restore.ts';
+import { startCreateDocument } from '../commands/create-document.ts';
 import { isTimelineView } from '../commands/workspace.ts';
 import { PageBackHome } from '../../shared/home-mark.tsx';
 import { WindowDragStrip } from '../../shared/window-drag-strip.tsx';
@@ -100,6 +101,7 @@ export function NotesSidebar() {
   const workspaceName = workspaces.list.find((w) => w.id === workspaces.current)?.name ?? '';
   const groups = host.index.filteredGroups || [];
   const activeDate = host.ui.activeDate;
+  const canCreate = Object.keys(host.index.topicTitles || {}).length > 0;
 
   useLayoutEffect(() => {
     const parent = channelRef.current;
@@ -127,8 +129,26 @@ export function NotesSidebar() {
         <WindowDragStrip>
           <PageBackHome />
         </WindowDragStrip>
-        <div id="sidebar-workspace-title" className="sidebar-workspace-title" title={workspaceName}>
-          {workspaceName}
+        <div className="sidebar-workspace-row">
+          <div id="sidebar-workspace-title" className="sidebar-workspace-title" title={workspaceName}>
+            {workspaceName}
+          </div>
+          <button
+            type="button"
+            className="sidebar-new-doc"
+            data-role="create-note"
+            aria-label="New document"
+            title={canCreate ? 'New document' : 'Create a project first'}
+            disabled={!canCreate}
+            onClick={() => startCreateDocument()}
+          >
+            <svg className="sidebar-new-doc-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path
+                fill="currentColor"
+                d="M11 5a1 1 0 1 1 2 0v6h6a1 1 0 1 1 0 2h-6v6a1 1 0 1 1-2 0v-6H5a1 1 0 1 1 0-2h6V5z"
+              />
+            </svg>
+          </button>
         </div>
         {isTimelineView() ? (
           <div key="timeline-zone" id="sidebar-channel-zone" className="sidebar-channel-zone" ref={channelRef} />

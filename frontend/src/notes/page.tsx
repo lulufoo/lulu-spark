@@ -21,7 +21,8 @@ import {
 } from './commands/viewer/outlet.ts';
 import { renderDocBody } from './ui/viewer/body.tsx';
 import { SparkSearch } from './ui/search.tsx';
-import { openCreateNote } from './commands/viewer/create.ts';
+import { startCreateDocument } from './commands/create-document.ts';
+import { CreateTargetDialog } from './ui/create-target-dialog.tsx';
 import { normalizeGroupKey } from './state/dir-tree.ts';
 import { entryGroupKey, isDirectoryView } from './commands/workspace.ts';
 
@@ -350,13 +351,8 @@ export function NotesMain({ routeParams }: { routeParams: Record<string, string>
         className="notes-new-fab"
         data-role="create-note"
         hidden={showOutlet}
-        onClick={() => {
-          const temp_id =
-            typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-              ? crypto.randomUUID()
-              : `note-${Date.now()}`;
-          void openCreateNote({ temp_id });
-        }}
+        disabled={Object.keys(host.index.topicTitles || {}).length === 0}
+        onClick={() => startCreateDocument()}
       >
         + New document
       </button>
@@ -397,6 +393,7 @@ export function NotesPage({ routeParams }: { routeParams: Record<string, string>
       <main id="main">
         <NotesMain routeParams={routeParams} />
       </main>
+      <CreateTargetDialog />
     </>
   );
 }

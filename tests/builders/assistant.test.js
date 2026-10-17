@@ -23,7 +23,7 @@ describe('Builder frontend module retired (T-builder)', () => {
     );
     const createSrc = readFrontendJs('frontend/src/notes/commands/viewer/create.ts');
     expect(createSrc).toMatch(
-      /api\.createNote\(\s*\{\s*body:\s*trimmed\s*,\s*source_type:\s*['"]jot['"]\s*,\s*workspace:\s*state\.workspaces\.current\s*\}\s*\)/,
+      /api\.createNote\(\s*\{\s*body:\s*trimmed\s*,\s*source_type:\s*['"]jot['"]\s*,\s*workspace\s*,/,
     );
     expect(existsSync(join(repoRoot, 'frontend/src/read-later'))).toBe(true);
   });
