@@ -19,6 +19,7 @@ const CREATE_CHROME_HIDDEN_IDS = [
   'md-tags-bar',
   'btn-copy-path',
   'btn-open-in-chat',
+  'md-source-type',
   'btn-goto-kb',
   'comment-float-nav',
 ];

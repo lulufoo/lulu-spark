@@ -28,6 +28,7 @@ pub use categories::{
 };
 pub use create::{create_doc, create_doc_content};
 pub use delete::delete_doc;
+pub use edit::set_source_type;
 pub use hide_patterns::{
     add_hide_pattern, list_hide_patterns, remove_hide_pattern, update_hide_pattern,
 };

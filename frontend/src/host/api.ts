@@ -67,6 +67,7 @@ export {
   saveDocDraft,
   setConfig,
   setDone,
+  setDocSourceType,
   setImportance,
   tagAttach,
   tagDetach,

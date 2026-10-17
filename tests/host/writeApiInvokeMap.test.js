@@ -14,6 +14,7 @@ const P2_WRITE_PATHS = [
   '/api/update-links',
   '/api/set-done',
   '/api/set-importance',
+  '/api/set-doc-source-type',
   '/api/read-later',
   '/api/tag/attach',
   '/api/tag/detach',
@@ -55,7 +56,7 @@ describe('writeApiInvokeMap', () => {
     for (const p of P2_WRITE_PATHS) {
       expect(WRITE_API_INVOKE_MAP[p]?.cmd, p).toBeTruthy();
     }
-    expect(Object.keys(WRITE_API_INVOKE_MAP)).toHaveLength(35);
+    expect(Object.keys(WRITE_API_INVOKE_MAP)).toHaveLength(36);
   });
 
   it('maps /api/file absolute-path write to write_abs_file', () => {
@@ -68,6 +69,18 @@ describe('writeApiInvokeMap', () => {
     ).toEqual({
       cmd: 'write_abs_file',
       args: { path: '/tmp/notes/raw/x.md', content: '# hi' },
+    });
+  });
+
+  it('resolveWriteInvoke maps set-doc-source-type body to camelCase sourceType', () => {
+    expect(
+      resolveWriteInvoke('/api/set-doc-source-type', {
+        id: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        source_type: 'article',
+      }),
+    ).toEqual({
+      cmd: 'set_doc_source_type',
+      args: { id: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', sourceType: 'article' },
     });
   });
 

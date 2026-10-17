@@ -12,6 +12,7 @@ import './notes/ui/comments.tsx';
 import { navigate, navigateToNote } from './router/index.ts';
 import { setRouteHandlers } from './route-handlers.ts';
 import { setSparkBinding } from './app-shell/commands/spark-binding.ts';
+import { loadDocCategoryCatalog } from './host/doc-categories-catalog.ts';
 import { normalizeDocIndex } from './notes/state/doc-index.ts';
 import { initTooltip } from './shared/tooltip/tooltip.ts';
 import {
@@ -49,7 +50,7 @@ async function loadIndex({ managedBtn = false }: { managedBtn?: boolean } = {}) 
     resetDirTree();
     state.ui.loadError = null;
     applyListFilters();
-    await Promise.all([loadAnnotationsSummary(), loadTagsRegistry()]);
+    await Promise.all([loadAnnotationsSummary(), loadTagsRegistry(), loadDocCategoryCatalog()]);
     applyListFilters();
     await loadViewerMemory(state.workspaces.current);
     enterWorkspace();

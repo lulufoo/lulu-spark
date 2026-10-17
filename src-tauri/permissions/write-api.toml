@@ -4,6 +4,7 @@ description = "P2 write Tauri invoke commands"
 commands.allow = [
   "set_done",
   "set_importance",
+  "set_doc_source_type",
   "update_links",
   "update_comments",
   "reorder_comments",

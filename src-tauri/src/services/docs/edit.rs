@@ -5,6 +5,7 @@
 use rusqlite::{Connection, TransactionBehavior};
 use serde_json::{json, Value};
 
+use crate::services::docs::categories;
 use crate::services::spark_data::{self, delete_unused_tags, find_doc, update_doc, DocRow, FoundDoc};
 
 pub fn invalid_doc_id() -> Value {
@@ -52,3 +53,22 @@ pub fn edit_doc(
     })();
     result.unwrap_or_else(|reply| reply)
 }
+
+/// App UI only. MCP `update_doc` still refuses `source_type`.
+pub fn set_source_type(id: &str, source_type: &str) -> Value {
+    let source_type = source_type.trim();
+    if source_type.is_empty() {
+        return json!({ "error": "Missing source_type", "_status": 400 });
+    }
+    if !categories::is_legal(source_type) {
+        return json!({ "error": "Invalid source_type", "_status": 400 });
+    }
+    edit_doc(id, |_, note| {
+        note.source_type = Some(source_type.to_string());
+        Ok(json!({ "ok": true }))
+    })
+}
+
+#[cfg(test)]
+#[path = "../../unit-tests/services/docs_set_source_type.rs"]
+mod set_source_type_tests;

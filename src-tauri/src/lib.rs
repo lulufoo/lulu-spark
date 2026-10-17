@@ -115,6 +115,7 @@ pub fn run() {
             commands::search::get_reindex_all_status,
             commands::write::set_done,
             commands::write::set_importance,
+            commands::write::set_doc_source_type,
             commands::write::update_links,
             commands::write::update_comments,
             commands::write::reorder_comments,

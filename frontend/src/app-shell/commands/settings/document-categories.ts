@@ -1,5 +1,6 @@
 import * as api from '../../../host/api.ts';
 import type { DocCategory } from '../../../host/api.ts';
+import { setDocCategoryCatalog } from '../../../host/doc-categories-catalog.ts';
 import { errMessage } from '../../state/types.ts';
 import {
   documentCategoriesStore,
@@ -42,6 +43,7 @@ export async function loadDocCategories() {
   patchDocumentCategories({ error: '', busy: true });
   try {
     const rows = await api.fetchDocCategories();
+    setDocCategoryCatalog(rows);
     patchDocumentCategories({ rows, busy: false });
   } catch (err) {
     patchDocumentCategories({ error: describeError(err), busy: false });
@@ -52,12 +54,14 @@ async function persist(next: DocCategory[]) {
   patchDocumentCategories({ busy: true, error: '' });
   try {
     const rows = await api.saveDocCategories(next);
+    setDocCategoryCatalog(rows);
     patchDocumentCategories({ rows, busy: false });
     return true;
   } catch (err) {
     patchDocumentCategories({ error: describeError(err), busy: false });
     try {
       const rows = await api.fetchDocCategories();
+      setDocCategoryCatalog(rows);
       patchDocumentCategories({ rows });
     } catch {
       /* keep the failed write's rows so the person can retry */

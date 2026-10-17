@@ -11,14 +11,25 @@ import { buildCard, DocCard, updateTitlesInDOM, sourceTypeBadgeHtml, getEntryDif
 import { digestCache } from '../../frontend/src/notes/ui/digest-tooltip.tsx';
 import { loadTitles } from '../../frontend/src/notes/commands/cards.ts';
 import { openNoteInChat } from '../../frontend/src/notes/commands/open-in-chat.ts';
+import { closeFloatingListSelect } from '../../frontend/src/shared/floating-list-select.ts';
 import { state } from '../../frontend/src/host/state.ts';
+import { setDocCategoryCatalog } from '../../frontend/src/host/doc-categories-catalog.ts';
 import * as api from '../../frontend/src/host/api.ts';
 
 vi.mock('../../frontend/src/host/api.ts', () => ({
   setImportance: vi.fn(),
   setDone: vi.fn(),
+  setDocSourceType: vi.fn(async () => ({ ok: true })),
   fetchFileContent: vi.fn(),
 }));
+
+const BUILTIN_CATEGORIES = [
+  { id: 'summary', label: 'Summary', exposed: true },
+  { id: 'dialogue', label: 'Dialogue', exposed: true },
+  { id: 'video', label: 'Video', exposed: true },
+  { id: 'article', label: 'Article', exposed: true },
+  { id: 'jot', label: 'Jot', exposed: false },
+];
 
 vi.mock('../../frontend/src/notes/ui/move-project-dialog.tsx', () => ({
   openMoveProjectDialog: vi.fn(),
@@ -40,6 +51,11 @@ beforeEach(() => {
   state.index.titleCache = new Map();
   state.index.groupedByDate = [];
   state.ui.activeDate = '20260518';
+  setDocCategoryCatalog(BUILTIN_CATEGORIES);
+});
+
+afterEach(() => {
+  closeFloatingListSelect();
 });
 
 describe('sourceTypeBadgeHtml', () => {
@@ -47,16 +63,13 @@ describe('sourceTypeBadgeHtml', () => {
     const html = sourceTypeBadgeHtml('dialogue');
     expect(html).toContain('badge-source-dialogue');
     expect(html).toContain('Dialogue');
-    expect(html).toMatch(/^<span/);
+    expect(html).toMatch(/^<button/);
   });
 
-  it('theme-line 使用 themeline class', () => {
-    const html = sourceTypeBadgeHtml('theme-line');
-    expect(html).toContain('badge-source-themeline');
-    expect(html).toContain('Video');
-  });
-
-  it('未知类型返回空字符串', () => {
+  it('article and video use catalog labels; unknown and theme-line have no badge', () => {
+    expect(sourceTypeBadgeHtml('article')).toContain('Article');
+    expect(sourceTypeBadgeHtml('video')).toContain('badge-source-video');
+    expect(sourceTypeBadgeHtml('theme-line')).toBe('');
     expect(sourceTypeBadgeHtml('unknown')).toBe('');
     expect(sourceTypeBadgeHtml(undefined)).toBe('');
   });
@@ -76,7 +89,8 @@ describe('buildCard source_type badge', () => {
     expect(first.classList.contains('badge-source')).toBe(true);
     expect(first.classList.contains('badge-source-dialogue')).toBe(true);
     expect(first.textContent).toBe('Dialogue');
-    expect(first.tagName).toBe('SPAN');
+    expect(first.tagName).toBe('BUTTON');
+    expect(first.dataset.action).toBe('set-source-type');
   });
 
   it('summary 显示黄色「总结」badge', () => {
@@ -98,6 +112,49 @@ describe('buildCard source_type badge', () => {
     };
     const card = buildCard('id4', entry, 'Title');
     expect(card.querySelector('.badge-source')).toBeNull();
+  });
+
+  it('jot 仍显示 badge，但选择器不含 jot', async () => {
+    const entry = {
+      folder: 'proj',
+      created_at: '202605181200',
+      layers: ['raw'],
+      source_type: 'jot',
+    };
+    const card = buildCard('jot1', entry, 'Title');
+    document.getElementById('doc-list').appendChild(card);
+    const badge = card.querySelector('[data-action="set-source-type"]');
+    expect(badge?.textContent).toBe('Jot');
+    badge.click();
+    const menu = document.querySelector('.list-select-menu');
+    expect(menu).not.toBeNull();
+    const values = [...menu.querySelectorAll('[data-value]')].map((el) => el.dataset.value);
+    expect(values).toEqual(['summary', 'dialogue', 'video', 'article']);
+    expect(values).not.toContain('jot');
+    closeFloatingListSelect();
+  });
+
+  it('点 Dialogue badge 可改成 Summary，且不打开文档', async () => {
+    const opened = [];
+    const onOpen = (e) => opened.push(e.detail);
+    document.addEventListener('cta:open-entry', onOpen);
+    const entry = {
+      folder: 'proj',
+      created_at: '202605181200',
+      layers: ['raw'],
+      source_type: 'dialogue',
+    };
+    const card = buildCard('id-change', entry, 'Title');
+    document.getElementById('doc-list').appendChild(card);
+    card.querySelector('[data-action="set-source-type"]').click();
+    document.querySelector('[data-value="summary"]').click();
+    await vi.waitFor(() => {
+      expect(api.setDocSourceType).toHaveBeenCalledWith('id-change', 'summary');
+    });
+    expect(entry.source_type).toBe('summary');
+    expect(opened).toEqual([]);
+    document.removeEventListener('cta:open-entry', onOpen);
+    closeFloatingListSelect();
   });
 });
 
