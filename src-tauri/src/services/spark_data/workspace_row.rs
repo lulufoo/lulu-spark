@@ -50,9 +50,11 @@ pub struct WorkspaceRow {
     pub disabled_at: Option<String>,
     /// Id of a built-in icon; `None` = the default icon. The frontend owns the icon list.
     pub icon: Option<String>,
+    /// Position in the user's order; ignored on insert (new rows go last).
+    pub sort_index: i64,
 }
 
-const COLUMNS: &str = "id, name, doc_table, view_mode, is_default, created_at, disabled_at, icon";
+const COLUMNS: &str = "id, name, doc_table, view_mode, is_default, created_at, disabled_at, icon, sort_index";
 const INSERT_COLUMNS: &str = "id, name, doc_table, view_mode, is_default, created_at";
 
 fn map_row(row: &Row<'_>) -> rusqlite::Result<WorkspaceRow> {
@@ -68,6 +70,7 @@ fn map_row(row: &Row<'_>) -> rusqlite::Result<WorkspaceRow> {
         created_at: row.get(5)?,
         disabled_at: row.get(6)?,
         icon: row.get(7)?,
+        sort_index: row.get(8)?,
     })
 }
 

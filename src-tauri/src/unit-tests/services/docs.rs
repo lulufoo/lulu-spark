@@ -593,6 +593,13 @@ fn workspaces_and_projects_can_be_reordered_through_the_service() {
     let moved = reorder_workspaces(&json!({ "ids": [b, "default", a, "knowledge"] }));
     assert_eq!(ids(ok(&moved)), vec![b.clone(), "default".to_string(), a.clone(), "knowledge".into()]);
     assert_eq!(ids(&list_workspaces()), ids(&moved), "the list follows the new order");
+    let indexes: Vec<i64> = list_workspaces()["workspaces"]
+        .as_array()
+        .expect("array")
+        .iter()
+        .map(|w| w["sort_index"].as_i64().expect("sort_index"))
+        .collect();
+    assert_eq!(indexes, vec![0, 1, 2, 3], "rows expose their position for the Settings drag lists");
 
     assert_eq!(status(&reorder_workspaces(&json!({}))), 400, "ids is required");
     assert_eq!(status(&reorder_workspaces(&json!({ "ids": "default" }))), 400);

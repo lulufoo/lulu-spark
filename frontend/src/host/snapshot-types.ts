@@ -106,6 +106,8 @@ export type HostWorkspace = {
   is_default: boolean;
   /** Id of the configured icon; empty = the default icon. */
   icon: string;
+  /** Position in the order Settings arranged; the list is already in this order. */
+  sort_index?: number;
 };
 
 export type HostWorkspaces = {

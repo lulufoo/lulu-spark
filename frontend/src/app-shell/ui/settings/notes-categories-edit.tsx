@@ -1,4 +1,5 @@
 import { useEffect, useSyncExternalStore } from 'react';
+import { ReorderRows } from '../../../shared/reorder-rows.tsx';
 import { OverlayDismissButton } from '../../../shared/overlay-dismiss-button.tsx';
 import {
   askNotesCategoryDisable,
@@ -7,6 +8,7 @@ import {
   disableNotesCategory,
   enableNotesCategory,
   openNotesCategoryEditor,
+  reorderNotesCategories,
   saveNotesCategory,
   setNotesCategoryDraft,
   setNotesCategoryDraftIcon,
@@ -51,7 +53,7 @@ export function NotesCategoriesEditHost() {
   return (
     <>
       <p className="notes-cat-lead">
-        Click a project to change its title or description. Existing documents keep their path.
+        Click a project to change its title or description; drag the handle to change the order. Existing documents keep their path.
       </p>
       {snap.error && !snap.editorOpen ? (
         <div id="notes-cat-list-error" className="settings-result notes-cat-error">
@@ -59,30 +61,36 @@ export function NotesCategoriesEditHost() {
         </div>
       ) : null}
       <div id="notes-cat-list">
-        {snap.rows.map((row) => {
-          const desc = row.description.trim();
-          return (
-            <button
-              key={row.id}
-              type="button"
-              className="notes-cat-item"
-              data-project={row.id}
-              disabled={snap.busy}
-              onClick={() => openNotesCategoryEditor(row.id)}
-            >
-              <span className="notes-cat-item-main">
-                <span className="notes-cat-item-title-row">
-                  <span className="notes-cat-item-title">{row.title || row.id}</span>
-                  {row.id === 'inbox' ? <span className="notes-cat-badge">Built-in</span> : null}
-                </span>
-                <span className={`notes-cat-item-desc${desc ? '' : ' is-empty'}`}>
-                  {desc || 'No description'}
-                </span>
-              </span>
-              <span className="notes-cat-item-action">Edit</span>
-            </button>
-          );
-        })}
+        <ReorderRows
+          disabled={snap.busy}
+          onReorder={(folders) => void reorderNotesCategories(snap.workspaceId, folders)}
+          rows={snap.rows.map((row) => {
+            const desc = row.description.trim();
+            return {
+              id: row.id,
+              content: (
+                <button
+                  type="button"
+                  className="notes-cat-item"
+                  data-project={row.id}
+                  disabled={snap.busy}
+                  onClick={() => openNotesCategoryEditor(row.id)}
+                >
+                  <span className="notes-cat-item-main">
+                    <span className="notes-cat-item-title-row">
+                      <span className="notes-cat-item-title">{row.title || row.id}</span>
+                      {row.id === 'inbox' ? <span className="notes-cat-badge">Built-in</span> : null}
+                    </span>
+                    <span className={`notes-cat-item-desc${desc ? '' : ' is-empty'}`}>
+                      {desc || 'No description'}
+                    </span>
+                  </span>
+                  <span className="notes-cat-item-action">Edit</span>
+                </button>
+              ),
+            };
+          })}
+        />
         {snap.disabled.length ? (
           <details id="notes-projects-disabled" className="notes-disabled">
             <summary className="notes-cat-lead">Disabled ({snap.disabled.length})</summary>

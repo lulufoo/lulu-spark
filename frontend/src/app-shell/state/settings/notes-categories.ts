@@ -7,6 +7,8 @@ export type NotesCategoryRow = {
   folder: string;
   /** Id of the configured icon; empty = the default project icon. */
   icon: string;
+  /** Position among every project of the workspace, disabled ones included. */
+  sortIndex: number;
 };
 
 export type NotesCategoriesSnap = {

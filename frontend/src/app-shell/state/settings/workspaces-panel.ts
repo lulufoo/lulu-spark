@@ -1,7 +1,7 @@
 import { createModuleStore } from '../../../shared/module-store.ts';
 import type { ViewMode } from '../../../host/api.ts';
 
-export type DisabledWorkspaceRow = { id: string; name: string };
+export type DisabledWorkspaceRow = { id: string; name: string; sortIndex: number };
 
 export type WorkspacesPanelSnap = {
   /** Fixed workspaces root on disk; shown read-only in the Directory tab. */

@@ -5389,6 +5389,47 @@ button.notes-cat-item:focus-visible {
   outline-offset: 1px;
 }
 button.notes-cat-item:disabled { opacity: .65; cursor: default; }
+.reorder-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.reorder-row {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+}
+.reorder-row-body { flex: 1; min-width: 0; }
+.reorder-handle {
+  flex: none;
+  width: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--fg-subtle);
+  fill: currentColor;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  border-radius: 6px;
+}
+.reorder-handle:hover { color: var(--fg-default); background: var(--bg-canvas); }
+.reorder-row.is-dragging { opacity: .45; }
+.reorder-row.is-dragging .reorder-handle { cursor: grabbing; }
+.reorder-row.drop-before::before,
+.reorder-row.drop-after::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--border-accent);
+  pointer-events: none;
+}
+.reorder-row.drop-before::before { top: -4px; }
+.reorder-row.drop-after::after { bottom: -4px; }
 .notes-cat-item-main {
   display: flex;
   flex-direction: column;

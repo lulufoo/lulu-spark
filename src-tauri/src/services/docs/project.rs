@@ -38,6 +38,7 @@ fn project_value(row: &ProjectRow) -> Value {
         "description": row.description,
         "disabled_at": row.disabled_at,
         "icon": row.icon.clone().unwrap_or_default(),
+        "sort_index": row.sort_index,
     })
 }
 

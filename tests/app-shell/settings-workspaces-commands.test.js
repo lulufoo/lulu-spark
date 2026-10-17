@@ -53,7 +53,7 @@ describe('Workspaces settings commands', () => {
     expect(await commands.disableWorkspace('ws-a')).toBe(true);
     expect(calls).toEqual([['disable', 'ws-a']]);
     expect(loadWorkspaces).toHaveBeenCalledTimes(1);
-    expect(workspacesPanelStore.getSnapshot().disabled).toEqual([{ id: 'ws-a', name: 'Research' }]);
+    expect(workspacesPanelStore.getSnapshot().disabled).toEqual([{ id: 'ws-a', name: 'Research', sortIndex: 0 }]);
     expect(workspacesPanelStore.getSnapshot().busy).toBe(false);
   });
 

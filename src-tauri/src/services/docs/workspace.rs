@@ -35,6 +35,7 @@ fn workspace_value(row: &WorkspaceRow) -> Value {
         "created_at": row.created_at,
         "disabled_at": row.disabled_at,
         "icon": row.icon.clone().unwrap_or_default(),
+        "sort_index": row.sort_index,
     })
 }
 

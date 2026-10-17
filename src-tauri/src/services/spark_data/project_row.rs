@@ -15,6 +15,8 @@ pub struct ProjectRow {
     pub disabled_at: Option<String>,
     /// Id of a built-in icon; `None` = the default icon. The frontend owns the icon list.
     pub icon: Option<String>,
+    /// Position in the user's order inside the workspace; ignored on insert (new rows go last).
+    pub sort_index: i64,
 }
 
 impl ProjectRow {
@@ -27,11 +29,12 @@ impl ProjectRow {
             description: description.to_string(),
             disabled_at: None,
             icon: None,
+            sort_index: 0,
         }
     }
 }
 
-const COLUMNS: &str = "id, workspace_id, folder, title, description, disabled_at, icon";
+const COLUMNS: &str = "id, workspace_id, folder, title, description, disabled_at, icon, sort_index";
 
 fn map_row(row: &Row<'_>) -> rusqlite::Result<ProjectRow> {
     Ok(ProjectRow {
@@ -42,6 +45,7 @@ fn map_row(row: &Row<'_>) -> rusqlite::Result<ProjectRow> {
         description: row.get(4)?,
         disabled_at: row.get(5)?,
         icon: row.get(6)?,
+        sort_index: row.get(7)?,
     })
 }
 

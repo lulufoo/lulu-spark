@@ -1,4 +1,5 @@
 import * as api from '../../../host/api.ts';
+import { withDisabledInPlace } from '../../../shared/reorder.ts';
 import { announceRegistryChange } from '../../../shared/registry-events.ts';
 import { notifyState, state } from '../../../host/state.ts';
 import {
@@ -10,10 +11,10 @@ import {
 
 /** One row per project; a project is addressed by its folder. */
 function asRows(data: unknown): NotesCategoryRow[] {
-  const rec = data as { projects?: Array<Partial<NotesCategoryRow>>; error?: string };
+  const rec = data as { projects?: Array<Partial<NotesCategoryRow> & { sort_index?: number }>; error?: string };
   if (rec?.error) throw new Error(rec.error);
   const rows: NotesCategoryRow[] = [];
-  for (const c of rec.projects || []) {
+  for (const [at, c] of (rec.projects || []).entries()) {
     const folder = typeof c.folder === 'string' ? c.folder.trim() : '';
     if (!folder) continue;
     rows.push({
@@ -22,6 +23,7 @@ function asRows(data: unknown): NotesCategoryRow[] {
       description: typeof c.description === 'string' ? c.description : '',
       folder,
       icon: typeof c.icon === 'string' ? c.icon : '',
+      sortIndex: typeof c.sort_index === 'number' ? c.sort_index : at,
     });
   }
   return rows;
@@ -93,6 +95,31 @@ export async function selectProjectsWorkspace(workspaceId: string) {
     busy: true,
   });
   await loadNotesCategories(workspaceId);
+}
+
+/**
+ * Drag-reorder: show the new order at once, then ask the backend; a refusal puts the old order
+ * back and says why. `folders` are the enabled projects in their new order, disabled ones keep
+ * their place.
+ */
+export async function reorderNotesCategories(workspaceId: string, folders: string[]): Promise<boolean> {
+  const snap = notesCategoriesStore.getSnapshot();
+  const byId = new Map(snap.rows.map((row) => [row.id, row]));
+  const next = folders.map((id) => byId.get(id)).filter((row): row is NotesCategoryRow => Boolean(row));
+  if (snap.workspaceId !== workspaceId || next.length !== snap.rows.length) return false;
+  const whole = withDisabledInPlace(snap.rows.map((r) => ({ id: r.id, sortIndex: r.sortIndex })), snap.disabled.map((r) => ({ id: r.id, sortIndex: r.sortIndex })), folders);
+  patchNotesCategories({ rows: next, error: '' });
+  try {
+    throwOnError(await api.reorderProjects(workspaceId, whole));
+    await loadNotesCategories(workspaceId);
+    announceRegistryChange();
+    return true;
+  } catch (e) {
+    if (notesCategoriesStore.getSnapshot().workspaceId === workspaceId) {
+      patchNotesCategories({ rows: snap.rows, error: `Could not change the order: ${(e as Error).message || String(e)}` });
+    }
+    return false;
+  }
 }
 
 export function openNotesCategoryEditor(id: string) {

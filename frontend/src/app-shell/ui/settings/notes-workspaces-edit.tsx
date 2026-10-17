@@ -1,5 +1,6 @@
 import { useEffect, useSyncExternalStore } from 'react';
 import { getStateVersion, state, subscribeState } from '../../../host/state.ts';
+import { ReorderRows } from '../../../shared/reorder-rows.tsx';
 import { OverlayDismissButton } from '../../../shared/overlay-dismiss-button.tsx';
 import {
   askWorkspaceDisable,
@@ -8,6 +9,7 @@ import {
   confirmWorkspaceDisable,
   enableWorkspace,
   openWorkspaceEditor,
+  reorderWorkspaceList,
   saveWorkspaceEditor,
   setWorkspaceDraft,
   setWorkspaceDraftIcon,
@@ -44,7 +46,7 @@ export function NotesWorkspacesEditHost() {
   return (
     <>
       <p className="notes-cat-lead">
-        Click a workspace to rename it or change its view. Disabling a workspace hides it; nothing is
+        Click a workspace to rename it or change its view; drag the handle to change the order. Disabling a workspace hides it; nothing is
         deleted.
       </p>
       {snap.error && !snap.editorOpen ? (
@@ -53,27 +55,33 @@ export function NotesWorkspacesEditHost() {
         </div>
       ) : null}
       <div id="notes-ws-list">
-        {state.workspaces.list.map((workspace) => (
-          <button
-            key={workspace.id}
-            type="button"
-            className="notes-cat-item"
-            data-workspace={workspace.id}
-            disabled={snap.busy}
-            onClick={() => openWorkspaceEditor(workspace.id)}
-          >
-            <span className="notes-cat-item-main">
-              <span className="notes-cat-item-title-row">
-                <span className="notes-cat-item-title">{workspace.name}</span>
-                {workspace.is_default ? <span className="notes-cat-badge">Built-in</span> : null}
-              </span>
-              <span className="notes-cat-item-desc">
-                {workspace.view_mode === 'timeline' ? 'Timeline view' : 'Directory view'}
-              </span>
-            </span>
-            <span className="notes-cat-item-action">Edit</span>
-          </button>
-        ))}
+        <ReorderRows
+          disabled={snap.busy}
+          onReorder={(ids) => void reorderWorkspaceList(ids)}
+          rows={state.workspaces.list.map((workspace) => ({
+            id: workspace.id,
+            content: (
+              <button
+                type="button"
+                className="notes-cat-item"
+                data-workspace={workspace.id}
+                disabled={snap.busy}
+                onClick={() => openWorkspaceEditor(workspace.id)}
+              >
+                <span className="notes-cat-item-main">
+                  <span className="notes-cat-item-title-row">
+                    <span className="notes-cat-item-title">{workspace.name}</span>
+                    {workspace.is_default ? <span className="notes-cat-badge">Built-in</span> : null}
+                  </span>
+                  <span className="notes-cat-item-desc">
+                    {workspace.view_mode === 'timeline' ? 'Timeline view' : 'Directory view'}
+                  </span>
+                </span>
+                <span className="notes-cat-item-action">Edit</span>
+              </button>
+            ),
+          }))}
+        />
         {snap.disabled.length ? (
           <details id="notes-workspaces-disabled" className="notes-disabled">
             <summary className="notes-cat-lead">Disabled ({snap.disabled.length})</summary>

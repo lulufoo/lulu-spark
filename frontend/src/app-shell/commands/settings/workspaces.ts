@@ -1,6 +1,7 @@
 import * as api from '../../../host/api.ts';
-import { state } from '../../../host/state.ts';
+import { notifyState, state } from '../../../host/state.ts';
 import { announceRegistryChange } from '../../../shared/registry-events.ts';
+import { withDisabledInPlace } from '../../../shared/reorder.ts';
 import { loadWorkspaces } from '../../../notes/commands/workspace.ts';
 import { applyViewModeChange } from '../../../notes/commands/workspace-switch.ts';
 import {
@@ -20,11 +21,16 @@ function throwOnError(data: unknown) {
 
 function asDisabledRows(data: unknown): DisabledWorkspaceRow[] {
   throwOnError(data);
-  const list = (data as { workspaces?: Array<{ id?: unknown; name?: unknown }> } | null)?.workspaces ?? [];
+  const list =
+    (data as { workspaces?: Array<{ id?: unknown; name?: unknown; sort_index?: unknown }> } | null)?.workspaces ?? [];
   const rows: DisabledWorkspaceRow[] = [];
-  for (const item of list) {
+  for (const [at, item] of list.entries()) {
     if (typeof item.id !== 'string' || !item.id) continue;
-    rows.push({ id: item.id, name: typeof item.name === 'string' && item.name ? item.name : item.id });
+    rows.push({
+      id: item.id,
+      name: typeof item.name === 'string' && item.name ? item.name : item.id,
+      sortIndex: typeof item.sort_index === 'number' ? item.sort_index : at,
+    });
   }
   return rows;
 }
@@ -87,6 +93,36 @@ export function changeWorkspaceViewMode(id: string, mode: api.ViewMode) {
 /** Empty `icon` clears it, back to the default icon. */
 export function changeWorkspaceIcon(id: string, icon: string) {
   return run(() => api.setWorkspaceIcon(id, icon));
+}
+
+/**
+ * Drag-reorder: show the new order at once, then ask the backend; a refusal puts the old order
+ * back and says why. `ids` are the enabled workspaces in their new order, disabled ones keep
+ * their place.
+ */
+export async function reorderWorkspaceList(ids: string[]): Promise<boolean> {
+  const previous = state.workspaces.list;
+  const byId = new Map(previous.map((w) => [w.id, w]));
+  const next = ids.map((id) => byId.get(id)).filter((w): w is NonNullable<typeof w> => Boolean(w));
+  if (next.length !== previous.length) return false;
+  const ranked = previous.map((w, at) => ({ id: w.id, sortIndex: w.sort_index ?? at }));
+  const disabled = workspacesPanelStore.getSnapshot().disabled;
+  const whole = withDisabledInPlace(ranked, disabled, ids);
+  state.workspaces.list = next;
+  notifyState();
+  patchWorkspacesPanel({ error: '' });
+  try {
+    throwOnError(await api.reorderWorkspaces(whole));
+    await loadWorkspaces();
+    announceRegistryChange();
+    patchWorkspacesPanel({ disabled: asDisabledRows(await api.fetchDisabledWorkspaces()) });
+    return true;
+  } catch (err) {
+    state.workspaces.list = previous;
+    notifyState();
+    patchWorkspacesPanel({ error: `Could not change the order: ${describeError(err)}` });
+    return false;
+  }
 }
 
 export function disableWorkspace(id: string) {
