@@ -2,12 +2,12 @@
 name: lulu-spark-skills
 description: >-
   Lulu Spark 技能包安装。克隆到平台 skills 目录（Cursor / Copilot / Claude / Codex）。
-  Use when: 安装 Lulu Spark skills、安装 spark skills、note-task
+  Use when: 安装 Lulu Spark skills、安装 spark skills、spark-task
 ---
 
 # lulu-spark-skills — 安装
 
-Spark 文档（workspace / project）相关 skill。包根可继续加子 skill。
+Spark 的 workspace / project / 文档 / 搜索 / Read Later（五组 MCP）相关 skill。包根可继续加子 skill。
 
 ## Platform Context
 
@@ -38,20 +38,22 @@ ln -sfn "$SRC/skills" "$SKILL_DIR"
 git -C "$SRC" pull --rebase
 ```
 
-克隆完成后平台自动发现子 skill（`note-task`）。digest 写法由 note-task 自己说明。
+更新后子 skill 的名字是 `spark-task`（旧版叫 `note-task`，已不存在）。`$SKILL_DIR` 链到的是整个 `skills/` 目录，所以更新不需要重装。
+
+克隆完成后平台自动发现子 skill（`spark-task`）。digest 写法由 spark-task 自己说明。
 
 ## 前置条件
 
-`note-task` 执行前 **Lulu Spark App 必须运行**（MCP `spark-knowledge` 可用，`http://127.0.0.1:9876/mcp/cursor_ide`）。文档数据目录由 Lulu Spark 管理，**无需**本地配置文件。槽位名是 `spark`。
+`spark-task` 执行前 **Lulu Spark App 必须运行**（MCP `spark-knowledge` 可用，`http://127.0.0.1:9876/mcp/cursor_ide`）。文档数据目录由 Lulu Spark 管理，**无需**本地配置文件。槽位名是 `spark`。
 
 ## 子 skill
 
 | 指令 | 目录 | 说明 |
 |------|------|------|
-| `note-task` | [note-task/](note-task/) | 文档 MCP 地图：`create_doc` / workspace / project / files |
+| `spark-task` | [spark-task/](spark-task/) | 五组 MCP 地图：Global `search` · Workspace · Project · Document（`create_doc` 等）· Read Later |
 
 ## 验收
 
-触发 `note-task` 时，首步确认 Lulu Spark MCP 可用；写入成功后 MCP 返回 `ok` / `id`，以及按需出现的 `digest_written` / `zh_written` / `assets_copied`。
+触发 `spark-task` 时，首步确认 Lulu Spark MCP 可用；写入成功后 MCP 返回 `ok` / `id`，以及按需出现的 `digest_written` / `zh_written` / `assets_copied`。
 
-digest 写法由 note-task 自己的 references 说明（随 `create_doc` 的 `digest_body`）。
+digest 写法由 spark-task 自己的 references 说明（随 `create_doc` 的 `digest_body`）。

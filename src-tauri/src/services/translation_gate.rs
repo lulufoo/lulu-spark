@@ -2,9 +2,9 @@
 //!
 //! Skill text cannot stop a stub. Host rejects markers, short bodies, and
 //! heading/turn mismatch. Keep these rules in sync with
-//! `note-task/scripts/check_zh_parity.py`.
+//! `spark-task/scripts/check_zh_parity.py`.
 //! Full-English detection stays in sync with
-//! `note-task/scripts/detect_full_english.py`.
+//! `spark-task/scripts/detect_full_english.py`.
 
 /// Tokens that mean the agent did not send a real translation.
 pub const STUB_MARKERS: &[&str] = &[
