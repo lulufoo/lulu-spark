@@ -10,14 +10,21 @@ export function positionFloatingListMenu(
 ): boolean {
   const gap = 4;
   const margin = 8;
+  const viewportWidth = window.innerWidth;
   const cap = maxHeightCap != null && maxHeightCap > 0 ? maxHeightCap : Number.POSITIVE_INFINITY;
 
   menu.style.left = `${rect.left}px`;
-  menu.style.width = `${rect.width}px`;
+  menu.style.minWidth = `${rect.width}px`;
+  menu.style.width = 'max-content';
+  menu.style.maxWidth = `${Math.max(rect.width, viewportWidth - margin * 2)}px`;
   menu.style.maxHeight = 'none';
   menu.style.visibility = 'hidden';
   const naturalHeight = menu.scrollHeight;
+  const naturalWidth = menu.getBoundingClientRect().width;
   menu.style.visibility = '';
+  if (rect.left + naturalWidth > viewportWidth - margin) {
+    menu.style.left = `${Math.max(margin, viewportWidth - margin - naturalWidth)}px`;
+  }
 
   const spaceBelow = viewportHeight - rect.bottom - margin;
   const spaceAbove = rect.top - margin;

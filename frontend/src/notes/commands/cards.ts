@@ -1,7 +1,7 @@
 import { getEntryId, notifyState, state } from '../state/host.ts';
 import { IMPORTANCE_CYCLE } from '../../host/constants.ts';
 import * as api from '../../host/api.ts';
-import { exposedCategoryOptions } from '../../host/doc-categories-catalog.ts';
+import { categoryPickerOptions } from '../../host/doc-categories-catalog.ts';
 import { openAnchoredListSelect } from '../../shared/floating-list-select.ts';
 import type { NoteEntry } from '../state/types.ts';
 
@@ -36,7 +36,7 @@ export async function setEntrySourceType(entry: NoteEntry, sourceType: string) {
 }
 
 export function openSourceTypePicker(trigger: HTMLElement, entry: NoteEntry) {
-  const options = exposedCategoryOptions();
+  const options = categoryPickerOptions();
   if (!options.length) return;
   openAnchoredListSelect({
     trigger,
