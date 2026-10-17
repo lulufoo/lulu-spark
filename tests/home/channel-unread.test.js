@@ -39,7 +39,7 @@ describe('home three-entry boolean unread', () => {
     navigate = vi.fn();
     listenHandlers = {};
     unreadByChannel = {
-      notes: true,
+      docs: true,
       read_later: true,
     };
     window.__TAURI__ = {
@@ -76,7 +76,7 @@ describe('home three-entry boolean unread', () => {
     cleanup = mountHomeHub(container, { navigate });
     await vi.waitFor(() => {
       expect(unreadSpy.mock.calls.map((call) => call[0]).sort()).toEqual([
-        'notes',
+        'docs',
         'read_later',
       ]);
     });
@@ -87,7 +87,7 @@ describe('home three-entry boolean unread', () => {
     expect(isEntryUnread(container, 'spark')).toBe(true);
     expect(isEntryUnread(container, 'read-later')).toBe(true);
     expect(container.querySelector('[data-home-entry="todo-tasks"]')).toBeNull();
-    expect(unreadSpy).toHaveBeenCalledWith('notes');
+    expect(unreadSpy).toHaveBeenCalledWith('docs');
     expect(unreadSpy).toHaveBeenCalledWith('read_later');
     expect(unreadSpy.mock.calls.map((call) => call[0])).not.toContain('todos');
     expect(unreadSpy.mock.calls.map((call) => call[0])).not.toContain('knowledge');
@@ -103,7 +103,7 @@ describe('home three-entry boolean unread', () => {
     listenHandlers['message-center:changed']({});
     await vi.waitFor(() => {
       expect(unreadSpy.mock.calls.map((call) => call[0]).sort()).toEqual([
-        'notes',
+        'docs',
         'read_later',
       ]);
       expect(isEntryUnread(container, 'read-later')).toBe(false);
@@ -115,7 +115,7 @@ describe('home three-entry boolean unread', () => {
     container.querySelector('[data-home-entry="spark"]').click();
     expect(navigate).toHaveBeenCalledWith('#/spark');
     await vi.waitFor(() => {
-      expect(markSpy).toHaveBeenCalledWith('notes');
+      expect(markSpy).toHaveBeenCalledWith('docs');
       expect(isEntryUnread(container, 'spark')).toBe(false);
     });
     expect(isEntryUnread(container, 'read-later')).toBe(true);
@@ -128,7 +128,7 @@ describe('home three-entry boolean unread', () => {
     cleanup = mountHomeHub(container, { navigate, openReadLater });
     await vi.waitFor(() => {
       expect(unreadSpy.mock.calls.map((call) => call[0]).sort()).toEqual([
-        'notes',
+        'docs',
         'read_later',
       ]);
     });

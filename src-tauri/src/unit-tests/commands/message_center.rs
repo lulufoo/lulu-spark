@@ -7,9 +7,9 @@ use crate::services::message_center::{self, channel_unread, mark_channel_read, p
 use crate::test_support::{read_rs_dir, TestSandbox};
 use serde_json::json;
 
-fn notes_create_envelope() -> Envelope {
+fn docs_create_envelope() -> Envelope {
     Envelope {
-        business: "notes".to_string(),
+        business: "docs".to_string(),
         action: "create".to_string(),
         params: json!({ "id": "a", "common_path": "p.md" }),
     }
@@ -31,15 +31,15 @@ fn source(rel: &str) -> String {
 fn get_message_channel_unread_forwards_l4_channel_unread() {
     with_message_center_cmd(|| {
         assert_eq!(
-            get_message_channel_unread_json("notes").expect("unread"),
+            get_message_channel_unread_json("docs").expect("unread"),
             false
         );
-        assert_eq!(channel_unread("notes"), false);
+        assert_eq!(channel_unread("docs"), false);
 
-        produce(notes_create_envelope()).expect("produce notes");
-        let unread = get_message_channel_unread_json("notes").expect("unread after produce");
+        produce(docs_create_envelope()).expect("produce docs");
+        let unread = get_message_channel_unread_json("docs").expect("unread after produce");
         assert!(unread);
-        assert_eq!(unread, channel_unread("notes"));
+        assert_eq!(unread, channel_unread("docs"));
         assert_eq!(
             get_message_channel_unread_json("read_later").expect("read_later"),
             false
@@ -54,25 +54,25 @@ fn get_message_channel_unread_forwards_l4_channel_unread() {
 #[test]
 fn mark_message_channel_read_forwards_l4_mark_channel_read() {
     with_message_center_cmd(|| {
-        produce(notes_create_envelope()).expect("produce notes");
-        assert!(channel_unread("notes"));
-        mark_message_channel_read_json("notes").expect("mark notes read");
-        assert!(!get_message_channel_unread_json("notes").expect("unread after mark"));
-        assert!(!channel_unread("notes"));
+        produce(docs_create_envelope()).expect("produce docs");
+        assert!(channel_unread("docs"));
+        mark_message_channel_read_json("docs").expect("mark docs read");
+        assert!(!get_message_channel_unread_json("docs").expect("unread after mark"));
+        assert!(!channel_unread("docs"));
     });
 }
 
 #[test]
 fn command_failure_does_not_bypass_l4_authority() {
     with_message_center_cmd(|| {
-        produce(notes_create_envelope()).expect("produce notes");
-        assert!(channel_unread("notes"));
+        produce(docs_create_envelope()).expect("produce docs");
+        assert!(channel_unread("docs"));
 
         let cmd_err = mark_message_channel_read_json("knowledge").expect_err("invalid channel");
         let l4_err = mark_channel_read("knowledge").expect_err("l4 invalid channel");
         assert_eq!(cmd_err, l4_err);
-        assert!(channel_unread("notes"));
-        assert!(get_message_channel_unread_json("notes").expect("still unread"));
+        assert!(channel_unread("docs"));
+        assert!(get_message_channel_unread_json("docs").expect("still unread"));
     });
 }
 

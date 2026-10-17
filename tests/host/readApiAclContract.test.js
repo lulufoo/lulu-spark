@@ -98,10 +98,10 @@ describe('read-api ACL 与前端 invoke 映射一致', () => {
 
   it('resolveInvokeFromPath 将 snake_case channel 查询映射为 camelCase invoke 参数', () => {
     expect(
-      resolveInvokeFromPath('/api/message-channel-unread?channel=notes'),
+      resolveInvokeFromPath('/api/message-channel-unread?channel=docs'),
     ).toEqual({
       cmd: 'get_message_channel_unread',
-      args: { channel: 'notes' },
+      args: { channel: 'docs' },
     })
   })
 
@@ -114,9 +114,9 @@ describe('read-api ACL 与前端 invoke 映射一致', () => {
       json: async () => true,
       text: async () => 'true',
     })
-    await api.getMessageChannelUnread('notes')
+    await api.getMessageChannelUnread('docs')
     expect(globalThis.fetch.mock.calls[0][0]).toMatch(
-      /message-channel-unread.*channel=notes/,
+      /message-channel-unread.*channel=docs/,
     )
   })
 

@@ -309,7 +309,7 @@ export function HomePage({
                 type="button"
                 className="home-chat-nav-item home-desktop-shortcut"
                 data-home-entry="spark"
-                {...unreadProps(state.channelUnread.notes)}
+                {...unreadProps(state.channelUnread.docs)}
                 onClick={() => {
                   void markHomeEntryRead('spark');
                   goHomeEntry('spark', navigateFn, openReadLater);

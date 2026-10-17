@@ -22,7 +22,7 @@ export async function handleOsNotifyClicked(payload?: ClickPayload): Promise<boo
     scheme,
   });
   if (openSparkScheme(scheme)) return true;
-  if (parseSparkScheme(scheme)?.kind !== 'notes-open') return false;
+  if (parseSparkScheme(scheme)?.kind !== 'docs-open') return false;
   await refreshNotesIndex();
   return openSparkScheme(scheme);
 }

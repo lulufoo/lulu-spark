@@ -90,14 +90,14 @@ fn source_note_args(sandbox: &TestSandbox) -> Value {
 #[test]
 fn create_note_invoke_from_content_success_records_notes_channel() {
     with_host_sandbox(|_| {
-        let before = channel_records("notes").len();
+        let before = channel_records("docs").len();
         let result = create_doc_from_content(&content_note_args());
         assert_note_ok(&result);
-        let notes = channel_records("notes");
+        let notes = channel_records("docs");
         assert_eq!(notes.len(), before + 1);
         assert_eq!(
             notes.last().and_then(|r| r.get("channel")),
-            Some(&json!("notes"))
+            Some(&json!("docs"))
         );
     });
 }
@@ -106,14 +106,14 @@ fn create_note_invoke_from_content_success_records_notes_channel() {
 #[test]
 fn create_note_invoke_from_source_success_records_notes_channel() {
     with_host_sandbox(|sandbox| {
-        let before = channel_records("notes").len();
+        let before = channel_records("docs").len();
         let result = create_doc_from_source(&source_note_args(sandbox));
         assert_note_ok(&result);
-        let notes = channel_records("notes");
+        let notes = channel_records("docs");
         assert_eq!(notes.len(), before + 1);
         assert_eq!(
             notes.last().and_then(|r| r.get("channel")),
-            Some(&json!("notes"))
+            Some(&json!("docs"))
         );
     });
 }
@@ -122,7 +122,7 @@ fn create_note_invoke_from_source_success_records_notes_channel() {
 #[test]
 fn failed_create_note_does_not_produce() {
     with_host_sandbox(|_| {
-        let notes_before = channel_records("notes").len();
+        let notes_before = channel_records("docs").len();
 
         let note = create_doc_from_content(&json!({
             "title": "Missing content",
@@ -130,7 +130,7 @@ fn failed_create_note_does_not_produce() {
         }));
         assert!(note.get("error").is_some(), "{note}");
         assert_ne!(note.get("ok"), Some(&json!(true)));
-        assert_eq!(channel_records("notes").len(), notes_before);
+        assert_eq!(channel_records("docs").len(), notes_before);
 
         let source = create_doc_from_source(&json!({
             "title": "Missing source_path",
@@ -138,7 +138,7 @@ fn failed_create_note_does_not_produce() {
         }));
         assert!(source.get("error").is_some(), "{source}");
         assert_ne!(source.get("ok"), Some(&json!(true)));
-        assert_eq!(channel_records("notes").len(), notes_before);
+        assert_eq!(channel_records("docs").len(), notes_before);
     });
 }
 
@@ -150,10 +150,10 @@ fn message_center_failure_keeps_successful_mcp_response() {
 
         let note = create_doc_from_content(&content_note_args());
         assert_note_ok(&note);
-        assert!(channel_records("notes").is_empty());
+        assert!(channel_records("docs").is_empty());
 
         let source = create_doc_from_source(&source_note_args(sandbox));
         assert_note_ok(&source);
-        assert!(channel_records("notes").is_empty());
+        assert!(channel_records("docs").is_empty());
     });
 }

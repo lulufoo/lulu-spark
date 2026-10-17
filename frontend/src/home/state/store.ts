@@ -35,7 +35,7 @@ export type HubWorkspaceFile = {
 };
 
 export type ChannelUnread = {
-  notes: boolean;
+  docs: boolean;
   read_later: boolean;
 };
 
@@ -66,7 +66,7 @@ export type HomeState = {
 };
 
 function emptyUnread(): ChannelUnread {
-  return { notes: false, read_later: false };
+  return { docs: false, read_later: false };
 }
 
 function emptyState(): HomeState {

@@ -16,7 +16,7 @@ pub(crate) fn produce_if_ok(result: &Value) {
             params.insert("archive_id".to_string(), id.clone());
         }
         let _ = message_center::produce(message_center::Envelope {
-            business: "notes".to_string(),
+            business: "docs".to_string(),
             action: "create".to_string(),
             params: Value::Object(params),
         });

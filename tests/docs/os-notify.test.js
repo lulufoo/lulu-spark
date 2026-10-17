@@ -32,11 +32,11 @@ function extractFunctionBody(source, name) {
 
 const HOP_ID = 'trace_12345678';
 const NOTE_CREATE = {
-  business: 'notes',
+  business: 'docs',
   action: 'create',
   params: { id: HOP_ID, archive_id: 'abc', common_path: 'inbox/x.md' },
 };
-const NOTES_OPEN = `spark://notes/open?id=abc&${PASS_QUERY}=${encodePassBag(HOP_ID)}`;
+const NOTES_OPEN = `spark://docs/open?id=abc&${PASS_QUERY}=${encodePassBag(HOP_ID)}`;
 
 describe('handleNotesOsNotifyEnvelope', () => {
   /** @type {import('vitest').MockInstance} */
@@ -66,7 +66,7 @@ describe('handleNotesOsNotifyEnvelope', () => {
     fetchSpy.mockRestore();
   });
 
-  it('reloads Host index then composes notes/open for notes+create', async () => {
+  it('reloads Host index then composes docs/open for notes+create', async () => {
     await handleNotesOsNotifyEnvelope(NOTE_CREATE);
     expect(fetchSpy).toHaveBeenCalled();
     expect(fetchSpy.mock.invocationCallOrder[0]).toBeLessThan(
@@ -82,7 +82,7 @@ describe('handleNotesOsNotifyEnvelope', () => {
 
   it('reloads Host index on notes+update without a banner', async () => {
     await handleNotesOsNotifyEnvelope({
-      business: 'notes',
+      business: 'docs',
       action: 'update',
       params: { id: HOP_ID, archive_id: 'abc', common_path: 'inbox/x.md' },
     });
@@ -93,7 +93,7 @@ describe('handleNotesOsNotifyEnvelope', () => {
 
   it.each([
     [{ business: 'read_later', action: 'create', params: { id: 'e1' } }],
-    [{ business: 'notes', action: 'changed', params: { id: 'abc', common_path: 'inbox/x.md' } }],
+    [{ business: 'docs', action: 'changed', params: { id: 'abc', common_path: 'inbox/x.md' } }],
     [{ business: 'todos', action: 'create', params: { id: 't1' } }],
   ])('returns without notify for %j', async (envelope) => {
     await handleNotesOsNotifyEnvelope(envelope);
@@ -104,7 +104,7 @@ describe('handleNotesOsNotifyEnvelope', () => {
 
   it('does not call showOsNotification when compose returns null', async () => {
     await handleNotesOsNotifyEnvelope({
-      business: 'notes',
+      business: 'docs',
       action: 'create',
       params: { id: HOP_ID },
     });

@@ -59,7 +59,7 @@ describe('handleReadLaterOsNotifyEnvelope', () => {
 
   it.each([
     [{ business: 'read_later', action: 'update', params: { id: 'e1' } }],
-    [{ business: 'notes', action: 'create', params: { id: 'abc', common_path: 'inbox/x.md' } }],
+    [{ business: 'docs', action: 'create', params: { id: 'abc', common_path: 'inbox/x.md' } }],
     [{ business: 'todos', action: 'create', params: { id: 't1' } }],
   ])('returns without notify for %j', async (envelope) => {
     await handleReadLaterOsNotifyEnvelope(envelope);

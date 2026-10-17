@@ -65,7 +65,7 @@ impl NotificationNative for RecordingNative {
 
 #[test]
 fn validate_accepts_spark_scheme() {
-    assert!(validate_os_notification_scheme("spark://notes/open?id=a").is_ok());
+    assert!(validate_os_notification_scheme("spark://docs/open?id=a").is_ok());
     assert!(validate_os_notification_scheme("spark://read-later/list").is_ok());
 }
 
@@ -74,10 +74,10 @@ fn validate_rejects_scheme_without_spark_prefix() {
     for scheme in [
         "",
         "https://example.com",
-        "notes/open",
-        "Spark://notes/open",
-        "spark:/notes/open",
-        " spark://notes/open",
+        "docs/open",
+        "Spark://docs/open",
+        "spark:/docs/open",
+        " spark://docs/open",
     ] {
         assert!(
             validate_os_notification_scheme(scheme).is_err(),
@@ -88,7 +88,7 @@ fn validate_rejects_scheme_without_spark_prefix() {
 
 #[test]
 fn user_info_writes_scheme_verbatim() {
-    let scheme = "spark://notes/open?id=a&path=p.md";
+    let scheme = "spark://docs/open?id=a&path=p.md";
     let info = user_info_with_scheme(scheme);
     assert_eq!(info.get("scheme").and_then(|v| v.as_str()), Some(scheme));
 }
@@ -126,7 +126,7 @@ fn invalid_scheme_does_not_request_permission_or_deliver() {
 fn first_authorized_call_requests_permission_and_delivers_user_info() {
     let probed = AtomicBool::new(false);
     let native = RecordingNative::new(true, true);
-    let scheme = "spark://notes/open?id=n1&path=raw%2Fa.md";
+    let scheme = "spark://docs/open?id=n1&path=raw%2Fa.md";
     show_os_notification_with(&probed, &native, "New note", "A note was added", scheme)
         .expect("authorized first call");
     assert_eq!(native.request_calls.load(Ordering::SeqCst), 1);
@@ -153,7 +153,7 @@ fn authorized_send_accepts_notes_pass_scheme() {
     let native = RecordingNative::new(true, true);
     let id = "trace_12345678abcd";
     let bag = urlencoding::encode(&format!(r#"{{"id":"{id}"}}"#)).into_owned();
-    let scheme = format!("spark://notes/open?id=n1&path=raw%2Fa.md&pass={bag}");
+    let scheme = format!("spark://docs/open?id=n1&path=raw%2Fa.md&pass={bag}");
     show_os_notification_with(&probed, &native, "New note", "A note was added", &scheme)
         .expect("authorized pass scheme");
     assert_eq!(native.deliver_calls.load(Ordering::SeqCst), 1);
@@ -195,7 +195,7 @@ fn unauthorized_first_call_does_not_deliver() {
         &native,
         "New note",
         "A note was added",
-        "spark://notes/open?id=a",
+        "spark://docs/open?id=a",
     )
     .is_err());
     assert_eq!(native.request_calls.load(Ordering::SeqCst), 1);
@@ -212,7 +212,7 @@ fn unauthorized_subsequent_call_does_not_deliver() {
         &native,
         "New note",
         "A note was added",
-        "spark://notes/open?id=a",
+        "spark://docs/open?id=a",
     )
     .is_err());
     assert_eq!(native.request_calls.load(Ordering::SeqCst), 0);

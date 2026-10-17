@@ -173,11 +173,11 @@ describe('writeApiInvokeMap', () => {
   it('resolveWriteInvoke maps mark-message-channel-read body channel (snake HTTP → camel invoke)', () => {
     expect(
       resolveWriteInvoke('/api/mark-message-channel-read', {
-        channel: 'notes',
+        channel: 'docs',
       }),
     ).toEqual({
       cmd: 'mark_message_channel_read',
-      args: { channel: 'notes' },
+      args: { channel: 'docs' },
     });
   });
 
@@ -192,14 +192,14 @@ describe('writeApiInvokeMap', () => {
       resolveWriteInvoke('/api/show-os-notification', {
         title: 'New note',
         body: 'A note was added',
-        scheme: 'spark://notes/open?id=a',
+        scheme: 'spark://docs/open?id=a',
       }),
     ).toEqual({
       cmd: 'show_os_notification',
       args: {
         title: 'New note',
         body: 'A note was added',
-        scheme: 'spark://notes/open?id=a',
+        scheme: 'spark://docs/open?id=a',
       },
     });
   });
@@ -236,11 +236,11 @@ describe('writeApiInvokeMap', () => {
       json: async () => ({}),
       text: async () => '{}',
     });
-    await api.markMessageChannelRead('notes');
+    await api.markMessageChannelRead('docs');
     expect(globalThis.fetch.mock.calls[0][0]).toMatch(/mark-message-channel-read/);
     expect(globalThis.fetch.mock.calls[0][1].method).toBe('POST');
     expect(JSON.parse(globalThis.fetch.mock.calls[0][1].body)).toEqual({
-      channel: 'notes',
+      channel: 'docs',
     });
   });
 });

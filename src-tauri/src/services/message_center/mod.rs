@@ -65,7 +65,7 @@ where
 }
 
 fn allowed_channel(channel: &str) -> bool {
-    matches!(channel, "notes" | "read_later" | "todos")
+    matches!(channel, "docs" | "read_later" | "todos")
 }
 
 fn require_channel(channel: &str) -> Result<(), String> {

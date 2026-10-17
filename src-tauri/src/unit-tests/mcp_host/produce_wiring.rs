@@ -138,8 +138,8 @@ fn assert_notes_produced(action: &str, result: &Value, before: usize) {
         .expect("hop id")
         .to_string();
     assert_ne!(hop_id, note_id);
-    assert_eq!(channel_record_count("notes"), before + 1);
-    assert_produced_envelope("notes", action, params);
+    assert_eq!(channel_record_count("docs"), before + 1);
+    assert_produced_envelope("docs", action, params);
 }
 
 fn content_note_args() -> Value {
@@ -189,7 +189,7 @@ fn collect_rs_files(dir: &Path, out: &mut Vec<PathBuf>) {
 #[test]
 fn create_doc_from_content_success_adds_notes_record() {
     with_host_sandbox(|_| {
-        let before = channel_record_count("notes");
+        let before = channel_record_count("docs");
         let result = create_doc_from_content(&content_note_args());
         assert_notes_produced("create", &result, before);
     });
@@ -198,7 +198,7 @@ fn create_doc_from_content_success_adds_notes_record() {
 #[test]
 fn create_doc_from_source_success_adds_notes_record() {
     with_host_sandbox(|sandbox| {
-        let before = channel_record_count("notes");
+        let before = channel_record_count("docs");
         let result = create_doc_from_source(&source_note_args(sandbox));
         assert_notes_produced("create", &result, before);
     });
@@ -209,7 +209,7 @@ fn update_doc_from_source_success_adds_notes_record() {
     with_host_sandbox(|sandbox| {
         let created = create_doc_from_source(&source_note_args(sandbox));
         assert_note_ok(&created);
-        let before = channel_record_count("notes");
+        let before = channel_record_count("docs");
         let result = update_doc_from_source(&json!({
             "id": created["id"].as_str().unwrap(),
             "source_path": stage_source(sandbox, "# New\n\n---\n\n改过的正文\n").to_str().unwrap(),
@@ -224,7 +224,7 @@ fn update_doc_from_content_success_adds_notes_record() {
     with_host_sandbox(|_| {
         let created = create_doc_from_content(&content_note_args());
         assert_note_ok(&created);
-        let before = channel_record_count("notes");
+        let before = channel_record_count("docs");
         let result = update_doc_from_content(&json!({
             "id": created["id"].as_str().unwrap(),
             "content": "# New\n\n---\n\n手机改正文\n",
@@ -249,14 +249,14 @@ fn other_note_and_tauri_writes_are_not_wired() {
     assert_file_has_no_message_center(&src("services/docs/jot.rs"));
 
     with_host_sandbox(|sandbox| {
-        let notes_before = channel_record_count("notes");
+        let notes_before = channel_record_count("docs");
         let env_before = last_changed_envelope();
         let category = invoke_notes(
             "create_project",
             json!({ "title": "No produce category" }),
         );
         assert!(category.get("error").is_none(), "{category}");
-        assert_eq!(channel_record_count("notes"), notes_before);
+        assert_eq!(channel_record_count("docs"), notes_before);
 
         let tauri_note = create_note_json(json!({
             "source_path": stage_source(sandbox, SAMPLE_DOC).to_str().unwrap(),
@@ -265,7 +265,7 @@ fn other_note_and_tauri_writes_are_not_wired() {
         }))
         .expect("tauri create_note");
         assert_note_ok(&tauri_note);
-        assert_eq!(channel_record_count("notes"), notes_before);
+        assert_eq!(channel_record_count("docs"), notes_before);
 
         let jot = create_jot(
             None,
@@ -274,7 +274,7 @@ fn other_note_and_tauri_writes_are_not_wired() {
         )
         .expect("create_jot");
         assert_note_ok(&jot);
-        assert_eq!(channel_record_count("notes"), notes_before);
+        assert_eq!(channel_record_count("docs"), notes_before);
         assert_eq!(last_changed_envelope(), env_before);
     });
 }
@@ -282,7 +282,7 @@ fn other_note_and_tauri_writes_are_not_wired() {
 #[test]
 fn failed_business_write_does_not_produce() {
     with_host_sandbox(|_| {
-        let notes_before = channel_record_count("notes");
+        let notes_before = channel_record_count("docs");
         let env_before = last_changed_envelope();
         let note = create_doc_from_content(&json!({
             "title": "Missing content",
@@ -296,7 +296,7 @@ fn failed_business_write_does_not_produce() {
             "digest": "never",
         }));
         assert!(updated.get("error").is_some() || updated.get("ok") != Some(&json!(true)));
-        assert_eq!(channel_record_count("notes"), notes_before);
+        assert_eq!(channel_record_count("docs"), notes_before);
         assert_eq!(last_changed_envelope(), env_before);
     });
 }
@@ -304,7 +304,7 @@ fn failed_business_write_does_not_produce() {
 #[test]
 fn produce_notes_if_ok_keeps_timing_when_identity_fields_missing() {
     with_host_sandbox(|_| {
-        let before = channel_record_count("notes");
+        let before = channel_record_count("docs");
         let cases = [
             (produce_create_doc_if_ok as fn(&Value), json!({"ok": true}), "create", json!({})),
             (produce_create_doc_if_ok, json!({"ok": true, "id": "only-id"}), "create", json!({"archive_id": "only-id"})),
@@ -314,12 +314,12 @@ fn produce_notes_if_ok_keeps_timing_when_identity_fields_missing() {
         let produced = cases.len();
         for (produce_if_ok, result, action, params) in cases {
             produce_if_ok(&result);
-            assert_produced_envelope("notes", action, params);
+            assert_produced_envelope("docs", action, params);
         }
         produce_create_doc_if_ok(&json!({"ok": false, "id": "nope"}));
         produce_create_doc_if_ok(&json!({"error": "boom", "ok": true, "id": "nope"}));
         produce_update_doc_if_ok(&json!({"error": "boom", "id": "nope"}));
-        assert_eq!(channel_record_count("notes"), before + produced);
+        assert_eq!(channel_record_count("docs"), before + produced);
     });
 }
 
@@ -329,9 +329,9 @@ fn message_center_failure_does_not_change_successful_mcp_response() {
         occupy_message_center_path_as_dir();
         let note = create_doc_from_content(&content_note_args());
         assert_note_ok(&note);
-        assert_eq!(channel_record_count("notes"), 0);
+        assert_eq!(channel_record_count("docs"), 0);
         let source = create_doc_from_source(&source_note_args(sandbox));
         assert_note_ok(&source);
-        assert_eq!(channel_record_count("notes"), 0);
+        assert_eq!(channel_record_count("docs"), 0);
     });
 }
