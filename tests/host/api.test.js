@@ -14,6 +14,7 @@ import {
   deleteEntry,
   fetchWorkspaces, createWorkspace, renameWorkspace, setWorkspaceViewMode, setWorkspaceIcon, disableWorkspace, enableWorkspace, fetchDisabledWorkspaces, fetchDisabledProjects,
   fetchProjects, createProject, updateProject, disableProject, enableProject, moveToProject,
+  reorderWorkspaces, reorderProjects,
   fetchHidePatterns, addHidePattern, updateHidePattern, removeHidePattern, fetchViewerState, saveViewerState,
 } from '../../frontend/src/host/api.ts'
 
@@ -319,6 +320,20 @@ test('project writes post workspace, project, title and description', async () =
     { workspace: 'ws1', project: 'ops', title: 'Operations', description: 'runbooks' },
     { workspace: 'ws1', project: 'ops' },
     { workspace: 'ws1', project: 'ops' },
+  ])
+})
+
+test('reorder posts the whole list of ids or folders', async () => {
+  mockFetch({ ok: true })
+  await reorderWorkspaces(['b', 'default', 'a'])
+  await reorderProjects('ws1', ['two', 'one'])
+  expect(fetch.mock.calls.map((call) => call[0])).toEqual([
+    `${DEFAULT_DEV_BASE}/api/workspaces-reorder`,
+    `${DEFAULT_DEV_BASE}/api/projects-reorder`,
+  ])
+  expect(fetch.mock.calls.map((call) => JSON.parse(call[1].body))).toEqual([
+    { ids: ['b', 'default', 'a'] },
+    { workspace: 'ws1', folders: ['two', 'one'] },
   ])
 })
 

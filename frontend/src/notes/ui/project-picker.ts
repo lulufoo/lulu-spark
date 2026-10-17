@@ -15,7 +15,7 @@ export function renderProjectPicker(parent: HTMLElement) {
     counts[folder] = (counts[folder] || 0) + 1;
   }
   const titles = state.index.topicTitles;
-  const folders = sortedProjectFolders(titles);
+  const folders = sortedProjectFolders(titles, state.index.topicOrder);
 
   const options = folders.length
     ? folders.map((folder) => ({

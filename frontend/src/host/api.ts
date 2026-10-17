@@ -35,6 +35,8 @@ export {
   fetchWorkspaces,
   removeHidePattern,
   renameWorkspace,
+  reorderProjects,
+  reorderWorkspaces,
   saveViewerState,
   setWorkspaceIcon,
   setWorkspaceViewMode,

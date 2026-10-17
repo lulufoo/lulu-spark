@@ -37,6 +37,7 @@ describe('Workspace projects settings', () => {
     notesCategoriesStore.set(emptyNotesCategoriesSnap());
     state.workspaces.current = 'default';
     state.index.topicTitles = {};
+    state.index.topicOrder = [];
   });
 
   it('acts on the selected workspace, not the one the page browses', async () => {
@@ -52,6 +53,7 @@ describe('Workspace projects settings', () => {
   it('keeps the browsed workspace titles in step when it is the one being edited', async () => {
     await commands.selectProjectsWorkspace('default');
     expect(state.index.topicTitles).toEqual({ inbox: 'Inbox', work: 'Work' });
+    expect(state.index.topicOrder).toEqual(['inbox', 'work']);
   });
 
   it('lists disabled projects apart and enables them again', async () => {

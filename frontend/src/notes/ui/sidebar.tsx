@@ -24,9 +24,9 @@ function _renderTopicFilter(parent: HTMLElement) {
     topicCounts[topic] = (topicCounts[topic] || 0) + 1;
   }
   const total = allEntries.length;
-  const topics = Object.keys(topicCounts)
-    .filter((t) => t !== 'unknown')
-    .sort();
+  const counted = Object.keys(topicCounts).filter((t) => t !== 'unknown');
+  const arranged = state.index.topicOrder.filter((t) => counted.includes(t));
+  const topics = [...arranged, ...counted.filter((t) => !arranged.includes(t)).sort()];
 
   const wrap = document.createElement('div');
   wrap.className = 'topic-filter';

@@ -57,6 +57,8 @@ export type HostIndex = {
   titleFetchCache: Map<string, string>;
   topicDescriptions: Record<string, string>;
   topicTitles: Record<string, string>;
+  /** Project folders in the order Settings arranged them (the order the backend lists them). */
+  topicOrder: string[];
   topicRepos: Record<string, string>;
 };
 

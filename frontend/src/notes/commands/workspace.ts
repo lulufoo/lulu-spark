@@ -82,13 +82,16 @@ export async function loadProjects(): Promise<void> {
   if (data?.error) throw new Error(data.error);
   const titles: Record<string, string> = {};
   const descriptions: Record<string, string> = {};
+  const order: string[] = [];
   for (const project of data?.projects || []) {
     const folder = typeof project.folder === 'string' ? project.folder : '';
     if (!folder) continue;
+    order.push(folder);
     titles[folder] = typeof project.title === 'string' && project.title ? project.title : folder;
     descriptions[folder] = typeof project.description === 'string' ? project.description : '';
   }
   state.index.topicTitles = titles;
+  state.index.topicOrder = order;
   state.index.topicDescriptions = descriptions;
   state.index.topicRepos = {};
   notifyState();

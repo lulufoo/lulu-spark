@@ -56,6 +56,7 @@ export const state: HostState = {
     titleFetchCache: new Map(),
     topicDescriptions: {},
     topicTitles: {},
+    topicOrder: [],
     topicRepos: {},
   },
   ui: {

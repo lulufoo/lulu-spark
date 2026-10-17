@@ -32,6 +32,16 @@ export async function fetchDisabledWorkspaces() {
   return readGet('/api/workspaces-disabled?_=' + Date.now());
 }
 
+/** Every workspace id, enabled and disabled, in the order they should be listed. */
+export async function reorderWorkspaces(ids: string[]) {
+  return writePost('/api/workspaces-reorder', { ids });
+}
+
+/** Every project folder of the workspace, enabled and disabled, in the order to list them. */
+export async function reorderProjects(workspace: string, folders: string[]) {
+  return writePost('/api/projects-reorder', { workspace, folders });
+}
+
 export async function disableWorkspace(id: string) {
   return writePost('/api/workspace-disable', { id });
 }

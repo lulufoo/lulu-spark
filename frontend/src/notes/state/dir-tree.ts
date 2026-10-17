@@ -138,9 +138,16 @@ export function findDirNode(roots: DirNode[], nodeKey: string): DirNode | null {
   return found;
 }
 
-/** Project folders in the order of the directory view's dropdown: by title. */
-export function sortedProjectFolders(projectTitles: Record<string, string>): string[] {
-  return Object.keys(projectTitles).sort((a, b) => (projectTitles[a] || a).localeCompare(projectTitles[b] || b));
+/**
+ * Project folders in the order Settings arranged them (`order`). A project the order does not
+ * name (it should not happen) goes last, by title.
+ */
+export function sortedProjectFolders(projectTitles: Record<string, string>, order: readonly string[] = []): string[] {
+  const known = order.filter((folder, at) => folder in projectTitles && order.indexOf(folder) === at);
+  const rest = Object.keys(projectTitles)
+    .filter((folder) => !known.includes(folder))
+    .sort((a, b) => (projectTitles[a] || a).localeCompare(projectTitles[b] || b));
+  return [...known, ...rest];
 }
 
 export type DirTreeSnap = { expanded: string[] };

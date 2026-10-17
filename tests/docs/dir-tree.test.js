@@ -20,6 +20,7 @@ const {
   nodeKeyOfEntry,
   pathKeys,
   resetDirTree,
+  sortedProjectFolders,
 } = await import('../../frontend/src/notes/state/dir-tree.ts');
 const { applyListFilters, buildGroups, selectDate, selectDefaultProject, selectProject, selectTopic } = await import(
   '../../frontend/src/notes/commands/sidebar.ts'
@@ -51,6 +52,7 @@ function setView(mode) {
 function load() {
   state.index.data = data;
   state.index.topicTitles = titles;
+  state.index.topicOrder = ['ai', 'android', 'empty'];
   state.index.groupedByDate = buildGroups(data);
   state.ui.activeDate = null;
   state.ui.activeTopic = null;
@@ -142,6 +144,20 @@ describe('entering from Home', () => {
     expect(state.ui.activeDate).toBeNull();
     expect(dirTreeStore.getSnapshot().expanded).toEqual([]);
     expect(state.index.filteredGroups).toEqual([]);
+  });
+
+  it('entering the workspace selects the first project in the order Settings arranged', () => {
+    setView('directory');
+    load();
+    state.index.topicOrder = ['empty', 'ai', 'android'];
+    selectDefaultProject();
+    expect(state.ui.activeTopic).toBe('empty');
+  });
+
+  it('the project order lists the arranged projects first and unnamed ones last, by title', () => {
+    const t = { z: 'Zed', a: 'Alpha', m: 'Mid', 2024: 'Year' };
+    expect(sortedProjectFolders(t, ['m', 'gone', 'z', 'm'])).toEqual(['m', 'z', 'a', '2024']);
+    expect(sortedProjectFolders(t)).toEqual(['a', 'm', '2024', 'z']);
   });
 
   it('directory view of a workspace with no projects has nothing to select', () => {

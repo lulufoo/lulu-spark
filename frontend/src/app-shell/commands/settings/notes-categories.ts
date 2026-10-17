@@ -40,12 +40,15 @@ function failWith(e: unknown) {
 function applyNotesCategoryMaps(rows: NotesCategoryRow[]) {
   const descMap: Record<string, string> = {};
   const titleMap: Record<string, string> = {};
+  const order: string[] = [];
   for (const row of rows) {
     const key = row.folder || row.id;
+    order.push(key);
     titleMap[key] = row.title || key;
     descMap[key] = row.description || '';
   }
   state.index.topicTitles = titleMap;
+  state.index.topicOrder = order;
   state.index.topicDescriptions = descMap;
   state.index.topicRepos = {};
   notifyState();

@@ -132,7 +132,7 @@ export function selectDefaultProject() {
     selectTopic(null);
     return;
   }
-  const [first] = sortedProjectFolders(state.index.topicTitles);
+  const [first] = sortedProjectFolders(state.index.topicTitles, state.index.topicOrder);
   if (first) {
     selectProject(first);
     return;
