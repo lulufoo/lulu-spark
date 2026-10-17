@@ -141,7 +141,7 @@ export function HomeWorkspaceNav({
                     className="home-nav-hidden-count"
                     data-home-hidden={row.id}
                     data-home-hidden-count={plan.hidden}
-                    title={hiddenTitle(plan.hidden)}
+                    data-tip={hiddenTitle(plan.hidden)}
                     aria-label={hiddenTitle(plan.hidden)}
                   >
                     …
