@@ -1,12 +1,10 @@
-import { onKnowledgeLinkClick } from './open-knowledge-link.ts';
-import { onNoteLinkClick } from './open-note-link.ts';
+import { onDocLinkClick } from './open-doc-link.ts';
 import { onReadLaterLinkClick } from './open-read-later-link.ts';
 
 type LinkClickEvent = { target: EventTarget | null; preventDefault(): void };
 
 /** One delegated click for chat markdown: each handler only reacts to its own link scheme. */
 export function onChatLinkClick(event: LinkClickEvent): void {
-  onNoteLinkClick(event);
-  onKnowledgeLinkClick(event);
+  onDocLinkClick(event);
   onReadLaterLinkClick(event);
 }

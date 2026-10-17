@@ -179,6 +179,7 @@ fn write_doc(source: &str, payload: &Value, source_basename: Option<&str>) -> Va
         "ok": true,
         "id": id,
         "workspace": workspace.id,
+        "workspace_name": workspace.name,
         "project": project.folder,
         "created_at": meta.created_at,
     });

@@ -38,7 +38,7 @@ describe('openDraftInChat', () => {
   });
 
   it('opens a new session with the draft pending; stages and sends nothing', async () => {
-    await openDraftInChat('[N](note:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa)');
+    await openDraftInChat('[N](doc:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa)');
 
     expect(invokeSpy).toHaveBeenCalledWith('create_chat_session');
     const cmds = invokeSpy.mock.calls.map(([cmd]) => cmd);
@@ -47,7 +47,7 @@ describe('openDraftInChat', () => {
     expect(getHomeState().currentSessionId).toBe('s1');
     expect(navigateSpy).toHaveBeenCalledWith('#/home');
     expect(consumeComposerFocus()).toBe(true);
-    expect(consumeComposerDraft()).toBe('[N](note:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa)');
+    expect(consumeComposerDraft()).toBe('[N](doc:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa)');
   });
 
   it('has the draft pending before the session id lands in state', async () => {

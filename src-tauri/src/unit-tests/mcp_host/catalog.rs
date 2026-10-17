@@ -219,7 +219,7 @@ fn create_and_update_doc_descriptions_omit_internal_paths() {
             route.description
         );
         assert!(
-            route.description.contains("{ok, id}"),
+            route.description.contains("{ok, id"),
             "{api} {channel}: {}",
             route.description
         );

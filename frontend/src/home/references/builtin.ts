@@ -1,23 +1,13 @@
-import { openKnowledgeById } from '../commands/open-knowledge-link.ts';
-import { openNoteById } from '../commands/open-note-link.ts';
+import { openDocById } from '../commands/open-doc-link.ts';
 import { openReadLaterById } from '../commands/open-read-later-link.ts';
 import { registerReferenceKind } from './registry.ts';
 
 registerReferenceKind({
-  kind: 'note',
-  scheme: 'note',
-  label: 'note',
+  kind: 'doc',
+  scheme: 'doc',
+  label: 'doc',
   idPattern: /^(?:[a-z0-9_]+-)?[0-9a-f]{32}$/,
-  open: openNoteById,
-});
-
-// The id length is not checked here: Rust decides whether the id exists (legacy ids are shorter).
-registerReferenceKind({
-  kind: 'knowledge',
-  scheme: 'knowledge',
-  label: 'knowledge',
-  idPattern: /^(?:[a-z0-9_]+-)?[0-9a-f]+$/,
-  open: openKnowledgeById,
+  open: openDocById,
 });
 
 registerReferenceKind({

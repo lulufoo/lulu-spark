@@ -1,4 +1,4 @@
-export type ReferenceTextKind = 'note' | 'knowledge';
+export type ReferenceTextKind = 'doc';
 
 export type ReferenceTextInput = {
   kind: ReferenceTextKind;

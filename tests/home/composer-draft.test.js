@@ -37,9 +37,9 @@ describe('composer draft', () => {
   });
 
   it('a request asks for focus and holds the text until consumed', () => {
-    requestComposerDraft('[A](note:x)');
+    requestComposerDraft('[A](doc:x)');
     expect(consumeComposerFocus()).toBe(true);
-    expect(consumeComposerDraft()).toBe('[A](note:x)');
+    expect(consumeComposerDraft()).toBe('[A](doc:x)');
   });
 
   it('is one-shot', () => {
@@ -50,10 +50,10 @@ describe('composer draft', () => {
 
   it('applies the draft with the caret at the end', () => {
     const input = composer();
-    requestComposerDraft('[A](note:x)');
+    requestComposerDraft('[A](doc:x)');
     applyComposerDraft(input);
-    expect(input.getText()).toBe('[A](note:x)');
-    expect(caretOffset(input.el)).toBe('[A](note:x)'.length);
+    expect(input.getText()).toBe('[A](doc:x)');
+    expect(caretOffset(input.el)).toBe('[A](doc:x)'.length);
     input.el.remove();
   });
 

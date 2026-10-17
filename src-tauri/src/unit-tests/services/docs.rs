@@ -420,3 +420,19 @@ fn an_id_shared_by_two_workspace_tables_is_reported() {
     let dups = spark_data::duplicate_doc_ids(&conn).expect("scan");
     assert_eq!(dups, vec![(shared.to_string(), vec!["default".to_string(), "knowledge".to_string()])]);
 }
+
+#[test]
+fn search_and_create_return_the_workspace_name_a_chat_link_shows() {
+    let _sandbox = TestSandbox::new();
+    let ws = new_workspace("Memory");
+    let created = write(Some(&ws), None);
+    assert_eq!(text(ok(&created), "workspace_name"), "Memory");
+    let id = text(&created, "id");
+
+    ok(&rename_workspace(&json!({ "id": ws, "name": "Research" })));
+    crate::services::index_build::rebuild_spark_index(&crate::config::paths::repo_root().expect("root")).expect("index");
+    let found = search(&json!({ "q": "这是正文" }));
+    let hit = found["items"].as_array().expect("items").iter().find(|i| text(i, "id") == id).expect("hit");
+    assert_eq!(text(hit, "workspace_name"), "Research", "the current name, after the rename");
+    assert_eq!(text(hit, "workspace"), ws);
+}

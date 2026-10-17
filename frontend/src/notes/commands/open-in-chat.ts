@@ -20,18 +20,24 @@ function noteTitle(entry: HostNoteEntry, id: string) {
   return 'Untitled note';
 }
 
-/** `[title](note:<id>) ` — shown as a chip in the composer; the space keeps typing after it. */
-export function noteReferenceDraft(entry: HostNoteEntry, id: string) {
-  const title = noteTitle(entry, id).replace(/\s+/g, ' ').trim();
-  return `${serializeReference({ kind: 'note', id, title })} `;
+/** Current name of the workspace that holds `entry`; the workspace id when the name is unknown. */
+function workspaceNameOf(entry: HostNoteEntry) {
+  const id = String(entry.workspace || state.workspaces.current);
+  return state.workspaces.list.find((w) => w.id === id)?.name || id;
 }
 
-/** Copy `Lulu Spark note` / title / id for an outside tool. Resolves false when nothing was copied. */
+/** `[Workspace name：Title](doc:<id>) ` — shown as a chip in the composer; the space keeps typing after it. */
+export function noteReferenceDraft(entry: HostNoteEntry, id: string) {
+  const title = noteTitle(entry, id).replace(/\s+/g, ' ').trim();
+  return `${serializeReference({ kind: 'doc', id, title: `${workspaceNameOf(entry)}：${title}` })} `;
+}
+
+/** Copy `Lulu Spark doc` / title / id for an outside tool. Resolves false when nothing was copied. */
 export async function copyNoteReference(entry: HostNoteEntry | null) {
   if (!entry) return false;
   const id = getEntryId(entry);
   if (!id) return false;
-  return writeClipboardText(formatReferenceText({ kind: 'note', id, title: noteTitle(entry, id) }));
+  return writeClipboardText(formatReferenceText({ kind: 'doc', id, title: noteTitle(entry, id) }));
 }
 
 export async function openNoteInChat(

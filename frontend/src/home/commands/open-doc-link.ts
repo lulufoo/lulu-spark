@@ -4,11 +4,12 @@ import { refreshNotesIndex } from '../../notes/commands/reload-index.ts';
 import { showWorkspace } from '../../notes/commands/workspace-switch.ts';
 import { showActionError } from './hub.ts';
 
-/** Chat links that open a note: `[title](note:<id>)`. The id is `<workspace id>-<32 hex>` or a plain 32 hex. */
-const NOTE_HREF = /^note:((?:[a-z0-9_]+-)?[0-9a-f]{32})$/;
+/** Chat links that open a document: `[Workspace name：Title](doc:<id>)`. The id is `<workspace id>-<32 hex>`
+ * or a plain 32 hex from before the prefix. Only the id is read; the link text is for display. */
+const DOC_HREF = /^doc:((?:[a-z0-9_]+-)?[0-9a-f]{32})$/;
 
-export function noteIdFromHref(href: string | null | undefined): string | null {
-  const match = NOTE_HREF.exec((href ?? '').trim());
+export function docIdFromHref(href: string | null | undefined): string | null {
+  const match = DOC_HREF.exec((href ?? '').trim());
   return match ? match[1] : null;
 }
 
@@ -19,18 +20,18 @@ function hasEntry(id: string): boolean {
 
 function reportOpenFailure(reason: unknown) {
   const detail = reason instanceof Error ? reason.message : String(reason);
-  showActionError({ message: `Cannot open note: ${detail}` });
+  showActionError({ message: `Cannot open document: ${detail}` });
 }
 
-/** Rust validates the id; the Notes list must hold the entry before the shared open event. */
-export async function openNoteById(id: string): Promise<void> {
+/** Rust validates the id; the document list must hold the entry before the shared open event. */
+export async function openDocById(id: string): Promise<void> {
   try {
     const note = await resolveNoteForOpen(id);
     if (!hasEntry(id)) {
       if (note.workspace && note.workspace !== state.workspaces.current) await showWorkspace(note.workspace);
       else await refreshNotesIndex();
     }
-    if (!hasEntry(id)) throw new Error('not in the notes list yet');
+    if (!hasEntry(id)) throw new Error('not in the document list yet');
     document.dispatchEvent(
       new CustomEvent('cta:open-entry', { detail: { id: note.id || id } }),
     );
@@ -39,20 +40,20 @@ export async function openNoteById(id: string): Promise<void> {
   }
 }
 
-/** Delegated click for rendered chat markdown. Only `note:` links are intercepted. */
-export function onNoteLinkClick(event: {
+/** Delegated click for rendered chat markdown. Only `doc:` links are intercepted. */
+export function onDocLinkClick(event: {
   target: EventTarget | null;
   preventDefault(): void;
 }): void {
   const target = event.target;
   if (!(target instanceof Element)) return;
-  const anchor = target.closest('a[href^="note:"]');
+  const anchor = target.closest('a[href^="doc:"]');
   if (!anchor) return;
   event.preventDefault();
-  const id = noteIdFromHref(anchor.getAttribute('href'));
+  const id = docIdFromHref(anchor.getAttribute('href'));
   if (!id) {
-    reportOpenFailure('invalid note link');
+    reportOpenFailure('invalid document link');
     return;
   }
-  void openNoteById(id);
+  void openDocById(id);
 }

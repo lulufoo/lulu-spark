@@ -20,9 +20,9 @@ import { refreshNotesIndex } from '../../frontend/src/notes/commands/reload-inde
 import { showActionError } from '../../frontend/src/home/commands/hub.ts';
 import { state } from '../../frontend/src/host/state.ts';
 import {
-  noteIdFromHref,
-  onNoteLinkClick,
-} from '../../frontend/src/home/commands/open-note-link.ts';
+  docIdFromHref,
+  onDocLinkClick,
+} from '../../frontend/src/home/commands/open-doc-link.ts';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const ID = 'abcdefabcdefabcdefabcdefabcdefab';
@@ -31,7 +31,7 @@ function clickOn(html, selector) {
   const root = document.createElement('div');
   root.innerHTML = html;
   const event = { target: root.querySelector(selector), preventDefault: vi.fn() };
-  onNoteLinkClick(event);
+  onDocLinkClick(event);
   return event;
 }
 
@@ -56,22 +56,22 @@ afterEach(() => {
   state.index.data = null;
 });
 
-describe('noteIdFromHref', () => {
-  it('accepts note:<32 hex> only', () => {
-    expect(noteIdFromHref(`note:${ID}`)).toBe(ID);
-    expect(noteIdFromHref(`  note:${ID} `)).toBe(ID);
-    expect(noteIdFromHref(`note:default-${ID}`)).toBe(`default-${ID}`);
-    expect(noteIdFromHref(`note:k3x9ab-${ID}`)).toBe(`k3x9ab-${ID}`);
-    for (const bad of ['note:bad', `note:${ID}x`, `note:Bad-${ID}`, `note:-${ID}`, `https://x/${ID}`, `Note:${ID}`, '', null, undefined]) {
-      expect(noteIdFromHref(bad)).toBeNull();
+describe('docIdFromHref', () => {
+  it('accepts doc:<id> only; the old note: and knowledge: schemes are gone', () => {
+    expect(docIdFromHref(`doc:${ID}`)).toBe(ID);
+    expect(docIdFromHref(`  doc:${ID} `)).toBe(ID);
+    expect(docIdFromHref(`doc:default-${ID}`)).toBe(`default-${ID}`);
+    expect(docIdFromHref(`doc:k3x9ab-${ID}`)).toBe(`k3x9ab-${ID}`);
+    for (const bad of ['doc:bad', `note:${ID}`, `knowledge:${ID}`, `doc:${ID}x`, `doc:Bad-${ID}`, `doc:-${ID}`, `https://x/${ID}`, `Note:${ID}`, '', null, undefined]) {
+      expect(docIdFromHref(bad)).toBeNull();
     }
   });
 });
 
-describe('onNoteLinkClick', () => {
-  it('intercepts a note: link, resolves it in Rust, then opens the entry', async () => {
+describe('onDocLinkClick', () => {
+  it('intercepts a doc: link, resolves it in Rust, then opens the entry', async () => {
     vi.mocked(resolveNoteForOpen).mockResolvedValue({ id: ID, ok: true, folder: 'ai' });
-    const event = clickOn(`<p><a href="note:${ID}"><b>Title</b></a></p>`, 'b');
+    const event = clickOn(`<p><a href="doc:${ID}"><b>Default：Title</b></a></p>`, 'b');
     expect(event.preventDefault).toHaveBeenCalledOnce();
     await flush();
     expect(resolveNoteForOpen).toHaveBeenCalledWith(ID);
@@ -82,6 +82,9 @@ describe('onNoteLinkClick', () => {
   it('leaves every other link alone', async () => {
     const event = clickOn('<a href="https://example.com">x</a>', 'a');
     expect(event.preventDefault).not.toHaveBeenCalled();
+    for (const old of ['note', 'knowledge']) {
+      expect(clickOn(`<a href="${old}:${ID}">x</a>`, 'a').preventDefault).not.toHaveBeenCalled();
+    }
     const plain = clickOn('<span>no link</span>', 'span');
     expect(plain.preventDefault).not.toHaveBeenCalled();
     await flush();
@@ -89,21 +92,21 @@ describe('onNoteLinkClick', () => {
     expect(opened).toEqual([]);
   });
 
-  it('reports a malformed note: link without calling Rust', async () => {
-    const event = clickOn('<a href="note:bad">x</a>', 'a');
+  it('reports a malformed doc: link without calling Rust', async () => {
+    const event = clickOn('<a href="doc:bad">x</a>', 'a');
     expect(event.preventDefault).toHaveBeenCalledOnce();
     await flush();
     expect(resolveNoteForOpen).not.toHaveBeenCalled();
-    expect(showActionError).toHaveBeenCalledWith({ message: expect.stringContaining('Cannot open note') });
+    expect(showActionError).toHaveBeenCalledWith({ message: expect.stringContaining('Cannot open document') });
     expect(opened).toEqual([]);
   });
 
   it('reports the Rust error when the id is unknown', async () => {
     vi.mocked(resolveNoteForOpen).mockRejectedValue(new Error('Entry not found'));
-    clickOn(`<a href="note:${ID}">x</a>`, 'a');
+    clickOn(`<a href="doc:${ID}">x</a>`, 'a');
     await flush();
     const err = vi.mocked(showActionError).mock.calls[0][0];
-    expect(err.message).toBe('Cannot open note: Entry not found');
+    expect(err.message).toBe('Cannot open document: Entry not found');
     expect(opened).toEqual([]);
   });
 
@@ -114,27 +117,27 @@ describe('onNoteLinkClick', () => {
       state.index.data = { [ID]: { folder: 'ai', id: ID } };
       return true;
     });
-    clickOn(`<a href="note:${ID}">x</a>`, 'a');
+    clickOn(`<a href="doc:${ID}">x</a>`, 'a');
     await flush();
     expect(refreshNotesIndex).toHaveBeenCalledOnce();
     expect(opened).toEqual([{ id: ID }]);
   });
 
-  it('reports instead of staying silent when the list still lacks the note', async () => {
+  it('reports instead of staying silent when the list still lacks the document', async () => {
     state.index.data = {};
     vi.mocked(resolveNoteForOpen).mockResolvedValue({ id: ID, ok: true, folder: 'ai' });
     vi.mocked(refreshNotesIndex).mockResolvedValue(true);
-    clickOn(`<a href="note:${ID}">x</a>`, 'a');
+    clickOn(`<a href="doc:${ID}">x</a>`, 'a');
     await flush();
     expect(opened).toEqual([]);
-    expect(vi.mocked(showActionError).mock.calls[0][0].message).toMatch(/Cannot open note/);
+    expect(vi.mocked(showActionError).mock.calls[0][0].message).toMatch(/Cannot open document/);
   });
 });
 
 describe('wiring', () => {
-  it('marked keeps the note: href intact', () => {
-    const html = marked.parse(`[Title](note:${ID})`);
-    expect(html).toContain(`href="note:${ID}"`);
+  it('marked keeps the doc: href intact', () => {
+    const html = marked.parse(`[Title](doc:${ID})`);
+    expect(html).toContain(`href="doc:${ID}"`);
   });
 
   it('assistant markdown in the home page uses the click handler', () => {

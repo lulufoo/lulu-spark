@@ -148,7 +148,7 @@ fn update_from_body(payload: &Value, source: &str) -> Value {
 
     search_index::sync_workspace_docs_best_effort(&workspace.id, &[id.as_str()]);
 
-    let mut response = json!({ "ok": true, "id": id, "workspace": workspace.id });
+    let mut response = json!({ "ok": true, "id": id, "workspace": workspace.id, "workspace_name": workspace.name });
     if let Some(rel) = digest_rel {
         response["digest_path"] = json!(rel);
     }

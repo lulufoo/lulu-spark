@@ -40,7 +40,7 @@ pub fn build(channel: &str) -> Option<ToolRoute> {
     if channel == "mobile" {
         return Some(route(
             "create_doc",
-            "Create a document in a workspace and project from Markdown content. Send title and body; do not send source_path. workspace defaults to Default and project to inbox. This channel has no companion-image field; relative images will not display. digest is required (auto|always|never). When a digest is written, pass digest_body on this same call. digest_body must not contain relative images. Success is {ok, id}; digest_written or zh_written is true when that layer was written.",
+            "Create a document in a workspace and project from Markdown content. Send title and body; do not send source_path. workspace defaults to Default and project to inbox. This channel has no companion-image field; relative images will not display. digest is required (auto|always|never). When a digest is written, pass digest_body on this same call. digest_body must not contain relative images. Success is {ok, id, workspace, workspace_name}; digest_written or zh_written is true when that layer was written.",
             object_schema(create_doc_properties(false), &["content", "title", "digest"]),
             false,
             false,
@@ -49,7 +49,7 @@ pub fn build(channel: &str) -> Option<ToolRoute> {
     }
     Some(route(
         "create_doc",
-        "Create a document in a workspace and project from a Markdown file by absolute source_path. workspace defaults to Default and project to inbox. The Host reads the file; never send document text. If the source Markdown uses relative images (![]() or <img src>), this same call MUST include asset_paths; omit asset_paths when there are none. Host copies only the listed files and does not scan the Markdown. digest is required (auto|always|never). When a digest is written, pass digest_body on this same call. digest_body must not contain relative images. Success is {ok, id}; digest_written, zh_written, or assets_copied is true when that layer was written.",
+        "Create a document in a workspace and project from a Markdown file by absolute source_path. workspace defaults to Default and project to inbox. The Host reads the file; never send document text. If the source Markdown uses relative images (![]() or <img src>), this same call MUST include asset_paths; omit asset_paths when there are none. Host copies only the listed files and does not scan the Markdown. digest is required (auto|always|never). When a digest is written, pass digest_body on this same call. digest_body must not contain relative images. Success is {ok, id, workspace, workspace_name}; digest_written, zh_written, or assets_copied is true when that layer was written.",
         object_schema(create_doc_properties(true), &["source_path", "title", "digest"]),
         false,
         false,
