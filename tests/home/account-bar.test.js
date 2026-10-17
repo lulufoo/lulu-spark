@@ -54,7 +54,7 @@ describe('account bar · source', () => {
     const settings = readRel('frontend/src/app-shell/ui/settings/dialog.tsx');
     const settingsChrome = readRel('frontend/src/app-shell/ui/settings/chrome.tsx');
     expect(page).toMatch(/<HelpMenu/);
-    expect(readRel('frontend/src/home/ui/help-menu.tsx')).toMatch(/id="btn-settings"/);
+    expect(readRel('frontend/src/home/ui/help-menu.tsx')).toMatch(/data-role="help-menu-about"/);
     expect(`${settings}\n${settingsChrome}`).not.toMatch(/startAuthLogin|signOutAuth|AccountBar/);
   });
 

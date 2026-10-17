@@ -56,7 +56,6 @@ import {
   type LiveThinking,
 } from './state/store.ts';
 import { ThinkingFold } from './ui/thinking.tsx';
-import { openBindDialog } from '../app-shell/ui/bind-dialog.tsx';
 import { openSettingsDialog } from '../app-shell/ui/settings/dialog.tsx';
 import { WindowDragStrip } from '../shared/window-drag-strip.tsx';
 import { TopActions } from './ui/top-actions.tsx';
@@ -395,10 +394,6 @@ export function HomePage({
             onLogout={onAccountLogout}
           />
           <HelpMenu
-            onSettings={() => {
-              void openSettingsDialog();
-            }}
-            onDevices={() => openBindDialog()}
             onAbout={() => {
               void openAbout();
             }}

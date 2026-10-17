@@ -30,6 +30,7 @@ import {
 import { selectHidePatternsWorkspace } from './hide-patterns.ts';
 import { closeWorkspaceEditor, loadDisabledWorkspaces } from './workspaces.ts';
 import { loadSettingsSnapshot } from './snapshot.ts';
+import { closeBindDialog, openBindDialog } from '../bind-dialog.ts';
 import { saveThemeSelection } from './theme.ts';
 import {
   isWorkspacePanel,
@@ -70,6 +71,7 @@ function closeEditors() {
 
 export function closeSettingsDialog() {
   closeEditors();
+  closeBindDialog();
   settingsOpenStore.set(false);
   document.getElementById('settings-dialog')?.classList.remove('open');
 }
@@ -81,6 +83,9 @@ export function closeSettingsDialog() {
 function showPanel(panelId: string): Promise<void> {
   closeEditors();
   switchPanel(panelId);
+  // The Devices page issues a pairing code when it is shown and stops it when another page is.
+  if (panelId === 'devices') void openBindDialog();
+  else closeBindDialog();
   if (isWorkspacePanel(panelId)) {
     switchSettingsTab('workspace', 'directory');
     const workspaceId = workspaceIdOfPanel(panelId);

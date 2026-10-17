@@ -68,7 +68,7 @@ describe('mountHomeHub', () => {
     expect(labels).toEqual(['Default', 'Knowledge']);
     expect(container.querySelector('#btn-bind')).toBeNull();
     expect(container.querySelector('#btn-settings')).toBeNull();
-    expect(container.querySelector('[data-role="help-menu-trigger"] [data-home-icon="settings"]')).not.toBeNull();
+    expect(container.querySelector('[data-role="help-menu-trigger"] [data-home-icon="help"]')).not.toBeNull();
     expect(container.querySelector('.window-drag-strip [data-role="top-settings"][title="Settings"]')).not.toBeNull();
     expect(container.querySelector('[data-home-entry="spark"] [data-home-icon="notes"]')).not.toBeNull();
     expect(container.querySelector('[data-home-entry="knowledge"] [data-home-icon="knowledge"]')).not.toBeNull();
