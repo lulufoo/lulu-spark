@@ -1,11 +1,12 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useSyncExternalStore } from 'react';
+import { categoryLabel, docCategoryCatalogStore } from '../../host/doc-categories-catalog.ts';
 import { notifyState, state } from '../state/host.ts';
 import { LAYERS } from '../../host/constants.ts';
 import { timeFromTs } from '../../shared/utils.ts';
 import { openMoveProjectDialog } from './move-project-dialog.tsx';
 import { attachDigestTooltip } from './digest-tooltip.tsx';
 import { renderToHtml } from '../../island.ts';
-import { cycleImportance, loadTitles, toggleDone } from '../commands/cards.ts';
+import { cycleImportance, loadTitles, openSourceTypePicker, toggleDone } from '../commands/cards.ts';
 import { openNoteInChat } from '../commands/open-in-chat.ts';
 import { ViewerHeaderIcon } from '../../shared/viewer-header-icons.tsx';
 import type { NoteEntry, NoteTag } from '../state/types.ts';
@@ -71,24 +72,31 @@ export function getEntryDiffState(entry: NoteEntry): 'unreachable' | null {
   return null;
 }
 
-const SOURCE_TYPE_LABELS: Record<string, string> = {
-  dialogue: 'Dialogue',
-  summary: 'Summary',
-  'theme-line': 'Video',
-  jot: 'Jot',
-  note: 'Note',
-};
+function sourceTypeCssClass(id: string) {
+  return id === 'theme-line' ? 'themeline' : id;
+}
 
 function SourceTypeBadge({ sourceType }: { sourceType?: string }) {
-  const label = sourceType ? SOURCE_TYPE_LABELS[sourceType] : undefined;
+  const label = categoryLabel(sourceType);
   if (!label || !sourceType) return null;
-  const cssClass = sourceType === 'theme-line' ? 'themeline' : sourceType;
-  return <span className={`badge badge-source badge-source-${cssClass}`}>{label}</span>;
+  const cssClass = sourceTypeCssClass(sourceType);
+  return (
+    <button
+      type="button"
+      className={`badge badge-source badge-source-${cssClass}`}
+      data-action="set-source-type"
+      data-tip="Change category"
+      aria-label="Change category"
+      aria-haspopup="listbox"
+      aria-expanded="false"
+    >
+      {label}
+    </button>
+  );
 }
 
 export function sourceTypeBadgeHtml(sourceType?: string): string {
-  const label = sourceType ? SOURCE_TYPE_LABELS[sourceType] : undefined;
-  if (!label) return '';
+  if (!categoryLabel(sourceType)) return '';
   return renderToHtml(<SourceTypeBadge sourceType={sourceType} />);
 }
 
@@ -227,6 +235,10 @@ function bindCardActions(card: HTMLElement, entry: NoteEntry) {
   card.querySelector('[data-action="toggle-done"]')?.addEventListener('click', () => toggleDone(entry));
   card.querySelector('[data-action="cycle-importance"]')?.addEventListener('click', () => cycleImportance(entry));
   card.querySelector('[data-action="move-project"]')?.addEventListener('click', () => openMoveProjectDialog(entry));
+  card.querySelector('[data-action="set-source-type"]')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openSourceTypePicker(e.currentTarget as HTMLElement, entry);
+  });
   card.querySelector('[data-action="open-in-chat"]')?.addEventListener('click', (e) => {
     e.stopPropagation();
     startOpenInChat(entry, e.currentTarget as HTMLButtonElement);
@@ -286,6 +298,11 @@ export function DocCard({
   entry: NoteEntry;
   title: string | null;
 }) {
+  useSyncExternalStore(
+    docCategoryCatalogStore.subscribe,
+    docCategoryCatalogStore.getSnapshot,
+    docCategoryCatalogStore.getSnapshot,
+  );
   const cardRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -323,6 +340,11 @@ export function DocCard({
     }
     if (t.dataset.action === 'move-project') {
       openMoveProjectDialog(entry);
+      return;
+    }
+    if (t.dataset.action === 'set-source-type') {
+      e.stopPropagation();
+      openSourceTypePicker(t, entry);
       return;
     }
     if (t.dataset.action === 'open-in-chat') {
@@ -431,6 +453,10 @@ export function updateTitlesInDOM(date: string) {
         .querySelector('[data-action="cycle-importance"]')
         ?.addEventListener('click', () => cycleImportance(entry));
       card.querySelector('[data-action="move-project"]')?.addEventListener('click', () => openMoveProjectDialog(entry));
+      card.querySelector('[data-action="set-source-type"]')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openSourceTypePicker(e.currentTarget as HTMLElement, entry);
+      });
       card.querySelector('[data-action="open-in-chat"]')?.addEventListener('click', (e) => {
         e.stopPropagation();
         startOpenInChat(entry, e.currentTarget as HTMLButtonElement);

@@ -86,6 +86,13 @@ export const WRITE_API_INVOKE_MAP: Record<string, WriteInvokeEntry> = {
       importance: body.importance,
     }),
   },
+  '/api/set-doc-source-type': {
+    cmd: 'set_doc_source_type',
+    args: (body) => ({
+      ...noteIdArg(body),
+      sourceType: body.source_type,
+    }),
+  },
   '/api/read-later': {
     cmd: 'create_read_later',
     args: (body) => ({

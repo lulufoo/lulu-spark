@@ -29,6 +29,7 @@ commands.allow = [
   "list_chat_sessions",
   "list_chat_workspace",
   "get_mcp_channel_tools",
+  "get_doc_categories",
   "get_mcp_ticket_view",
   "get_message_channel_unread",
   "get_auth_session",

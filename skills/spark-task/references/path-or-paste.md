@@ -13,7 +13,7 @@ Stage the Markdown at any absolute path. Load [chinese-companion.md](chinese-com
 | `folder` | kebab-case English from title or body (3–5 words); else omit and the Host uses `notes`. May be a 1–3 level relative path such as `ai/agents/notes` |
 | `title` | `#` heading or first line |
 | `created_at` | Default is the current time (`YYYYMMDDHHMM`, UTC+8). Omit unless the user gives a time. |
-| `source_type` | `--source-type article` → `article`; `--source-type theme-line` → `theme-line`; else `summary` |
+| `source_type` | Call `list_doc_categories` first. `--source-type article` → `article`; video (including old `theme-line`) → `video`; dialogue → `dialogue`; else `summary` |
 
 Do not invent `{ts}-{slug}` as the write identity.
 

@@ -3,6 +3,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import {
   closeFloatingListSelect,
   createFloatingListSelect,
+  openAnchoredListSelect,
 } from '../../frontend/src/shared/floating-list-select.ts';
 
 describe('floating-list-select', () => {
@@ -54,6 +55,30 @@ describe('floating-list-select', () => {
     expect(menu?.classList.contains('tag-select-menu')).toBe(true);
     menu?.querySelector('[data-value="k1"]')?.click();
     expect(selected).toBe('k1');
+    expect(document.querySelector('.list-select-menu')).toBeNull();
+  });
+
+  it('openAnchoredListSelect uses an existing control as the trigger', () => {
+    const trigger = document.createElement('button');
+    trigger.textContent = 'Dialogue';
+    document.body.appendChild(trigger);
+    let selected = '';
+    openAnchoredListSelect({
+      trigger,
+      value: 'dialogue',
+      options: [
+        { value: 'summary', label: 'Summary' },
+        { value: 'dialogue', label: 'Dialogue' },
+      ],
+      onSelect: (v) => {
+        selected = v;
+      },
+    });
+    const menu = document.querySelector('.list-select-menu');
+    expect(menu).not.toBeNull();
+    expect(menu?.querySelector('.selected')?.dataset.value).toBe('dialogue');
+    menu?.querySelector('[data-value="summary"]')?.click();
+    expect(selected).toBe('summary');
     expect(document.querySelector('.list-select-menu')).toBeNull();
   });
 });

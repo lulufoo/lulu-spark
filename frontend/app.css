@@ -3696,10 +3696,12 @@
     overflow: visible;
   }
   .badge:hover { opacity: .8; }
-  .badge-source           { cursor: default; font-size: 10px; }
+  .badge-source           { cursor: pointer; font-size: 10px; }
   .badge-source-dialogue  { background: var(--bg-hex-ddf4ff); color: var(--fg-accent-emphasis); border-color: var(--border-hex-96c6f8); }
   .badge-source-summary   { background: var(--bg-hex-fff8c5); color: var(--fg-hex-7d4e00); border-color: var(--border-hex-d4a72c); }
+  .badge-source-video,
   .badge-source-themeline { background: var(--bg-hex-fbefff); color: var(--fg-hex-8250df); border-color: var(--border-hex-d2a8ff); }
+  .badge-source-article   { background: var(--bg-hex-edfcf0); color: var(--fg-hex-2a7a45); border-color: var(--border-hex-b6e8c4); }
   .badge-source-jot       { background: var(--bg-hex-dafbe1); color: var(--fg-hex-116329); border-color: var(--border-hex-7ee787); }
   .badge-source-note      { background: var(--bg-hex-dafbe1); color: var(--fg-hex-116329); border-color: var(--border-hex-7ee787); }
   .badge-layer    { background: var(--bg-hex-edfcf0); color: var(--fg-hex-2a7a45); border-color: var(--border-hex-b6e8c4); }
@@ -5105,6 +5107,69 @@ details.notes-disabled > button.notes-cat-item { margin-top: 6px; }
   flex-direction: column;
   gap: 8px;
 }
+#doc-cat-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.doc-cat-row,
+.doc-cat-add {
+  display: grid;
+  grid-template-columns: 7.5rem minmax(0, 1fr) auto auto;
+  gap: 8px;
+  align-items: center;
+}
+.doc-cat-id {
+  font-size: 13px;
+  color: var(--fg-hex-59636e);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.doc-cat-label,
+#doc-cat-new-id,
+#doc-cat-new-label {
+  min-width: 0;
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: inherit;
+  background: var(--bg-surface);
+  color: var(--fg-emphasis);
+  box-sizing: border-box;
+}
+.doc-cat-label:focus,
+#doc-cat-new-id:focus,
+#doc-cat-new-label:focus {
+  outline: none;
+  border-color: var(--border-focus);
+}
+#doc-cat-new-id {
+  font-family: ui-monospace, SFMono-Regular, monospace;
+}
+.doc-cat-exposed {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--fg-hex-59636e);
+  white-space: nowrap;
+}
+.doc-cat-del {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: var(--fg-hex-59636e);
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  border-radius: 6px;
+}
+.doc-cat-del:hover:not(:disabled) { background: var(--bg-hex-ffebe9); color: var(--fg-danger); }
 
 .settings-field select.settings-native-select {
   position: absolute;

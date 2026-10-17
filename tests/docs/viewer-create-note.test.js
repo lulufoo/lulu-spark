@@ -132,6 +132,7 @@ const CREATE_CHROME_HIDDEN_IDS = [
   'md-tags-bar',
   'btn-copy-path',
   'btn-open-in-chat',
+  'md-source-type',
   'btn-goto-kb',
   'comment-float-nav',
 ];
@@ -142,7 +143,7 @@ function resetViewerDom() {
     'comment-dialog', 'btn-edit', 'btn-add-comment', 'btn-save',
     'btn-cancel-edit', 'md-lang-bar', 'md-file-size',
     'md-links-bar', 'md-tags-bar',
-    'btn-copy-path', 'btn-open-in-chat', 'btn-goto-kb',
+    'btn-copy-path', 'btn-open-in-chat', 'md-source-type', 'btn-goto-kb',
     'comment-float-nav',
   ]) {
     const el = makeEl(id);

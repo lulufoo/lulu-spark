@@ -4,6 +4,7 @@ import {
   restoreSavedCredentialPlaceholder,
   saveAssistantEnginePanel,
 } from './engine.ts';
+import { loadDocCategories } from './document-categories.ts';
 import {
   deselectAllMcpChannelTools,
   loadMcpChannelTools,
@@ -95,6 +96,7 @@ function showPanel(panelId: string): Promise<void> {
     ]).then(() => undefined);
   }
   if (panelId === 'notes') switchSettingsTab('notes', 'directory');
+  if (panelId === 'document') return loadDocCategories();
   return Promise.resolve();
 }
 

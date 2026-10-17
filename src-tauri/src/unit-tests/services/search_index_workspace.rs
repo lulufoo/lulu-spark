@@ -14,7 +14,7 @@ fn new_workspace(name: &str) -> String {
 }
 
 fn write(workspace: Option<&str>, body: &str) -> String {
-    let mut payload = json!({ "title": "T", "content": body, "digest": "never" });
+    let mut payload = json!({ "title": "T", "content": body, "digest": "never", "source_type": "summary" });
     if let Some(w) = workspace {
         payload["workspace"] = json!(w);
     }

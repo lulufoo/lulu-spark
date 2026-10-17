@@ -7,7 +7,9 @@ use crate::mcp_host::catalog::groups::document::{
 use crate::mcp_host::catalog::groups::{global, project, read_later, workspace, ALL_GROUP_IDS};
 use crate::mcp_host::catalog::{build, build_routes_for_channel, catalog_groups, group_for_migrated_api};
 use crate::services::docs as docs_service;
+use crate::services::docs::{DocCategory, save_doc_categories};
 use crate::services::settings::mcp_catalog::GroupedEnabledCatalog;
+use crate::test_support::TestSandbox;
 
 const WORKSPACE_APIS: &[&str] = &["list_workspaces", "create_workspace", "rename_workspace"];
 
@@ -17,6 +19,7 @@ const DOCUMENT_APIS: &[&str] = &[
     "get_doc_digest",
     "get_doc_content",
     "get_doc_file",
+    "list_doc_categories",
     "create_doc",
     "update_doc",
     "delete_doc",
@@ -327,6 +330,135 @@ fn search_points_each_channel_at_its_own_follow_up_tools() {
     assert!(!mobile.description.to_lowercase().contains("read later"));
     assert!(mobile.description.contains("get_doc_content"));
     assert!(!mobile.description.contains("get_doc_file"));
+}
+
+#[test]
+fn list_doc_categories_is_on_every_channel_and_read_only() {
+    for channel in ["spark", "cursor", "cursor_ide", "codex", "claude", "mobile"] {
+        let route = build("document", "list_doc_categories", channel).expect(channel);
+        assert!(route.read_only, "{channel}");
+        assert!(!route.destructive, "{channel}");
+        assert_eq!(route.input_schema["required"], serde_json::Value::Null);
+        assert_eq!(route.input_schema["properties"], serde_json::json!({}));
+    }
+}
+
+#[test]
+fn list_doc_categories_returns_exposed_items_without_jot() {
+    let _sandbox = TestSandbox::new();
+    let route = build("document", "list_doc_categories", "spark").expect("list");
+    let value = (route.invoke)(&serde_json::json!({}));
+    assert_eq!(value["ok"], serde_json::json!(true));
+    let ids: Vec<&str> = value["categories"]
+        .as_array()
+        .expect("categories")
+        .iter()
+        .map(|c| {
+            assert!(c.get("exposed").is_none(), "{c}");
+            c["id"].as_str().expect("id")
+        })
+        .collect();
+    assert_eq!(ids, vec!["summary", "dialogue", "video", "article"]);
+    assert!(!ids.contains(&"jot"));
+    assert!(!ids.contains(&"theme-line"));
+    assert!(!ids.contains(&"transcript"));
+}
+
+#[test]
+fn create_doc_source_type_enum_follows_exposed_list() {
+    let _sandbox = TestSandbox::new();
+    let route = build("document", "create_doc", "spark").expect("create_doc");
+    assert_eq!(
+        route.input_schema["properties"]["source_type"]["enum"],
+        serde_json::json!(["summary", "dialogue", "video", "article"])
+    );
+
+    save_doc_categories(&[
+        DocCategory {
+            id: "summary".into(),
+            label: "Summary".into(),
+            exposed: true,
+        },
+        DocCategory {
+            id: "jot".into(),
+            label: "Jot".into(),
+            exposed: true,
+        },
+    ])
+    .expect("expose jot");
+    let listed = (build("document", "list_doc_categories", "spark")
+        .expect("list")
+        .invoke)(&serde_json::json!({}));
+    let listed_ids: Vec<&str> = listed["categories"]
+        .as_array()
+        .expect("categories")
+        .iter()
+        .map(|c| c["id"].as_str().expect("id"))
+        .collect();
+    assert_eq!(listed_ids, vec!["summary", "jot"]);
+    let again = build("document", "create_doc", "spark").expect("create_doc");
+    assert_eq!(
+        again.input_schema["properties"]["source_type"]["enum"],
+        serde_json::json!(["summary", "jot"])
+    );
+}
+
+#[test]
+fn mcp_create_doc_requires_exposed_source_type() {
+    let _sandbox = TestSandbox::new();
+    let invoke = build("document", "create_doc", "mobile")
+        .expect("mobile create")
+        .invoke;
+    let missing = invoke(&serde_json::json!({
+        "content": "# 标题\n\n正文\n",
+        "title": "T",
+        "digest": "never",
+    }));
+    assert_eq!(missing["_status"], serde_json::json!(400), "{missing}");
+    assert!(
+        missing["error"].as_str().unwrap_or("").contains("source_type"),
+        "{missing}"
+    );
+    for bad in ["jot", "theme-line", "transcript"] {
+        let rejected = invoke(&serde_json::json!({
+            "content": "# 标题\n\n正文\n",
+            "title": "T",
+            "digest": "never",
+            "source_type": bad,
+        }));
+        assert_eq!(rejected["_status"], serde_json::json!(400), "{bad}: {rejected}");
+    }
+    let ok = invoke(&serde_json::json!({
+        "content": "# 标题\n\n这是足够长的正文内容。\n",
+        "title": "T",
+        "digest": "never",
+        "source_type": "dialogue",
+    }));
+    assert_eq!(ok["ok"], serde_json::json!(true), "{ok}");
+}
+
+#[test]
+fn create_doc_schema_requires_source_type() {
+    for channel in ["spark", "mobile"] {
+        let route = build("document", "create_doc", channel).expect(channel);
+        let required = route.input_schema["required"].as_array().expect("required");
+        assert!(
+            required.iter().any(|v| v.as_str() == Some("source_type")),
+            "{channel}"
+        );
+    }
+}
+
+#[test]
+fn catalog_has_no_write_tool_for_categories() {
+    for (group, routes) in catalog_groups() {
+        for route in routes {
+            assert_ne!(route.name, "create_doc_categories", "{group}");
+            assert_ne!(route.name, "update_doc_categories", "{group}");
+            assert_ne!(route.name, "delete_doc_categories", "{group}");
+            assert_ne!(route.name, "save_doc_categories", "{group}");
+        }
+    }
 }
 
 #[test]

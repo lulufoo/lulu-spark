@@ -36,7 +36,7 @@ Lulu Spark App **MUST** be running, with its Host MCP server reachable.
 | Global | `search` | Find documents across every workspace, or in one |
 | Workspace | `list_workspaces`, `create_workspace`, `rename_workspace` | The containers; `Default` always exists |
 | Project | `list_projects`, `create_project`, `update_project` | The folders inside a workspace; every workspace starts with `inbox` |
-| Document | `get_doc_digest`, `get_doc_file`, `get_doc_content`, `create_doc`, `update_doc`, `delete_doc` | The documents themselves |
+| Document | `list_doc_categories`, `get_doc_digest`, `get_doc_file`, `get_doc_content`, `create_doc`, `update_doc`, `delete_doc` | The documents themselves |
 | Read Later | `get_read_later` | One saved reading-list entry |
 
 Channel exposure (the live tool list wins):
@@ -56,7 +56,7 @@ Map the user request, then call **only** the tools that match. Do not run a fixe
 | Create a project | Confirm the workspace with `list_workspaces`, check `list_projects` for a near-duplicate, then `create_project` | Do not create a project to move documents: it does not move any |
 | Edit a project's title or description | `list_projects` for its `folder`, then `update_project` | Do not change the `folder` |
 | List workspaces / projects | `list_workspaces`; `list_projects` with the workspace | — |
-| Create / save / archive a document | Confirm the target with `list_workspaces` and `list_projects`. When the user names none, use workspace `Default` and project `inbox`. Infer `folder` and `title` when the user did not give them — [path-or-paste.md](references/path-or-paste.md) for a lone path or paste. Load [chinese-companion.md](references/chinese-companion.md). Call `create_doc` with the live schema parameters. | Do not invent a workspace or project id |
+| Create / save / archive a document | Confirm the target with `list_workspaces` and `list_projects`. When the user names none, use workspace `Default` and project `inbox`. Infer `folder` and `title` when the user did not give them — [path-or-paste.md](references/path-or-paste.md) for a lone path or paste. Load [chinese-companion.md](references/chinese-companion.md). Call `list_doc_categories`, then `create_doc` with the live schema parameters. | Do not invent a workspace or project id |
 | Search documents | `search`, optionally limited to one workspace | Do not list a catalog's full id set |
 | Read one digest | `get_doc_digest` with the `workspace` of the search hit | — |
 | Read one document body | Spark / Cursor / Codex / Claude: `get_doc_file` with a `dest_dir`, then read the returned copy. Mobile: `get_doc_content` | Do not read the data directory directly |
@@ -101,6 +101,7 @@ Do not invent norms not listed here.
 | `list_projects` | Project | List the projects of one workspace; does not list documents |
 | `create_project` | Project | Add a project to a workspace; does not move existing documents |
 | `update_project` | Project | Change a project's title and description; the folder is kept |
+| `list_doc_categories` | Document | Classification ids `create_doc.source_type` accepts |
 | `get_doc_digest` | Document | Digest Markdown for one document id |
 | `get_doc_file` | Document | Copy one document's file into `dest_dir` and return `{ok, id, path}`; the body is not returned and an existing copy is never overwritten |
 | `get_doc_content` | Document | Mobile channel only: resolve a document id to its local file path |

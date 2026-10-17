@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef, useSyncExternalStore } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { flushSync } from 'react-dom';
 import { getEntryId } from '../host/state.ts';
@@ -8,6 +8,8 @@ import { OverlayDismissButton } from '../shared/overlay-dismiss-button.tsx';
 import { ViewerHeaderIcon } from '../shared/viewer-header-icons.tsx';
 import { NotesCommentFloatNav, NotesCommentsBar, NotesDeleteZone, openCommentDialog } from './ui/comments.tsx';
 import { NotesDocList } from './ui/cards.tsx';
+import { categoryLabel, docCategoryCatalogStore } from '../host/doc-categories-catalog.ts';
+import { openSourceTypePicker } from './commands/cards.ts';
 import { NotesLinksBar } from './ui/links-bar.tsx';
 import { NotesSidebar } from './ui/sidebar.tsx';
 import { NotesTagsBar } from './ui/tags-bar.tsx';
@@ -142,11 +144,17 @@ function NotesReaderBody() {
 
 function NotesOutletChrome({ routeParams }: { routeParams: Record<string, string> }) {
   const host = useHostState();
+  useSyncExternalStore(
+    docCategoryCatalogStore.subscribe,
+    docCategoryCatalogStore.getSnapshot,
+    docCategoryCatalogStore.getSnapshot,
+  );
   const viewer = host.viewer;
   const mode = notesViewMode(routeParams, viewer);
   const creating = mode === 'create' || Boolean(viewer.createSession);
   const editing = viewer.editing || creating;
   const entry = viewer.entry;
+  const sourceLabel = categoryLabel(entry?.source_type);
   const hasZh = Boolean(entry?.translations?.zh);
   const kbUrl = '';
   const fileSize = viewer.fileSize || (viewer.rawText ? formatBytes(viewer.rawText) : '');
@@ -194,6 +202,21 @@ function NotesOutletChrome({ routeParams }: { routeParams: Record<string, string
               ZH
             </button>
           </div>
+          <button
+            type="button"
+            className="md-header-btn viewer-chrome-persisted"
+            id="md-source-type"
+            aria-haspopup="listbox"
+            aria-expanded="false"
+            aria-label="Change category"
+            data-tip="Change category"
+            style={{ display: entry && !creating ? undefined : 'none' }}
+            onClick={(event) => {
+              if (entry) openSourceTypePicker(event.currentTarget, entry);
+            }}
+          >
+            {sourceLabel || 'Category'}
+          </button>
           <span
             id="md-file-size"
             className="viewer-chrome-persisted"

@@ -31,6 +31,7 @@ const GROUPS = {
   Workspace: ["list_workspaces", "create_workspace", "rename_workspace"],
   Project: ["list_projects", "create_project", "update_project"],
   Document: [
+    "list_doc_categories",
     "get_doc_digest",
     "get_doc_file",
     "get_doc_content",

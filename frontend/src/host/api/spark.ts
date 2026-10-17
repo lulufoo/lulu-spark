@@ -131,6 +131,10 @@ export async function setDone(id: string, done: unknown) {
   return writePost('/api/set-done', { id, done });
 }
 
+export async function setDocSourceType(id: string, sourceType: string) {
+  return writePost('/api/set-doc-source-type', { id, source_type: sourceType });
+}
+
 export async function deleteEntry(id: PathArg) {
   return writePost('/api/delete', { id });
 }

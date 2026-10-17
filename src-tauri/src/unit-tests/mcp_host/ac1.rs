@@ -75,6 +75,7 @@ fn content_note_args() -> Value {
         "content": "AC1 内容笔记正文",
         "title": "AC1 invoke_from_content",
         "digest": "never",
+        "source_type": "summary",
     })
 }
 
@@ -83,6 +84,7 @@ fn source_note_args(sandbox: &TestSandbox) -> Value {
         "source_path": stage_source(sandbox, SAMPLE_DOC).to_str().unwrap(),
         "title": "AC1 invoke_from_source",
         "digest": "never",
+        "source_type": "summary",
     })
 }
 

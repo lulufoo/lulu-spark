@@ -1,6 +1,8 @@
 import { getEntryId, notifyState, state } from '../state/host.ts';
 import { IMPORTANCE_CYCLE } from '../../host/constants.ts';
 import * as api from '../../host/api.ts';
+import { exposedCategoryOptions } from '../../host/doc-categories-catalog.ts';
+import { openAnchoredListSelect } from '../../shared/floating-list-select.ts';
 import type { NoteEntry } from '../state/types.ts';
 
 function asRecord(entry: NoteEntry): Record<string, unknown> {
@@ -19,6 +21,31 @@ export async function cycleImportance(entry: NoteEntry) {
   } catch (e) {
     console.error('cycleImportance failed', e);
   }
+}
+
+export async function setEntrySourceType(entry: NoteEntry, sourceType: string) {
+  if (entry.source_type === sourceType) return;
+  try {
+    const data = await api.setDocSourceType(getEntryId(entry) || '', sourceType);
+    if (!data.ok) return;
+    entry.source_type = sourceType;
+    notifyState();
+  } catch (e) {
+    console.error('setEntrySourceType failed', e);
+  }
+}
+
+export function openSourceTypePicker(trigger: HTMLElement, entry: NoteEntry) {
+  const options = exposedCategoryOptions();
+  if (!options.length) return;
+  openAnchoredListSelect({
+    trigger,
+    options,
+    value: entry.source_type || '',
+    onSelect: (next) => {
+      void setEntrySourceType(entry, next);
+    },
+  });
 }
 
 export async function toggleDone(entry: NoteEntry) {

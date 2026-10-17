@@ -19,6 +19,105 @@ export function closeFloatingListSelect() {
   _openState = null;
 }
 
+function showMenu({
+  picker,
+  trigger,
+  pickerClass,
+  value,
+  options,
+  menuMaxHeight,
+  onSelect,
+}: {
+  picker: HTMLElement;
+  trigger: HTMLElement;
+  pickerClass: string;
+  value: string;
+  options: FloatingListSelectOption[];
+  menuMaxHeight?: number;
+  onSelect: (next: string) => void;
+}) {
+  if (_openState?.picker === picker) {
+    closeFloatingListSelect();
+    return;
+  }
+  closeFloatingListSelect();
+  if (!options.length) return;
+
+  const rect = trigger.getBoundingClientRect();
+  const menu = document.createElement('div');
+  menu.className = ['list-select-menu', pickerClass ? `${pickerClass}-menu` : '']
+    .filter(Boolean)
+    .join(' ');
+  menu.setAttribute('role', 'listbox');
+
+  for (const opt of options) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'list-select-option' + (opt.value === value ? ' selected' : '');
+    btn.dataset.value = opt.value;
+    btn.textContent = opt.label;
+    if (opt.title) btn.title = opt.title;
+    menu.appendChild(btn);
+  }
+
+  document.body.appendChild(menu);
+
+  const docListener = (event: MouseEvent) => {
+    const target = event.target as Node | null;
+    if (!target) return;
+    if (trigger.contains(target) || menu.contains(target)) return;
+    closeFloatingListSelect();
+  };
+
+  _openState = { menu, trigger, picker, docListener };
+
+  const clipped = positionFloatingListMenu(menu, rect, window.innerHeight, menuMaxHeight);
+  trigger.setAttribute('aria-expanded', 'true');
+  picker.classList.add('is-open');
+  document.addEventListener('mousedown', docListener);
+
+  menu.addEventListener('click', (event) => {
+    const target = event.target as Element | null;
+    const option = target?.closest('.list-select-option') as HTMLElement | null;
+    if (!option) return;
+    const next = option.dataset.value ?? '';
+    closeFloatingListSelect();
+    if (next === value) return;
+    onSelect(next);
+  });
+
+  if (clipped) {
+    menu.querySelector('.list-select-option.selected')?.scrollIntoView?.({ block: 'nearest' });
+  }
+}
+
+/** Open the shared list-select menu from an existing control (a badge, a header button). */
+export function openAnchoredListSelect({
+  trigger,
+  options,
+  value,
+  onSelect,
+  pickerClass = 'ui-select',
+  menuMaxHeight,
+}: {
+  trigger: HTMLElement;
+  options: FloatingListSelectOption[];
+  value: string;
+  onSelect: (next: string) => void;
+  pickerClass?: string;
+  menuMaxHeight?: number;
+}) {
+  showMenu({
+    picker: trigger,
+    trigger,
+    pickerClass,
+    value,
+    options,
+    menuMaxHeight,
+    onSelect,
+  });
+}
+
 export function createFloatingListSelect({
   ariaLabel,
   value,
@@ -69,61 +168,20 @@ export function createFloatingListSelect({
   publishTestState();
 
   function openMenu() {
-    if (_openState?.picker === picker) {
-      closeFloatingListSelect();
-      return;
-    }
-    closeFloatingListSelect();
-    if (!currentOptions.length) return;
-
-    const rect = trigger.getBoundingClientRect();
-    const menu = document.createElement('div');
-    menu.className = ['list-select-menu', pickerClass ? `${pickerClass}-menu` : ''].filter(Boolean).join(' ');
-    menu.setAttribute('role', 'listbox');
-
-    for (const opt of currentOptions) {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'list-select-option' + (opt.value === currentValue ? ' selected' : '');
-      btn.dataset.value = opt.value;
-      btn.textContent = opt.label;
-      if (opt.title) btn.title = opt.title;
-      menu.appendChild(btn);
-    }
-
-    document.body.appendChild(menu);
-
-    const docListener = (event: MouseEvent) => {
-      const target = event.target as Element | null;
-      if (target?.closest('.list-select-trigger') || target?.closest('.list-select-menu')) {
-        return;
-      }
-      closeFloatingListSelect();
-    };
-
-    _openState = { menu, trigger, picker, docListener };
-
-    const clipped = positionFloatingListMenu(menu, rect, window.innerHeight, menuMaxHeight);
-    trigger.setAttribute('aria-expanded', 'true');
-    picker.classList.add('is-open');
-    document.addEventListener('mousedown', docListener);
-
-    menu.addEventListener('click', (event) => {
-      const target = event.target as Element | null;
-      const option = target?.closest('.list-select-option') as HTMLElement | null;
-      if (!option) return;
-      const next = option.dataset.value ?? '';
-      closeFloatingListSelect();
-      if (next === currentValue) return;
-      currentValue = next;
-      publishTestState();
-      syncTriggerLabel();
-      onSelect(next);
+    showMenu({
+      picker,
+      trigger,
+      pickerClass,
+      value: currentValue,
+      options: currentOptions,
+      menuMaxHeight,
+      onSelect: (next) => {
+        currentValue = next;
+        publishTestState();
+        syncTriggerLabel();
+        onSelect(next);
+      },
     });
-
-    if (clipped) {
-      menu.querySelector('.list-select-option.selected')?.scrollIntoView?.({ block: 'nearest' });
-    }
   }
 
   trigger.addEventListener('click', openMenu);

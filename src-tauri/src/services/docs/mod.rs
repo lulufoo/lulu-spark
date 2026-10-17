@@ -5,6 +5,7 @@
 //! (`assets`, `create_meta`, `digest`, `store`, `jot`) and the row editor (`edit`) live here too.
 
 pub(crate) mod assets;
+pub(crate) mod categories;
 pub(crate) mod create_meta;
 mod create;
 mod delete;
@@ -22,8 +23,12 @@ mod update;
 mod viewer_state;
 mod workspace;
 
+pub use categories::{
+    is_exposed, is_legal, load as load_doc_categories, save as save_doc_categories, DocCategory,
+};
 pub use create::{create_doc, create_doc_content};
 pub use delete::delete_doc;
+pub use edit::set_source_type;
 pub use hide_patterns::{
     add_hide_pattern, list_hide_patterns, remove_hide_pattern, update_hide_pattern,
 };

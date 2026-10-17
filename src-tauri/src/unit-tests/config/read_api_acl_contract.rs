@@ -59,6 +59,8 @@ const BIND_READ_COMMANDS: &[&str] = &["read_bind_session"];
 
 const MCP_CHANNEL_TOOLS_READ_COMMANDS: &[&str] = &["get_mcp_channel_tools"];
 
+const DOC_CATEGORIES_READ_COMMANDS: &[&str] = &["get_doc_categories"];
+
 const MCP_TICKET_VIEW_READ_COMMANDS: &[&str] = &["get_mcp_ticket_view"];
 
 const MESSAGE_CENTER_READ_COMMANDS: &[&str] = &["get_message_channel_unread"];
@@ -127,6 +129,22 @@ fn mcp_channel_tools_read_command_is_acl_allowed() {
     let toml = fs::read_to_string(root.join("permissions/read-api.toml")).expect("toml");
     let allow = parse_read_api_toml_allow(&toml);
     let missing: Vec<_> = MCP_CHANNEL_TOOLS_READ_COMMANDS
+        .iter()
+        .filter(|cmd| !allow.contains(**cmd))
+        .copied()
+        .collect();
+    assert!(
+        missing.is_empty(),
+        "commands missing from read-api.toml ACL: {missing:?}"
+    );
+}
+
+#[test]
+fn doc_categories_read_command_is_acl_allowed() {
+    let root = manifest_dir();
+    let toml = fs::read_to_string(root.join("permissions/read-api.toml")).expect("toml");
+    let allow = parse_read_api_toml_allow(&toml);
+    let missing: Vec<_> = DOC_CATEGORIES_READ_COMMANDS
         .iter()
         .filter(|cmd| !allow.contains(**cmd))
         .copied()

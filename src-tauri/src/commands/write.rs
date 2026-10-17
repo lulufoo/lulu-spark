@@ -27,6 +27,15 @@ pub fn set_importance(
 }
 
 #[tauri::command]
+pub fn set_doc_source_type(
+    _app: AppHandle,
+    id: String,
+    source_type: String,
+) -> Result<Value, String> {
+    Ok(docs::set_source_type(&id, &source_type))
+}
+
+#[tauri::command]
 pub fn update_links(
     _app: AppHandle,
     id: String,

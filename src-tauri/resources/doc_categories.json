@@ -1,0 +1,7 @@
+[
+  { "id": "summary", "label": "Summary", "exposed": true },
+  { "id": "dialogue", "label": "Dialogue", "exposed": true },
+  { "id": "video", "label": "Video", "exposed": true },
+  { "id": "article", "label": "Article", "exposed": true },
+  { "id": "jot", "label": "Jot", "exposed": false }
+]
