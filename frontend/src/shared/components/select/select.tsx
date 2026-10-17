@@ -9,6 +9,7 @@ export type SelectProps = {
   options: SelectOption[];
   onChange: (value: string) => void;
   ariaLabel: string;
+  disabled?: boolean;
   /** Height the open menu may take before it scrolls. */
   menuMaxHeight?: number;
 };
@@ -19,7 +20,7 @@ export type SelectProps = {
  * closing and the option list; this component only mounts it and keeps it in step with props.
  * A value that is not among the options shows the first option's label.
  */
-export function Select({ value, options, onChange, ariaLabel, menuMaxHeight }: SelectProps) {
+export function Select({ value, options, onChange, ariaLabel, disabled, menuMaxHeight }: SelectProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const handleRef = useRef<ReturnType<typeof createFloatingListSelect> | null>(null);
   const onChangeRef = useRef(onChange);
@@ -50,6 +51,11 @@ export function Select({ value, options, onChange, ariaLabel, menuMaxHeight }: S
   useLayoutEffect(() => {
     handleRef.current?.sync({ value, options });
   }, [value, options]);
+
+  useLayoutEffect(() => {
+    const trigger = hostRef.current?.querySelector<HTMLButtonElement>('.list-select-trigger');
+    if (trigger) trigger.disabled = !!disabled;
+  }, [disabled, ariaLabel, menuMaxHeight]);
 
   return <div className="ui-select-host" ref={hostRef} />;
 }

@@ -30,13 +30,13 @@ describe('settings list selects', () => {
     select('settings-mcp-ticket-channel', [['spark', 'Spark']]);
     mountSettingsListSelects();
 
-    const triggers = document.querySelectorAll('.settings-list-select .list-select-trigger');
+    const triggers = document.querySelectorAll('.ui-select-host .list-select-trigger');
     expect(triggers).toHaveLength(3);
     expect(triggers[0].textContent).toMatch(/GLM/);
     expect(engine.classList.contains('settings-native-select')).toBe(true);
 
     triggers[0].click();
-    document.querySelector('.settings-select-menu [data-value="openai"]').click();
+    document.querySelector('.ui-select-menu [data-value="openai"]').click();
     expect(engine.value).toBe('openai');
     expect(triggers[0].textContent).toMatch(/OpenAI/);
     closeFloatingListSelect();
@@ -51,6 +51,6 @@ describe('settings list selects', () => {
     mountSettingsListSelects();
     engine.value = 'grok';
     syncSettingsListSelect(engine);
-    expect(document.querySelector('.settings-list-select .list-select-label')?.textContent).toBe('Grok');
+    expect(document.querySelector('.ui-select-host .list-select-label')?.textContent).toBe('Grok');
   });
 });

@@ -119,7 +119,8 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
     expect(css).toMatch(/#read-later-dialog-box \{[\s\S]*?width: min\(720px, 94vw\);/);
     expect(css).toMatch(/#read-later-dialog-box \{[\s\S]*?height: min\(560px, 86vh\);/);
     expect(css).toMatch(/#read-later-dialog-box \{[\s\S]*?max-height: 86vh;/);
-    expect(css).toMatch(/\.settings-select-menu \{[\s\S]*?z-index: 2100;/);
+    expect(css).toMatch(/\.ui-select-menu \{[\s\S]*?z-index: 2200;/);
+    expect(css).not.toMatch(/\.settings-select-menu|\.settings-list-select/);
     const settingsDialog = readFileSync(join(repoRoot, 'frontend/src/app-shell/commands/settings/dialog.ts'), 'utf8');
     expect(settingsDialog).toMatch(/mountSettingsListSelects\(\)/);
     expect(css).toMatch(/\.comment-item \{[\s\S]*?background: var\(--bg-canvas\);/);

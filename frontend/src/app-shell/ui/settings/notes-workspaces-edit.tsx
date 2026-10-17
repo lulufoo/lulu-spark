@@ -17,7 +17,8 @@ import {
 import { workspacesPanelStore } from '../../state/settings/workspaces-panel.ts';
 import { defaultWorkspaceIconName, HomeNavIcon } from '../../../home/ui/nav-icons.tsx';
 import { IconPicker } from './icon-picker.tsx';
-import { parseViewMode } from './notes-workspaces-add.tsx';
+import { Select } from '../../../shared/components/select/index.ts';
+import { parseViewMode, VIEW_MODE_OPTIONS } from './notes-workspaces-add.tsx';
 
 /** Workspace list (whole row opens the dialog), the edit dialog, and the collapsed Disabled list. */
 export function NotesWorkspacesEditHost() {
@@ -188,16 +189,14 @@ export function NotesWorkspacesEditHost() {
                   </div>
                 </div>
                 <div className="settings-field">
-                  <label htmlFor="notes-ws-edit-view">View</label>
-                  <select
-                    id="notes-ws-edit-view"
+                  <label>View</label>
+                  <Select
+                    ariaLabel="View"
                     value={snap.draftViewMode}
+                    options={VIEW_MODE_OPTIONS}
                     disabled={snap.busy}
-                    onChange={(e) => setWorkspaceDraft(snap.draftName, parseViewMode(e.target.value))}
-                  >
-                    <option value="directory">Directory</option>
-                    <option value="timeline">Timeline</option>
-                  </select>
+                    onChange={(next) => setWorkspaceDraft(snap.draftName, parseViewMode(next))}
+                  />
                 </div>
                 <div id="notes-ws-edit-error" className="settings-result notes-cat-error">
                   {snap.error}

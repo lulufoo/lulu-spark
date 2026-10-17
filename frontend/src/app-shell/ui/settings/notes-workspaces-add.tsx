@@ -2,8 +2,15 @@ import { useState, useSyncExternalStore } from 'react';
 import type { ViewMode } from '../../../host/api.ts';
 import { addWorkspace } from '../../commands/settings/workspaces.ts';
 import { defaultWorkspaceIconName, HomeNavIcon } from '../../../home/ui/nav-icons.tsx';
+import { Select } from '../../../shared/components/select/index.ts';
 import { IconPicker } from './icon-picker.tsx';
 import { workspacesPanelStore } from '../../state/settings/workspaces-panel.ts';
+
+/** The two ways a workspace can show its documents. */
+export const VIEW_MODE_OPTIONS = [
+  { value: 'directory', label: 'Directory' },
+  { value: 'timeline', label: 'Timeline' },
+];
 
 export function parseViewMode(value: string): ViewMode {
   return value === 'timeline' ? 'timeline' : 'directory';
@@ -54,16 +61,14 @@ export function NotesWorkspacesAddHost() {
         </div>
       </div>
       <div className="settings-field">
-        <label htmlFor="notes-workspace-new-view">View</label>
-        <select
-          id="notes-workspace-new-view"
+        <label>View</label>
+        <Select
+          ariaLabel="View"
           value={viewMode}
+          options={VIEW_MODE_OPTIONS}
           disabled={busy}
-          onChange={(e) => setViewMode(parseViewMode(e.target.value))}
-        >
-          <option value="directory">Directory</option>
-          <option value="timeline">Timeline</option>
-        </select>
+          onChange={(next) => setViewMode(parseViewMode(next))}
+        />
       </div>
       <div id="notes-workspace-add-error" className="settings-result notes-cat-error">
         {snap.editorOpen ? '' : snap.error}

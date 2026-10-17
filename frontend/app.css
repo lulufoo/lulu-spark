@@ -5178,12 +5178,6 @@ details.notes-disabled > button.notes-cat-item { margin-top: 6px; }
   border: 0;
   pointer-events: none;
 }
-.settings-list-select {
-  width: 100%;
-}
-.settings-select-menu {
-  z-index: 2100;
-}
 .settings-field input[type="text"],
 .settings-field input[type="password"],
 .settings-field select,
