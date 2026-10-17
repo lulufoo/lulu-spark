@@ -652,10 +652,8 @@
   }
   .sidebar-channel-zone {
     flex-shrink: 0;
-    max-height: 200px;
+    max-height: 140px;
     overflow-y: auto;
-    border-bottom: 1px solid var(--border-muted);
-    padding-bottom: 10px;
   }
   .sidebar-date-zone {
     flex: 1;
