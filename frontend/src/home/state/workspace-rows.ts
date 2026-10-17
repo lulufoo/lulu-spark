@@ -9,7 +9,7 @@
  * - The rest each get the equal share; the few rows left over go one by one, in list order, to
  *   workspaces that are still cut off.
  * - A cut-off workspace with `a` rows shows `a - 1` projects under its title row and reports how
- *   many it hid (`hidden`); the caller shows that as a `+N` badge on the title row, which takes
+ *   many it hid (`hidden`); the caller shows that as a `…` mark on the title row, which takes
  *   no row of its own.
  * - If even the title rows do not fit, nothing is shared: every workspace shows its title row
  *   only and `overflow` tells the caller to let the area scroll.
@@ -18,7 +18,7 @@
 export type RowPlan = {
   /** Projects shown under the title row. */
   shown: number;
-  /** Projects cut off, not shown; the title row carries them as `+N`. */
+  /** Projects cut off, not shown; the title row marks them with `…`. */
   hidden: number;
 };
 

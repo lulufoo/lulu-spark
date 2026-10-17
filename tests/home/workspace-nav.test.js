@@ -167,7 +167,7 @@ describe('HomeWorkspaceNav', () => {
       (b) => b.dataset.homeProject,
     );
 
-  it('shows every project and no +N badge when all of them fit', () => {
+  it('shows every project and no "…" mark when all of them fit', () => {
     const host = render();
     expect(projectsOf(host, 'default')).toEqual(['inbox', 'work']);
     expect(projectsOf(host, 'knowledge')).toEqual(['a', 'b', 'c', 'd']);
@@ -176,16 +176,17 @@ describe('HomeWorkspaceNav', () => {
     expect(host.querySelector('.home-nav-workspaces').dataset.homeNavOverflow).toBe('false');
   });
 
-  it('cuts the largest workspace off and shows the hidden count on its title row', () => {
+  it('cuts the largest workspace off and shows the "…" mark on its title row', () => {
     // Needs are 3, 5 and 1 rows; 7 rows leave Knowledge three: title and two projects.
     const host = render();
     resizeTo(7);
     expect(projectsOf(host, 'default')).toEqual(['inbox', 'work']);
     expect(projectsOf(host, 'knowledge')).toEqual(['a', 'b']);
     const badge = host.querySelector('[data-home-entry="knowledge"] .home-nav-hidden-count');
-    expect(badge.textContent).toBe('+2');
+    expect(badge.textContent).toBe('…');
     expect(badge.dataset.homeHidden).toBe('knowledge');
-    expect(badge.getAttribute('title')).toBe('C\nD');
+    expect(badge.dataset.homeHiddenCount).toBe('2');
+    expect(badge.getAttribute('title')).toBe('2 projects collapsed');
     expect(host.querySelectorAll('.home-nav-hidden-count')).toHaveLength(1);
     expect(host.querySelector('[data-home-more]')).toBeNull();
   });
@@ -194,7 +195,9 @@ describe('HomeWorkspaceNav', () => {
     const host = render();
     resizeTo(6);
     expect(projectsOf(host, 'knowledge')).toEqual(['a']);
-    expect(host.querySelector('[data-home-entry="knowledge"] .home-nav-hidden-count').textContent).toBe('+3');
+    const badge = host.querySelector('[data-home-entry="knowledge"] .home-nav-hidden-count');
+    expect(badge.textContent).toBe('…');
+    expect(badge.getAttribute('title')).toBe('3 projects collapsed');
     expect(projectsOf(host, 'default')).toEqual(['inbox', 'work']);
   });
 
@@ -254,7 +257,7 @@ describe('HomeWorkspaceNav', () => {
     expect(host.querySelector('[data-home-entry="knowledge"]').dataset.homeUnread).toBeUndefined();
   });
 
-  it('routes clicks: a project selects it, the workspace row and its +N badge enter the workspace', () => {
+  it('routes clicks: a project selects it, the workspace row and its … mark enter the workspace', () => {
     const onOpenWorkspace = vi.fn();
     const onOpenProject = vi.fn();
     const host = render({ onOpenWorkspace, onOpenProject });

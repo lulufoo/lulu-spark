@@ -6651,7 +6651,7 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* Cut-off projects: a grey `+N` at the right of the workspace row; it never squeezes the title. */
+/* Cut-off projects: a grey `…` at the right of the workspace row (the count is in its hover text); it never squeezes the title. */
 .home-nav-hidden-count {
   flex: none;
   margin-left: auto;

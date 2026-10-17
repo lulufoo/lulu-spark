@@ -44,6 +44,11 @@ function WorkspaceIcon({ row }: { row: HomeWorkspaceRow }) {
   return <HomeNavIcon name={defaultWorkspaceIconName(row.id)} />;
 }
 
+/** The hover text of the "…" mark: how many Projects the row leaves out. */
+function hiddenTitle(count: number): string {
+  return `${count} ${count === 1 ? 'project' : 'projects'} collapsed`;
+}
+
 /** The sidebar's row height, from the `--home-nav-row-h` custom property. */
 function rowHeightOf(el: HTMLElement): number {
   const raw = parseFloat(getComputedStyle(el).getPropertyValue('--home-nav-row-h'));
@@ -68,7 +73,7 @@ function useAvailableRows(ref: React.RefObject<HTMLDivElement | null>): number |
 
 /**
  * Workspace rows, each with the projects the row allocation grants it (the order Settings
- * arranged) and a `+N` badge on the title row when some are cut off. The list fills the height
+ * arranged) and a `…` mark (hover: "N projects collapsed") on the title row when some are cut off. The list fills the height
  * the sidebar has left; when even the titles do not fit it scrolls. Until the list is measured
  * only the titles are shown.
  */
@@ -99,7 +104,6 @@ export function HomeWorkspaceNav({
         const list = projects[row.id] ?? [];
         const plan = measured ? allocation.plans[index] : { shown: 0, hidden: 0 };
         const shown = list.slice(0, plan.shown);
-        const hiddenNames = list.slice(plan.shown).map((project) => project.title);
         return (
           <div key={row.id} className="home-nav-workspace" data-home-workspace={row.id}>
             <div className="home-chat-nav-notes">
@@ -116,9 +120,11 @@ export function HomeWorkspaceNav({
                   <span
                     className="home-nav-hidden-count"
                     data-home-hidden={row.id}
-                    title={hiddenNames.join('\n')}
+                    data-home-hidden-count={plan.hidden}
+                    title={hiddenTitle(plan.hidden)}
+                    aria-label={hiddenTitle(plan.hidden)}
                   >
-                    +{plan.hidden}
+                    …
                   </span>
                 ) : null}
               </button>

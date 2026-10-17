@@ -126,7 +126,7 @@ describe('HomeWorkspaceNav icons', () => {
     }
   });
 
-  it('icons do not change which rows are shown, and the +N badge carries no icon', () => {
+  it('icons do not change which rows are shown, and the … badge carries no icon', () => {
     listHeight = 7 * 32;
     const host = render(rows(), {
       default: [
@@ -137,7 +137,7 @@ describe('HomeWorkspaceNav icons', () => {
       wiki: [],
     });
     const badge = host.querySelector('[data-home-hidden="knowledge"]');
-    expect(badge.textContent).toBe('+2');
+    expect(badge.textContent).toBe('…');
     expect(badge.querySelector('svg')).toBeNull();
     const shown = [...host.querySelectorAll('.home-nav-project')].map((b) => b.dataset.homeProject);
     expect(shown).toEqual(['inbox', 'work', 'a', 'b']);
