@@ -6058,37 +6058,12 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
 }
 .qr-error { color: var(--fg-hex-e5534b); }
 
-/* ── Bind device dialog ── */
-#bind-dialog {
-  position: fixed;
-  inset: 0;
-  z-index: 2000;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  background: var(--bg-rgba-000000-55);
-}
-#bind-dialog.open { display: flex; }
+/* ── Devices page of Settings (pairing code) ── */
 #bind-dialog-box {
-  background: var(--bg-surface);
-  border-radius: 8px;
-  padding: 0;
-  width: min(720px, 94vw);
-  height: min(560px, 86vh);
-  max-height: 86vh;
-  box-shadow: 0 8px 32px var(--shadow-rgba-010409-18), 0 0 0 1px var(--shadow-rgba-1f2328-08);
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-}
-#bind-dialog-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
   gap: 16px;
-  padding: 16px 20px 14px;
-  border-bottom: 1px solid var(--border-default);
-  flex-shrink: 0;
+  padding: 20px 24px;
 }
 #bind-dialog-heading {
   min-width: 0;
@@ -6109,14 +6084,10 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
 }
 #bind-dialog-body {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) minmax(220px, 1.1fr);
+  grid-template-columns: minmax(180px, 1fr) minmax(180px, 1.1fr);
   gap: 24px;
   align-items: center;
-  flex: 1;
   min-height: 0;
-  padding: 20px 24px;
-  background: var(--bg-canvas);
-  overflow: auto;
 }
 #bind-qr-card {
   display: flex;
@@ -6241,9 +6212,8 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 12px 20px;
+  padding-top: 12px;
   border-top: 1px solid var(--border-default);
-  background: var(--bg-surface);
   flex-shrink: 0;
 }
 #bind-footer-hint {

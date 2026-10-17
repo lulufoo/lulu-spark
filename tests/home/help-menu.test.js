@@ -28,20 +28,15 @@ describe('help menu · source', () => {
     expect(bar).not.toMatch(/HelpMenu|help-menu/);
   });
 
-  it('defines HelpMenu with a gear and Settings, Devices, About', () => {
+  it('defines HelpMenu as a ? trigger with an About-only menu', () => {
     const path = join(repoRoot, 'frontend/src/home/ui/help-menu.tsx');
     expect(existsSync(path)).toBe(true);
     const src = readRel('frontend/src/home/ui/help-menu.tsx');
     expect(src).toMatch(/export function HelpMenu/);
-    expect(src).toMatch(/aria-label="Settings"/);
-    expect(src).toMatch(/<HomeNavIcon name="settings"/);
-    expect(src).not.toMatch(/>\?<\/span>/);
-    const settings = src.indexOf('data-role="help-menu-settings"');
-    const devices = src.indexOf('data-role="help-menu-devices"');
-    const about = src.indexOf('data-role="help-menu-about"');
-    expect(settings).toBeGreaterThan(-1);
-    expect(devices).toBeGreaterThan(settings);
-    expect(about).toBeGreaterThan(devices);
+    expect(src).toMatch(/aria-label="About"/);
+    expect(src).toMatch(/<HomeNavIcon name="help"/);
+    expect(src).toMatch(/data-role="help-menu-about"/);
+    expect(src).not.toMatch(/help-menu-settings|help-menu-devices|btn-settings|btn-bind/);
     expect(src).not.toMatch(/Keyboard shortcuts|Sign in/);
     expect(src).not.toMatch(/getPackageSnapshot|ApiInvokeMap/);
   });
@@ -83,50 +78,24 @@ describe('HelpMenu', () => {
     return container.querySelector('[data-role="help-menu-trigger"]');
   }
 
-  it('shows Settings, Devices, About after the gear is clicked', () => {
+  it('shows only About after the ? is clicked', () => {
     render();
     expect(container.querySelector('[data-role="help-menu"]')).not.toBeNull();
-    expect(trigger()?.getAttribute('aria-label')).toBe('Settings');
-    expect(container.querySelector('[data-home-icon="settings"]')).not.toBeNull();
+    expect(trigger()?.getAttribute('aria-label')).toBe('About');
+    expect(container.querySelector('[data-home-icon="help"]')).not.toBeNull();
     expect(container.querySelector('[data-role="help-menu-about"]')).toBeNull();
 
     act(() => {
       trigger().click();
     });
     const items = container.querySelectorAll('[role="menuitem"]');
-    expect(items.length).toBe(3);
-    expect([...items].map((item) => item.getAttribute('data-role'))).toEqual([
-      'help-menu-settings',
-      'help-menu-devices',
-      'help-menu-about',
-    ]);
-    expect([...items].map((item) => item.textContent)).toEqual(['Settings', 'Devices', 'About']);
-    expect(items[0].id).toBe('btn-settings');
-    expect(items[1].id).toBe('btn-bind');
+    expect([...items].map((item) => item.textContent)).toEqual(['About']);
+    expect(items[0].getAttribute('data-role')).toBe('help-menu-about');
   });
 
-  it('calls onSettings, onDevices, onAbout and closes the menu', () => {
-    const onSettings = vi.fn();
-    const onDevices = vi.fn();
+  it('calls onAbout and closes the menu', () => {
     const onAbout = vi.fn();
-    render({ onSettings, onDevices, onAbout });
-    act(() => {
-      trigger().click();
-    });
-    act(() => {
-      container.querySelector('[data-role="help-menu-settings"]').click();
-    });
-    expect(onSettings).toHaveBeenCalledTimes(1);
-    expect(container.querySelector('[data-role="help-menu-settings"]')).toBeNull();
-
-    act(() => {
-      trigger().click();
-    });
-    act(() => {
-      container.querySelector('[data-role="help-menu-devices"]').click();
-    });
-    expect(onDevices).toHaveBeenCalledTimes(1);
-
+    render({ onAbout });
     act(() => {
       trigger().click();
     });
