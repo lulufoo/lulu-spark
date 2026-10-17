@@ -9,8 +9,17 @@ import {
 
 const ID_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
+/** Lowercase hyphen id from a display name: "Theme line" → "theme-line". */
+export function slugFromLabel(label: string): string {
+  return label
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
 export function validateCategoryId(id: string): string | null {
-  if (id.trim() === '') return 'Category id is empty.';
+  if (id.trim() === '') return 'Could not make an id from this name. Use English letters or digits.';
   if (/\s/.test(id)) return 'Category id cannot contain spaces.';
   if (!ID_RE.test(id.trim())) return 'Use lowercase letters, digits, and hyphens.';
   return null;
@@ -20,12 +29,8 @@ function describeError(err: unknown): string {
   return errMessage(err, String(err));
 }
 
-export function setNewCategoryId(value: string) {
-  patchDocumentCategories({ newId: value, error: '' });
-}
-
 export function setNewCategoryLabel(value: string) {
-  patchDocumentCategories({ newLabel: value, error: '' });
+  patchDocumentCategories({ newLabel: value, newId: slugFromLabel(value), error: '' });
 }
 
 export function setNewCategoryExposed(value: boolean) {
@@ -95,15 +100,15 @@ export async function saveCategoryLabel(id: string) {
 
 export async function addDocCategory() {
   const snap = documentCategoriesStore.getSnapshot();
-  const id = snap.newId.trim();
   const label = snap.newLabel.trim();
-  const idError = validateCategoryId(snap.newId);
-  if (idError) {
-    patchDocumentCategories({ error: idError });
-    return false;
-  }
   if (!label) {
     patchDocumentCategories({ error: 'Category label is empty.' });
+    return false;
+  }
+  const id = slugFromLabel(label);
+  const idError = validateCategoryId(id);
+  if (idError) {
+    patchDocumentCategories({ error: idError });
     return false;
   }
   if (snap.rows.some((row) => row.id === id)) {

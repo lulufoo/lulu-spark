@@ -63,29 +63,26 @@ describe('Settings Document categories', () => {
     expect(snap().rows.find((row) => row.id === 'jot')?.exposed).toBe(true);
   });
 
-  it('adds a lowercase-hyphen id, defaulting to exposed', async () => {
+  it('slugs the name into a lowercase-hyphen id, defaulting to exposed', async () => {
     await commands.loadDocCategories();
-    commands.setNewCategoryId('theme-line');
     commands.setNewCategoryLabel('Theme line');
+    expect(snap().newId).toBe('theme-line');
     expect(snap().newExposed).toBe(true);
     expect(await commands.addDocCategory()).toBe(true);
     expect(snap().newId).toBe('');
     expect(stored.at(-1)).toEqual({ id: 'theme-line', label: 'Theme line', exposed: true });
   });
 
-  it('rejects empty, duplicate, and whitespace ids before writing', async () => {
+  it('rejects empty, duplicate, and names that cannot slug before writing', async () => {
     await commands.loadDocCategories();
-    commands.setNewCategoryId('  ');
-    commands.setNewCategoryLabel('X');
     expect(await commands.addDocCategory()).toBe(false);
-    commands.setNewCategoryId('summary');
-    commands.setNewCategoryLabel('Again');
+    expect(snap().error).toMatch(/empty/i);
+    commands.setNewCategoryLabel('Summary');
     expect(await commands.addDocCategory()).toBe(false);
     expect(snap().error).toMatch(/duplicate/i);
-    commands.setNewCategoryId('foo bar');
-    commands.setNewCategoryLabel('Foo');
+    commands.setNewCategoryLabel('***');
     expect(await commands.addDocCategory()).toBe(false);
-    expect(snap().error).toMatch(/spaces/);
+    expect(snap().error).toMatch(/Could not make an id/);
     expect(calls).toEqual([]);
   });
 
@@ -104,19 +101,31 @@ describe('Settings Document categories', () => {
     expect(snap().busy).toBe(false);
   });
 
-  it('paints readonly ids, jot off MCP, and an add row', async () => {
+  it('paints Categories/Add tabs and a card-shaped add row', async () => {
     await commands.loadDocCategories();
     const host = document.createElement('div');
     document.body.appendChild(host);
     const root = createRoot(host);
     act(() => root.render(createElement(DocumentPanel)));
     expect(host.querySelector('#settings-panel-document')).not.toBeNull();
+    expect(host.querySelector('[data-tab="list"]')?.textContent).toBe('Categories');
+    expect(host.querySelector('[data-tab="add"]')?.textContent).toBe('Add');
+    expect(host.querySelector('#settings-tab-document-list')).not.toBeNull();
+    expect(host.querySelector('#settings-tab-document-add')).not.toBeNull();
     expect(host.querySelector('[data-doc-cat-id="jot"]')?.tagName).toBe('CODE');
     expect(host.querySelector('input[data-doc-cat-id]')).toBeNull();
     expect(host.querySelector('[data-doc-cat-exposed="jot"]').checked).toBe(false);
     expect(host.querySelector('#doc-cat-new-exposed').checked).toBe(true);
     expect(host.querySelector('#btn-doc-cat-add').textContent).toBe('Add');
+    expect(host.querySelector('input#doc-cat-new-id')).toBeNull();
+    expect(host.querySelector('#doc-cat-new-id')?.tagName).toBe('CODE');
+    expect(host.querySelector('#doc-cat-new-label')?.placeholder).toBe('Name');
+    expect(host.querySelector('label[for="doc-cat-new-label"]')).toBeNull();
+    expect(host.querySelector('[data-doc-cat-remove="jot"]')?.textContent).toBe('Remove');
     expect(host.textContent).toContain('cannot change');
+    expect(host.textContent).toContain('id is generated from the name');
+    expect(host.textContent).not.toContain('list_doc_categories');
+    expect(host.textContent).not.toContain('Exposed to agents');
     act(() => root.unmount());
   });
 
