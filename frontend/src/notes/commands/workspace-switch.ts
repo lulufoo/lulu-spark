@@ -1,6 +1,6 @@
 import * as api from '../../host/api.ts';
 import { notifyState, state } from '../state/host.ts';
-import { applyListFilters, selectDate, selectDirNode } from './sidebar.ts';
+import { applyListFilters, selectDate, selectProject } from './sidebar.ts';
 import { isDirectoryView, storeWorkspaceId } from './workspace.ts';
 
 /** Show another workspace: the page reloads its index and project titles. */
@@ -22,7 +22,7 @@ export function applyViewModeChange() {
   state.ui.activeDate = null;
   if (isDirectoryView()) {
     applyListFilters();
-    if (topic) selectDirNode(topic);
+    if (topic) selectProject(topic);
     else notifyState();
     return;
   }

@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../frontend/src/notes/commands/cards.ts', () => ({ loadTitles: vi.fn() }));
@@ -19,7 +21,7 @@ const {
   pathKeys,
   resetDirTree,
 } = await import('../../frontend/src/notes/state/dir-tree.ts');
-const { applyListFilters, buildGroups, clearProjectSelection, selectDate, selectDirNode, selectProject, selectTopic } = await import(
+const { applyListFilters, buildGroups, clearProjectSelection, selectDate, selectProject, selectTopic } = await import(
   '../../frontend/src/notes/commands/sidebar.ts'
 );
 const { applyViewModeChange } = await import('../../frontend/src/notes/commands/workspace-switch.ts');
@@ -62,27 +64,28 @@ describe('buildDirTree', () => {
     expect(roots.map((r) => r.name)).toEqual(['AI', 'Android', 'Empty project']);
     const builder = findDirNode(roots, 'android/arch/build/builder');
     expect(builder.kind).toBe('folder');
-    expect(builder.docs.map((d) => d.name)).toEqual(['detekt', 'lint']);
+    expect(builder.docs.map((d) => d.name)).toEqual(['detekt.md', 'lint.md']);
     expect(findDirNode(roots, 'android/arch').children.map((c) => c.name)).toEqual(['build']);
   });
 
-  it('keeps several documents in one folder and counts the whole subtree', () => {
+  it('keeps several documents in one folder', () => {
     const roots = buildDirTree(data, titles);
     expect(findDirNode(roots, 'ai/topic-x').docs).toHaveLength(2);
-    expect(findDirNode(roots, 'android').count).toBe(4);
-    expect(findDirNode(roots, 'android/arch').count).toBe(3);
+    expect(findDirNode(roots, 'android').docs).toHaveLength(1);
+    expect(findDirNode(roots, 'android/arch').docs).toHaveLength(1);
   });
 
   it('puts a document with an empty raw_path or a bare file name directly under its project', () => {
     const roots = buildDirTree(data, titles);
     expect(findDirNode(roots, 'ai').docs.map((d) => d.id)).toEqual(['g']);
-    expect(findDirNode(roots, 'android').docs.map((d) => d.name)).toEqual(['readme']);
+    expect(findDirNode(roots, 'android').docs.map((d) => d.name)).toEqual(['readme.md']);
   });
 
   it('lists projects that hold no documents', () => {
     const empty = findDirNode(buildDirTree(data, titles), 'empty');
     expect(empty.kind).toBe('project');
-    expect(empty.count).toBe(0);
+    expect(empty.children).toEqual([]);
+    expect(empty.docs).toEqual([]);
   });
 
   it('names a node key and its path', () => {
@@ -103,8 +106,8 @@ describe('directory view selection', () => {
     expect(dirTreeStore.getSnapshot().expanded).toEqual([]);
   });
 
-  it('selecting a folder opens its path, selects its project and lists its own documents', () => {
-    selectDirNode('android/arch/build/builder');
+  it('opening a document reveals its path, selects its project and lists its own folder', () => {
+    selectDate(dirKeyOf('android/arch/build/builder'));
     expect(state.ui.activeDate).toBe(dirKeyOf('android/arch/build/builder'));
     expect(state.ui.activeTopic).toBe('android');
     expect(dirTreeStore.getSnapshot().expanded).toEqual(['android', 'android/arch', 'android/arch/build', 'android/arch/build/builder']);
@@ -113,7 +116,7 @@ describe('directory view selection', () => {
   });
 
   it('an empty folder still has a group so the page can say so', () => {
-    selectDirNode('empty');
+    selectDate(dirKeyOf('empty'));
     expect(state.index.filteredGroups).toHaveLength(1);
     expect(state.index.filteredGroups[0].entries).toEqual([]);
   });
@@ -131,7 +134,8 @@ describe('entering from Home', () => {
     setView('directory');
     load();
     selectProject('android');
-    expect(state.ui.activeDate).toBe(dirKeyOf('android'));
+    expect(state.ui.activeDate).toBeNull();
+    expect(state.ui.activeTopic).toBe('android');
     expect(dirTreeStore.getSnapshot().expanded).toEqual(['android']);
     clearProjectSelection();
     expect(state.ui.activeDate).toBeNull();
@@ -159,14 +163,15 @@ describe('switching the view mode keeps the selected project', () => {
     selectTopic('ai');
     setView('directory');
     applyViewModeChange();
-    expect(state.ui.activeDate).toBe(dirKeyOf('ai'));
-    expect(state.index.filteredGroups[0].entries.map((e) => e.id)).toEqual(['g']);
+    expect(state.ui.activeTopic).toBe('ai');
+    expect(dirTreeStore.getSnapshot().expanded).toEqual(['ai']);
+    expect(state.ui.activeDate).toBeNull();
   });
 
   it('directory → timeline carries the project to the picker and regroups by day', () => {
     setView('directory');
     load();
-    selectDirNode('android/arch');
+    selectProject('android');
     setView('timeline');
     applyViewModeChange();
     expect(state.ui.activeTopic).toBe('android');
@@ -206,38 +211,39 @@ describe('DirTree', () => {
 
   it('paints only the projects while everything is collapsed', () => {
     const { host } = render();
-    expect([...host.querySelectorAll('.dir-project > .dir-row .dir-name')].map((n) => n.textContent)).toEqual([
+    const nodes = [...host.querySelectorAll('.knowledge-doc-tree-node')];
+    expect(nodes.map((n) => n.querySelector('.knowledge-doc-tree-name').textContent)).toEqual([
       'AI',
       'Android',
       'Empty project',
     ]);
-    expect(host.querySelectorAll('.dir-folder, .dir-doc')).toHaveLength(0);
+    expect(nodes.every((n) => n.classList.contains('is-dir'))).toBe(true);
   });
 
-  it('opens the path, highlights the node and shows its documents when a folder is selected', () => {
+  it('a folder only opens and closes: files and sub-folders appear, no list is selected', () => {
     const { host } = render();
-    act(() => selectDirNode('android/arch'));
-    const active = host.querySelector('.dir-row.active');
-    expect(active.closest('[data-node]').dataset.node).toBe('android/arch');
-    expect(host.querySelector('[data-node="android/arch/build"]')).not.toBeNull();
-    expect(host.querySelector('.dir-doc[data-id="c"]')).not.toBeNull();
+    act(() => host.querySelector('[data-node="android"] > button').click());
+    expect(dirTreeStore.getSnapshot().expanded).toEqual(['android']);
+    expect(state.ui.activeDate).toBeNull();
+    expect(host.querySelector('[data-node="android/arch"]')).not.toBeNull();
+    expect(host.querySelector('.is-file[data-id="d"] .knowledge-doc-tree-stem').textContent).toBe('readme');
+    expect(host.querySelector('.is-file[data-id="d"] .knowledge-doc-tree-ext').textContent).toBe('.md');
+    act(() => host.querySelector('[data-node="android"] > button').click());
+    expect(host.querySelector('[data-node="android/arch"]')).toBeNull();
   });
 
-  it('collapses the selected node on a second click and has no edit actions', () => {
+  it('has no edit actions', () => {
     const { host } = render();
-    act(() => selectDirNode('ai'));
-    const row = host.querySelector('[data-node="ai"] > .dir-row');
-    act(() => row.click());
-    expect(dirTreeStore.getSnapshot().expanded).not.toContain('ai');
-    expect(host.querySelector('[data-action], .dir-rename, .dir-delete')).toBeNull();
+    act(() => host.querySelector('[data-node="ai"] > button').click());
+    expect(host.querySelector('input, [data-action], .knowledge-doc-tree-rename')).toBeNull();
   });
 
   it('opens a document through the shared open-entry event', () => {
     const { host } = render();
-    act(() => selectDirNode('ai'));
+    act(() => host.querySelector('[data-node="ai"] > button').click());
     const seen = vi.fn();
     document.addEventListener('cta:open-entry', (e) => seen(e.detail));
-    act(() => host.querySelector('.dir-doc[data-id="g"]').click());
+    act(() => host.querySelector('.is-file[data-id="g"] button').click());
     expect(seen).toHaveBeenCalledWith({ id: 'g', layer: 'raw' });
   });
 
@@ -246,5 +252,15 @@ describe('DirTree', () => {
     selectDate('20260401');
     expect(state.ui.activeDate).toBe('20260401');
     act(() => notifyState());
+  });
+});
+
+describe('directory tree style', () => {
+  const css = readFileSync(join(process.cwd(), 'frontend/app.css'), 'utf8');
+
+  it("uses main's Knowledge tree rules and none of the rewritten ones", () => {
+    expect(css).toMatch(/\.knowledge-doc-tree-label \{[\s\S]*?padding: 7px 8px 7px 4px;/);
+    expect(css).toMatch(/\.knowledge-doc-tree-children::before \{[\s\S]*?left: var\(--knowledge-tree-guide, 12px\);/);
+    expect(css).not.toMatch(/\.dir-(row|chevron|name|count|doc|empty)\b/);
   });
 });

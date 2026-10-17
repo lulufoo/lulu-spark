@@ -1,98 +1,89 @@
 import { useMemo, useSyncExternalStore } from 'react';
 import { getEntryId } from '../../host/state.ts';
-import { selectDirNode } from '../commands/sidebar.ts';
 import { useHostState } from '../state/host.ts';
-import {
-  buildDirTree,
-  dirKeyOf,
-  dirTreeStore,
-  toggleDirNodeOpen,
-  type DirNode,
-} from '../state/dir-tree.ts';
+import { buildDirTree, dirTreeStore, toggleDirNodeOpen, type DirNode } from '../state/dir-tree.ts';
 import type { NoteEntry } from '../state/types.ts';
+import { FileGlyph, FolderGlyph, TreeChevron, TreeNodeName } from './dir-tree-glyphs.tsx';
 
 function openDoc(id: string, entry: NoteEntry) {
   const layer = entry.layers?.includes('raw') ? 'raw' : entry.layers?.[0] || 'raw';
   document.dispatchEvent(new CustomEvent('cta:open-entry', { detail: { id, layer } }));
 }
 
-function NodeRow({
+function Chrome({ isDir, expanded }: { isDir: boolean; expanded: boolean }) {
+  return (
+    <>
+      <span className="knowledge-doc-tree-twist" aria-hidden="true">
+        {isDir ? <TreeChevron expanded={expanded} /> : null}
+      </span>
+      <span className="knowledge-doc-tree-icon" aria-hidden="true">
+        {isDir ? <FolderGlyph /> : <FileGlyph />}
+      </span>
+    </>
+  );
+}
+
+function FolderBlock({
   node,
   depth,
   expanded,
-  activeKey,
   openDocId,
 }: {
   node: DirNode;
   depth: number;
   expanded: string[];
-  activeKey: string | null;
   openDocId: string;
 }) {
   const open = expanded.includes(node.key);
-  const selected = activeKey === dirKeyOf(node.key);
-  const expandable = node.children.length > 0 || node.docs.length > 0;
-
-  /** The selected node closes on a second click; any other click selects it and opens its path. */
-  function onRowClick() {
-    if (selected && open) toggleDirNodeOpen(node.key);
-    else selectDirNode(node.key);
-  }
-
   return (
-    <li className={`dir-node dir-${node.kind}`} data-node={node.key}>
+    <>
       <div
-        className={`dir-row${selected ? ' active' : ''}`}
-        style={{ paddingLeft: `calc(var(--notes-rail) + ${depth * 14}px)` }}
-        role="treeitem"
-        aria-expanded={expandable ? open : undefined}
-        aria-selected={selected}
-        onClick={onRowClick}
+        className={`knowledge-doc-tree-node is-dir${open ? ' is-expanded' : ''}`}
+        data-node={node.key}
+        data-kind="dir"
+        style={{ paddingLeft: depth * 16 }}
       >
         <button
           type="button"
-          className="dir-chevron"
-          aria-label={open ? 'Collapse' : 'Expand'}
-          disabled={!expandable}
-          onClick={(e) => {
-            e.stopPropagation();
-            toggleDirNodeOpen(node.key);
-          }}
+          className="knowledge-doc-tree-label"
+          title={node.name}
+          aria-expanded={open}
+          onClick={() => toggleDirNodeOpen(node.key)}
         >
-          {expandable ? (open ? '▾' : '▸') : ''}
+          <Chrome isDir expanded={open} />
+          <TreeNodeName name={node.name} isDir />
         </button>
-        <span className="dir-name" title={node.key}>{node.name}</span>
-        <span className="dir-count">{node.count}</span>
       </div>
       {open ? (
-        <ul className="dir-children" role="group">
+        <div
+          className="knowledge-doc-tree-children"
+          style={{ ['--knowledge-tree-guide' as string]: `${depth * 16 + 12}px` }}
+        >
           {node.children.map((child) => (
-            <NodeRow
-              key={child.key}
-              node={child}
-              depth={depth + 1}
-              expanded={expanded}
-              activeKey={activeKey}
-              openDocId={openDocId}
-            />
+            <FolderBlock key={child.key} node={child} depth={depth + 1} expanded={expanded} openDocId={openDocId} />
           ))}
           {node.docs.map((doc) => (
-            <li key={doc.id} className="dir-doc-item">
-              <div
-                className={`dir-row dir-doc${openDocId === doc.id ? ' active' : ''}`}
-                data-id={doc.id}
-                style={{ paddingLeft: `calc(var(--notes-rail) + ${(depth + 1) * 14}px)` }}
-                role="treeitem"
+            <div
+              key={doc.id}
+              className="knowledge-doc-tree-node is-file"
+              data-id={doc.id}
+              data-kind="file"
+              style={{ paddingLeft: (depth + 1) * 16 }}
+            >
+              <button
+                type="button"
+                className={`knowledge-doc-tree-label${openDocId === doc.id ? ' selected' : ''}`}
+                title={doc.entry.raw_path || doc.name}
                 onClick={() => openDoc(doc.id, doc.entry)}
               >
-                <span className="dir-chevron" />
-                <span className="dir-name" title={doc.entry.raw_path || doc.name}>{doc.name}</span>
-              </div>
-            </li>
+                <Chrome isDir={false} expanded={false} />
+                <TreeNodeName name={doc.name} isDir={false} />
+              </button>
+            </div>
           ))}
-        </ul>
+        </div>
       ) : null}
-    </li>
+    </>
   );
 }
 
@@ -107,19 +98,12 @@ export function DirTree() {
   const openDocId =
     host.viewer.entry && host.viewer.outletMode === 'open' ? getEntryId(host.viewer.entry) || '' : '';
 
-  if (roots.length === 0) return <div className="dir-empty">No documents yet.</div>;
+  if (roots.length === 0) return <div className="knowledge-doc-empty">No documents yet.</div>;
   return (
-    <ul id="sidebar-dir-tree" className="dir-tree" role="tree">
+    <div id="sidebar-dir-tree" role="tree">
       {roots.map((node) => (
-        <NodeRow
-          key={node.key}
-          node={node}
-          depth={0}
-          expanded={expanded}
-          activeKey={host.ui.activeDate}
-          openDocId={openDocId}
-        />
+        <FolderBlock key={node.key} node={node} depth={0} expanded={expanded} openDocId={openDocId} />
       ))}
-    </ul>
+    </div>
   );
 }

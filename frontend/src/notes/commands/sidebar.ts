@@ -4,7 +4,6 @@ import { isDirectoryView } from './workspace.ts';
 import { parseHash, navigateToDateList } from '../../router/index.ts';
 import { dateKeyOf, UNDATED_KEY } from '../../shared/utils.ts';
 import {
-  dirKeyOf,
   expandDirNodes,
   isDirKey,
   nodeKeyOf,
@@ -110,15 +109,18 @@ export function selectDate(date: string) {
   loadTitles(group.entries, date);
 }
 
-/** Select a tree node (project or folder) in the directory view; its path opens. */
-export function selectDirNode(nodeKey: string) {
-  selectDate(dirKeyOf(nodeKey));
-}
-
-/** Select a project from outside the page (Home sidebar): the tree node, or the timeline's picker. */
+/** Select a project from outside the page (Home sidebar): open it in the tree, or fill the timeline's picker. */
 export function selectProject(folder: string) {
-  if (isDirectoryView()) selectDirNode(folder);
-  else selectTopic(folder);
+  if (!isDirectoryView()) {
+    selectTopic(folder);
+    return;
+  }
+  state.ui.activeTopic = folder;
+  state.ui.activeDate = null;
+  resetDirTree();
+  expandDirNodes([folder]);
+  applyListFilters();
+  notifyState();
 }
 
 /** Entering a workspace without a project: nothing selected, every project collapsed. */

@@ -19,8 +19,6 @@ export type DirNode = {
   children: DirNode[];
   /** Documents directly inside this node. */
   docs: DirDoc[];
-  /** Documents in this node and everything below it. */
-  count: number;
 };
 
 export function isDirKey(value: unknown): value is string {
@@ -63,8 +61,9 @@ export function nodeKeyOfEntry(entry: NoteEntry): string {
   return [entry.folder || 'unknown', ...dirs].join('/');
 }
 
+/** Like main's Knowledge tree, a document shows as its file name (the title column can be empty). */
 function docName(entry: NoteEntry, file: string): string {
-  return entry.title || file.replace(/\.md$/i, '') || 'Untitled note';
+  return file || entry.title || 'Untitled note';
 }
 
 /** Label of a group key for headings: the project folder shows its title. */
@@ -83,11 +82,6 @@ function sortNode(node: DirNode) {
   node.children.forEach(sortNode);
 }
 
-function countNode(node: DirNode): number {
-  node.count = node.docs.length + node.children.reduce((sum, child) => sum + countNode(child), 0);
-  return node.count;
-}
-
 /**
  * Index entries → projects → sub-folders → documents, built in memory from `raw_path`
  * (no file system access). Projects without documents still appear, so the tree shows
@@ -103,7 +97,7 @@ export function buildDirTree(
   const project = (folder: string): DirNode => {
     let node = projects.get(folder);
     if (!node) {
-      node = { key: folder, name: projectTitles[folder] || folder, kind: 'project', children: [], docs: [], count: 0 };
+      node = { key: folder, name: projectTitles[folder] || folder, kind: 'project', children: [], docs: [] };
       projects.set(folder, node);
     }
     return node;
@@ -119,7 +113,7 @@ export function buildDirTree(
       const key = `${node.key}/${dir}`;
       let child = folders.get(key);
       if (!child) {
-        child = { key, name: dir, kind: 'folder', children: [], docs: [], count: 0 };
+        child = { key, name: dir, kind: 'folder', children: [], docs: [] };
         folders.set(key, child);
         node.children.push(child);
       }
@@ -129,10 +123,7 @@ export function buildDirTree(
   }
 
   const roots = [...projects.values()].sort(byName);
-  roots.forEach((root) => {
-    sortNode(root);
-    countNode(root);
-  });
+  roots.forEach(sortNode);
   return roots;
 }
 

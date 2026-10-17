@@ -146,7 +146,7 @@ export function NotesSidebar() {
           })}
         </div>
         ) : (
-          <div id="sidebar-tree-zone" className="sidebar-date-zone">
+          <div id="sidebar-tree-zone" className="knowledge-doc-sidebar-tree">
             <DirTree />
           </div>
         )}
