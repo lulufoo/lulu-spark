@@ -75,9 +75,9 @@ vi.mock('../../frontend/src/host/api.ts', () => ({
     id: 'a'.repeat(32),
     common_path: 'inbox/notes/202607101430-hello.md',
   }),
-  saveNoteDraft: vi.fn().mockResolvedValue({ ok: true }),
-  clearNoteDraft: vi.fn().mockResolvedValue({ ok: true }),
-  getNoteDraft: vi.fn().mockResolvedValue({ content: '' }),
+  saveDocDraft: vi.fn().mockResolvedValue({ ok: true }),
+  clearDocDraft: vi.fn().mockResolvedValue({ ok: true }),
+  getDocDraft: vi.fn().mockResolvedValue({ content: '' }),
 }));
 vi.mock('../../frontend/src/host/state.ts', async () => {
   const actual = await vi.importActual('../../frontend/src/host/state.ts');
@@ -160,9 +160,9 @@ function resetDom() {
     id: 'a'.repeat(32),
     common_path: 'inbox/notes/202607101430-hello.md',
   });
-  api.saveNoteDraft.mockResolvedValue({ ok: true });
-  api.clearNoteDraft.mockResolvedValue({ ok: true });
-  api.getNoteDraft.mockResolvedValue({ content: '' });
+  api.saveDocDraft.mockResolvedValue({ ok: true });
+  api.clearDocDraft.mockResolvedValue({ ok: true });
+  api.getDocDraft.mockResolvedValue({ content: '' });
   api.fetchFileContent.mockResolvedValue('# Hello note\n\nbody');
   api.saveFile.mockResolvedValue({ ok: true });
   navigateToNoteMock.mockReturnValue(true);
@@ -243,7 +243,7 @@ describe('T5 openCreateNote / finalizeCreateSession on note outlet', () => {
       id: 'b'.repeat(32),
       common_path: 'inbox/notes/202607101431-body.md',
     });
-    api.clearNoteDraft.mockResolvedValue({ ok: true });
+    api.clearDocDraft.mockResolvedValue({ ok: true });
     navigateToNoteMock.mockReturnValue(true);
 
     await closeModal();

@@ -11,7 +11,7 @@ use crate::services::spark_data::{
     self, find_doc, get_workspace, list_doc_entries, project_folder, DocRow, FoundDoc,
 };
 
-const NOTES_LAYERS: &[&str] = &["raw", "digest"];
+const DOC_LAYERS: &[&str] = &["raw", "digest"];
 
 fn is_under_root(root: &Path, target: &Path) -> bool {
     let root_canon = root.canonicalize().unwrap_or_else(|_| root.to_path_buf());
@@ -25,7 +25,7 @@ fn is_under_root(root: &Path, target: &Path) -> bool {
 
 /// Sidebar index of one workspace: `{ "workspace": id, "entries": { doc_id: entry } }`.
 /// `workspace` is an id; the default workspace when absent.
-pub fn get_notes_index(workspace: Option<&str>) -> Value {
+pub fn get_docs_index(workspace: Option<&str>) -> Value {
     let result = spark_data::open().and_then(|conn| {
         let row = match workspace.map(str::trim).filter(|s| !s.is_empty()) {
             Some(id) => get_workspace(&conn, id)?.ok_or_else(|| format!("Unknown workspace: {id}"))?,
@@ -40,7 +40,7 @@ pub fn get_notes_index(workspace: Option<&str>) -> Value {
     result.unwrap_or_else(|e| json!({ "error": format!("notes index: {e}"), "_status": 500 }))
 }
 
-fn load_note(id: &str) -> Result<(rusqlite::Connection, FoundDoc), Value> {
+fn load_doc(id: &str) -> Result<(rusqlite::Connection, FoundDoc), Value> {
     let id = id.trim();
     if !spark_data::is_valid_doc_id(id) {
         return Err(json!({ "error": "Invalid id", "_status": 400 }));
@@ -53,7 +53,7 @@ fn load_note(id: &str) -> Result<(rusqlite::Connection, FoundDoc), Value> {
     }
 }
 
-fn note_rel(note: &DocRow, layer: &str, lang: Option<&str>) -> Result<String, Value> {
+fn doc_rel(note: &DocRow, layer: &str, lang: Option<&str>) -> Result<String, Value> {
     match (layer, lang.map(str::trim).filter(|s| !s.is_empty())) {
         ("raw", Some(lang)) => expected_lang_common_path(&note.raw_path, lang)
             .ok_or_else(|| json!({ "error": "Invalid path", "_status": 400 })),
@@ -71,7 +71,7 @@ fn note_disk_path(
     let note = &found.doc;
     let folder = project_folder(conn, &note.project_id)
         .map_err(|e| json!({ "error": e, "_status": 500 }))?;
-    let rel = note_rel(note, layer, lang)?;
+    let rel = doc_rel(note, layer, lang)?;
     if rel.is_empty() || rel.contains("..") {
         return Err(json!({ "error": "Invalid path", "_status": 400 }));
     }
@@ -79,12 +79,12 @@ fn note_disk_path(
 }
 
 /// Notes markdown body by doc id (`{layer}/{folder}/{rel}` on disk).
-pub fn get_notes_file(layer: &str, id: &str, lang: Option<&str>) -> Value {
+pub fn get_doc_file(layer: &str, id: &str, lang: Option<&str>) -> Value {
     let layer = layer.trim();
-    if !NOTES_LAYERS.contains(&layer) {
+    if !DOC_LAYERS.contains(&layer) {
         return json!({ "error": format!("Invalid layer: {layer}"), "_status": 400 });
     }
-    let (conn, found) = match load_note(id) {
+    let (conn, found) = match load_doc(id) {
         Ok(v) => v,
         Err(v) => return v,
     };
@@ -120,7 +120,7 @@ pub fn mime_from_extension(path: &Path) -> Option<&'static str> {
     }
 }
 
-fn notes_asset_rel(base_rel: &str, href: &str) -> Result<String, Value> {
+fn doc_asset_rel(base_rel: &str, href: &str) -> Result<String, Value> {
     let href = href.trim();
     if base_rel.is_empty() || href.is_empty() {
         return Err(json!({ "error": "Invalid path", "_status": 400 }));
@@ -148,12 +148,12 @@ fn notes_asset_rel(base_rel: &str, href: &str) -> Result<String, Value> {
 }
 
 /// Notes binary asset next to the note file, base64 in JSON for invoke.
-pub fn get_notes_asset(layer: &str, id: &str, href: &str, lang: Option<&str>) -> Value {
+pub fn get_doc_asset(layer: &str, id: &str, href: &str, lang: Option<&str>) -> Value {
     let layer = layer.trim();
-    if !NOTES_LAYERS.contains(&layer) {
+    if !DOC_LAYERS.contains(&layer) {
         return json!({ "error": format!("Invalid layer: {layer}"), "_status": 400 });
     }
-    let (conn, found) = match load_note(id) {
+    let (conn, found) = match load_doc(id) {
         Ok(v) => v,
         Err(v) => return v,
     };
@@ -165,11 +165,11 @@ pub fn get_notes_asset(layer: &str, id: &str, href: &str, lang: Option<&str>) ->
         Ok(root) => root,
         Err(v) => return v,
     };
-    let base_rel = match note_rel(&found.doc, layer, lang) {
+    let base_rel = match doc_rel(&found.doc, layer, lang) {
         Ok(p) => p,
         Err(v) => return v,
     };
-    let rel = match notes_asset_rel(&base_rel, href) {
+    let rel = match doc_asset_rel(&base_rel, href) {
         Ok(p) => p,
         Err(v) => return v,
     };

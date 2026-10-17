@@ -63,7 +63,7 @@ fn check_spark_root_requires_an_existing_directory() {
 }
 
 #[test]
-fn get_notes_index_is_built_from_the_doc_table_in_the_entry_shape() {
+fn get_docs_index_is_built_from_the_doc_table_in_the_entry_shape() {
     with_notes_repo(
         |_, _| {
             seed_note_entries(&json!({
@@ -76,7 +76,7 @@ fn get_notes_index_is_built_from_the_doc_table_in_the_entry_shape() {
             }));
         },
         |_cfg_dir| {
-            let v = get_notes_index(None);
+            let v = get_docs_index(None);
             assert_eq!(
                 v,
                 json!({ "workspace": "default", "entries": {
@@ -97,21 +97,21 @@ fn get_notes_index_is_built_from_the_doc_table_in_the_entry_shape() {
 }
 
 #[test]
-fn get_notes_index_of_an_empty_table_has_no_entries() {
+fn get_docs_index_of_an_empty_table_has_no_entries() {
     with_notes_repo(
         |_, _| {},
-        |_| assert_eq!(get_notes_index(None), json!({ "workspace": "default", "entries": {} })),
+        |_| assert_eq!(get_docs_index(None), json!({ "workspace": "default", "entries": {} })),
     );
 }
 
 #[test]
-fn get_notes_file_rejects_traversal() {
+fn get_doc_file_rejects_traversal() {
     with_notes_repo(
         |_, notes| {
             fs::create_dir_all(notes.join("raw")).expect("mkdir");
         },
         |_cfg_dir| {
-            let v = get_notes_file("raw", "../index.json", None);
+            let v = get_doc_file("raw", "../index.json", None);
             assert_eq!(v["error"], "Invalid id");
         },
     );
@@ -149,7 +149,7 @@ fn get_annotations_summary_includes_resolved_tags() {
 }
 
 #[test]
-fn get_notes_file_returns_content() {
+fn get_doc_file_returns_content() {
     let id = "cccccccccccccccccccccccccccccccc";
     with_notes_repo(
         move |_, notes| {
@@ -159,14 +159,14 @@ fn get_notes_file_returns_content() {
             seed_note_entries(&json!({ id: { "common_path": "a.md" } }));
         },
         move |_cfg_dir| {
-            let v = get_notes_file("raw", id, None);
+            let v = get_doc_file("raw", id, None);
             assert_eq!(v["content"], "hello");
         },
     );
 }
 
 #[test]
-fn get_notes_asset_returns_png_bytes() {
+fn get_doc_asset_returns_png_bytes() {
     let id = "dddddddddddddddddddddddddddddddd";
     with_notes_repo(
         move |_, notes| {
@@ -177,7 +177,7 @@ fn get_notes_asset_returns_png_bytes() {
             seed_note_entries(&json!({ id: { "common_path": "ai/note.md" } }));
         },
         move |_cfg_dir| {
-            let v = get_notes_asset("raw", id, "note.png", None);
+            let v = get_doc_asset("raw", id, "note.png", None);
             assert!(v.get("data_b64").and_then(|x| x.as_str()).is_some());
             assert_eq!(v["mime_type"], "image/png");
         },
@@ -185,7 +185,7 @@ fn get_notes_asset_returns_png_bytes() {
 }
 
 #[test]
-fn get_notes_asset_rejects_traversal() {
+fn get_doc_asset_rejects_traversal() {
     let id = "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
     with_notes_repo(
         move |_, notes| {
@@ -194,14 +194,14 @@ fn get_notes_asset_rejects_traversal() {
             seed_note_entries(&json!({ id: { "common_path": "ai/note.md" } }));
         },
         move |_cfg_dir| {
-            let v = get_notes_asset("raw", id, "../index.json", None);
+            let v = get_doc_asset("raw", id, "../index.json", None);
             assert_eq!(v["error"], "Invalid path");
         },
     );
 }
 
 #[test]
-fn get_notes_asset_rejects_non_whitelist_ext() {
+fn get_doc_asset_rejects_non_whitelist_ext() {
     let id = "ffffffffffffffffffffffffffffffff";
     with_notes_repo(
         move |_, notes| {
@@ -212,7 +212,7 @@ fn get_notes_asset_rejects_non_whitelist_ext() {
             seed_note_entries(&json!({ id: { "common_path": "x.md" } }));
         },
         move |_cfg_dir| {
-            let v = get_notes_asset("raw", id, "x.svg", None);
+            let v = get_doc_asset("raw", id, "x.svg", None);
             assert_eq!(v["error"], "Unsupported media type");
         },
     );

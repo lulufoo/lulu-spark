@@ -76,9 +76,9 @@ vi.mock('../../frontend/src/host/api.ts', () => ({
     id: 'a'.repeat(32),
     common_path: 'inbox/notes/202607101430-hello.md',
   }),
-  saveNoteDraft: vi.fn().mockResolvedValue({ ok: true }),
-  clearNoteDraft: vi.fn().mockResolvedValue({ ok: true }),
-  getNoteDraft: vi.fn().mockResolvedValue({ content: '' }),
+  saveDocDraft: vi.fn().mockResolvedValue({ ok: true }),
+  clearDocDraft: vi.fn().mockResolvedValue({ ok: true }),
+  getDocDraft: vi.fn().mockResolvedValue({ content: '' }),
 }));
 vi.mock('../../frontend/src/host/state.ts', async () => {
   const actual = await vi.importActual('../../frontend/src/host/state.ts');
@@ -169,9 +169,9 @@ function resetViewerDom() {
     id: 'a'.repeat(32),
     common_path: 'inbox/notes/202607101430-hello.md',
   });
-  api.saveNoteDraft.mockResolvedValue({ ok: true });
-  api.clearNoteDraft.mockResolvedValue({ ok: true });
-  api.getNoteDraft.mockResolvedValue({ content: '' });
+  api.saveDocDraft.mockResolvedValue({ ok: true });
+  api.clearDocDraft.mockResolvedValue({ ok: true });
+  api.getDocDraft.mockResolvedValue({ content: '' });
   navigateToNoteMock.mockReturnValue(true);
   navigateBackToListMock.mockClear();
   globalThis.alert.mockClear();
@@ -183,13 +183,13 @@ describe('openCreateNote', () => {
     resetViewerDom();
   });
 
-  it('enters create session bound to drafts/notes/<temp_id>', async () => {
+  it('enters create session bound to drafts/docs/<temp_id>', async () => {
     await openCreateNote({ temp_id: 'tmp-abc' });
 
     expect(makeEl('note-outlet').hidden).toBe(false);
     expect(makeEl('md-modal').style.display).toBe('none');
     expect(makeEl('md-edit-area').style.display).not.toBe('none');
-    expect(api.saveNoteDraft).toHaveBeenCalledWith('tmp-abc', expect.any(String));
+    expect(api.saveDocDraft).toHaveBeenCalledWith('tmp-abc', expect.any(String));
     expect(state.viewer.createSession?.tempId).toBe('tmp-abc');
     expect(state.viewer.createSession?.status).toBe('creating');
     expect(state.viewer.entry).toBeNull();
@@ -232,7 +232,7 @@ describe('openCreateNote', () => {
   it('does not enter create when openCreateNote fails; keeps prior UI', async () => {
     makeEl('note-outlet').hidden = true;
     makeEl('md-modal').style.display = 'none';
-    api.saveNoteDraft.mockRejectedValueOnce(new Error('draft write failed'));
+    api.saveDocDraft.mockRejectedValueOnce(new Error('draft write failed'));
 
     await openCreateNote({ temp_id: 'tmp-fail' });
 
@@ -256,7 +256,7 @@ describe('create session exit', () => {
       id: 'b'.repeat(32),
       common_path: 'inbox/notes/202607101431-body.md',
     });
-    api.clearNoteDraft.mockResolvedValue({ ok: true });
+    api.clearDocDraft.mockResolvedValue({ ok: true });
     navigateToNoteMock.mockReturnValue(true);
     navigateBackToListMock.mockClear();
   });
@@ -276,7 +276,7 @@ describe('create session exit', () => {
       source_type: 'jot',
       workspace: 'default',
     });
-    expect(api.clearNoteDraft).toHaveBeenCalledWith('tmp-exit');
+    expect(api.clearDocDraft).toHaveBeenCalledWith('tmp-exit');
     expect(navigateToNoteMock).toHaveBeenCalledWith({
       date: '20260710',
       note: 'b'.repeat(32),
@@ -293,7 +293,7 @@ describe('create session exit', () => {
     await closeModal();
 
     expect(api.createNote).not.toHaveBeenCalled();
-    expect(api.clearNoteDraft).toHaveBeenCalledWith('tmp-exit');
+    expect(api.clearDocDraft).toHaveBeenCalledWith('tmp-exit');
     expect(makeEl('note-outlet').hidden).toBe(true);
     expect(state.viewer.createSession).toBeNull();
     expect(navigateToNoteMock).not.toHaveBeenCalled();
@@ -307,7 +307,7 @@ describe('create session exit', () => {
     await closeModal();
 
     expect(globalThis.alert).toHaveBeenCalledWith(expect.stringContaining('409: conflict'));
-    expect(api.clearNoteDraft).not.toHaveBeenCalled();
+    expect(api.clearDocDraft).not.toHaveBeenCalled();
     expect(makeEl('note-outlet').hidden).toBe(false);
     expect(makeEl('note-outlet').dataset.wbMode).toBe('create');
     expect(state.viewer.createSession?.tempId).toBe('tmp-exit');
@@ -324,7 +324,7 @@ describe('create session exit', () => {
     await closeModal();
 
     expect(api.createNote).not.toHaveBeenCalled();
-    expect(api.clearNoteDraft).toHaveBeenCalledWith('tmp-exit');
+    expect(api.clearDocDraft).toHaveBeenCalledWith('tmp-exit');
     expect(state.viewer.createSession).toBeNull();
     expect(makeEl('note-outlet').hidden).toBe(true);
     expect(navigateToNoteMock).not.toHaveBeenCalled();

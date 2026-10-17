@@ -8,7 +8,7 @@ const sparkApiPath = join(repoRoot, 'frontend/src/host/api/spark.ts');
 const apiPath = join(repoRoot, 'frontend/src/host/api.ts');
 
 const KEPT_SPARK_EXPORTS = [
-  'clearNoteDraft',
+  'clearDocDraft',
   'createNote',
   'deleteEntry',
   'fetchAnnotation',
@@ -21,12 +21,12 @@ const KEPT_SPARK_EXPORTS = [
   'fetchNotesAssetAsBlobUrl',
   'fetchTagsRegistry',
   'getDraft',
-  'getNoteDraft',
+  'getDocDraft',
   'moveToProject',
   'reorderComments',
   'saveDraft',
   'saveFile',
-  'saveNoteDraft',
+  'saveDocDraft',
   'setConfig',
   'setDone',
   'setImportance',

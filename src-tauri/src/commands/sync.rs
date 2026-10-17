@@ -13,17 +13,17 @@ pub async fn save_comment_draft(_app: AppHandle, payload: Value) -> Result<Value
 }
 
 #[tauri::command]
-pub fn save_note_draft(
+pub fn save_doc_draft(
     _app: AppHandle,
     temp_id: String,
     content: String,
 ) -> Result<Value, String> {
-    Ok(draft::save_note_draft_json(&temp_id, &content))
+    Ok(draft::save_doc_draft_json(&temp_id, &content))
 }
 
 #[tauri::command]
-pub fn clear_note_draft(_app: AppHandle, temp_id: String) -> Result<Value, String> {
-    Ok(draft::clear_note_draft_json(&temp_id))
+pub fn clear_doc_draft(_app: AppHandle, temp_id: String) -> Result<Value, String> {
+    Ok(draft::clear_doc_draft_json(&temp_id))
 }
 
 /// The payload with `workspace` filled in from the document id when the caller left it out.

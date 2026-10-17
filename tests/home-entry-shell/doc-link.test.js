@@ -5,8 +5,8 @@ import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { marked } from 'marked';
 
-vi.mock('../../frontend/src/host/api/note-open.ts', () => ({
-  resolveNoteForOpen: vi.fn(),
+vi.mock('../../frontend/src/host/api/doc-open.ts', () => ({
+  resolveDocForOpen: vi.fn(),
 }));
 vi.mock('../../frontend/src/notes/commands/reload-index.ts', () => ({
   refreshNotesIndex: vi.fn(),
@@ -15,7 +15,7 @@ vi.mock('../../frontend/src/home/commands/hub.ts', () => ({
   showActionError: vi.fn(),
 }));
 
-import { resolveNoteForOpen } from '../../frontend/src/host/api/note-open.ts';
+import { resolveDocForOpen } from '../../frontend/src/host/api/doc-open.ts';
 import { refreshNotesIndex } from '../../frontend/src/notes/commands/reload-index.ts';
 import { showActionError } from '../../frontend/src/home/commands/hub.ts';
 import { state } from '../../frontend/src/host/state.ts';
@@ -45,7 +45,7 @@ const onOpen = (e) => opened.push(e.detail);
 beforeEach(() => {
   opened = [];
   document.addEventListener('cta:open-entry', onOpen);
-  vi.mocked(resolveNoteForOpen).mockReset();
+  vi.mocked(resolveDocForOpen).mockReset();
   vi.mocked(refreshNotesIndex).mockReset();
   vi.mocked(showActionError).mockReset();
   state.index.data = { [ID]: { folder: 'ai', id: ID } };
@@ -70,11 +70,11 @@ describe('docIdFromHref', () => {
 
 describe('onDocLinkClick', () => {
   it('intercepts a doc: link, resolves it in Rust, then opens the entry', async () => {
-    vi.mocked(resolveNoteForOpen).mockResolvedValue({ id: ID, ok: true, folder: 'ai' });
+    vi.mocked(resolveDocForOpen).mockResolvedValue({ id: ID, ok: true, folder: 'ai' });
     const event = clickOn(`<p><a href="doc:${ID}"><b>Default：Title</b></a></p>`, 'b');
     expect(event.preventDefault).toHaveBeenCalledOnce();
     await flush();
-    expect(resolveNoteForOpen).toHaveBeenCalledWith(ID);
+    expect(resolveDocForOpen).toHaveBeenCalledWith(ID);
     expect(opened).toEqual([{ id: ID }]);
     expect(showActionError).not.toHaveBeenCalled();
   });
@@ -88,7 +88,7 @@ describe('onDocLinkClick', () => {
     const plain = clickOn('<span>no link</span>', 'span');
     expect(plain.preventDefault).not.toHaveBeenCalled();
     await flush();
-    expect(resolveNoteForOpen).not.toHaveBeenCalled();
+    expect(resolveDocForOpen).not.toHaveBeenCalled();
     expect(opened).toEqual([]);
   });
 
@@ -96,13 +96,13 @@ describe('onDocLinkClick', () => {
     const event = clickOn('<a href="doc:bad">x</a>', 'a');
     expect(event.preventDefault).toHaveBeenCalledOnce();
     await flush();
-    expect(resolveNoteForOpen).not.toHaveBeenCalled();
+    expect(resolveDocForOpen).not.toHaveBeenCalled();
     expect(showActionError).toHaveBeenCalledWith({ message: expect.stringContaining('Cannot open document') });
     expect(opened).toEqual([]);
   });
 
   it('reports the Rust error when the id is unknown', async () => {
-    vi.mocked(resolveNoteForOpen).mockRejectedValue(new Error('Entry not found'));
+    vi.mocked(resolveDocForOpen).mockRejectedValue(new Error('Entry not found'));
     clickOn(`<a href="doc:${ID}">x</a>`, 'a');
     await flush();
     const err = vi.mocked(showActionError).mock.calls[0][0];
@@ -112,7 +112,7 @@ describe('onDocLinkClick', () => {
 
   it('refreshes a stale list once, then opens', async () => {
     state.index.data = {};
-    vi.mocked(resolveNoteForOpen).mockResolvedValue({ id: ID, ok: true, folder: 'ai' });
+    vi.mocked(resolveDocForOpen).mockResolvedValue({ id: ID, ok: true, folder: 'ai' });
     vi.mocked(refreshNotesIndex).mockImplementation(async () => {
       state.index.data = { [ID]: { folder: 'ai', id: ID } };
       return true;
@@ -125,7 +125,7 @@ describe('onDocLinkClick', () => {
 
   it('reports instead of staying silent when the list still lacks the document', async () => {
     state.index.data = {};
-    vi.mocked(resolveNoteForOpen).mockResolvedValue({ id: ID, ok: true, folder: 'ai' });
+    vi.mocked(resolveDocForOpen).mockResolvedValue({ id: ID, ok: true, folder: 'ai' });
     vi.mocked(refreshNotesIndex).mockResolvedValue(true);
     clickOn(`<a href="doc:${ID}">x</a>`, 'a');
     await flush();

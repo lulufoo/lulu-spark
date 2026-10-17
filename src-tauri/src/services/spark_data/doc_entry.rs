@@ -1,4 +1,4 @@
-//! A document row in the shape of the notes-index entry, and lookup of a document by id.
+//! A document row in the shape of the docs-index entry, and lookup of a document by id.
 
 use rusqlite::Connection;
 use serde_json::{json, Map, Value};

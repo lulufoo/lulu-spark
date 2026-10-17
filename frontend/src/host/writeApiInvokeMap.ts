@@ -147,15 +147,15 @@ export const WRITE_API_INVOKE_MAP: Record<string, WriteInvokeEntry> = {
     cmd: 'delete_project',
     args: (body) => ({ payload: body ?? {} }),
   },
-  '/api/note-draft': {
-    cmd: 'save_note_draft',
+  '/api/doc-draft': {
+    cmd: 'save_doc_draft',
     args: (body) => ({
       tempId: body?.temp_id ?? '',
       content: body?.content ?? '',
     }),
   },
-  '/api/note-draft/clear': {
-    cmd: 'clear_note_draft',
+  '/api/doc-draft/clear': {
+    cmd: 'clear_doc_draft',
     args: (body) => ({ tempId: body?.temp_id ?? '' }),
   },
   '/api/file': {

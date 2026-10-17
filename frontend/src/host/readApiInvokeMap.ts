@@ -11,20 +11,20 @@ type ReadInvokeEntry = {
 };
 
 export const READ_API_INVOKE_MAP: Record<string, ReadInvokeEntry> = {
-  '/api/notes-index': {
-    cmd: 'get_notes_index',
+  '/api/docs-index': {
+    cmd: 'get_docs_index',
     args: (url) => ({ workspace: url.searchParams.get('workspace') || undefined }),
   },
-  '/api/notes-file': {
-    cmd: 'get_notes_file',
+  '/api/doc-file': {
+    cmd: 'get_doc_file',
     args: (url) => ({
       layer: url.searchParams.get('layer') ?? '',
       id: url.searchParams.get('id') ?? '',
       lang: url.searchParams.get('lang') || undefined,
     }),
   },
-  '/api/notes-asset': {
-    cmd: 'get_notes_asset',
+  '/api/doc-asset': {
+    cmd: 'get_doc_asset',
     args: (url) => ({
       layer: url.searchParams.get('layer') ?? '',
       id: url.searchParams.get('id') ?? '',
@@ -57,8 +57,8 @@ export const READ_API_INVOKE_MAP: Record<string, ReadInvokeEntry> = {
     cmd: 'get_draft',
     args: (url) => ({ id: url.searchParams.get('id') ?? '' }),
   },
-  '/api/note-draft': {
-    cmd: 'get_note_draft',
+  '/api/doc-draft': {
+    cmd: 'get_doc_draft',
     args: (url) => ({ tempId: url.searchParams.get('temp_id') ?? '' }),
   },
   '/api/config': { cmd: 'get_config' },

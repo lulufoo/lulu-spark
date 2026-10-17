@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use serde_json::json;
 
 use crate::services::docs::{create_doc, create_doc_content, update_doc};
-use crate::services::spark_read::get_notes_asset;
+use crate::services::spark_read::get_doc_asset;
 use crate::test_support::TestSandbox;
 
 const SAMPLE_DOC: &str = r#"# Test Title
@@ -73,7 +73,7 @@ fn create_note_copies_png_beside_raw() {
     );
     let dest = theme_dir().join("overview-diagram.png");
     assert_eq!(fs::read(&dest).unwrap(), PNG);
-    let loaded = get_notes_asset("raw", id, "overview-diagram.png", None);
+    let loaded = get_doc_asset("raw", id, "overview-diagram.png", None);
     assert_eq!(loaded["mime_type"], "image/png");
     assert!(loaded.get("data_b64").and_then(|x| x.as_str()).is_some());
 }

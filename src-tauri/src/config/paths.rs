@@ -144,8 +144,8 @@ pub fn draft_path(common_path: &str) -> Result<PathBuf, PathsError> {
     Ok(target)
 }
 
-/// Crash-buffer path for note create: `{cache_dir}/drafts/notes/<temp_id>`.
-pub fn notes_draft_path(temp_id: &str) -> Result<PathBuf, PathsError> {
+/// Crash-buffer path for note create: `{cache_dir}/drafts/docs/<temp_id>`.
+pub fn doc_draft_path(temp_id: &str) -> Result<PathBuf, PathsError> {
     if temp_id.trim().is_empty() {
         return Err(PathsError::RepoRootUnavailable);
     }

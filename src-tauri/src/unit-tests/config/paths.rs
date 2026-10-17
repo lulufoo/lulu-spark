@@ -22,11 +22,11 @@ fn spark_data_db_path_under_runtime_data_dir() {
 }
 
 #[test]
-fn notes_draft_path_resolves_under_cache_drafts_notes() {
+fn doc_draft_path_resolves_under_cache_drafts_notes() {
     let _sandbox = TestSandbox::new();
     let cache = cache_dir().expect("cache");
     let temp_id = "tmp-path-1";
-    let got = notes_draft_path(temp_id).expect("notes_draft_path");
+    let got = doc_draft_path(temp_id).expect("doc_draft_path");
     assert_eq!(got, cache.join("drafts").join("notes").join(temp_id));
 }
 
@@ -46,11 +46,11 @@ fn doc_highlights_file_uses_md5_under_cache() {
 }
 
 #[test]
-fn notes_draft_path_rejects_empty_or_traversal_temp_id() {
+fn doc_draft_path_rejects_empty_or_traversal_temp_id() {
     let _sandbox = TestSandbox::new();
-    assert!(notes_draft_path("").is_err());
-    assert!(notes_draft_path("..").is_err());
-    assert!(notes_draft_path("a/../b").is_err());
+    assert!(doc_draft_path("").is_err());
+    assert!(doc_draft_path("..").is_err());
+    assert!(doc_draft_path("a/../b").is_err());
 }
 
 #[test]

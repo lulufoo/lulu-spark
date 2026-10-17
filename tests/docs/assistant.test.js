@@ -125,7 +125,7 @@ describe('loadAssistantNotes', () => {
     fetchIndexMock.mockReset();
   });
 
-  it('loads notes-index via fetchIndex and returns entry list', async () => {
+  it('loads docs-index via fetchIndex and returns entry list', async () => {
     fetchIndexMock.mockResolvedValue(indexPayload());
     const entries = await loadAssistantNotes();
     expect(fetchIndexMock).toHaveBeenCalled();

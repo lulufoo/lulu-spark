@@ -47,8 +47,8 @@ pub fn get_draft(_app: AppHandle, id: String) -> Result<Value, String> {
 }
 
 #[tauri::command]
-pub fn get_note_draft(_app: AppHandle, temp_id: String) -> Result<Value, String> {
-    Ok(crate::services::draft::load_note_draft_json(&temp_id))
+pub fn get_doc_draft(_app: AppHandle, temp_id: String) -> Result<Value, String> {
+    Ok(crate::services::draft::load_doc_draft_json(&temp_id))
 }
 
 #[tauri::command]
@@ -71,24 +71,24 @@ pub async fn fetch_link_title(_app: AppHandle, url: String) -> Result<Value, Str
 }
 
 #[tauri::command]
-pub fn get_notes_index(_app: AppHandle, workspace: Option<String>) -> Result<Value, String> {
-    Ok(spark_read::get_notes_index(workspace.as_deref()))
+pub fn get_docs_index(_app: AppHandle, workspace: Option<String>) -> Result<Value, String> {
+    Ok(spark_read::get_docs_index(workspace.as_deref()))
 }
 
 #[tauri::command]
-pub fn get_notes_file(
+pub fn get_doc_file(
     _app: AppHandle,
     layer: String,
     id: String,
     lang: Option<String>,
 ) -> Result<Value, String> {
-    Ok(spark_read::get_notes_file(&layer, &id, lang.as_deref()))
+    Ok(spark_read::get_doc_file(&layer, &id, lang.as_deref()))
 }
 
 /// Validate and resolve a `note:<id>` link target. Index entry only; no body, no absolute path.
 #[tauri::command]
-pub fn resolve_note_for_open(_app: AppHandle, id: String) -> Result<Value, String> {
-    Ok(spark_read::resolve_note_for_open(&id))
+pub fn resolve_doc_for_open(_app: AppHandle, id: String) -> Result<Value, String> {
+    Ok(spark_read::resolve_doc_for_open(&id))
 }
 
 #[tauri::command]
@@ -97,14 +97,14 @@ pub fn read_abs_file(_app: AppHandle, path: String) -> Result<Value, String> {
 }
 
 #[tauri::command]
-pub fn get_notes_asset(
+pub fn get_doc_asset(
     _app: AppHandle,
     layer: String,
     id: String,
     href: String,
     lang: Option<String>,
 ) -> Result<Value, String> {
-    Ok(spark_read::get_notes_asset(&layer, &id, &href, lang.as_deref()))
+    Ok(spark_read::get_doc_asset(&layer, &id, &href, lang.as_deref()))
 }
 
 pub fn get_message_channel_unread_json(channel: &str) -> Result<bool, String> {

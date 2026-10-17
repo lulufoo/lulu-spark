@@ -6,7 +6,7 @@ use crate::services::spark_data::{self, entry_from_doc, find_doc, project_folder
 
 /// Look up document `id` in any workspace. Success is its index entry plus `id` and `ok`.
 /// Never returns a file body or an absolute path.
-pub fn resolve_note_for_open(id: &str) -> Value {
+pub fn resolve_doc_for_open(id: &str) -> Value {
     let id = id.trim();
     if !spark_data::is_valid_doc_id(id) {
         return json!({ "id": id, "ok": false, "error": "Invalid id" });
@@ -31,5 +31,5 @@ pub fn resolve_note_for_open(id: &str) -> Value {
 }
 
 #[cfg(test)]
-#[path = "../../unit-tests/services/note_open.rs"]
+#[path = "../../unit-tests/services/doc_open.rs"]
 mod tests;

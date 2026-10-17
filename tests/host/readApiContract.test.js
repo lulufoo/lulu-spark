@@ -48,13 +48,13 @@ describe('readApi contract map', () => {
     expect(normalizeForContract(a)).toEqual(normalizeForContract(b));
   });
 
-  it('resolveInvokeFromPath maps notes-asset query args', () => {
+  it('resolveInvokeFromPath maps doc-asset query args', () => {
     expect(
       resolveInvokeFromPath(
-        '/api/notes-asset?layer=raw&id=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa&href=note.png',
+        '/api/doc-asset?layer=raw&id=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa&href=note.png',
       ),
     ).toEqual({
-      cmd: 'get_notes_asset',
+      cmd: 'get_doc_asset',
       args: {
         layer: 'raw',
         id: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',

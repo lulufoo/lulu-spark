@@ -38,7 +38,7 @@ export function showWorkspace(id: string): Promise<void> {
 /** Switch to the workspace that holds document `id`; false when it is already shown or unknown. */
 export async function showWorkspaceOf(id: string): Promise<boolean> {
   try {
-    const note = await api.resolveNoteForOpen(id);
+    const note = await api.resolveDocForOpen(id);
     if (!note.workspace || note.workspace === state.workspaces.current) return false;
     await showWorkspace(note.workspace);
     return true;

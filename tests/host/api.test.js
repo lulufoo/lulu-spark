@@ -54,12 +54,12 @@ test('api.js 无裸 fetch（读路径均经 readGet / writePost）', () => {
 
 // ── GET endpoints ──────────────────────────────────────────────────────────
 
-test('fetchIndex 调用 /api/notes-index 并返回 JSON', async () => {
+test('fetchIndex 调用 /api/docs-index 并返回 JSON', async () => {
   mockFetch({ entries: [] })
   const result = await fetchIndex()
   expect(fetch).toHaveBeenCalledOnce()
   expect(fetch.mock.calls[0][0]).toMatch(
-    new RegExp(`^${API_READ_PREFIX}/notes-index`)
+    new RegExp(`^${API_READ_PREFIX}/docs-index`)
   )
   expect(result).toEqual({ entries: [] })
 })
@@ -115,12 +115,12 @@ test('setConfig 发送 POST 到 /api/config', async () => {
   expect(body.llm_api_key).toEqual({ engine: 'host', value: 'sk-test' })
 })
 
-test('fetchFileContent 调用 /api/notes-file 并返回 content', async () => {
+test('fetchFileContent 调用 /api/doc-file 并返回 content', async () => {
   mockFetch({ content: '# Hello' })
   const text = await fetchFileContent('raw', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')
   expect(fetch.mock.calls[0][0]).toMatch(
     new RegExp(
-      `^${API_READ_PREFIX}/notes-file\\?layer=raw&id=${encodeURIComponent('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')}`
+      `^${API_READ_PREFIX}/doc-file\\?layer=raw&id=${encodeURIComponent('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')}`
     )
   )
   expect(text).toBe('# Hello')

@@ -125,7 +125,7 @@ describe('Note AC gate (tech-doc VF / T-13)', () => {
   it('AC-8: empty exit clears draft, no Primary create (behavioral probe present)', () => {
     const viewer = readNotesViewerSource();
     expect(viewer).toMatch(/if \(!trimmed\)/);
-    expect(viewer).toMatch(/clearNoteDraft\(session\.tempId\)/);
+    expect(viewer).toMatch(/clearDocDraft\(session\.tempId\)/);
     const behavioral = read('tests/docs/viewer-create-note.test.js');
     expect(behavioral).toMatch(/empty exit: clear draft \+ closeModal, no Primary create/);
   });

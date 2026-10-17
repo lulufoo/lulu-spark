@@ -4,7 +4,7 @@ import { getReadDriver, readGet, writePost } from './transport.ts';
 /** Sidebar index of one workspace (the default workspace when `workspace` is omitted). */
 export async function fetchIndex(workspace?: string) {
   const ws = workspace ? `workspace=${encodeURIComponent(workspace)}&` : '';
-  return readGet(`/api/notes-index?${ws}_=${Date.now()}`);
+  return readGet(`/api/docs-index?${ws}_=${Date.now()}`);
 }
 
 export async function fetchAnnotationsSummary() {
@@ -33,7 +33,7 @@ export async function setConfig(payload?: unknown) {
 export async function fetchFileContent(layer: PathArg, id: PathArg, lang?: PathArg): Promise<string> {
   const langQ = lang ? `&lang=${encodeURIComponent(String(lang))}` : '';
   const data = await readGet(
-    `/api/notes-file?layer=${encodeURIComponent(String(layer ?? ''))}&id=${encodeURIComponent(String(id ?? ''))}${langQ}&_=${Date.now()}`
+    `/api/doc-file?layer=${encodeURIComponent(String(layer ?? ''))}&id=${encodeURIComponent(String(id ?? ''))}${langQ}&_=${Date.now()}`
   );
   if (typeof data === 'string') return data;
   const content = asRecord(data)?.content;
@@ -49,7 +49,7 @@ export async function fetchNotesAssetAsBlobUrl(
 ) {
   const langQ = lang ? `&lang=${encodeURIComponent(lang)}` : '';
   const data = await readGet(
-    `/api/notes-asset?layer=${encodeURIComponent(layer)}&id=${encodeURIComponent(id)}&href=${encodeURIComponent(href)}${langQ}&_=${Date.now()}`
+    `/api/doc-asset?layer=${encodeURIComponent(layer)}&id=${encodeURIComponent(id)}&href=${encodeURIComponent(href)}${langQ}&_=${Date.now()}`
   );
   const rec = asRecord(data);
   if (rec?.error) {
@@ -183,18 +183,18 @@ export async function createNote(payload?: unknown) {
   return writePost('/api/create-note', payload || {});
 }
 
-/** Note-create crash buffer under `drafts/notes/<temp_id>`. */
-export async function saveNoteDraft(tempId: string, content?: string) {
-  return writePost('/api/note-draft', { temp_id: tempId, content: content ?? '' });
+/** Note-create crash buffer under `drafts/docs/<temp_id>`. */
+export async function saveDocDraft(tempId: string, content?: string) {
+  return writePost('/api/doc-draft', { temp_id: tempId, content: content ?? '' });
 }
 
-export async function clearNoteDraft(tempId: string) {
-  return writePost('/api/note-draft/clear', { temp_id: tempId });
+export async function clearDocDraft(tempId: string) {
+  return writePost('/api/doc-draft/clear', { temp_id: tempId });
 }
 
-export async function getNoteDraft(tempId: string) {
+export async function getDocDraft(tempId: string) {
   const res = await getReadDriver().fetchGet(
-    `/api/note-draft?temp_id=${encodeURIComponent(tempId)}`,
+    `/api/doc-draft?temp_id=${encodeURIComponent(tempId)}`,
   );
   if (!res.ok) return { content: '' };
   return res.json();

@@ -73,7 +73,7 @@ export function dismissViewerModal() {
 
 /**
  * Enter create session on the shared viewer (body-only chrome).
- * Binds crash buffer at drafts/notes/<temp_id>. Does not pretend an index entry exists.
+ * Binds crash buffer at drafts/docs/<temp_id>. Does not pretend an index entry exists.
  * @param {{ temp_id: string }} opts
  */
 export async function openCreateNote({ temp_id }: { temp_id?: string } = {}) {
@@ -82,12 +82,12 @@ export async function openCreateNote({ temp_id }: { temp_id?: string } = {}) {
   try {
     let content = '';
     try {
-      const draft = await api.getNoteDraft(temp_id);
+      const draft = await api.getDocDraft(temp_id);
       content = typeof draft?.content === 'string' ? draft.content : '';
     } catch {
       content = '';
     }
-    await api.saveNoteDraft(temp_id, content);
+    await api.saveDocDraft(temp_id, content);
 
     state.viewer.entry = null;
     state.viewer.layer = 'raw';
@@ -126,7 +126,7 @@ export async function finalizeCreateSession() {
   const trimmed = (editArea && 'value' in editArea ? String((editArea as HTMLTextAreaElement).value) : '').trim();
 
   if (!trimmed) {
-    await api.clearNoteDraft(session.tempId);
+    await api.clearDocDraft(session.tempId);
     state.viewer.createSession = null;
     dismissViewerModal();
     return;
@@ -134,12 +134,12 @@ export async function finalizeCreateSession() {
 
   session.status = 'saving';
   try {
-    await api.saveNoteDraft(session.tempId, trimmed);
+    await api.saveDocDraft(session.tempId, trimmed);
     const archived = (await api.createNote({ body: trimmed, source_type: 'jot', workspace: state.workspaces.current })) as {
       id?: string;
     };
     const id = archived?.id;
-    await api.clearNoteDraft(session.tempId);
+    await api.clearDocDraft(session.tempId);
     state.viewer.createSession = null;
     clearCreateChrome();
     const date = locationDate();

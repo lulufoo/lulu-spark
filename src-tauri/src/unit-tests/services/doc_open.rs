@@ -2,7 +2,7 @@ use std::fs;
 
 use serde_json::json;
 
-use crate::services::spark_read::resolve_note_for_open;
+use crate::services::spark_read::resolve_doc_for_open;
 use crate::test_support::{seed_note_entries, TestSandbox};
 
 const ID: &str = "abcdefabcdefabcdefabcdefabcdefab";
@@ -27,7 +27,7 @@ fn seed_index(sandbox: &TestSandbox) {
 fn resolve_returns_index_entry_for_known_id() {
     let sandbox = TestSandbox::new();
     seed_index(&sandbox);
-    let out = resolve_note_for_open(ID);
+    let out = resolve_doc_for_open(ID);
     assert_eq!(out["ok"], true, "{out}");
     assert_eq!(out["id"], ID);
     assert_eq!(out["folder"], "ai");
@@ -41,7 +41,7 @@ fn resolve_returns_index_entry_for_known_id() {
 fn resolve_trims_the_id() {
     let sandbox = TestSandbox::new();
     seed_index(&sandbox);
-    let out = resolve_note_for_open(&format!("  {ID}\n"));
+    let out = resolve_doc_for_open(&format!("  {ID}\n"));
     assert_eq!(out["ok"], true);
     assert_eq!(out["id"], ID);
 }
@@ -56,7 +56,7 @@ fn resolve_rejects_malformed_ids() {
         .chain([ "z".repeat(32), ID[..31].to_string() ])
         .collect();
     for bad in &bad_ids {
-        let out = resolve_note_for_open(bad);
+        let out = resolve_doc_for_open(bad);
         assert_eq!(out["ok"], false, "id {bad:?}");
         assert_eq!(out["error"], "Invalid id");
     }
@@ -66,7 +66,7 @@ fn resolve_rejects_malformed_ids() {
 fn resolve_reports_unknown_id() {
     let sandbox = TestSandbox::new();
     seed_index(&sandbox);
-    let out = resolve_note_for_open("ffffffffffffffffffffffffffffffff");
+    let out = resolve_doc_for_open("ffffffffffffffffffffffffffffffff");
     assert_eq!(out["ok"], false);
     assert_eq!(out["error"], "Entry not found");
 }
@@ -74,7 +74,7 @@ fn resolve_reports_unknown_id() {
 #[test]
 fn resolve_reports_missing_index() {
     let _sandbox = TestSandbox::new();
-    let out = resolve_note_for_open(ID);
+    let out = resolve_doc_for_open(ID);
     assert!(out.get("error").is_some(), "{out}");
     assert_ne!(out["ok"], true);
 }

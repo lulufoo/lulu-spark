@@ -12,8 +12,8 @@ export {
 
 export { showOsNotification } from './api/os-notification.ts';
 
-export { resolveNoteForOpen } from './api/note-open.ts';
-export type { ResolvedNote } from './api/note-open.ts';
+export { resolveDocForOpen } from './api/doc-open.ts';
+export type { ResolvedNote } from './api/doc-open.ts';
 
 
 export { getPackageSnapshot } from './api/package-snapshot.ts';
@@ -34,7 +34,7 @@ export type { ViewMode } from './api/workspaces.ts';
 
 export {
   createNote,
-  clearNoteDraft,
+  clearDocDraft,
   deleteEntry,
   fetchAnnotation,
   fetchAnnotationsSummary,
@@ -46,12 +46,12 @@ export {
   fetchLinkTitle,
   fetchTagsRegistry,
   getDraft,
-  getNoteDraft,
+  getDocDraft,
   moveToProject,
   reorderComments,
   saveDraft,
   saveFile,
-  saveNoteDraft,
+  saveDocDraft,
   setConfig,
   setDone,
   setImportance,

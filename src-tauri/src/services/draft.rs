@@ -1,5 +1,5 @@
 //! Draft cache under `{cache_dir}/drafts/` (comment drafts) and
-//! `{cache_dir}/drafts/notes/<temp_id>` (note create crash buffer).
+//! `{cache_dir}/drafts/docs/<temp_id>` (note create crash buffer).
 
 use std::fs;
 
@@ -39,9 +39,9 @@ pub fn save_comment_draft(payload: &Value) -> Value {
     json!({ "ok": true })
 }
 
-/// Write note create crash-buffer content under `drafts/notes/<temp_id>`.
-pub fn save_note_draft(temp_id: &str, content: &str) -> Result<(), String> {
-    let draft_file = paths::notes_draft_path(temp_id).map_err(|_| "Invalid path".to_string())?;
+/// Write note create crash-buffer content under `drafts/docs/<temp_id>`.
+pub fn save_doc_draft(temp_id: &str, content: &str) -> Result<(), String> {
+    let draft_file = paths::doc_draft_path(temp_id).map_err(|_| "Invalid path".to_string())?;
     if let Some(parent) = draft_file.parent() {
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
@@ -50,8 +50,8 @@ pub fn save_note_draft(temp_id: &str, content: &str) -> Result<(), String> {
 }
 
 /// Read note create crash-buffer content (empty string if missing).
-pub fn load_note_draft(temp_id: &str) -> Result<String, String> {
-    let draft_file = paths::notes_draft_path(temp_id).map_err(|_| "Invalid path".to_string())?;
+pub fn load_doc_draft(temp_id: &str) -> Result<String, String> {
+    let draft_file = paths::doc_draft_path(temp_id).map_err(|_| "Invalid path".to_string())?;
     if !draft_file.exists() {
         return Ok(String::new());
     }
@@ -59,8 +59,8 @@ pub fn load_note_draft(temp_id: &str) -> Result<String, String> {
 }
 
 /// Remove note create crash-buffer file (success or empty-exit cleanup).
-pub fn clear_note_draft(temp_id: &str) -> Result<(), String> {
-    let draft_file = paths::notes_draft_path(temp_id).map_err(|_| "Invalid path".to_string())?;
+pub fn clear_doc_draft(temp_id: &str) -> Result<(), String> {
+    let draft_file = paths::doc_draft_path(temp_id).map_err(|_| "Invalid path".to_string())?;
     if draft_file.exists() {
         fs::remove_file(&draft_file).map_err(|e| e.to_string())?;
     }
@@ -68,22 +68,22 @@ pub fn clear_note_draft(temp_id: &str) -> Result<(), String> {
 }
 
 /// JSON wrapper for App/Tauri: `{ ok: true }` or `{ error, _status }`.
-pub fn save_note_draft_json(temp_id: &str, content: &str) -> Value {
-    match save_note_draft(temp_id, content) {
+pub fn save_doc_draft_json(temp_id: &str, content: &str) -> Value {
+    match save_doc_draft(temp_id, content) {
         Ok(()) => json!({ "ok": true }),
         Err(e) => json!({ "error": e, "_status": 400 }),
     }
 }
 
-pub fn clear_note_draft_json(temp_id: &str) -> Value {
-    match clear_note_draft(temp_id) {
+pub fn clear_doc_draft_json(temp_id: &str) -> Value {
+    match clear_doc_draft(temp_id) {
         Ok(()) => json!({ "ok": true }),
         Err(e) => json!({ "error": e, "_status": 400 }),
     }
 }
 
-pub fn load_note_draft_json(temp_id: &str) -> Value {
-    match load_note_draft(temp_id) {
+pub fn load_doc_draft_json(temp_id: &str) -> Value {
+    match load_doc_draft(temp_id) {
         Ok(content) => json!({ "content": content }),
         Err(e) => json!({ "error": e, "_status": 400 }),
     }

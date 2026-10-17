@@ -5,6 +5,6 @@ commands.allow = [
   "delete_entry",
   "move_entry_project",
   "save_comment_draft",
-  "save_note_draft",
-  "clear_note_draft",
+  "save_doc_draft",
+  "clear_doc_draft",
 ]

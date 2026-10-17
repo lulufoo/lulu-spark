@@ -1,4 +1,4 @@
-import { resolveNoteForOpen } from '../../host/api.ts';
+import { resolveDocForOpen } from '../../host/api.ts';
 import { state } from '../../host/state.ts';
 import { refreshNotesIndex } from '../../notes/commands/reload-index.ts';
 import { showWorkspace } from '../../notes/commands/workspace-switch.ts';
@@ -26,7 +26,7 @@ function reportOpenFailure(reason: unknown) {
 /** Rust validates the id; the document list must hold the entry before the shared open event. */
 export async function openDocById(id: string): Promise<void> {
   try {
-    const note = await resolveNoteForOpen(id);
+    const note = await resolveDocForOpen(id);
     if (!hasEntry(id)) {
       if (note.workspace && note.workspace !== state.workspaces.current) await showWorkspace(note.workspace);
       else await refreshNotesIndex();
