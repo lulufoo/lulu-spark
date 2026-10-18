@@ -167,7 +167,8 @@ pub fn tag_update_value(
 /// Thin Tauri wrapper around the docs service: `workspace_id` + `project_id` in the payload locate
 /// the new document (default workspace, inbox when `project_id` is omitted).
 /// Business errors stay in the Value (`error` + `_status`); do not convert to Err.
-/// App jot-create may pass `{ body, source_type: "jot" }` (no `source_path`) → Host synthesis.
+/// App jot-create may pass `{ body, source_type: "jot" }` (no `source_path`) → Host synthesis;
+/// an optional `folder` puts it in that folder of the project (`/` is the project root).
 /// Path create uses `source_path` + `title`; `document` is rejected.
 pub fn create_note_json(payload: Value) -> Result<Value, String> {
     if payload.get("document").is_some() {
@@ -184,7 +185,11 @@ pub fn create_note_json(payload: Value) -> Result<Value, String> {
         if source_type == "jot" {
             let workspace = payload.get("workspace_id").and_then(|v| v.as_str());
             let project = payload.get("project_id").and_then(|v| v.as_str());
-            return match docs::create_jot(workspace, project, body, &docs::JotCreateOpts::default()) {
+            let opts = docs::JotCreateOpts {
+                folder: payload.get("folder").and_then(|v| v.as_str()).map(str::to_string),
+                ..docs::JotCreateOpts::default()
+            };
+            return match docs::create_jot(workspace, project, body, &opts) {
                 Ok(v) => Ok(v),
                 Err(msg) => {
                     let (status, error) = match msg.split_once(':') {

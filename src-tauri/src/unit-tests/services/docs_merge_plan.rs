@@ -48,6 +48,19 @@ fn a_primary_path_conflict_renames_the_file_name_only() {
 }
 
 #[test]
+fn a_document_in_the_project_root_renames_like_any_other() {
+    let root_doc = "202601011200-alpha1.md";
+    let untouched = plan(&[doc("d1", root_doc, true, &["zh"])], &[A], &[A], &[]);
+    assert_eq!(untouched[0].raw_path, root_doc);
+    assert!(!untouched[0].renamed);
+    let targets = plan(&[doc("d1", root_doc, true, &["zh"])], &[root_doc], &[], &["ab12cd"]);
+    assert_eq!(targets[0].raw_path, "202601011200-alpha1-ab12cd.md");
+    assert_eq!(targets[0].digest_path.as_deref(), Some("202601011200-alpha1-ab12cd.md"));
+    assert!(targets[0].renamed);
+    assert!(is_valid_common_path(&targets[0].raw_path));
+}
+
+#[test]
 fn a_translation_only_conflict_renames_the_whole_document() {
     let taken_zh = expected_lang_common_path(A, "zh").expect("zh path");
     let targets = plan(&[doc("d1", A, false, &["zh"])], &[taken_zh.as_str()], &[], &["ab12cd"]);

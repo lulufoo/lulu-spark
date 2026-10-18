@@ -12,7 +12,7 @@ pub(crate) struct CreateMeta {
     pub source_type: String,
     /// Project id from the payload; `None` means the workspace inbox.
     pub project: Option<String>,
-    /// Stored rel: `{folder}/{filename}` — no project folder prefix.
+    /// Stored rel: `{folder}/{filename}` (just `{filename}` in the project root) — no project folder prefix.
     pub common_path: String,
 }
 
@@ -42,7 +42,7 @@ pub(crate) fn parse_create_meta_unchecked(
         Some(name) => format!("{created_at}-{rand}-{}", sanitize_basename(name)?),
         None => format!("{created_at}-{rand}.md"),
     };
-    let common_path = format!("{folder}/{filename}");
+    let common_path = if folder.is_empty() { filename } else { format!("{folder}/{filename}") };
     if !is_valid_common_path(&common_path) {
         return Err(json!({
             "error": format!("invalid common_path: {common_path}"),
@@ -116,8 +116,13 @@ fn optional_project(payload: &Value) -> Result<Option<String>, Value> {
 /// Deepest `folder` allowed under a project.
 pub(crate) const MAX_FOLDER_DEPTH: usize = 3;
 
-/// `folder`: a relative path of 1..=3 segments (`a`, `a/b`, `a/b/c`); defaults to `notes`.
-/// Empty segments, leading or trailing `/`, `.`/`..` and `\` are rejected.
+/// The `folder` value that puts a document directly in the project root, with no sub-folder.
+/// An empty `folder` still means "not given" (the default folder), so the root needs its own value.
+pub(crate) const PROJECT_ROOT_FOLDER: &str = "/";
+
+/// `folder`: a relative path of 1..=3 segments (`a`, `a/b`, `a/b/c`), or `/` for the project root;
+/// defaults to `notes`. The root is returned as an empty string. Empty segments, leading or
+/// trailing `/`, `.`/`..` and `\` are rejected.
 fn folder_path(payload: &Value) -> Result<String, Value> {
     let raw = payload
         .get("folder")
@@ -125,6 +130,9 @@ fn folder_path(payload: &Value) -> Result<String, Value> {
         .map(str::trim)
         .filter(|s| !s.is_empty())
         .unwrap_or("notes");
+    if raw == PROJECT_ROOT_FOLDER {
+        return Ok(String::new());
+    }
     let segments: Vec<&str> = raw.split('/').collect();
     let ok = segments.len() <= MAX_FOLDER_DEPTH
         && !raw.contains('\\')
