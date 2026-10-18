@@ -11,6 +11,9 @@ use super::create_meta::format_created_at_zh;
 pub struct JotCreateOpts {
     /// Fixed `YYYYMMDDHHMM` (UTC+8) for tests; `None` uses current time.
     pub ts: Option<String>,
+    /// Folder inside the project: a relative path of 1..=3 segments, or `/` for the project root.
+    /// `None` keeps the default folder, `notes`.
+    pub folder: Option<String>,
 }
 
 /// Build a minimal archive MD shell for a jot (H1 / 创建时间). No navigation.
@@ -37,9 +40,10 @@ pub fn synthesize_jot_document(body: &str, opts: &JotCreateOpts) -> Result<Strin
     ))
 }
 
-/// Write a jot through the docs service (`{project.id}/notes/{ts}-{rand}.md`) into `workspace`
-/// (the default workspace when `None`) and `project` (the inbox when `None`). A project that
-/// does not exist there is refused before anything is written.
+/// Write a jot through the docs service (`{project.id}/{folder}/{ts}-{rand}.md`, `folder` is
+/// `notes` unless `opts.folder` names another) into `workspace` (the default workspace when
+/// `None`) and `project` (the inbox when `None`). A project that does not exist there is refused
+/// before anything is written.
 pub fn create_jot(
     workspace: Option<&str>,
     project: Option<&str>,
@@ -67,7 +71,7 @@ pub fn create_jot(
     let mut payload = json!({
         "title": title,
         "source_type": "jot",
-        "folder": "notes",
+        "folder": opts.folder.as_deref().unwrap_or("notes"),
         "digest": "never",
         "content": doc,
     });

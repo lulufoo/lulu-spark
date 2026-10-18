@@ -13,9 +13,9 @@ pub fn expected_zh_common_path(primary_common_path: &str) -> Option<String> {
 }
 
 pub fn is_valid_common_path(common_path: &str) -> bool {
-    // `{folder}/{filename}` where `folder` has 1..=3 segments.
+    // `{folder}/{filename}` where `folder` has 0..=3 segments (none: the file is in the project root).
     let parts: Vec<&str> = common_path.split('/').collect();
-    if parts.len() < 2 || parts.len() > 4 {
+    if parts.len() > 4 {
         return false;
     }
     if parts[..parts.len() - 1]

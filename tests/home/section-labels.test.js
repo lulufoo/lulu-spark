@@ -19,7 +19,7 @@ function rulesFor(selector) {
 }
 
 describe('sidebar section labels (Notion style)', () => {
-  for (const selector of ['.home-chat-nav-label', '.home-chat-sessions-title']) {
+  for (const selector of ['.home-chat-nav-label']) {
     it(`${selector} is small grey plain text`, () => {
       const rules = rulesFor(selector);
       expect(rules.length).toBeGreaterThan(0);
@@ -32,19 +32,14 @@ describe('sidebar section labels (Notion style)', () => {
     });
   }
 
-  it('shares one rule between the two labels', () => {
-    expect(css).toMatch(/\.home-chat-nav-label,\s*\.home-chat-sessions-title \{/);
-  });
-
   it('uses one variable for the label row height', () => {
     expect(css).toMatch(/--home-nav-label-h: 28px;/);
     expect(rulesFor('.home-chat-nav-label').join('\n')).toMatch(/height: var\(--home-nav-label-h\)/);
-    expect(rulesFor('.home-chat-sessions-head').join('\n')).toMatch(/height: var\(--home-nav-label-h\)/);
   });
 
-  it('keeps the label text and the new-chat button', () => {
+  it('keeps the Workspace label and the new-chat button, with no Chats label', () => {
     expect(page).toMatch(/home-chat-nav-label">Workspace</);
-    expect(page).toMatch(/home-chat-sessions-title">Chats</);
+    expect(page).not.toMatch(/home-chat-sessions-title/);
     expect(page).toMatch(/data-role="new-session"/);
   });
 });

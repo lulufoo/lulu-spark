@@ -13,6 +13,7 @@ vi.mock('../../frontend/src/notes/commands/sidebar.ts', async (importOriginal) =
 }));
 
 import { state } from '../../frontend/src/host/state.ts';
+import { dirKeyOf } from '../../frontend/src/notes/state/dir-tree.ts';
 import {
   cancelCreateProject,
   confirmCreateProject,
@@ -23,7 +24,13 @@ import { selectDate, selectTopic } from '../../frontend/src/notes/commands/sideb
 import { createTargetStore } from '../../frontend/src/notes/state/create-target.ts';
 import { CreateTargetDialog } from '../../frontend/src/notes/ui/create-target-dialog.tsx';
 
-function seed({ active = '', titles = { ideas: 'Ideas', inbox: 'Inbox' }, order = ['inbox', 'ideas'], view = 'timeline' } = {}) {
+function seed({
+  active = '',
+  listed = null,
+  titles = { ideas: 'Ideas', inbox: 'Inbox' },
+  order = ['inbox', 'ideas'],
+  view = 'timeline',
+} = {}) {
   state.workspaces = {
     current: 'default',
     list: [{ workspace_id: 'default', workspace_name: 'Default', view_mode: view, is_default: true }],
@@ -31,6 +38,7 @@ function seed({ active = '', titles = { ideas: 'Ideas', inbox: 'Inbox' }, order 
   state.index.topicTitles = titles;
   state.index.topicOrder = order;
   state.ui.activeTopic = active;
+  state.ui.activeDate = listed;
 }
 
 beforeEach(() => {
@@ -50,6 +58,30 @@ describe('startCreateDocument (the document page "+")', () => {
     expect(openCreateNote).toHaveBeenCalledWith(
       expect.objectContaining({ workspace_id: 'default', project_id: 'ideas', temp_id: expect.any(String) }),
     );
+  });
+
+  it('timeline: no folder is sent, whatever is listed', () => {
+    seed({ active: 'ideas', listed: '20260710' });
+    startCreateDocument();
+    expect(openCreateNote.mock.calls[0][0].folder).toBeUndefined();
+  });
+
+  it('directory view: creates in the folder that is listed', () => {
+    seed({ active: 'ideas', view: 'directory', listed: dirKeyOf('ideas/plans/q1') });
+    startCreateDocument();
+    expect(openCreateNote).toHaveBeenCalledWith(
+      expect.objectContaining({ project_id: 'ideas', folder: 'plans/q1' }),
+    );
+  });
+
+  it('directory view: the Project root is `/`, also when nothing or another Project is listed', () => {
+    seed({ active: 'ideas', view: 'directory', listed: dirKeyOf('ideas') });
+    startCreateDocument();
+    seed({ active: 'ideas', view: 'directory', listed: null });
+    startCreateDocument();
+    seed({ active: 'ideas', view: 'directory', listed: dirKeyOf('inbox/plans') });
+    startCreateDocument();
+    expect(openCreateNote.mock.calls.map(([arg]) => arg.folder)).toEqual(['/', '/', '/']);
   });
 
   it('timeline All: asks for a Project first, pre-selecting the first one in Settings order', () => {
@@ -110,6 +142,16 @@ describe('chooser dialog', () => {
 });
 
 describe('landOnNewDocument', () => {
+  it('directory view: lists the folder the document was created in, the Project root included', () => {
+    seed({ active: 'ideas', view: 'directory' });
+    state.index.data = {
+      n1: { project_id: 'ideas', raw_path: 'plans/q1/a.md' },
+      n2: { project_id: 'ideas', raw_path: '202607101200-abc123.md' },
+    };
+    expect(landOnNewDocument('n1', 'ideas')).toBe(dirKeyOf('ideas/plans/q1'));
+    expect(landOnNewDocument('n2', 'ideas')).toBe(dirKeyOf('ideas'));
+  });
+
   it('timeline: selects the Project and the day the document was created', () => {
     state.index.data = { n1: { project_id: 'ideas', created_at: '20260710120000', raw_path: 'ideas/notes/a.md' } };
     expect(landOnNewDocument('n1', 'ideas')).toBe('20260710');

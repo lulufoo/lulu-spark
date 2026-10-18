@@ -1038,6 +1038,65 @@ fn create_jot_with_a_project_writes_into_that_project() {
     assert!(jot_dirs(&raw).iter().any(|p| p.extension().is_some_and(|e| e == "md")), "{raw:?}");
 }
 
+fn jot_opts_in(folder: &str, ts: &str) -> JotCreateOpts {
+    JotCreateOpts {
+        folder: Some(folder.to_string()),
+        ..jot_opts_with_ts(ts)
+    }
+}
+
+#[test]
+fn create_jot_with_a_folder_writes_into_that_folder() {
+    let _sandbox = setup_notes();
+    let plans = add_project("plans");
+    let v = create_jot(None, Some(&plans), "放进子目录\n\n正文", &jot_opts_in("q1/goals", "202607101450"))
+        .expect("create_jot");
+    assert_eq!(v["ok"], json!(true), "{v}");
+    let id = v["id"].as_str().expect("id");
+    assert!(note_row(id).raw_path.starts_with("q1/goals/202607101450-"), "{}", note_row(id).raw_path);
+    assert!(note_disk(&default_workspace_dir(), "raw", id).is_file());
+}
+
+#[test]
+fn create_jot_with_the_root_folder_writes_into_the_project_root() {
+    let _sandbox = setup_notes();
+    let plans = add_project("plans");
+    let v = create_jot(None, Some(&plans), "放进项目根\n\n正文", &jot_opts_in("/", "202607101451"))
+        .expect("create_jot");
+    assert_eq!(v["ok"], json!(true), "{v}");
+    let id = v["id"].as_str().expect("id");
+    let rel = note_row(id).raw_path;
+    assert!(rel.starts_with("202607101451-") && !rel.contains('/'), "{rel}");
+    assert!(filename_has_ts_rand(&rel), "{rel}");
+    let raw = note_disk(&default_workspace_dir(), "raw", id);
+    assert_eq!(raw.file_name().and_then(|n| n.to_str()), Some(rel.as_str()));
+    assert_eq!(raw.parent().and_then(|d| d.file_name()).and_then(|n| n.to_str()), Some(plans.as_str()));
+    assert!(raw.is_file(), "raw must exist at {raw:?}");
+    assert_eq!(read_note_entries()["entries"][id]["project_id"], json!(plans));
+}
+
+#[test]
+fn create_jot_refuses_a_bad_folder_and_writes_nothing() {
+    let _sandbox = setup_notes();
+    let plans = add_project("plans");
+    let before = jot_dirs(&default_workspace_dir());
+    for (n, folder) in ["a/b/c/d", "a//b", "../x", "/a", "a/", "a\\b", "//"].iter().enumerate() {
+        let ts = format!("2026071014{:02}", 52 + n);
+        let err = create_jot(None, Some(&plans), "不该写入", &jot_opts_in(folder, &ts)).expect_err(folder);
+        assert!(err.starts_with("400:"), "{folder}: {err}");
+    }
+    assert_eq!(jot_dirs(&default_workspace_dir()), before, "nothing was written");
+}
+
+#[test]
+fn create_jot_without_a_folder_still_goes_to_notes() {
+    let _sandbox = setup_notes();
+    let plans = add_project("plans");
+    let v = create_jot(None, Some(&plans), "默认目录", &jot_opts_with_ts("202607101460")).expect("create_jot");
+    let id = v["id"].as_str().expect("id");
+    assert!(note_row(id).raw_path.starts_with("notes/202607101460-"));
+}
+
 #[test]
 fn create_jot_without_a_project_still_goes_to_inbox() {
     let _sandbox = setup_notes();

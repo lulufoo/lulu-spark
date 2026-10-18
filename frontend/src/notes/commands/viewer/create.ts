@@ -86,7 +86,8 @@ export async function openCreateNote(
     temp_id,
     workspace_id,
     project_id,
-  }: { temp_id?: string; workspace_id?: string; project_id?: string } = {},
+    folder,
+  }: { temp_id?: string; workspace_id?: string; project_id?: string; folder?: string } = {},
 ) {
   if (!temp_id) return;
   const prevMode = state.viewer.outletMode || '';
@@ -111,6 +112,7 @@ export async function openCreateNote(
       status: 'creating',
       ...(workspace_id ? { workspace_id } : {}),
       ...(project_id ? { project_id } : {}),
+      ...(folder ? { folder } : {}),
     };
     state.viewer.bodyPaintKey += 1;
 
@@ -157,6 +159,7 @@ export async function finalizeCreateSession() {
       source_type: 'jot',
       workspace_id: workspaceId,
       ...(session.project_id ? { project_id: session.project_id } : {}),
+      ...(session.folder ? { folder: session.folder } : {}),
     })) as { id?: string };
     const id = archived?.id;
     await api.clearDocDraft(session.tempId);

@@ -96,21 +96,21 @@ describe('directory view: entering a Project restores its record', () => {
     expect(opened).toEqual([]);
   });
 
-  it('a folder that no longer exists is treated as no record: the right pane stays blank', async () => {
+  it('a folder that no longer exists is treated as no record: the right pane lists the project root', async () => {
     await enter('directory', { recorded: rec('ai', { ai: part({ node: 'ai/removed', doc: 'd1' }) }) });
     enterProject('ai');
     expect(state.ui.activeTopic).toBe('ai');
-    expect(state.ui.activeDate).toBeNull();
+    expect(state.ui.activeDate).toBe(dirKeyOf('ai'));
     expect(opened).toEqual([]);
   });
 
-  it('with no record the right pane is blank and never falls back to a timeline day', async () => {
+  it('with no record the right pane lists the project root and never falls back to a timeline day', async () => {
     await enter('directory');
     enterProject('ops');
     expect(state.ui.activeTopic).toBe('ops');
-    expect(state.ui.activeDate).toBeNull();
-    expect(state.index.filteredGroups).toEqual([]);
-    expect(resolveNotesListDate(state.ui.activeDate, null)).toEqual({ date: '', group: null });
+    expect(state.ui.activeDate).toBe(dirKeyOf('ops'));
+    expect(state.index.filteredGroups.map((g) => g.date)).toEqual([dirKeyOf('ops')]);
+    expect(resolveNotesListDate(state.ui.activeDate, null).date).toBe(dirKeyOf('ops'));
     expect(opened).toEqual([]);
   });
 
@@ -132,7 +132,7 @@ describe('directory view: entering a Project restores its record', () => {
     enterProject('ops');
     expect(state.ui.activeDate).toBe(dirKeyOf('ops/run/book'));
     enterProject('empty');
-    expect(state.ui.activeDate).toBeNull();
+    expect(state.ui.activeDate).toBe(dirKeyOf('empty'));
   });
 });
 
@@ -171,14 +171,14 @@ describe('entering a workspace', () => {
     await enter('directory', { recorded: rec('disabled', { disabled: part({ node: 'disabled/x' }) }) });
     enterWorkspace();
     expect(state.ui.activeTopic).toBe('ai');
-    expect(state.ui.activeDate).toBeNull();
+    expect(state.ui.activeDate).toBe(dirKeyOf('ai'));
   });
 
   it('a remembered All in a directory workspace counts as no record', async () => {
     await enter('directory', { recorded: rec('', { ops: part({ node: 'ops/run' }) }) });
     enterWorkspace();
     expect(state.ui.activeTopic).toBe('ai');
-    expect(state.ui.activeDate).toBeNull();
+    expect(state.ui.activeDate).toBe(dirKeyOf('ai'));
   });
 
   it('timeline: All is remembered too, and no record means All at the latest day', async () => {

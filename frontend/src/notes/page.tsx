@@ -25,7 +25,8 @@ import { renderDocBody } from './ui/viewer/body.tsx';
 import { NotesSearchButton, NotesSearchModal, useNotesSearch } from './ui/search.tsx';
 import { startCreateDocument } from './commands/create-document.ts';
 import { CreateTargetDialog } from './ui/create-target-dialog.tsx';
-import { normalizeGroupKey } from './state/dir-tree.ts';
+import { dirKeyCrumbs, isDirKey, normalizeGroupKey } from './state/dir-tree.ts';
+import { selectDate } from './commands/sidebar.ts';
 import { entryGroupKey, isDirectoryView } from './commands/workspace.ts';
 
 export { NotesSidebar };
@@ -164,6 +165,11 @@ function NotesOutletChrome({ routeParams }: { routeParams: Record<string, string
     ? entryGroupKey(entry)
     : normalizeGroupKey(host.ui.activeDate) || normalizeGroupKey(routeParams.date);
   const panelTitle = notesDateHeadingText(dateStr, findNotesDateGroup(dateStr));
+  // A document opened from the directory view: the heading is a path that leads back to its lists.
+  const crumbs =
+    entry && !creating && isDirectoryView() && isDirKey(dateStr)
+      ? dirKeyCrumbs(dateStr, host.index.topicTitles)
+      : null;
 
   return (
     <>
@@ -176,7 +182,23 @@ function NotesOutletChrome({ routeParams }: { routeParams: Record<string, string
       </div>
       <div id="md-panel" className="viewer-panel" hidden={mode === 'safe-empty'}>
         <div id="md-header" className="viewer-header" data-tauri-drag-region="deep">
-          <span id="md-panel-title" className="viewer-panel-title">
+          {crumbs ? (
+            <nav className="viewer-panel-title viewer-panel-crumbs" aria-label="Folder">
+              {crumbs.map((crumb, at) => (
+                <span key={crumb.dirKey} className="viewer-panel-crumb">
+                  {at > 0 ? <span className="viewer-panel-crumb-sep"> / </span> : null}
+                  <button type="button" className="viewer-panel-crumb-link" onClick={() => selectDate(crumb.dirKey)}>
+                    {crumb.label}
+                  </button>
+                </span>
+              ))}
+            </nav>
+          ) : null}
+          <span
+            id="md-panel-title"
+            className="viewer-panel-title"
+            style={crumbs ? { display: 'none' } : undefined}
+          >
             {panelTitle}
           </span>
           <div className="viewer-header-actions">

@@ -305,6 +305,28 @@ describe('create session exit', () => {
     });
   });
 
+  it('a session started in a folder saves into that folder; the Project root is `/`', async () => {
+    await closeModal();
+    await openCreateNote({ temp_id: 'tmp-folder', workspace_id: 'default', project_id: 'ideas', folder: 'plans/q1' });
+    expect(state.viewer.createSession).toMatchObject({ project_id: 'ideas', folder: 'plans/q1' });
+    makeEl('md-edit-area').value = 'into a folder';
+    api.createNote.mockClear();
+    await closeModal();
+    expect(api.createNote).toHaveBeenCalledWith({
+      body: 'into a folder',
+      source_type: 'jot',
+      workspace_id: 'default',
+      project_id: 'ideas',
+      folder: 'plans/q1',
+    });
+
+    await openCreateNote({ temp_id: 'tmp-root', workspace_id: 'default', project_id: 'ideas', folder: '/' });
+    makeEl('md-edit-area').value = 'into the root';
+    api.createNote.mockClear();
+    await closeModal();
+    expect(api.createNote).toHaveBeenCalledWith(expect.objectContaining({ project_id: 'ideas', folder: '/' }));
+  });
+
   it('empty exit: clear draft + closeModal, no Primary create', async () => {
     makeEl('md-edit-area').value = '   \n  ';
 

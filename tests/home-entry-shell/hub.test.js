@@ -753,7 +753,8 @@ describe('home hub chat sessions', () => {
     expect(source).not.toMatch(/ensure_ai_assistant_session/);
     expect(source).not.toMatch(/viewer\.js|comment-markdown/);
     cleanup = mountHomeHub(container, { navigate: vi.fn() });
-    expect(container.querySelector('.home-chat-sessions-title')?.textContent).toBe('Chats');
+    expect(container.querySelector('.home-chat-sessions-title')).toBeNull();
+    expect(container.querySelector('.home-chat-sessions-head')).toBeNull();
     expect(container.querySelector('.home-chat-composer-dock')).not.toBeNull();
     expect(composerPlaceholder(container.querySelector('[data-role="input"]'))).toBe('Ask Lulu Spark…');
     expect(container.querySelector('[data-role="send"]')?.textContent.trim()).toBe('Send');

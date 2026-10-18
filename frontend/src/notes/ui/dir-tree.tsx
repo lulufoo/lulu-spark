@@ -1,7 +1,17 @@
 import { useMemo, useSyncExternalStore } from 'react';
 import { getEntryId } from '../../host/state.ts';
 import { useHostState } from '../state/host.ts';
-import { buildDirTree, dirTreeStore, findDirNode, toggleDirNodeOpen, type DirNode } from '../state/dir-tree.ts';
+import {
+  buildDirTree,
+  dirKeyOf,
+  dirTreeStore,
+  findDirNode,
+  isDirKey,
+  nodeKeyOf,
+  toggleDirNodeOpen,
+  type DirNode,
+} from '../state/dir-tree.ts';
+import { selectDate } from '../commands/sidebar.ts';
 import type { NoteEntry } from '../state/types.ts';
 import { FileGlyph, FolderGlyph, TreeChevron, TreeNodeName } from './dir-tree-glyphs.tsx';
 
@@ -23,14 +33,21 @@ function Chrome({ isDir, expanded }: { isDir: boolean; expanded: boolean }) {
   );
 }
 
-type TreeProps = { depth: number; expanded: string[]; openDocId: string };
+type TreeProps = { depth: number; expanded: string[]; openDocId: string; selectedNode: string };
 
 /** The folders, then the documents, directly inside `node`. */
-function NodeContents({ node, depth, expanded, openDocId }: TreeProps & { node: DirNode }) {
+function NodeContents({ node, depth, expanded, openDocId, selectedNode }: TreeProps & { node: DirNode }) {
   return (
     <>
       {node.children.map((child) => (
-        <FolderBlock key={child.key} node={child} depth={depth} expanded={expanded} openDocId={openDocId} />
+        <FolderBlock
+          key={child.key}
+          node={child}
+          depth={depth}
+          expanded={expanded}
+          openDocId={openDocId}
+          selectedNode={selectedNode}
+        />
       ))}
       {node.docs.map((doc) => (
         <div
@@ -55,8 +72,18 @@ function NodeContents({ node, depth, expanded, openDocId }: TreeProps & { node: 
   );
 }
 
-function FolderBlock({ node, depth, expanded, openDocId }: TreeProps & { node: DirNode }) {
+/**
+ * Clicking a folder lists it on the right (and opens it). Clicking the folder that is already
+ * listed and open closes it, so the tree can still be collapsed.
+ */
+function onFolderClick(node: DirNode, open: boolean, selected: boolean) {
+  if (selected && open) toggleDirNodeOpen(node.key);
+  else selectDate(dirKeyOf(node.key));
+}
+
+function FolderBlock({ node, depth, expanded, openDocId, selectedNode }: TreeProps & { node: DirNode }) {
   const open = expanded.includes(node.key);
+  const selected = selectedNode === node.key;
   return (
     <>
       <div
@@ -67,10 +94,10 @@ function FolderBlock({ node, depth, expanded, openDocId }: TreeProps & { node: D
       >
         <button
           type="button"
-          className="knowledge-doc-tree-label"
+          className={`knowledge-doc-tree-label${selected ? ' selected' : ''}`}
           data-tip={node.name}
           aria-expanded={open}
-          onClick={() => toggleDirNodeOpen(node.key)}
+          onClick={() => onFolderClick(node, open, selected)}
         >
           <Chrome isDir expanded={open} />
           <TreeNodeName name={node.name} isDir />
@@ -81,7 +108,13 @@ function FolderBlock({ node, depth, expanded, openDocId }: TreeProps & { node: D
           className="knowledge-doc-tree-children"
           style={{ ['--knowledge-tree-guide' as string]: `${depth * 16 + 12}px` }}
         >
-          <NodeContents node={node} depth={depth + 1} expanded={expanded} openDocId={openDocId} />
+          <NodeContents
+            node={node}
+            depth={depth + 1}
+            expanded={expanded}
+            openDocId={openDocId}
+            selectedNode={selectedNode}
+          />
         </div>
       ) : null}
     </>
@@ -102,6 +135,9 @@ export function DirTree() {
   );
   const openDocId =
     host.viewer.entry && host.viewer.outletMode === 'open' ? getEntryId(host.viewer.entry) || '' : '';
+  const activeDate = host.ui.activeDate;
+  // With a document open the right side is the reader, so no folder reads as the listed one.
+  const selectedNode = !openDocId && isDirKey(activeDate) ? nodeKeyOf(activeDate) : '';
 
   if (!project) return <div className="knowledge-doc-empty">This workspace has no projects yet.</div>;
   if (!root || (root.children.length === 0 && root.docs.length === 0)) {
@@ -109,7 +145,7 @@ export function DirTree() {
   }
   return (
     <div id="sidebar-dir-tree" role="tree">
-      <NodeContents node={root} depth={0} expanded={expanded} openDocId={openDocId} />
+      <NodeContents node={root} depth={0} expanded={expanded} openDocId={openDocId} selectedNode={selectedNode} />
     </div>
   );
 }

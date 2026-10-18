@@ -394,9 +394,6 @@ export function HomePage({
           </div>
         </nav>
         <div className="home-chat-pane" hidden={sidebarPane !== 'chat'}>
-          <div className="home-chat-sessions-head">
-            <span className="home-chat-sessions-title">Chats</span>
-          </div>
           <div
             className="home-chat-sessions"
             data-role="session-list"

@@ -98,6 +98,22 @@ fn create_note_json_second_write_gets_new_filename() {
 }
 
 #[test]
+fn create_note_json_jot_takes_an_optional_folder() {
+    let _sandbox = TestSandbox::new();
+    let in_folder = create_note_json(json!({ "body": "写进目录", "source_type": "jot", "folder": "q1/goals" }))
+        .expect("jot with folder");
+    assert_eq!(in_folder["ok"], json!(true), "{in_folder}");
+    let in_root = create_note_json(json!({ "body": "写进根目录", "source_type": "jot", "folder": "/" }))
+        .expect("jot in the root");
+    assert_eq!(in_root["ok"], json!(true), "{in_root}");
+    let bad = create_note_json(json!({ "body": "非法目录", "source_type": "jot", "folder": "a/b/c/d" }))
+        .expect("business errors return Ok(Value)");
+    assert_eq!(bad["_status"], json!(400), "{bad}");
+    let default = create_note_json(json!({ "body": "没有目录", "source_type": "jot" })).expect("jot");
+    assert_eq!(default["ok"], json!(true), "{default}");
+}
+
+#[test]
 fn create_note_json_jot_takes_an_optional_project() {
     let _sandbox = TestSandbox::new();
     let made = crate::services::docs::create_project(&json!({ "project_name": "Plans" }));

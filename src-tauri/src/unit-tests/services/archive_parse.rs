@@ -49,5 +49,14 @@ fn is_valid_common_path_allows_one_to_three_folder_levels() {
     assert!(!is_valid_common_path("a/b/c/d/202608301000-a3f9k2.md"));
     assert!(!is_valid_common_path("a//202608301000-a3f9k2.md"));
     assert!(!is_valid_common_path("a/../202608301000-a3f9k2.md"));
-    assert!(!is_valid_common_path("202608301000-a3f9k2.md"));
+}
+
+#[test]
+fn is_valid_common_path_allows_a_file_in_the_project_root() {
+    assert!(is_valid_common_path("202608301000-a3f9k2.md"));
+    assert!(is_valid_common_path("202608301000-a3f9k2-source.md"));
+    assert!(!is_valid_common_path("notimestamp.md"));
+    assert!(!is_valid_common_path("202608301000-a3f9k2.txt"));
+    assert!(!is_valid_common_path("/202608301000-a3f9k2.md"));
+    assert!(!is_valid_common_path(""));
 }
