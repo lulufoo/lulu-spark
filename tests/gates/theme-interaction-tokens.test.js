@@ -8,11 +8,12 @@ const read = (rel) => readFileSync(join(repoRoot, rel), 'utf8');
 const lightCss = read('frontend/theme-light.css');
 const darkCss = read('frontend/theme-dark.css');
 const appCss = read('frontend/app.css');
+const homeCss = read('frontend/home.css');
 
-const HOVER_PART = /:hover|:focus-visible|\[data-highlighted\]|\[aria-expanded="true"\]/;
+const HOVER_PART = /:hover|:focus-visible|\[data-highlighted\]|\[data-active="true"\]|\[aria-expanded="true"\]/;
 const SELECTED_PART = /\.active\b|\.selected\b|\.is-active\b|\.is-selected\b|--active\b|--selected\b/;
 const NEUTRAL_FILL =
-  /var\(--(?:bg-(?:canvas|muted|subtle|surface|inset)|bg-hex-(?:e7ebef|ececef|e8ecf0|e3e9f0|f3f4f6))\)/;
+  /var\(--(?:bg-(?:canvas|muted|subtle|surface|inset)|bg-hex-(?:e7ebef|ececef|e8ecf0|e3e9f0|f3f4f6|eef6ff)|bg-rgba-eaeef2-70)\)/;
 
 // Rules that may keep a neutral fill while hovered or selected, with the reason.
 const NEUTRAL_ALLOWED = new Map([
@@ -30,7 +31,7 @@ function tokenValue(css, name) {
 }
 
 function rules() {
-  const css = appCss.replace(/\/\*[\s\S]*?\*\//g, '');
+  const css = `${appCss}\n${homeCss}`.replace(/\/\*[\s\S]*?\*\//g, '');
   return [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(([, selector, body]) => ({
     selector: selector.trim().replace(/\s+/g, ' '),
     parts: selector.split(',').map((part) => part.trim()),
@@ -54,6 +55,12 @@ describe('hover and selected colours are defined once', () => {
     for (const source of [lightCss, darkCss, appCss]) {
       expect(source).not.toMatch(/--bg-accent-hover\b/);
       expect(source).not.toMatch(/--bg-hex-ddf4ff\b/);
+    }
+  });
+
+  it('has no second hover colour in home.css', () => {
+    for (const source of [lightCss, darkCss, appCss, homeCss]) {
+      expect(source).not.toMatch(/--home-hover\b/);
     }
   });
 

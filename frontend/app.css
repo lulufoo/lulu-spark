@@ -1378,7 +1378,7 @@
   }
   .read-later-assistant-cycle:hover {
     color: var(--fg-accent);
-    background: var(--bg-hex-eef6ff);
+    background: var(--bg-hover);
   }
   .read-later-assistant-manage-link {
     display: block;
@@ -7795,7 +7795,7 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
 }
 .home-chat-context-usage-category:hover,
 .home-chat-context-usage-category[data-highlighted] {
-  background: var(--bg-rgba-eaeef2-70);
+  background: var(--bg-hover);
 }
 .home-chat-context-usage-swatch {
   flex: none;
@@ -7962,7 +7962,7 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
 }
 .rl-assistant-popover-body .read-later-assistant-cycle:hover {
   color: var(--fg-accent);
-  background: var(--bg-hex-eef6ff);
+  background: var(--bg-hover);
 }
 
 /* ── Home entry shell (expandable FAB hub + OverlayChrome) ── */

@@ -5,7 +5,6 @@
   --home-accent: var(--bg-accent);
   --home-accent-soft: color-mix(in srgb, var(--home-accent) 9%, var(--bg-surface));
   --home-accent-line: color-mix(in srgb, var(--home-accent) 18%, transparent);
-  --home-hover: color-mix(in srgb, var(--fg-default) 6%, transparent);
 }
 
 /* ── Sidebar ── */
@@ -26,7 +25,7 @@
   color: var(--fg-subtle);
 }
 .home-chat-nav .home-desktop-shortcut:hover,
-.home-chat-nav-item:hover { background: var(--home-hover); }
+.home-chat-nav-item:hover { background: var(--bg-hover); }
 .home-chat-nav .home-desktop-shortcut-label {
   font-size: 14px;
   font-weight: 600;
@@ -67,10 +66,10 @@
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease;
 }
-.home-sidebar-tab:hover { background: var(--home-hover); color: var(--fg-default); }
+.home-sidebar-tab:hover { background: var(--bg-hover); color: var(--fg-default); }
 .home-sidebar-tab:focus-visible { outline: 2px solid var(--home-accent); outline-offset: 1px; }
 .home-sidebar-tab.is-active {
-  background: var(--bg-muted);
+  background: var(--bg-selected);
   color: var(--fg-emphasis);
 }
 .home-sidebar-tab .home-desktop-shortcut-icon,
@@ -129,7 +128,7 @@
   cursor: pointer;
   box-shadow: 0 1px 2px var(--shadow-rgba-1f2328-06);
 }
-.home-chat-new-dock:hover { background: var(--bg-subtle); color: var(--fg-default); }
+.home-chat-new-dock:hover { background: var(--bg-hover); color: var(--fg-default); }
 .home-chat-new-dock:focus-visible { outline: 2px solid var(--home-accent); outline-offset: 1px; }
 .home-chat-new-dock-key {
   padding: 1px 5px;
@@ -156,9 +155,9 @@
 .home-chat-session { border-radius: 8px; }
 /* Gap between rows, so the active row and a hovered row do not merge into one block. */
 .home-chat-session + .home-chat-session { margin-top: 4px; }
-/* Hover and the open chat share one look: the same grey, no white card. The open chat is told apart by its weight. */
-.home-chat-session:hover,
-.home-chat-session.is-active { background: var(--home-hover); box-shadow: none; }
+/* No white card on a chat row: hover takes the hover tint, the open chat takes the selected tint. */
+.home-chat-session:hover { background: var(--bg-hover); box-shadow: none; }
+.home-chat-session.is-active { background: var(--bg-selected); box-shadow: none; }
 /* Right padding is small on purpose: a long title ends in an ellipsis, so the text edge looks further in than the box. */
 /* The row centres its children, so the button must stretch itself to the row height or only the text line is clickable. */
 .home-chat-session-open { align-self: stretch; gap: 10px; padding: 0 2px 0 8px; font-size: 14px; }
@@ -176,8 +175,8 @@
 .home-account-bar-trigger:hover,
 .home-account-bar-trigger:focus-visible,
 .home-help-menu-trigger:hover,
-.home-help-menu-trigger:focus-visible { background: var(--home-hover); }
-.home-top-action:hover { background: var(--home-hover); }
+.home-help-menu-trigger:focus-visible { background: var(--bg-hover); }
+.home-top-action:hover { background: var(--bg-hover); }
 
 /* ── Main header ── */
 .home-chat-main-drag {
@@ -379,7 +378,7 @@
   border-radius: 8px;
   cursor: pointer;
 }
-.search-modal-row[data-active="true"] { background: var(--bg-muted); }
+.search-modal-row[data-active="true"] { background: var(--bg-hover); }
 .search-modal-row-title {
   overflow: hidden;
   font-size: 14px;
@@ -410,4 +409,4 @@
   line-height: 1;
   cursor: pointer;
 }
-.search-modal-history-remove:hover { background: var(--home-hover); color: var(--fg-default); }
+.search-modal-history-remove:hover { background: var(--bg-hover); color: var(--fg-default); }

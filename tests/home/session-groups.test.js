@@ -182,11 +182,14 @@ describe('SessionList headings', () => {
     expect(rule).toMatch(/padding: 0 2px 0 8px/);
   });
 
-  it('gives the open chat the same grey as a hovered row, with no white card', () => {
+  it('tints a hovered chat row with the hover colour and the open chat with the selected colour, no white card', () => {
     const css = readFileSync(join(repoRoot, 'frontend/home.css'), 'utf8');
-    const rule = css.match(/\.home-chat-session:hover,\s*\.home-chat-session\.is-active \{[^}]*\}/)?.[0] ?? '';
-    expect(rule).toMatch(/background: var\(--home-hover\)/);
-    expect(rule).toMatch(/box-shadow: none/);
+    const hover = css.match(/\.home-chat-session:hover \{[^}]*\}/)?.[0] ?? '';
+    const active = css.match(/\.home-chat-session\.is-active \{[^}]*\}/)?.[0] ?? '';
+    expect(hover).toMatch(/background: var\(--bg-hover\)/);
+    expect(hover).toMatch(/box-shadow: none/);
+    expect(active).toMatch(/background: var\(--bg-selected\)/);
+    expect(active).toMatch(/box-shadow: none/);
     expect(css).not.toMatch(/\.home-chat-session\.is-active \{[^}]*var\(--bg-surface\)/);
   });
 
