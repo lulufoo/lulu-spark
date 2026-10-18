@@ -6,8 +6,14 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { notifyState, state } from '../../frontend/src/host/state.ts';
 import { repoRoot } from '../helpers/read-frontend-js.js';
 
-const { closeModal } = vi.hoisted(() => ({
+const { closeModal, selectDate } = vi.hoisted(() => ({
   closeModal: vi.fn(),
+  selectDate: vi.fn(),
+}));
+
+vi.mock('../../frontend/src/notes/commands/sidebar.ts', async (importOriginal) => ({
+  ...(await importOriginal()),
+  selectDate,
 }));
 
 vi.mock('../../frontend/src/host/api.ts', () => ({
@@ -104,6 +110,7 @@ describe('Notes viewer header dismiss', () => {
     });
     container?.remove();
     closeModal.mockReset();
+    selectDate.mockReset();
     state.viewer.entry = null;
     state.viewer.outletMode = '';
     state.viewer.rawText = '';
@@ -216,6 +223,40 @@ describe('Notes viewer header dismiss', () => {
     expect(toolbar?.hidden).toBe(true);
     expect(title?.className).toMatch(/viewer-panel-title/);
     expect(title?.textContent).toBe('Oct 5, 2026 (Mon)  ·  1 items');
+  });
+
+  it('directory view: the header of an open document is a path whose crumbs lead back to the folder lists', () => {
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+    const savedWorkspaces = state.workspaces;
+    const savedTitles = state.index.topicTitles;
+    state.workspaces = {
+      current: 'default',
+      list: [{ workspace_id: 'default', workspace_name: 'Default', view_mode: 'directory', is_default: true }],
+    };
+    state.index.topicTitles = { ai: 'AI' };
+    state.viewer.outletMode = 'open';
+    state.viewer.entry = { project_id: 'ai', raw_path: 'plans/q1/goals.md', created_at: '202610051200' };
+    state.viewer.createSession = null;
+    state.ui.activeDate = null;
+    act(() => {
+      root.render(createElement(NotesMain, { routeParams: { note: 'n1' } }));
+      notifyState();
+    });
+    const links = [...container.querySelectorAll('.viewer-panel-crumb-link')];
+    expect(links.map((a) => a.textContent)).toEqual(['AI', 'plans', 'q1']);
+    expect(container.querySelector('#md-panel-title').style.display).toBe('none');
+    act(() => links[1].click());
+    expect(selectDate).toHaveBeenCalledWith('dir:ai/plans');
+    state.workspaces = savedWorkspaces;
+    state.index.topicTitles = savedTitles;
+  });
+
+  it('the timeline view keeps the plain date heading and has no crumbs', () => {
+    renderOutlet();
+    expect(container.querySelector('.viewer-panel-crumb-link')).toBeNull();
+    expect(container.querySelector('#md-panel-title').style.display).toBe('');
   });
 
   it('keeps Notes close in commands and not inside the shared control', () => {

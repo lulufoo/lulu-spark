@@ -14,6 +14,7 @@ vi.mock('../../frontend/src/router/index.ts', () => ({
 const { notifyState, state } = await import('../../frontend/src/host/state.ts');
 const {
   buildDirTree,
+  dirKeyCrumbs,
   dirKeyOf,
   dirTreeStore,
   findDirNode,
@@ -96,6 +97,17 @@ describe('buildDirTree', () => {
   });
 });
 
+describe('dirKeyCrumbs', () => {
+  it('has one crumb per node on the path; the project shows its title and each crumb selects its own list', () => {
+    expect(dirKeyCrumbs(dirKeyOf('android/arch/build'), titles)).toEqual([
+      { label: 'Android', dirKey: dirKeyOf('android') },
+      { label: 'arch', dirKey: dirKeyOf('android/arch') },
+      { label: 'build', dirKey: dirKeyOf('android/arch/build') },
+    ]);
+    expect(dirKeyCrumbs(dirKeyOf('ai'), titles)).toEqual([{ label: 'AI', dirKey: dirKeyOf('ai') }]);
+  });
+});
+
 describe('directory view selection', () => {
   beforeEach(() => {
     setView('directory');
@@ -108,13 +120,26 @@ describe('directory view selection', () => {
     expect(dirTreeStore.getSnapshot().expanded).toEqual([]);
   });
 
-  it('opening a document reveals its path, selects its project and lists its own folder', () => {
+  it('opening a document reveals its path, selects its project and lists its own folder in the tree order', () => {
     selectDate(dirKeyOf('android/arch/build/builder'));
     expect(state.ui.activeDate).toBe(dirKeyOf('android/arch/build/builder'));
     expect(state.ui.activeTopic).toBe('android');
     expect(dirTreeStore.getSnapshot().expanded).toEqual(['android', 'android/arch', 'android/arch/build', 'android/arch/build/builder']);
     const [group] = state.index.filteredGroups;
-    expect(group.entries.map((e) => e.id)).toEqual(['b', 'a']);
+    expect(group.entries.map((e) => e.id)).toEqual(['a', 'b']);
+  });
+
+  it('lists a folder in the order the tree shows it: by name, not by creation time', () => {
+    selectDate(dirKeyOf('ai/topic-x'));
+    const listed = state.index.filteredGroups[0].entries.map((e) => e.id);
+    const tree = findDirNode(buildDirTree(data, titles), 'ai/topic-x').docs.map((d) => d.id);
+    expect(listed).toEqual(['e', 'f']);
+    expect(listed).toEqual(tree);
+  });
+
+  it('lists only the documents directly in the folder, not those of its sub-folders', () => {
+    selectDate(dirKeyOf('android/arch'));
+    expect(state.index.filteredGroups[0].entries.map((e) => e.id)).toEqual(['c']);
   });
 
   it('an empty folder still has a group so the page can say so', () => {
@@ -136,14 +161,15 @@ describe('entering from Home', () => {
     setView('directory');
     load();
     selectProject('android');
-    expect(state.ui.activeDate).toBeNull();
+    expect(state.ui.activeDate).toBe(dirKeyOf('android'));
     expect(state.ui.activeTopic).toBe('android');
+    expect(state.index.filteredGroups[0].entries.map((e) => e.id)).toEqual(['d']);
     expect(dirTreeStore.getSnapshot().expanded).toEqual([]);
     selectDefaultProject();
     expect(state.ui.activeTopic).toBe('ai');
-    expect(state.ui.activeDate).toBeNull();
+    expect(state.ui.activeDate).toBe(dirKeyOf('ai'));
+    expect(state.index.filteredGroups[0].entries.map((e) => e.id)).toEqual(['g']);
     expect(dirTreeStore.getSnapshot().expanded).toEqual([]);
-    expect(state.index.filteredGroups).toEqual([]);
   });
 
   it('entering the workspace selects the first project in the order Settings arranged', () => {
@@ -188,7 +214,7 @@ describe('switching the view mode keeps the selected project', () => {
     setView('directory');
     applyViewModeChange();
     expect(state.ui.activeTopic).toBe('ai');
-    expect(state.ui.activeDate).toBeNull();
+    expect(state.ui.activeDate).toBe(dirKeyOf('ai'));
   });
 
   it('directory → timeline carries the project to the picker and regroups by day', () => {
@@ -212,9 +238,9 @@ describe('switching the view mode keeps the selected project', () => {
     expect(state.index.filteredGroups).toBe(state.index.groupedByDate);
     setView('directory');
     applyViewModeChange();
-    expect(state.ui.activeDate).toBeNull();
+    expect(state.ui.activeDate).toBe(dirKeyOf('ai'));
     expect(state.ui.activeTopic).toBe('ai');
-    expect(state.index.filteredGroups).toEqual([]);
+    expect(state.index.filteredGroups.map((g) => g.date)).toEqual([dirKeyOf('ai')]);
   });
 });
 
@@ -257,21 +283,38 @@ describe('DirTree', () => {
     const { host } = render();
     act(() => selectProject('android'));
     act(() => host.querySelector('[data-node="android/arch"] > button').click());
-    expect(dirTreeStore.getSnapshot().expanded).toEqual(['android/arch']);
+    expect(dirTreeStore.getSnapshot().expanded).toEqual(['android', 'android/arch']);
     act(() => selectProject('ai'));
     expect(dirTreeStore.getSnapshot().expanded).toEqual([]);
   });
 
-  it('a folder only opens and closes: files and sub-folders appear, no list is selected', () => {
+  it('clicking a folder opens it and lists it on the right; clicking it again closes it and keeps the list', () => {
     const { host } = render();
+    const folder = () => host.querySelector('[data-node="android/arch"] > button');
     act(() => selectProject('android'));
-    act(() => host.querySelector('[data-node="android/arch"] > button').click());
-    expect(state.ui.activeDate).toBeNull();
+    expect(state.ui.activeDate).toBe(dirKeyOf('android'));
+    act(() => folder().click());
+    expect(state.ui.activeDate).toBe(dirKeyOf('android/arch'));
+    expect(state.index.filteredGroups[0].entries.map((e) => e.id)).toEqual(['c']);
+    expect(folder().classList.contains('selected')).toBe(true);
     expect(host.querySelector('[data-node="android/arch/build"]')).not.toBeNull();
     expect(host.querySelector('.is-file[data-id="c"] .knowledge-doc-tree-stem').textContent).toBe('intro');
     expect(host.querySelector('.is-file[data-id="c"] .knowledge-doc-tree-ext').textContent).toBe('.md');
-    act(() => host.querySelector('[data-node="android/arch"] > button').click());
+    act(() => folder().click());
     expect(host.querySelector('[data-node="android/arch/build"]')).toBeNull();
+    expect(state.ui.activeDate).toBe(dirKeyOf('android/arch'));
+    act(() => folder().click());
+    expect(host.querySelector('[data-node="android/arch/build"]')).not.toBeNull();
+  });
+
+  it('clicking another folder moves the list to it', () => {
+    const { host } = render();
+    act(() => selectProject('android'));
+    act(() => host.querySelector('[data-node="android/arch"] > button').click());
+    act(() => host.querySelector('[data-node="android/arch/build"] > button').click());
+    expect(state.ui.activeDate).toBe(dirKeyOf('android/arch/build'));
+    expect(host.querySelector('[data-node="android/arch"] > button').classList.contains('selected')).toBe(false);
+    expect(host.querySelector('[data-node="android/arch/build"] > button').classList.contains('selected')).toBe(true);
   });
 
   it('has no edit actions', () => {

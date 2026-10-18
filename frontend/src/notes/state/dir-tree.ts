@@ -70,13 +70,32 @@ function docName(entry: NoteEntry, file: string): string {
   return file || entry.title || 'Untitled note';
 }
 
-/** Label of a group key for headings: the project shows its title. */
-export function dirKeyLabel(dirKey: string, projectTitles: Record<string, string>): string {
-  const [project = '', ...rest] = nodeKeyOf(dirKey).split('/');
-  return [projectTitles[project] || project, ...rest].join(' / ');
+/** The name the tree shows for `entry`; the directory list sorts by it so both follow one order. */
+export function dirDocName(entry: NoteEntry): string {
+  return docName(entry, splitRawPath(entry.raw_path).file);
 }
 
-function byName(a: { name: string }, b: { name: string }): number {
+/** Label of a group key for headings: the project shows its title. */
+export function dirKeyLabel(dirKey: string, projectTitles: Record<string, string>): string {
+  return dirKeyCrumbs(dirKey, projectTitles)
+    .map((crumb) => crumb.label)
+    .join(' / ');
+}
+
+/** One crumb per node on the way to `dirKey`; each carries the key that selects that node's list. */
+export function dirKeyCrumbs(
+  dirKey: string,
+  projectTitles: Record<string, string>,
+): { label: string; dirKey: string }[] {
+  const [project = '', ...rest] = nodeKeyOf(dirKey).split('/');
+  return pathKeys(nodeKeyOf(dirKey)).map((nodeKey, at) => ({
+    label: at === 0 ? projectTitles[project] || project : rest[at - 1],
+    dirKey: dirKeyOf(nodeKey),
+  }));
+}
+
+/** Names compare the same way in the tree and in the directory list. */
+export function byName(a: { name: string }, b: { name: string }): number {
   return a.name.localeCompare(b.name);
 }
 

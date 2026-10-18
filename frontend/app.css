@@ -3734,6 +3734,26 @@
     padding-right: 14px;
     border-right: 1px solid var(--border-neutral);
   }
+  .viewer-panel-crumb-link {
+    padding: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    letter-spacing: inherit;
+    color: var(--fg-muted);
+    cursor: pointer;
+  }
+  .viewer-panel-crumb-link:hover {
+    color: var(--fg-default);
+    text-decoration: underline;
+  }
+  .viewer-panel-crumb:last-child .viewer-panel-crumb-link {
+    color: var(--fg-default);
+  }
+  .viewer-panel-crumb-sep {
+    color: var(--fg-subtle);
+    font-weight: 400;
+  }
   #md-lang-bar {
     margin-right: 10px;
   }

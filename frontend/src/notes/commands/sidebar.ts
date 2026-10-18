@@ -4,6 +4,9 @@ import { isDirectoryView } from './workspace.ts';
 import { parseHash, navigateToDateList } from '../../router/index.ts';
 import { dateKeyOf, UNDATED_KEY } from '../../shared/utils.ts';
 import {
+  byName,
+  dirDocName,
+  dirKeyOf,
   expandDirNodes,
   isDirKey,
   nodeKeyOf,
@@ -68,12 +71,9 @@ function directoryGroups() {
   const nodeKey = nodeKeyOf(key);
   const entries = Object.entries(state.index.data || {})
     .filter(([, entry]) => entry && nodeKeyOfEntry(entry) === nodeKey)
-    .map(([id, entry]) => ({ id, entry }))
-    .sort(
-      (a, b) =>
-        String(b.entry.created_at ?? '').localeCompare(String(a.entry.created_at ?? '')) ||
-        String(a.entry.raw_path ?? '').localeCompare(String(b.entry.raw_path ?? '')),
-    );
+    .map(([id, entry]) => ({ id, entry, name: dirDocName(entry) }))
+    .sort(byName)
+    .map(({ id, entry }) => ({ id, entry }));
   return [{ date: key, entries }];
 }
 
@@ -107,24 +107,32 @@ export function selectDate(date: string) {
     rememberDate(state.ui.activeTopic ?? '', date);
   }
   notifyState();
+  loadGroupTitles(date);
+}
 
+function loadGroupTitles(date: string) {
   const group = state.index.filteredGroups.find((g) => g.date === date);
   if (!group) return;
   loadTitles(group.entries, date);
 }
 
-/** Select a project (Home sidebar or the picker): the tree shows its content, or the timeline filters to it. */
+/**
+ * Select a project (Home sidebar or the picker): the timeline filters to it; the directory view
+ * shows its tree and lists the documents sitting directly in the project root.
+ */
 export function selectProject(folder: string) {
   if (!isDirectoryView()) {
     selectTopic(folder);
     return;
   }
+  const root = dirKeyOf(folder);
   state.ui.activeTopic = folder;
-  state.ui.activeDate = null;
+  state.ui.activeDate = root;
   resetDirTree();
   applyListFilters();
   notifyState();
   rememberProject(folder);
+  loadGroupTitles(root);
 }
 
 /**
