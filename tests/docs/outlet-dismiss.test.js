@@ -153,7 +153,7 @@ describe('Notes viewer header dismiss', () => {
     const toolbar = container.querySelector('.notes-page-toolbar');
     expect(toolbar?.hidden).toBe(false);
     const heading = toolbar?.querySelector('#date-heading');
-    const search = toolbar?.querySelector('#gs-wb-wrap');
+    const search = toolbar?.querySelector('[data-role="notes-search"]');
     expect(heading?.hidden).toBe(false);
     expect(heading?.textContent).toMatch(/Oct 6, 2026/);
     expect(heading?.textContent).toMatch(/1 items/);

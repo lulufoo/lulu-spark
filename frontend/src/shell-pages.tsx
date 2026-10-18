@@ -1,5 +1,4 @@
-import { useEffect, type CSSProperties } from 'react';
-import { applySearchNavChrome } from './app-shell/ui/nav-chrome.ts';
+import type { CSSProperties } from 'react';
 import { useHostState } from './host/state.ts';
 import { HomePage } from './home/page.tsx';
 import { NotesMain, NotesSidebar } from './notes/page.tsx';
@@ -22,10 +21,6 @@ export function ShellPages({
   const homeOn = routeName === 'home' || routeName === 'read-later';
   const notesOn = routeName === 'spark';
 
-  useEffect(() => {
-    applySearchNavChrome(routeName);
-  }, [routeName]);
-
   return (
     <div className="app-pages">
       <div
@@ -47,7 +42,7 @@ export function ShellPages({
           <NotesSidebar />
         </aside>
         <main id="main">
-          <NotesMain routeParams={routeParams} />
+          <NotesMain routeParams={routeParams} active={notesOn} />
           <div
             id="feed-view"
             style={{ display: 'none', padding: '20px', overflowY: 'auto', height: '100%', boxSizing: 'border-box' }}

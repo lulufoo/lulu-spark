@@ -6,6 +6,8 @@
  * Neither combo is bound by the Tauri default menu or the webview (checked
  * against tauri 2.11 / muda 0.19), and the app registers no global shortcuts.
  */
+import { cmdShortcutKey } from '../../shared/search-modal/cmd-key.ts';
+
 export type HomeShortcutHandlers = {
   onNewChat: () => void;
   onToggleSearch: () => void;
@@ -15,12 +17,7 @@ let _cleanup: (() => void) | null = null;
 
 function onKeyDownFor(handlers: HomeShortcutHandlers) {
   return (event: KeyboardEvent) => {
-    // Cmd only: Shift/Alt/Ctrl variants belong to other bindings.
-    if (!event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
-    // IME composition and key auto-repeat must never fire an action
-    // (holding ⌘O would otherwise create one chat per repeat).
-    if (event.isComposing || event.repeat) return;
-    const key = typeof event.key === 'string' ? event.key.toLowerCase() : '';
+    const key = cmdShortcutKey(event);
     if (key === 'o') {
       event.preventDefault();
       handlers.onNewChat();

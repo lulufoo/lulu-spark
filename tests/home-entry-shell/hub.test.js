@@ -804,9 +804,9 @@ describe('home hub shell integration', () => {
     expect(mainJs).toMatch(/['"]#\/home['"]/);
   });
 
-  it('main.js keeps search chrome without a global header back mark', () => {
+  it('main.js has no global header back mark, and no per-route search chrome (search is a modal)', () => {
     expect(mainJs).not.toMatch(/btn-nav-home-title/);
     expect(mainJs).not.toMatch(/classList\.toggle\('is-back', !onHome\)/);
-    expect(mainJs).toMatch(/applySearchNavChrome\(routeName\)/);
+    expect(mainJs).not.toMatch(/applySearchNavChrome/);
   });
 });

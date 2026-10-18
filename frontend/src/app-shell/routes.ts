@@ -1,7 +1,5 @@
 import { notifyState, state } from '../host/state.ts';
 import type { AppRoute } from './state/types.ts';
-import { applySearchNavChrome } from './ui/nav-chrome.ts';
-import { initSparkSearch } from '../notes/ui/search.tsx';
 import { openReadLaterDialog } from '../read-later/commands/dialog.ts';
 import { openDoc } from '../notes/viewer.ts';
 import { selectDate } from '../notes/commands/sidebar.ts';
@@ -10,17 +8,13 @@ import { lastNotifyTrace, logNotifyHop, parseTraceId } from '../router/notify-tr
 
 export { getHomeEntryShell, setHomeEntryShell };
 
-function updateNavChrome(routeName: string) {
-  applySearchNavChrome(routeName);
-}
-
-export function wrapRouteMount(routeName: string, mountFn: (route: AppRoute) => unknown) {
+// `_routeName` is the route's name at each call site; nothing here needs it now that search no
+// longer has per-route chrome to switch.
+export function wrapRouteMount(_routeName: string, mountFn: (route: AppRoute) => unknown) {
   return (route: AppRoute) => {
     // Leave-host: force shell back to A so overlay never crosses pages.
     // @ts-expect-error leave-route source scan requires forceRecoverA(
     getHomeEntryShell()?.forceRecoverA('leave-route');
-    updateNavChrome(routeName);
-    if (routeName === 'spark') initSparkSearch();
     return mountFn(route);
   };
 }

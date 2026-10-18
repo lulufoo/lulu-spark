@@ -26,7 +26,9 @@ vi.mock('../../frontend/src/notes/ui/comments.tsx', () => ({
 vi.mock('../../frontend/src/notes/ui/sidebar.tsx', () => ({ NotesSidebar: () => null }));
 vi.mock('../../frontend/src/notes/ui/cards.tsx', () => ({ NotesDocList: () => null }));
 vi.mock('../../frontend/src/notes/ui/search.tsx', () => ({
-  SparkSearch: () => createElement('div', { className: 'gs-search-wrap' }, createElement('input', { id: 'gs-wb-input' })),
+  NotesSearchButton: () => createElement('button', { className: 'notes-search-btn' }),
+  NotesSearchModal: () => null,
+  useNotesSearch: () => ({ open: false, openSearch: () => {}, closeSearch: () => {} }),
 }));
 
 import { NotesMain } from '../../frontend/src/notes/page.tsx';
@@ -76,8 +78,8 @@ describe('nothing selected: the hint shares the search box row', () => {
     const hint = toolbar().querySelector('#date-heading');
     expect(hint.textContent).toBe('Select a document in the tree');
     expect(hint.classList.contains('date-heading-hint')).toBe(true);
-    expect(toolbar().querySelector('.gs-search-wrap')).not.toBeNull();
-    expect(hint.compareDocumentPosition(toolbar().querySelector('.gs-search-wrap')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(toolbar().querySelector('.notes-search-btn')).not.toBeNull();
+    expect(hint.compareDocumentPosition(toolbar().querySelector('.notes-search-btn')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it('timeline view: the date hint, no arrow', () => {

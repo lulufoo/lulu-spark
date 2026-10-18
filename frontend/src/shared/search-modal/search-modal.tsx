@@ -20,9 +20,9 @@ function openEntry(id: string) {
   document.dispatchEvent(new CustomEvent('cta:open-entry', { detail: { id } }));
 }
 
-function SearchGlyph() {
+export function SearchGlyph({ className = 'search-modal-glyph' }: { className?: string }) {
   return (
-    <svg className="search-modal-glyph" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <svg className={className} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
       <circle cx="11" cy="11" r="8" fill="none" stroke="currentColor" strokeWidth="2" />
       <path d="m21 21-4.3-4.3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
     </svg>

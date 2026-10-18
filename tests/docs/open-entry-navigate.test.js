@@ -6,10 +6,13 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { act, createElement } from 'react';
+import { createRoot } from 'react-dom/client';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { readFrontendJs, readMainSource } from '../helpers/read-frontend-js.js';
 import { buildCard } from '../../frontend/src/notes/ui/cards.tsx';
 import { state } from '../../frontend/src/host/state.ts';
+import { NotesSearchModal } from '../../frontend/src/notes/ui/search.tsx';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 
@@ -39,6 +42,7 @@ vi.mock('../../frontend/src/notes/ui/move-project-dialog.tsx', () => ({
 describe('T6 source: open/create entries → navigate-to-note (no modal.display path)', () => {
   const mainJs = read('frontend/src/boot.ts');
   const searchJs = read('frontend/src/notes/ui/search.tsx');
+  const modalJs = read('frontend/src/shared/search-modal/search-modal.tsx');
   const cardsJs = read('frontend/src/notes/ui/cards.tsx');
   const assistantJs = read('frontend/src/notes/ui/assistant.tsx');
 
@@ -66,13 +70,14 @@ describe('T6 source: open/create entries → navigate-to-note (no modal.display 
     expect(mainJs).not.toMatch(/openCreateNoteFromFab/);
   });
 
-  it('spark-search openHit dispatches cta:open-entry without layer (gs-hit-layer label removed)', () => {
-    const openStart = searchJs.indexOf('function openHit');
+  it('search modal opens a hit through cta:open-entry without layer, and the notes page does not override it', () => {
+    const openStart = modalJs.indexOf('function openEntry');
     expect(openStart).toBeGreaterThan(-1);
-    const openSlice = searchJs.slice(openStart, openStart + 400);
+    const openSlice = modalJs.slice(openStart, openStart + 200);
     expect(openSlice).toMatch(/cta:open-entry/);
     expect(openSlice).not.toMatch(/layer/);
-    expect(searchJs).not.toMatch(/gs-hit-layer/);
+    expect(modalJs).not.toMatch(/gs-hit-layer/);
+    expect(searchJs).not.toMatch(/onOpenDoc/);
   });
 
   it('cards / note-assistant still emit cta:open-entry (positioning only)', () => {
@@ -89,15 +94,15 @@ describe('T6 source: open/create entries → navigate-to-note (no modal.display 
 });
 
 describe('T6 behavioral: main-layer open (spark-search hits + card title)', () => {
+  let container;
+  let root;
+
   beforeEach(() => {
     vi.useFakeTimers();
-    document.body.innerHTML = `
-      <div id="gs-wb-wrap" class="gs-search-wrap">
-        <input id="gs-wb-input" class="gs-search-input" type="text" autocomplete="off" />
-        <div id="gs-wb-dropdown" class="gs-search-dropdown" style="display:none"></div>
-      </div>
-      <div id="doc-list"></div>
-    `;
+    document.body.innerHTML = '<div id="doc-list"></div>';
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
     const store = {};
     globalThis.localStorage = {
       getItem(key) {
@@ -117,9 +122,23 @@ describe('T6 behavioral: main-layer open (spark-search hits + card title)', () =
   });
 
   afterEach(() => {
+    act(() => root.unmount());
     vi.useRealTimers();
     document.body.innerHTML = '';
   });
+
+  async function searchAndGetFirstHit(q) {
+    act(() => {
+      root.render(createElement(NotesSearchModal, { open: true, topicTitles: {}, onClose: () => {} }));
+    });
+    const input = container.querySelector('[data-role="search-modal-input"]');
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, q);
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      await vi.advanceTimersByTimeAsync(300);
+    });
+    return container.querySelector('[data-role="search-hit"]');
+  }
 
   it('hit click dispatches cta:open-entry with id only (no layer passthrough)', async () => {
     apiMocks.searchSpark.mockResolvedValue({
@@ -132,22 +151,13 @@ describe('T6 behavioral: main-layer open (spark-search hits + card title)', () =
       }],
     });
 
-    vi.resetModules();
-    const { initSparkSearch } = await import('../../frontend/src/notes/ui/search.tsx');
-    initSparkSearch();
-
-    const input = document.getElementById('gs-wb-input');
-    input.value = 'entry';
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-    await vi.advanceTimersByTimeAsync(300);
+    const hit = await searchAndGetFirstHit('entry');
+    expect(hit).toBeTruthy();
+    expect(document.querySelector('.gs-hit-layer')).toBeNull();
 
     const handler = vi.fn();
     document.addEventListener('cta:open-entry', handler);
-
-    const hit = document.querySelector('.gs-hit-wb');
-    expect(hit).toBeTruthy();
-    expect(document.querySelector('.gs-hit-layer')).toBeNull();
-    hit.click();
+    act(() => hit.click());
 
     expect(handler).toHaveBeenCalledTimes(1);
     expect(handler.mock.calls[0][0].detail).toEqual({
@@ -167,18 +177,12 @@ describe('T6 behavioral: main-layer open (spark-search hits + card title)', () =
       }],
     });
 
-    vi.resetModules();
-    const { initSparkSearch } = await import('../../frontend/src/notes/ui/search.tsx');
-    initSparkSearch();
-
-    const input = document.getElementById('gs-wb-input');
-    input.value = 'n';
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-    await vi.advanceTimersByTimeAsync(300);
+    const hit = await searchAndGetFirstHit('n');
+    expect(hit).toBeTruthy();
 
     const handler = vi.fn();
     document.addEventListener('cta:open-entry', handler);
-    document.querySelector('.gs-hit-wb').click();
+    act(() => hit.click());
 
     expect(handler).toHaveBeenCalledTimes(1);
     const detail = handler.mock.calls[0][0].detail;
