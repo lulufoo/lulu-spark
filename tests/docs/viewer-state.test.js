@@ -14,15 +14,15 @@ vi.mock('../../frontend/src/router/index.ts', () => ({
   navigateToDateList: vi.fn(),
 }));
 vi.mock('../../frontend/src/host/api.ts', () => ({
-  fetchViewerState: async (ws) => backend[ws] ?? { version: 2, project: '', projects: {} },
+  fetchViewerState: async (ws) => backend[ws] ?? { version: 2, project_id: '', projects: {} },
   saveViewerState: async (ws, patch) => {
     saved.push([ws, patch]);
-    const mem = (backend[ws] ??= { version: 2, project: '', projects: {} });
-    mem.project = patch.project;
-    if (!patch.project) return mem;
-    const entry = { node: '', doc: '', date: '', ...mem.projects[patch.project], ...patch };
-    delete entry.project;
-    mem.projects[patch.project] = entry;
+    const mem = (backend[ws] ??= { version: 2, project_id: '', projects: {} });
+    mem.project_id = patch.project_id;
+    if (!patch.project_id) return mem;
+    const entry = { node: '', doc: '', date: '', ...mem.projects[patch.project_id], ...patch };
+    delete entry.project_id;
+    mem.projects[patch.project_id] = entry;
     return mem;
   },
 }));
@@ -49,7 +49,7 @@ const onOpen = (event) => opened.push(event.detail.id);
 async function enter(view, { ws = 'default', order = ['ai', 'ops', 'empty'], recorded } = {}) {
   await memory.flushViewerWrites();
   state.workspaces.current = ws;
-  state.workspaces.list = [{ id: ws, name: ws, view_mode: view, is_default: true }];
+  state.workspaces.list = [{ workspace_id: ws, workspace_name: ws, view_mode: view, is_default: true }];
   state.index.data = data;
   state.index.topicTitles = titles;
   state.index.topicOrder = order;
@@ -63,7 +63,7 @@ async function enter(view, { ws = 'default', order = ['ai', 'ops', 'empty'], rec
   await memory.loadViewerMemory(ws);
 }
 
-const rec = (project, projects = {}) => ({ version: 2, project, projects });
+const rec = (project, projects = {}) => ({ version: 2, project_id: project, projects });
 const part = (extra) => ({ node: '', doc: '', date: '', ...extra });
 
 beforeEach(() => {
@@ -207,9 +207,9 @@ describe('entering a workspace', () => {
     await enter('directory', { ws: 'default', recorded: rec('ai') });
     await memory.loadViewerMemory('ws2');
     state.workspaces.current = 'ws2';
-    expect(memory.remembered().project).toBe('ops');
+    expect(memory.remembered().project_id).toBe('ops');
     state.workspaces.current = 'default';
-    expect(memory.remembered().project).toBe('ai');
+    expect(memory.remembered().project_id).toBe('ai');
   });
 });
 
@@ -221,32 +221,32 @@ describe('writing the record', () => {
     await enter('directory');
     selectProject('ai');
     await flush();
-    expect(last()).toEqual(['default', { project: 'ai' }]);
+    expect(last()).toEqual(['default', { project_id: 'ai' }]);
     selectDate(dirKeyOf('ai/plans'));
     await flush();
-    expect(last()).toEqual(['default', { project: 'ai', node: 'ai/plans' }]);
+    expect(last()).toEqual(['default', { project_id: 'ai', node: 'ai/plans' }]);
     memory.rememberOpenDoc(data.d1, 'd1');
     await flush();
-    expect(last()).toEqual(['default', { project: 'ai', node: 'ai/plans', doc: 'd1' }]);
+    expect(last()).toEqual(['default', { project_id: 'ai', node: 'ai/plans', doc: 'd1' }]);
     selectDate(dirKeyOf('ai'));
     await flush();
-    expect(last()).toEqual(['default', { project: 'ai', node: 'ai', doc: '' }]);
+    expect(last()).toEqual(['default', { project_id: 'ai', node: 'ai', doc: '' }]);
     memory.rememberOpenDoc(data.d2, 'd2');
     memory.forgetOpenDoc();
     await flush();
-    expect(last()).toEqual(['default', { project: 'ai', doc: '' }]);
+    expect(last()).toEqual(['default', { project_id: 'ai', doc: '' }]);
     await enter('timeline');
     enterProject('ops');
     selectDate('20260401');
     await flush();
-    expect(last()).toEqual(['default', { project: 'ops', date: '20260401' }]);
+    expect(last()).toEqual(['default', { project_id: 'ops', date: '20260401' }]);
   });
 
   it('restoring does not overwrite the record with its own selections', async () => {
     await enter('directory', { recorded: rec('ai', { ai: part({ node: 'ai/plans', doc: 'd1' }) }) });
     enterProject('ai');
     await memory.flushViewerWrites();
-    expect(saved).toEqual([['default', { project: 'ai' }]]);
+    expect(saved).toEqual([['default', { project_id: 'ai' }]]);
     expect(backend.default.projects.ai).toEqual(part({ node: 'ai/plans', doc: 'd1' }));
   });
 

@@ -22,13 +22,13 @@ function throwOnError(data: unknown) {
 function asDisabledRows(data: unknown): DisabledWorkspaceRow[] {
   throwOnError(data);
   const list =
-    (data as { workspaces?: Array<{ id?: unknown; name?: unknown; sort_index?: unknown }> } | null)?.workspaces ?? [];
+    (data as { workspaces?: Array<{ workspace_id?: unknown; workspace_name?: unknown; sort_index?: unknown }> } | null)?.workspaces ?? [];
   const rows: DisabledWorkspaceRow[] = [];
   for (const [at, item] of list.entries()) {
-    if (typeof item.id !== 'string' || !item.id) continue;
+    if (typeof item.workspace_id !== 'string' || !item.workspace_id) continue;
     rows.push({
-      id: item.id,
-      name: typeof item.name === 'string' && item.name ? item.name : item.id,
+      id: item.workspace_id,
+      name: typeof item.workspace_name === 'string' && item.workspace_name ? item.workspace_name : item.workspace_id,
       sortIndex: typeof item.sort_index === 'number' ? item.sort_index : at,
     });
   }
@@ -102,10 +102,10 @@ export function changeWorkspaceIcon(id: string, icon: string) {
  */
 export async function reorderWorkspaceList(ids: string[]): Promise<boolean> {
   const previous = state.workspaces.list;
-  const byId = new Map(previous.map((w) => [w.id, w]));
+  const byId = new Map(previous.map((w) => [w.workspace_id, w]));
   const next = ids.map((id) => byId.get(id)).filter((w): w is NonNullable<typeof w> => Boolean(w));
   if (next.length !== previous.length) return false;
-  const ranked = previous.map((w, at) => ({ id: w.id, sortIndex: w.sort_index ?? at }));
+  const ranked = previous.map((w, at) => ({ id: w.workspace_id, sortIndex: w.sort_index ?? at }));
   const disabled = workspacesPanelStore.getSnapshot().disabled;
   const whole = withDisabledInPlace(ranked, disabled, ids);
   state.workspaces.list = next;
@@ -135,12 +135,12 @@ export function enableWorkspace(id: string) {
 
 /** Open the edit dialog for one workspace, with its current name and view in the draft. */
 export function openWorkspaceEditor(id: string) {
-  const workspace = state.workspaces.list.find((w) => w.id === id);
+  const workspace = state.workspaces.list.find((w) => w.workspace_id === id);
   if (!workspace) return;
   patchWorkspacesPanel({
-    selectedId: workspace.id,
+    selectedId: workspace.workspace_id,
     editorOpen: true,
-    draftName: workspace.name,
+    draftName: workspace.workspace_name,
     draftViewMode: workspace.view_mode,
     draftIcon: workspace.icon,
     confirmDisable: false,
@@ -173,7 +173,7 @@ export function setWorkspaceDraftIcon(icon: string) {
 /** The built-in workspace cannot be disabled. */
 export function askWorkspaceDisable() {
   const { selectedId } = workspacesPanelStore.getSnapshot();
-  if (!selectedId || state.workspaces.list.find((w) => w.id === selectedId)?.is_default) return;
+  if (!selectedId || state.workspaces.list.find((w) => w.workspace_id === selectedId)?.is_default) return;
   patchWorkspacesPanel({ confirmDisable: true, error: '' });
 }
 
@@ -187,14 +187,14 @@ export function cancelWorkspaceDisable() {
  */
 export async function saveWorkspaceEditor(): Promise<boolean> {
   const snap = workspacesPanelStore.getSnapshot();
-  const workspace = state.workspaces.list.find((w) => w.id === snap.selectedId);
+  const workspace = state.workspaces.list.find((w) => w.workspace_id === snap.selectedId);
   const name = snap.draftName.trim();
   if (!workspace || !name) return false;
   const viewChanged = snap.draftViewMode !== workspace.view_mode;
   const iconChanged = snap.draftIcon !== workspace.icon;
-  if (name !== workspace.name && !(await renameWorkspace(workspace.id, name))) return false;
-  if (viewChanged && !(await changeWorkspaceViewMode(workspace.id, snap.draftViewMode))) return false;
-  if (iconChanged && !(await changeWorkspaceIcon(workspace.id, snap.draftIcon))) return false;
+  if (name !== workspace.workspace_name && !(await renameWorkspace(workspace.workspace_id, name))) return false;
+  if (viewChanged && !(await changeWorkspaceViewMode(workspace.workspace_id, snap.draftViewMode))) return false;
+  if (iconChanged && !(await changeWorkspaceIcon(workspace.workspace_id, snap.draftIcon))) return false;
   closeWorkspaceEditor();
   return true;
 }

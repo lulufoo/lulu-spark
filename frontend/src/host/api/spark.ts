@@ -1,9 +1,9 @@
 import { asRecord, type PathArg } from '../api-types.ts';
 import { getReadDriver, readGet, writePost } from './transport.ts';
 
-/** Sidebar index of one workspace (the default workspace when `workspace` is omitted). */
-export async function fetchIndex(workspace?: string) {
-  const ws = workspace ? `workspace=${encodeURIComponent(workspace)}&` : '';
+/** Sidebar index of one workspace (the default workspace when `workspaceId` is omitted). */
+export async function fetchIndex(workspaceId?: string) {
+  const ws = workspaceId ? `workspace_id=${encodeURIComponent(workspaceId)}&` : '';
   return readGet(`/api/docs-index?${ws}_=${Date.now()}`);
 }
 
@@ -171,8 +171,8 @@ export async function saveDraft(id: PathArg, content: string) {
   return writePost('/api/draft', { id, content });
 }
 
-export async function moveToProject(id: string, newProject: string) {
-  const data = await writePost('/api/move-project', { id, new_project: newProject });
+export async function moveToProject(id: string, projectId: string) {
+  const data = await writePost('/api/move-project', { id, project_id: projectId });
   const rec = asRecord(data);
   if (rec?.error) {
     throw new Error(String(rec.error));
@@ -181,8 +181,8 @@ export async function moveToProject(id: string, newProject: string) {
 }
 
 /** Create a note via HTTP/MCP `create_note` parity.
- * Jot create: `{ body, source_type: 'jot', workspace?, project? }` (Host synthesize; digest=never);
- * `project` is a project id of that workspace; omit it for the inbox.
+ * Jot create: `{ body, source_type: 'jot', workspace_id?, project_id? }` (Host synthesize; digest=never);
+ * `project_id` is a project id of that workspace; omit it for the inbox.
  * Path create: `{ source_path, title, digest, asset_paths? }` — no `document` body. */
 export async function createNote(payload?: unknown) {
   return writePost('/api/create-note', payload || {});

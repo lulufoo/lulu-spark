@@ -41,21 +41,21 @@ const { notesCategoriesStore, emptyNotesCategoriesSnap } = await import(
 const { ReorderRows } = await import('../../frontend/src/shared/reorder-rows.tsx');
 const { NotesWorkspacesEditHost } = await import('../../frontend/src/app-shell/ui/settings/notes-workspaces-edit.tsx');
 
-const ws = (id, sort_index) => ({ id, name: id, view_mode: 'directory', is_default: id === 'default', icon: '', sort_index });
+const ws = (id, sort_index) => ({ workspace_id: id, workspace_name: id, view_mode: 'directory', is_default: id === 'default', icon: '', sort_index });
 const project = (id, sort_index, extra = {}) => ({
-  id,
-  title: id,
+  project_id: id,
+  project_name: id,
   description: '',
   icon: '',
   sort_index,
   is_inbox: extra.is_inbox ?? id === 'inbox',
 });
-const ids = () => state.workspaces.list.map((w) => w.id);
+const ids = () => state.workspaces.list.map((w) => w.workspace_id);
 
 beforeEach(() => {
   calls.length = 0;
   failWith = '';
-  workspaceDisabled = [{ id: 'off', name: 'Off', sort_index: 1 }];
+  workspaceDisabled = [{ workspace_id: 'off', workspace_name: 'Off', sort_index: 1 }];
   projectRows = [project('inbox', 0), project('a', 2), project('b', 3)];
   projectDisabled = [project('old', 1)];
   state.workspaces.list = [ws('default', 0), ws('x', 2), ws('y', 3)];

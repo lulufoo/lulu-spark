@@ -35,9 +35,9 @@ fn stage_source(sandbox: &TestSandbox, name: &str, content: &str) -> PathBuf {
 }
 
 fn add_project(title: &str) -> String {
-    let v = crate::services::docs::create_project(&json!({ "title": title }));
+    let v = crate::services::docs::create_project(&json!({ "project_name": title }));
     assert_eq!(v["ok"], json!(true), "{v}");
-    v["project"]["id"].as_str().expect("id").to_string()
+    v["project_id"].as_str().expect("id").to_string()
 }
 
 fn path_payload(sandbox: &TestSandbox, content: &str, mut base: serde_json::Value) -> serde_json::Value {
@@ -278,7 +278,7 @@ fn create_note_theme_line_with_zh_translation() {
     let project = add_project("learning-ai-agent");
     let v = create_doc(&path_payload(&sandbox, THEME_LINE_DOC, json!({
             "title": "Interview Title",
-            "project": project,
+            "project_id": project,
             "folder": "waymo-interview",
             "created_at": "202606191700",
             "source_type": "video",
@@ -321,7 +321,7 @@ fn create_note_zh_from_source_path() {
     let zh_file = stage_source(&sandbox, "zh.md", THEME_LINE_ZH);
     let v = create_doc(&path_payload(&sandbox, THEME_LINE_DOC, json!({
             "title": "Interview Title",
-            "project": project,
+            "project_id": project,
             "folder": "waymo-interview",
             "created_at": "202606191700",
             "source_type": "video",
@@ -612,7 +612,7 @@ fn create_note_rejects_unknown_project() {
     let v = create_doc(&path_payload(
             &sandbox,
             SAMPLE_DOC,
-            json!({ "source_type": "summary", "project": "not-a-category" }),
+            json!({ "source_type": "summary", "project_id": "not-a-category" }),
         ),
     );
     assert_eq!(v.get("_status"), Some(&json!(400)));
@@ -1027,7 +1027,7 @@ fn create_jot_with_a_project_writes_into_that_project() {
     let v = create_jot(None, Some(&plans), "放进计划\n\n正文", &jot_opts_with_ts("202607101440"))
         .expect("create_jot");
     assert_eq!(v["ok"], json!(true), "{v}");
-    assert_eq!(v["project"], json!(plans));
+    assert_eq!(v["project_id"], json!(plans));
     let id = v["id"].as_str().expect("id");
     assert!(note_row(id).raw_path.starts_with("notes/202607101440-"));
     let entry = &read_note_entries()["entries"][id];
@@ -1042,7 +1042,7 @@ fn create_jot_with_a_project_writes_into_that_project() {
 fn create_jot_without_a_project_still_goes_to_inbox() {
     let _sandbox = setup_notes();
     let v = create_jot(None, None, "没有指定项目", &jot_opts_with_ts("202607101441")).expect("create_jot");
-    assert_eq!(v["project"], json!("inbox"));
+    assert_eq!(v["project_id"], json!("inbox"));
     let id = v["id"].as_str().expect("id");
     assert_eq!(read_note_entries()["entries"][id]["project_id"], json!("inbox"));
 }
@@ -1051,7 +1051,7 @@ fn create_jot_without_a_project_still_goes_to_inbox() {
 fn create_jot_refuses_a_missing_or_disabled_project_and_writes_nothing() {
     let _sandbox = setup_notes();
     let old = add_project("old");
-    let disabled = crate::services::docs::disable_project(&json!({ "project": old }));
+    let disabled = crate::services::docs::disable_project(&json!({ "project_id": old }));
     assert_eq!(disabled["ok"], json!(true), "{disabled}");
     let before = jot_dirs(&default_workspace_dir());
 
@@ -1066,13 +1066,13 @@ fn create_jot_refuses_a_missing_or_disabled_project_and_writes_nothing() {
 #[test]
 fn create_jot_refuses_a_project_of_another_workspace() {
     let _sandbox = setup_notes();
-    let other = crate::services::docs::create_workspace(&json!({ "name": "Other" }));
-    let other_id = other["workspace"]["id"].as_str().expect("workspace id").to_string();
+    let other = crate::services::docs::create_workspace(&json!({ "workspace_name": "Other" }));
+    let other_id = other["workspace_id"].as_str().expect("workspace id").to_string();
     let made = crate::services::docs::create_project(
-        &json!({ "workspace": other_id, "title": "Theirs" }),
+        &json!({ "workspace_id": other_id, "project_name": "Theirs" }),
     );
     assert_eq!(made["ok"], json!(true), "{made}");
-    let theirs = made["project"]["id"].as_str().expect("project id");
+    let theirs = made["project_id"].as_str().expect("project id");
     let before = jot_dirs(&default_workspace_dir());
     let err = create_jot(Some("default"), Some(theirs), "跨工作区", &jot_opts_with_ts("202607101443"))
         .expect_err("another workspace's project");

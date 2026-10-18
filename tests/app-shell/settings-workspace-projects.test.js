@@ -26,8 +26,8 @@ const { NotesCategoriesEditHost } = await import('../../frontend/src/app-shell/u
 const tabs = await import('../../frontend/src/app-shell/ui/settings/tabs.ts');
 
 const row = (id, title = id, extra = {}) => ({
-  id,
-  title,
+  project_id: id,
+  project_name: title,
   description: '',
   is_inbox: extra.is_inbox ?? id === 'inbox',
 });
@@ -118,8 +118,8 @@ describe('Workspace projects settings', () => {
   it('paints one nav item per workspace and follows renames', async () => {
     const { notifyState } = await import('../../frontend/src/host/state.ts');
     state.workspaces.list = [
-      { id: 'default', name: 'Default', view_mode: 'directory', is_default: true },
-      { id: 'ws2', name: 'Knowledge', view_mode: 'timeline', is_default: false },
+      { workspace_id: 'default', workspace_name: 'Default', view_mode: 'directory', is_default: true },
+      { workspace_id: 'ws2', workspace_name: 'Knowledge', view_mode: 'timeline', is_default: false },
     ];
     const host = document.createElement('div');
     document.body.appendChild(host);
@@ -127,7 +127,7 @@ describe('Workspace projects settings', () => {
     act(() => root.render(createElement(WorkspaceNavItems)));
     const items = () => [...host.querySelectorAll('button')].map((b) => [b.dataset.panel, b.textContent]);
     expect(items()).toEqual([['workspace:default', 'Default'], ['workspace:ws2', 'Knowledge']]);
-    state.workspaces.list = state.workspaces.list.map((w) => (w.id === 'ws2' ? { ...w, name: 'Wiki' } : w));
+    state.workspaces.list = state.workspaces.list.map((w) => (w.workspace_id === 'ws2' ? { ...w, workspace_name: 'Wiki' } : w));
     act(() => notifyState());
     expect(items()[1]).toEqual(['workspace:ws2', 'Wiki']);
     act(() => root.unmount());

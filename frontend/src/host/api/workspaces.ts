@@ -7,25 +7,25 @@ export async function fetchWorkspaces() {
 }
 
 /** `icon` is an icon id; leave it out for the default icon, `''` also means none. */
-export async function createWorkspace(name: string, viewMode: ViewMode = 'directory', icon?: string) {
+export async function createWorkspace(workspaceName: string, viewMode: ViewMode = 'directory', icon?: string) {
   return writePost('/api/workspace-create', {
-    name,
+    workspace_name: workspaceName,
     view_mode: viewMode,
     ...(icon !== undefined ? { icon } : {}),
   });
 }
 
-export async function renameWorkspace(id: string, name: string) {
-  return writePost('/api/workspace-rename', { id, name });
+export async function renameWorkspace(workspaceId: string, workspaceName: string) {
+  return writePost('/api/workspace-rename', { workspace_id: workspaceId, workspace_name: workspaceName });
 }
 
-export async function setWorkspaceViewMode(id: string, viewMode: ViewMode) {
-  return writePost('/api/workspace-view-mode', { id, view_mode: viewMode });
+export async function setWorkspaceViewMode(workspaceId: string, viewMode: ViewMode) {
+  return writePost('/api/workspace-view-mode', { workspace_id: workspaceId, view_mode: viewMode });
 }
 
 /** Set the workspace icon; `''` clears it (back to the default icon). */
-export async function setWorkspaceIcon(id: string, icon: string) {
-  return writePost('/api/workspace-icon', { id, icon });
+export async function setWorkspaceIcon(workspaceId: string, icon: string) {
+  return writePost('/api/workspace-icon', { workspace_id: workspaceId, icon });
 }
 
 export async function fetchDisabledWorkspaces() {
@@ -38,26 +38,26 @@ export async function reorderWorkspaces(ids: string[]) {
 }
 
 /** Every project id of the workspace, enabled and disabled, in the order to list them. */
-export async function reorderProjects(workspace: string, ids: string[]) {
-  return writePost('/api/projects-reorder', { workspace, ids });
+export async function reorderProjects(workspaceId: string, ids: string[]) {
+  return writePost('/api/projects-reorder', { workspace_id: workspaceId, ids });
 }
 
-export async function disableWorkspace(id: string) {
-  return writePost('/api/workspace-disable', { id });
+export async function disableWorkspace(workspaceId: string) {
+  return writePost('/api/workspace-disable', { workspace_id: workspaceId });
 }
 
-export async function enableWorkspace(id: string) {
-  return writePost('/api/workspace-enable', { id });
+export async function enableWorkspace(workspaceId: string) {
+  return writePost('/api/workspace-enable', { workspace_id: workspaceId });
 }
 
-export async function fetchProjects(workspace: string) {
-  return readGet(`/api/projects?workspace=${encodeURIComponent(workspace)}&_=${Date.now()}`);
+export async function fetchProjects(workspaceId: string) {
+  return readGet(`/api/projects?workspace_id=${encodeURIComponent(workspaceId)}&_=${Date.now()}`);
 }
 
-export async function createProject(workspace: string, title: string, description = '', icon?: string) {
+export async function createProject(workspaceId: string, projectName: string, description = '', icon?: string) {
   return writePost('/api/project-create', {
-    workspace,
-    title,
+    workspace_id: workspaceId,
+    project_name: projectName,
     description,
     ...(icon !== undefined ? { icon } : {}),
   });
@@ -65,70 +65,70 @@ export async function createProject(workspace: string, title: string, descriptio
 
 /** `icon` left out keeps the project's icon; `''` clears it (back to the default icon). */
 export async function updateProject(
-  workspace: string,
-  project: string,
-  title: string,
+  workspaceId: string,
+  projectId: string,
+  projectName: string,
   description = '',
   icon?: string,
 ) {
   return writePost('/api/project-update', {
-    workspace,
-    project,
-    title,
+    workspace_id: workspaceId,
+    project_id: projectId,
+    project_name: projectName,
     description,
     ...(icon !== undefined ? { icon } : {}),
   });
 }
 
-export async function fetchDisabledProjects(workspace: string) {
-  return readGet(`/api/projects-disabled?workspace=${encodeURIComponent(workspace)}&_=${Date.now()}`);
+export async function fetchDisabledProjects(workspaceId: string) {
+  return readGet(`/api/projects-disabled?workspace_id=${encodeURIComponent(workspaceId)}&_=${Date.now()}`);
 }
 
-export async function disableProject(workspace: string, project: string) {
-  return writePost('/api/project-disable', { workspace, project });
+export async function disableProject(workspaceId: string, projectId: string) {
+  return writePost('/api/project-disable', { workspace_id: workspaceId, project_id: projectId });
 }
 
-export async function enableProject(workspace: string, project: string) {
-  return writePost('/api/project-enable', { workspace, project });
+export async function enableProject(workspaceId: string, projectId: string) {
+  return writePost('/api/project-enable', { workspace_id: workspaceId, project_id: projectId });
 }
 
 export type HidePatternRow = { id: string; pattern: string };
 
 /** Hidden files rules of one workspace. */
-export async function fetchHidePatterns(workspace: string) {
-  return readGet(`/api/hide-patterns?workspace=${encodeURIComponent(workspace)}&_=${Date.now()}`);
+export async function fetchHidePatterns(workspaceId: string) {
+  return readGet(`/api/hide-patterns?workspace_id=${encodeURIComponent(workspaceId)}&_=${Date.now()}`);
 }
 
-export async function addHidePattern(workspace: string, pattern: string) {
-  return writePost('/api/hide-pattern-add', { workspace, pattern });
+export async function addHidePattern(workspaceId: string, pattern: string) {
+  return writePost('/api/hide-pattern-add', { workspace_id: workspaceId, pattern });
 }
 
-export async function updateHidePattern(workspace: string, id: string, pattern: string) {
-  return writePost('/api/hide-pattern-update', { workspace, id, pattern });
+export async function updateHidePattern(workspaceId: string, id: string, pattern: string) {
+  return writePost('/api/hide-pattern-update', { workspace_id: workspaceId, id, pattern });
 }
 
-export async function removeHidePattern(workspace: string, id: string) {
-  return writePost('/api/hide-pattern-remove', { workspace, id });
+export async function removeHidePattern(workspaceId: string, id: string) {
+  return writePost('/api/hide-pattern-remove', { workspace_id: workspaceId, id });
 }
 
 /** What one project had selected: directory node + document (directory view) or day (timeline). */
 export type ViewerProjectState = { node: string; doc: string; date: string };
 
-/** The selection a workspace's page remembers, per project; `project` empty = All. */
-export type ViewerState = { version: number; project: string; projects: Record<string, ViewerProjectState> };
+/** The selection a workspace's page remembers, per project; `project_id` empty = All. */
+export type ViewerState = { version: number; project_id: string; projects: Record<string, ViewerProjectState> };
 
 /** What a workspace's page remembers; nothing remembered reads as empty. */
-export async function fetchViewerState(workspace: string) {
-  return readGet(`/api/viewer-state?workspace=${encodeURIComponent(workspace)}&_=${Date.now()}`);
+export async function fetchViewerState(workspaceId: string) {
+  return readGet(`/api/viewer-state?workspace_id=${encodeURIComponent(workspaceId)}&_=${Date.now()}`);
 }
 
 /**
- * Record the last selected `project` ('' = All) and update that project's entry: a field left
+ * Record the last selected `project_id` ('' = All) and update that project's entry: a field left
  * out is kept, `''` clears it.
  */
 export async function saveViewerState(
-  workspace: string,
-  patch: { project: string; node?: string; doc?: string; date?: string },
+  workspaceId: string,
+  patch: { project_id: string; node?: string; doc?: string; date?: string },
 ) {
-  return writePost('/api/viewer-state', { workspace, ...patch });
+  return writePost('/api/viewer-state', { workspace_id: workspaceId, ...patch });
 }

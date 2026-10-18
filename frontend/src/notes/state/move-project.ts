@@ -3,9 +3,9 @@ import { createModuleStore } from '../../shared/module-store.ts';
 export type MoveProjectResultKind = '' | 'loading' | 'hint' | 'ok' | 'err';
 
 export type MoveProjectItem = {
-  proj: string;
-  title: string;
-  desc: string;
+  project_id: string;
+  project_name: string;
+  description: string;
 };
 
 export type MoveProjectView = {

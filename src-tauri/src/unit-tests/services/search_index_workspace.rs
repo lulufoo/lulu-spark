@@ -9,14 +9,14 @@ use crate::test_support::TestSandbox;
 const WORD: &str = "角色扮演";
 
 fn new_workspace(name: &str) -> String {
-    let made = create_workspace(&json!({ "name": name }));
-    made["workspace"]["id"].as_str().expect("workspace id").to_string()
+    let made = create_workspace(&json!({ "workspace_name": name }));
+    made["workspace_id"].as_str().expect("workspace id").to_string()
 }
 
 fn write(workspace: Option<&str>, body: &str) -> String {
     let mut payload = json!({ "title": "T", "content": body, "digest": "never", "source_type": "summary" });
     if let Some(w) = workspace {
-        payload["workspace"] = json!(w);
+        payload["workspace_id"] = json!(w);
     }
     let created = create_doc_content(&payload);
     created["id"].as_str().unwrap_or_else(|| panic!("create failed: {created}")).to_string()
@@ -74,13 +74,13 @@ fn writes_through_the_doc_service_keep_the_index_in_step() {
     assert!(search_in_cache(&cache, WORD, &only_workspace(&ws), 10).expect("before").is_empty());
 
     let updated = update_doc_content(&json!({
-        "workspace": ws, "id": id, "content": format!("# 一\n\n现在有{WORD}了。\n"), "digest": "never"
+        "workspace_id": ws, "id": id, "content": format!("# 一\n\n现在有{WORD}了。\n"), "digest": "never"
     }));
     assert_eq!(updated["ok"], json!(true), "{updated}");
     let found = search_in_cache(&cache, WORD, &only_workspace(&ws), 10).expect("after update");
     assert_eq!(ids(&found), vec![id.as_str()]);
 
-    let removed: Value = delete_doc(&json!({ "workspace": ws, "id": id }));
+    let removed: Value = delete_doc(&json!({ "workspace_id": ws, "id": id }));
     assert_eq!(removed["ok"], json!(true));
     assert!(search_in_cache(&cache, WORD, &only_workspace(&ws), 10).expect("after delete").is_empty());
 }

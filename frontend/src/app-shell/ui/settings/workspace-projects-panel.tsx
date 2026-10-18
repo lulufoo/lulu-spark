@@ -14,8 +14,8 @@ export function WorkspaceProjectsPanel() {
   useSyncExternalStore(subscribeState, getStateVersion, getStateVersion);
   const snap = useSyncExternalStore(notesCategoriesStore.subscribe, notesCategoriesStore.getSnapshot);
   const { root } = useSyncExternalStore(workspacesPanelStore.subscribe, workspacesPanelStore.getSnapshot);
-  const workspace = state.workspaces.list.find((w) => w.id === snap.workspaceId);
-  const dir = workspace && root ? `${root}/${workspace.id}` : '';
+  const workspace = state.workspaces.list.find((w) => w.workspace_id === snap.workspaceId);
+  const dir = workspace && root ? `${root}/${workspace.workspace_id}` : '';
 
   return (
     <div id="settings-panel-workspace" className="settings-panel">
@@ -52,7 +52,7 @@ export function WorkspaceProjectsPanel() {
           />
           <span className="settings-field-hint">
             {workspace
-              ? `Folder of ${workspace.name}. Its projects live inside.`
+              ? `Folder of ${workspace.workspace_name}. Its projects live inside.`
               : 'Choose a workspace.'}
           </span>
         </div>

@@ -16,9 +16,9 @@ describe('Settings left nav: workspaces sit indented under "Workspaces"', () => 
     state.workspaces = {
       current: 'default',
       list: [
-        { id: 'default', name: 'Default', view_mode: 'timeline', is_default: true },
-        { id: 'knowledge', name: 'Knowledge', view_mode: 'directory', is_default: false },
-        { id: 'research', name: 'Research', view_mode: 'directory', is_default: false },
+        { workspace_id: 'default', workspace_name: 'Default', view_mode: 'timeline', is_default: true },
+        { workspace_id: 'knowledge', workspace_name: 'Knowledge', view_mode: 'directory', is_default: false },
+        { workspace_id: 'research', workspace_name: 'Research', view_mode: 'directory', is_default: false },
       ],
     };
     const host = document.createElement('div');

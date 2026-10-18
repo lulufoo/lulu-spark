@@ -23,8 +23,8 @@ fn text(value: &Value, key: &str) -> String {
 }
 
 fn new_workspace(name: &str) -> String {
-    let made = create_workspace(&json!({ "name": name }));
-    text(&ok(&made)["workspace"], "id")
+    let made = create_workspace(&json!({ "workspace_name": name }));
+    text(&ok(&made), "workspace_id")
 }
 
 fn inbox_of(workspace: &str) -> String {
@@ -35,11 +35,11 @@ fn inbox_of(workspace: &str) -> String {
 }
 
 fn new_project(workspace: Option<&str>, title: &str) -> String {
-    let mut payload = json!({ "title": title });
+    let mut payload = json!({ "project_name": title });
     if let Some(ws) = workspace {
-        payload["workspace"] = json!(ws);
+        payload["workspace_id"] = json!(ws);
     }
-    text(&ok(&create_project(&payload))["project"], "id")
+    text(ok(&create_project(&payload)), "project_id")
 }
 
 fn project_ids(value: &Value) -> Vec<String> {
@@ -47,17 +47,17 @@ fn project_ids(value: &Value) -> Vec<String> {
         .as_array()
         .expect("array")
         .iter()
-        .map(|p| text(p, "id"))
+        .map(|p| text(p, "project_id"))
         .collect()
 }
 
 fn write(workspace: Option<&str>, project: Option<&str>) -> Value {
     let mut payload = json!({ "title": "T", "content": BODY, "digest": "never", "source_type": "summary" });
     if let Some(w) = workspace {
-        payload["workspace"] = json!(w);
+        payload["workspace_id"] = json!(w);
     }
     if let Some(p) = project {
-        payload["project"] = json!(p);
+        payload["project_id"] = json!(p);
     }
     create_doc_content(&payload)
 }
@@ -73,11 +73,11 @@ fn a_new_workspace_is_writable_at_once_and_files_land_in_its_folder() {
     let created = write(Some(&ws), None);
     let id = text(ok(&created), "id");
     let inbox = inbox_of(&ws);
-    assert_eq!((text(&created, "workspace"), text(&created, "project")), (ws.clone(), inbox.clone()));
+    assert_eq!((text(&created, "workspace_id"), text(&created, "project_id")), (ws.clone(), inbox.clone()));
 
     let on_disk = fs::read_dir(workspaces_dir(&sandbox).join(&ws).join("raw").join(&inbox).join("notes")).expect("dir");
     assert_eq!(on_disk.count(), 1);
-    let read = get_file(&json!({ "workspace": ws, "id": id }));
+    let read = get_file(&json!({ "workspace_id": ws, "id": id }));
     assert_eq!(read["content"], json!(BODY));
 
     let conn = spark_data::open().expect("db");
@@ -91,7 +91,7 @@ fn omitting_workspace_and_project_writes_to_default_inbox() {
     let sandbox = TestSandbox::new();
     let created = write(None, None);
     let id = text(ok(&created), "id");
-    assert_eq!((text(&created, "workspace"), text(&created, "project")), ("default".to_string(), "inbox".to_string()));
+    assert_eq!((text(&created, "workspace_id"), text(&created, "project_id")), ("default".to_string(), "inbox".to_string()));
     assert!(workspaces_dir(&sandbox).join("default/raw/inbox/notes").is_dir());
     assert_eq!(get_file(&json!({ "id": id }))["content"], json!(BODY));
 }
@@ -114,10 +114,10 @@ fn a_document_is_only_found_in_its_own_workspace() {
     let other = new_workspace("Other");
     let id = text(ok(&write(None, None)), "id");
 
-    assert_eq!(status(&get_file(&json!({ "workspace": other, "id": id }))), 404);
-    let update = update_doc_content(&json!({ "workspace": other, "id": id, "content": BODY, "digest": "never" }));
+    assert_eq!(status(&get_file(&json!({ "workspace_id": other, "id": id }))), 404);
+    let update = update_doc_content(&json!({ "workspace_id": other, "id": id, "content": BODY, "digest": "never" }));
     assert_eq!(status(&update), 404);
-    assert_eq!(status(&delete_doc(&json!({ "workspace": other, "id": id }))), 404);
+    assert_eq!(status(&delete_doc(&json!({ "workspace_id": other, "id": id }))), 404);
     ok(&delete_doc(&json!({ "id": id })));
 }
 
@@ -129,7 +129,7 @@ fn update_overwrites_the_body_and_refuses_create_only_fields() {
     ok(&update_doc_content(&json!({ "id": id, "content": newer, "digest": "never" })));
     assert_eq!(get_file(&json!({ "id": id }))["content"], json!(newer));
 
-    for key in ["title", "project", "folder", "theme", "created_at", "source_type"] {
+    for key in ["title", "project_id", "folder", "theme", "created_at", "source_type"] {
         let mut payload = json!({ "id": id, "content": newer, "digest": "never" });
         payload[key] = json!("x");
         assert_eq!(status(&update_doc_content(&payload)), 400, "{key}");
@@ -166,12 +166,12 @@ fn delete_doc_removes_files_and_row() {
 #[test]
 fn default_workspace_cannot_be_disabled_and_the_default_can_be_renamed() {
     let _sandbox = TestSandbox::new();
-    assert_eq!(status(&disable_workspace(&json!({ "id": "default" }))), 400);
-    let renamed = rename_workspace(&json!({ "id": "default", "name": "Home" }));
-    assert_eq!(ok(&renamed)["workspace"]["name"], json!("Home"));
-    assert_eq!(ok(&renamed)["workspace"]["id"], json!("default"));
+    assert_eq!(status(&disable_workspace(&json!({ "workspace_id": "default" }))), 400);
+    let renamed = rename_workspace(&json!({ "workspace_id": "default", "workspace_name": "Home" }));
+    assert_eq!(ok(&renamed)["workspace_name"], json!("Home"));
+    assert_eq!(ok(&renamed)["workspace_id"], json!("default"));
     let listed = list_workspaces();
-    assert_eq!(listed["workspaces"][0]["id"], json!("default"), "default comes first");
+    assert_eq!(listed["workspaces"][0]["workspace_id"], json!("default"), "default comes first");
 }
 
 #[test]
@@ -180,10 +180,10 @@ fn a_disabled_workspace_is_hidden_keeps_its_documents_and_can_be_enabled_again()
     let ws = new_workspace("Temp");
     let id = text(ok(&write(Some(&ws), None)), "id");
 
-    let disabled = disable_workspace(&json!({ "id": ws }));
-    assert!(ok(&disabled)["workspace"]["disabled_at"].is_string());
+    let disabled = disable_workspace(&json!({ "workspace_id": ws }));
+    assert!(ok(&disabled)["disabled_at"].is_string());
     let names = |v: &Value| -> Vec<String> {
-        v["workspaces"].as_array().expect("array").iter().map(|w| text(w, "id")).collect()
+        v["workspaces"].as_array().expect("array").iter().map(|w| text(w, "workspace_id")).collect()
     };
     assert!(!names(&list_workspaces()).contains(&ws), "hidden from the list");
     assert_eq!(names(&list_disabled_workspaces()), vec![ws.clone()]);
@@ -197,75 +197,75 @@ fn a_disabled_workspace_is_hidden_keeps_its_documents_and_can_be_enabled_again()
 
     // Writes are refused and the name stays taken.
     assert_eq!(status(&write(Some(&ws), None)), 409);
-    let again = create_workspace(&json!({ "name": "Temp" }));
+    let again = create_workspace(&json!({ "workspace_name": "Temp" }));
     assert_eq!(status(&again), 409);
     assert!(text(&again, "error").contains("disabled"), "{again}");
 
-    ok(&enable_workspace(&json!({ "id": ws })));
+    ok(&enable_workspace(&json!({ "workspace_id": ws })));
     assert!(names(&list_workspaces()).contains(&ws));
     assert!(names(&list_disabled_workspaces()).is_empty());
     let row = get_workspace(&conn, &ws).expect("get").expect("row");
     assert_eq!(spark_data::list_doc_entries(&conn, &row).expect("entries").len(), 1);
     ok(&write(Some(&ws), None));
-    assert_eq!(status(&disable_workspace(&json!({ "id": "ghost" }))), 404);
+    assert_eq!(status(&disable_workspace(&json!({ "workspace_id": "ghost" }))), 404);
 }
 
 #[test]
 fn workspace_names_and_view_modes_are_checked() {
     let _sandbox = TestSandbox::new();
-    let made = create_workspace(&json!({ "name": "Notes", "view_mode": "timeline" }));
-    assert_eq!(ok(&made)["workspace"]["view_mode"], json!("timeline"));
-    assert_eq!(ok(&made)["workspace"]["is_default"], json!(false));
-    assert_eq!(status(&create_workspace(&json!({ "name": "Notes" }))), 409, "name is unique");
-    assert_eq!(status(&create_workspace(&json!({ "name": "  " }))), 400);
-    assert_eq!(status(&create_workspace(&json!({ "name": "X", "view_mode": "grid" }))), 400);
+    let made = create_workspace(&json!({ "workspace_name": "Notes", "view_mode": "timeline" }));
+    assert_eq!(ok(&made)["view_mode"], json!("timeline"));
+    assert_eq!(ok(&made)["is_default"], json!(false));
+    assert_eq!(status(&create_workspace(&json!({ "workspace_name": "Notes" }))), 409, "name is unique");
+    assert_eq!(status(&create_workspace(&json!({ "workspace_name": "  " }))), 400);
+    assert_eq!(status(&create_workspace(&json!({ "workspace_name": "X", "view_mode": "grid" }))), 400);
 
-    let ws = text(&made["workspace"], "id");
-    let switched = set_view_mode(&json!({ "id": ws, "view_mode": "directory" }));
-    assert_eq!(ok(&switched)["workspace"]["view_mode"], json!("directory"));
-    assert_eq!(status(&set_view_mode(&json!({ "id": ws }))), 400);
+    let ws = text(&made, "workspace_id");
+    let switched = set_view_mode(&json!({ "workspace_id": ws, "view_mode": "directory" }));
+    assert_eq!(ok(&switched)["view_mode"], json!("directory"));
+    assert_eq!(status(&set_view_mode(&json!({ "workspace_id": ws }))), 400);
 }
 
 #[test]
 fn project_crud_follows_the_workspace_and_protects_inbox_and_documents() {
     let _sandbox = TestSandbox::new();
     let ws = new_workspace("Work");
-    let made = create_project(&json!({ "workspace": ws, "title": "Plans", "description": "d" }));
-    let plans = text(&ok(&made)["project"], "id");
-    assert!(ok(&made)["project"].get("folder").is_none(), "{made}");
-    assert_eq!(status(&create_project(&json!({ "workspace": ws, "title": " " }))), 400);
+    let made = create_project(&json!({ "workspace_id": ws, "project_name": "Plans", "description": "d" }));
+    let plans = text(&ok(&made), "project_id");
+    assert!(ok(&made).get("folder").is_none(), "{made}");
+    assert_eq!(status(&create_project(&json!({ "workspace_id": ws, "project_name": " " }))), 400);
 
-    let minted = create_project(&json!({ "workspace": ws, "title": "Auto" }));
-    assert!(ok(&minted)["project"].get("folder").is_none(), "{minted}");
+    let minted = create_project(&json!({ "workspace_id": ws, "project_name": "Auto" }));
+    assert!(ok(&minted).get("folder").is_none(), "{minted}");
 
-    let listed = list_projects(&json!({ "workspace": ws }));
+    let listed = list_projects(&json!({ "workspace_id": ws }));
     let inbox = listed["projects"]
         .as_array()
         .expect("array")
         .iter()
         .find(|p| p["is_inbox"] == true)
         .expect("created workspace has an inbox");
-    let inbox_id = text(inbox, "id");
-    assert_eq!(text(inbox, "title"), "Inbox");
+    let inbox_id = text(inbox, "project_id");
+    assert_eq!(text(inbox, "project_name"), "Inbox");
     assert!(inbox.get("folder").is_none(), "{inbox}");
     assert_ne!(inbox_id, "inbox");
     assert!(project_ids(&listed).contains(&plans), "{listed}");
 
-    let updated = update_project(&json!({ "workspace": ws, "project": plans, "title": "Roadmaps" }));
+    let updated = update_project(&json!({ "workspace_id": ws, "project_id": plans, "project_name": "Roadmaps" }));
     assert_eq!(
-        (text(&ok(&updated)["project"], "title"), text(&updated["project"], "id")),
+        (text(&ok(&updated), "project_name"), text(&updated, "project_id")),
         ("Roadmaps".into(), plans.clone())
     );
-    assert_eq!(status(&update_project(&json!({ "workspace": ws, "project": "ghost", "title": "x" }))), 400);
+    assert_eq!(status(&update_project(&json!({ "workspace_id": ws, "project_id": "ghost", "project_name": "x" }))), 400);
     assert_eq!(
-        status(&update_project(&json!({ "workspace": ws, "project": "inbox", "title": "Catch-all" }))),
+        status(&update_project(&json!({ "workspace_id": ws, "project_id": "inbox", "project_name": "Catch-all" }))),
         400,
         "old folder string is not an id"
     );
 
-    ok(&update_project(&json!({ "workspace": ws, "project": inbox_id, "title": "Catch-all" })));
-    assert_eq!(status(&disable_project(&json!({ "workspace": ws, "project": inbox_id }))), 400);
-    assert_eq!(status(&disable_project(&json!({ "workspace": ws, "project": "inbox" }))), 400);
+    ok(&update_project(&json!({ "workspace_id": ws, "project_id": inbox_id, "project_name": "Catch-all" })));
+    assert_eq!(status(&disable_project(&json!({ "workspace_id": ws, "project_id": inbox_id }))), 400);
+    assert_eq!(status(&disable_project(&json!({ "workspace_id": ws, "project_id": "inbox" }))), 400);
 }
 
 #[test]
@@ -275,27 +275,27 @@ fn a_disabled_project_is_hidden_keeps_its_documents_and_can_be_enabled_again() {
     let plans = new_project(Some(&ws), "Plans");
     let id = text(ok(&write(Some(&ws), Some(&plans))), "id");
 
-    let disabled = disable_project(&json!({ "workspace": ws, "project": plans }));
-    assert!(ok(&disabled)["project"]["disabled_at"].is_string(), "documents do not block it");
-    assert!(!project_ids(&list_projects(&json!({ "workspace": ws }))).contains(&plans));
-    assert_eq!(project_ids(&list_disabled_projects(&json!({ "workspace": ws }))), vec![plans.clone()]);
+    let disabled = disable_project(&json!({ "workspace_id": ws, "project_id": plans }));
+    assert!(ok(&disabled)["disabled_at"].is_string(), "documents do not block it");
+    assert!(!project_ids(&list_projects(&json!({ "workspace_id": ws }))).contains(&plans));
+    assert_eq!(project_ids(&list_disabled_projects(&json!({ "workspace_id": ws }))), vec![plans.clone()]);
 
     // Hidden from the index, still readable by id, and not writable.
     let conn = spark_data::open().expect("db");
     let row = get_workspace(&conn, &ws).expect("get").expect("row");
     assert!(spark_data::list_doc_entries(&conn, &row).expect("entries").is_empty());
-    assert_eq!(get_file(&json!({ "workspace": ws, "id": id }))["content"], json!(BODY));
+    assert_eq!(get_file(&json!({ "workspace_id": ws, "id": id }))["content"], json!(BODY));
     assert_eq!(status(&write(Some(&ws), Some(&plans))), 409);
-    let update = update_doc_content(&json!({ "workspace": ws, "id": id, "content": BODY, "digest": "never" }));
+    let update = update_doc_content(&json!({ "workspace_id": ws, "id": id, "content": BODY, "digest": "never" }));
     assert_eq!(status(&update), 409);
     let other = new_project(Some(&ws), "Other");
-    assert_eq!(status(&move_doc(&json!({ "workspace": ws, "id": id, "project": other }))), 409);
-    assert_eq!(status(&update_project(&json!({ "workspace": ws, "project": plans, "title": "x" }))), 409);
+    assert_eq!(status(&move_doc(&json!({ "workspace_id": ws, "id": id, "project_id": other }))), 409);
+    assert_eq!(status(&update_project(&json!({ "workspace_id": ws, "project_id": plans, "project_name": "x" }))), 409);
 
-    ok(&create_project(&json!({ "workspace": ws, "title": "Again" })));
+    ok(&create_project(&json!({ "workspace_id": ws, "project_name": "Again" })));
 
-    ok(&enable_project(&json!({ "workspace": ws, "project": plans })));
-    assert!(project_ids(&list_projects(&json!({ "workspace": ws }))).contains(&plans));
+    ok(&enable_project(&json!({ "workspace_id": ws, "project_id": plans })));
+    assert!(project_ids(&list_projects(&json!({ "workspace_id": ws }))).contains(&plans));
     assert_eq!(spark_data::list_doc_entries(&conn, &row).expect("entries").len(), 1);
     ok(&write(Some(&ws), Some(&plans)));
 }
@@ -305,12 +305,12 @@ fn a_project_of_a_disabled_workspace_cannot_be_enabled_on_its_own() {
     let _sandbox = TestSandbox::new();
     let ws = new_workspace("Work");
     let plans = new_project(Some(&ws), "Plans");
-    ok(&disable_project(&json!({ "workspace": ws, "project": plans })));
-    ok(&disable_workspace(&json!({ "id": ws })));
-    assert_eq!(status(&enable_project(&json!({ "workspace": ws, "project": plans }))), 409);
-    assert_eq!(status(&create_project(&json!({ "workspace": ws, "title": "X" }))), 409);
-    ok(&enable_workspace(&json!({ "id": ws })));
-    ok(&enable_project(&json!({ "workspace": ws, "project": plans })));
+    ok(&disable_project(&json!({ "workspace_id": ws, "project_id": plans })));
+    ok(&disable_workspace(&json!({ "workspace_id": ws })));
+    assert_eq!(status(&enable_project(&json!({ "workspace_id": ws, "project_id": plans }))), 409);
+    assert_eq!(status(&create_project(&json!({ "workspace_id": ws, "project_name": "X" }))), 409);
+    ok(&enable_workspace(&json!({ "workspace_id": ws })));
+    ok(&enable_project(&json!({ "workspace_id": ws, "project_id": plans })));
 }
 
 #[test]
@@ -340,7 +340,7 @@ fn get_path_points_at_the_raw_file_without_its_body() {
 
 fn write_text(workspace: &str, body: &str) -> String {
     let created = create_doc_content(&json!({
-        "workspace": workspace,
+        "workspace_id": workspace,
         "title": "Searchable",
         "content": body,
         "digest": "never",
@@ -361,19 +361,22 @@ fn search_spans_workspaces_or_narrows_to_one() {
     let ids: Vec<String> = all["items"].as_array().expect("items").iter().map(|i| text(i, "id")).collect();
     assert!(ids.contains(&in_default) && ids.contains(&in_ws), "{all}");
 
-    let only = search(&json!({ "q": "zebrafish", "workspace": ws }));
+    let only = search(&json!({ "q": "zebrafish", "workspace_id": ws }));
     let items = only["items"].as_array().expect("items");
     assert_eq!(items.len(), 1, "{only}");
     assert_eq!(text(&items[0], "id"), in_ws);
-    assert_eq!(text(&items[0], "workspace"), ws);
-    assert_eq!(text(&items[0], "project"), inbox_of(&ws));
+    assert_eq!(text(&items[0], "workspace_id"), ws);
+    assert_eq!(text(&items[0], "project_id"), inbox_of(&ws));
+    assert_eq!(text(&items[0], "workspace_name"), "Memory");
+    assert_eq!(text(&items[0], "project_name"), "Inbox");
+    assert!(items[0].get("workspace").is_none() && items[0].get("project").is_none(), "{only}");
 }
 
 #[test]
 fn search_checks_its_arguments() {
     let _sandbox = TestSandbox::new();
     assert_eq!(status(&search(&json!({}))), 400);
-    assert_eq!(status(&search(&json!({ "q": "x", "workspace": "nope" }))), 404);
+    assert_eq!(status(&search(&json!({ "q": "x", "workspace_id": "nope" }))), 404);
 }
 
 #[test]
@@ -422,7 +425,13 @@ fn a_three_level_folder_works_through_create_read_move_search_and_delete() {
     let found = search(&json!({ "q": "narwhal" }));
     assert_eq!(text(&found["items"][0], "id"), id, "{found}");
 
-    ok(&move_doc(&json!({ "id": id, "project": plans })));
+    assert_eq!(status(&move_doc(&json!({ "id": id, "project": plans }))), 400, "the old key is not read");
+    let moved = move_doc(&json!({ "id": id, "project_id": plans }));
+    assert_eq!(
+        [text(ok(&moved), "workspace_id"), text(&moved, "workspace_name"), text(&moved, "project_id"), text(&moved, "project_name")],
+        ["default".to_string(), "Default".to_string(), plans.clone(), "Plans".to_string()],
+        "{moved}"
+    );
     assert!(workspaces_dir(&sandbox).join("default/raw").join(&plans).join("ai/agents/notes").is_dir());
     assert_eq!(fs::read_dir(&dir).expect("old dir").count(), 0, "both files left the old project");
     assert_eq!(get_file(&json!({ "id": id, "lang": "fr" }))["content"], json!("# Titre\n\ncorps"));
@@ -466,7 +475,7 @@ fn a_new_doc_id_starts_with_its_workspace_id_and_survives_a_rename() {
     assert_eq!(hex.len(), 32);
     assert!(in_ws.starts_with(&format!("{ws}-")), "{in_ws}");
 
-    ok(&rename_workspace(&json!({ "id": ws, "name": "Renamed" })));
+    ok(&rename_workspace(&json!({ "workspace_id": ws, "workspace_name": "Renamed" })));
     assert_eq!(get_file(&json!({ "id": in_ws }))["content"], json!(BODY), "found by the id alone, no workspace given");
     assert_eq!(text(&get_path(&json!({ "id": in_ws })), "id"), in_ws);
     ok(&delete_doc(&json!({ "id": in_ws })));
@@ -527,12 +536,12 @@ fn search_and_create_return_the_workspace_name_a_chat_link_shows() {
     assert_eq!(text(ok(&created), "workspace_name"), "Memory");
     let id = text(&created, "id");
 
-    ok(&rename_workspace(&json!({ "id": ws, "name": "Research" })));
+    ok(&rename_workspace(&json!({ "workspace_id": ws, "workspace_name": "Research" })));
     crate::services::index_build::rebuild_spark_index(&crate::config::paths::repo_root().expect("root")).expect("index");
     let found = search(&json!({ "q": "这是正文" }));
     let hit = found["items"].as_array().expect("items").iter().find(|i| text(i, "id") == id).expect("hit");
     assert_eq!(text(hit, "workspace_name"), "Research", "the current name, after the rename");
-    assert_eq!(text(hit, "workspace"), ws);
+    assert_eq!(text(hit, "workspace_id"), ws);
 }
 
 fn icon_of(value: &Value) -> String {
@@ -542,81 +551,81 @@ fn icon_of(value: &Value) -> String {
 #[test]
 fn a_workspace_icon_is_set_on_create_changed_cleared_and_checked() {
     let _sandbox = TestSandbox::new();
-    let plain = create_workspace(&json!({ "name": "Plain" }));
-    assert_eq!(icon_of(&ok(&plain)["workspace"]), "", "no icon means empty");
+    let plain = create_workspace(&json!({ "workspace_name": "Plain" }));
+    assert_eq!(icon_of(&ok(&plain)), "", "no icon means empty");
 
-    let made = create_workspace(&json!({ "name": "Iconic", "icon": "03ab12" }));
-    assert_eq!(icon_of(&ok(&made)["workspace"]), "03ab12");
-    let ws = text(&made["workspace"], "id");
+    let made = create_workspace(&json!({ "workspace_name": "Iconic", "icon": "03ab12" }));
+    assert_eq!(icon_of(&ok(&made)), "03ab12");
+    let ws = text(&made, "workspace_id");
 
     let listed = list_workspaces();
-    let row = listed["workspaces"].as_array().expect("array").iter().find(|w| text(w, "id") == ws).expect("row").clone();
+    let row = listed["workspaces"].as_array().expect("array").iter().find(|w| text(w, "workspace_id") == ws).expect("row").clone();
     assert_eq!(icon_of(&row), "03ab12");
 
-    assert_eq!(icon_of(&ok(&set_icon(&json!({ "id": ws, "icon": "05zz99" })))["workspace"]), "05zz99");
-    assert_eq!(icon_of(&ok(&set_icon(&json!({ "id": ws, "icon": "" })))["workspace"]), "", "empty clears");
-    assert_eq!(icon_of(&ok(&set_icon(&json!({ "id": ws, "icon": "  04a0b0 " })))["workspace"]), "04a0b0", "trimmed");
+    assert_eq!(icon_of(&ok(&set_icon(&json!({ "workspace_id": ws, "icon": "05zz99" })))), "05zz99");
+    assert_eq!(icon_of(&ok(&set_icon(&json!({ "workspace_id": ws, "icon": "" })))), "", "empty clears");
+    assert_eq!(icon_of(&ok(&set_icon(&json!({ "workspace_id": ws, "icon": "  04a0b0 " })))), "04a0b0", "trimmed");
 
     // A well-formed id the frontend does not know is kept; the backend cannot tell.
-    assert_eq!(icon_of(&ok(&set_icon(&json!({ "id": ws, "icon": "00zzzz" })))["workspace"]), "00zzzz");
+    assert_eq!(icon_of(&ok(&set_icon(&json!({ "workspace_id": ws, "icon": "00zzzz" })))), "00zzzz");
 
     for bad in ["7", "07abcd", "03ABCD", "03abc", "03abcde", "03ab-d", "folder"] {
-        assert_eq!(status(&set_icon(&json!({ "id": ws, "icon": bad }))), 400, "{bad}");
+        assert_eq!(status(&set_icon(&json!({ "workspace_id": ws, "icon": bad }))), 400, "{bad}");
     }
-    assert_eq!(status(&set_icon(&json!({ "id": ws, "icon": 5 }))), 400);
-    assert_eq!(status(&set_icon(&json!({ "id": ws }))), 400, "icon is required here");
+    assert_eq!(status(&set_icon(&json!({ "workspace_id": ws, "icon": 5 }))), 400);
+    assert_eq!(status(&set_icon(&json!({ "workspace_id": ws }))), 400, "icon is required here");
     assert_eq!(status(&set_icon(&json!({ "icon": "03ab12" }))), 400);
-    assert_eq!(status(&set_icon(&json!({ "id": "ghost", "icon": "03ab12" }))), 404);
+    assert_eq!(status(&set_icon(&json!({ "workspace_id": "ghost", "icon": "03ab12" }))), 404);
 
     // Rejected input never leaves a half-made workspace behind.
-    assert_eq!(status(&create_workspace(&json!({ "name": "Bad", "icon": "nope" }))), 400);
-    let names: Vec<_> = list_workspaces()["workspaces"].as_array().expect("array").iter().map(|w| text(w, "name")).collect();
+    assert_eq!(status(&create_workspace(&json!({ "workspace_name": "Bad", "icon": "nope" }))), 400);
+    let names: Vec<_> = list_workspaces()["workspaces"].as_array().expect("array").iter().map(|w| text(w, "workspace_name")).collect();
     assert!(!names.contains(&"Bad".to_string()), "{names:?}");
 }
 
 #[test]
 fn a_disabled_workspace_keeps_and_lists_its_icon() {
     let _sandbox = TestSandbox::new();
-    let ws = text(&ok(&create_workspace(&json!({ "name": "Temp", "icon": "02aa11" })))["workspace"], "id");
-    ok(&disable_workspace(&json!({ "id": ws })));
+    let ws = text(ok(&create_workspace(&json!({ "workspace_name": "Temp", "icon": "02aa11" }))), "workspace_id");
+    ok(&disable_workspace(&json!({ "workspace_id": ws })));
     let disabled = list_disabled_workspaces();
     assert_eq!(icon_of(&disabled["workspaces"][0]), "02aa11");
-    assert_eq!(icon_of(&ok(&enable_workspace(&json!({ "id": ws })))["workspace"]), "02aa11");
+    assert_eq!(icon_of(&ok(&enable_workspace(&json!({ "workspace_id": ws })))), "02aa11");
 }
 
 #[test]
 fn a_project_icon_is_kept_unless_changed_and_cleared_by_an_empty_string() {
     let _sandbox = TestSandbox::new();
     let ws = new_workspace("Work");
-    let plain = create_project(&json!({ "workspace": ws, "title": "Plain" }));
-    assert_eq!(icon_of(&ok(&plain)["project"]), "");
+    let plain = create_project(&json!({ "workspace_id": ws, "project_name": "Plain" }));
+    assert_eq!(icon_of(&ok(&plain)), "");
 
-    let made = create_project(&json!({ "workspace": ws, "title": "Plans", "icon": "03k7x2" }));
-    let plans = text(&ok(&made)["project"], "id");
-    assert_eq!(icon_of(&ok(&made)["project"]), "03k7x2");
+    let made = create_project(&json!({ "workspace_id": ws, "project_name": "Plans", "icon": "03k7x2" }));
+    let plans = text(&ok(&made), "project_id");
+    assert_eq!(icon_of(&ok(&made)), "03k7x2");
 
-    let renamed = update_project(&json!({ "workspace": ws, "project": plans, "title": "Roadmaps" }));
-    assert_eq!(icon_of(&ok(&renamed)["project"]), "03k7x2", "absent icon keeps it");
-    let changed = update_project(&json!({ "workspace": ws, "project": plans, "title": "Roadmaps", "icon": "01aa00" }));
-    assert_eq!(icon_of(&ok(&changed)["project"]), "01aa00");
-    let cleared = update_project(&json!({ "workspace": ws, "project": plans, "title": "Roadmaps", "icon": "" }));
-    assert_eq!(icon_of(&ok(&cleared)["project"]), "");
+    let renamed = update_project(&json!({ "workspace_id": ws, "project_id": plans, "project_name": "Roadmaps" }));
+    assert_eq!(icon_of(&ok(&renamed)), "03k7x2", "absent icon keeps it");
+    let changed = update_project(&json!({ "workspace_id": ws, "project_id": plans, "project_name": "Roadmaps", "icon": "01aa00" }));
+    assert_eq!(icon_of(&ok(&changed)), "01aa00");
+    let cleared = update_project(&json!({ "workspace_id": ws, "project_id": plans, "project_name": "Roadmaps", "icon": "" }));
+    assert_eq!(icon_of(&ok(&cleared)), "");
 
-    let before = project_ids(&list_projects(&json!({ "workspace": ws })));
-    assert_eq!(status(&create_project(&json!({ "workspace": ws, "title": "X", "icon": "9" }))), 400);
-    assert_eq!(status(&update_project(&json!({ "workspace": ws, "project": plans, "title": "R", "icon": "bad" }))), 400);
+    let before = project_ids(&list_projects(&json!({ "workspace_id": ws })));
+    assert_eq!(status(&create_project(&json!({ "workspace_id": ws, "project_name": "X", "icon": "9" }))), 400);
+    assert_eq!(status(&update_project(&json!({ "workspace_id": ws, "project_id": plans, "project_name": "R", "icon": "bad" }))), 400);
     assert_eq!(
-        project_ids(&list_projects(&json!({ "workspace": ws }))),
+        project_ids(&list_projects(&json!({ "workspace_id": ws }))),
         before,
         "a rejected create leaves nothing"
     );
 
-    ok(&update_project(&json!({ "workspace": ws, "project": plans, "title": "R", "icon": "02bb22" })));
-    let listed = list_projects(&json!({ "workspace": ws }));
-    let row = listed["projects"].as_array().expect("array").iter().find(|p| text(p, "id") == plans).expect("row").clone();
+    ok(&update_project(&json!({ "workspace_id": ws, "project_id": plans, "project_name": "R", "icon": "02bb22" })));
+    let listed = list_projects(&json!({ "workspace_id": ws }));
+    let row = listed["projects"].as_array().expect("array").iter().find(|p| text(p, "project_id") == plans).expect("row").clone();
     assert_eq!(icon_of(&row), "02bb22");
-    ok(&disable_project(&json!({ "workspace": ws, "project": plans })));
-    assert_eq!(icon_of(&list_disabled_projects(&json!({ "workspace": ws }))["projects"][0]), "02bb22");
+    ok(&disable_project(&json!({ "workspace_id": ws, "project_id": plans })));
+    assert_eq!(icon_of(&list_disabled_projects(&json!({ "workspace_id": ws }))["projects"][0]), "02bb22");
 }
 
 #[test]
@@ -625,7 +634,7 @@ fn workspaces_and_projects_can_be_reordered_through_the_service() {
     let a = new_workspace("Aaa");
     let b = new_workspace("Bbb");
     let ids = |v: &Value| -> Vec<String> {
-        v["workspaces"].as_array().expect("array").iter().map(|w| text(w, "id")).collect()
+        v["workspaces"].as_array().expect("array").iter().map(|w| text(w, "workspace_id")).collect()
     };
     assert_eq!(ids(&list_workspaces()), vec!["default".to_string(), "knowledge".into(), a.clone(), b.clone()]);
 
@@ -650,14 +659,111 @@ fn workspaces_and_projects_can_be_reordered_through_the_service() {
     let one = new_project(Some(&a), "one");
     let two = new_project(Some(&a), "two");
     let three = new_project(Some(&a), "three");
-    assert_eq!(project_ids(&list_projects(&json!({ "workspace": a }))), vec![inbox.clone(), one.clone(), two.clone(), three.clone()]);
-    let reordered = reorder_projects(&json!({ "workspace": a, "ids": [three.clone(), inbox.clone(), two.clone(), one.clone()] }));
+    assert_eq!(project_ids(&list_projects(&json!({ "workspace_id": a }))), vec![inbox.clone(), one.clone(), two.clone(), three.clone()]);
+    let reordered = reorder_projects(&json!({ "workspace_id": a, "ids": [three.clone(), inbox.clone(), two.clone(), one.clone()] }));
     assert_eq!(project_ids(ok(&reordered)), vec![three.clone(), inbox.clone(), two.clone(), one.clone()]);
-    assert_eq!(project_ids(&list_projects(&json!({ "workspace": a }))), project_ids(&reordered));
+    assert_eq!(project_ids(&list_projects(&json!({ "workspace_id": a }))), project_ids(&reordered));
 
-    assert_eq!(status(&reorder_projects(&json!({ "workspace": a }))), 400);
-    assert_eq!(status(&reorder_projects(&json!({ "workspace": a, "ids": [one] }))), 400);
-    assert_eq!(status(&reorder_projects(&json!({ "workspace": "ghost", "ids": [] }))), 404);
-    ok(&disable_workspace(&json!({ "id": b })));
-    assert!(status(&reorder_projects(&json!({ "workspace": b, "ids": [inbox_of(&b)] }))) >= 400, "disabled workspace");
+    assert_eq!(status(&reorder_projects(&json!({ "workspace_id": a }))), 400);
+    assert_eq!(status(&reorder_projects(&json!({ "workspace_id": a, "ids": [one] }))), 400);
+    assert_eq!(status(&reorder_projects(&json!({ "workspace_id": "ghost", "ids": [] }))), 404);
+    ok(&disable_workspace(&json!({ "workspace_id": b })));
+    assert!(status(&reorder_projects(&json!({ "workspace_id": b, "ids": [inbox_of(&b)] }))) >= 400, "disabled workspace");
+}
+
+#[test]
+fn workspace_and_project_results_are_flat_and_keyed_by_resource() {
+    let _sandbox = TestSandbox::new();
+    let made = ok(&create_workspace(&json!({ "workspace_name": "Flat" }))).clone();
+    for key in ["ok", "workspace_id", "workspace_name", "view_mode", "is_default", "created_at", "disabled_at", "icon", "sort_index"] {
+        assert!(made.get(key).is_some(), "workspace result lacks {key}: {made}");
+    }
+    for key in ["workspace", "id", "name"] {
+        assert!(made.get(key).is_none(), "workspace result keeps the old key {key}: {made}");
+    }
+    let ws = text(&made, "workspace_id");
+
+    let project = create_project(&json!({ "workspace_id": ws, "project_name": "Plans" }));
+    let mut keys: Vec<&str> = ok(&project).as_object().expect("object").keys().map(String::as_str).collect();
+    keys.sort_unstable();
+    assert_eq!(
+        keys,
+        vec!["description", "disabled_at", "icon", "is_inbox", "ok", "project_id", "project_name", "sort_index"],
+        "a project result is flat and does not echo workspace_id: {project}"
+    );
+    let listed = list_projects(&json!({ "workspace_id": ws }));
+    for item in listed["projects"].as_array().expect("array") {
+        assert!(item.get("workspace_id").is_none(), "{item}");
+        assert!(item.get("id").is_none() && item.get("title").is_none(), "{item}");
+    }
+}
+
+#[test]
+fn the_old_workspace_and_project_keys_are_ignored() {
+    let _sandbox = TestSandbox::new();
+    let ws = new_workspace("Work");
+
+    assert_eq!(status(&create_workspace(&json!({ "name": "Old" }))), 400, "name no longer names a workspace");
+    assert_eq!(status(&rename_workspace(&json!({ "id": ws, "name": "Old" }))), 400);
+    assert_eq!(status(&set_view_mode(&json!({ "id": ws, "view_mode": "timeline" }))), 400);
+    assert_eq!(status(&disable_workspace(&json!({ "id": ws }))), 400);
+    assert_eq!(status(&create_project(&json!({ "title": "Old" }))), 400, "title no longer names a project");
+
+    let plans = new_project(Some(&ws), "Plans");
+    assert_eq!(status(&update_project(&json!({ "workspace_id": ws, "project": plans, "title": "x" }))), 400);
+    assert_eq!(status(&disable_project(&json!({ "workspace_id": ws, "project": plans }))), 400);
+
+    // `workspace` is not read any more: the project lands in Default, not in `ws`.
+    let stray = create_project(&json!({ "workspace": ws, "project_name": "Stray" }));
+    let stray_id = text(ok(&stray), "project_id");
+    assert!(project_ids(&list_projects(&json!({}))).contains(&stray_id));
+    assert!(!project_ids(&list_projects(&json!({ "workspace_id": ws }))).contains(&stray_id));
+}
+
+#[test]
+fn write_results_carry_the_four_scope_fields_and_delete_carries_none() {
+    let _sandbox = TestSandbox::new();
+    let ws = new_workspace("Scoped");
+    let plans = new_project(Some(&ws), "Plans");
+
+    let created = write(Some(&ws), Some(&plans));
+    let id = text(ok(&created), "id");
+    assert_eq!(
+        [text(&created, "workspace_id"), text(&created, "workspace_name"), text(&created, "project_id"), text(&created, "project_name")],
+        [ws.clone(), "Scoped".to_string(), plans.clone(), "Plans".to_string()],
+    );
+    for key in ["workspace", "project"] {
+        assert!(created.get(key).is_none(), "create_doc keeps the old key {key}: {created}");
+    }
+
+    let inbox = write(Some(&ws), None);
+    assert_eq!(text(&inbox, "project_id"), inbox_of(&ws));
+    assert_eq!(text(&inbox, "project_name"), "Inbox", "omitting project_id names the workspace inbox");
+
+    let updated = update_doc_content(&json!({ "workspace_id": ws, "id": id, "content": BODY, "digest": "never" }));
+    assert_eq!(
+        [text(ok(&updated), "workspace_id"), text(&updated, "project_id"), text(&updated, "project_name")],
+        [ws.clone(), plans.clone(), "Plans".to_string()],
+        "update_doc names the project the document lives in"
+    );
+
+    let deleted = delete_doc(&json!({ "workspace_id": ws, "id": id }));
+    assert_eq!(ok(&deleted), &json!({ "ok": true, "id": id, "removed": 1 }));
+}
+
+#[test]
+fn the_old_workspace_key_is_ignored_by_the_document_tools() {
+    let _sandbox = TestSandbox::new();
+    let ws = new_workspace("Other");
+    let id = text(ok(&write(Some(&ws), None)), "id");
+
+    // `workspace` is not read: create lands in Default, not in `ws`.
+    let stray = create_doc_content(&json!({ "workspace": ws, "title": "T", "content": BODY, "digest": "never", "source_type": "summary" }));
+    assert_eq!(text(ok(&stray), "workspace_id"), "default");
+    // `project` is not read either: the document goes to the inbox.
+    let plans = new_project(Some(&ws), "Plans");
+    let inboxed = create_doc_content(&json!({ "workspace_id": ws, "project": plans, "title": "T", "content": BODY, "digest": "never", "source_type": "summary" }));
+    assert_eq!(text(ok(&inboxed), "project_id"), inbox_of(&ws));
+    // A prefixed id still names its workspace, so the old key changes nothing on reads.
+    assert_eq!(get_file(&json!({ "workspace": "default", "id": id }))["content"], json!(BODY));
 }

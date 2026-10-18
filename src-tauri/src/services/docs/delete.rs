@@ -14,7 +14,7 @@ use super::resolve::{
     workspace_root,
 };
 
-/// `{ workspace?, id }` → `{ ok, id, removed }`; `removed` counts the files deleted.
+/// `{ workspace_id?, id }` → `{ ok, id, removed }`; `removed` counts the files deleted.
 pub fn delete_doc(payload: &Value) -> Value {
     let id = match doc_id_field(payload) {
         Ok(id) => id,
@@ -62,5 +62,5 @@ pub fn delete_doc(payload: &Value) -> Value {
         return internal(e);
     }
     search_index::sync_workspace_docs_best_effort(&workspace.id, &[id.as_str()]);
-    json!({ "ok": true, "id": id, "workspace": workspace.id, "removed": removed })
+    json!({ "ok": true, "id": id, "removed": removed })
 }

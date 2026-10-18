@@ -2,13 +2,18 @@ import { flushSync } from 'react-dom';
 import { getEntryId, state } from '../state/host.ts';
 import * as api from '../../host/api.ts';
 import { moveProjectOpenStore } from '../state/dialog-open.ts';
-import { emptyMoveProjectView, moveProjectViewStore, patchMoveProject } from '../state/move-project.ts';
+import {
+  emptyMoveProjectView,
+  moveProjectViewStore,
+  patchMoveProject,
+  type MoveProjectItem,
+} from '../state/move-project.ts';
 import type { NoteEntry } from '../state/types.ts';
 
 export { moveProjectOpenStore };
 export { moveProjectViewStore } from '../state/move-project.ts';
 
-type ProjectRec = { id?: string; title?: string; description?: string };
+type ProjectRec = { project_id?: string; project_name?: string; description?: string };
 
 let currentEntry: NoteEntry | null = null;
 
@@ -31,16 +36,17 @@ async function loadProjects(currentProject: string) {
     const data = (await api.fetchProjects(state.workspaces.current)) as { projects?: ProjectRec[] };
     const items = (data.projects || [])
       .map((c) => {
-        const id = typeof c.id === 'string' ? c.id.trim() : '';
+        const id = typeof c.project_id === 'string' ? c.project_id.trim() : '';
         if (!id || id === currentProject) return null;
         return {
-          proj: id,
-          title: typeof c.title === 'string' && c.title.trim() ? c.title.trim() : id,
-          desc: typeof c.description === 'string' ? c.description : '',
+          project_id: id,
+          project_name:
+            typeof c.project_name === 'string' && c.project_name.trim() ? c.project_name.trim() : id,
+          description: typeof c.description === 'string' ? c.description : '',
         };
       })
-      .filter((item): item is { proj: string; title: string; desc: string } => Boolean(item))
-      .sort((a, b) => a.title.localeCompare(b.title, 'en', { sensitivity: 'base' }));
+      .filter((item): item is MoveProjectItem => Boolean(item))
+      .sort((a, b) => a.project_name.localeCompare(b.project_name, 'en', { sensitivity: 'base' }));
     patchMoveProject({
       items,
       result: `Current project: ${currentProject} — choose target`,

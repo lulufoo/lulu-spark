@@ -13,7 +13,7 @@ import com.lulu.spark.android.wmcp.keepalive.ManualLinkClock
 import com.lulu.spark.android.wmcp.keepalive.assembleWmcpClient
 
 internal const val LIST_TOOLS_WITH_SCHEMA =
-    """{"result":{"tools":[{"name":"create_doc","description":"Create a document from Markdown content.","inputSchema":{"type":"object","properties":{"title":{"type":"string"},"content":{"type":"string"},"workspace":{"type":"string"},"project":{"type":"string"},"folder":{"type":"string"}},"required":["content","title"],"additionalProperties":false}}]}}"""
+    """{"result":{"tools":[{"name":"create_doc","description":"Create a document from Markdown content.","inputSchema":{"type":"object","properties":{"title":{"type":"string"},"content":{"type":"string"},"workspace_id":{"type":"string"},"project_id":{"type":"string"},"folder":{"type":"string"}},"required":["content","title"],"additionalProperties":false}}]}}"""
 
 internal fun liveOffer(): BindOffer = signedBindOffer()
 

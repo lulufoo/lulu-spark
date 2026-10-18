@@ -48,7 +48,7 @@ describe('Note AC gate (tech-doc VF / T-13)', () => {
     // Read create.js alone (no re-export follow) so comment write APIs elsewhere do not pollute.
     const create = readFileSync(join(repoRoot, 'frontend/src/notes/commands/viewer/create.ts'), 'utf8');
     expect(create).toMatch(
-      /createNote\(\{\s*body:\s*trimmed,\s*source_type:\s*'jot',\s*workspace,/,
+      /createNote\(\{\s*body:\s*trimmed,\s*source_type:\s*'jot',\s*workspace_id: workspaceId,/,
     );
     // finalizeCreateSession must not call Annotation write APIs
     expect(create).not.toMatch(/updateComments|update_comments|saveAnnotation/);

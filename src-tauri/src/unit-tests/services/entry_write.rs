@@ -51,7 +51,7 @@ fn save_entry_syncs_search_index_for_touched_file() {
     let hits = out["hits"].as_array().expect("hits");
     assert_eq!(hits.len(), 1, "{out}");
     assert_eq!(hits[0]["id"], id);
-    assert_eq!(hits[0]["topic"], "seed-proj");
+    assert_eq!(hits[0]["project_id"], "seed-proj");
     assert!(hits[0].get("common_path").is_none());
 
     fs::remove_file(&md).expect("rm");

@@ -13,7 +13,7 @@ type ReadInvokeEntry = {
 export const READ_API_INVOKE_MAP: Record<string, ReadInvokeEntry> = {
   '/api/docs-index': {
     cmd: 'get_docs_index',
-    args: (url) => ({ workspace: url.searchParams.get('workspace') || undefined }),
+    args: (url) => ({ workspaceId: url.searchParams.get('workspace_id') || undefined }),
   },
   '/api/doc-file': {
     cmd: 'get_doc_file',
@@ -36,25 +36,25 @@ export const READ_API_INVOKE_MAP: Record<string, ReadInvokeEntry> = {
   '/api/workspaces-disabled': { cmd: 'list_disabled_workspaces' },
   '/api/projects': {
     cmd: 'list_projects',
-    args: (url) => ({ payload: { workspace: url.searchParams.get('workspace') || undefined } }),
+    args: (url) => ({ payload: { workspace_id: url.searchParams.get('workspace_id') || undefined } }),
   },
   '/api/projects-disabled': {
     cmd: 'list_disabled_projects',
-    args: (url) => ({ payload: { workspace: url.searchParams.get('workspace') || undefined } }),
+    args: (url) => ({ payload: { workspace_id: url.searchParams.get('workspace_id') || undefined } }),
   },
   '/api/hide-patterns': {
     cmd: 'list_hide_patterns',
-    args: (url) => ({ payload: { workspace: url.searchParams.get('workspace') || undefined } }),
+    args: (url) => ({ payload: { workspace_id: url.searchParams.get('workspace_id') || undefined } }),
   },
   '/api/viewer-state': {
     cmd: 'get_viewer_state',
-    args: (url) => ({ payload: { workspace: url.searchParams.get('workspace') || undefined } }),
+    args: (url) => ({ payload: { workspace_id: url.searchParams.get('workspace_id') || undefined } }),
   },
   '/api/search-spark': {
     cmd: 'search_spark',
     args: (url) => ({
       q: url.searchParams.get('q') ?? '',
-      workspace: url.searchParams.get('workspace') || undefined,
+      workspaceId: url.searchParams.get('workspace_id') || undefined,
       limit: url.searchParams.has('limit')
         ? Number(url.searchParams.get('limit'))
         : undefined,

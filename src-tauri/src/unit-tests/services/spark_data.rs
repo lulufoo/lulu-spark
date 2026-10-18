@@ -249,9 +249,10 @@ fn the_sort_step_numbers_existing_rows_in_the_old_order() {
 fn the_inbox_step_marks_seeded_inbox_and_skips_knowledge() {
     let (_dir, path) = temp_db();
     let after_inbox = open_with_steps(&path, &MIGRATIONS[..13]).expect("v13");
-    let inbox = get_project(&after_inbox, "inbox").expect("get").expect("seeded");
-    assert!(inbox.is_inbox, "{inbox:?}");
-    assert_eq!(inbox.workspace_id, "default");
+    assert_eq!(
+        count(&after_inbox, "SELECT count(*) FROM project WHERE id = 'inbox' AND workspace_id = 'default' AND is_inbox = 1"),
+        1
+    );
     assert_eq!(
         count(&after_inbox, "SELECT count(*) FROM project WHERE workspace_id = 'knowledge' AND is_inbox = 1"),
         0
@@ -267,6 +268,31 @@ fn the_inbox_step_marks_seeded_inbox_and_skips_knowledge() {
         .expect("rows");
     assert!(cols.contains(&"is_inbox".to_string()), "{cols:?}");
     assert!(!cols.contains(&"folder".to_string()), "{cols:?}");
+}
+
+/// Step 14 renames `project.title` to `name`; a row made before it keeps its text.
+#[test]
+fn the_rename_step_turns_project_title_into_name_and_keeps_rows() {
+    let (_dir, path) = temp_db();
+    let before = open_with_steps(&path, &MIGRATIONS[..14]).expect("v14");
+    assert_eq!(user_version(&before), 14);
+    before
+        .execute("INSERT INTO project(id, workspace_id, title) VALUES ('p14', 'default', 'Old')", [])
+        .expect("project at v14");
+    drop(before);
+
+    let conn = open_at(&path).expect("latest");
+    assert_eq!(user_version(&conn), LATEST);
+    let cols: Vec<String> = conn
+        .prepare("PRAGMA table_info(project)")
+        .expect("pragma")
+        .query_map([], |r| r.get(1))
+        .expect("query")
+        .collect::<Result<_, _>>()
+        .expect("rows");
+    assert!(cols.contains(&"name".to_string()), "{cols:?}");
+    assert!(!cols.contains(&"title".to_string()), "{cols:?}");
+    assert_eq!(get_project(&conn, "p14").expect("get").expect("row").name, "Old");
 }
 
 #[test]
@@ -286,4 +312,14 @@ fn a_workspace_accepts_only_one_inbox_and_the_flag_cannot_change() {
     );
     extra.is_inbox = false;
     insert_project(&conn, &extra).expect("a non-inbox project is fine");
+}
+
+/// Manual acceptance (LW-440): `SPARK_DB_COPY=/path/to/copy cargo test --lib migrate_real_copy -- --ignored`.
+#[test]
+#[ignore]
+fn migrate_real_copy() {
+    let path = std::env::var("SPARK_DB_COPY").expect("SPARK_DB_COPY");
+    let conn = open_at(std::path::Path::new(&path)).expect("migrate");
+    let version: i64 = conn.query_row("PRAGMA user_version", [], |r| r.get(0)).unwrap();
+    assert_eq!(version, MIGRATIONS.len() as i64);
 }

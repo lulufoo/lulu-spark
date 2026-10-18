@@ -24,7 +24,7 @@ fn is_under_root(root: &Path, target: &Path) -> bool {
     target.to_string_lossy().starts_with(&prefix)
 }
 
-/// Sidebar index of one workspace: `{ "workspace": id, "entries": { doc_id: entry } }`.
+/// Sidebar index of one workspace: `{ "workspace_id": id, "entries": { doc_id: entry } }`.
 /// `workspace` is an id; the default workspace when absent.
 pub fn get_docs_index(workspace: Option<&str>) -> Value {
     let result = spark_data::open().and_then(|conn| {
@@ -44,7 +44,7 @@ pub fn get_docs_index(workspace: Option<&str>) -> Value {
                 !path_is_hidden(raw_path, &hide)
             });
         }
-        Ok(json!({ "workspace": row.id, "entries": entries }))
+        Ok(json!({ "workspace_id": row.id, "entries": entries }))
     });
     result.unwrap_or_else(|e| json!({ "error": format!("notes index: {e}"), "_status": 500 }))
 }

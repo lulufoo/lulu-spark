@@ -24,7 +24,7 @@ export const SYNC_API_INVOKE_MAP: Record<string, SyncInvokeEntry> = {
     args: (body) =>
       syncPayload({
         id: body.id,
-        new_project: body.new_project,
+        project_id: body.project_id,
       }),
   },
   '/api/draft': {

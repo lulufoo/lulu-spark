@@ -58,7 +58,7 @@ export function enterProject(folder: string | null) {
  */
 export function enterWorkspace() {
   const titles = state.index.topicTitles;
-  const last = remembered().project;
+  const last = remembered().project_id;
   const first = sortedProjectFolders(titles, state.index.topicOrder)[0] ?? null;
   if (isDirectoryView()) {
     const project = last && last in titles ? last : first;

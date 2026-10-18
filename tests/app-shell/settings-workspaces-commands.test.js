@@ -49,7 +49,7 @@ describe('Workspaces settings commands', () => {
   });
 
   it('disables a workspace, reloads the registry and fills the Disabled list', async () => {
-    disabledRows = [{ id: 'ws-a', name: 'Research' }];
+    disabledRows = [{ workspace_id: 'ws-a', workspace_name: 'Research' }];
     expect(await commands.disableWorkspace('ws-a')).toBe(true);
     expect(calls).toEqual([['disable', 'ws-a']]);
     expect(loadWorkspaces).toHaveBeenCalledTimes(1);

@@ -52,12 +52,12 @@ pub fn translation_common_paths(doc: &DocRow) -> Result<Vec<(String, String)>, S
         .collect()
 }
 
-/// `{id, workspace, project_id, raw_path, created_at, layers, source_type, translations?, title?}`.
+/// `{id, workspace_id, project_id, raw_path, created_at, layers, source_type, translations?, title?}`.
 /// `raw_path` is the document-internal path and keeps the original directory structure.
 pub fn entry_from_doc(doc: &DocRow, workspace_id: &str) -> Result<Value, String> {
     let mut entry = Map::new();
     entry.insert("id".into(), json!(doc.doc_id));
-    entry.insert("workspace".into(), json!(workspace_id));
+    entry.insert("workspace_id".into(), json!(workspace_id));
     entry.insert("project_id".into(), json!(doc.project_id));
     entry.insert("raw_path".into(), json!(doc.raw_path));
     entry.insert(

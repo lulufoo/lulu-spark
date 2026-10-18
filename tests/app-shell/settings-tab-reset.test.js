@@ -26,8 +26,8 @@ describe('Settings tabs open on Directory', () => {
   beforeEach(async () => {
     vi.resetModules();
     state.workspaces.list = [
-      { id: 'default', name: 'Default', view_mode: 'directory', is_default: true },
-      { id: 'ws2', name: 'Wiki', view_mode: 'timeline', is_default: false },
+      { workspace_id: 'default', workspace_name: 'Default', view_mode: 'directory', is_default: true },
+      { workspace_id: 'ws2', workspace_name: 'Wiki', view_mode: 'timeline', is_default: false },
     ];
     document.body.innerHTML = renderToHtml(createElement(SettingsDialog));
     const { openSettingsDialog } = await import('../../frontend/src/app-shell/commands/settings/dialog.ts');

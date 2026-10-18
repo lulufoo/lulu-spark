@@ -22,8 +22,8 @@ function noteTitle(entry: HostNoteEntry, id: string) {
 
 /** Current name of the workspace that holds `entry`; the workspace id when the name is unknown. */
 function workspaceNameOf(entry: HostNoteEntry) {
-  const id = String(entry.workspace || state.workspaces.current);
-  return state.workspaces.list.find((w) => w.id === id)?.name || id;
+  const id = String(entry.workspace_id || state.workspaces.current);
+  return state.workspaces.list.find((w) => w.workspace_id === id)?.workspace_name || id;
 }
 
 /** `[Workspace name：Title](spark-doc:<id>) ` — shown as a chip in the composer; the space keeps typing after it. */

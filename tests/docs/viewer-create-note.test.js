@@ -275,7 +275,7 @@ describe('create session exit', () => {
     expect(api.createNote).toHaveBeenCalledWith({
       body: 'hello note',
       source_type: 'jot',
-      workspace: 'default',
+      workspace_id: 'default',
     });
     expect(api.clearDocDraft).toHaveBeenCalledWith('tmp-exit');
     expect(navigateToNoteMock).toHaveBeenCalledWith({
@@ -290,8 +290,8 @@ describe('create session exit', () => {
 
   it('a session started for a Project saves into exactly that workspace and Project', async () => {
     await closeModal();
-    await openCreateNote({ temp_id: 'tmp-proj', workspace: 'default', project: 'ideas' });
-    expect(state.viewer.createSession).toMatchObject({ workspace: 'default', project: 'ideas' });
+    await openCreateNote({ temp_id: 'tmp-proj', workspace_id: 'default', project_id: 'ideas' });
+    expect(state.viewer.createSession).toMatchObject({ workspace_id: 'default', project_id: 'ideas' });
     makeEl('md-edit-area').value = 'into ideas';
     api.createNote.mockClear();
 
@@ -300,8 +300,8 @@ describe('create session exit', () => {
     expect(api.createNote).toHaveBeenCalledWith({
       body: 'into ideas',
       source_type: 'jot',
-      workspace: 'default',
-      project: 'ideas',
+      workspace_id: 'default',
+      project_id: 'ideas',
     });
   });
 

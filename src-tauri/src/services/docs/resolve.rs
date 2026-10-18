@@ -88,7 +88,7 @@ pub(super) fn string_list_field(payload: &Value, key: &str) -> Result<Vec<String
         .collect()
 }
 
-/// `workspace` (an id) or the default workspace when it is absent.
+/// `workspace_id` or the default workspace when it is absent.
 pub(super) fn resolve_workspace(conn: &Connection, requested: Option<&str>) -> Result<WorkspaceRow, Value> {
     match requested {
         Some(id) => get_workspace(conn, id)
@@ -102,7 +102,7 @@ pub(super) fn resolve_workspace(conn: &Connection, requested: Option<&str>) -> R
     }
 }
 
-/// The workspace of a request about document `id`: the `workspace` field when given, else the
+/// The workspace of a request about document `id`: the `workspace_id` field when given, else the
 /// one a prefixed id names, else the default workspace.
 pub(super) fn resolve_doc_workspace(
     conn: &Connection,
@@ -110,7 +110,7 @@ pub(super) fn resolve_doc_workspace(
     id: &str,
 ) -> Result<WorkspaceRow, Value> {
     let named = spark_data::split_doc_id(id).and_then(|(workspace, _)| workspace);
-    resolve_workspace(conn, text_field(payload, "workspace").or(named))
+    resolve_workspace(conn, text_field(payload, "workspace_id").or(named))
 }
 
 /// The project with this id inside `workspace`. Omitted id → the inbox. 400 when missing

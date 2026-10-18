@@ -50,7 +50,7 @@ fn find(payload: &Value) -> Result<(WorkspaceRow, ProjectRow, DocRow), Value> {
     Ok((workspace, project, doc))
 }
 
-/// `{ workspace?, id, layer?, lang? }` → `{ content }`. `layer` is `raw` (default) or `digest`.
+/// `{ workspace_id?, id, layer?, lang? }` → `{ content }`. `layer` is `raw` (default) or `digest`.
 pub fn get_file(payload: &Value) -> Value {
     let layer = text_field(payload, "layer").unwrap_or("raw");
     if !LAYERS.contains(&layer) {
@@ -73,14 +73,14 @@ pub fn get_file(payload: &Value) -> Value {
     }
 }
 
-/// `{ workspace?, id }` → `{ content }` of the digest layer.
+/// `{ workspace_id?, id }` → `{ content }` of the digest layer.
 pub fn get_digest(payload: &Value) -> Value {
     let mut request = payload.clone();
     request["layer"] = json!("digest");
     get_file(&request)
 }
 
-/// `{ workspace?, id }` → `{ id, ok, path }`: where the raw file is on this machine. No body.
+/// `{ workspace_id?, id }` → `{ id, ok, path }`: where the raw file is on this machine. No body.
 pub fn get_path(payload: &Value) -> Value {
     let (workspace, project, doc) = match find(payload) {
         Ok(found) => found,
@@ -95,7 +95,7 @@ pub fn get_path(payload: &Value) -> Value {
     }
 }
 
-/// `{ workspace?, id, dest_dir }` → `{ id, ok, path }`: a versioned copy of the raw file.
+/// `{ workspace_id?, id, dest_dir }` → `{ id, ok, path }`: a versioned copy of the raw file.
 pub fn export_file(payload: &Value) -> Value {
     let Some(dest_dir) = text_field(payload, "dest_dir") else {
         return bad_request("Missing dest_dir");

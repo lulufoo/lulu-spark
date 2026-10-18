@@ -127,7 +127,7 @@ describe('T6 behavioral: main-layer open (spark-search hits + card title)', () =
         title: 'Entry',
         id: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
         layer: 'digest',
-        topic: 'demo',
+        project_id: 'demo',
         body: 'snippet body',
       }],
     });
@@ -162,7 +162,7 @@ describe('T6 behavioral: main-layer open (spark-search hits + card title)', () =
       hits: [{
         title: 'No layer',
         id: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
-        topic: 'demo',
+        project_id: 'demo',
         body: 'x',
       }],
     });

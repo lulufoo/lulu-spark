@@ -45,8 +45,8 @@ export function showWorkspace(id: string): Promise<void> {
 export async function showWorkspaceOf(id: string): Promise<boolean> {
   try {
     const note = await api.resolveDocForOpen(id);
-    if (!note.workspace || note.workspace === state.workspaces.current) return false;
-    await showWorkspace(note.workspace);
+    if (!note.workspace_id || note.workspace_id === state.workspaces.current) return false;
+    await showWorkspace(note.workspace_id);
     return true;
   } catch {
     return false;

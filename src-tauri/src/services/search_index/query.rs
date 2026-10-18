@@ -298,7 +298,7 @@ pub fn search_desktop_docs(
                         "title": h.title,
                         "id": h.doc_id,
                         "layer": "raw",
-                        "topic": h.topic,
+                        "project_id": h.topic,
                         "body": h.snippet,
                         "_formatted": { "body": h.snippet },
                     })

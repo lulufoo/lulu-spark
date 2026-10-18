@@ -98,7 +98,8 @@ export function NotesSidebar() {
   const data = host.index.data;
   const topic = host.ui.activeTopic;
   const workspaces = host.workspaces;
-  const workspaceName = workspaces.list.find((w) => w.id === workspaces.current)?.name ?? '';
+  const workspaceName =
+    workspaces.list.find((w) => w.workspace_id === workspaces.current)?.workspace_name ?? '';
   const groups = host.index.filteredGroups || [];
   const activeDate = host.ui.activeDate;
   const canCreate = Object.keys(host.index.topicTitles || {}).length > 0;

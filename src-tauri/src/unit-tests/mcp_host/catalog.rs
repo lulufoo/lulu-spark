@@ -203,12 +203,27 @@ fn runtime_builds_enabled_routes_from_factory_only() {
 }
 
 #[test]
+fn workspace_and_project_tools_take_only_the_id_and_name_keys() {
+    let keys = |group: &str, tool: &str| -> Vec<String> {
+        let route = build(group, tool, "spark").unwrap_or_else(|| panic!("{tool}"));
+        let mut keys: Vec<String> = route.input_schema["properties"].as_object().expect("properties").keys().cloned().collect();
+        keys.sort();
+        keys
+    };
+    assert_eq!(keys("workspace", "create_workspace"), vec!["view_mode", "workspace_name"]);
+    assert_eq!(keys("workspace", "rename_workspace"), vec!["workspace_id", "workspace_name"]);
+    assert_eq!(keys("project", "list_projects"), vec!["workspace_id"]);
+    assert_eq!(keys("project", "create_project"), vec!["description", "project_name", "workspace_id"]);
+    assert_eq!(keys("project", "update_project"), vec!["description", "project_id", "project_name", "workspace_id"]);
+}
+
+#[test]
 fn mobile_create_doc_uses_content_invoke() {
     let route = build("document", "create_doc", "mobile").expect("mobile create_doc");
     assert!(invoke_eq(route.invoke, create_doc_from_content));
     assert!(!invoke_eq(route.invoke, create_doc_from_source));
     assert!(route.input_schema["properties"].get("asset_paths").is_none());
-    assert!(route.input_schema["properties"].get("workspace").is_some());
+    assert!(route.input_schema["properties"].get("workspace_id").is_some());
 }
 
 #[test]
@@ -217,8 +232,10 @@ fn desktop_create_doc_schema_includes_asset_paths() {
     assert!(invoke_eq(route.invoke, create_doc_from_source));
     assert!(route.input_schema["properties"].get("asset_paths").is_some());
     assert!(route.input_schema["properties"].get("source_path").is_some());
-    assert!(route.input_schema["properties"].get("workspace").is_some());
-    assert!(route.input_schema["properties"].get("project").is_some());
+    assert!(route.input_schema["properties"].get("workspace_id").is_some());
+    assert!(route.input_schema["properties"].get("project_id").is_some());
+    assert!(route.input_schema["properties"].get("workspace").is_none());
+    assert!(route.input_schema["properties"].get("project").is_none());
 }
 
 #[test]
@@ -283,7 +300,7 @@ fn get_doc_file_is_desktop_only_and_requires_dest_dir() {
             .as_str()
             .unwrap()
             .contains("read and write"));
-        assert!(route.input_schema["properties"].get("workspace").is_some());
+        assert!(route.input_schema["properties"].get("workspace_id").is_some());
     }
     assert!(build("document", "get_doc_file", "mobile").is_none());
 }
@@ -318,12 +335,12 @@ fn search_points_each_channel_at_its_own_follow_up_tools() {
     for channel in ["spark", "cursor", "cursor_ide", "codex", "claude"] {
         let route = build("global", "search", channel).expect(channel);
         assert!(route.description.contains("own library"), "{channel}");
-        assert!(route.description.contains("workspace"), "{channel}");
+        assert!(route.description.contains("workspace_id"), "{channel}");
         assert!(!route.description.to_lowercase().contains("read later"), "{channel}");
         assert!(!route.description.contains("read-later"), "{channel}");
         assert!(route.description.contains("get_doc_file"), "{channel}");
         assert!(!route.description.contains("get_doc_content"), "{channel}");
-        assert!(route.input_schema["properties"].get("workspace").is_some(), "{channel}");
+        assert!(route.input_schema["properties"].get("workspace_id").is_some(), "{channel}");
     }
     let mobile = build("global", "search", "mobile").expect("mobile");
     assert!(mobile.description.contains("own library"));
@@ -472,6 +489,9 @@ fn settings_snapshot_keeps_mobile_only_tools() {
 
 #[path = "produce_wiring.rs"]
 mod produce_wiring;
+
+#[path = "naming_smoke.rs"]
+mod naming_smoke;
 
 #[path = "todo_group_removed.rs"]
 mod todo_group_removed;

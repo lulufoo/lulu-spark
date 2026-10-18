@@ -254,7 +254,7 @@ fn projects_are_unique_per_workspace_and_need_a_real_workspace() {
     let found = get_project(&conn, "p3").expect("get").expect("row");
     assert_eq!(found.id, "p3");
     let mut changed = found.clone();
-    changed.title = "Renamed".into();
+    changed.name = "Renamed".into();
     changed.description = "分组：AI".into();
     assert!(update_project(&conn, &changed).expect("update"));
     assert_eq!(get_project(&conn, "p3").expect("get"), Some(changed));

@@ -79,15 +79,15 @@ fn get_docs_index_is_built_from_the_doc_table_in_the_entry_shape() {
             let v = get_docs_index(None);
             assert_eq!(
                 v,
-                json!({ "workspace": "default", "entries": {
+                json!({ "workspace_id": "default", "entries": {
                     "n1": {
-                        "id": "n1", "workspace": "default", "project_id": "seed-ai",
+                        "id": "n1", "workspace_id": "default", "project_id": "seed-ai",
                         "raw_path": "topic/20260101-a.md", "created_at": "202601010000",
                         "layers": ["raw", "digest"], "source_type": "article", "title": "A",
                         "translations": { "zh": "topic/20260101-a-zh.md" }
                     },
                     "n2": {
-                        "id": "n2", "workspace": "default", "project_id": "seed-ai",
+                        "id": "n2", "workspace_id": "default", "project_id": "seed-ai",
                         "raw_path": "topic/20260102-b.md", "layers": ["raw"]
                     },
                 }})
@@ -100,7 +100,7 @@ fn get_docs_index_is_built_from_the_doc_table_in_the_entry_shape() {
 fn get_docs_index_of_an_empty_table_has_no_entries() {
     with_notes_repo(
         |_, _| {},
-        |_| assert_eq!(get_docs_index(None), json!({ "workspace": "default", "entries": {} })),
+        |_| assert_eq!(get_docs_index(None), json!({ "workspace_id": "default", "entries": {} })),
     );
 }
 

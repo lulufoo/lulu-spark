@@ -11,7 +11,7 @@ fn list_invoke(_args: &serde_json::Value) -> serde_json::Value {
 pub fn build_list(_channel: &str) -> Option<ToolRoute> {
     Some(route(
         "list_workspaces",
-        "List workspaces. Each has an id, a name and a view mode. The Default workspace always exists. Pass a workspace id to the document and project tools.",
+        "List workspaces. Each has a workspace_id, a workspace_name and a view mode. The Default workspace always exists. Pass a workspace_id to the document and project tools.",
         object_schema(json!({}), &[]),
         true,
         false,
@@ -22,17 +22,17 @@ pub fn build_list(_channel: &str) -> Option<ToolRoute> {
 pub fn build_create(_channel: &str) -> Option<ToolRoute> {
     Some(route(
         "create_workspace",
-        "Create a workspace. Returns its generated id. Every workspace starts with an empty inbox project.",
+        "Create a workspace. Returns its generated workspace_id. Every workspace starts with an empty inbox project.",
         object_schema(
             json!({
-                "name": { "type": "string", "description": "Display name." },
+                "workspace_name": { "type": "string", "description": "Display name." },
                 "view_mode": {
                     "type": "string",
                     "enum": ["directory", "timeline"],
                     "description": "Optional list layout. Defaults to directory."
                 }
             }),
-            &["name"],
+            &["workspace_name"],
         ),
         false,
         false,
@@ -43,13 +43,13 @@ pub fn build_create(_channel: &str) -> Option<ToolRoute> {
 pub fn build_rename(_channel: &str) -> Option<ToolRoute> {
     Some(route(
         "rename_workspace",
-        "Rename a workspace, including the Default one. The id never changes.",
+        "Rename a workspace, including the Default one. The workspace_id never changes.",
         object_schema(
             json!({
-                "id": { "type": "string", "description": "Workspace id from list_workspaces." },
-                "name": { "type": "string", "description": "New display name." }
+                "workspace_id": { "type": "string", "description": "Workspace id from list_workspaces." },
+                "workspace_name": { "type": "string", "description": "New display name." }
             }),
-            &["id", "name"],
+            &["workspace_id", "workspace_name"],
         ),
         false,
         false,

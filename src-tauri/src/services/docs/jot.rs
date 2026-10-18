@@ -72,10 +72,10 @@ pub fn create_jot(
         "content": doc,
     });
     if let Some(workspace) = workspace {
-        payload["workspace"] = json!(workspace);
+        payload["workspace_id"] = json!(workspace);
     }
     if let Some(project) = project {
-        payload["project"] = json!(project);
+        payload["project_id"] = json!(project);
     }
     if !ts.is_empty() {
         payload["created_at"] = json!(ts);

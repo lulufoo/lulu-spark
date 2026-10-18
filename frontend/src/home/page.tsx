@@ -147,7 +147,7 @@ const SEED_WORKSPACES: HomeWorkspaceRow[] = [
 function navWorkspaces(): HomeWorkspaceRow[] {
   const list = state.workspaces.list;
   if (list.length === 0) return SEED_WORKSPACES;
-  return list.map((w) => ({ id: w.id, name: w.name, isDefault: w.is_default, icon: w.icon }));
+  return list.map((w) => ({ id: w.workspace_id, name: w.workspace_name, isDefault: w.is_default, icon: w.icon }));
 }
 
 function goReadLater(navigateFn?: (hash: string) => void, openReadLater?: () => void) {
@@ -162,7 +162,7 @@ export function HomePage({
 }: HomePageChrome = {}) {
   const state = useHomeState();
   const host = useHostState();
-  const workspaceIds = host.workspaces.list.map((w) => w.id).join(',');
+  const workspaceIds = host.workspaces.list.map((w) => w.workspace_id).join(',');
   const authUser = useSyncExternalStore(authUserStore.subscribe, authUserStore.getSnapshot);
   const isDebug = useSyncExternalStore(
     packageDebugStore.subscribe,

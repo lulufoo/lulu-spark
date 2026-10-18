@@ -28,8 +28,8 @@ use super::resolve::{
 
 fn workspace_value(row: &WorkspaceRow) -> Value {
     json!({
-        "id": row.id,
-        "name": row.name,
+        "workspace_id": row.id,
+        "workspace_name": row.name,
         "view_mode": row.view_mode.as_str(),
         "is_default": row.is_default,
         "created_at": row.created_at,
@@ -88,10 +88,10 @@ pub fn list_disabled_workspaces() -> Value {
     }
 }
 
-/// `{ name, view_mode?, icon? }` → `{ ok, workspace }`.
+/// `{ workspace_name, view_mode?, icon? }` → `{ ok, workspace_id, workspace_name, ... }`.
 pub fn create_workspace(payload: &Value) -> Value {
-    let Some(name) = text_field(payload, "name") else {
-        return bad_request("Missing name");
+    let Some(name) = text_field(payload, "workspace_name") else {
+        return bad_request("Missing workspace_name");
     };
     let mode = match parse_view_mode(payload) {
         Ok(m) => m,
@@ -134,13 +134,22 @@ pub fn create_workspace(payload: &Value) -> Value {
             }
         }
     };
-    json!({ "ok": true, "workspace": workspace_value(&row) })
+    ok_workspace(&row)
 }
 
-/// `{ id, name }` → `{ ok, workspace }`. The id never changes.
+/// A workspace's flat fields with `ok: true` in front.
+fn ok_workspace(row: &WorkspaceRow) -> Value {
+    let mut value = workspace_value(row);
+    value["ok"] = json!(true);
+    value
+}
+
+/// `{ workspace_id, workspace_name }` → `{ ok, workspace_id, workspace_name, ... }`. The id never changes.
 pub fn rename_workspace(payload: &Value) -> Value {
-    let (Some(id), Some(name)) = (text_field(payload, "id"), text_field(payload, "name")) else {
-        return bad_request("Missing id or name");
+    let (Some(id), Some(name)) =
+        (text_field(payload, "workspace_id"), text_field(payload, "workspace_name"))
+    else {
+        return bad_request("Missing workspace_id or workspace_name");
     };
     update_workspace(id, |conn| {
         ensure_name_free(conn, name, Some(id)).map_err(|v| v["error"].as_str().unwrap_or("").to_string())?;
@@ -148,10 +157,10 @@ pub fn rename_workspace(payload: &Value) -> Value {
     })
 }
 
-/// `{ id, view_mode }` → `{ ok, workspace }`.
+/// `{ workspace_id, view_mode }` → `{ ok, workspace_id, workspace_name, ... }`.
 pub fn set_view_mode(payload: &Value) -> Value {
-    let Some(id) = text_field(payload, "id") else {
-        return bad_request("Missing id");
+    let Some(id) = text_field(payload, "workspace_id") else {
+        return bad_request("Missing workspace_id");
     };
     let mode = match parse_view_mode(payload) {
         Ok(Some(m)) => m,
@@ -161,10 +170,11 @@ pub fn set_view_mode(payload: &Value) -> Value {
     update_workspace(id, |conn| set_workspace_view_mode(conn, id, mode))
 }
 
-/// `{ id, icon }` → `{ ok, workspace }`. An empty `icon` clears it (back to the default icon).
+/// `{ workspace_id, icon }` → `{ ok, workspace_id, workspace_name, ... }`. An empty `icon` clears it
+/// (back to the default icon).
 pub fn set_icon(payload: &Value) -> Value {
-    let Some(id) = text_field(payload, "id") else {
-        return bad_request("Missing id");
+    let Some(id) = text_field(payload, "workspace_id") else {
+        return bad_request("Missing workspace_id");
     };
     let icon = match icon_field(payload) {
         Ok(Some(icon)) => icon,
@@ -202,7 +212,7 @@ fn update_workspace(
     };
     match apply(&conn) {
         Ok(true) => match resolve_workspace(&conn, Some(id)) {
-            Ok(row) => json!({ "ok": true, "workspace": workspace_value(&row) }),
+            Ok(row) => ok_workspace(&row),
             Err(v) => v,
         },
         Ok(false) => not_found(format!("Unknown workspace: {id}")),
@@ -210,19 +220,20 @@ fn update_workspace(
     }
 }
 
-/// `{ id }` → `{ ok, workspace }`. The default workspace is refused. Documents stay; they are
-/// hidden from lists and search and still open by id.
+/// `{ workspace_id }` → `{ ok, workspace_id, workspace_name, ... }`. The default workspace is
+/// refused. Documents stay; they are hidden from lists and search and still open by id.
 pub fn disable_workspace(payload: &Value) -> Value {
-    let Some(id) = text_field(payload, "id") else {
-        return bad_request("Missing id");
+    let Some(id) = text_field(payload, "workspace_id") else {
+        return bad_request("Missing workspace_id");
     };
     update_workspace(id, |conn| disable_workspace_row(conn, id))
 }
 
-/// `{ id }` → `{ ok, workspace }`. The workspace and its documents show up again.
+/// `{ workspace_id }` → `{ ok, workspace_id, workspace_name, ... }`. The workspace and its
+/// documents show up again.
 pub fn enable_workspace(payload: &Value) -> Value {
-    let Some(id) = text_field(payload, "id") else {
-        return bad_request("Missing id");
+    let Some(id) = text_field(payload, "workspace_id") else {
+        return bad_request("Missing workspace_id");
     };
     update_workspace(id, |conn| enable_workspace_row(conn, id))
 }
