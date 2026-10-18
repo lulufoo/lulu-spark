@@ -80,7 +80,7 @@ fn projects_keep_separate_entries() {
 #[test]
 fn each_workspace_remembers_its_own_state() {
     let _sandbox = TestSandbox::new();
-    let other = create_workspace(&json!({ "name": "Memory" }))["workspace"]["id"]
+    let other = create_workspace(&json!({ "workspace_name": "Memory" }))["workspace_id"]
         .as_str()
         .expect("id")
         .to_string();

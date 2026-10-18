@@ -203,6 +203,21 @@ fn runtime_builds_enabled_routes_from_factory_only() {
 }
 
 #[test]
+fn workspace_and_project_tools_take_only_the_id_and_name_keys() {
+    let keys = |group: &str, tool: &str| -> Vec<String> {
+        let route = build(group, tool, "spark").unwrap_or_else(|| panic!("{tool}"));
+        let mut keys: Vec<String> = route.input_schema["properties"].as_object().expect("properties").keys().cloned().collect();
+        keys.sort();
+        keys
+    };
+    assert_eq!(keys("workspace", "create_workspace"), vec!["view_mode", "workspace_name"]);
+    assert_eq!(keys("workspace", "rename_workspace"), vec!["workspace_id", "workspace_name"]);
+    assert_eq!(keys("project", "list_projects"), vec!["workspace_id"]);
+    assert_eq!(keys("project", "create_project"), vec!["description", "project_name", "workspace_id"]);
+    assert_eq!(keys("project", "update_project"), vec!["description", "project_id", "project_name", "workspace_id"]);
+}
+
+#[test]
 fn mobile_create_doc_uses_content_invoke() {
     let route = build("document", "create_doc", "mobile").expect("mobile create_doc");
     assert!(invoke_eq(route.invoke, create_doc_from_content));

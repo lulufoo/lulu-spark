@@ -22,6 +22,16 @@ pub fn workspace_property() -> Value {
     json!({ "workspace": workspace_schema() })
 }
 
+/// The `workspace_id` input of the workspace and project tools.
+pub fn workspace_id_property() -> Value {
+    json!({
+        "workspace_id": {
+            "type": "string",
+            "description": "Optional workspace id from list_workspaces. Defaults to the Default workspace."
+        }
+    })
+}
+
 pub fn create_doc_properties(include_source_path: bool) -> Value {
     let mut props = json!({
         "title": {

@@ -35,9 +35,9 @@ fn stage_source(sandbox: &TestSandbox, name: &str, content: &str) -> PathBuf {
 }
 
 fn add_project(title: &str) -> String {
-    let v = crate::services::docs::create_project(&json!({ "title": title }));
+    let v = crate::services::docs::create_project(&json!({ "project_name": title }));
     assert_eq!(v["ok"], json!(true), "{v}");
-    v["project"]["id"].as_str().expect("id").to_string()
+    v["project_id"].as_str().expect("id").to_string()
 }
 
 fn path_payload(sandbox: &TestSandbox, content: &str, mut base: serde_json::Value) -> serde_json::Value {
@@ -1051,7 +1051,7 @@ fn create_jot_without_a_project_still_goes_to_inbox() {
 fn create_jot_refuses_a_missing_or_disabled_project_and_writes_nothing() {
     let _sandbox = setup_notes();
     let old = add_project("old");
-    let disabled = crate::services::docs::disable_project(&json!({ "project": old }));
+    let disabled = crate::services::docs::disable_project(&json!({ "project_id": old }));
     assert_eq!(disabled["ok"], json!(true), "{disabled}");
     let before = jot_dirs(&default_workspace_dir());
 
@@ -1066,13 +1066,13 @@ fn create_jot_refuses_a_missing_or_disabled_project_and_writes_nothing() {
 #[test]
 fn create_jot_refuses_a_project_of_another_workspace() {
     let _sandbox = setup_notes();
-    let other = crate::services::docs::create_workspace(&json!({ "name": "Other" }));
-    let other_id = other["workspace"]["id"].as_str().expect("workspace id").to_string();
+    let other = crate::services::docs::create_workspace(&json!({ "workspace_name": "Other" }));
+    let other_id = other["workspace_id"].as_str().expect("workspace id").to_string();
     let made = crate::services::docs::create_project(
-        &json!({ "workspace": other_id, "title": "Theirs" }),
+        &json!({ "workspace_id": other_id, "project_name": "Theirs" }),
     );
     assert_eq!(made["ok"], json!(true), "{made}");
-    let theirs = made["project"]["id"].as_str().expect("project id");
+    let theirs = made["project_id"].as_str().expect("project id");
     let before = jot_dirs(&default_workspace_dir());
     let err = create_jot(Some("default"), Some(theirs), "跨工作区", &jot_opts_with_ts("202607101443"))
         .expect_err("another workspace's project");

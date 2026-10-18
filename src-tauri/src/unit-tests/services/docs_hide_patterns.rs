@@ -33,8 +33,8 @@ fn status(value: &Value) -> u64 {
 }
 
 fn new_workspace(name: &str) -> String {
-    let made = create_workspace(&json!({ "name": name }));
-    made["workspace"]["id"].as_str().expect("workspace id").to_string()
+    let made = create_workspace(&json!({ "workspace_name": name }));
+    made["workspace_id"].as_str().expect("workspace id").to_string()
 }
 
 fn in_workspace(workspace: &str) -> Value {

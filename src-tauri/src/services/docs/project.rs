@@ -5,7 +5,7 @@
 //! search; the documents stay readable by id and `enable` brings the project back. The id
 //! stays reserved while it is disabled.
 //!
-//! A project is addressed by its id. The inbox is the `is_inbox` row; its title can change.
+//! A project is addressed by its id. The inbox is the `is_inbox` row; its name can change.
 
 use rusqlite::Connection;
 use serde_json::{json, Value};
@@ -25,11 +25,17 @@ use super::resolve::{
     open_data, resolve_project, resolve_workspace, string_list_field, text_field,
 };
 
+/// A project's flat fields with `ok: true` in front.
+fn ok_project(row: &ProjectRow) -> Value {
+    let mut value = project_value(row);
+    value["ok"] = json!(true);
+    value
+}
+
 fn project_value(row: &ProjectRow) -> Value {
     json!({
-        "id": row.id,
-        "workspace_id": row.workspace_id,
-        "title": row.name,
+        "project_id": row.id,
+        "project_name": row.name,
         "description": row.description,
         "disabled_at": row.disabled_at,
         "icon": row.icon.clone().unwrap_or_default(),
@@ -68,10 +74,10 @@ pub(super) fn insert_inbox_project(conn: &Connection, workspace_id: &str) -> Res
     insert_project(conn, &row)
 }
 
-/// `{ workspace? }` → `{ projects: [...] }`.
+/// `{ workspace_id? }` → `{ projects: [...] }`.
 pub fn list_projects(payload: &Value) -> Value {
     let result = open_data().and_then(|conn| {
-        let ws = resolve_workspace(&conn, text_field(payload, "workspace"))?;
+        let ws = resolve_workspace(&conn, text_field(payload, "workspace_id"))?;
         list_project_rows(&conn, &ws.id).map_err(internal)
     });
     match result {
@@ -80,11 +86,11 @@ pub fn list_projects(payload: &Value) -> Value {
     }
 }
 
-/// `{ workspace? }` → `{ projects: [...] }` of the disabled projects, for the Settings
+/// `{ workspace_id? }` → `{ projects: [...] }` of the disabled projects, for the Settings
 /// "Disabled" section.
 pub fn list_disabled_projects(payload: &Value) -> Value {
     let result = open_data().and_then(|conn| {
-        let ws = resolve_workspace(&conn, text_field(payload, "workspace"))?;
+        let ws = resolve_workspace(&conn, text_field(payload, "workspace_id"))?;
         list_disabled_project_rows(&conn, &ws.id).map_err(internal)
     });
     match result {
@@ -93,10 +99,10 @@ pub fn list_disabled_projects(payload: &Value) -> Value {
     }
 }
 
-/// `{ workspace?, title, description?, icon? }` → `{ ok, project }`.
+/// `{ workspace_id?, project_name, description?, icon? }` → `{ ok, project_id, project_name, ... }`.
 pub fn create_project(payload: &Value) -> Value {
-    let Some(title) = text_field(payload, "title") else {
-        return bad_request("Missing title");
+    let Some(name) = text_field(payload, "project_name") else {
+        return bad_request("Missing project_name");
     };
     let description = text_field(payload, "description").unwrap_or("");
     let icon = match icon_field(payload) {
@@ -104,26 +110,27 @@ pub fn create_project(payload: &Value) -> Value {
         Err(v) => return v,
     };
     let result = open_data().and_then(|conn| {
-        let ws = resolve_workspace(&conn, text_field(payload, "workspace"))?;
+        let ws = resolve_workspace(&conn, text_field(payload, "workspace_id"))?;
         ensure_workspace_enabled(&ws)?;
         let id = mint_project_id(&conn).map_err(internal)?;
-        let mut row = ProjectRow::new(&id, &ws.id, title, description);
+        let mut row = ProjectRow::new(&id, &ws.id, name, description);
         row.icon = icon;
         insert_project(&conn, &row).map_err(internal)?;
         Ok(row)
     });
     match result {
-        Ok(row) => json!({ "ok": true, "project": project_value(&row) }),
+        Ok(row) => ok_project(&row),
         Err(v) => v,
     }
 }
 
-/// `{ workspace?, project, title, description?, icon? }` → `{ ok, project }`.
-/// `icon` absent keeps the icon, an empty string clears it.
+/// `{ workspace_id?, project_id, project_name, description?, icon? }` →
+/// `{ ok, project_id, project_name, ... }`. `icon` absent keeps the icon, an empty string clears it.
 pub fn update_project(payload: &Value) -> Value {
-    let (Some(id), Some(title)) = (text_field(payload, "project"), text_field(payload, "title"))
+    let (Some(id), Some(name)) =
+        (text_field(payload, "project_id"), text_field(payload, "project_name"))
     else {
-        return bad_request("Missing project or title");
+        return bad_request("Missing project_id or project_name");
     };
     let description = text_field(payload, "description").unwrap_or("");
     let icon = match icon_field(payload) {
@@ -131,10 +138,10 @@ pub fn update_project(payload: &Value) -> Value {
         Err(v) => return v,
     };
     let result = open_data().and_then(|conn| {
-        let ws = resolve_workspace(&conn, text_field(payload, "workspace"))?;
+        let ws = resolve_workspace(&conn, text_field(payload, "workspace_id"))?;
         let mut row = resolve_project(&conn, &ws, Some(id))?;
         ensure_project_enabled(&row)?;
-        row.name = title.to_string();
+        row.name = name.to_string();
         row.description = description.to_string();
         if let Some(icon) = icon {
             row.icon = icon;
@@ -143,12 +150,12 @@ pub fn update_project(payload: &Value) -> Value {
         Ok(row)
     });
     match result {
-        Ok(row) => json!({ "ok": true, "project": project_value(&row) }),
+        Ok(row) => ok_project(&row),
         Err(v) => v,
     }
 }
 
-/// `{ workspace?, ids }` → `{ ok, projects }`. `ids` is every project of the workspace,
+/// `{ workspace_id?, ids }` → `{ ok, projects }`. `ids` is every project of the workspace,
 /// disabled ones included, in the new order; a list that does not match is a 400 and nothing
 /// changes. `projects` is the active list in the new order.
 pub fn reorder_projects(payload: &Value) -> Value {
@@ -157,7 +164,7 @@ pub fn reorder_projects(payload: &Value) -> Value {
         Err(v) => return v,
     };
     let result = open_data().and_then(|conn| {
-        let ws = resolve_workspace(&conn, text_field(payload, "workspace"))?;
+        let ws = resolve_workspace(&conn, text_field(payload, "workspace_id"))?;
         ensure_workspace_enabled(&ws)?;
         reorder_project_rows(&conn, &ws.id, &ids).map_err(bad_request)?;
         list_project_rows(&conn, &ws.id).map_err(internal)
@@ -168,14 +175,14 @@ pub fn reorder_projects(payload: &Value) -> Value {
     }
 }
 
-/// `{ workspace?, project }` → `{ ok, project }`. The inbox (`is_inbox`) is refused. The
+/// `{ workspace_id?, project_id }` → `{ ok, project_id, project_name, ... }`. The inbox (`is_inbox`) is refused. The
 /// documents stay; they are hidden from lists and search and still open by id.
 pub fn disable_project(payload: &Value) -> Value {
-    let Some(id) = text_field(payload, "project") else {
-        return bad_request("Missing project");
+    let Some(id) = text_field(payload, "project_id") else {
+        return bad_request("Missing project_id");
     };
     let result = open_data().and_then(|conn| {
-        let ws = resolve_workspace(&conn, text_field(payload, "workspace"))?;
+        let ws = resolve_workspace(&conn, text_field(payload, "workspace_id"))?;
         let row = resolve_project(&conn, &ws, Some(id))?;
         if row.is_inbox {
             return Err(bad_request("Cannot disable inbox"));
@@ -189,16 +196,16 @@ pub fn disable_project(payload: &Value) -> Value {
             .ok_or_else(|| internal("project missing"))
     });
     match result {
-        Ok(row) => json!({ "ok": true, "project": project_value(&row) }),
+        Ok(row) => ok_project(&row),
         Err(v) => v,
     }
 }
 
-/// `{ workspace?, project }` → `{ ok, project }`. The project and its documents show up again.
+/// `{ workspace_id?, project_id }` → `{ ok, project_id, project_name, ... }`. The project and its documents show up again.
 /// A disabled workspace has to be enabled first.
 pub fn enable_project(payload: &Value) -> Value {
-    let Some(id) = text_field(payload, "project") else {
-        return bad_request("Missing project");
+    let Some(id) = text_field(payload, "project_id") else {
+        return bad_request("Missing project_id");
     };
     toggle_project(payload, id, enable_project_row)
 }
@@ -209,7 +216,7 @@ fn toggle_project(
     apply: impl FnOnce(&Connection, &str) -> Result<bool, String>,
 ) -> Value {
     let result = open_data().and_then(|conn| {
-        let ws = resolve_workspace(&conn, text_field(payload, "workspace"))?;
+        let ws = resolve_workspace(&conn, text_field(payload, "workspace_id"))?;
         let row = resolve_project(&conn, &ws, Some(id))?;
         if row.disabled_at.is_some() {
             ensure_workspace_enabled(&ws)?;
@@ -218,7 +225,7 @@ fn toggle_project(
         get_project(&conn, &row.id).map_err(internal)?.ok_or_else(|| internal("project missing"))
     });
     match result {
-        Ok(row) => json!({ "ok": true, "project": project_value(&row) }),
+        Ok(row) => ok_project(&row),
         Err(v) => v,
     }
 }

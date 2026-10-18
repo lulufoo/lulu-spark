@@ -138,7 +138,7 @@ fn run_loop_marks_successful_note_mcp_mutation_as_wrote() {
                 "type": "function",
                 "function": {
                     "name": "create_project",
-                    "arguments": "{\"title\":\"MCP 分类\"}"
+                    "arguments": "{\"project_name\":\"MCP 分类\"}"
                 }
             }]),
             None,

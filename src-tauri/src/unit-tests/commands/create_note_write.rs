@@ -100,9 +100,9 @@ fn create_note_json_second_write_gets_new_filename() {
 #[test]
 fn create_note_json_jot_takes_an_optional_project() {
     let _sandbox = TestSandbox::new();
-    let made = crate::services::docs::create_project(&json!({ "title": "Plans" }));
+    let made = crate::services::docs::create_project(&json!({ "project_name": "Plans" }));
     assert_eq!(made["ok"], json!(true), "{made}");
-    let plans = made["project"]["id"].as_str().expect("id");
+    let plans = made["project_id"].as_str().expect("id");
     let into_project = create_note_json(json!({ "body": "写进计划", "source_type": "jot", "project": plans }))
         .expect("jot with project");
     assert_eq!(into_project["project"], json!(plans), "{into_project}");
