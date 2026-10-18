@@ -197,6 +197,47 @@ export function sessionListLabel(session: HubSession) {
   return formatSessionWhen(session?.updated_at) || 'New conversation';
 }
 
+export type SessionGroupKey = 'today' | 'yesterday' | 'earlier';
+export type SessionGroup = { key: SessionGroupKey; label: string; sessions: HubSession[] };
+
+const SESSION_GROUPS: { key: SessionGroupKey; label: string }[] = [
+  { key: 'today', label: 'Today' },
+  { key: 'yesterday', label: 'Yesterday' },
+  { key: 'earlier', label: 'Earlier' },
+];
+
+/**
+ * Splits chats into Today / Yesterday / Earlier by the local calendar day of `updated_at`
+ * (Unix seconds). The input order is kept inside each group; a group with no chats is left out;
+ * a chat with a missing or invalid `updated_at` goes to Earlier.
+ */
+export function groupSessionsByDay(
+  sessions: HubSession[],
+  nowSecs: number = nowUnixSecs(),
+): SessionGroup[] {
+  const startOfToday = new Date(nowSecs * 1000);
+  startOfToday.setHours(0, 0, 0, 0);
+  const startOfYesterday = new Date(startOfToday);
+  // setDate keeps local midnight across a daylight-saving change; subtracting 24h would not.
+  startOfYesterday.setDate(startOfYesterday.getDate() - 1);
+  const todayFrom = startOfToday.getTime() / 1000;
+  const yesterdayFrom = startOfYesterday.getTime() / 1000;
+
+  const buckets: Record<SessionGroupKey, HubSession[]> = { today: [], yesterday: [], earlier: [] };
+  for (const session of sessions) {
+    const ts = Number(session?.updated_at);
+    if (!Number.isFinite(ts) || ts <= 0) buckets.earlier.push(session);
+    else if (ts >= todayFrom) buckets.today.push(session);
+    else if (ts >= yesterdayFrom) buckets.yesterday.push(session);
+    else buckets.earlier.push(session);
+  }
+  return SESSION_GROUPS.filter((g) => buckets[g.key].length > 0).map((g) => ({
+    key: g.key,
+    label: g.label,
+    sessions: buckets[g.key],
+  }));
+}
+
 export function hydrateStaged(raw: unknown): HubStagedEntry[] {
   if (!Array.isArray(raw)) return [];
   const out: HubStagedEntry[] = [];

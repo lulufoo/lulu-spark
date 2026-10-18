@@ -149,6 +149,18 @@
   font-weight: 500;
 }
 
+/* Date headings (Today / Yesterday / Earlier) above each group of chats. Same look as the section labels. */
+.home-chat-session-group-label {
+  padding: 12px 8px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 16px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--fg-subtle);
+}
+.home-chat-session-group:first-child .home-chat-session-group-label { padding-top: 4px; }
+
 .home-chat-session { border-radius: 8px; }
 .home-chat-session:hover { background: var(--home-hover); }
 .home-chat-session.is-active {
