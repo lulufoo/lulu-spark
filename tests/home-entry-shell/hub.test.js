@@ -447,7 +447,7 @@ describe('home hub chat sessions', () => {
     );
   });
 
-  it('creates a session from the left + control', async () => {
+  it('creates a session from the pinned New chat button', async () => {
     await mountReady();
     container.querySelector('[data-role="new-session"]').click();
     await vi.waitFor(() => {

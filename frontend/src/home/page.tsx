@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useLayoutEffect, useRef, useSyncExternalStore, type FormEvent, type KeyboardEvent } from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent } from 'react';
 import { attachHomeSidebarResize, detachHomeSidebarResize } from './ui/sidebar-resize.ts';
 import { createRoot, type Root } from 'react-dom/client';
 import { flushSync } from 'react-dom';
@@ -17,6 +17,7 @@ import { ApprovalDialog } from './ui/approval-dialog.tsx';
 import { AccountBar } from './ui/account-bar.tsx';
 import { HelpMenu } from './ui/help-menu.tsx';
 import { SessionHistory } from './ui/session-history.tsx';
+import { SidebarTabs, type SidebarPane } from './ui/sidebar-tabs.tsx';
 import { SessionList } from './ui/session-list.tsx';
 import { SIDEBAR_CHAT_LIMIT, sidebarSessions } from './state/sidebar-sessions.ts';
 import { SessionMenu } from './ui/session-menu.tsx';
@@ -177,6 +178,7 @@ export function HomePage({
   const messagesRef = useRef<HTMLDivElement | null>(null);
   const formRef = useRef<HTMLFormElement | null>(null);
   const inputRef = useRef<ComposerInputHandle | null>(null);
+  const [sidebarPane, setSidebarPane] = useState<SidebarPane>('home');
   const imeEnterRef = useRef(createImeEnterGuard());
   const sidebarRef = useRef<HTMLElement | null>(null);
   const lastPaintKeyRef = useRef('');
@@ -332,7 +334,8 @@ export function HomePage({
             }}
           />
         </WindowDragStrip>
-        <nav className="home-chat-nav" aria-label="Lulu Spark">
+        <SidebarTabs pane={sidebarPane} onChange={setSidebarPane} />
+        <nav className="home-chat-nav" aria-label="Lulu Spark" hidden={sidebarPane !== 'home'}>
           <div className="home-chat-nav-group" data-home-nav-group="workspace">
             <div className="home-chat-nav-label">Workspace</div>
             <HomeWorkspaceNav
@@ -350,58 +353,56 @@ export function HomePage({
             />
           </div>
         </nav>
-        <div className="home-chat-sessions-head">
-          <span className="home-chat-sessions-title">Chats</span>
-          <span className="home-chat-sessions-actions">
-            {state.sessions.length > SIDEBAR_CHAT_LIMIT ? (
-              <SessionHistory
-                total={state.sessions.length}
-                sessions={state.sessions.slice(0, visibleSessionCount(state))}
-                currentSessionId={state.currentSessionId}
-                progressByChat={state.progressByChat}
-                inFlightIds={state.inFlightIds}
-                onSelect={pickSession}
-                onDelete={removeSession}
-                onNearEnd={showMoreSessions}
-              />
-            ) : null}
-            <button
-              type="button"
-              className="home-chat-new"
-              data-role="new-session"
-              aria-label="New conversation"
-              data-tip="New conversation"
-              onClick={() => {
-                void createSession()
-                  .then((ok) => {
-                    if (ok) inputRef.current?.focus();
-                  })
-                  .catch(showActionError);
-              }}
-            >
-              <svg className="home-chat-new-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                <path
-                  fill="currentColor"
-                  d="M11 5a1 1 0 1 1 2 0v6h6a1 1 0 1 1 0 2h-6v6a1 1 0 1 1-2 0v-6H5a1 1 0 1 1 0-2h6V5z"
+        <div className="home-chat-pane" hidden={sidebarPane !== 'chat'}>
+          <div className="home-chat-sessions-head">
+            <span className="home-chat-sessions-title">Chats</span>
+            <span className="home-chat-sessions-actions">
+              {state.sessions.length > SIDEBAR_CHAT_LIMIT ? (
+                <SessionHistory
+                  total={state.sessions.length}
+                  sessions={state.sessions.slice(0, visibleSessionCount(state))}
+                  currentSessionId={state.currentSessionId}
+                  progressByChat={state.progressByChat}
+                  inFlightIds={state.inFlightIds}
+                  onSelect={pickSession}
+                  onDelete={removeSession}
+                  onNearEnd={showMoreSessions}
                 />
-              </svg>
-            </button>
-          </span>
+              ) : null}
+            </span>
+          </div>
+          <div
+            className="home-chat-sessions"
+            data-role="session-list"
+            role="list"
+          >
+            <SessionList
+              sessions={sidebarSessions(state.sessions, state.currentSessionId)}
+              currentSessionId={state.currentSessionId}
+              progressByChat={state.progressByChat}
+              inFlightIds={state.inFlightIds}
+              onSelect={pickSession}
+              onDelete={removeSession}
+            />
+          </div>
         </div>
-        <div
-          className="home-chat-sessions"
-          data-role="session-list"
-          role="list"
+        <button
+          type="button"
+          className="home-chat-new-dock"
+          data-role="new-session"
+          onClick={() => {
+            void createSession()
+              .then((ok) => {
+                if (!ok) return;
+                setSidebarPane('chat');
+                inputRef.current?.focus();
+              })
+              .catch(showActionError);
+          }}
         >
-          <SessionList
-            sessions={sidebarSessions(state.sessions, state.currentSessionId)}
-            currentSessionId={state.currentSessionId}
-            progressByChat={state.progressByChat}
-            inFlightIds={state.inFlightIds}
-            onSelect={pickSession}
-            onDelete={removeSession}
-          />
-        </div>
+          <span className="home-chat-new-dock-label">New chat</span>
+          <kbd className="home-chat-new-dock-key">⌘O</kbd>
+        </button>
         <div className="home-account-row" data-role="account-row">
           <AccountBar
             user={authUser}

@@ -6890,33 +6890,6 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   margin-top: 12px;
   padding: 0 var(--home-chat-row-inset) 0 var(--home-rail);
 }
-.home-chat-new {
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border: 1px solid var(--border-neutral);
-  border-radius: 8px;
-  background: var(--bg-surface);
-  color: var(--fg-muted);
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-.home-chat-new:hover {
-  background: var(--bg-subtle);
-  color: var(--fg-default);
-  border-color: var(--border-hex-c8cfd6);
-}
-.home-chat-new:focus-visible {
-  outline: 2px solid var(--border-accent);
-  outline-offset: 1px;
-}
-.home-chat-new-icon {
-  width: 14px;
-  height: 14px;
-  display: block;
-}
 .home-chat-sessions {
   flex: 0 0 auto;
   height: calc(var(--home-chat-list-rows) * var(--home-chat-row-h) + 2 * var(--home-chat-list-pad));

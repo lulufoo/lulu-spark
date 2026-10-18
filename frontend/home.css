@@ -48,15 +48,106 @@
   border-top: 1px solid var(--border-muted);
   height: calc(var(--home-nav-label-h) + 8px);
 }
-.home-chat-new {
-  width: 24px;
-  height: 24px;
-  border-color: transparent;
-  background: transparent;
-  border-radius: 6px;
+/* ── Tabs: Home / Spark AI capsules + search, one row under the window chrome ── */
+.home-sidebar-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  padding: 2px 12px 8px;
 }
-.home-chat-new:hover { background: var(--home-hover); border-color: transparent; }
-.home-chat-new-icon { width: 13px; height: 13px; }
+.home-sidebar-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  min-width: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--fg-muted);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, padding 0.15s ease;
+}
+.home-sidebar-tab:hover { background: var(--home-hover); color: var(--fg-default); }
+.home-sidebar-tab:focus-visible { outline: 2px solid var(--home-accent); outline-offset: 1px; }
+.home-sidebar-tab.is-active {
+  padding: 0 12px;
+  background: var(--bg-muted);
+  color: var(--fg-emphasis);
+}
+.home-sidebar-tab .home-desktop-shortcut-icon,
+.home-sidebar-tab .home-desktop-shortcut-icon svg,
+.home-sidebar-search .home-desktop-shortcut-icon,
+.home-sidebar-search .home-desktop-shortcut-icon svg { width: 16px; height: 16px; }
+.home-sidebar-tab-label {
+  max-width: 0;
+  margin-left: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  opacity: 0;
+  transition: max-width 0.18s ease, margin-left 0.18s ease, opacity 0.12s ease;
+}
+.home-sidebar-tab.is-active .home-sidebar-tab-label { max-width: 7em; margin-left: 8px; opacity: 1; }
+.home-sidebar-search { margin-left: auto; flex: none; }
+
+/* ── Panes: both stay mounted (the workspace list measures itself); the inactive one is hidden ── */
+.home-chat-nav[hidden],
+.home-chat-pane[hidden] { display: none; }
+.home-chat-pane {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-height: 0;
+}
+.home-chat-pane .home-chat-sessions-head {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+  height: var(--home-nav-label-h);
+}
+/* Chat list fills the height the dock and the account row leave, instead of a fixed five rows. */
+.home-chat-pane .home-chat-sessions {
+  flex: 1 1 0;
+  height: auto;
+  min-height: 0;
+}
+
+/* ── New chat: pinned above the account row on both tabs ── */
+.home-chat-new-dock {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex: none;
+  height: 32px;
+  margin: 8px 12px;
+  padding: 0 12px;
+  border: 1px solid var(--border-muted);
+  border-radius: 16px;
+  background: var(--bg-surface);
+  color: var(--fg-muted);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: 0 1px 2px var(--shadow-rgba-1f2328-06);
+}
+.home-chat-new-dock:hover { background: var(--bg-subtle); color: var(--fg-default); }
+.home-chat-new-dock:focus-visible { outline: 2px solid var(--home-accent); outline-offset: 1px; }
+.home-chat-new-dock-key {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--bg-subtle);
+  color: var(--fg-subtle);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 500;
+}
 
 .home-chat-session { border-radius: 8px; }
 .home-chat-session:hover { background: var(--home-hover); }
