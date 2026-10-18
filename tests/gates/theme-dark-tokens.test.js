@@ -93,7 +93,7 @@ describe('OTH-211 Dark theme tokens', () => {
       /\.home-chat-composer-dock:focus-within\s*\{[^}]*border-color:\s*var\(--border-focus\)/,
     );
     expect(appCss).not.toMatch(
-      /\.home-chat-composer-dock:focus-within\s*\{[^}]*shadow-rgba-0969da/,
+      /\.home-chat-composer-dock:focus-within\s*\{[^}]*shadow-rgba-accent/,
     );
     expect(appCss).toMatch(
       /\[data-theme="light"\]\s+\.home-chat-composer-dock:focus-within\s*\{[^}]*shadow-rgba-1f2328-06/,

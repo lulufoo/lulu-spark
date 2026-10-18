@@ -607,7 +607,7 @@
     z-index: 2;
   }
   .sidebar-resizer:hover {
-    background: var(--bg-rgba-0969da-15);
+    background: var(--bg-rgba-accent-15);
   }
   body.sidebar-resizing {
     user-select: none;
@@ -1124,7 +1124,7 @@
     border-radius: 50%;
     background: var(--bg-accent);
     color: var(--fg-on-emphasis);
-    box-shadow: 0 3px 12px var(--shadow-rgba-0969da-30);
+    box-shadow: 0 3px 12px var(--shadow-rgba-accent-30);
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -1133,7 +1133,7 @@
   }
   .rl-assistant-fab:hover {
     background: var(--bg-accent-emphasis);
-    box-shadow: 0 4px 16px var(--shadow-rgba-0969da-38);
+    box-shadow: 0 4px 16px var(--shadow-rgba-accent-38);
   }
   .rl-assistant-fab--active {
     transform: scale(0.96);
@@ -2180,7 +2180,7 @@
     --todo-task-status-border: var(--border-default);
     --todo-task-status-bg-hover: var(--bg-canvas);
     --todo-task-status-border-hover: var(--border-subtle-2);
-    --todo-task-status-ring: var(--shadow-rgba-0969da-16);
+    --todo-task-status-ring: var(--shadow-rgba-accent-16);
     box-sizing: border-box;
     max-width: 100%;
     height: 28px;
@@ -2249,7 +2249,7 @@
     --todo-task-status-border: var(--border-hex-a7d4ff);
     --todo-task-status-bg-hover: var(--bg-hex-ddf4ff);
     --todo-task-status-border-hover: var(--border-hex-54aeff);
-    --todo-task-status-ring: var(--shadow-rgba-0969da-18);
+    --todo-task-status-ring: var(--shadow-rgba-accent-18);
   }
   .todo-task-master-status-select--complete,
   .todo-task-sub-status-select--complete {
@@ -2944,7 +2944,7 @@
     outline: none;
   }
   .todo-task-attachment-item:focus-visible {
-    box-shadow: inset 0 0 0 2px var(--shadow-rgba-0969da-35);
+    box-shadow: inset 0 0 0 2px var(--shadow-rgba-accent-35);
   }
   .todo-task-attachment-icon {
     display: inline-flex;
@@ -4877,7 +4877,7 @@
   background: var(--bg-surface);
   font-weight: 600;
   color: var(--fg-accent);
-  box-shadow: inset 2px 0 0 var(--shadow-hex-0969da);
+  box-shadow: inset 2px 0 0 var(--shadow-hex-accent);
 }
 .settings-nav-item:disabled {
   color: var(--fg-subtle);

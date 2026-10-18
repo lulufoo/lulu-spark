@@ -115,14 +115,14 @@ describe('Periwinkle accent tokens', () => {
     expect(tokenValue(themeCss, 'fg-accent')).toBe('#4f62d8');
     expect(tokenValue(themeCss, 'fg-accent-emphasis')).toBe('#4a5cd4');
     expect(tokenValue(themeCss, 'bg-hex-ddf4ff')).toBe('#ebedfb');
-    expect(tokenValue(themeCss, 'shadow-rgba-0969da-35')).toBe('rgba(87, 106, 224, 0.35)');
+    expect(tokenValue(themeCss, 'shadow-rgba-accent-35')).toBe('rgba(87, 106, 224, 0.35)');
   });
 
   it('locks the Dark link, selected row and focus ring values', () => {
     expect(tokenValue(darkCss, 'fg-accent')).toBe('#8b98ee');
     expect(tokenValue(darkCss, 'fg-accent-emphasis')).toBe('#a4aef2');
     expect(tokenValue(darkCss, 'bg-hex-ddf4ff')).toBe('#262a45');
-    expect(tokenValue(darkCss, 'shadow-rgba-0969da-35')).toBe('rgba(110, 127, 229, 0.45)');
+    expect(tokenValue(darkCss, 'shadow-rgba-accent-35')).toBe('rgba(110, 127, 229, 0.45)');
   });
 
   it('keeps accent text and button labels at WCAG AA (4.5)', () => {
@@ -142,7 +142,7 @@ describe('Periwinkle accent tokens', () => {
 
   it('leaves no legacy blue in the theme files or app.css', () => {
     for (const css of [themeCss, darkCss, appCss]) {
-      expect(css).not.toMatch(/#0969da|#3b73ff|#2a5fe0|#4187da|#0550ae/i);
+      expect(css).not.toMatch(/0969da|#3b73ff|#2a5fe0|#4187da|#0550ae/i);
     }
   });
 });
