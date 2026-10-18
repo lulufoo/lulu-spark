@@ -80,6 +80,23 @@ export async function updateProject(
   });
 }
 
+export type DeleteProjectResult = {
+  ok?: boolean;
+  error?: string;
+  project_id?: string;
+  /** Documents given to the built-in project. */
+  moved?: number;
+  /** Of those, how many had to take a new file name. */
+  renamed?: number;
+  target_project_id?: string;
+  target_project_name?: string;
+};
+
+/** Delete a project: its documents move to the workspace's built-in project first. */
+export async function deleteProject(workspaceId: string, projectId: string) {
+  return writePost('/api/project-delete', { workspace_id: workspaceId, project_id: projectId }) as Promise<DeleteProjectResult>;
+}
+
 export type HidePatternRow = { id: string; pattern: string };
 
 /** Hidden files rules of one workspace. */

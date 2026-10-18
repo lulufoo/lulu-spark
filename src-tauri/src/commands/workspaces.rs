@@ -90,6 +90,11 @@ pub async fn update_project(_app: AppHandle, payload: Value) -> Result<Value, St
 }
 
 #[tauri::command]
+pub async fn delete_project(_app: AppHandle, payload: Value) -> Result<Value, String> {
+    run(move || docs::delete_project(&payload)).await
+}
+
+#[tauri::command]
 pub async fn list_hide_patterns(_app: AppHandle, payload: Value) -> Result<Value, String> {
     run(move || docs::list_hide_patterns(&payload)).await
 }
