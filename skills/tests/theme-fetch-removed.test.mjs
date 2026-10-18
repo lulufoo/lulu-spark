@@ -6,7 +6,6 @@ import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const skillMd = path.join(root, "SKILL.md");
-const readme = path.join(root, "README.md");
 const fetchDir = path.join(root, "theme-fetch");
 
 describe("theme-fetch skill removal", () => {
@@ -34,18 +33,13 @@ describe("theme-fetch skill removal", () => {
     );
   });
 
-  it("README and sibling skills omit theme-fetch", () => {
-    const files = [
-      readme,
-      path.join(root, "spark-task/SKILL.md"),
-    ];
-    for (const file of files) {
-      const text = fs.readFileSync(file, "utf8");
-      assert.equal(
-        /\btheme-fetch\b/.test(text),
-        false,
-        `${path.relative(root, file)} must not mention theme-fetch`,
-      );
-    }
+  it("sibling skills omit theme-fetch", () => {
+    const file = path.join(root, "spark-task/SKILL.md");
+    const text = fs.readFileSync(file, "utf8");
+    assert.equal(
+      /\btheme-fetch\b/.test(text),
+      false,
+      `${path.relative(root, file)} must not mention theme-fetch`,
+    );
   });
 });

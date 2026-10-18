@@ -161,12 +161,18 @@ describe('SessionList headings', () => {
   });
 
   it('keeps the empty state and exposes each group to assistive tech', () => {
-    expect(mount([]).querySelector('.home-chat-sessions-empty')?.textContent).toBe('No conversations yet.');
-    const host = mount([at('a', secs(2026, 10, 18, 9))]);
-    const group = host.querySelector('.home-chat-session-group');
-    expect(group.getAttribute('role')).toBe('group');
-    expect(group.getAttribute('aria-label')).toBe('Today');
-    expect(group.querySelector('.home-chat-session-group-label').getAttribute('aria-hidden')).toBe('true');
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date(2026, 9, 18, 15, 30));
+      expect(mount([]).querySelector('.home-chat-sessions-empty')?.textContent).toBe('No conversations yet.');
+      const host = mount([at('a', secs(2026, 10, 18, 9))]);
+      const group = host.querySelector('.home-chat-session-group');
+      expect(group.getAttribute('role')).toBe('group');
+      expect(group.getAttribute('aria-label')).toBe('Today');
+      expect(group.querySelector('.home-chat-session-group-label').getAttribute('aria-hidden')).toBe('true');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('styles the heading like the other sidebar labels', () => {
@@ -182,11 +188,14 @@ describe('SessionList headings', () => {
     expect(rule).toMatch(/padding: 0 2px 0 8px/);
   });
 
-  it('gives the open chat the same grey as a hovered row, with no white card', () => {
+  it('tints a hovered chat row with the hover colour and the open chat with the selected colour, no white card', () => {
     const css = readFileSync(join(repoRoot, 'frontend/home.css'), 'utf8');
-    const rule = css.match(/\.home-chat-session:hover,\s*\.home-chat-session\.is-active \{[^}]*\}/)?.[0] ?? '';
-    expect(rule).toMatch(/background: var\(--home-hover\)/);
-    expect(rule).toMatch(/box-shadow: none/);
+    const hover = css.match(/\.home-chat-session:hover \{[^}]*\}/)?.[0] ?? '';
+    const active = css.match(/\.home-chat-session\.is-active \{[^}]*\}/)?.[0] ?? '';
+    expect(hover).toMatch(/background: var\(--bg-hover\)/);
+    expect(hover).toMatch(/box-shadow: none/);
+    expect(active).toMatch(/background: var\(--bg-selected\)/);
+    expect(active).toMatch(/box-shadow: none/);
     expect(css).not.toMatch(/\.home-chat-session\.is-active \{[^}]*var\(--bg-surface\)/);
   });
 

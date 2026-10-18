@@ -2,23 +2,24 @@
 :root {
   color-scheme: dark;
   /* bg */
-  --bg-accent: #3b73ff;
-  --bg-accent-emphasis: #2a5fe0;
+  --bg-accent: #576ae0;
+  --bg-accent-emphasis: #4a5cd4;
+  --bg-accent-subtle: #262a45;
   --bg-canvas: #1c1d1f;
   --bg-danger: #c24b3e;
   --bg-dark: #4c4851;
   --bg-emphasis: #2e2c32;
   --bg-emphasis-2: #19181b;
-  --bg-hex-0060c0: #2a4a7a;
-  --bg-hex-0071e3: #2a4a7a;
-  --bg-hex-0757b8: #2a4a7a;
-  --bg-hex-0860c8: #2a4a7a;
+  --bg-hex-0060c0: #4a5cd4;
+  --bg-hex-0071e3: #576ae0;
+  --bg-hex-0757b8: #4a5cd4;
+  --bg-hex-0860c8: #4a5cd4;
   --bg-hex-116329: #1a2a22;
   --bg-hex-141414: #19181b;
   --bg-hex-1d1d1f: #212023;
-  --bg-hex-1f6feb: #2a4a7a;
+  --bg-hex-1f6feb: #576ae0;
   --bg-hex-1f883d: #1a2a22;
-  --bg-hex-388bfd: #2a4a7a;
+  --bg-hex-388bfd: #4a5cd4;
   --bg-hex-3fa06b: #1a2a22;
   --bg-hex-424a53: #3f3c44;
   --bg-hex-484f58: #3f3c44;
@@ -28,13 +29,12 @@
   --bg-hex-8b949e: #7e7a85;
   --bg-hex-9a6700: #2a2416;
   --bg-hex-a40e26: #6b2430;
-  --bg-hex-b6e3ff: #1e2233;
+  --bg-hex-b6e3ff: #343b66;
   --bg-hex-bf8700: #2a2416;
   --bg-hex-c9d1d9: #212023;
   --bg-hex-d1fae5: #1a2a22;
   --bg-hex-dafbe1: #1a2a22;
-  --bg-hex-dbeafe: #1e2233;
-  --bg-hex-ddf4ff: #1e2233;
+  --bg-hex-dbeafe: #2e3358;
   --bg-hex-e0e0e3: #19181b;
   --bg-hex-e3e9f0: #19181b;
   --bg-hex-e6ebf0: #19181b;
@@ -43,7 +43,6 @@
   --bg-hex-ececef: #2a2b2e;
   --bg-hex-edfcf0: #19181b;
   --bg-hex-eef2f6: #19181b;
-  --bg-hex-eef6ff: #19181b;
   --bg-hex-f0f0f0: #19181b;
   --bg-hex-f0f2f4: #19181b;
   --bg-hex-f0f3ff: #19181b;
@@ -69,27 +68,28 @@
   --bg-hex-fff8e6: #19181b;
   --bg-hex-fff8f0: #19181b;
   --bg-hex-fff8f8: #19181b;
+  --bg-hover: rgba(110, 127, 229, 0.12);
   --bg-inset: #2e2c32;
   --bg-muted: #26272b;
   --bg-rgba-000000-45: rgba(0, 0, 0, 0.53);
   --bg-rgba-000000-55: rgba(0, 0, 0, 0.63);
-  --bg-rgba-0969da-15: rgba(9, 105, 218, 0.16);
+  --bg-rgba-accent-15: rgba(110, 127, 229, 0.16);
   --bg-rgba-1f2328-06: rgba(31, 35, 40, 0.14);
   --bg-rgba-1f2328-32: rgba(31, 35, 40, 0.4);
   --bg-rgba-1f2328-45: rgba(31, 35, 40, 0.53);
   --bg-rgba-1f2328-48: rgba(31, 35, 40, 0.56);
-  --bg-rgba-eaeef2-70: rgba(14, 15, 17, 0.45);
   --bg-rgba-f0f3f6-12: rgba(14, 15, 17, 0.12);
   --bg-rgba-ffffff-00: rgba(28, 29, 31, 0);
   --bg-rgba-ffffff-12: rgba(14, 15, 17, 0.12);
+  --bg-selected: #262a45;
   --bg-subtle: #26272b;
   --bg-success: #1a9d62;
   --bg-surface: #212023;
 
   /* fg */
-  --fg-accent: #c4c1c7;
-  --fg-accent-emphasis: #d2d0d6;
-  --fg-ref-chip: #d8833b;
+  --fg-accent: #8b98ee;
+  --fg-accent-emphasis: #a4aef2;
+  --fg-ref-chip: #a4aef2;
   --fg-danger: #ef6252;
   --fg-default: #b7b4bb;
   --fg-emphasis: #c4c1c7;
@@ -110,7 +110,7 @@
   --fg-hex-8250df: #8250df;
   --fg-hex-92400e: #b8622e;
   --fg-hex-9386f2: #9386f2;
-  --fg-hex-96c6f8: #c4c1c7;
+  --fg-hex-96c6f8: #b8c0f7;
   --fg-hex-9a6700: #b88a2e;
   --fg-hex-b0b8c1: #c4c1c7;
   --fg-hex-b1bac4: #c4c1c7;
@@ -134,7 +134,7 @@
   --fg-success: #22d180;
 
   /* border */
-  --border-accent: #3b73ff;
+  --border-accent: #576ae0;
   --border-danger: #ef6252;
   --border-dark: #4c4851;
   --border-default: #322f37;
@@ -142,19 +142,19 @@
   --border-focus: #98959d;
   --border-hex-116329: #2a8c47;
   --border-hex-1f883d: #34ae57;
-  --border-hex-388bfd: #4181d9;
+  --border-hex-388bfd: #576ae0;
   --border-hex-4ac26b: #53d978;
-  --border-hex-54aeff: #4794d9;
+  --border-hex-54aeff: #6e7fe5;
   --border-hex-6639ba: #7742d9;
   --border-hex-6e7781: #8f9aa7;
   --border-hex-7ee787: #76d97f;
   --border-hex-8250df: #7e4ed9;
-  --border-hex-96c6f8: #83add9;
+  --border-hex-96c6f8: #5b67b5;
   --border-hex-9bd99b: #9bd99b;
   --border-hex-a40e26: #ca3d53;
-  --border-hex-a7d4ff: #8eb4d9;
-  --border-hex-b6d0f7: #a0b7d9;
-  --border-hex-b6e3ff: #9bc1d9;
+  --border-hex-a7d4ff: #4a5290;
+  --border-hex-b6d0f7: #4a5290;
+  --border-hex-b6e3ff: #4a5290;
   --border-hex-b6e8c4: #aad9b7;
   --border-hex-c8cfd6: #322f37;
   --border-hex-cccccc: #322f37;
@@ -181,7 +181,7 @@
   --border-success: #22d180;
 
   /* shadow */
-  --shadow-hex-0969da: #4187da;
+  --shadow-hex-accent: #6e7fe5;
   --shadow-rgba-000000-06: rgba(0, 0, 0, 0.12);
   --shadow-rgba-000000-08: rgba(0, 0, 0, 0.14);
   --shadow-rgba-000000-10: rgba(0, 0, 0, 0.16);
@@ -190,17 +190,17 @@
   --shadow-rgba-000000-18: rgba(0, 0, 0, 0.24);
   --shadow-rgba-000000-25: rgba(0, 0, 0, 0.31);
   --shadow-rgba-000000-30: rgba(0, 0, 0, 0.36);
-  --shadow-rgba-0071e3-28: rgba(0, 113, 227, 0.28);
+  --shadow-rgba-0071e3-28: rgba(110, 127, 229, 0.28);
   --shadow-rgba-010409-18: rgba(14, 15, 17, 0.24);
   --shadow-rgba-010409-22: rgba(14, 15, 17, 0.28);
-  --shadow-rgba-0969da-12: rgba(9, 105, 218, 0.16);
-  --shadow-rgba-0969da-14: rgba(9, 105, 218, 0.16);
-  --shadow-rgba-0969da-15: rgba(9, 105, 218, 0.16);
-  --shadow-rgba-0969da-16: rgba(9, 105, 218, 0.16);
-  --shadow-rgba-0969da-18: rgba(9, 105, 218, 0.18);
-  --shadow-rgba-0969da-30: rgba(9, 105, 218, 0.3);
-  --shadow-rgba-0969da-35: rgba(9, 105, 218, 0.35);
-  --shadow-rgba-0969da-38: rgba(9, 105, 218, 0.38);
+  --shadow-rgba-accent-12: rgba(110, 127, 229, 0.16);
+  --shadow-rgba-accent-14: rgba(110, 127, 229, 0.16);
+  --shadow-rgba-accent-15: rgba(110, 127, 229, 0.16);
+  --shadow-rgba-accent-16: rgba(110, 127, 229, 0.16);
+  --shadow-rgba-accent-18: rgba(110, 127, 229, 0.18);
+  --shadow-rgba-accent-30: rgba(110, 127, 229, 0.3);
+  --shadow-rgba-accent-35: rgba(110, 127, 229, 0.45);
+  --shadow-rgba-accent-38: rgba(110, 127, 229, 0.38);
   --shadow-rgba-1a7f37-18: rgba(26, 127, 55, 0.18);
   --shadow-rgba-1a7f37-30: rgba(26, 127, 55, 0.3);
   --shadow-rgba-1a7f37-38: rgba(26, 127, 55, 0.38);
