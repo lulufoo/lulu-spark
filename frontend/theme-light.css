@@ -2,23 +2,23 @@
 :root {
   color-scheme: light;
   /* bg */
-  --bg-accent: #0969da;
-  --bg-accent-emphasis: #0550ae;
+  --bg-accent: #576ae0;
+  --bg-accent-emphasis: #4a5cd4;
   --bg-canvas: #f6f8fa;
   --bg-danger: #cf222e;
   --bg-dark: #525960;
   --bg-emphasis: #24292f;
   --bg-emphasis-2: #1f2328;
-  --bg-hex-0060c0: #0060c0;
-  --bg-hex-0071e3: #0071e3;
-  --bg-hex-0757b8: #0757b8;
-  --bg-hex-0860c8: #0860c8;
+  --bg-hex-0060c0: #4a5cd4;
+  --bg-hex-0071e3: #576ae0;
+  --bg-hex-0757b8: #4a5cd4;
+  --bg-hex-0860c8: #4a5cd4;
   --bg-hex-116329: #116329;
   --bg-hex-141414: #141414;
   --bg-hex-1d1d1f: #1d1d1f;
-  --bg-hex-1f6feb: #1f6feb;
+  --bg-hex-1f6feb: #576ae0;
   --bg-hex-1f883d: #1f883d;
-  --bg-hex-388bfd: #388bfd;
+  --bg-hex-388bfd: #4a5cd4;
   --bg-hex-3fa06b: #3fa06b;
   --bg-hex-424a53: #424a53;
   --bg-hex-484f58: #484f58;
@@ -34,7 +34,7 @@
   --bg-hex-d1fae5: #d1fae5;
   --bg-hex-dafbe1: #dafbe1;
   --bg-hex-dbeafe: #dbeafe;
-  --bg-hex-ddf4ff: #ddf4ff;
+  --bg-hex-ddf4ff: #ebedfb;
   --bg-hex-e0e0e3: #e0e0e3;
   --bg-hex-e3e9f0: #e3e9f0;
   --bg-hex-e6ebf0: #e6ebf0;
@@ -73,7 +73,7 @@
   --bg-muted: #eaeef2;
   --bg-rgba-000000-45: rgba(0, 0, 0, 0.45);
   --bg-rgba-000000-55: rgba(0, 0, 0, 0.55);
-  --bg-rgba-0969da-15: rgba(9, 105, 218, 0.15);
+  --bg-rgba-0969da-15: rgba(87, 106, 224, 0.15);
   --bg-rgba-1f2328-06: rgba(31, 35, 40, 0.06);
   --bg-rgba-1f2328-32: rgba(31, 35, 40, 0.32);
   --bg-rgba-1f2328-45: rgba(31, 35, 40, 0.45);
@@ -87,8 +87,8 @@
   --bg-surface: #fff;
 
   /* fg */
-  --fg-accent: #0969da;
-  --fg-accent-emphasis: #0550ae;
+  --fg-accent: #4f62d8;
+  --fg-accent-emphasis: #4a5cd4;
   --fg-ref-chip: #d8833b;
   --fg-danger: #cf222e;
   --fg-default: #24292f;
@@ -134,7 +134,7 @@
   --fg-success: #1a7f37;
 
   /* border */
-  --border-accent: #0969da;
+  --border-accent: #576ae0;
   --border-danger: #cf222e;
   --border-dark: #525960;
   --border-default: #d0d7de;
@@ -142,7 +142,7 @@
   --border-focus: #afb8c1;
   --border-hex-116329: #116329;
   --border-hex-1f883d: #1f883d;
-  --border-hex-388bfd: #388bfd;
+  --border-hex-388bfd: #576ae0;
   --border-hex-4ac26b: #4ac26b;
   --border-hex-54aeff: #54aeff;
   --border-hex-6639ba: #6639ba;
@@ -181,7 +181,7 @@
   --border-success: #1a7f37;
 
   /* shadow */
-  --shadow-hex-0969da: #0969da;
+  --shadow-hex-0969da: #576ae0;
   --shadow-rgba-000000-06: rgba(0, 0, 0, 0.06);
   --shadow-rgba-000000-08: rgba(0, 0, 0, 0.08);
   --shadow-rgba-000000-10: rgba(0, 0, 0, 0.1);
@@ -190,17 +190,17 @@
   --shadow-rgba-000000-18: rgba(0, 0, 0, 0.18);
   --shadow-rgba-000000-25: rgba(0, 0, 0, 0.25);
   --shadow-rgba-000000-30: rgba(0, 0, 0, 0.3);
-  --shadow-rgba-0071e3-28: rgba(0, 113, 227, 0.28);
+  --shadow-rgba-0071e3-28: rgba(87, 106, 224, 0.28);
   --shadow-rgba-010409-18: rgba(1, 4, 9, 0.18);
   --shadow-rgba-010409-22: rgba(1, 4, 9, 0.22);
-  --shadow-rgba-0969da-12: rgba(9, 105, 218, 0.12);
-  --shadow-rgba-0969da-14: rgba(9, 105, 218, 0.14);
-  --shadow-rgba-0969da-15: rgba(9, 105, 218, 0.15);
-  --shadow-rgba-0969da-16: rgba(9, 105, 218, 0.16);
-  --shadow-rgba-0969da-18: rgba(9, 105, 218, 0.18);
-  --shadow-rgba-0969da-30: rgba(9, 105, 218, 0.3);
-  --shadow-rgba-0969da-35: rgba(9, 105, 218, 0.35);
-  --shadow-rgba-0969da-38: rgba(9, 105, 218, 0.38);
+  --shadow-rgba-0969da-12: rgba(87, 106, 224, 0.12);
+  --shadow-rgba-0969da-14: rgba(87, 106, 224, 0.14);
+  --shadow-rgba-0969da-15: rgba(87, 106, 224, 0.15);
+  --shadow-rgba-0969da-16: rgba(87, 106, 224, 0.16);
+  --shadow-rgba-0969da-18: rgba(87, 106, 224, 0.18);
+  --shadow-rgba-0969da-30: rgba(87, 106, 224, 0.3);
+  --shadow-rgba-0969da-35: rgba(87, 106, 224, 0.35);
+  --shadow-rgba-0969da-38: rgba(87, 106, 224, 0.38);
   --shadow-rgba-1a7f37-18: rgba(26, 127, 55, 0.18);
   --shadow-rgba-1a7f37-30: rgba(26, 127, 55, 0.3);
   --shadow-rgba-1a7f37-38: rgba(26, 127, 55, 0.38);

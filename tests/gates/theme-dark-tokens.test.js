@@ -27,8 +27,8 @@ describe('OTH-211 Dark theme tokens', () => {
     expect(darkCss).toMatch(/color-scheme:\s*dark;/);
     expect(darkCss).toMatch(/--bg-canvas:\s*#1c1d1f;/);
     expect(darkCss).toMatch(/--fg-default:\s*#b7b4bb;/);
-    expect(darkCss).toMatch(/--fg-accent:\s*#c4c1c7;/);
-    expect(darkCss).toMatch(/--fg-accent-emphasis:\s*#d2d0d6;/);
+    expect(darkCss).toMatch(/--fg-accent:\s*#8b98ee;/);
+    expect(darkCss).toMatch(/--fg-accent-emphasis:\s*#a4aef2;/);
     expect(darkCss).toMatch(/--bg-surface:\s*#212023;/);
     expect(darkCss).toMatch(/--bg-hex-e7ebef:\s*#2a2b2e;/);
     expect(tokenNames(darkCss)).toEqual(tokenNames(lightCss));
@@ -77,14 +77,14 @@ describe('OTH-211 Dark theme tokens', () => {
     expect(appCss).toMatch(
       /\[data-theme="dark"\]\s+\.btn-settings-save:hover:not\(:disabled\)\s*\{[^}]*background:\s*var\(--border-emphasis-2\)/,
     );
-    expect(darkCss).toMatch(/--bg-accent:\s*#3b73ff;/);
+    expect(darkCss).toMatch(/--bg-accent:\s*#576ae0;/);
   });
 
   it('paints form focus from --border-focus instead of --border-accent', () => {
     expect(lightCss).toMatch(/--border-focus:\s*#afb8c1;/);
     expect(darkCss).toMatch(/--border-focus:\s*#98959d;/);
-    expect(darkCss).toMatch(/--border-accent:\s*#3b73ff;/);
-    expect(lightCss).toMatch(/--border-accent:\s*#0969da;/);
+    expect(darkCss).toMatch(/--border-accent:\s*#576ae0;/);
+    expect(lightCss).toMatch(/--border-accent:\s*#576ae0;/);
     expect(appCss).toMatch(
       /\.notes-search-btn:hover,\s*\.notes-search-btn:focus-visible\s*\{[^}]*border-color:\s*var\(--border-focus\)/,
     );
