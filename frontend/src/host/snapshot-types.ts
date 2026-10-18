@@ -9,7 +9,7 @@ export type HostNoteTag = {
 export type HostNoteEntry = {
   _id?: string;
   id?: string;
-  workspace?: string;
+  workspace_id?: string;
   project_id?: string;
   /** Path of the raw file inside the project; read-only, drives the directory tree. */
   raw_path?: string;
@@ -77,8 +77,8 @@ export type HostCreateSession = {
   tempId: string;
   status: 'creating' | 'saving';
   /** Where the document goes: set when the session starts, never guessed at save time. */
-  workspace?: string;
-  project?: string;
+  workspace_id?: string;
+  project_id?: string;
 };
 
 export type HostOutletMode = '' | 'open' | 'create' | 'safe-empty';
@@ -104,8 +104,8 @@ export type HostViewer = {
 };
 
 export type HostWorkspace = {
-  id: string;
-  name: string;
+  workspace_id: string;
+  workspace_name: string;
   view_mode: 'directory' | 'timeline';
   is_default: boolean;
   /** Id of the configured icon; empty = the default icon. */

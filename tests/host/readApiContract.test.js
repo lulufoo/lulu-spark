@@ -15,13 +15,13 @@ describe('readApi contract map', () => {
   });
 
   it('resolveInvokeFromPath maps the search query with its workspace', () => {
-    expect(resolveInvokeFromPath('/api/search-spark?q=abc&limit=8&workspace=memory')).toEqual({
+    expect(resolveInvokeFromPath('/api/search-spark?q=abc&limit=8&workspace_id=memory')).toEqual({
       cmd: 'search_spark',
-      args: { q: 'abc', workspace: 'memory', limit: 8 },
+      args: { q: 'abc', workspaceId: 'memory', limit: 8 },
     });
     expect(resolveInvokeFromPath('/api/search-spark?q=abc')).toEqual({
       cmd: 'search_spark',
-      args: { q: 'abc', workspace: undefined, limit: undefined },
+      args: { q: 'abc', workspaceId: undefined, limit: undefined },
     });
   });
 
@@ -30,20 +30,20 @@ describe('readApi contract map', () => {
       cmd: 'list_disabled_workspaces',
       args: {},
     });
-    expect(resolveInvokeFromPath('/api/projects-disabled?workspace=ws1&_=1')).toEqual({
+    expect(resolveInvokeFromPath('/api/projects-disabled?workspace_id=ws1&_=1')).toEqual({
       cmd: 'list_disabled_projects',
-      args: { payload: { workspace: 'ws1' } },
+      args: { payload: { workspace_id: 'ws1' } },
     });
   });
 
   it('resolveInvokeFromPath maps the per-workspace hidden-files rules and viewer state', () => {
-    expect(resolveInvokeFromPath('/api/hide-patterns?workspace=ws1&_=1')).toEqual({
+    expect(resolveInvokeFromPath('/api/hide-patterns?workspace_id=ws1&_=1')).toEqual({
       cmd: 'list_hide_patterns',
-      args: { payload: { workspace: 'ws1' } },
+      args: { payload: { workspace_id: 'ws1' } },
     });
-    expect(resolveInvokeFromPath('/api/viewer-state?workspace=ws1&_=1')).toEqual({
+    expect(resolveInvokeFromPath('/api/viewer-state?workspace_id=ws1&_=1')).toEqual({
       cmd: 'get_viewer_state',
-      args: { payload: { workspace: 'ws1' } },
+      args: { payload: { workspace_id: 'ws1' } },
     });
   });
 

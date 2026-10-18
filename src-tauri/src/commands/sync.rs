@@ -49,11 +49,7 @@ pub async fn delete_entry(_app: AppHandle, payload: Value) -> Result<Value, Stri
 #[tauri::command]
 pub async fn move_entry_project(_app: AppHandle, payload: Value) -> Result<Value, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let mut payload = with_workspace(payload);
-        if let Some(project) = payload.get("new_project").cloned() {
-            payload["project_id"] = project;
-        }
-        docs::move_doc(&payload)
+        docs::move_doc(&with_workspace(payload))
     })
         .await
         .map_err(|e| e.to_string())

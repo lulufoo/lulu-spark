@@ -12,9 +12,9 @@ export async function getReindexAllStatus() {
 }
 
 /** Search the documents of one workspace (the Default workspace when none is given). */
-export async function searchSpark(q: string, limit = 10, workspace = '') {
+export async function searchSpark(q: string, limit = 10, workspaceId = '') {
   const params = new URLSearchParams({ q, limit: String(limit) });
-  if (workspace) params.set('workspace', workspace);
+  if (workspaceId) params.set('workspace_id', workspaceId);
   const res = await getReadDriver().fetchGet(`/api/search-spark?${params.toString()}`);
   return res.json();
 }

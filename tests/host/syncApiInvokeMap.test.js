@@ -7,7 +7,7 @@ import {
 /** [path, cmd, payload keys forwarded from HTTP body] */
 const P4_PATHS = [
   ['/api/delete', 'delete_entry', ['id']],
-  ['/api/move-project', 'move_entry_project', ['id', 'new_project']],
+  ['/api/move-project', 'move_entry_project', ['id', 'project_id']],
   ['/api/draft', 'save_comment_draft', ['id', 'content']],
 ];
 
@@ -38,11 +38,11 @@ describe('syncApiInvokeMap', () => {
     expect(
       resolveSyncInvoke('/api/move-project', {
         id: 'e1',
-        new_project: 'foo',
+        project_id: 'foo',
       })
     ).toEqual({
       cmd: 'move_entry_project',
-      args: { payload: { id: 'e1', new_project: 'foo' } },
+      args: { payload: { id: 'e1', project_id: 'foo' } },
     });
   });
 

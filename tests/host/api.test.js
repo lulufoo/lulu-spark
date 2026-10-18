@@ -210,7 +210,7 @@ test('moveToProject 发送正确 POST body 并返回响应', async () => {
   expect(fetch.mock.calls[0][1].method).toBe('POST')
   const body = JSON.parse(fetch.mock.calls[0][1].body)
   expect(body.id).toBe(id)
-  expect(body.new_project).toBe('ai')
+  expect(body.project_id).toBe('ai')
   expect(result.ok).toBe(true)
 })
 
@@ -224,10 +224,10 @@ test('moveToProject 服务器返回 HTML 时不抛出 JSON 解析异常', async 
 })
 
 test('fetchWorkspaces calls /api/workspaces', async () => {
-  mockFetch({ workspaces: [{ id: 'default', name: 'Default', view_mode: 'directory', is_default: true }] })
+  mockFetch({ workspaces: [{ workspace_id: 'default', workspace_name: 'Default', view_mode: 'directory', is_default: true }] })
   const result = await fetchWorkspaces()
   expect(fetch.mock.calls[0][0]).toMatch(new RegExp(`^${API_READ_PREFIX}/workspaces\\?_=\\d+$`))
-  expect(result.workspaces[0].id).toBe('default')
+  expect(result.workspaces[0].workspace_id).toBe('default')
 })
 
 test('fetchDisabledWorkspaces and fetchDisabledProjects read the disabled lists', async () => {
@@ -235,14 +235,14 @@ test('fetchDisabledWorkspaces and fetchDisabledProjects read the disabled lists'
   await fetchDisabledWorkspaces()
   await fetchDisabledProjects('ws1')
   expect(fetch.mock.calls[0][0]).toMatch(new RegExp(`^${API_READ_PREFIX}/workspaces-disabled\\?_=\\d+$`))
-  expect(fetch.mock.calls[1][0]).toMatch(new RegExp(`^${API_READ_PREFIX}/projects-disabled\\?workspace=ws1&_=\\d+$`))
+  expect(fetch.mock.calls[1][0]).toMatch(new RegExp(`^${API_READ_PREFIX}/projects-disabled\\?workspace_id=ws1&_=\\d+$`))
 })
 
-test('createWorkspace posts name and view mode', async () => {
+test('createWorkspace posts workspace_name and view mode', async () => {
   mockFetch({ ok: true })
   await createWorkspace('Research', 'timeline')
   expect(fetch.mock.calls[0][0]).toBe(`${DEFAULT_DEV_BASE}/api/workspace-create`)
-  expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({ name: 'Research', view_mode: 'timeline' })
+  expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({ workspace_name: 'Research', view_mode: 'timeline' })
 })
 
 test('renameWorkspace, setWorkspaceViewMode, disableWorkspace and enableWorkspace post the workspace id', async () => {
@@ -258,17 +258,17 @@ test('renameWorkspace, setWorkspaceViewMode, disableWorkspace and enableWorkspac
     `${DEFAULT_DEV_BASE}/api/workspace-enable`,
   ])
   expect(fetch.mock.calls.map((call) => JSON.parse(call[1].body))).toEqual([
-    { id: 'ws1', name: 'Notes' },
-    { id: 'ws1', view_mode: 'timeline' },
-    { id: 'ws1' },
-    { id: 'ws1' },
+    { workspace_id: 'ws1', workspace_name: 'Notes' },
+    { workspace_id: 'ws1', view_mode: 'timeline' },
+    { workspace_id: 'ws1' },
+    { workspace_id: 'ws1' },
   ])
 })
 
 test('hidden-files rules are read and written per workspace', async () => {
   mockFetch({ patterns: [{ id: 'seed00', pattern: '^\\.git$' }] })
   const listed = await fetchHidePatterns('ws1')
-  expect(fetch.mock.calls[0][0]).toMatch(new RegExp(`^${API_READ_PREFIX}/hide-patterns\\?workspace=ws1&_=\\d+$`))
+  expect(fetch.mock.calls[0][0]).toMatch(new RegExp(`^${API_READ_PREFIX}/hide-patterns\\?workspace_id=ws1&_=\\d+$`))
   expect(listed.patterns[0].id).toBe('seed00')
 
   mockFetch({ patterns: [] })
@@ -281,29 +281,29 @@ test('hidden-files rules are read and written per workspace', async () => {
     `${DEFAULT_DEV_BASE}/api/hide-pattern-remove`,
   ])
   expect(fetch.mock.calls.map((call) => JSON.parse(call[1].body))).toEqual([
-    { workspace: 'ws1', pattern: '^draft$' },
-    { workspace: 'ws1', id: 'seed00', pattern: '^x$' },
-    { workspace: 'ws1', id: 'seed00' },
+    { workspace_id: 'ws1', pattern: '^draft$' },
+    { workspace_id: 'ws1', id: 'seed00', pattern: '^x$' },
+    { workspace_id: 'ws1', id: 'seed00' },
   ])
 })
 
 test('the remembered open document is read and written per workspace', async () => {
-  mockFetch({ version: 2, project: 'p', projects: { p: { node: '', doc: 'abc', date: '' } } })
+  mockFetch({ version: 2, project_id: 'p', projects: { p: { node: '', doc: 'abc', date: '' } } })
   expect((await fetchViewerState('ws1')).projects.p.doc).toBe('abc')
-  expect(fetch.mock.calls[0][0]).toMatch(new RegExp(`^${API_READ_PREFIX}/viewer-state\\?workspace=ws1&_=\\d+$`))
-  await saveViewerState('ws1', { project: 'p', doc: 'abc' })
+  expect(fetch.mock.calls[0][0]).toMatch(new RegExp(`^${API_READ_PREFIX}/viewer-state\\?workspace_id=ws1&_=\\d+$`))
+  await saveViewerState('ws1', { project_id: 'p', doc: 'abc' })
   expect(fetch.mock.calls[1][0]).toBe(`${DEFAULT_DEV_BASE}/api/viewer-state`)
-  expect(JSON.parse(fetch.mock.calls[1][1].body)).toEqual({ workspace: 'ws1', project: 'p', doc: 'abc' })
+  expect(JSON.parse(fetch.mock.calls[1][1].body)).toEqual({ workspace_id: 'ws1', project_id: 'p', doc: 'abc' })
 })
 
 test('fetchProjects calls /api/projects for one workspace', async () => {
-  mockFetch({ projects: [{ id: 'inbox', title: 'Inbox', description: '' }] })
+  mockFetch({ projects: [{ project_id: 'inbox', project_name: 'Inbox', description: '' }] })
   const result = await fetchProjects('ws1')
-  expect(fetch.mock.calls[0][0]).toMatch(new RegExp(`^${API_READ_PREFIX}/projects\\?workspace=ws1&_=\\d+$`))
-  expect(result.projects[0].id).toBe('inbox')
+  expect(fetch.mock.calls[0][0]).toMatch(new RegExp(`^${API_READ_PREFIX}/projects\\?workspace_id=ws1&_=\\d+$`))
+  expect(result.projects[0].project_id).toBe('inbox')
 })
 
-test('project writes post workspace, project, title and description', async () => {
+test('project writes post workspace_id, project_id, project_name and description', async () => {
   mockFetch({ ok: true })
   await createProject('ws1', 'Ops', 'desc')
   await updateProject('ws1', 'ops', 'Operations', 'runbooks')
@@ -316,10 +316,10 @@ test('project writes post workspace, project, title and description', async () =
     `${DEFAULT_DEV_BASE}/api/project-enable`,
   ])
   expect(fetch.mock.calls.map((call) => JSON.parse(call[1].body))).toEqual([
-    { workspace: 'ws1', title: 'Ops', description: 'desc' },
-    { workspace: 'ws1', project: 'ops', title: 'Operations', description: 'runbooks' },
-    { workspace: 'ws1', project: 'ops' },
-    { workspace: 'ws1', project: 'ops' },
+    { workspace_id: 'ws1', project_name: 'Ops', description: 'desc' },
+    { workspace_id: 'ws1', project_id: 'ops', project_name: 'Operations', description: 'runbooks' },
+    { workspace_id: 'ws1', project_id: 'ops' },
+    { workspace_id: 'ws1', project_id: 'ops' },
   ])
 })
 
@@ -333,11 +333,11 @@ test('reorder posts the whole list of ids', async () => {
   ])
   expect(fetch.mock.calls.map((call) => JSON.parse(call[1].body))).toEqual([
     { ids: ['b', 'default', 'a'] },
-    { workspace: 'ws1', ids: ['two', 'one'] },
+    { workspace_id: 'ws1', ids: ['two', 'one'] },
   ])
 })
 
-test('icons ride along on create and update only when given, and setWorkspaceIcon posts id and icon', async () => {
+test('icons ride along on create and update only when given, and setWorkspaceIcon posts workspace_id and icon', async () => {
   mockFetch({ ok: true })
   await createWorkspace('Research', 'timeline', '03ab12')
   await createWorkspace('Plain')
@@ -356,12 +356,12 @@ test('icons ride along on create and update only when given, and setWorkspaceIco
     `${DEFAULT_DEV_BASE}/api/project-update`,
   ])
   expect(fetch.mock.calls.map((call) => JSON.parse(call[1].body))).toEqual([
-    { name: 'Research', view_mode: 'timeline', icon: '03ab12' },
-    { name: 'Plain', view_mode: 'directory' },
-    { id: 'ws1', icon: '05zz99' },
-    { id: 'ws1', icon: '' },
-    { workspace: 'ws1', title: 'Ops', description: 'desc', icon: '03k7x2' },
-    { workspace: 'ws1', project: 'ops', title: 'Operations', description: 'runbooks', icon: '' },
-    { workspace: 'ws1', project: 'ops', title: 'Operations', description: 'runbooks' },
+    { workspace_name: 'Research', view_mode: 'timeline', icon: '03ab12' },
+    { workspace_name: 'Plain', view_mode: 'directory' },
+    { workspace_id: 'ws1', icon: '05zz99' },
+    { workspace_id: 'ws1', icon: '' },
+    { workspace_id: 'ws1', project_name: 'Ops', description: 'desc', icon: '03k7x2' },
+    { workspace_id: 'ws1', project_id: 'ops', project_name: 'Operations', description: 'runbooks', icon: '' },
+    { workspace_id: 'ws1', project_id: 'ops', project_name: 'Operations', description: 'runbooks' },
   ])
 })
