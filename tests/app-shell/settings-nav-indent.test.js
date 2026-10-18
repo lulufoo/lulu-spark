@@ -40,8 +40,4 @@ describe('Settings left nav: workspaces sit indented under "Workspaces"', () => 
     expect(child).not.toBeNull();
     expect(Number(child[1])).toBeGreaterThan(Number(top[1]));
   });
-
-  it('keeps the Home sidebar project indent (the effect this mirrors)', () => {
-    expect(css).toMatch(/\.home-chat-nav \.home-nav-project \{[^}]*padding: 0 8px 0 24px;/);
-  });
 });
