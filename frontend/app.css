@@ -6400,9 +6400,9 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   height: 24px;
   margin-top: 8px;
   padding: 0;
-  border: 1px solid var(--border-neutral);
+  border: none;
   border-radius: 6px;
-  background: var(--bg-surface);
+  background: transparent;
   color: var(--fg-muted);
   cursor: pointer;
   display: inline-flex;
