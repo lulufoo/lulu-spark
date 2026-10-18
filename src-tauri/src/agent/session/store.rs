@@ -61,7 +61,7 @@ pub fn session_log_path(session_id: &str) -> Result<PathBuf, String> {
     Ok(session_dir(session_id)?.join("session.log"))
 }
 
-fn catalog_file_path() -> Result<PathBuf, String> {
+pub(super) fn catalog_file_path() -> Result<PathBuf, String> {
     let _ = sessions_dir()?;
     Ok(catalog::catalog_path(agent_dir()?))
 }
@@ -219,11 +219,6 @@ fn session_list_title(session: &Session, updated_at: i64) -> String {
             }
         })
         .unwrap_or_else(|| format_session_when(updated_at))
-}
-
-/// Disk session catalog for the Home history list. Newest first.
-pub fn list_session_summaries() -> Result<Vec<Value>, String> {
-    catalog::list_recent(&catalog_file_path()?)
 }
 
 /// Read-only turns for Home / binding hydrate. Empty when no live session / load fails.

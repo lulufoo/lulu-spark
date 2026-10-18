@@ -218,6 +218,14 @@ pub fn save(path: &PathBuf, session: &Session, title: &str, now: i64) -> Result<
     Ok(())
 }
 
+/// Set the session's `updated_at` and nothing else (title, steps and staged entries stay as they are).
+pub fn touch(path: &PathBuf, now: i64) -> Result<(), String> {
+    let conn = open(path)?;
+    conn.execute("UPDATE meta SET updated_at = ?1", params![now])
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 pub fn load(path: &PathBuf) -> Result<Session, String> {
     if !path.is_file() {
         return Err("Session not found".into());

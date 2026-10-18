@@ -731,7 +731,7 @@ describe('home hub chat sessions', () => {
     });
   });
 
-  it('lists the chats a page at a time in the sidebar: the first 10 of 25', async () => {
+  it('lists every chat the host returns in the sidebar, all 25', async () => {
     sessions = Array.from({ length: 25 }, (_, i) => ({
       session_id: `s${i}`,
       title: `Chat ${i}`,
@@ -739,7 +739,7 @@ describe('home hub chat sessions', () => {
     currentId = 's0';
     cleanup = mountHomeHub(container, { navigate: vi.fn() });
     await vi.waitFor(() => {
-      expect(container.querySelectorAll('.home-chat-session')).toHaveLength(10);
+      expect(container.querySelectorAll('.home-chat-session')).toHaveLength(25);
     });
   });
 

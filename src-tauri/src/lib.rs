@@ -134,6 +134,10 @@ pub fn run() {
             commands::auth_session::delete_auth_session,
         ])
         .setup(|app| {
+            // Fix the Home chat list's cutoff now, before anything can write a chat.
+            if let Err(err) = crate::agent::session::init_recent_cutoff() {
+                eprintln!("[chat-list] cutoff not set, listing every chat: {err}");
+            }
             let notify_handle = app.handle().clone();
             crate::services::message_center::set_changed_handler(Some(std::sync::Arc::new(
                 move || {

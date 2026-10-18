@@ -1,11 +1,13 @@
 use std::path::PathBuf;
 
+use chrono::{Local, NaiveDate, TimeZone};
 use rusqlite::{params, Connection};
 use serde_json::{json, Value};
 
 use super::schema::{CATALOG_SCHEMA, SESSION_STATUS_IDLE};
 
-const HOME_CHAT_LIST_LIMIT: usize = 20;
+/// How many of the most recent calendar days that have chats the Home list reaches back to.
+pub const RECENT_CHAT_DAYS: usize = 2;
 
 pub fn catalog_path(agent_dir: PathBuf) -> PathBuf {
     agent_dir.join("sessions-catalog.sqlite")
@@ -79,7 +81,51 @@ pub fn remove(path: &PathBuf, session_id: &str) -> Result<(), String> {
     Ok(())
 }
 
-pub fn list_recent(path: &PathBuf) -> Result<Vec<Value>, String> {
+/// Local midnight of `date` as Unix seconds. A zone that skips midnight (daylight saving) starts
+/// the day at the first hour that exists.
+fn local_midnight_secs(date: NaiveDate) -> Option<i64> {
+    (0..=3u32).find_map(|hour| {
+        let naive = date.and_hms_opt(hour, 0, 0)?;
+        Local
+            .from_local_datetime(&naive)
+            .earliest()
+            .map(|dt| dt.timestamp())
+    })
+}
+
+/// The earliest moment the Home list reaches back to: local midnight of the `days`-th most recent
+/// calendar day that has a chat, by `updated_at`. `0` (no cutoff) when fewer than `days` such days
+/// exist, or when the catalog does not exist yet. Rows with `updated_at <= 0` have no day.
+pub fn recent_cutoff(path: &PathBuf, days: usize) -> Result<i64, String> {
+    if days == 0 || !path.is_file() {
+        return Ok(0);
+    }
+    let conn = open(path)?;
+    let mut stmt = conn
+        .prepare("SELECT updated_at FROM sessions WHERE updated_at > 0 ORDER BY updated_at DESC")
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map([], |row| row.get::<_, i64>(0))
+        .map_err(|e| e.to_string())?;
+    let mut seen: Vec<NaiveDate> = Vec::with_capacity(days);
+    for row in rows {
+        let ts = row.map_err(|e| e.to_string())?;
+        let Some(dt) = Local.timestamp_opt(ts, 0).single() else {
+            continue;
+        };
+        let day = dt.date_naive();
+        if seen.last() != Some(&day) {
+            seen.push(day);
+            if seen.len() == days {
+                return Ok(local_midnight_secs(day).unwrap_or(0));
+            }
+        }
+    }
+    Ok(0)
+}
+
+/// Chats with `updated_at >= cutoff`, newest first. `cutoff = 0` returns every chat.
+pub fn list_since(path: &PathBuf, cutoff: i64) -> Result<Vec<Value>, String> {
     if !path.is_file() {
         return Ok(Vec::new());
     }
@@ -88,12 +134,12 @@ pub fn list_recent(path: &PathBuf) -> Result<Vec<Value>, String> {
         .prepare(
             "SELECT session_id, title, updated_at, llm
              FROM sessions
-             ORDER BY updated_at DESC, rowid DESC
-             LIMIT ?1",
+             WHERE updated_at >= ?1
+             ORDER BY updated_at DESC, rowid DESC",
         )
         .map_err(|e| e.to_string())?;
     let rows = stmt
-        .query_map(params![HOME_CHAT_LIST_LIMIT as i64], |row| {
+        .query_map(params![cutoff], |row| {
             let llm: Option<String> = row.get(3)?;
             let llm = llm
                 .map(|s| s.trim().to_string())
@@ -114,4 +160,18 @@ pub fn list_recent(path: &PathBuf) -> Result<Vec<Value>, String> {
         items.push(row.map_err(|e| e.to_string())?);
     }
     Ok(items)
+}
+
+/// Set one chat's `updated_at` and nothing else. A chat that is not in the catalog is left alone.
+pub fn touch(path: &PathBuf, session_id: &str, updated_at: i64) -> Result<(), String> {
+    if !path.is_file() {
+        return Ok(());
+    }
+    let conn = open(path)?;
+    conn.execute(
+        "UPDATE sessions SET updated_at = ?2 WHERE session_id = ?1",
+        params![session_id, updated_at],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
 }

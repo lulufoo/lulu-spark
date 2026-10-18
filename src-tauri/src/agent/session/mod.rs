@@ -3,6 +3,7 @@
 mod binding;
 mod catalog;
 mod live;
+mod recent;
 mod redact;
 mod schema;
 mod session_db;
@@ -14,6 +15,7 @@ mod types;
 
 pub use binding::*;
 pub use live::*;
+pub use recent::*;
 pub use redact::*;
 pub use step_clock::*;
 pub use store::*;
@@ -34,3 +36,7 @@ mod step_clock_tests;
 #[cfg(test)]
 #[path = "../../unit-tests/agent/step_extra_tests.rs"]
 mod step_extra_tests;
+
+#[cfg(test)]
+#[path = "../../unit-tests/agent/session_recent_cutoff.rs"]
+mod session_recent_cutoff_tests;

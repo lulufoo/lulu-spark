@@ -16,7 +16,6 @@ import { AboutDialog } from './ui/about-dialog.tsx';
 import { ApprovalDialog } from './ui/approval-dialog.tsx';
 import { AccountBar } from './ui/account-bar.tsx';
 import { HelpMenu } from './ui/help-menu.tsx';
-import { useRevealMoreChats } from './ui/reveal-more-chats.ts';
 import { SidebarTabs, type SidebarPane } from './ui/sidebar-tabs.tsx';
 import { attachHomeShortcuts, detachHomeShortcuts } from './ui/home-shortcuts.ts';
 import { SearchModal } from '../shared/search-modal/search-modal.tsx';
@@ -39,7 +38,6 @@ import {
   selectSession,
   sendMessage,
   showActionError,
-  showMoreSessions,
   startHomeHub,
   stopHomeHub,
 } from './commands/hub.ts';
@@ -58,7 +56,6 @@ import {
   resetHomeState,
   sessionListLabel,
   useHomeState,
-  visibleSessionCount,
   type HubMessage,
   type LiveThinking,
 } from './state/store.ts';
@@ -191,10 +188,6 @@ export function HomePage({
   const imeEnterRef = useRef(createImeEnterGuard());
   const sidebarRef = useRef<HTMLElement | null>(null);
   const sessionListRef = useRef<HTMLDivElement | null>(null);
-  const revealMoreChats = useRevealMoreChats(sessionListRef, showMoreSessions, [
-    visibleSessionCount(state),
-    sidebarPane,
-  ]);
   const lastPaintKeyRef = useRef('');
   const mdPaintGenRef = useRef(0);
   const paintKey = messagePaintKey(state);
@@ -403,10 +396,9 @@ export function HomePage({
             data-role="session-list"
             role="list"
             ref={sessionListRef}
-            onScroll={revealMoreChats}
           >
             <SessionList
-              sessions={state.sessions.slice(0, visibleSessionCount(state))}
+              sessions={state.sessions}
               currentSessionId={state.currentSessionId}
               progressByChat={state.progressByChat}
               inFlightIds={state.inFlightIds}

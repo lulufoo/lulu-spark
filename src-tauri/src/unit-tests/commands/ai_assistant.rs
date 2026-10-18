@@ -674,11 +674,11 @@ fn list_select_create_chat_sessions_for_home_history() {
         for _ in 0..20 {
             create_chat_session_json().expect("fill list");
         }
-        let capped = list_chat_sessions_json().expect("list cap");
+        let all = list_chat_sessions_json().expect("list all");
         assert_eq!(
-            capped["sessions"].as_array().map(|a| a.len()),
-            Some(20),
-            "Home history lists the 20 most recent sessions"
+            all["sessions"].as_array().map(|a| a.len()),
+            Some(22),
+            "Home history has no count cap: every chat of the recent days is listed"
         );
     });
 }

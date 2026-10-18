@@ -17,16 +17,34 @@ const at = (id, updated_at) => ({ session_id: id, title: id, updated_at });
 const idsOf = (group) => group.sessions.map((s) => s.session_id);
 
 describe('groupSessionsByDay', () => {
-  it('splits by local calendar day into Today / Yesterday / Earlier, in that order', () => {
+  it('gives Today and Yesterday their names and every other day its date, newest first', () => {
     const groups = groupSessionsByDay(
-      [at('a', secs(2026, 10, 18, 9)), at('b', secs(2026, 10, 17, 22)), at('c', secs(2026, 10, 3, 12))],
+      [
+        at('a', secs(2026, 10, 18, 9)),
+        at('b', secs(2026, 10, 17, 22)),
+        at('c', secs(2026, 10, 13, 12)),
+        at('d', secs(2026, 10, 13, 8)),
+      ],
       NOW,
     );
     expect(groups.map((g) => [g.key, g.label, idsOf(g)])).toEqual([
       ['today', 'Today', ['a']],
       ['yesterday', 'Yesterday', ['b']],
-      ['earlier', 'Earlier', ['c']],
+      ['2026-10-13', 'Oct 13', ['c', 'd']],
     ]);
+  });
+
+  it('adds the year to a date heading only when it is not the current year', () => {
+    const groups = groupSessionsByDay(
+      [at('a', secs(2026, 1, 2, 9)), at('b', secs(2025, 12, 31, 9))],
+      NOW,
+    );
+    expect(groups.map((g) => g.label)).toEqual(['Jan 2', 'Dec 31, 2025']);
+  });
+
+  it('has no Earlier group: a chat from long ago gets its own date', () => {
+    const groups = groupSessionsByDay([at('a', secs(2026, 3, 1, 9))], NOW);
+    expect(groups.map((g) => g.label)).toEqual(['Mar 1']);
   });
 
   it('puts the day boundaries on local midnight', () => {
@@ -35,24 +53,24 @@ describe('groupSessionsByDay', () => {
         at('todayStart', secs(2026, 10, 18, 0, 0, 0)),
         at('yesterdayEnd', secs(2026, 10, 17, 23, 59, 59)),
         at('yesterdayStart', secs(2026, 10, 17, 0, 0, 0)),
-        at('earlierEnd', secs(2026, 10, 16, 23, 59, 59)),
+        at('dayBeforeEnd', secs(2026, 10, 16, 23, 59, 59)),
       ],
       NOW,
     );
-    expect(groups.map((g) => [g.key, idsOf(g)])).toEqual([
-      ['today', ['todayStart']],
-      ['yesterday', ['yesterdayEnd', 'yesterdayStart']],
-      ['earlier', ['earlierEnd']],
+    expect(groups.map((g) => [g.label, idsOf(g)])).toEqual([
+      ['Today', ['todayStart']],
+      ['Yesterday', ['yesterdayEnd', 'yesterdayStart']],
+      ['Oct 16', ['dayBeforeEnd']],
     ]);
   });
 
-  it('leaves out a group that has no chats', () => {
-    const groups = groupSessionsByDay([at('a', secs(2026, 10, 18, 9)), at('c', secs(2026, 9, 1))], NOW);
-    expect(groups.map((g) => g.key)).toEqual(['today', 'earlier']);
+  it('leaves out a day that has no chats', () => {
+    const groups = groupSessionsByDay([at('a', secs(2026, 10, 18, 9)), at('c', secs(2026, 10, 1))], NOW);
+    expect(groups.map((g) => g.key)).toEqual(['today', '2026-10-01']);
     expect(groupSessionsByDay([], NOW)).toEqual([]);
   });
 
-  it('puts a chat with a missing or invalid updated_at into Earlier', () => {
+  it('puts a chat with a missing or invalid updated_at last, under No date', () => {
     const groups = groupSessionsByDay(
       [
         at('none', undefined),
@@ -63,9 +81,9 @@ describe('groupSessionsByDay', () => {
       ],
       NOW,
     );
-    expect(groups.map((g) => [g.key, idsOf(g)])).toEqual([
-      ['today', ['today']],
-      ['earlier', ['none', 'zero', 'nan', 'absent']],
+    expect(groups.map((g) => [g.key, g.label, idsOf(g)])).toEqual([
+      ['today', 'Today', ['today']],
+      ['undated', 'No date', ['none', 'zero', 'nan', 'absent']],
     ]);
   });
 
@@ -112,14 +130,14 @@ describe('SessionList headings', () => {
       const host = mount([
         at('a', secs(2026, 10, 18, 9)),
         at('b', secs(2026, 10, 17, 9)),
-        at('c', secs(2026, 10, 1, 9)),
-        at('d', secs(2026, 9, 1, 9)),
+        at('c', secs(2026, 10, 13, 9)),
+        at('d', secs(2026, 10, 13, 8)),
       ]);
       const groups = [...host.querySelectorAll('.home-chat-session-group')];
       expect(groups.map((g) => g.querySelector('.home-chat-session-group-label').textContent)).toEqual([
         'Today',
         'Yesterday',
-        'Earlier',
+        'Oct 13',
       ]);
       expect(groups.map((g) => [...g.querySelectorAll('.home-chat-session-label')].map((el) => el.textContent))).toEqual([
         ['a'],
