@@ -162,6 +162,8 @@
 .home-chat-session-group:first-child .home-chat-session-group-label { padding-top: 4px; }
 
 .home-chat-session { border-radius: 8px; }
+/* Gap between rows, so the active card and a hovered row do not merge into one block. */
+.home-chat-session + .home-chat-session { margin-top: 4px; }
 .home-chat-session:hover { background: var(--home-hover); }
 .home-chat-session.is-active {
   background: var(--bg-surface);

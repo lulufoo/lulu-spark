@@ -164,6 +164,12 @@ describe('SessionList headings', () => {
     expect(rule).toMatch(/padding: 0 2px 0 8px/);
   });
 
+  it('leaves a gap between chat rows, so the active card and a hovered row do not touch', () => {
+    const css = readFileSync(join(repoRoot, 'frontend/home.css'), 'utf8');
+    const rule = css.match(/\.home-chat-session \+ \.home-chat-session \{[^}]*\}/)?.[0] ?? '';
+    expect(rule).toMatch(/margin-top: 4px/);
+  });
+
   it('stretches the open button to the full row height, so the whole row is clickable', () => {
     const css = readFileSync(join(repoRoot, 'frontend/home.css'), 'utf8');
     const rule = css.match(/\.home-chat-session-open \{[^}]*\}/)?.[0] ?? '';
