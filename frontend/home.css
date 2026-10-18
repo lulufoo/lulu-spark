@@ -85,7 +85,8 @@
   opacity: 0;
   transition: max-width 0.18s ease, margin-left 0.18s ease, opacity 0.12s ease;
 }
-.home-sidebar-tab.is-active .home-sidebar-tab-label { max-width: 7em; margin-left: 8px; opacity: 1; }
+/* The cap sits just above the widest label (Spark AI, about 54px). A looser cap makes the two tabs overshoot their final total width while switching. */
+.home-sidebar-tab.is-active .home-sidebar-tab-label { max-width: 5.9em; margin-left: 8px; opacity: 1; }
 .home-sidebar-search { margin-left: auto; flex: none; }
 
 /* ── Panes: both stay mounted (the workspace list measures itself); the inactive one is hidden ── */

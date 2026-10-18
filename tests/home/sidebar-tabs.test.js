@@ -143,7 +143,7 @@ describe('Home sidebar tabs (styles)', () => {
 
   it('collapses the unselected tab to an icon and expands the selected one', () => {
     expect(css).toMatch(/\.home-sidebar-tab-label \{[^}]*max-width: 0;/);
-    expect(css).toMatch(/\.home-sidebar-tab\.is-active \.home-sidebar-tab-label \{[^}]*max-width: 7em;/);
+    expect(css).toMatch(/\.home-sidebar-tab\.is-active \.home-sidebar-tab-label \{[^}]*max-width: 5\.9em;/);
   });
 
   it('lets the chat list fill the pane instead of a fixed row count', () => {
