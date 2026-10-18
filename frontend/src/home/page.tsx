@@ -18,6 +18,7 @@ import { AccountBar } from './ui/account-bar.tsx';
 import { HelpMenu } from './ui/help-menu.tsx';
 import { SessionHistory } from './ui/session-history.tsx';
 import { SidebarTabs, type SidebarPane } from './ui/sidebar-tabs.tsx';
+import { attachHomeShortcuts, detachHomeShortcuts } from './ui/home-shortcuts.ts';
 import { SearchModal } from '../shared/search-modal/search-modal.tsx';
 import { homeSearchNames } from './state/search-names.ts';
 import { openDocById } from './commands/open-doc-link.ts';
@@ -244,6 +245,33 @@ export function HomePage({
     return () => detachHomeSidebarResize();
   }, []);
 
+  // New chat: button and ⌘O share this. `newChatBusyRef` drops a second
+  // trigger while the first is still creating the session.
+  const newChatBusyRef = useRef(false);
+  const newChat = useCallback(() => {
+    if (newChatBusyRef.current) return;
+    newChatBusyRef.current = true;
+    setSearchOpen(false);
+    void createSession()
+      .then((ok) => {
+        if (!ok) return;
+        setSidebarPane('chat');
+        inputRef.current?.focus();
+      })
+      .catch(showActionError)
+      .finally(() => {
+        newChatBusyRef.current = false;
+      });
+  }, []);
+
+  useEffect(() => {
+    attachHomeShortcuts({
+      onNewChat: newChat,
+      onToggleSearch: () => setSearchOpen((open) => !open),
+    });
+    return () => detachHomeShortcuts();
+  }, [newChat]);
+
   useLayoutEffect(() => {
     const messagesEl = messagesRef.current;
     if (!messagesEl) return;
@@ -399,15 +427,8 @@ export function HomePage({
           type="button"
           className="home-chat-new-dock"
           data-role="new-session"
-          onClick={() => {
-            void createSession()
-              .then((ok) => {
-                if (!ok) return;
-                setSidebarPane('chat');
-                inputRef.current?.focus();
-              })
-              .catch(showActionError);
-          }}
+          aria-keyshortcuts="Meta+O"
+          onClick={newChat}
         >
           <span className="home-chat-new-dock-label">New chat</span>
           <kbd className="home-chat-new-dock-key">⌘O</kbd>

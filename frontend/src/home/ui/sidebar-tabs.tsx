@@ -45,7 +45,8 @@ export function SidebarTabs({
         className="home-top-action home-sidebar-search"
         data-role="sidebar-search"
         aria-label="Search"
-        data-tip="Search"
+        data-tip="Search ⌘K"
+        aria-keyshortcuts="Meta+K"
         onClick={onSearch}
       >
         <HomeNavIcon name="search" />
