@@ -35,7 +35,7 @@ Lulu Spark App **MUST** be running, with its Host MCP server reachable.
 |-------|-------|----------------|
 | Global | `search` | Find documents across every workspace, or in one |
 | Workspace | `list_workspaces`, `create_workspace`, `rename_workspace` | The containers; `Default` always exists |
-| Project | `list_projects`, `create_project`, `update_project` | The projects inside a workspace; `list_projects` returns `id`, `title`, and `is_inbox` |
+| Project | `list_projects`, `create_project`, `update_project` | The projects inside a workspace; `list_projects` returns `project_id`, `project_name`, and `is_inbox` |
 | Document | `list_doc_categories`, `get_doc_digest`, `get_doc_file`, `get_doc_content`, `create_doc`, `update_doc`, `delete_doc` | The documents themselves |
 | Read Later | `get_read_later` | One saved reading-list entry |
 
@@ -51,14 +51,14 @@ Map the user request, then call **only** the tools that match. Do not run a fixe
 
 | User intent | Do | Do not |
 |-------------|----|--------|
-| Create a workspace | `create_workspace`; the result carries its generated id | Do not guess an id before the result |
-| Rename a workspace | `list_workspaces` to find the id, then `rename_workspace` | Do not rename by name alone |
+| Create a workspace | `create_workspace`; the result carries its generated `workspace_id` | Do not guess an id before the result |
+| Rename a workspace | `list_workspaces` to find the `workspace_id`, then `rename_workspace` | Do not rename by name alone |
 | Create a project | Confirm the workspace with `list_workspaces`, check `list_projects` for a near-duplicate, then `create_project` | Do not create a project to move documents: it does not move any |
-| Edit a project's title or description | `list_projects` for its `id`, then `update_project` | Do not change the `id` |
+| Edit a project's name or description | `list_projects` for its `project_id`, then `update_project` | Do not change the `project_id` |
 | List workspaces / projects | `list_workspaces`; `list_projects` with the workspace | — |
-| Create / save / archive a document | Confirm the target with `list_workspaces` and `list_projects`. When the user names a project, pass that row's `id`. When the user names none, omit `workspace` (Default) and omit `project` (inbox). Infer document-internal `folder` and `title` when the user did not give them — [path-or-paste.md](references/path-or-paste.md) for a lone path or paste. Load [chinese-companion.md](references/chinese-companion.md). Call `list_doc_categories`, then `create_doc` with the live schema parameters. | Do not invent a workspace or project id; do not pass `project: "inbox"` |
+| Create / save / archive a document | Confirm the target with `list_workspaces` and `list_projects`. When the user names a project, pass that row's `project_id`. When the user names none, omit `workspace_id` (Default) and omit `project_id` (inbox). Infer document-internal `folder` and `title` when the user did not give them — [path-or-paste.md](references/path-or-paste.md) for a lone path or paste. Load [chinese-companion.md](references/chinese-companion.md). Call `list_doc_categories`, then `create_doc` with the live schema parameters. | Do not invent a workspace or project id; do not pass `project_id: "inbox"` |
 | Search documents | `search`, optionally limited to one workspace | Do not list a catalog's full id set |
-| Read one digest | `get_doc_digest` with the `workspace` of the search hit | — |
+| Read one digest | `get_doc_digest` with the `workspace_id` of the search hit | — |
 | Read one document body | Spark / Cursor / Codex / Claude: `get_doc_file` with a `dest_dir`, then read the returned copy. Mobile: `get_doc_content` | Do not read the data directory directly |
 | Edit an existing document | `get_doc_file`, edit the copy, then `update_doc` with `source_path` set to the copy | Do not edit the data directory directly |
 | Delete a document | Only when the user explicitly asks, and only when `delete_doc` is in the tool list: confirm the document, then `delete_doc` | Irreversible — never delete as a side step of another task |
@@ -85,7 +85,7 @@ Do not invent norms not listed here.
 ## Hard Constraints
 
 1. **Listed tools only** — Use `spark-task` and the MCP tools listed in this SKILL only.
-2. **Verify after write** — After a create or update, confirm `ok` and `id`. Treat `digest_written`, `zh_written`, and `assets_copied` as present only when that write happened. Do not require `common_path`, `raw_path`, `digest_path`, `extra_paths`, or `asset_paths` on the result.
+2. **Verify after write** — After a create or update, confirm `ok` and `id`, and check the landing spot against the result's `workspace_id`, `workspace_name`, `project_id` and `project_name`. Treat `digest_written`, `zh_written`, and `assets_copied` as present only when that write happened. Do not require `common_path`, `raw_path`, `digest_path`, `extra_paths`, or `asset_paths` on the result.
 3. **HTTP errors** — 4xx/5xx surface as MCP tool errors (`isError: true`); do not treat error payloads as success.
 4. **Path or paste** — a lone markdown path or pasted body uses [path-or-paste.md](references/path-or-paste.md). Do not call Host HTTP.
 5. **Ids come from results** — Use workspace ids, project ids and document ids as the list / search / create results return them; never build one by hand.
@@ -94,13 +94,13 @@ Do not invent norms not listed here.
 
 | MCP tool | Group | Purpose |
 |----------|-------|---------|
-| `search` | Global | Search Lulu Spark's own library across workspaces or in one; returns id, title, snippet, workspace, project |
+| `search` | Global | Search Lulu Spark's own library across workspaces or in one; returns id, title, snippet, workspace_id, workspace_name, project_id, project_name |
 | `list_workspaces` | Workspace | List workspaces; the `Default` workspace always exists |
-| `create_workspace` | Workspace | Create a workspace; returns its generated id |
+| `create_workspace` | Workspace | Create a workspace; returns its generated `workspace_id` |
 | `rename_workspace` | Workspace | Rename a workspace (including `Default`); the id never changes |
-| `list_projects` | Project | List the projects of one workspace (`id`, `title`, `is_inbox`); does not list documents |
+| `list_projects` | Project | List the projects of one workspace (`project_id`, `project_name`, `is_inbox`); does not list documents |
 | `create_project` | Project | Add a project to a workspace; does not move existing documents |
-| `update_project` | Project | Change a project's title and description; the id is kept |
+| `update_project` | Project | Change a project's name and description; the `project_id` is kept |
 | `list_doc_categories` | Document | Classification ids `create_doc.source_type` accepts |
 | `get_doc_digest` | Document | Digest Markdown for one document id |
 | `get_doc_file` | Document | Copy one document's file into `dest_dir` and return `{ok, id, path}`; the body is not returned and an existing copy is never overwritten |
@@ -117,7 +117,7 @@ Field names, limits, and optionality: live MCP schema only.
 Observable completion for a write request:
 
 - Tool call succeeded; and
-- Response has `ok` and `id` (for a workspace, its generated id); and
+- Response has `ok` and `id` (for a workspace, its generated `workspace_id`); and
 - When a digest was written: `digest_written` is present; when skipped: it is absent; and
 - When a zh companion was written: `zh_written` is present; when skipped: it is absent; and
 - When companion images were sent: `assets_copied` is present; when skipped: it is absent.

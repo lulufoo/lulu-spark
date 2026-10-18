@@ -99,9 +99,9 @@ describe("skills use the generic docs MCP tools", () => {
     assert.match(text, /list_workspaces/);
     assert.match(text, /list_projects/);
     assert.match(text, /`Default`/);
-    assert.match(text, /omit `project`/);
+    assert.match(text, /omit `project_id`/);
     assert.match(text, /is_inbox/);
-    assert.equal(/project: "inbox"/.test(text), true);
+    assert.equal(/project_id: "inbox"/.test(text), true);
     assert.equal(/project `inbox`/.test(text), false);
   });
 
