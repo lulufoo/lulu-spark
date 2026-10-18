@@ -5476,8 +5476,10 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   cursor: pointer;
 }
 .notes-cat-row-edit { color: var(--fg-accent); }
-.notes-cat-row-delete { color: var(--fg-danger); }
+.notes-cat-row-actions .notes-cat-row-delete { color: var(--fg-muted); font-weight: 400; }
 .notes-cat-row-edit:hover:not(:disabled) { background: var(--bg-hover); }
+.notes-cat-row-delete:hover:not(:disabled),
+.notes-cat-row-delete:focus-visible { color: var(--fg-danger); }
 .notes-cat-row-delete:hover:not(:disabled) { background: var(--bg-hex-ffebe9); }
 .notes-cat-row-open:focus-visible,
 .notes-cat-row-actions button:focus-visible {
