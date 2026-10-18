@@ -140,6 +140,20 @@ describe('Periwinkle accent tokens', () => {
     ).toBeGreaterThanOrEqual(4.5);
   });
 
+  it('paints the in-app icons and the sign-in landing with the periwinkle icon colours', () => {
+    const iconSources = [
+      'frontend/icons/app-icon.svg',
+      'frontend/src/home/ui/welcome.tsx',
+      'frontend/src/shared/home-mark.tsx',
+      'src-tauri/src/services/auth_login_landing.html',
+    ].map((rel) => readFileSync(join(repoRoot, rel), 'utf8'));
+    for (const source of iconSources) {
+      expect(source).toMatch(/576AE0/i);
+      expect(source).toMatch(/FF5A4E/i);
+      expect(source).not.toMatch(/0071e3|113, 227/i);
+    }
+  });
+
   it('leaves no legacy blue in the theme files or app.css', () => {
     for (const css of [themeCss, darkCss, appCss]) {
       expect(css).not.toMatch(/0969da|#3b73ff|#2a5fe0|#4187da|#0550ae/i);
