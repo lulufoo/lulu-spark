@@ -9,10 +9,12 @@ pub(crate) mod categories;
 pub(crate) mod create_meta;
 mod create;
 mod delete;
+mod delete_project;
 pub(crate) mod digest;
 pub mod edit;
 pub(crate) mod hide_patterns;
 mod jot;
+mod merge_files;
 mod merge_plan;
 mod move_doc;
 mod project;
@@ -29,6 +31,7 @@ pub use categories::{
 };
 pub use create::{create_doc, create_doc_content};
 pub use delete::delete_doc;
+pub use delete_project::delete_project;
 pub use edit::set_source_type;
 pub use hide_patterns::{
     add_hide_pattern, list_hide_patterns, remove_hide_pattern, update_hide_pattern,
@@ -58,3 +61,7 @@ mod create_tests;
 #[cfg(test)]
 #[path = "../../unit-tests/services/docs_assets.rs"]
 mod assets_tests;
+
+#[cfg(test)]
+#[path = "../../unit-tests/services/docs_delete_project.rs"]
+mod delete_project_tests;

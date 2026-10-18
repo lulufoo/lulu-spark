@@ -10,6 +10,7 @@ mod doc_table;
 mod drop_folder_step;
 mod json_column;
 mod legacy_rows_step;
+mod project_merge;
 mod project_row;
 mod tag_rows;
 mod workspace_row;
@@ -24,6 +25,7 @@ pub use doc_annotation::annotation_object;
 pub use doc_id::{duplicate_doc_ids, is_valid_doc_id, new_doc_id, split_doc_id};
 pub use doc_entry::{entry_from_doc, find_doc, list_doc_entries, translation_common_paths, FoundDoc};
 
+pub use project_merge::delete_project_after_merge;
 pub use project_row::{
     get_inbox_project, get_project, insert_project, list_projects, reorder_projects, update_project,
     ProjectRow,
