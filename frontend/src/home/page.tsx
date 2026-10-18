@@ -18,6 +18,9 @@ import { AccountBar } from './ui/account-bar.tsx';
 import { HelpMenu } from './ui/help-menu.tsx';
 import { SessionHistory } from './ui/session-history.tsx';
 import { SidebarTabs, type SidebarPane } from './ui/sidebar-tabs.tsx';
+import { SearchModal } from '../shared/search-modal/search-modal.tsx';
+import { homeSearchNames } from './state/search-names.ts';
+import { openDocById } from './commands/open-doc-link.ts';
 import { SessionList } from './ui/session-list.tsx';
 import { SIDEBAR_CHAT_LIMIT, sidebarSessions } from './state/sidebar-sessions.ts';
 import { SessionMenu } from './ui/session-menu.tsx';
@@ -151,6 +154,11 @@ function navWorkspaces(): HomeWorkspaceRow[] {
   return list.map((w) => ({ id: w.workspace_id, name: w.workspace_name, isDefault: w.is_default, icon: w.icon }));
 }
 
+/** Names for the search results: workspaces from the host list, projects from the Home sidebar. */
+function searchNames(projects: Parameters<typeof homeSearchNames>[1]) {
+  return homeSearchNames(state.workspaces.list, projects);
+}
+
 function goReadLater(navigateFn?: (hash: string) => void, openReadLater?: () => void) {
   if (typeof openReadLater === 'function') openReadLater();
   else navigateFn?.('#/read-later');
@@ -179,6 +187,7 @@ export function HomePage({
   const formRef = useRef<HTMLFormElement | null>(null);
   const inputRef = useRef<ComposerInputHandle | null>(null);
   const [sidebarPane, setSidebarPane] = useState<SidebarPane>('home');
+  const [searchOpen, setSearchOpen] = useState(false);
   const imeEnterRef = useRef(createImeEnterGuard());
   const sidebarRef = useRef<HTMLElement | null>(null);
   const lastPaintKeyRef = useRef('');
@@ -334,7 +343,7 @@ export function HomePage({
             }}
           />
         </WindowDragStrip>
-        <SidebarTabs pane={sidebarPane} onChange={setSidebarPane} />
+        <SidebarTabs pane={sidebarPane} onChange={setSidebarPane} onSearch={() => setSearchOpen(true)} />
         <nav className="home-chat-nav" aria-label="Lulu Spark" hidden={sidebarPane !== 'home'}>
           <div className="home-chat-nav-group" data-home-nav-group="workspace">
             <div className="home-chat-nav-label">Workspace</div>
@@ -495,6 +504,13 @@ export function HomePage({
       </section>
       <AboutDialog />
       <ApprovalDialog />
+      <SearchModal
+        open={searchOpen}
+        scope={{ kind: 'all-workspaces' }}
+        names={searchNames(state.workspaceProjects)}
+        onOpenDoc={(id) => void openDocById(id)}
+        onClose={() => setSearchOpen(false)}
+      />
     </div>
   );
 }

@@ -14,9 +14,11 @@ const TABS: { pane: SidebarPane; label: string; icon: HomeNavIconName }[] = [
 export function SidebarTabs({
   pane,
   onChange,
+  onSearch,
 }: {
   pane: SidebarPane;
   onChange: (pane: SidebarPane) => void;
+  onSearch: () => void;
 }) {
   return (
     <div className="home-sidebar-tabs" role="tablist" aria-label="Sidebar">
@@ -44,6 +46,7 @@ export function SidebarTabs({
         data-role="sidebar-search"
         aria-label="Search"
         data-tip="Search"
+        onClick={onSearch}
       >
         <HomeNavIcon name="search" />
       </button>

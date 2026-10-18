@@ -3,9 +3,12 @@ import { createRoot, type Root } from 'react-dom/client';
 import { flushSync } from 'react-dom';
 import { searchSpark } from '../../host/api.ts';
 import { state } from '../../host/state.ts';
-
-const HIST_KEY = 'gs-history-wb';
-const HIST_MAX = 10;
+import {
+  addSearchHistory as addHistory,
+  getSearchHistory as getHistory,
+  normalizeSearchQuery as normalizeQuery,
+  removeSearchHistory as removeHistory,
+} from '../../shared/search-modal/history.ts';
 
 type WbHit = {
   title?: string;
@@ -23,32 +26,6 @@ type DropdownView =
   | { kind: 'hits'; hits: WbHit[] };
 
 const closeListeners = new Set<() => void>();
-
-function normalizeQuery(raw: unknown) {
-  const trimmed = String(raw || '').trim();
-  return trimmed.startsWith('#') ? trimmed.slice(1).trim() : trimmed;
-}
-
-function getHistory(): string[] {
-  try {
-    return JSON.parse(localStorage.getItem(HIST_KEY) || '') || [];
-  } catch {
-    return [];
-  }
-}
-
-function addHistory(q: string) {
-  const normalized = normalizeQuery(q);
-  if (!normalized) return;
-  const list = getHistory().filter((x) => x !== normalized);
-  list.unshift(normalized);
-  localStorage.setItem(HIST_KEY, JSON.stringify(list.slice(0, HIST_MAX)));
-}
-
-function removeHistory(q: string) {
-  const list = getHistory().filter((x) => x !== q);
-  localStorage.setItem(HIST_KEY, JSON.stringify(list));
-}
 
 function getSnippet(hit: WbHit) {
   const formatted = hit._formatted || {};
