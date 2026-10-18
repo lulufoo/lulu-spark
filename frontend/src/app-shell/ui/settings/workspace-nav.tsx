@@ -8,12 +8,12 @@ export function WorkspaceNavItems() {
     <>
       {state.workspaces.list.map((workspace) => (
         <button
-          key={workspace.id}
+          key={workspace.workspace_id}
           type="button"
           className="settings-nav-item settings-nav-child"
-          data-panel={`workspace:${workspace.id}`}
+          data-panel={`workspace:${workspace.workspace_id}`}
         >
-          {workspace.name}
+          {workspace.workspace_name}
         </button>
       ))}
     </>

@@ -6,17 +6,17 @@ import { setHomeState, type HomeProject } from '../state/store.ts';
 
 function asProjects(data: unknown): HomeProject[] {
   const rec = data as {
-    projects?: Array<{ id?: unknown; title?: unknown; icon?: unknown }>;
+    projects?: Array<{ project_id?: unknown; project_name?: unknown; icon?: unknown }>;
     error?: string;
   } | null;
   if (rec?.error) throw new Error(rec.error);
   const out: HomeProject[] = [];
   for (const row of rec?.projects ?? []) {
-    const id = typeof row.id === 'string' ? row.id : '';
+    const id = typeof row.project_id === 'string' ? row.project_id : '';
     if (!id) continue;
     out.push({
       id,
-      title: typeof row.title === 'string' && row.title ? row.title : id,
+      title: typeof row.project_name === 'string' && row.project_name ? row.project_name : id,
       icon: typeof row.icon === 'string' ? row.icon : '',
     });
   }
@@ -25,7 +25,7 @@ function asProjects(data: unknown): HomeProject[] {
 
 /** Load the enabled projects of every enabled workspace for the Home sidebar. */
 export async function refreshWorkspaceProjects() {
-  const ids = state.workspaces.list.map((w) => w.id);
+  const ids = state.workspaces.list.map((w) => w.workspace_id);
   const loaded = await Promise.all(
     ids.map(async (id): Promise<[string, HomeProject[]]> => {
       try {

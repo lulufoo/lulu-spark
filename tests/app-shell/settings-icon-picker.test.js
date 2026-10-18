@@ -80,12 +80,12 @@ beforeEach(() => {
   notesCategoriesStore.set(emptyNotesCategoriesSnap());
   state.workspaces.current = 'default';
   state.workspaces.list = [
-    { id: 'default', name: 'Default', view_mode: 'directory', is_default: true, icon: '' },
-    { id: 'ws2', name: 'Wiki', view_mode: 'timeline', is_default: false, icon: ICON_A },
+    { workspace_id: 'default', workspace_name: 'Default', view_mode: 'directory', is_default: true, icon: '' },
+    { workspace_id: 'ws2', workspace_name: 'Wiki', view_mode: 'timeline', is_default: false, icon: ICON_A },
   ];
   projects.default = [
-    { id: 'inbox', project_id: 'inbox', title: 'Inbox', description: '', icon: '', is_inbox: true },
-    { id: 'plans', project_id: 'plans', title: 'Plans', description: 'd', icon: ICON_A },
+    { project_id: 'inbox', project_name: 'Inbox', description: '', icon: '', is_inbox: true },
+    { project_id: 'plans', project_name: 'Plans', description: 'd', icon: ICON_A },
   ];
 });
 

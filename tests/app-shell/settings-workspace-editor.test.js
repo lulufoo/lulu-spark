@@ -22,7 +22,7 @@ vi.mock('../../frontend/src/host/api.ts', () => ({
   setWorkspaceViewMode: async (...a) => reply('view', a),
   disableWorkspace: async (...a) => reply('disable', a),
   enableWorkspace: async (...a) => reply('enable', a),
-  fetchDisabledWorkspaces: async () => ({ workspaces: [{ id: 'old', name: 'Old' }] }),
+  fetchDisabledWorkspaces: async () => ({ workspaces: [{ workspace_id: 'old', workspace_name: 'Old' }] }),
 }));
 vi.mock('../../frontend/src/notes/commands/workspace.ts', () => ({ loadWorkspaces: async () => {} }));
 vi.mock('../../frontend/src/notes/commands/workspace-switch.ts', () => ({ applyViewModeChange: () => {} }));
@@ -46,8 +46,8 @@ describe('Workspace editor commands', () => {
     workspacesPanelStore.set(emptyWorkspacesPanelSnap());
     state.workspaces.current = 'default';
     state.workspaces.list = [
-      { id: 'default', name: 'Default', view_mode: 'directory', is_default: true },
-      { id: 'ws2', name: 'Wiki', view_mode: 'timeline', is_default: false },
+      { workspace_id: 'default', workspace_name: 'Default', view_mode: 'directory', is_default: true },
+      { workspace_id: 'ws2', workspace_name: 'Wiki', view_mode: 'timeline', is_default: false },
     ];
   });
 
@@ -115,8 +115,8 @@ describe('Workspaces settings UI', () => {
     calls.length = 0;
     workspacesPanelStore.set(emptyWorkspacesPanelSnap());
     state.workspaces.list = [
-      { id: 'default', name: 'Default', view_mode: 'directory', is_default: true },
-      { id: 'ws2', name: 'Wiki', view_mode: 'timeline', is_default: false },
+      { workspace_id: 'default', workspace_name: 'Default', view_mode: 'directory', is_default: true },
+      { workspace_id: 'ws2', workspace_name: 'Wiki', view_mode: 'timeline', is_default: false },
     ];
     await commands.loadDisabledWorkspaces();
   });

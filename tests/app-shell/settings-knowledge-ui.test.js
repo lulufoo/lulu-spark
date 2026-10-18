@@ -56,7 +56,7 @@ describe('Settings workspace UI', () => {
       'utf8',
     );
     expect(indexHtml).toContain('id="settings-panel-workspace"');
-    expect(indexHtml).toContain('data-panel={`workspace:${workspace.id}`}');
+    expect(indexHtml).toContain('data-panel={`workspace:${workspace.workspace_id}`}');
     for (const tab of ['directory', 'add', 'edit']) {
       expect(panel).toContain(`data-tab="${tab}"`);
       expect(panel).toContain(`id="settings-tab-workspace-${tab}"`);

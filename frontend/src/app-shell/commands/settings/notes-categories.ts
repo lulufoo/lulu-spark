@@ -12,17 +12,24 @@ import {
 /** One row per project; a project is addressed by its id. */
 function asRows(data: unknown): NotesCategoryRow[] {
   const rec = data as {
-    projects?: Array<Partial<NotesCategoryRow> & { sort_index?: number; is_inbox?: unknown }>;
+    projects?: Array<{
+      project_id?: unknown;
+      project_name?: unknown;
+      description?: unknown;
+      icon?: unknown;
+      sort_index?: unknown;
+      is_inbox?: unknown;
+    }>;
     error?: string;
   };
   if (rec?.error) throw new Error(rec.error);
   const rows: NotesCategoryRow[] = [];
   for (const [at, c] of (rec.projects || []).entries()) {
-    const id = typeof c.id === 'string' ? c.id.trim() : '';
+    const id = typeof c.project_id === 'string' ? c.project_id.trim() : '';
     if (!id) continue;
     rows.push({
       id,
-      title: typeof c.title === 'string' && c.title ? c.title : id,
+      title: typeof c.project_name === 'string' && c.project_name ? c.project_name : id,
       description: typeof c.description === 'string' ? c.description : '',
       is_inbox: c.is_inbox === true,
       icon: typeof c.icon === 'string' ? c.icon : '',

@@ -24,7 +24,7 @@ import { parseViewMode, VIEW_MODE_OPTIONS } from './notes-workspaces-add.tsx';
 export function NotesWorkspacesEditHost() {
   useSyncExternalStore(subscribeState, getStateVersion, getStateVersion);
   const snap = useSyncExternalStore(workspacesPanelStore.subscribe, workspacesPanelStore.getSnapshot);
-  const selected = state.workspaces.list.find((w) => w.id === snap.selectedId);
+  const selected = state.workspaces.list.find((w) => w.workspace_id === snap.selectedId);
   const builtIn = Boolean(selected?.is_default);
 
   useEffect(() => {
@@ -60,18 +60,18 @@ export function NotesWorkspacesEditHost() {
           disabled={snap.busy}
           onReorder={(ids) => void reorderWorkspaceList(ids)}
           rows={state.workspaces.list.map((workspace) => ({
-            id: workspace.id,
+            id: workspace.workspace_id,
             content: (
               <button
                 type="button"
                 className="notes-cat-item"
-                data-workspace={workspace.id}
+                data-workspace={workspace.workspace_id}
                 disabled={snap.busy}
-                onClick={() => openWorkspaceEditor(workspace.id)}
+                onClick={() => openWorkspaceEditor(workspace.workspace_id)}
               >
                 <span className="notes-cat-item-main">
                   <span className="notes-cat-item-title-row">
-                    <span className="notes-cat-item-title">{workspace.name}</span>
+                    <span className="notes-cat-item-title">{workspace.workspace_name}</span>
                     {workspace.is_default ? <span className="notes-cat-badge">Built-in</span> : null}
                   </span>
                   <span className="notes-cat-item-desc">
@@ -133,7 +133,7 @@ export function NotesWorkspacesEditHost() {
             {snap.confirmDisable ? (
               <div id="notes-ws-edit-dialog-body">
                 <p className="notes-cat-confirm-copy">
-                  Disable <strong>{selected.name}</strong>? It is hidden everywhere. Its documents are
+                  Disable <strong>{selected.workspace_name}</strong>? It is hidden everywhere. Its documents are
                   kept, the name stays reserved, and you can enable it again from the Disabled list.
                 </p>
                 <div id="notes-ws-edit-error" className="settings-result notes-cat-error">
@@ -167,7 +167,7 @@ export function NotesWorkspacesEditHost() {
                     <IconPicker
                       label="Workspace icon"
                       value={snap.draftIcon}
-                      defaultIcon={<HomeNavIcon name={defaultWorkspaceIconName(selected.id)} />}
+                      defaultIcon={<HomeNavIcon name={defaultWorkspaceIconName(selected.workspace_id)} />}
                       disabled={snap.busy}
                       onChange={setWorkspaceDraftIcon}
                     />

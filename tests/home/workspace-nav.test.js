@@ -11,12 +11,12 @@ const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const order = [];
 let resolveShow;
 const projectsByWorkspace = {
-  default: [{ id: 'inbox', project_id: 'inbox', title: 'Inbox' }, { id: 'work', project_id: 'work', title: 'Work' }],
+  default: [{ id: 'inbox', title: 'Inbox' }, { id: 'work', title: 'Work' }],
   knowledge: [
-    { id: 'a', project_id: 'a', title: 'A' },
-    { id: 'b', project_id: 'b', title: 'B' },
-    { id: 'c', project_id: 'c', title: 'C' },
-    { id: 'd', project_id: 'd', title: 'D' },
+    { id: 'a', title: 'A' },
+    { id: 'b', title: 'B' },
+    { id: 'c', title: 'C' },
+    { id: 'd', title: 'D' },
   ],
   empty: [],
 };
@@ -24,7 +24,9 @@ const projectsByWorkspace = {
 vi.mock('../../frontend/src/host/api.ts', () => ({
   fetchProjects: async (id) => {
     if (id === 'broken') throw new Error('boom');
-    return { projects: projectsByWorkspace[id] ?? [] };
+    return {
+      projects: (projectsByWorkspace[id] ?? []).map((p) => ({ project_id: p.id, project_name: p.title })),
+    };
   },
 }));
 vi.mock('../../frontend/src/notes/commands/sidebar.ts', () => ({
@@ -61,12 +63,12 @@ describe('Home workspace nav commands', () => {
     resetHomeState();
     state.workspaces = {
       current: 'default',
-      list: rows.map((r) => ({ id: r.id, name: r.name, view_mode: 'directory', is_default: r.isDefault })),
+      list: rows.map((r) => ({ workspace_id: r.id, workspace_name: r.name, view_mode: 'directory', is_default: r.isDefault })),
     };
   });
 
   it('loads the projects of every workspace and tolerates one that fails', async () => {
-    state.workspaces.list.push({ id: 'broken', name: 'Broken', view_mode: 'directory', is_default: false });
+    state.workspaces.list.push({ workspace_id: 'broken', workspace_name: 'Broken', view_mode: 'directory', is_default: false });
     await commands.refreshWorkspaceProjects();
     const loaded = getHomeState().workspaceProjects;
     expect(loaded.default.map((p) => p.id)).toEqual(['inbox', 'work']);

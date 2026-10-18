@@ -78,8 +78,8 @@ describe('mountHomeHub', () => {
   it('shows the current workspace names on the two document shortcuts', () => {
     const before = state.workspaces.list;
     state.workspaces.list = [
-      { id: 'default', name: 'Inbox', view_mode: 'directory', is_default: true },
-      { id: 'knowledge', name: 'Library', view_mode: 'timeline', is_default: false },
+      { workspace_id: 'default', workspace_name: 'Inbox', view_mode: 'directory', is_default: true },
+      { workspace_id: 'knowledge', workspace_name: 'Library', view_mode: 'timeline', is_default: false },
     ];
     try {
       cleanup = mountHomeHub(container, { navigate });

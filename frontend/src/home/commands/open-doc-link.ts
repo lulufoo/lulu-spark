@@ -28,7 +28,7 @@ export async function openDocById(id: string): Promise<void> {
   try {
     const note = await resolveDocForOpen(id);
     if (!hasEntry(id)) {
-      if (note.workspace && note.workspace !== state.workspaces.current) await showWorkspace(note.workspace);
+      if (note.workspace_id && note.workspace_id !== state.workspaces.current) await showWorkspace(note.workspace_id);
       else await refreshNotesIndex();
     }
     if (!hasEntry(id)) throw new Error('not in the document list yet');

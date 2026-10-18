@@ -23,19 +23,19 @@ const { getHomeState } = await import('../../frontend/src/home/state/store.ts');
 describe('icon fields in the data layer', () => {
   it('keeps the icon of a workspace and reads a missing one as empty', async () => {
     workspaces = [
-      { id: 'default', name: 'Default', view_mode: 'directory', is_default: true, icon: '03ab12' },
-      { id: 'old', name: 'Old', view_mode: 'timeline', is_default: false },
-      { id: 'odd', name: 'Odd', view_mode: 'timeline', is_default: false, icon: 7 },
+      { workspace_id: 'default', workspace_name: 'Default', view_mode: 'directory', is_default: true, icon: '03ab12' },
+      { workspace_id: 'old', workspace_name: 'Old', view_mode: 'timeline', is_default: false },
+      { workspace_id: 'odd', workspace_name: 'Odd', view_mode: 'timeline', is_default: false, icon: 7 },
     ];
     await loadWorkspaces();
     expect(state.workspaces.list.map((w) => w.icon)).toEqual(['03ab12', '', '']);
   });
 
   it('keeps the icon of a project in the Home sidebar and reads a missing one as empty', async () => {
-    state.workspaces.list = [{ id: 'default', name: 'Default', view_mode: 'directory', is_default: true, icon: '' }];
+    state.workspaces.list = [{ workspace_id: 'default', workspace_name: 'Default', view_mode: 'directory', is_default: true, icon: '' }];
     projects = [
-      { id: 'plans', title: 'Plans', icon: '01aa00' },
-      { id: 'inbox', title: 'Inbox' },
+      { project_id: 'plans', project_name: 'Plans', icon: '01aa00' },
+      { project_id: 'inbox', project_name: 'Inbox' },
     ];
     await refreshWorkspaceProjects();
     expect(getHomeState().workspaceProjects.default).toEqual([
