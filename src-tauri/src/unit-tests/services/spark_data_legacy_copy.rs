@@ -82,7 +82,7 @@ fn legacy_rows_are_copied_into_default_and_knowledge_and_the_old_tables_are_drop
     let ids: Vec<_> = default_projects.iter().map(|p| p.id.as_str()).collect();
     assert_eq!(ids, vec!["inbox", "ops"]);
     let ops = get_project(&conn, "ops").expect("get").expect("ops");
-    assert_eq!((ops.title.as_str(), ops.description.as_str()), ("Ops", "ops desc"));
+    assert_eq!((ops.name.as_str(), ops.description.as_str()), ("Ops", "ops desc"));
 
     assert_eq!(list_projects(&conn, "knowledge").expect("list").len(), 3);
     let demo = get_project(&conn, "knowledge:demo").expect("get").expect("demo");

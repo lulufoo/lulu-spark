@@ -29,7 +29,7 @@ fn project_value(row: &ProjectRow) -> Value {
     json!({
         "id": row.id,
         "workspace_id": row.workspace_id,
-        "title": row.title,
+        "title": row.name,
         "description": row.description,
         "disabled_at": row.disabled_at,
         "icon": row.icon.clone().unwrap_or_default(),
@@ -134,7 +134,7 @@ pub fn update_project(payload: &Value) -> Value {
         let ws = resolve_workspace(&conn, text_field(payload, "workspace"))?;
         let mut row = resolve_project(&conn, &ws, Some(id))?;
         ensure_project_enabled(&row)?;
-        row.title = title.to_string();
+        row.name = title.to_string();
         row.description = description.to_string();
         if let Some(icon) = icon {
             row.icon = icon;

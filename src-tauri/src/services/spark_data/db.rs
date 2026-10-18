@@ -69,8 +69,8 @@ macro_rules! doc_table_sql {
 /// Step 6 adds workspace / project; 7 copies legacy rows; 8 drops the old tables.
 /// Step 9 `disabled_at`; 10 `icon`; 11 `sort_index` (default workspace first, then name;
 /// projects by title). Step 12 `is_inbox` (marks folder `inbox`; does not insert).
-/// Step 13 rebuilds `project` without `folder`.
-pub(crate) const MIGRATIONS: [&str; 14] = [r#"
+/// Step 13 rebuilds `project` without `folder`. Step 14 renames `project.title` to `name`.
+pub(crate) const MIGRATIONS: [&str; 15] = [r#"
 CREATE TABLE IF NOT EXISTS note (
   doc_id       TEXT PRIMARY KEY,
   raw_path     TEXT NOT NULL,
@@ -243,7 +243,9 @@ UPDATE project SET is_inbox = 1 WHERE folder = 'inbox';
 CREATE UNIQUE INDEX project_one_inbox ON project(workspace_id) WHERE is_inbox = 1;
 CREATE TRIGGER project_keys_immutable BEFORE UPDATE OF id, is_inbox ON project
 BEGIN SELECT RAISE(ABORT, 'project id and is_inbox cannot change'); END;
-"#, DROP_PROJECT_FOLDER_STEP];
+"#, DROP_PROJECT_FOLDER_STEP, r#"
+ALTER TABLE project RENAME COLUMN title TO name;
+"#];
 
 pub fn db_path() -> Result<PathBuf, String> {
     paths::spark_data_db_path().map_err(|e| format!("{e:?}"))
