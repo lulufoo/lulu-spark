@@ -10,8 +10,6 @@ pub struct ProjectRow {
     pub workspace_id: String,
     pub name: String,
     pub description: String,
-    /// `None` = active; a timestamp = disabled (hidden from lists and search, data kept).
-    pub disabled_at: Option<String>,
     /// Id of a built-in icon; `None` = the default icon. The frontend owns the icon list.
     pub icon: Option<String>,
     /// Position in the user's order inside the workspace; ignored on insert (new rows go last).
@@ -27,7 +25,6 @@ impl ProjectRow {
             workspace_id: workspace_id.to_string(),
             name: name.to_string(),
             description: description.to_string(),
-            disabled_at: None,
             icon: None,
             sort_index: 0,
             is_inbox: false,
@@ -35,7 +32,7 @@ impl ProjectRow {
     }
 }
 
-const COLUMNS: &str = "id, workspace_id, name, description, disabled_at, icon, sort_index, is_inbox";
+const COLUMNS: &str = "id, workspace_id, name, description, icon, sort_index, is_inbox";
 
 fn map_row(row: &Row<'_>) -> rusqlite::Result<ProjectRow> {
     Ok(ProjectRow {
@@ -43,10 +40,9 @@ fn map_row(row: &Row<'_>) -> rusqlite::Result<ProjectRow> {
         workspace_id: row.get(1)?,
         name: row.get(2)?,
         description: row.get(3)?,
-        disabled_at: row.get(4)?,
-        icon: row.get(5)?,
-        sort_index: row.get(6)?,
-        is_inbox: row.get::<_, i64>(7)? != 0,
+        icon: row.get(4)?,
+        sort_index: row.get(5)?,
+        is_inbox: row.get::<_, i64>(6)? != 0,
     })
 }
 
@@ -101,56 +97,21 @@ pub fn get_inbox_project(conn: &Connection, workspace_id: &str) -> Result<Option
     .map_err(|e| e.to_string())
 }
 
-fn list_where(conn: &Connection, workspace_id: &str, condition: &str) -> Result<Vec<ProjectRow>, String> {
+/// Projects of one workspace in the user's order (`sort_index`).
+pub fn list_projects(conn: &Connection, workspace_id: &str) -> Result<Vec<ProjectRow>, String> {
     let mut stmt = conn
         .prepare(&format!(
-            "SELECT {COLUMNS} FROM project WHERE workspace_id = ?1 AND {condition} ORDER BY sort_index, id"
+            "SELECT {COLUMNS} FROM project WHERE workspace_id = ?1 ORDER BY sort_index, id"
         ))
         .map_err(|e| e.to_string())?;
     let rows = stmt.query_map(params![workspace_id], map_row).map_err(|e| e.to_string())?;
     rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
 }
 
-/// Active projects of one workspace in the user's order (`sort_index`).
-pub fn list_projects(conn: &Connection, workspace_id: &str) -> Result<Vec<ProjectRow>, String> {
-    list_where(conn, workspace_id, "disabled_at IS NULL")
-}
-
-/// Disabled projects of one workspace. Only the Settings "Disabled" section reads them.
-pub fn list_disabled_projects(conn: &Connection, workspace_id: &str) -> Result<Vec<ProjectRow>, String> {
-    list_where(conn, workspace_id, "disabled_at IS NOT NULL")
-}
-
-/// Every project of one workspace, disabled ones included.
-pub fn list_all_projects(conn: &Connection, workspace_id: &str) -> Result<Vec<ProjectRow>, String> {
-    list_where(conn, workspace_id, "1 = 1")
-}
-
-/// Disable a project: it disappears from lists, pickers and search, its documents stay and
-/// stay readable by id. Disabling twice keeps the first timestamp. `false` when it does not exist.
-pub fn disable_project(conn: &Connection, id: &str) -> Result<bool, String> {
-    let exists = get_project(conn, id)?.is_some();
-    conn.execute(
-        "UPDATE project SET disabled_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
-         WHERE id = ?1 AND disabled_at IS NULL",
-        params![id],
-    )
-    .map_err(|e| e.to_string())?;
-    Ok(exists)
-}
-
-/// Enable a disabled project again. `false` when it does not exist.
-pub fn enable_project(conn: &Connection, id: &str) -> Result<bool, String> {
-    conn.execute("UPDATE project SET disabled_at = NULL WHERE id = ?1", params![id])
-        .map(|changed| changed > 0)
-        .map_err(|e| e.to_string())
-}
-
 /// Put every project of one workspace in the order of `ids`. `ids` must name every
-/// project of the workspace (disabled ones included) exactly once; anything else is refused
-/// and nothing changes.
+/// project of the workspace exactly once; anything else is refused and nothing changes.
 pub fn reorder_projects(conn: &Connection, workspace_id: &str, ids: &[String]) -> Result<(), String> {
-    let known: Vec<String> = list_all_projects(conn, workspace_id)?
+    let known: Vec<String> = list_projects(conn, workspace_id)?
         .into_iter()
         .map(|p| p.id)
         .collect();

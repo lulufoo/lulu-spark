@@ -1048,18 +1048,12 @@ fn create_jot_without_a_project_still_goes_to_inbox() {
 }
 
 #[test]
-fn create_jot_refuses_a_missing_or_disabled_project_and_writes_nothing() {
+fn create_jot_refuses_a_missing_project_and_writes_nothing() {
     let _sandbox = setup_notes();
-    let old = add_project("old");
-    let disabled = crate::services::docs::disable_project(&json!({ "project_id": old }));
-    assert_eq!(disabled["ok"], json!(true), "{disabled}");
     let before = jot_dirs(&default_workspace_dir());
 
-    for project in ["ghost".to_string(), old] {
-        let err = create_jot(None, Some(&project), "不该写入", &jot_opts_with_ts("202607101442"))
-            .expect_err(&project);
-        assert!(err.starts_with("400:") || err.starts_with("404:") || err.starts_with("409:"), "{project}: {err}");
-    }
+    let err = create_jot(None, Some("ghost"), "不该写入", &jot_opts_with_ts("202607101442")).expect_err("ghost");
+    assert!(err.starts_with("400:") || err.starts_with("404:"), "ghost: {err}");
     assert_eq!(jot_dirs(&default_workspace_dir()), before, "nothing was written");
 }
 

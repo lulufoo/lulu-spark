@@ -75,8 +75,6 @@ commands.allow = [
   "create_project",
   "update_project",
   "reorder_projects",
-  "disable_project",
-  "enable_project",
   "add_hide_pattern",
   "update_hide_pattern",
   "remove_hide_pattern",

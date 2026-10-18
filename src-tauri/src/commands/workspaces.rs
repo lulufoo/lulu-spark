@@ -90,21 +90,6 @@ pub async fn update_project(_app: AppHandle, payload: Value) -> Result<Value, St
 }
 
 #[tauri::command]
-pub async fn list_disabled_projects(_app: AppHandle, payload: Value) -> Result<Value, String> {
-    run(move || docs::list_disabled_projects(&payload)).await
-}
-
-#[tauri::command]
-pub async fn disable_project(_app: AppHandle, payload: Value) -> Result<Value, String> {
-    run(move || docs::disable_project(&payload)).await
-}
-
-#[tauri::command]
-pub async fn enable_project(_app: AppHandle, payload: Value) -> Result<Value, String> {
-    run(move || docs::enable_project(&payload)).await
-}
-
-#[tauri::command]
 pub async fn list_hide_patterns(_app: AppHandle, payload: Value) -> Result<Value, String> {
     run(move || docs::list_hide_patterns(&payload)).await
 }

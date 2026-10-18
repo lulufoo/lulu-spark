@@ -22,7 +22,7 @@ use crate::services::spark_data::{insert_doc, new_doc_id, DocRow};
 use crate::services::translation_gate;
 
 use super::resolve::{
-    bad_request, conflict, ensure_project_enabled, ensure_workspace_enabled, internal, open_data,
+    bad_request, conflict, ensure_workspace_enabled, internal, open_data,
     resolve_project, resolve_workspace, text_field,
     workspace_root,
 };
@@ -106,7 +106,7 @@ fn write_doc(source: &str, payload: &Value, source_basename: Option<&str>) -> Va
         Ok(p) => p,
         Err(v) => return v,
     };
-    if let Err(v) = ensure_workspace_enabled(&workspace).and(ensure_project_enabled(&project)) {
+    if let Err(v) = ensure_workspace_enabled(&workspace) {
         return v;
     }
     let root = match workspace_root(&workspace) {

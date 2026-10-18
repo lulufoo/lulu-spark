@@ -18,7 +18,7 @@ use crate::services::spark_data::{update_doc as update_doc_row, DocRow};
 use crate::services::translation_gate;
 
 use super::resolve::{
-    bad_request, doc_id_field, ensure_project_enabled, ensure_workspace_enabled, internal, not_found,
+    bad_request, doc_id_field, ensure_workspace_enabled, internal, not_found,
     open_data, resolve_doc, resolve_doc_workspace, workspace_root,
 };
 
@@ -98,7 +98,7 @@ fn update_from_body(payload: &Value, source: &str) -> Value {
         Ok(found) => found,
         Err(v) => return v,
     };
-    if let Err(v) = ensure_workspace_enabled(&workspace).and(ensure_project_enabled(&project)) {
+    if let Err(v) = ensure_workspace_enabled(&workspace) {
         return v;
     }
     let rel = doc.raw_path.trim().to_string();

@@ -3,7 +3,7 @@
 //!
 //! A document is hidden when any segment of its `raw_path` matches any rule. A hidden document
 //! drops out of the workspace's index (tree, counts, timeline) and out of search collect; it
-//! stays readable by id, like a disabled project's documents.
+//! stays readable by id.
 //!
 //! First read of a workspace with no file seeds the rules from the single global list that
 //! existed before rules were per workspace (`knowledge-hide-patterns.json`) so existing

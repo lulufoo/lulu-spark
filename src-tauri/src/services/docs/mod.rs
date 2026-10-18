@@ -34,10 +34,7 @@ pub use hide_patterns::{
 };
 pub use jot::*;
 pub use move_doc::move_doc;
-pub use project::{
-    create_project, disable_project, enable_project, list_disabled_projects, list_projects,
-    reorder_projects, update_project,
-};
+pub use project::{create_project, list_projects, reorder_projects, update_project};
 pub use read::{export_file, get_digest, get_file, get_path};
 pub(crate) use resolve::workspace_root;
 pub use search::search;
