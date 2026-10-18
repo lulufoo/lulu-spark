@@ -162,13 +162,11 @@
 .home-chat-session-group:first-child .home-chat-session-group-label { padding-top: 4px; }
 
 .home-chat-session { border-radius: 8px; }
-/* Gap between rows, so the active card and a hovered row do not merge into one block. */
+/* Gap between rows, so the active row and a hovered row do not merge into one block. */
 .home-chat-session + .home-chat-session { margin-top: 4px; }
-.home-chat-session:hover { background: var(--home-hover); }
-.home-chat-session.is-active {
-  background: var(--bg-surface);
-  box-shadow: 0 0 0 1px var(--border-muted), 0 1px 2px var(--shadow-rgba-1f2328-06);
-}
+/* Hover and the open chat share one look: the same grey, no white card. The open chat is told apart by its weight. */
+.home-chat-session:hover,
+.home-chat-session.is-active { background: var(--home-hover); box-shadow: none; }
 /* Right padding is small on purpose: a long title ends in an ellipsis, so the text edge looks further in than the box. */
 /* The row centres its children, so the button must stretch itself to the row height or only the text line is clickable. */
 .home-chat-session-open { align-self: stretch; gap: 10px; padding: 0 2px 0 8px; font-size: 14px; }

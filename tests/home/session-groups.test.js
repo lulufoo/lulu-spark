@@ -164,7 +164,15 @@ describe('SessionList headings', () => {
     expect(rule).toMatch(/padding: 0 2px 0 8px/);
   });
 
-  it('leaves a gap between chat rows, so the active card and a hovered row do not touch', () => {
+  it('gives the open chat the same grey as a hovered row, with no white card', () => {
+    const css = readFileSync(join(repoRoot, 'frontend/home.css'), 'utf8');
+    const rule = css.match(/\.home-chat-session:hover,\s*\.home-chat-session\.is-active \{[^}]*\}/)?.[0] ?? '';
+    expect(rule).toMatch(/background: var\(--home-hover\)/);
+    expect(rule).toMatch(/box-shadow: none/);
+    expect(css).not.toMatch(/\.home-chat-session\.is-active \{[^}]*var\(--bg-surface\)/);
+  });
+
+  it('leaves a gap between chat rows, so the active row and a hovered row do not touch', () => {
     const css = readFileSync(join(repoRoot, 'frontend/home.css'), 'utf8');
     const rule = css.match(/\.home-chat-session \+ \.home-chat-session \{[^}]*\}/)?.[0] ?? '';
     expect(rule).toMatch(/margin-top: 4px/);
