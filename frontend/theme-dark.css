@@ -4,6 +4,7 @@
   /* bg */
   --bg-accent: #576ae0;
   --bg-accent-emphasis: #4a5cd4;
+  --bg-accent-hover: rgba(110, 127, 229, 0.12);
   --bg-canvas: #1c1d1f;
   --bg-danger: #c24b3e;
   --bg-dark: #4c4851;
@@ -28,12 +29,12 @@
   --bg-hex-8b949e: #7e7a85;
   --bg-hex-9a6700: #2a2416;
   --bg-hex-a40e26: #6b2430;
-  --bg-hex-b6e3ff: #1e2233;
+  --bg-hex-b6e3ff: #343b66;
   --bg-hex-bf8700: #2a2416;
   --bg-hex-c9d1d9: #212023;
   --bg-hex-d1fae5: #1a2a22;
   --bg-hex-dafbe1: #1a2a22;
-  --bg-hex-dbeafe: #1e2233;
+  --bg-hex-dbeafe: #2e3358;
   --bg-hex-ddf4ff: #262a45;
   --bg-hex-e0e0e3: #19181b;
   --bg-hex-e3e9f0: #19181b;
@@ -110,7 +111,7 @@
   --fg-hex-8250df: #8250df;
   --fg-hex-92400e: #b8622e;
   --fg-hex-9386f2: #9386f2;
-  --fg-hex-96c6f8: #c4c1c7;
+  --fg-hex-96c6f8: #b8c0f7;
   --fg-hex-9a6700: #b88a2e;
   --fg-hex-b0b8c1: #c4c1c7;
   --fg-hex-b1bac4: #c4c1c7;
@@ -144,17 +145,17 @@
   --border-hex-1f883d: #34ae57;
   --border-hex-388bfd: #576ae0;
   --border-hex-4ac26b: #53d978;
-  --border-hex-54aeff: #4794d9;
+  --border-hex-54aeff: #6e7fe5;
   --border-hex-6639ba: #7742d9;
   --border-hex-6e7781: #8f9aa7;
   --border-hex-7ee787: #76d97f;
   --border-hex-8250df: #7e4ed9;
-  --border-hex-96c6f8: #83add9;
+  --border-hex-96c6f8: #5b67b5;
   --border-hex-9bd99b: #9bd99b;
   --border-hex-a40e26: #ca3d53;
-  --border-hex-a7d4ff: #8eb4d9;
-  --border-hex-b6d0f7: #a0b7d9;
-  --border-hex-b6e3ff: #9bc1d9;
+  --border-hex-a7d4ff: #4a5290;
+  --border-hex-b6d0f7: #4a5290;
+  --border-hex-b6e3ff: #4a5290;
   --border-hex-b6e8c4: #aad9b7;
   --border-hex-c8cfd6: #322f37;
   --border-hex-cccccc: #322f37;

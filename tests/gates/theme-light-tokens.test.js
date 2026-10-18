@@ -140,6 +140,40 @@ describe('Periwinkle accent tokens', () => {
     ).toBeGreaterThanOrEqual(4.5);
   });
 
+  it('keeps hover lighter than selected, both on periwinkle', () => {
+    expect(tokenValue(themeCss, 'bg-accent-hover')).toBe('rgba(87, 106, 224, 0.06)');
+    expect(tokenValue(darkCss, 'bg-accent-hover')).toBe('rgba(110, 127, 229, 0.12)');
+    const hoverOnRows = [...appCss.matchAll(/([^{}]+)\{([^{}]*)\}/g)].filter(([, selector]) =>
+      /^\.(?:home-chat-session|date-tab|settings-nav-item|sidebar-channel-tab):hover$/.test(selector.trim()),
+    );
+    expect(hoverOnRows.length).toBeGreaterThan(0);
+    for (const [, , body] of hoverOnRows) {
+      expect(body).toMatch(/background:\s*var\(--bg-accent-hover\)/);
+    }
+    for (const selector of ['.home-chat-session.is-active', '.settings-nav-item.active', '.list-select-option.selected']) {
+      const escaped = selector.replace(/\./g, '\\.');
+      expect(appCss).toMatch(new RegExp(`${escaped}\\s*\\{[^}]*background:\\s*var\\(--bg-hex-ddf4ff\\)`));
+    }
+  });
+
+  it('keeps the date badge, header toggle and menu text at WCAG AA on their periwinkle fills', () => {
+    expect(
+      contrast(tokenValue(themeCss, 'fg-accent-emphasis'), tokenValue(themeCss, 'bg-hex-b6e3ff')),
+    ).toBeGreaterThanOrEqual(4.5);
+    expect(
+      contrast(tokenValue(themeCss, 'fg-accent-emphasis'), tokenValue(themeCss, 'bg-hex-dbeafe')),
+    ).toBeGreaterThanOrEqual(4.5);
+    expect(
+      contrast(tokenValue(darkCss, 'fg-accent-emphasis'), tokenValue(darkCss, 'bg-hex-b6e3ff')),
+    ).toBeGreaterThanOrEqual(4.5);
+    expect(
+      contrast(tokenValue(darkCss, 'fg-accent-emphasis'), tokenValue(darkCss, 'bg-hex-dbeafe')),
+    ).toBeGreaterThanOrEqual(4.5);
+    expect(
+      contrast(tokenValue(themeCss, 'fg-hex-96c6f8'), tokenValue(themeCss, 'bg-hex-484f58')),
+    ).toBeGreaterThanOrEqual(4.5);
+  });
+
   it('paints the in-app icons and the sign-in landing with the periwinkle icon colours', () => {
     const iconSources = [
       'frontend/icons/app-icon.svg',
@@ -157,6 +191,9 @@ describe('Periwinkle accent tokens', () => {
   it('leaves no legacy blue in the theme files or app.css', () => {
     for (const css of [themeCss, darkCss, appCss]) {
       expect(css).not.toMatch(/0969da|#3b73ff|#2a5fe0|#4187da|#0550ae/i);
+      expect(css).not.toMatch(
+        /#(?:b6e3ff|dbeafe|96c6f8|54aeff|a7d4ff|b6d0f7|eef6ff|f0f3ff|f6fbff|ddf4ff)\b/i,
+      );
     }
   });
 });

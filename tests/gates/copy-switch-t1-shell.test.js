@@ -52,7 +52,7 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
     );
     const llmMark = readFileSync(join(repoRoot, 'frontend/src/shared/llm-mark.tsx'), 'utf8');
     expect(llmMark).toMatch(/translate\(2 2\) scale\(1\.17647\) translate\(-3\.5 -3\.5\)/);
-    expect(css).toMatch(/\.home-chat-session\.is-active \{\s*background: var\(--bg-surface\);\s*\}/);
+    expect(css).toMatch(/\.home-chat-session\.is-active \{\s*background: var\(--bg-hex-ddf4ff\);\s*\}/);
     expect(css).toMatch(/\.home-chat-session-open \{[\s\S]*?padding: 8px;/);
     expect(css).toMatch(/\.home-chat-session-icon \{[\s\S]*?width: 24px;/);
     expect(css).toMatch(/\.home-chat-nav \.home-desktop-shortcut-icon \{[\s\S]*?width: 18px;/);
@@ -195,7 +195,7 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
     expect(css).not.toMatch(/\.list-select-trigger \{[^}]*border: 1px solid #d0d7de/);
     expect(css).toMatch(/\.list-select-menu \{[\s\S]*?background: var\(--bg-surface\);/);
     expect(css).toMatch(/\.list-select-menu \{[\s\S]*?border: 1px solid var\(--border-muted\);/);
-    expect(css).toMatch(/\.list-select-option\.selected \{[\s\S]*?background: var\(--bg-subtle\);/);
+    expect(css).toMatch(/\.list-select-option\.selected \{[\s\S]*?background: var\(--bg-hex-ddf4ff\);/);
     expect(css).not.toMatch(/\.list-select-option\.selected::before/);
     expect(css).not.toMatch(/\.list-select-chevron::before/);
     const listSelect = readFileSync(join(repoRoot, 'frontend/src/shared/floating-list-select.ts'), 'utf8');
