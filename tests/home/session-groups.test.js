@@ -161,12 +161,18 @@ describe('SessionList headings', () => {
   });
 
   it('keeps the empty state and exposes each group to assistive tech', () => {
-    expect(mount([]).querySelector('.home-chat-sessions-empty')?.textContent).toBe('No conversations yet.');
-    const host = mount([at('a', secs(2026, 10, 18, 9))]);
-    const group = host.querySelector('.home-chat-session-group');
-    expect(group.getAttribute('role')).toBe('group');
-    expect(group.getAttribute('aria-label')).toBe('Today');
-    expect(group.querySelector('.home-chat-session-group-label').getAttribute('aria-hidden')).toBe('true');
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date(2026, 9, 18, 15, 30));
+      expect(mount([]).querySelector('.home-chat-sessions-empty')?.textContent).toBe('No conversations yet.');
+      const host = mount([at('a', secs(2026, 10, 18, 9))]);
+      const group = host.querySelector('.home-chat-session-group');
+      expect(group.getAttribute('role')).toBe('group');
+      expect(group.getAttribute('aria-label')).toBe('Today');
+      expect(group.querySelector('.home-chat-session-group-label').getAttribute('aria-hidden')).toBe('true');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('styles the heading like the other sidebar labels', () => {
