@@ -672,7 +672,7 @@ fn workspace_and_project_results_are_flat_and_keyed_by_resource() {
     keys.sort_unstable();
     assert_eq!(
         keys,
-        vec!["description", "icon", "is_inbox", "ok", "project_id", "project_name", "sort_index"],
+        vec!["description", "doc_count", "icon", "is_inbox", "ok", "project_id", "project_name", "sort_index"],
         "a project result is flat and does not echo workspace_id: {project}"
     );
     let listed = list_projects(&json!({ "workspace_id": ws }));

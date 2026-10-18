@@ -2,6 +2,8 @@
 //!
 //! A project is addressed by its id. The inbox is the `is_inbox` row; its name can change.
 
+use std::collections::HashMap;
+
 use rusqlite::Connection;
 use serde_json::{json, Value};
 
@@ -9,8 +11,9 @@ use chrono::{FixedOffset, Utc};
 
 use crate::services::id::random_alnum6;
 use crate::services::spark_data::{
-    get_project, insert_project, list_projects as list_project_rows,
-    reorder_projects as reorder_project_rows, update_project as update_project_row, ProjectRow,
+    count_docs_by_project, count_docs_in_project, get_project, insert_project,
+    list_projects as list_project_rows, reorder_projects as reorder_project_rows,
+    update_project as update_project_row, ProjectRow, WorkspaceRow,
 };
 
 use super::resolve::{
@@ -19,13 +22,13 @@ use super::resolve::{
 };
 
 /// A project's flat fields with `ok: true` in front.
-fn ok_project(row: &ProjectRow) -> Value {
-    let mut value = project_value(row);
+fn ok_project(row: &ProjectRow, doc_count: i64) -> Value {
+    let mut value = project_value(row, doc_count);
     value["ok"] = json!(true);
     value
 }
 
-fn project_value(row: &ProjectRow) -> Value {
+fn project_value(row: &ProjectRow, doc_count: i64) -> Value {
     json!({
         "project_id": row.id,
         "project_name": row.name,
@@ -33,7 +36,15 @@ fn project_value(row: &ProjectRow) -> Value {
         "icon": row.icon.clone().unwrap_or_default(),
         "sort_index": row.sort_index,
         "is_inbox": row.is_inbox,
+        "doc_count": doc_count,
     })
+}
+
+/// Every project of the workspace in the user's order, each with its document count.
+fn list_project_values(conn: &Connection, workspace: &WorkspaceRow) -> Result<Vec<Value>, Value> {
+    let rows = list_project_rows(conn, &workspace.id).map_err(internal)?;
+    let counts: HashMap<String, i64> = count_docs_by_project(conn, &workspace.doc_table).map_err(internal)?;
+    Ok(rows.iter().map(|r| project_value(r, counts.get(&r.id).copied().unwrap_or(0))).collect())
 }
 
 /// `YYYYMMDDHHMMSSmmm` (UTC+8) plus six random characters.
@@ -70,10 +81,10 @@ pub(super) fn insert_inbox_project(conn: &Connection, workspace_id: &str) -> Res
 pub fn list_projects(payload: &Value) -> Value {
     let result = open_data().and_then(|conn| {
         let ws = resolve_workspace(&conn, text_field(payload, "workspace_id"))?;
-        list_project_rows(&conn, &ws.id).map_err(internal)
+        list_project_values(&conn, &ws)
     });
     match result {
-        Ok(rows) => json!({ "projects": rows.iter().map(project_value).collect::<Vec<_>>() }),
+        Ok(projects) => json!({ "projects": projects }),
         Err(v) => v,
     }
 }
@@ -98,7 +109,7 @@ pub fn create_project(payload: &Value) -> Value {
         Ok(row)
     });
     match result {
-        Ok(row) => ok_project(&row),
+        Ok(row) => ok_project(&row, 0),
         Err(v) => v,
     }
 }
@@ -125,10 +136,11 @@ pub fn update_project(payload: &Value) -> Value {
             row.icon = icon;
         }
         update_project_row(&conn, &row).map_err(internal)?;
-        Ok(row)
+        let count = count_docs_in_project(&conn, &ws.doc_table, &row.id).map_err(internal)?;
+        Ok((row, count))
     });
     match result {
-        Ok(row) => ok_project(&row),
+        Ok((row, count)) => ok_project(&row, count),
         Err(v) => v,
     }
 }
@@ -145,10 +157,10 @@ pub fn reorder_projects(payload: &Value) -> Value {
         let ws = resolve_workspace(&conn, text_field(payload, "workspace_id"))?;
         ensure_workspace_enabled(&ws)?;
         reorder_project_rows(&conn, &ws.id, &ids).map_err(bad_request)?;
-        list_project_rows(&conn, &ws.id).map_err(internal)
+        list_project_values(&conn, &ws)
     });
     match result {
-        Ok(rows) => json!({ "ok": true, "projects": rows.iter().map(project_value).collect::<Vec<_>>() }),
+        Ok(projects) => json!({ "ok": true, "projects": projects }),
         Err(v) => v,
     }
 }

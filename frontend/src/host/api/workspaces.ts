@@ -37,7 +37,7 @@ export async function reorderWorkspaces(ids: string[]) {
   return writePost('/api/workspaces-reorder', { ids });
 }
 
-/** Every project id of the workspace, enabled and disabled, in the order to list them. */
+/** Every project id of the workspace, in the order to list them. */
 export async function reorderProjects(workspaceId: string, ids: string[]) {
   return writePost('/api/projects-reorder', { workspace_id: workspaceId, ids });
 }

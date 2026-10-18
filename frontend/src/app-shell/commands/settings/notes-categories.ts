@@ -17,6 +17,7 @@ function asRows(data: unknown): NotesCategoryRow[] {
       description?: unknown;
       icon?: unknown;
       is_inbox?: unknown;
+      doc_count?: unknown;
     }>;
     error?: string;
   };
@@ -31,6 +32,7 @@ function asRows(data: unknown): NotesCategoryRow[] {
       description: typeof c.description === 'string' ? c.description : '',
       is_inbox: c.is_inbox === true,
       icon: typeof c.icon === 'string' ? c.icon : '',
+      doc_count: typeof c.doc_count === 'number' ? c.doc_count : 0,
     });
   }
   return rows;

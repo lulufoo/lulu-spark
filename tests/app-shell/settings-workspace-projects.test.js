@@ -26,6 +26,7 @@ const row = (id, title = id, extra = {}) => ({
   project_name: title,
   description: '',
   is_inbox: extra.is_inbox ?? id === 'inbox',
+  ...(extra.doc_count === undefined ? {} : { doc_count: extra.doc_count }),
 });
 
 describe('Workspace projects settings', () => {
@@ -70,6 +71,16 @@ describe('Workspace projects settings', () => {
     const labels = () => [...host.querySelectorAll('.notes-cat-edit-actions button')].map((b) => b.textContent);
     expect(labels()).toEqual(['Cancel', 'Save']);
     act(() => root.unmount());
+  });
+
+  it('keeps the document count of each project, 0 when the host sends none', async () => {
+    projects.default = [row('inbox', 'Inbox', { doc_count: 4 }), row('work', 'Work', { doc_count: 0 }), row('old', 'Old')];
+    await commands.selectProjectsWorkspace('default');
+    expect(notesCategoriesStore.getSnapshot().rows.map((r) => [r.id, r.doc_count])).toEqual([
+      ['inbox', 4],
+      ['work', 0],
+      ['old', 0],
+    ]);
   });
 
   it('drops a late answer for a workspace that is no longer selected', async () => {

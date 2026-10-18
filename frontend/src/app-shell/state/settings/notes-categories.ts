@@ -8,6 +8,8 @@ export type NotesCategoryRow = {
   is_inbox: boolean;
   /** Id of the configured icon; empty = the default project icon. */
   icon: string;
+  /** How many documents the project holds. */
+  doc_count: number;
 };
 
 export type NotesCategoriesSnap = {
