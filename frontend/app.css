@@ -5148,7 +5148,7 @@ details.notes-disabled > button.notes-cat-item { margin-top: 6px; }
 .doc-cat-row-main {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 6px;
   min-width: 0;
   flex: 1 1 auto;
 }
@@ -5156,7 +5156,7 @@ details.notes-disabled > button.notes-cat-item { margin-top: 6px; }
   min-width: 0;
   width: 100%;
   margin: 0;
-  padding: 0;
+  padding: 0 0 6px;
   border: none;
   border-radius: 0;
   font-size: 13px;
@@ -5589,18 +5589,24 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   align-items: center;
   gap: 8px;
 }
-.icon-name-row input[type="text"] { flex: 1; min-width: 0; }
+.icon-name-row input[type="text"] {
+  flex: 1;
+  min-width: 0;
+  height: 32px;
+  box-sizing: border-box;
+}
 .icon-picker { flex: 0 0 auto; }
 .icon-picker-button {
   position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 38px;
-  height: 38px;
+  box-sizing: border-box;
+  width: 32px;
+  height: 32px;
   padding: 0;
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: 6px;
   background: var(--bg-surface);
   color: var(--fg-muted);
   cursor: pointer;
@@ -5618,10 +5624,10 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
 /* Bottom-right pencil: the cue that the icon can be changed. */
 .icon-picker-edit-badge {
   position: absolute;
-  right: -5px;
-  bottom: -5px;
-  width: 16px;
-  height: 16px;
+  right: -4px;
+  bottom: -4px;
+  width: 14px;
+  height: 14px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -5632,7 +5638,7 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   box-shadow: 0 1px 2px var(--shadow-rgba-1f2328-08);
   pointer-events: none;
 }
-.icon-picker-edit-badge svg { width: 9px; height: 9px; display: block; }
+.icon-picker-edit-badge svg { width: 8px; height: 8px; display: block; }
 .icon-picker-button:hover:not(:disabled) .icon-picker-edit-badge,
 .icon-picker-button[aria-expanded="true"] .icon-picker-edit-badge {
   background: var(--fg-accent);
@@ -5646,7 +5652,7 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   outline-offset: 1px;
 }
 .icon-picker-button:disabled { opacity: .6; cursor: not-allowed; }
-.icon-picker-main svg { width: 20px; height: 20px; display: block; }
+.icon-picker-main svg { width: 16px; height: 16px; display: block; }
 .icon-picker-default-preview svg { width: 18px; height: 18px; display: block; }
 .icon-picker-main .home-desktop-shortcut-icon,
 .icon-picker-default-preview .home-desktop-shortcut-icon {
