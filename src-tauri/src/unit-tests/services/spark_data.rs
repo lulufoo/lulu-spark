@@ -313,3 +313,13 @@ fn a_workspace_accepts_only_one_inbox_and_the_flag_cannot_change() {
     extra.is_inbox = false;
     insert_project(&conn, &extra).expect("a non-inbox project is fine");
 }
+
+/// Manual acceptance (LW-440): `SPARK_DB_COPY=/path/to/copy cargo test --lib migrate_real_copy -- --ignored`.
+#[test]
+#[ignore]
+fn migrate_real_copy() {
+    let path = std::env::var("SPARK_DB_COPY").expect("SPARK_DB_COPY");
+    let conn = open_at(std::path::Path::new(&path)).expect("migrate");
+    let version: i64 = conn.query_row("PRAGMA user_version", [], |r| r.get(0)).unwrap();
+    assert_eq!(version, MIGRATIONS.len() as i64);
+}

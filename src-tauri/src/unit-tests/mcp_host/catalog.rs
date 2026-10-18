@@ -490,6 +490,9 @@ fn settings_snapshot_keeps_mobile_only_tools() {
 #[path = "produce_wiring.rs"]
 mod produce_wiring;
 
+#[path = "naming_smoke.rs"]
+mod naming_smoke;
+
 #[path = "todo_group_removed.rs"]
 mod todo_group_removed;
 
