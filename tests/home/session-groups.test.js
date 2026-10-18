@@ -157,4 +157,16 @@ describe('SessionList headings', () => {
     expect(rule).toMatch(/font-size: 11px/);
     expect(rule).toMatch(/color: var\(--fg-subtle\)/);
   });
+
+  it('keeps the chat row text close to the right edge, so a long title is not cut short of it', () => {
+    const css = readFileSync(join(repoRoot, 'frontend/home.css'), 'utf8');
+    const rule = css.match(/\.home-chat-session-open \{[^}]*\}/)?.[0] ?? '';
+    expect(rule).toMatch(/padding: 0 2px 0 8px/);
+  });
+
+  it('stretches the open button to the full row height, so the whole row is clickable', () => {
+    const css = readFileSync(join(repoRoot, 'frontend/home.css'), 'utf8');
+    const rule = css.match(/\.home-chat-session-open \{[^}]*\}/)?.[0] ?? '';
+    expect(rule).toMatch(/align-self: stretch/);
+  });
 });

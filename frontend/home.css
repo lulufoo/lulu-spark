@@ -167,7 +167,9 @@
   background: var(--bg-surface);
   box-shadow: 0 0 0 1px var(--border-muted), 0 1px 2px var(--shadow-rgba-1f2328-06);
 }
-.home-chat-session-open { gap: 10px; padding: 0 8px; font-size: 14px; }
+/* Right padding is small on purpose: a long title ends in an ellipsis, so the text edge looks further in than the box. */
+/* The row centres its children, so the button must stretch itself to the row height or only the text line is clickable. */
+.home-chat-session-open { align-self: stretch; gap: 10px; padding: 0 2px 0 8px; font-size: 14px; }
 .home-chat-session-icon,
 .home-chat-session-icon svg { width: 18px; height: 18px; }
 .home-chat-session-icon { color: var(--fg-subtle); }
