@@ -6352,33 +6352,6 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   display: none;
 }
 
-/* "+" at the right of the workspace title: a new document in the selected project. */
-.sidebar-new-doc {
-  flex: none;
-  width: 24px;
-  height: 24px;
-  margin-top: 8px;
-  padding: 0;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--fg-muted);
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-.sidebar-new-doc:hover:not(:disabled) {
-  background: var(--bg-subtle);
-  color: var(--fg-default);
-}
-.sidebar-new-doc:focus-visible {
-  outline: 2px solid var(--border-accent);
-  outline-offset: 1px;
-}
-.sidebar-new-doc:disabled { opacity: .45; cursor: default; }
-.sidebar-new-doc-icon { width: 12px; height: 12px; display: block; }
-
 /* Which project a new document goes to (timeline All). */
 .create-target-overlay {
   position: fixed;

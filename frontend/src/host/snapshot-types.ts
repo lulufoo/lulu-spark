@@ -79,6 +79,8 @@ export type HostCreateSession = {
   /** Where the document goes: set when the session starts, never guessed at save time. */
   workspace_id?: string;
   project_id?: string;
+  /** Folder of the project the document goes into (`/` is the project root); none: the default. */
+  folder?: string;
 };
 
 export type HostOutletMode = '' | 'open' | 'create' | 'safe-empty';

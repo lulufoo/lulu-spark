@@ -124,6 +124,15 @@ describe('selectTopic', () => {
   });
 });
 
+describe('sidebar header', () => {
+  it.each(['timeline', 'directory'])('%s view: the workspace row has no "+"; New document lives on the page', (mode) => {
+    seedWorkspaces(mode);
+    act(() => renderSidebar());
+    expect(findSelect('.sidebar-workspace-row')).not.toBeNull();
+    expect(sidebarEl().querySelector('[data-role="create-note"], .sidebar-new-doc')).toBeNull();
+  });
+});
+
 describe('timeline view', () => {
   it('narrows every day to the active project', () => {
     state.ui.activeTopic = 'common-tech';
