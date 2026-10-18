@@ -13,6 +13,7 @@ pub(crate) mod digest;
 pub mod edit;
 pub(crate) mod hide_patterns;
 mod jot;
+mod merge_plan;
 mod move_doc;
 mod project;
 mod read;
