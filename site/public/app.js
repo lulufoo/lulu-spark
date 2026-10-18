@@ -6,7 +6,7 @@ r_t:"任何 Agent 都能调用",r_p:"Agent 通过 MCP 搜索 Spark，学到的�
 a_t:"问问 Spark AI",a_p:"Spark AI 基于你的笔记回答问题、帮你整理，每个回答都附出处。",
 a_q:"把我的入职笔记合并成一页",a_a:"好了，3 篇笔记已合并成一页，去掉了重复内容，并保留了原笔记链接。",a_c1:"搭好本地环境",a_c2:"读一遍架构概览",a_c3:"结对完成第一个小改动",a_s1:"入职.md",a_s2:"2 环境搭建踩坑",a_s3:"3 第一周的问题",a_in:"问问 Lulu Spark…",
 m_t:"纯 Markdown，存在你自己的电脑上",m_p:"每条笔记都是你选定文件夹里的 .md 文件，不被任何工具锁定。",
-e_t:"让每次协作，都让你更进一步。",foot:"© 2026 Lulu Spark · 和 AI Agent 一起学到的，存在本地"};
+e_t:"让每次协作，都让你更进一步。",foot:"© 2026 Lulu Spark · 和 AI Agent 一起学到的，存在本地",tm:"Git、Linear 和 Notion 均为各自所有者的商标。"};
 const els=[...document.querySelectorAll("[data-i]")],en={};els.forEach(e=>en[e.dataset.i]=e.innerHTML);
 function set(l){const d=l==="zh-CN"?zh:en;els.forEach(e=>{if(d[e.dataset.i])e.innerHTML=d[e.dataset.i]});document.documentElement.lang=l;
 document.getElementById("langl").textContent=l==="zh-CN"?"简体中文":"EN";localStorage.setItem("lang",l);}
