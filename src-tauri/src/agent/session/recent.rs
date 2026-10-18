@@ -24,16 +24,23 @@ pub fn init_recent_cutoff() -> Result<i64, String> {
     Ok(cutoff)
 }
 
-/// Count opening a chat as activity: its `updated_at` becomes now. The title and the turns stay
-/// as they are, so this must not go through `save_session`, which rebuilds the title.
+/// Bring a chat that is outside the Home list back into it: its `updated_at` becomes now. A chat
+/// already in the list (`updated_at >= cutoff`, or no cutoff) is left alone, so opening chats back
+/// and forth never re-orders the list. The title and the turns stay as they are, so this must not
+/// go through `save_session`, which rebuilds the title.
 pub fn touch_session(session_id: &str) -> Result<(), String> {
     let id = checked_session_id(session_id)?;
-    let now = unix_secs();
     let path = session_file_path(id)?;
     if !path.is_file() {
         // Opening a missing file would create an empty session database.
         return Err(format!("chat session not found: {id}"));
     }
+    let cutoff = with_live_mut(|live| live.recent_cutoff).unwrap_or(0);
+    let catalog_path = catalog_file_path()?;
+    if !catalog::is_older_than(&catalog_path, id, cutoff)? {
+        return Ok(());
+    }
+    let now = unix_secs();
     session_db::touch(&path, now)?;
-    catalog::touch(&catalog_file_path()?, id, now)
+    catalog::touch(&catalog_path, id, now)
 }

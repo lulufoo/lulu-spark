@@ -115,7 +115,7 @@ pub fn select_chat_session_core(session_id: &str) -> Result<Value, String> {
         return Err("Missing session_id".into());
     }
     let _ = session::load_session(id)?;
-    // Opening a chat counts as activity, so a chat older than the Home list's cutoff joins the list.
+    // A chat older than the Home list's cutoff joins the list when opened; one already in it stays put.
     session::touch_session(id)?;
     session::with_live_mut(|live| {
         live.current_session_id = Some(id.to_string());

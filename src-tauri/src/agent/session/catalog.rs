@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use chrono::{Local, NaiveDate, TimeZone};
-use rusqlite::{params, Connection};
+use rusqlite::{params, Connection, OptionalExtension};
 use serde_json::{json, Value};
 
 use super::schema::{CATALOG_SCHEMA, SESSION_STATUS_IDLE};
@@ -160,6 +160,24 @@ pub fn list_since(path: &PathBuf, cutoff: i64) -> Result<Vec<Value>, String> {
         items.push(row.map_err(|e| e.to_string())?);
     }
     Ok(items)
+}
+
+/// Whether the chat has a catalog row with `updated_at < cutoff`, that is, it is outside the Home
+/// list. A missing row or a missing catalog gives `false`.
+pub fn is_older_than(path: &PathBuf, session_id: &str, cutoff: i64) -> Result<bool, String> {
+    if !path.is_file() {
+        return Ok(false);
+    }
+    let conn = open(path)?;
+    let older: Option<bool> = conn
+        .query_row(
+            "SELECT updated_at < ?2 FROM sessions WHERE session_id = ?1",
+            params![session_id, cutoff],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?;
+    Ok(older.unwrap_or(false))
 }
 
 /// Set one chat's `updated_at` and nothing else. A chat that is not in the catalog is left alone.

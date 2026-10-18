@@ -46,3 +46,7 @@ mod session_recent_cutoff_tests;
 #[cfg(test)]
 #[path = "../../unit-tests/agent/session_title_search.rs"]
 mod session_title_search_tests;
+
+#[cfg(test)]
+#[path = "../../unit-tests/agent/session_touch_rule.rs"]
+mod session_touch_rule_tests;
