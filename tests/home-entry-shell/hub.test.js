@@ -447,7 +447,7 @@ describe('home hub chat sessions', () => {
     );
   });
 
-  it('creates a session from the left + control', async () => {
+  it('creates a session from the pinned New chat button', async () => {
     await mountReady();
     container.querySelector('[data-role="new-session"]').click();
     await vi.waitFor(() => {
@@ -731,7 +731,7 @@ describe('home hub chat sessions', () => {
     });
   });
 
-  it('lists the newest 3 sessions in the sidebar and keeps the rest for the All chats popover', async () => {
+  it('lists every chat the host returns in the sidebar, all 25', async () => {
     sessions = Array.from({ length: 25 }, (_, i) => ({
       session_id: `s${i}`,
       title: `Chat ${i}`,
@@ -739,7 +739,7 @@ describe('home hub chat sessions', () => {
     currentId = 's0';
     cleanup = mountHomeHub(container, { navigate: vi.fn() });
     await vi.waitFor(() => {
-      expect(container.querySelectorAll('.home-chat-session')).toHaveLength(3);
+      expect(container.querySelectorAll('.home-chat-session')).toHaveLength(25);
     });
   });
 
@@ -804,9 +804,9 @@ describe('home hub shell integration', () => {
     expect(mainJs).toMatch(/['"]#\/home['"]/);
   });
 
-  it('main.js keeps search chrome without a global header back mark', () => {
+  it('main.js has no global header back mark, and no per-route search chrome (search is a modal)', () => {
     expect(mainJs).not.toMatch(/btn-nav-home-title/);
     expect(mainJs).not.toMatch(/classList\.toggle\('is-back', !onHome\)/);
-    expect(mainJs).toMatch(/applySearchNavChrome\(routeName\)/);
+    expect(mainJs).not.toMatch(/applySearchNavChrome/);
   });
 });

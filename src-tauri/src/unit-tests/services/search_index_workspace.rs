@@ -63,6 +63,73 @@ fn searching_with_a_workspace_only_hits_that_workspace() {
     assert!(search_in_cache(&cache, WORD, &only_workspace("nope"), 10).expect("none").is_empty());
 }
 
+/// Two workspaces, one document each, both mentioning `WORD`, indexed. Returns the sandbox, the
+/// other workspace's id, and the ids of the Default-workspace and other-workspace documents.
+fn two_indexed_workspaces() -> (TestSandbox, String, String, String) {
+    let sandbox = TestSandbox::new();
+    let other = new_workspace("Memory");
+    let in_default = write(None, &format!("# 默认\n\n这篇讲{WORD}的做法。\n"));
+    let in_other = write(Some(&other), &format!("# 记忆\n\n这篇也讲{WORD}的做法。\n"));
+    let chunks = collect_workspace_docs().expect("collect");
+    rebuild(&sandbox.cache_dir(), &chunks, None, &HashSet::new()).expect("rebuild");
+    (sandbox, other, in_default, in_other)
+}
+
+fn hit_pairs(out: &Value) -> Vec<(String, String)> {
+    let mut pairs: Vec<(String, String)> = out["hits"]
+        .as_array()
+        .unwrap_or_else(|| panic!("no hits array: {out}"))
+        .iter()
+        .map(|h| {
+            (
+                h["id"].as_str().expect("id").to_string(),
+                h["workspace_id"].as_str().expect("every hit names its workspace").to_string(),
+            )
+        })
+        .collect();
+    pairs.sort();
+    pairs
+}
+
+#[test]
+fn the_all_workspaces_scope_hits_every_workspace_and_names_each_hit_s_workspace() {
+    let (sandbox, other, in_default, in_other) = two_indexed_workspaces();
+    let out = search_desktop_docs_in(&sandbox.cache_dir(), WORD, Some(10), DocSearchScope::AllWorkspaces);
+    let mut expected = vec![(in_default, "default".to_string()), (in_other, other)];
+    expected.sort();
+    assert_eq!(hit_pairs(&out), expected);
+}
+
+#[test]
+fn a_workspace_scope_still_means_that_workspace_and_hits_still_name_it() {
+    let (sandbox, other, in_default, in_other) = two_indexed_workspaces();
+    let cache = sandbox.cache_dir();
+
+    let out = search_desktop_docs_in(&cache, WORD, Some(10), DocSearchScope::Workspace(Some(&other)));
+    assert_eq!(hit_pairs(&out), vec![(in_other, other.clone())]);
+
+    let out = search_desktop_docs_in(&cache, WORD, Some(10), DocSearchScope::Workspace(Some("default")));
+    assert_eq!(hit_pairs(&out), vec![(in_default, "default".to_string())]);
+}
+
+#[test]
+fn an_omitted_workspace_still_means_the_default_workspace() {
+    let (sandbox, _other, in_default, _in_other) = two_indexed_workspaces();
+    let cache = sandbox.cache_dir();
+    let expected = vec![(in_default, "default".to_string())];
+
+    // The pre-existing entry point, and the scope forms that mean "not given".
+    assert_eq!(hit_pairs(&search_desktop_docs(&cache, WORD, Some(10), None)), expected);
+    assert_eq!(
+        hit_pairs(&search_desktop_docs_in(&cache, WORD, Some(10), DocSearchScope::Workspace(None))),
+        expected
+    );
+    assert_eq!(
+        hit_pairs(&search_desktop_docs_in(&cache, WORD, Some(10), DocSearchScope::Workspace(Some("  ")))),
+        expected
+    );
+}
+
 #[test]
 fn writes_through_the_doc_service_keep_the_index_in_step() {
     let sandbox = TestSandbox::new();

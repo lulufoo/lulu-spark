@@ -1,283 +1,87 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { createRoot, type Root } from 'react-dom/client';
-import { flushSync } from 'react-dom';
-import { searchSpark } from '../../host/api.ts';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { state } from '../../host/state.ts';
+import { cmdShortcutKey } from '../../shared/search-modal/cmd-key.ts';
+import type { SearchNames, SearchScope } from '../../shared/search-modal/hit-location.ts';
+import { SearchGlyph, SearchModal } from '../../shared/search-modal/search-modal.tsx';
 
-const HIST_KEY = 'gs-history-wb';
-const HIST_MAX = 10;
+/**
+ * Notes-page search: the shared modal, scoped to the current workspace (the same value the old
+ * inline search passed to `search_spark`). Only the interaction is shared with Home; the notes
+ * page does not search other workspaces.
+ */
 
-type WbHit = {
-  title?: string;
-  id?: string;
-  layer?: string;
-  project_id?: string;
-  body?: string;
-  _formatted?: { body?: string };
-};
-
-type DropdownView =
-  | { kind: 'hidden' }
-  | { kind: 'history'; queries: string[] }
-  | { kind: 'status'; text: ReactNode; color?: string }
-  | { kind: 'hits'; hits: WbHit[] };
-
-const closeListeners = new Set<() => void>();
-
-function normalizeQuery(raw: unknown) {
-  const trimmed = String(raw || '').trim();
-  return trimmed.startsWith('#') ? trimmed.slice(1).trim() : trimmed;
+/**
+ * Names for the location line under a result. The notes index has the current workspace's project
+ * titles; a project with no title (it falls back to its id) gives '' so no raw id is shown.
+ */
+export function notesSearchNames(topicTitles: Record<string, string>): SearchNames {
+  return {
+    workspace: () => '',
+    project: (_workspaceId, projectId) => {
+      const title = topicTitles[projectId];
+      return title && title !== projectId ? title : '';
+    },
+  };
 }
 
-function getHistory(): string[] {
-  try {
-    return JSON.parse(localStorage.getItem(HIST_KEY) || '') || [];
-  } catch {
-    return [];
-  }
+/**
+ * Open state + ⌘K for the notes page. `active` is whether the notes route is showing: the notes
+ * page stays mounted while other routes are up, so the shortcut is bound only while active, and
+ * leaving the route closes the modal.
+ */
+export function useNotesSearch(active: boolean) {
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (!active) {
+      setOpen(false);
+      return undefined;
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (cmdShortcutKey(event) !== 'k') return;
+      event.preventDefault();
+      setOpen((current) => !current);
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [active]);
+
+  return {
+    open,
+    openSearch: useCallback(() => setOpen(true), []),
+    closeSearch: useCallback(() => setOpen(false), []),
+  };
 }
 
-function addHistory(q: string) {
-  const normalized = normalizeQuery(q);
-  if (!normalized) return;
-  const list = getHistory().filter((x) => x !== normalized);
-  list.unshift(normalized);
-  localStorage.setItem(HIST_KEY, JSON.stringify(list.slice(0, HIST_MAX)));
-}
-
-function removeHistory(q: string) {
-  const list = getHistory().filter((x) => x !== q);
-  localStorage.setItem(HIST_KEY, JSON.stringify(list));
-}
-
-function getSnippet(hit: WbHit) {
-  const formatted = hit._formatted || {};
-  const body = formatted.body || hit.body || '';
-  const plain = body.replace(/^#{1,6}\s+/gm, '').replace(/[*_`]/g, '');
-  return escKeepEm(plain.slice(0, 120).trim());
-}
-
-function escKeepEm(str: string) {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/<em>/g, '\x00EM\x00')
-    .replace(/<\/em>/g, '\x00_EM\x00')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/\x00EM\x00/g, '<em>')
-    .replace(/\x00_EM\x00/g, '</em>');
-}
-
-function hideLeftoverDropdown() {
-  const dropdown = document.getElementById('gs-wb-dropdown');
-  if (dropdown) dropdown.style.display = 'none';
-}
-
-export function closeSparkSearch() {
-  hideLeftoverDropdown();
-  closeListeners.forEach((fn) => fn());
-}
-
-function GsStatus({ children, color }: { children: ReactNode; color?: string }) {
+/** The toolbar's search entry: looks like the old input, opens the modal. */
+export function NotesSearchButton({ onOpen }: { onOpen: () => void }) {
   return (
-    <div className="gs-status" style={color ? { color } : undefined}>
-      {children}
-    </div>
-  );
-}
-
-function GsHitRow({ hit, onOpen }: { hit: WbHit; onOpen: (hit: WbHit) => void }) {
-  const id = hit.id || '';
-
-  return (
-    <div
-      className="gs-hit gs-hit-wb"
-      data-note-id={id}
-      data-layer={hit.layer || ''}
-      onClick={() => onOpen(hit)}
+    <button
+      type="button"
+      className="notes-search-btn"
+      data-role="notes-search"
+      aria-label="Search this workspace"
+      aria-keyshortcuts="Meta+K"
+      onClick={onOpen}
     >
-      <div className="gs-hit-title">{hit.title || hit.id || ''}</div>
-      <span className="gs-hit-repo">{hit.project_id || ''}</span>
-      <div className="gs-hit-snippet" dangerouslySetInnerHTML={{ __html: getSnippet(hit) }} />
-    </div>
+      <SearchGlyph className="notes-search-btn-glyph" />
+      <span className="notes-search-btn-label">Search this workspace…</span>
+      <kbd className="notes-search-btn-key">⌘K</kbd>
+    </button>
   );
 }
 
-export function SparkSearchFields() {
-  const [query, setQuery] = useState('');
-  const [view, setView] = useState<DropdownView>({ kind: 'hidden' });
-  const wrapRef = useRef<HTMLDivElement | null>(null);
-  const inputRef = useRef<HTMLInputElement | null>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  function close() {
-    setView({ kind: 'hidden' });
-    hideLeftoverDropdown();
-  }
-
-  useEffect(() => {
-    const onClose = () => {
-      setView({ kind: 'hidden' });
-      hideLeftoverDropdown();
-    };
-    closeListeners.add(onClose);
-    return () => {
-      closeListeners.delete(onClose);
-    };
-  }, []);
-
-  useEffect(() => {
-    const onDocClick = (e: MouseEvent) => {
-      const wrap = wrapRef.current || document.getElementById('gs-wb-wrap');
-      if (wrap && !wrap.contains(e.target as Node)) close();
-    };
-    document.addEventListener('click', onDocClick);
-    return () => document.removeEventListener('click', onDocClick);
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, []);
-
-  async function runSearch(q: string) {
-    flushSync(() => setView({ kind: 'status', text: 'Searching…' }));
-    try {
-      const data = await searchSpark(q, 8, state.workspaces.current);
-      if (data.error && data.error !== 'not_indexed') {
-        flushSync(() => setView({ kind: 'status', text: 'Search error' }));
-        return;
-      }
-      if (data.error === 'not_indexed') {
-        flushSync(() => setView({ kind: 'status', text: 'Index not built yet.' }));
-        return;
-      }
-      const hits = (data.hits || []) as WbHit[];
-      if (hits.length === 0) flushSync(() => setView({ kind: 'status', text: 'No related results' }));
-      else flushSync(() => setView({ kind: 'hits', hits }));
-    } catch {
-      flushSync(() => setView({ kind: 'status', text: 'Search error' }));
-    }
-  }
-
-  function onQueryChange(raw: string) {
-    setQuery(raw);
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    const q = normalizeQuery(raw);
-    if (!q) {
-      const list = getHistory();
-      setView(list.length ? { kind: 'history', queries: list } : { kind: 'hidden' });
-      return;
-    }
-    debounceRef.current = setTimeout(() => void runSearch(q), 300);
-  }
-
-  function onFocus() {
-    if (!normalizeQuery(query)) {
-      const list = getHistory();
-      if (list.length) setView({ kind: 'history', queries: list });
-    }
-  }
-
-  function openHit(hit: WbHit) {
-    const id = hit.id;
-    if (id) {
-      document.dispatchEvent(new CustomEvent('cta:open-entry', { detail: { id } }));
-    }
-    addHistory(query);
-    close();
-  }
-
-  const open = view.kind !== 'hidden';
-
-  return (
-    <>
-      <input
-        ref={inputRef}
-        id="gs-wb-input"
-        className="gs-search-input"
-        type="text"
-        placeholder="Search this workspace…"
-        autoComplete="off"
-        spellCheck={false}
-        value={query}
-        onChange={(e) => onQueryChange(e.target.value)}
-        onInput={(e) => onQueryChange((e.target as HTMLInputElement).value)}
-        onFocus={onFocus}
-        onKeyDown={(e) => {
-          if (e.key === 'Escape') {
-            close();
-            inputRef.current?.blur();
-          }
-        }}
-      />
-      <div
-        id="gs-wb-dropdown"
-        className="gs-search-dropdown"
-        style={{ display: open ? 'block' : 'none' }}
-      >
-        {view.kind === 'status' ? <GsStatus color={view.color}>{view.text}</GsStatus> : null}
-        {view.kind === 'hits'
-          ? view.hits.map((hit, i) => (
-              <GsHitRow key={`${hit.id || ''}-${hit.layer || ''}-${i}`} hit={hit} onOpen={openHit} />
-            ))
-          : null}
-        {view.kind === 'history' ? (
-          <div className="gs-hist-list">
-            {view.queries.map((q) => (
-              <div
-                key={q}
-                className="gs-hist-item"
-                data-q={q}
-                onClick={() => onQueryChange(q)}
-              >
-                <span className="gs-hist-label">{q}</span>
-                <button
-                  type="button"
-                  className="gs-hist-remove"
-                  data-q={q}
-                  data-tip="Delete"
-                  aria-label="Delete"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    removeHistory(q);
-                    const list = getHistory();
-                    setView(list.length ? { kind: 'history', queries: list } : { kind: 'hidden' });
-                  }}
-                >
-                  ×
-                </button>
-              </div>
-            ))}
-          </div>
-        ) : null}
-      </div>
-    </>
-  );
-}
-
-export function SparkSearch() {
-  return (
-    <div id="gs-wb-wrap" className="gs-search-wrap" hidden data-wb-search="react">
-      <SparkSearchFields />
-    </div>
-  );
-}
-
-let _initialized = false;
-let _testRoot: Root | null = null;
-
-/** Production: Shell already renders SparkSearch. Tests: mount fields into leftover wrap. */
-export function initSparkSearch() {
-  if (_initialized) return;
-  const wrap = document.getElementById('gs-wb-wrap');
-  if (!wrap) return;
-  _initialized = true;
-  if (wrap.dataset.wbSearch === 'react') return;
-  _testRoot = createRoot(wrap);
-  flushSync(() => {
-    _testRoot!.render(<SparkSearchFields />);
-  });
-  wrap.dataset.wbSearch = 'react';
+export function NotesSearchModal({
+  open,
+  topicTitles,
+  onClose,
+}: {
+  open: boolean;
+  topicTitles: Record<string, string>;
+  onClose: () => void;
+}) {
+  const workspaceId = state.workspaces.current;
+  const scope = useMemo<SearchScope>(() => ({ kind: 'workspace', workspaceId }), [workspaceId]);
+  const names = useMemo(() => notesSearchNames(topicTitles || {}), [topicTitles]);
+  return <SearchModal open={open} scope={scope} names={names} onClose={onClose} />;
 }

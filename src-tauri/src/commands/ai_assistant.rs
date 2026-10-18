@@ -72,6 +72,10 @@ pub fn list_chat_sessions_json() -> Result<Value, String> {
     Ok(value)
 }
 
+pub fn search_chat_sessions_json(query: &str, limit: usize) -> Result<Value, String> {
+    r#loop::search_chat_sessions_core(query, limit)
+}
+
 pub fn select_chat_session_json(session_id: &str) -> Result<Value, String> {
     r#loop::select_chat_session_core(session_id)
 }
@@ -324,6 +328,14 @@ pub async fn get_ai_assistant_binding() -> Result<Value, String> {
 #[tauri::command]
 pub async fn list_chat_sessions() -> Result<Value, String> {
     tauri::async_runtime::spawn_blocking(list_chat_sessions_json)
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+/// Home search in the Spark AI tab: chats whose title contains `q`, newest first.
+#[tauri::command]
+pub async fn search_chat_sessions(q: String, limit: Option<usize>) -> Result<Value, String> {
+    tauri::async_runtime::spawn_blocking(move || search_chat_sessions_json(&q, limit.unwrap_or(20)))
         .await
         .map_err(|e| e.to_string())?
 }

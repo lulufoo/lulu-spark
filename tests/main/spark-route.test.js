@@ -3,17 +3,6 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-
-const apiMocks = vi.hoisted(() => ({
-  searchSpark: vi.fn(),
-}));
-
-vi.mock('../../frontend/src/host/api.ts', () => ({
-  searchSpark: (...args) => apiMocks.searchSpark(...args),
-}));
-
-
-import { applySearchNavChrome } from '../../frontend/src/app-shell/ui/nav-chrome.ts';
 import { readMainSource } from '../helpers/read-frontend-js.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -34,118 +23,14 @@ function extractFunctionBody(source, name) {
   return '';
 }
 
-function seedSparkSearchDom() {
-  document.body.innerHTML = `
-    <button id="btn-nav-home-title" hidden></button>
-    <button id="btn-nav-home"></button>
-    <div id="gs-wb-wrap" class="gs-search-wrap" hidden>
-      <input id="gs-wb-input" class="gs-search-input" type="text" autocomplete="off" />
-      <div id="gs-wb-dropdown" class="gs-search-dropdown" style="display:none"></div>
-    </div>
-    <div id="gs-kb-wrap" class="gs-search-wrap" hidden>
-      <input id="gs-kb-input" class="gs-search-input" type="text" />
-    </div>
-  `;
-}
-
-function installLocalStorageMock() {
-  const store = {};
-  globalThis.localStorage = {
-    getItem(key) {
-      return Object.prototype.hasOwnProperty.call(store, key) ? store[key] : null;
-    },
-    setItem(key, value) {
-      store[key] = String(value);
-    },
-    removeItem(key) {
-      delete store[key];
-    },
-  };
-}
-
-/** Mirrors main.js wrapRouteMount + spark mount contract under test. */
-async function simulateSparkRouteMount() {
-  applySearchNavChrome('spark');
-  const { initSparkSearch } = await import('../../frontend/src/notes/ui/search.tsx');
-  initSparkSearch();
-}
-
-async function loadSparkSearchModule() {
-  vi.resetModules();
-  return import('../../frontend/src/notes/ui/search.tsx');
-}
-
-describe('main.js spark route init wiring (source)', () => {
-  it('imports initSparkSearch from notes/ui/search.tsx', () => {
-    expect(mainJs).toMatch(
-      /import\s*\{[^}]*initSparkSearch[^}]*\}\s*from\s*'[^']*notes\/ui\/search\.tsx'/,
-    );
-  });
-
-  it('calls initSparkSearch inside wrapRouteMount for spark route mount', () => {
-    const wrapBody = extractFunctionBody(mainJs, 'wrapRouteMount');
-    expect(wrapBody).toMatch(/initSparkSearch\s*\(\s*\)/);
-    expect(wrapBody).toMatch(/routeName\s*===\s*['"]spark['"]/);
+describe('main.js spark route wiring (source)', () => {
+  it('no longer initialises an inline search on spark mount (the search is a modal owned by the notes page)', () => {
+    expect(mainJs).not.toMatch(/initSparkSearch/);
+    expect(extractFunctionBody(mainJs, 'wrapRouteMount')).not.toMatch(/Search/);
   });
 
   it('registers spark handler via wrapRouteMount', () => {
     expect(mainJs).toMatch(/spark:\s*wrapRouteMount\s*\(\s*['"]spark['"]/);
-  });
-});
-
-describe('spark route mount behavior', () => {
-  beforeEach(async () => {
-    vi.useFakeTimers();
-    vi.clearAllMocks();
-    installLocalStorageMock();
-    seedSparkSearchDom();
-    apiMocks.searchSpark.mockResolvedValue({ hits: [] });
-    await loadSparkSearchModule();
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
-  it('spark mount: wb wrap visible and input enabled after nav chrome', async () => {
-    await simulateSparkRouteMount();
-
-    expect(document.getElementById('gs-wb-wrap').hidden).toBe(false);
-    expect(document.getElementById('gs-kb-wrap').hidden).toBe(true);
-    expect(document.getElementById('gs-wb-input').disabled).toBe(false);
-  });
-
-  it('leaving spark route calls closeSparkSearch', async () => {
-    await simulateSparkRouteMount();
-
-    const dropdown = document.getElementById('gs-wb-dropdown');
-    dropdown.style.display = 'block';
-    applySearchNavChrome('home');
-
-    expect(dropdown.style.display).toBe('none');
-  });
-
-  it('initSparkSearch is idempotent on repeated spark route mounts', async () => {
-    await simulateSparkRouteMount();
-    await simulateSparkRouteMount();
-
-    const input = document.getElementById('gs-wb-input');
-    input.value = 'alpha';
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-    await vi.advanceTimersByTimeAsync(300);
-
-    expect(apiMocks.searchSpark).toHaveBeenCalledTimes(1);
-  });
-
-  it('TAC-2: spark search input triggers searchSpark only', async () => {
-    await simulateSparkRouteMount();
-
-    const input = document.getElementById('gs-wb-input');
-    input.value = 'topic';
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-    await vi.advanceTimersByTimeAsync(300);
-
-    expect(apiMocks.searchSpark).toHaveBeenCalledWith('topic', 8, 'default');
   });
 });
 

@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import { flushSync } from 'react-dom';
+import { formatDayHeading } from '../../shared/day-heading.ts';
 import { createModuleStore } from '../../shared/module-store.ts';
 
 export type HubSession = {
@@ -58,14 +59,9 @@ export type ContextUsage = {
   categories: ContextUsageCategory[];
 };
 
-/** Chats shown the first time, and how many more each scroll to the bottom reveals. */
-export const HOME_CHAT_FIRST_PAGE = 10;
-export const HOME_CHAT_PAGE_STEP = 10;
-
 export type HomeState = {
-  /** Every chat session, newest first; the sidebar reveals them `sessionsShown` at a time. */
+  /** The chats the host lists for the sidebar (the most recent days), newest first. */
   sessions: HubSession[];
-  sessionsShown: number;
   currentSessionId: string;
   messages: HubMessage[];
   staged: HubStagedEntry[];
@@ -88,7 +84,6 @@ function emptyUnread(): ChannelUnread {
 function emptyState(): HomeState {
   return {
     sessions: [],
-    sessionsShown: HOME_CHAT_FIRST_PAGE,
     currentSessionId: '',
     messages: [],
     staged: [],
@@ -126,18 +121,6 @@ export function resetHomeState() {
 
 export function useHomeState() {
   return useSyncExternalStore(homeStore.subscribe, homeStore.getSnapshot, homeStore.getSnapshot);
-}
-
-/**
- * How many chats the sidebar lists: the revealed count, stretched to include the current chat
- * (so a chat picked far down is never hidden), never more than exist.
- */
-export function visibleSessionCount(state: HomeState) {
-  const total = state.sessions.length;
-  const currentIndex = state.currentSessionId
-    ? state.sessions.findIndex((s) => String(s.session_id || '') === state.currentSessionId)
-    : -1;
-  return Math.min(total, Math.max(state.sessionsShown, currentIndex + 1));
 }
 
 export function composerLocked(state: HomeState) {
@@ -195,6 +178,60 @@ export function sessionListLabel(session: HubSession) {
   const title = String(session?.title || '').trim();
   if (title) return title;
   return formatSessionWhen(session?.updated_at) || 'New conversation';
+}
+
+/** `today`, `yesterday`, a local date `YYYY-MM-DD`, or `undated` for a chat with no usable time. */
+export type SessionGroupKey = string;
+export type SessionGroup = { key: SessionGroupKey; label: string; sessions: HubSession[] };
+
+const UNDATED_GROUP: SessionGroup = { key: 'undated', label: 'No date', sessions: [] };
+
+function localDayKey(date: Date) {
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  return `${date.getFullYear()}-${mm}-${dd}`;
+}
+
+/**
+ * Groups chats under one heading per local calendar day of `updated_at` (Unix seconds): `Today`,
+ * `Yesterday`, then the date (`Oct 13`, with the year when it is not the current one). The input
+ * order is kept, and so is the order days first appear in; a day with no chats has no heading.
+ * A chat with a missing or invalid `updated_at` goes last under `No date`.
+ */
+export function groupSessionsByDay(
+  sessions: HubSession[],
+  nowSecs: number = nowUnixSecs(),
+): SessionGroup[] {
+  const now = new Date(nowSecs * 1000);
+  const yesterday = new Date(now);
+  // setDate keeps the local calendar day across a daylight-saving change; subtracting 24h would not.
+  yesterday.setDate(yesterday.getDate() - 1);
+  const todayKey = localDayKey(now);
+  const yesterdayKey = localDayKey(yesterday);
+
+  const groups: SessionGroup[] = [];
+  const byKey = new Map<string, SessionGroup>();
+  const undated: HubSession[] = [];
+  for (const session of sessions) {
+    const ts = Number(session?.updated_at);
+    if (!Number.isFinite(ts) || ts <= 0) {
+      undated.push(session);
+      continue;
+    }
+    const day = new Date(ts * 1000);
+    const key = localDayKey(day);
+    let group = byKey.get(key);
+    if (!group) {
+      if (key === todayKey) group = { key: 'today', label: 'Today', sessions: [] };
+      else if (key === yesterdayKey) group = { key: 'yesterday', label: 'Yesterday', sessions: [] };
+      else group = { key, label: formatDayHeading(day, now), sessions: [] };
+      byKey.set(key, group);
+      groups.push(group);
+    }
+    group.sessions.push(session);
+  }
+  if (undated.length > 0) groups.push({ ...UNDATED_GROUP, sessions: undated });
+  return groups;
 }
 
 export function hydrateStaged(raw: unknown): HubStagedEntry[] {

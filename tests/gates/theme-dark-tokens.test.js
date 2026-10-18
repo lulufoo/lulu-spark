@@ -85,7 +85,9 @@ describe('OTH-211 Dark theme tokens', () => {
     expect(darkCss).toMatch(/--border-focus:\s*#98959d;/);
     expect(darkCss).toMatch(/--border-accent:\s*#3b73ff;/);
     expect(lightCss).toMatch(/--border-accent:\s*#0969da;/);
-    expect(appCss).toMatch(/\.gs-search-input:focus\s*\{[^}]*border-color:\s*var\(--border-focus\)/);
+    expect(appCss).toMatch(
+      /\.notes-search-btn:hover,\s*\.notes-search-btn:focus-visible\s*\{[^}]*border-color:\s*var\(--border-focus\)/,
+    );
     expect(appCss).toMatch(/\.settings-field input:focus[\s\S]*?border-color:\s*var\(--border-focus\)/);
     expect(appCss).toMatch(
       /\.home-chat-composer-dock:focus-within\s*\{[^}]*border-color:\s*var\(--border-focus\)/,
@@ -97,7 +99,7 @@ describe('OTH-211 Dark theme tokens', () => {
       /\[data-theme="light"\]\s+\.home-chat-composer-dock:focus-within\s*\{[^}]*shadow-rgba-1f2328-06/,
     );
     expect(appCss).not.toMatch(/\.settings-field input:focus \{ border-color: var\(--border-accent\)/);
-    expect(appCss).not.toMatch(/\.gs-search-input:focus\s*\{[^}]*--border-accent/);
+    expect(appCss).not.toMatch(/\.notes-search-btn:(hover|focus-visible)[^{]*\{[^}]*--border-accent/);
   });
 
   it('lifts the Dark context ring off the composer surface', () => {

@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useLayoutEffect, useRef, useSyncExternalStore, type FormEvent, type KeyboardEvent } from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent } from 'react';
 import { attachHomeSidebarResize, detachHomeSidebarResize } from './ui/sidebar-resize.ts';
 import { createRoot, type Root } from 'react-dom/client';
 import { flushSync } from 'react-dom';
@@ -16,9 +16,12 @@ import { AboutDialog } from './ui/about-dialog.tsx';
 import { ApprovalDialog } from './ui/approval-dialog.tsx';
 import { AccountBar } from './ui/account-bar.tsx';
 import { HelpMenu } from './ui/help-menu.tsx';
-import { SessionHistory } from './ui/session-history.tsx';
+import { SidebarTabs, type SidebarPane } from './ui/sidebar-tabs.tsx';
+import { attachHomeShortcuts, detachHomeShortcuts } from './ui/home-shortcuts.ts';
+import { SearchModal } from '../shared/search-modal/search-modal.tsx';
+import { homeSearchNames } from './state/search-names.ts';
+import { openDocById } from './commands/open-doc-link.ts';
 import { SessionList } from './ui/session-list.tsx';
-import { SIDEBAR_CHAT_LIMIT, sidebarSessions } from './state/sidebar-sessions.ts';
 import { SessionMenu } from './ui/session-menu.tsx';
 import { ContextPercent } from './ui/context-percent.tsx';
 import { ComposerFileLists } from './ui/composer-file-lists.tsx';
@@ -35,7 +38,6 @@ import {
   selectSession,
   sendMessage,
   showActionError,
-  showMoreSessions,
   startHomeHub,
   stopHomeHub,
 } from './commands/hub.ts';
@@ -54,7 +56,6 @@ import {
   resetHomeState,
   sessionListLabel,
   useHomeState,
-  visibleSessionCount,
   type HubMessage,
   type LiveThinking,
 } from './state/store.ts';
@@ -150,6 +151,11 @@ function navWorkspaces(): HomeWorkspaceRow[] {
   return list.map((w) => ({ id: w.workspace_id, name: w.workspace_name, isDefault: w.is_default, icon: w.icon }));
 }
 
+/** Names for the search results: workspaces from the host list, projects from the Home sidebar. */
+function searchNames(projects: Parameters<typeof homeSearchNames>[1]) {
+  return homeSearchNames(state.workspaces.list, projects);
+}
+
 function goReadLater(navigateFn?: (hash: string) => void, openReadLater?: () => void) {
   if (typeof openReadLater === 'function') openReadLater();
   else navigateFn?.('#/read-later');
@@ -177,8 +183,11 @@ export function HomePage({
   const messagesRef = useRef<HTMLDivElement | null>(null);
   const formRef = useRef<HTMLFormElement | null>(null);
   const inputRef = useRef<ComposerInputHandle | null>(null);
+  const [sidebarPane, setSidebarPane] = useState<SidebarPane>('home');
+  const [searchOpen, setSearchOpen] = useState(false);
   const imeEnterRef = useRef(createImeEnterGuard());
   const sidebarRef = useRef<HTMLElement | null>(null);
+  const sessionListRef = useRef<HTMLDivElement | null>(null);
   const lastPaintKeyRef = useRef('');
   const mdPaintGenRef = useRef(0);
   const paintKey = messagePaintKey(state);
@@ -233,6 +242,33 @@ export function HomePage({
     return () => detachHomeSidebarResize();
   }, []);
 
+  // New chat: button and ⌘O share this. `newChatBusyRef` drops a second
+  // trigger while the first is still creating the session.
+  const newChatBusyRef = useRef(false);
+  const newChat = useCallback(() => {
+    if (newChatBusyRef.current) return;
+    newChatBusyRef.current = true;
+    setSearchOpen(false);
+    void createSession()
+      .then((ok) => {
+        if (!ok) return;
+        setSidebarPane('chat');
+        inputRef.current?.focus();
+      })
+      .catch(showActionError)
+      .finally(() => {
+        newChatBusyRef.current = false;
+      });
+  }, []);
+
+  useEffect(() => {
+    attachHomeShortcuts({
+      onNewChat: newChat,
+      onToggleSearch: () => setSearchOpen((open) => !open),
+    });
+    return () => detachHomeShortcuts();
+  }, [newChat]);
+
   useLayoutEffect(() => {
     const messagesEl = messagesRef.current;
     if (!messagesEl) return;
@@ -274,6 +310,12 @@ export function HomePage({
 
   function pickSession(id: string) {
     void selectSession(id).catch(showActionError);
+  }
+
+  /** A chat chosen in the search modal: open it, and show the Spark AI tab it lives in. */
+  function openSearchedChat(id: string) {
+    pickSession(id);
+    setSidebarPane('chat');
   }
 
   function removeSession(id: string) {
@@ -332,7 +374,8 @@ export function HomePage({
             }}
           />
         </WindowDragStrip>
-        <nav className="home-chat-nav" aria-label="Lulu Spark">
+        <SidebarTabs pane={sidebarPane} onChange={setSidebarPane} onSearch={() => setSearchOpen(true)} />
+        <nav className="home-chat-nav" aria-label="Lulu Spark" hidden={sidebarPane !== 'home'}>
           <div className="home-chat-nav-group" data-home-nav-group="workspace">
             <div className="home-chat-nav-label">Workspace</div>
             <HomeWorkspaceNav
@@ -350,58 +393,36 @@ export function HomePage({
             />
           </div>
         </nav>
-        <div className="home-chat-sessions-head">
-          <span className="home-chat-sessions-title">Chats</span>
-          <span className="home-chat-sessions-actions">
-            {state.sessions.length > SIDEBAR_CHAT_LIMIT ? (
-              <SessionHistory
-                total={state.sessions.length}
-                sessions={state.sessions.slice(0, visibleSessionCount(state))}
-                currentSessionId={state.currentSessionId}
-                progressByChat={state.progressByChat}
-                inFlightIds={state.inFlightIds}
-                onSelect={pickSession}
-                onDelete={removeSession}
-                onNearEnd={showMoreSessions}
-              />
-            ) : null}
-            <button
-              type="button"
-              className="home-chat-new"
-              data-role="new-session"
-              aria-label="New conversation"
-              data-tip="New conversation"
-              onClick={() => {
-                void createSession()
-                  .then((ok) => {
-                    if (ok) inputRef.current?.focus();
-                  })
-                  .catch(showActionError);
-              }}
-            >
-              <svg className="home-chat-new-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                <path
-                  fill="currentColor"
-                  d="M11 5a1 1 0 1 1 2 0v6h6a1 1 0 1 1 0 2h-6v6a1 1 0 1 1-2 0v-6H5a1 1 0 1 1 0-2h6V5z"
-                />
-              </svg>
-            </button>
-          </span>
+        <div className="home-chat-pane" hidden={sidebarPane !== 'chat'}>
+          <div className="home-chat-sessions-head">
+            <span className="home-chat-sessions-title">Chats</span>
+          </div>
+          <div
+            className="home-chat-sessions"
+            data-role="session-list"
+            role="list"
+            ref={sessionListRef}
+          >
+            <SessionList
+              sessions={state.sessions}
+              currentSessionId={state.currentSessionId}
+              progressByChat={state.progressByChat}
+              inFlightIds={state.inFlightIds}
+              onSelect={pickSession}
+              onDelete={removeSession}
+            />
+          </div>
         </div>
-        <div
-          className="home-chat-sessions"
-          data-role="session-list"
-          role="list"
+        <button
+          type="button"
+          className="home-chat-new-dock"
+          data-role="new-session"
+          aria-keyshortcuts="Meta+O"
+          onClick={newChat}
         >
-          <SessionList
-            sessions={sidebarSessions(state.sessions, state.currentSessionId)}
-            currentSessionId={state.currentSessionId}
-            progressByChat={state.progressByChat}
-            inFlightIds={state.inFlightIds}
-            onSelect={pickSession}
-            onDelete={removeSession}
-          />
-        </div>
+          <span className="home-chat-new-dock-label">New chat</span>
+          <kbd className="home-chat-new-dock-key">⌘O</kbd>
+        </button>
         <div className="home-account-row" data-role="account-row">
           <AccountBar
             user={authUser}
@@ -494,6 +515,15 @@ export function HomePage({
       </section>
       <AboutDialog />
       <ApprovalDialog />
+      <SearchModal
+        open={searchOpen}
+        mode={sidebarPane === 'chat' ? 'chats' : 'docs'}
+        scope={{ kind: 'all-workspaces' }}
+        names={searchNames(state.workspaceProjects)}
+        onOpenDoc={(id) => void openDocById(id)}
+        onOpenChat={openSearchedChat}
+        onClose={() => setSearchOpen(false)}
+      />
     </div>
   );
 }

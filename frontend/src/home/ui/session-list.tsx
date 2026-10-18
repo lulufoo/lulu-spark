@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { getEnginePreset } from '../../app-shell/state/settings/engine-presets.ts';
 import { LlmMark } from '../../shared/llm-mark.tsx';
-import { sessionListLabel, type HubSession } from '../state/store.ts';
+import { groupSessionsByDay, sessionListLabel, type HubSession } from '../state/store.ts';
 
 function ChatIcon() {
   return (
@@ -52,50 +52,64 @@ export function SessionList({
     return <p className="home-chat-sessions-empty">No conversations yet.</p>;
   }
   const pending = sessions.find((s) => String(s.session_id || '') === pendingId);
+  function renderRow(s: HubSession) {
+    const id = String(s.session_id || '');
+    const title = sessionListLabel(s);
+    const active = id && id === currentSessionId ? ' is-active' : '';
+    const flying = Boolean(progressByChat[id]);
+    const inFlight = inFlightIds.includes(id);
+    return (
+      <div key={id || title} className={`home-chat-session${active}`} role="listitem">
+        <button
+          type="button"
+          className="home-chat-session-open"
+          data-session-id={id}
+          onClick={() => {
+            if (id) onSelect(id);
+          }}
+        >
+          <SessionLlmIcon llm={s.llm} />
+          <span className="home-chat-session-label">{title}</span>
+          {flying ? (
+            <span className="home-chat-session-progress" aria-hidden="true">
+              …
+            </span>
+          ) : null}
+        </button>
+        {inFlight ? null : (
+          <button
+            type="button"
+            className="home-chat-session-delete"
+            data-role="delete-session"
+            data-session-id={id}
+            aria-label="Delete conversation"
+            data-tip="Delete conversation"
+            onClick={() => {
+              if (id) setPendingId(id);
+            }}
+          >
+            <TrashIcon />
+          </button>
+        )}
+      </div>
+    );
+  }
   return (
     <>
-      {sessions.map((s) => {
-        const id = String(s.session_id || '');
-        const title = sessionListLabel(s);
-        const active = id && id === currentSessionId ? ' is-active' : '';
-        const flying = Boolean(progressByChat[id]);
-        const inFlight = inFlightIds.includes(id);
-        return (
-          <div key={id || title} className={`home-chat-session${active}`} role="listitem">
-            <button
-              type="button"
-              className="home-chat-session-open"
-              data-session-id={id}
-              onClick={() => {
-                if (id) onSelect(id);
-              }}
-            >
-              <SessionLlmIcon llm={s.llm} />
-              <span className="home-chat-session-label">{title}</span>
-              {flying ? (
-                <span className="home-chat-session-progress" aria-hidden="true">
-                  …
-                </span>
-              ) : null}
-            </button>
-            {inFlight ? null : (
-              <button
-                type="button"
-                className="home-chat-session-delete"
-                data-role="delete-session"
-                data-session-id={id}
-                aria-label="Delete conversation"
-                data-tip="Delete conversation"
-                onClick={() => {
-                  if (id) setPendingId(id);
-                }}
-              >
-                <TrashIcon />
-              </button>
-            )}
+      {groupSessionsByDay(sessions).map((group) => (
+        <div
+          key={group.key}
+          className="home-chat-session-group"
+          role="group"
+          aria-label={group.label}
+          data-group={group.key}
+        >
+          <div className="home-chat-session-group-label" aria-hidden="true">
+            {group.label}
           </div>
-        );
-      })}
+          {group.sessions.map(renderRow)}
+        </div>
+      ))}
       {pending ? (
         <div
           className="home-chat-delete-confirm"

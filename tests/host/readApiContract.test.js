@@ -25,6 +25,28 @@ describe('readApi contract map', () => {
     });
   });
 
+  it('resolveInvokeFromPath maps all_workspaces=1 to allWorkspaces, and only that value', () => {
+    expect(resolveInvokeFromPath('/api/search-spark?q=abc&limit=8&all_workspaces=1')).toEqual({
+      cmd: 'search_spark',
+      args: { q: 'abc', workspaceId: undefined, limit: 8, allWorkspaces: true },
+    });
+    for (const off of ['', '&all_workspaces=0', '&all_workspaces=false', '&all_workspaces=']) {
+      const args = resolveInvokeFromPath(`/api/search-spark?q=abc${off}`).args;
+      expect(args.allWorkspaces, off || '(absent)').toBeUndefined();
+    }
+  });
+
+  it('resolveInvokeFromPath maps the chat search to search_chat_sessions with camelCase args', () => {
+    expect(resolveInvokeFromPath('/api/search-chats?q=login&limit=8')).toEqual({
+      cmd: 'search_chat_sessions',
+      args: { q: 'login', limit: 8 },
+    });
+    expect(resolveInvokeFromPath('/api/search-chats?q=login')).toEqual({
+      cmd: 'search_chat_sessions',
+      args: { q: 'login', limit: undefined },
+    });
+  });
+
   it('resolveInvokeFromPath maps the disabled workspace list and no longer a project one', () => {
     expect(resolveInvokeFromPath('/api/workspaces-disabled?_=1')).toEqual({
       cmd: 'list_disabled_workspaces',

@@ -141,6 +141,9 @@ pub struct AIAssistantSession {
     pub(crate) generation_seq: u64,
     pub(crate) execute_cancelled: bool,
     pub(crate) chat_cancelled: bool,
+    /// Earliest `updated_at` the Home chat list shows. Fixed once at launch; `None` until then,
+    /// which lists every chat.
+    pub(crate) recent_cutoff: Option<i64>,
 }
 
 impl AIAssistantSession {

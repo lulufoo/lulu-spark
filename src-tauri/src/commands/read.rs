@@ -2,7 +2,7 @@ use serde_json::Value;
 use tauri::AppHandle;
 
 use crate::config::paths;
-use crate::services::search_index::{cache_dir_or_err, search_desktop_docs};
+use crate::services::search_index::{cache_dir_or_err, search_desktop_docs_in, DocSearchScope};
 use crate::services::tags_registry;
 use crate::services::spark_read;
 
@@ -16,11 +16,18 @@ pub async fn search_spark(
     q: String,
     limit: Option<u32>,
     workspace_id: Option<String>,
+    all_workspaces: Option<bool>,
 ) -> Result<Value, String> {
     let _ = repo_root()?;
     tauri::async_runtime::spawn_blocking(move || {
         let cache = cache_dir_or_err()?;
-        Ok(search_desktop_docs(&cache, &q, limit, workspace_id.as_deref()))
+        // `all_workspaces` wins over `workspace_id`; with neither, the Default workspace.
+        let scope = if all_workspaces.unwrap_or(false) {
+            DocSearchScope::AllWorkspaces
+        } else {
+            DocSearchScope::Workspace(workspace_id.as_deref())
+        };
+        Ok(search_desktop_docs_in(&cache, &q, limit, scope))
     })
     .await
     .map_err(|e| e.to_string())?

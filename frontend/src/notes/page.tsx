@@ -22,7 +22,7 @@ import {
   resolveNotesListDate,
 } from './commands/viewer/outlet.ts';
 import { renderDocBody } from './ui/viewer/body.tsx';
-import { SparkSearch } from './ui/search.tsx';
+import { NotesSearchButton, NotesSearchModal, useNotesSearch } from './ui/search.tsx';
 import { startCreateDocument } from './commands/create-document.ts';
 import { CreateTargetDialog } from './ui/create-target-dialog.tsx';
 import { normalizeGroupKey } from './state/dir-tree.ts';
@@ -328,11 +328,22 @@ function NotesOutletChrome({ routeParams }: { routeParams: Record<string, string
   );
 }
 
-export function NotesMain({ routeParams }: { routeParams: Record<string, string> }) {
+/**
+ * `active`: the notes route is the one showing. The shell keeps this page mounted under other
+ * routes, so the search shortcut and open modal follow `active`, not mount.
+ */
+export function NotesMain({
+  routeParams,
+  active = true,
+}: {
+  routeParams: Record<string, string>;
+  active?: boolean;
+}) {
   const host = useHostState();
   const mode = notesViewMode(routeParams, host.viewer);
   const showOutlet = mode !== 'list';
   const listRef = useRef<HTMLDivElement | null>(null);
+  const search = useNotesSearch(active);
 
   useEffect(() => {
     const list = listRef.current || document.getElementById('doc-list');
@@ -371,7 +382,7 @@ export function NotesMain({ routeParams }: { routeParams: Record<string, string>
         data-tauri-drag-region="deep"
       >
         <NotesDateHeading text={headingText} hint={headingIsHint} />
-        <SparkSearch />
+        <NotesSearchButton onOpen={search.openSearch} />
       </div>
       <button
         type="button"
@@ -409,6 +420,12 @@ export function NotesMain({ routeParams }: { routeParams: Record<string, string>
       >
         <NotesOutletChrome routeParams={routeParams} />
       </div>
+      {/* Outside the toolbar: that is hidden while a document is open, ⌘K still works there. */}
+      <NotesSearchModal
+        open={search.open}
+        topicTitles={host.index.topicTitles}
+        onClose={search.closeSearch}
+      />
     </>
   );
 }

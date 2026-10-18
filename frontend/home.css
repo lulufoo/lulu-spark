@@ -48,70 +48,137 @@
   border-top: 1px solid var(--border-muted);
   height: calc(var(--home-nav-label-h) + 8px);
 }
-.home-chat-new {
-  width: 24px;
-  height: 24px;
-  border-color: transparent;
-  background: transparent;
-  border-radius: 6px;
+/* ── Tabs: Home / Spark AI capsules + search, one row under the window chrome ── */
+.home-sidebar-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  padding: 2px 12px 8px;
 }
-.home-chat-new:hover { background: var(--home-hover); border-color: transparent; }
-.home-chat-new-icon { width: 13px; height: 13px; }
-
-.home-chat-session { border-radius: 8px; }
-.home-chat-session:hover { background: var(--home-hover); }
-.home-chat-session.is-active {
-  background: var(--bg-surface);
-  box-shadow: 0 0 0 1px var(--border-muted), 0 1px 2px var(--shadow-rgba-1f2328-06);
-}
-.home-chat-session-open { gap: 10px; padding: 0 8px; font-size: 14px; }
-.home-chat-session-icon,
-.home-chat-session-icon svg { width: 18px; height: 18px; }
-.home-chat-session-icon { color: var(--fg-subtle); }
-.home-chat-session.is-active .home-chat-session-open { font-weight: 500; }
-
-/* ── All chats (history popover) ── */
-.home-chat-sessions-actions { display: inline-flex; align-items: center; gap: 2px; }
-.home-history-trigger {
+.home-sidebar-tab {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  height: 32px;
+  min-width: 32px;
   padding: 0;
   border: none;
-  border-radius: 6px;
+  border-radius: 999px;
   background: transparent;
   color: var(--fg-muted);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 500;
   cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, padding 0.15s ease;
 }
-.home-history-trigger:hover,
-.home-history-trigger[aria-expanded="true"] { background: var(--home-hover); color: var(--fg-default); }
-.home-history-trigger:focus-visible { outline: 2px solid var(--home-accent); outline-offset: 1px; }
-.home-history-icon { width: 15px; height: 15px; }
-.home-history-backdrop { position: fixed; inset: 0; z-index: 40; }
-.home-history-panel {
-  position: fixed;
-  z-index: 41;
+.home-sidebar-tab:hover { background: var(--home-hover); color: var(--fg-default); }
+.home-sidebar-tab:focus-visible { outline: 2px solid var(--home-accent); outline-offset: 1px; }
+.home-sidebar-tab.is-active {
+  padding: 0 12px;
+  background: var(--bg-muted);
+  color: var(--fg-emphasis);
+}
+.home-sidebar-tab .home-desktop-shortcut-icon,
+.home-sidebar-tab .home-desktop-shortcut-icon svg,
+.home-sidebar-search .home-desktop-shortcut-icon,
+.home-sidebar-search .home-desktop-shortcut-icon svg { width: 16px; height: 16px; }
+.home-sidebar-tab-label {
+  max-width: 0;
+  margin-left: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  opacity: 0;
+  transition: max-width 0.18s ease, margin-left 0.18s ease, opacity 0.12s ease;
+}
+.home-sidebar-tab.is-active .home-sidebar-tab-label { max-width: 7em; margin-left: 8px; opacity: 1; }
+.home-sidebar-search { margin-left: auto; flex: none; }
+
+/* ── Panes: both stay mounted (the workspace list measures itself); the inactive one is hidden ── */
+.home-chat-nav[hidden],
+.home-chat-pane[hidden] { display: none; }
+.home-chat-pane {
   display: flex;
   flex-direction: column;
-  width: 340px;
-  overflow: hidden;
-  border: 1px solid var(--border-default);
-  border-radius: 14px;
-  background: var(--bg-surface);
-  box-shadow: 0 16px 40px var(--shadow-rgba-1f2328-16), 0 2px 6px var(--shadow-rgba-1f2328-06);
+  flex: 1 1 0;
+  min-height: 0;
 }
-.home-history-head {
+.home-chat-pane .home-chat-sessions-head {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+  height: var(--home-nav-label-h);
+}
+/* Chat list fills the height the dock and the account row leave, instead of a fixed five rows. */
+.home-chat-pane .home-chat-sessions {
+  flex: 1 1 0;
+  height: auto;
+  min-height: 0;
+}
+
+/* ── New chat: pinned above the account row on both tabs ── */
+.home-chat-new-dock {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   flex: none;
-  padding: 12px 16px 8px;
+  height: 32px;
+  margin: 8px 12px;
+  padding: 0 12px;
+  border: 1px solid var(--border-muted);
+  border-radius: 16px;
+  background: var(--bg-surface);
+  color: var(--fg-muted);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: 0 1px 2px var(--shadow-rgba-1f2328-06);
+}
+.home-chat-new-dock:hover { background: var(--bg-subtle); color: var(--fg-default); }
+.home-chat-new-dock:focus-visible { outline: 2px solid var(--home-accent); outline-offset: 1px; }
+.home-chat-new-dock-key {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--bg-subtle);
+  color: var(--fg-subtle);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+/* Date headings (Today / Yesterday / Earlier) above each group of chats. Same look as the section labels. */
+.home-chat-session-group-label {
+  padding: 12px 8px 4px;
   font-size: 11px;
   font-weight: 600;
+  line-height: 16px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--fg-subtle);
 }
-.home-history-list { flex: 1; min-height: 0; overflow-y: auto; padding: 0 8px 8px; }
+.home-chat-session-group:first-child .home-chat-session-group-label { padding-top: 4px; }
+
+.home-chat-session { border-radius: 8px; }
+/* Gap between rows, so the active row and a hovered row do not merge into one block. */
+.home-chat-session + .home-chat-session { margin-top: 4px; }
+/* Hover and the open chat share one look: the same grey, no white card. The open chat is told apart by its weight. */
+.home-chat-session:hover,
+.home-chat-session.is-active { background: var(--home-hover); box-shadow: none; }
+/* Right padding is small on purpose: a long title ends in an ellipsis, so the text edge looks further in than the box. */
+/* The row centres its children, so the button must stretch itself to the row height or only the text line is clickable. */
+.home-chat-session-open { align-self: stretch; gap: 10px; padding: 0 2px 0 8px; font-size: 14px; }
+.home-chat-session-icon,
+.home-chat-session-icon svg { width: 18px; height: 18px; }
+.home-chat-session-icon { color: var(--fg-subtle); }
+.home-chat-session.is-active .home-chat-session-open { font-weight: 500; }
+/* The delete button always takes its space and is only shown on hover or focus (opacity, not display),
+   so a long title is cut at the same place whether or not the row is hovered. */
+.home-chat-session-delete { display: inline-flex; opacity: 0; pointer-events: none; }
+.home-chat-session:hover .home-chat-session-delete,
+.home-chat-session:focus-within .home-chat-session-delete { opacity: 1; pointer-events: auto; }
 
 .home-account-row { border-top-color: var(--border-muted); }
 .home-account-bar-trigger:hover,
@@ -244,3 +311,111 @@
 .home-welcome-prompt-label { font-size: 13px; font-weight: 600; color: var(--home-accent); }
 .home-welcome-prompt-text { font-size: 14px; line-height: 1.45; color: var(--fg-default); }
 @media (max-width: 760px) { .home-welcome-prompts { grid-template-columns: 1fr; } }
+
+/* ── Shared search modal (documents). Used by Home; the notes page reuses it. ── */
+.search-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 14vh;
+  background: color-mix(in srgb, var(--fg-emphasis) 22%, transparent);
+}
+.search-modal {
+  display: flex;
+  flex-direction: column;
+  width: min(560px, calc(100vw - 48px));
+  max-height: 60vh;
+  overflow: hidden;
+  border-radius: 14px;
+  background: var(--bg-surface);
+  box-shadow: 0 8px 32px var(--shadow-rgba-010409-18), 0 0 0 1px var(--shadow-rgba-1f2328-08);
+}
+.search-modal-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+  padding: 0 14px 0 16px;
+  height: 52px;
+  border-bottom: 1px solid var(--border-muted);
+}
+.search-modal-glyph { width: 18px; height: 18px; flex: none; color: var(--fg-subtle); }
+.search-modal-input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--fg-default);
+  font: inherit;
+  font-size: 15px;
+}
+.search-modal-input::placeholder { color: var(--fg-subtle); }
+.search-modal-esc {
+  flex: none;
+  padding: 2px 7px;
+  border: 1px solid var(--border-muted);
+  border-radius: 6px;
+  background: var(--bg-subtle);
+  color: var(--fg-subtle);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.search-modal-esc:hover { color: var(--fg-default); }
+.search-modal-list { flex: 1; min-height: 0; overflow-y: auto; padding: 6px; }
+.search-modal-section {
+  padding: 8px 10px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--fg-subtle);
+}
+.search-modal-status { padding: 22px 10px; text-align: center; font-size: 13.5px; color: var(--fg-subtle); }
+.search-modal-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.search-modal-row[data-active="true"] { background: var(--bg-muted); }
+.search-modal-row-title {
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--fg-emphasis);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.search-modal-row-sub {
+  overflow: hidden;
+  font-size: 12px;
+  color: var(--fg-subtle);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.search-modal-row--history { flex-direction: row; align-items: center; justify-content: space-between; gap: 8px; }
+.search-modal-row--history .search-modal-row-title { font-weight: 400; color: var(--fg-default); }
+.search-modal-history-remove {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fg-subtle);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+.search-modal-history-remove:hover { background: var(--home-hover); color: var(--fg-default); }

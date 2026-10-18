@@ -10,8 +10,6 @@ import {
 } from './channel-unread.ts';
 import {
   getHomeState,
-  HOME_CHAT_PAGE_STEP,
-  visibleSessionCount,
   contextPercentFrom,
   contextUsageFrom,
   hydrateStaged,
@@ -92,17 +90,6 @@ export async function refreshList(gen?: number) {
     currentSessionId: listed?.current_session_id
       ? String(listed.current_session_id)
       : prev.currentSessionId,
-  }));
-}
-
-/** Reveal the next page of chats; called when the Chats list is scrolled to the bottom. */
-export function showMoreSessions() {
-  const snap = getHomeState();
-  const visible = visibleSessionCount(snap);
-  if (visible >= snap.sessions.length) return;
-  setHomeState((prev) => ({
-    ...prev,
-    sessionsShown: Math.min(visible + HOME_CHAT_PAGE_STEP, prev.sessions.length),
   }));
 }
 

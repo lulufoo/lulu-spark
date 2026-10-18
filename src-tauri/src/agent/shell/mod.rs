@@ -103,6 +103,11 @@ pub fn list_chat_sessions_core() -> Result<Value, String> {
     }))
 }
 
+/// Search chats by title over the whole history. Does not change the live session.
+pub fn search_chat_sessions_core(query: &str, limit: usize) -> Result<Value, String> {
+    Ok(json!({ "hits": session::search_session_titles(query, limit)? }))
+}
+
 /// Make an existing disk session the live chat session. Does not Set Binding.
 pub fn select_chat_session_core(session_id: &str) -> Result<Value, String> {
     let id = session_id.trim();
@@ -110,6 +115,8 @@ pub fn select_chat_session_core(session_id: &str) -> Result<Value, String> {
         return Err("Missing session_id".into());
     }
     let _ = session::load_session(id)?;
+    // A chat older than the Home list's cutoff joins the list when opened; one already in it stays put.
+    session::touch_session(id)?;
     session::with_live_mut(|live| {
         live.current_session_id = Some(id.to_string());
     });

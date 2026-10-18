@@ -268,12 +268,32 @@ pub fn parse_limit(limit: Option<u32>, default: u32) -> u32 {
     }
 }
 
+/// Which documents a page search covers.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DocSearchScope<'a> {
+    /// One workspace; the Default workspace when `None` or blank.
+    Workspace(Option<&'a str>),
+    /// Every workspace: no workspace filter is applied.
+    AllWorkspaces,
+}
+
 /// Search the documents of one workspace (default: the Default workspace) for the page search box.
 pub fn search_desktop_docs(
     cache_dir: &Path,
     q: &str,
     limit: Option<u32>,
     workspace: Option<&str>,
+) -> Value {
+    search_desktop_docs_in(cache_dir, q, limit, DocSearchScope::Workspace(workspace))
+}
+
+/// Search documents for the page search box within `scope`. Every hit carries the `workspace_id`
+/// it lives in, so a search across workspaces can tell them apart.
+pub fn search_desktop_docs_in(
+    cache_dir: &Path,
+    q: &str,
+    limit: Option<u32>,
+    scope: DocSearchScope<'_>,
 ) -> Value {
     let q = q.trim();
     if q.is_empty() {
@@ -283,9 +303,17 @@ pub fn search_desktop_docs(
     if !index_exists(cache_dir) {
         return json!({ "hits": [], "error": "not_indexed" });
     }
-    let workspace = workspace.map(str::trim).filter(|w| !w.is_empty()).unwrap_or(DEFAULT_WORKSPACE_ID);
+    let workspace = match scope {
+        DocSearchScope::AllWorkspaces => None,
+        DocSearchScope::Workspace(w) => Some(
+            w.map(str::trim)
+                .filter(|w| !w.is_empty())
+                .unwrap_or(DEFAULT_WORKSPACE_ID)
+                .to_string(),
+        ),
+    };
     let filter = SearchFilter {
-        workspace: Some(workspace.into()),
+        workspace,
         ..SearchFilter::default()
     };
     match search_in_cache(cache_dir, q, &filter, limit) {
@@ -298,6 +326,7 @@ pub fn search_desktop_docs(
                         "title": h.title,
                         "id": h.doc_id,
                         "layer": "raw",
+                        "workspace_id": h.workspace_id,
                         "project_id": h.topic,
                         "body": h.snippet,
                         "_formatted": { "body": h.snippet },

@@ -79,7 +79,7 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
     const notesPage = readFileSync(join(repoRoot, 'frontend/src/notes/page.tsx'), 'utf8');
     const css = readFileSync(join(repoRoot, 'frontend/app.css'), 'utf8');
     expect(notesPage).toMatch(
-      /className="page-toolbar notes-page-toolbar"[\s\S]*hidden=\{showOutlet\}[\s\S]*<NotesDateHeading text=\{headingText\} hint=\{headingIsHint\} \/>[\s\S]*<SparkSearch \/>/,
+      /className="page-toolbar notes-page-toolbar"[\s\S]*hidden=\{showOutlet\}[\s\S]*<NotesDateHeading text=\{headingText\} hint=\{headingIsHint\} \/>[\s\S]*<NotesSearchButton onOpen=\{search\.openSearch\} \/>/,
     );
     expect(notesPage).toMatch(/className="page-toolbar notes-page-toolbar"/);
     expect(notesPage).toMatch(/id="md-header" className="viewer-header" data-tauri-drag-region="deep"/);
@@ -95,14 +95,11 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
     expect(css).not.toMatch(/page-back-home-chevron/);
     expect(css).not.toMatch(/\.page-back-home-icon \{[^}]*#0071e3/);
     expect(css).toMatch(/\.notes-page-toolbar #date-heading \{/);
-    expect(css).toMatch(/\.page-toolbar\.notes-page-toolbar \.gs-search-wrap \{[\s\S]*?margin-left: auto;/);
-    expect(css).toMatch(/\.page-toolbar\.notes-page-toolbar \.gs-search-input[\s\S]*?width: 373px;/);
-    expect(css).toMatch(/\.gs-search-input \{[\s\S]*?background: var\(--bg-surface\);/);
-    expect(css).toMatch(/\.page-toolbar \.gs-search-input \{[\s\S]*?background: var\(--bg-surface\);/);
-    expect(css).toMatch(/\.kb-reader-header \.gs-search-input[\s\S]*?background: var\(--bg-canvas\);/);
-    expect(css).toMatch(/\.gs-search-input \{[\s\S]*?min-height: 36px;/);
-    expect(css).not.toMatch(/\.gs-search-input \{[^}]*background: #525960;/);
-    expect(css).toMatch(/\.notes-page-toolbar \.gs-search-dropdown \{[\s\S]*?left: auto;[\s\S]*?right: 0;/);
+    expect(css).toMatch(/\.notes-search-btn \{[\s\S]*?margin-left: auto;/);
+    expect(css).toMatch(/\.notes-search-btn \{[\s\S]*?width: 373px;/);
+    expect(css).toMatch(/\.notes-search-btn \{[\s\S]*?background: var\(--bg-surface\);/);
+    expect(css).toMatch(/\.notes-search-btn \{[\s\S]*?min-height: 36px;/);
+    expect(css).not.toMatch(/\.notes-search-btn \{[^}]*background: #525960;/);
     expect(css).toMatch(/\.viewer-header \{[\s\S]*?padding: 12px 20px;/);
     expect(css).toMatch(/#md-header\.viewer-header \{[\s\S]*?padding: 20px 24px 16px;/);
     expect(css).not.toMatch(/\.viewer-panel-title \{\s*display:\s*none/);
@@ -132,11 +129,9 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
     expect(css).toMatch(/\.viewer-panel-title \{[\s\S]*?border-right: 1px solid var\(--border-neutral\);/);
     expect(css).toMatch(/\.viewer-panel-title \{[\s\S]*?font-size: 14px;/);
     expect(css).not.toMatch(/\.kb-reader-header \.viewer-header-rule/);
-    expect(css).toMatch(/\.kb-reader-header \.gs-search-wrap \{[\s\S]*?margin-left: auto;/);
-    expect(css).toMatch(/\.kb-reader-header \.gs-search-dropdown \{[\s\S]*?right: 0;/);
     expect(css).toMatch(/\.kb-reader-header\.viewer-header \{[\s\S]*?-webkit-app-region: drag;/);
     expect(css).toMatch(
-      /\.kb-reader-header-actions,[\s\S]*?\.kb-reader-header \.gs-search-dropdown \{[\s\S]*?-webkit-app-region: no-drag;/,
+      /\.kb-reader-header-actions,[\s\S]*?\.kb-reader-header \.md-header-btn \{[\s\S]*?-webkit-app-region: no-drag;/,
     );
     expect(notesPage).toMatch(/className="viewer-header-actions"/);
     expect(notesPage).toMatch(/id="btn-add-comment"/);
@@ -259,7 +254,7 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
   });
 
   it('search placeholders use table B; the header has no index rebuild control', () => {
-    expect(indexHtml).toMatch(/id="gs-wb-input"[^>]*placeholder="Search this workspace…"/);
+    expect(indexHtml).toMatch(/notes-search-btn-label">Search this workspace…</);
     expect(indexHtml).not.toMatch(/id="gs-wb-rebuild-btn"/);
     expect(indexHtml).not.toMatch(/IndexRebuildStatus|IndexRebuildButton|header-index-status|btn-index-rebuild/);
   });
