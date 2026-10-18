@@ -268,3 +268,15 @@ fn selecting_a_chat_through_the_command_brings_it_into_the_list() {
         assert_eq!(ids.first(), Some(&old.as_str()), "the opened chat is now the newest");
     });
 }
+
+#[test]
+fn startup_fixes_the_cutoff_after_the_boot_settings_and_before_the_main_window() {
+    // The cutoff reads the settings, which only exist once the boot settings have installed the
+    // runtime plane. Running it earlier fails at startup and silently lists every chat.
+    let lib = include_str!("../../lib.rs");
+    let boot = lib.find("boot_settings::resolve_boot_settings()").expect("boot settings call");
+    let init = lib.find("init_recent_cutoff()").expect("cutoff call");
+    let window = lib.find("host::create_main_window(app)").expect("main window call");
+    assert!(boot < init, "the cutoff must be fixed after the boot settings");
+    assert!(init < window, "the cutoff must be fixed before the main window opens");
+}
