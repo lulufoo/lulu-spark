@@ -36,12 +36,10 @@
 .home-chat-nav .home-desktop-shortcut-icon svg { width: 16px; height: 16px; }
 .home-nav-workspace + .home-nav-workspace { margin-top: 10px; }
 .home-chat-nav .home-nav-project {
-  padding-left: 30px;
   font-size: 14px;
   color: color-mix(in srgb, var(--fg-default) 80%, var(--bg-canvas));
 }
-.home-nav-project-icon { color: var(--fg-subtle); flex-basis: 14px; width: 14px; height: 14px; }
-.home-nav-project-icon svg { width: 14px; height: 14px; }
+.home-nav-project-icon { color: var(--fg-subtle); }
 
 .home-chat-sessions-head {
   margin-top: 4px;

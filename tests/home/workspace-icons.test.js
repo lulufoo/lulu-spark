@@ -149,11 +149,14 @@ describe('HomeWorkspaceNav icons', () => {
     expect(rowCount).toBeLessThanOrEqual(7);
   });
 
-  it('keeps every row at the fixed row height and indents projects under the workspace', () => {
+  it('keeps every row at the fixed row height and aligns projects with the workspace', () => {
     const css = readFileSync(join(repoRoot, 'frontend/app.css'), 'utf8');
+    const homeCss = readFileSync(join(repoRoot, 'frontend/home.css'), 'utf8');
     expect(css).toMatch(/\.home-chat-nav-item \{[\s\S]*?height: var\(--home-nav-row-h\);/);
     const projectRule = css.match(/\.home-chat-nav \.home-nav-project \{[^}]*\}/)[0];
-    expect(projectRule).toMatch(/padding: 0 8px 0 24px;/);
+    expect(projectRule).toMatch(/padding: 0 8px;/);
+    expect(projectRule).toMatch(/gap: 10px;/);
+    expect(homeCss).not.toMatch(/\.home-chat-nav \.home-nav-project \{[^}]*padding-left:/);
     expect(projectRule).not.toMatch(/\bheight:/);
     expect(css).not.toMatch(/home-nav-more/);
     expect(css).toMatch(/\.home-nav-hidden-count \{[^}]*margin-left: auto;/);
