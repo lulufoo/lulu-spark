@@ -7870,7 +7870,7 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   padding: 0 6px;
   border-radius: 6px;
   background: var(--bg-muted);
-  background: color-mix(in srgb, var(--fg-ref-chip) 24%, transparent);
+  background: color-mix(in srgb, var(--bg-accent) 16%, transparent);
   color: var(--fg-ref-chip);
   font-size: 13px;
   line-height: 18px;
@@ -7886,7 +7886,7 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
 }
 .home-ref-chip:hover {
   background: var(--border-default);
-  background: color-mix(in srgb, var(--fg-ref-chip) 36%, transparent);
+  background: color-mix(in srgb, var(--bg-accent) 26%, transparent);
 }
 .home-chat-send {
   position: relative;
