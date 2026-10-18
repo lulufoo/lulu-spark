@@ -204,19 +204,19 @@
   text-align: center;
 }
 .home-welcome-mark {
-  width: 52px;
-  height: 52px;
+  width: 72px;
+  height: 72px;
   margin-bottom: 14px;
   filter: drop-shadow(0 6px 14px var(--shadow-rgba-1f2328-16));
 }
 .home-welcome-title {
-  margin: 0;
-  font-size: 24px;
+  margin: 0 0 28px;
+  font-size: 45px;
   font-weight: 650;
   letter-spacing: -0.02em;
+  line-height: 1.2;
   color: var(--fg-emphasis);
 }
-.home-welcome-hint { margin: 8px 0 28px; font-size: 14px; color: var(--fg-muted); }
 .home-welcome-prompts {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -241,6 +241,6 @@
   transform: translateY(-1px);
 }
 .home-welcome-prompt:focus-visible { outline: 2px solid var(--home-accent); outline-offset: 2px; }
-.home-welcome-prompt-label { font-size: 12px; font-weight: 600; color: var(--home-accent); }
-.home-welcome-prompt-text { font-size: 13px; line-height: 1.45; color: var(--fg-default); }
+.home-welcome-prompt-label { font-size: 13px; font-weight: 600; color: var(--home-accent); }
+.home-welcome-prompt-text { font-size: 14px; line-height: 1.45; color: var(--fg-default); }
 @media (max-width: 760px) { .home-welcome-prompts { grid-template-columns: 1fr; } }
