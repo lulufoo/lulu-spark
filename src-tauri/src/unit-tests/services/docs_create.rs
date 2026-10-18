@@ -278,7 +278,7 @@ fn create_note_theme_line_with_zh_translation() {
     let project = add_project("learning-ai-agent");
     let v = create_doc(&path_payload(&sandbox, THEME_LINE_DOC, json!({
             "title": "Interview Title",
-            "project": project,
+            "project_id": project,
             "folder": "waymo-interview",
             "created_at": "202606191700",
             "source_type": "video",
@@ -321,7 +321,7 @@ fn create_note_zh_from_source_path() {
     let zh_file = stage_source(&sandbox, "zh.md", THEME_LINE_ZH);
     let v = create_doc(&path_payload(&sandbox, THEME_LINE_DOC, json!({
             "title": "Interview Title",
-            "project": project,
+            "project_id": project,
             "folder": "waymo-interview",
             "created_at": "202606191700",
             "source_type": "video",
@@ -612,7 +612,7 @@ fn create_note_rejects_unknown_project() {
     let v = create_doc(&path_payload(
             &sandbox,
             SAMPLE_DOC,
-            json!({ "source_type": "summary", "project": "not-a-category" }),
+            json!({ "source_type": "summary", "project_id": "not-a-category" }),
         ),
     );
     assert_eq!(v.get("_status"), Some(&json!(400)));
@@ -1027,7 +1027,7 @@ fn create_jot_with_a_project_writes_into_that_project() {
     let v = create_jot(None, Some(&plans), "放进计划\n\n正文", &jot_opts_with_ts("202607101440"))
         .expect("create_jot");
     assert_eq!(v["ok"], json!(true), "{v}");
-    assert_eq!(v["project"], json!(plans));
+    assert_eq!(v["project_id"], json!(plans));
     let id = v["id"].as_str().expect("id");
     assert!(note_row(id).raw_path.starts_with("notes/202607101440-"));
     let entry = &read_note_entries()["entries"][id];
@@ -1042,7 +1042,7 @@ fn create_jot_with_a_project_writes_into_that_project() {
 fn create_jot_without_a_project_still_goes_to_inbox() {
     let _sandbox = setup_notes();
     let v = create_jot(None, None, "没有指定项目", &jot_opts_with_ts("202607101441")).expect("create_jot");
-    assert_eq!(v["project"], json!("inbox"));
+    assert_eq!(v["project_id"], json!("inbox"));
     let id = v["id"].as_str().expect("id");
     assert_eq!(read_note_entries()["entries"][id]["project_id"], json!("inbox"));
 }

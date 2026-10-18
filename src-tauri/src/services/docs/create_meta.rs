@@ -97,19 +97,19 @@ fn parse_created_at(payload: &Value) -> Result<String, Value> {
 }
 
 fn optional_project(payload: &Value) -> Result<Option<String>, Value> {
-    match payload.get("project") {
+    match payload.get("project_id") {
         None | Some(Value::Null) => Ok(None),
         Some(Value::String(raw)) => {
             let id = raw.trim();
             if id.is_empty() {
                 Ok(None)
             } else if id.contains("..") || id.contains('/') || id.contains('\\') {
-                Err(json!({ "error": "Invalid project", "_status": 400 }))
+                Err(json!({ "error": "Invalid project_id", "_status": 400 }))
             } else {
                 Ok(Some(id.to_string()))
             }
         }
-        Some(_) => Err(json!({ "error": "Invalid project", "_status": 400 })),
+        Some(_) => Err(json!({ "error": "Invalid project_id", "_status": 400 })),
     }
 }
 

@@ -11,15 +11,16 @@ pub fn source_type_schema() -> Value {
     })
 }
 
-fn workspace_schema() -> Value {
+fn doc_workspace_id_schema() -> Value {
     json!({
         "type": "string",
         "description": "Optional workspace id from list_workspaces. Defaults to the Default workspace; a document id that starts with a workspace id (<workspace>-<hex>) already names its workspace."
     })
 }
 
-pub fn workspace_property() -> Value {
-    json!({ "workspace": workspace_schema() })
+/// The `workspace_id` input of the tools that take a document id.
+pub fn doc_workspace_id_property() -> Value {
+    json!({ "workspace_id": doc_workspace_id_schema() })
 }
 
 /// The `workspace_id` input of the workspace and project tools.
@@ -38,8 +39,8 @@ pub fn create_doc_properties(include_source_path: bool) -> Value {
             "type": "string",
             "description": "Required display title. May be Chinese."
         },
-        "workspace": workspace_schema(),
-        "project": {
+        "workspace_id": doc_workspace_id_schema(),
+        "project_id": {
             "type": "string",
             "description": "Optional project id from list_projects. Omit to use the workspace inbox."
         },
@@ -105,7 +106,7 @@ pub fn create_doc_properties(include_source_path: bool) -> Value {
 
 pub fn update_doc_properties(include_source_path: bool) -> Value {
     let mut props = json!({
-        "workspace": workspace_schema(),
+        "workspace_id": doc_workspace_id_schema(),
         "id": {
             "type": "string",
             "description": "Document id from search or create_doc."

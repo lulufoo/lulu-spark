@@ -25,7 +25,7 @@ use super::resolve::{
 /// Fields that only `create_doc` accepts.
 const DEFERRED_FIELDS: &[&str] = &[
     "title",
-    "project",
+    "project_id",
     "folder",
     "theme",
     "created_at",
@@ -151,7 +151,14 @@ fn update_from_body(payload: &Value, source: &str) -> Value {
 
     search_index::sync_workspace_docs_best_effort(&workspace.id, &[id.as_str()]);
 
-    let mut response = json!({ "ok": true, "id": id, "workspace": workspace.id, "workspace_name": workspace.name });
+    let mut response = json!({
+        "ok": true,
+        "id": id,
+        "workspace_id": workspace.id,
+        "workspace_name": workspace.name,
+        "project_id": project.id,
+        "project_name": project.name,
+    });
     if let Some(rel) = digest_rel {
         response["digest_path"] = json!(rel);
     }

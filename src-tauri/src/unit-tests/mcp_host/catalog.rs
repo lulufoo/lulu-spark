@@ -223,7 +223,7 @@ fn mobile_create_doc_uses_content_invoke() {
     assert!(invoke_eq(route.invoke, create_doc_from_content));
     assert!(!invoke_eq(route.invoke, create_doc_from_source));
     assert!(route.input_schema["properties"].get("asset_paths").is_none());
-    assert!(route.input_schema["properties"].get("workspace").is_some());
+    assert!(route.input_schema["properties"].get("workspace_id").is_some());
 }
 
 #[test]
@@ -232,8 +232,10 @@ fn desktop_create_doc_schema_includes_asset_paths() {
     assert!(invoke_eq(route.invoke, create_doc_from_source));
     assert!(route.input_schema["properties"].get("asset_paths").is_some());
     assert!(route.input_schema["properties"].get("source_path").is_some());
-    assert!(route.input_schema["properties"].get("workspace").is_some());
-    assert!(route.input_schema["properties"].get("project").is_some());
+    assert!(route.input_schema["properties"].get("workspace_id").is_some());
+    assert!(route.input_schema["properties"].get("project_id").is_some());
+    assert!(route.input_schema["properties"].get("workspace").is_none());
+    assert!(route.input_schema["properties"].get("project").is_none());
 }
 
 #[test]
@@ -298,7 +300,7 @@ fn get_doc_file_is_desktop_only_and_requires_dest_dir() {
             .as_str()
             .unwrap()
             .contains("read and write"));
-        assert!(route.input_schema["properties"].get("workspace").is_some());
+        assert!(route.input_schema["properties"].get("workspace_id").is_some());
     }
     assert!(build("document", "get_doc_file", "mobile").is_none());
 }
@@ -333,12 +335,12 @@ fn search_points_each_channel_at_its_own_follow_up_tools() {
     for channel in ["spark", "cursor", "cursor_ide", "codex", "claude"] {
         let route = build("global", "search", channel).expect(channel);
         assert!(route.description.contains("own library"), "{channel}");
-        assert!(route.description.contains("workspace"), "{channel}");
+        assert!(route.description.contains("workspace_id"), "{channel}");
         assert!(!route.description.to_lowercase().contains("read later"), "{channel}");
         assert!(!route.description.contains("read-later"), "{channel}");
         assert!(route.description.contains("get_doc_file"), "{channel}");
         assert!(!route.description.contains("get_doc_content"), "{channel}");
-        assert!(route.input_schema["properties"].get("workspace").is_some(), "{channel}");
+        assert!(route.input_schema["properties"].get("workspace_id").is_some(), "{channel}");
     }
     let mobile = build("global", "search", "mobile").expect("mobile");
     assert!(mobile.description.contains("own library"));

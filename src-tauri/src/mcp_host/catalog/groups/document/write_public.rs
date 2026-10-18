@@ -9,8 +9,9 @@ fn nonempty_array(value: &Value) -> bool {
     value.as_array().is_some_and(|items| !items.is_empty())
 }
 
-/// Success becomes `{ok, id, workspace?, workspace_name?}` plus written-flags. The workspace
-/// name is what a chat link shows: `[workspace name：title](spark-doc:<id>)`. Failures pass through.
+/// Success becomes `{ok, id, workspace_id?, workspace_name?, project_id?, project_name?}` plus
+/// written-flags. The workspace name is what a chat link shows:
+/// `[workspace name：title](spark-doc:<id>)`. Failures pass through.
 pub(super) fn mcp_doc_write_public(result: Value) -> Value {
     if result.get("error").is_some() || result.get("ok") != Some(&json!(true)) {
         return result;
@@ -22,7 +23,7 @@ pub(super) fn mcp_doc_write_public(result: Value) -> Value {
         "ok": true,
         "id": id,
     });
-    for key in ["workspace", "workspace_name"] {
+    for key in ["workspace_id", "workspace_name", "project_id", "project_name"] {
         if let Some(value) = result.get(key) {
             public[key] = value.clone();
         }
@@ -68,13 +69,14 @@ mod tests {
     }
 
     #[test]
-    fn keeps_the_workspace_and_its_name_for_the_chat_link() {
+    fn keeps_the_workspace_and_project_ids_and_names() {
         let public = mcp_doc_write_public(json!({
             "ok": true,
             "id": "default-cccccccccccccccccccccccccccccccc",
-            "workspace": "default",
+            "workspace_id": "default",
             "workspace_name": "Default",
-            "project": "inbox",
+            "project_id": "inbox",
+            "project_name": "Inbox",
             "created_at": "202606191430",
         }));
         assert_eq!(
@@ -82,8 +84,10 @@ mod tests {
             json!({
                 "ok": true,
                 "id": "default-cccccccccccccccccccccccccccccccc",
-                "workspace": "default",
+                "workspace_id": "default",
                 "workspace_name": "Default",
+                "project_id": "inbox",
+                "project_name": "Inbox",
             })
         );
     }

@@ -2,13 +2,13 @@
 
 use serde_json::{json, Value};
 
-use super::super::schema::workspace_property;
+use super::super::schema::doc_workspace_id_property;
 use crate::mcp_host::catalog::route_util::{object_schema, route};
 use crate::mcp_host::ToolRoute;
 use crate::services::docs;
 
 fn id_properties(extra: Value) -> Value {
-    let mut props = workspace_property();
+    let mut props = doc_workspace_id_property();
     props["id"] = json!({
         "type": "string",
         "description": "Document id from search or create_doc."
@@ -24,7 +24,7 @@ fn id_properties(extra: Value) -> Value {
 pub fn build_digest(_channel: &str) -> Option<ToolRoute> {
     Some(route(
         "get_doc_digest",
-        "Read one document's digest Markdown by id. workspace defaults to Default; pass the workspace the search hit came from.",
+        "Read one document's digest Markdown by id. workspace_id defaults to Default; pass the workspace_id the search hit came from.",
         object_schema(id_properties(json!({})), &["id"]),
         true,
         false,
@@ -45,7 +45,7 @@ pub fn build_file(channel: &str) -> Option<ToolRoute> {
     }));
     Some(route(
         "get_doc_file",
-        "Copy one document's file into dest_dir and return the copy's path. The document itself never changes and its body is not returned. The copy is named <id>.md; if that name is taken it becomes <id>-v1.md, <id>-v2.md, and so on, and existing files are never overwritten. Edit the copy, then call update_doc with source_path set to it. workspace defaults to Default; pass the workspace the search hit came from. Result: {ok, id, path}. Unknown ids fail.",
+        "Copy one document's file into dest_dir and return the copy's path. The document itself never changes and its body is not returned. The copy is named <id>.md; if that name is taken it becomes <id>-v1.md, <id>-v2.md, and so on, and existing files are never overwritten. Edit the copy, then call update_doc with source_path set to it. workspace_id defaults to Default; pass the workspace_id the search hit came from. Result: {ok, id, path}. Unknown ids fail.",
         object_schema(props, &["id", "dest_dir"]),
         false,
         false,
@@ -60,7 +60,7 @@ pub fn build_content(channel: &str) -> Option<ToolRoute> {
     }
     Some(route(
         "get_doc_content",
-        "Resolve a document id from search to the local absolute file path. workspace defaults to Default; pass the workspace the search hit came from. Does not return file body. Unknown ids fail.",
+        "Resolve a document id from search to the local absolute file path. workspace_id defaults to Default; pass the workspace_id the search hit came from. Does not return file body. Unknown ids fail.",
         object_schema(id_properties(json!({})), &["id"]),
         true,
         false,

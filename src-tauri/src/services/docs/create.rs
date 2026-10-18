@@ -98,7 +98,7 @@ fn write_doc(source: &str, payload: &Value, source_basename: Option<&str>) -> Va
         Ok(c) => c,
         Err(v) => return v,
     };
-    let workspace = match resolve_workspace(&conn, text_field(payload, "workspace")) {
+    let workspace = match resolve_workspace(&conn, text_field(payload, "workspace_id")) {
         Ok(w) => w,
         Err(v) => return v,
     };
@@ -182,9 +182,10 @@ fn write_doc(source: &str, payload: &Value, source_basename: Option<&str>) -> Va
     let mut response = json!({
         "ok": true,
         "id": id,
-        "workspace": workspace.id,
+        "workspace_id": workspace.id,
         "workspace_name": workspace.name,
-        "project": project.id,
+        "project_id": project.id,
+        "project_name": project.name,
         "created_at": meta.created_at,
     });
     if !translations.is_empty() {

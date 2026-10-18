@@ -26,15 +26,15 @@ pub fn clear_doc_draft(_app: AppHandle, temp_id: String) -> Result<Value, String
     Ok(draft::clear_doc_draft_json(&temp_id))
 }
 
-/// The payload with `workspace` filled in from the document id when the caller left it out.
+/// The payload with `workspace_id` filled in from the document id when the caller left it out.
 fn with_workspace(mut payload: Value) -> Value {
-    if payload.get("workspace").is_some() {
+    if payload.get("workspace_id").is_some() {
         return payload;
     }
     let id = payload.get("id").and_then(Value::as_str).unwrap_or("").to_string();
     let found = crate::services::spark_data::open().and_then(|conn| crate::services::spark_data::find_doc(&conn, &id));
     if let Ok(Some(found)) = found {
-        payload["workspace"] = Value::String(found.workspace.id);
+        payload["workspace_id"] = Value::String(found.workspace.id);
     }
     payload
 }
