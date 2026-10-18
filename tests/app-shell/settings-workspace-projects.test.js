@@ -29,11 +29,20 @@ const row = (id, title = id, extra = {}) => ({
   ...(extra.doc_count === undefined ? {} : { doc_count: extra.doc_count }),
 });
 
+function mountPanel() {
+  const host = document.createElement('div');
+  document.body.appendChild(host);
+  const root = createRoot(host);
+  act(() => root.render(createElement(NotesCategoriesEditHost)));
+  return { host, root };
+}
+
 describe('Workspace projects settings', () => {
   beforeEach(() => {
     calls.length = 0;
     projects.default = [row('inbox', 'Inbox'), row('work', 'Work')];
     projects.ws2 = [row('inbox', 'Inbox'), row('plans', 'Plans')];
+    document.body.innerHTML = '';
     notesCategoriesStore.set(emptyNotesCategoriesSnap());
     state.workspaces.current = 'default';
     state.index.topicTitles = {};
@@ -65,9 +74,9 @@ describe('Workspace projects settings', () => {
     document.body.appendChild(host);
     const root = createRoot(host);
     act(() => root.render(createElement(NotesCategoriesEditHost)));
-    const inbox = host.querySelector('button.notes-cat-item[data-project="minted"]');
+    const inbox = host.querySelector('.notes-cat-row[data-project="minted"]');
     expect(inbox.querySelector('.notes-cat-badge').textContent).toBe('Built-in');
-    act(() => inbox.click());
+    act(() => inbox.querySelector('.notes-cat-row-open').click());
     const labels = () => [...host.querySelectorAll('.notes-cat-edit-actions button')].map((b) => b.textContent);
     expect(labels()).toEqual(['Cancel', 'Save']);
     act(() => root.unmount());
@@ -123,37 +132,31 @@ describe('Workspace projects settings', () => {
     act(() => root.unmount());
   });
 
-  it('lists whole-row project buttons that open the dialog; the dialog only edits', async () => {
+  it('lists rows with a click area and Edit that open the dialog; the dialog only edits', async () => {
     await commands.selectProjectsWorkspace('default');
-    const host = document.createElement('div');
-    document.body.appendChild(host);
-    const root = createRoot(host);
-    act(() => root.render(createElement(NotesCategoriesEditHost)));
-    const inbox = host.querySelector('button.notes-cat-item[data-project="inbox"]');
-    const work = host.querySelector('button.notes-cat-item[data-project="work"]');
-    expect(inbox.querySelector('.notes-cat-item-action').textContent).toBe('Edit');
-    expect(work.querySelector('.notes-cat-item-action').textContent).toBe('Edit');
+    const { host, root } = mountPanel();
+    const inbox = host.querySelector('.notes-cat-row[data-project="inbox"]');
+    const work = host.querySelector('.notes-cat-row[data-project="work"]');
+    expect(inbox.querySelector('.notes-cat-row-edit').textContent).toBe('Edit');
+    expect(work.querySelector('.notes-cat-row-edit').textContent).toBe('Edit');
     expect(host.querySelector('#notes-cat-edit-dialog').classList.contains('open')).toBe(false);
 
-    act(() => work.click());
+    act(() => work.querySelector('.notes-cat-row-open').click());
     expect(host.querySelector('#notes-cat-edit-dialog').classList.contains('open')).toBe(true);
     expect(host.querySelector('#notes-cat-edit-dialog-title').textContent).toBe('Edit project');
-    const labels = () => [...host.querySelectorAll('.notes-cat-edit-actions button')].map((b) => b.textContent);
+    const labels = () => [...host.querySelectorAll('#notes-cat-edit-dialog .notes-cat-edit-actions button')].map((b) => b.textContent);
     expect(labels()).toEqual(['Cancel', 'Save']);
     expect(calls).toEqual([]);
 
-    act(() => inbox.click());
+    act(() => inbox.querySelector('.notes-cat-row-edit').click());
     expect(labels()).toEqual(['Cancel', 'Save']);
     act(() => root.unmount());
   });
 
   it('has no Disabled list and no Enable or Disable button', async () => {
     await commands.selectProjectsWorkspace('default');
-    const host = document.createElement('div');
-    document.body.appendChild(host);
-    const root = createRoot(host);
-    act(() => root.render(createElement(NotesCategoriesEditHost)));
-    act(() => host.querySelector('button.notes-cat-item[data-project="work"]').click());
+    const { host, root } = mountPanel();
+    act(() => host.querySelector('.notes-cat-row[data-project="work"] .notes-cat-row-open').click());
     expect(host.querySelector('details#notes-projects-disabled')).toBeNull();
     expect(host.textContent).not.toMatch(/Disable|Enable/);
     act(() => root.unmount());

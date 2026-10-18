@@ -336,7 +336,7 @@ describe('project icon in the Edit dialog', () => {
 
   it('shows the picker left of the title, defaulting to Folder', () => {
     mount(NotesCategoriesEditHost);
-    act(() => host.querySelector('button.notes-cat-item[data-project="inbox"]').click());
+    act(() => host.querySelector('.notes-cat-row[data-project="inbox"] .notes-cat-row-open').click());
     const row = host.querySelector('#notes-cat-edit-dialog .icon-name-row');
     expect(row.firstElementChild.classList.contains('icon-picker')).toBe(true);
     expect(row.querySelector('#notes-cat-edit-title')).not.toBeNull();

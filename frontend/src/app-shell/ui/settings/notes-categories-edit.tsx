@@ -2,6 +2,9 @@ import { useEffect, useSyncExternalStore } from 'react';
 import { ReorderRows } from '../../../shared/reorder-rows.tsx';
 import { OverlayDismissButton } from '../../../shared/overlay-dismiss-button.tsx';
 import {
+  askDeleteProject,
+} from '../../commands/settings/notes-categories-delete.ts';
+import {
   closeNotesCategoryEditor,
   openNotesCategoryEditor,
   reorderNotesCategories,
@@ -12,9 +15,10 @@ import {
 import { Icon } from '../../../shared/icons/icon.tsx';
 import { DEFAULT_PROJECT_ICON_ID } from '../../../shared/icons/index.ts';
 import { notesCategoriesStore } from '../../state/settings/notes-categories.ts';
+import { NotesCategoriesDeleteDialog } from './notes-categories-delete-dialog.tsx';
 import { IconPicker } from './icon-picker.tsx';
 
-/** Project list of the selected workspace (whole row opens the dialog) and the edit dialog. */
+/** Project list of the selected workspace (the row's title area and Edit open the dialog; Delete asks first) and the edit dialog. */
 export function NotesCategoriesEditHost() {
   const snap = useSyncExternalStore(
     notesCategoriesStore.subscribe,
@@ -43,7 +47,7 @@ export function NotesCategoriesEditHost() {
   return (
     <>
       <p className="notes-cat-lead">
-        Click a project to change its title or description; drag the handle to change the order. Existing documents keep their path.
+        Click a project to change its title or description; drag the handle to change the order. Delete moves a project's documents to the Built-in project.
       </p>
       {snap.error && !snap.editorOpen ? (
         <div id="notes-cat-list-error" className="settings-result notes-cat-error">
@@ -59,29 +63,50 @@ export function NotesCategoriesEditHost() {
             return {
               id: row.id,
               content: (
-                <button
-                  type="button"
-                  className="notes-cat-item"
-                  data-project={row.id}
-                  disabled={snap.busy}
-                  onClick={() => openNotesCategoryEditor(row.id)}
-                >
-                  <span className="notes-cat-item-main">
-                    <span className="notes-cat-item-title-row">
-                      <span className="notes-cat-item-title">{row.title || row.id}</span>
-                      {row.is_inbox ? <span className="notes-cat-badge">Built-in</span> : null}
+                <div className="notes-cat-row" data-project={row.id}>
+                  <button
+                    type="button"
+                    className="notes-cat-row-open"
+                    disabled={snap.busy}
+                    onClick={() => openNotesCategoryEditor(row.id)}
+                  >
+                    <span className="notes-cat-item-main">
+                      <span className="notes-cat-item-title-row">
+                        <span className="notes-cat-item-title">{row.title || row.id}</span>
+                        {row.is_inbox ? <span className="notes-cat-badge">Built-in</span> : null}
+                      </span>
+                      <span className={`notes-cat-item-desc${desc ? '' : ' is-empty'}`}>
+                        {desc || 'No description'}
+                      </span>
                     </span>
-                    <span className={`notes-cat-item-desc${desc ? '' : ' is-empty'}`}>
-                      {desc || 'No description'}
-                    </span>
+                  </button>
+                  <span className="notes-cat-row-actions">
+                    {row.is_inbox ? null : (
+                      <button
+                        type="button"
+                        className="notes-cat-row-delete"
+                        disabled={snap.busy}
+                        onClick={() => askDeleteProject(row.id)}
+                      >
+                        Delete
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="notes-cat-row-edit"
+                      disabled={snap.busy}
+                      onClick={() => openNotesCategoryEditor(row.id)}
+                    >
+                      Edit
+                    </button>
                   </span>
-                  <span className="notes-cat-item-action">Edit</span>
-                </button>
+                </div>
               ),
             };
           })}
         />
       </div>
+      <NotesCategoriesDeleteDialog />
       <div
         id="notes-cat-edit-dialog"
         className={snap.editorOpen ? 'open' : undefined}

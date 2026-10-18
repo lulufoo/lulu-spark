@@ -24,6 +24,10 @@ export type NotesCategoriesSnap = {
   error: string;
   busy: boolean;
   editorOpen: boolean;
+  /** Project the confirm dialog asks about deleting; empty = no dialog. */
+  deleteId: string;
+  /** Why the last delete failed; shown in the confirm dialog, not in the list. */
+  deleteError: string;
 };
 
 export function emptyNotesCategoriesSnap(): NotesCategoriesSnap {
@@ -37,6 +41,8 @@ export function emptyNotesCategoriesSnap(): NotesCategoriesSnap {
     error: '',
     busy: false,
     editorOpen: false,
+    deleteId: '',
+    deleteError: '',
   };
 }
 
