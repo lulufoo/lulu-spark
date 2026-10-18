@@ -10,10 +10,11 @@ const DEFAULT_WORKSPACE_ID = 'default';
 
 function parseWorkspace(raw: unknown): HostWorkspace | null {
   const rec = raw as Partial<HostWorkspace> | null;
-  if (!rec || typeof rec.id !== 'string' || !rec.id) return null;
+  if (!rec || typeof rec.workspace_id !== 'string' || !rec.workspace_id) return null;
   return {
-    id: rec.id,
-    name: typeof rec.name === 'string' && rec.name ? rec.name : rec.id,
+    workspace_id: rec.workspace_id,
+    workspace_name:
+      typeof rec.workspace_name === 'string' && rec.workspace_name ? rec.workspace_name : rec.workspace_id,
     view_mode: rec.view_mode === 'timeline' ? 'timeline' : 'directory',
     is_default: Boolean(rec.is_default),
     icon: typeof rec.icon === 'string' ? rec.icon : '',
@@ -23,7 +24,7 @@ function parseWorkspace(raw: unknown): HostWorkspace | null {
 
 export function getCurrentWorkspace(): HostWorkspace | undefined {
   const { current, list } = state.workspaces;
-  return list.find((w) => w.id === current);
+  return list.find((w) => w.workspace_id === current);
 }
 
 /** Timeline view: documents grouped by day, with a project picker. */
@@ -69,15 +70,20 @@ export async function loadWorkspaces(): Promise<void> {
   const wanted = state.workspaces.current !== DEFAULT_WORKSPACE_ID
     ? state.workspaces.current
     : readStoredWorkspaceId();
-  const fallback = list.find((w) => w.is_default)?.id || DEFAULT_WORKSPACE_ID;
-  state.workspaces.current = list.some((w) => w.id === wanted) ? wanted : fallback;
+  const fallback = list.find((w) => w.is_default)?.workspace_id || DEFAULT_WORKSPACE_ID;
+  state.workspaces.current = list.some((w) => w.workspace_id === wanted) ? wanted : fallback;
   notifyState();
 }
 
 /** Project titles of the current workspace, keyed by project id. */
 export async function loadProjects(): Promise<void> {
   const data = (await api.fetchProjects(state.workspaces.current)) as {
-    projects?: Array<{ id?: string; title?: string; description?: string; is_inbox?: boolean }>;
+    projects?: Array<{
+      project_id?: string;
+      project_name?: string;
+      description?: string;
+      is_inbox?: boolean;
+    }>;
     error?: string;
   };
   if (data?.error) throw new Error(data.error);
@@ -86,10 +92,11 @@ export async function loadProjects(): Promise<void> {
   const inbox: Record<string, boolean> = {};
   const order: string[] = [];
   for (const project of data?.projects || []) {
-    const id = typeof project.id === 'string' ? project.id : '';
+    const id = typeof project.project_id === 'string' ? project.project_id : '';
     if (!id) continue;
     order.push(id);
-    titles[id] = typeof project.title === 'string' && project.title ? project.title : id;
+    titles[id] =
+      typeof project.project_name === 'string' && project.project_name ? project.project_name : id;
     descriptions[id] = typeof project.description === 'string' ? project.description : '';
     inbox[id] = project.is_inbox === true;
   }

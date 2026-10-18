@@ -68,8 +68,8 @@ function seedWorkspaces(viewMode) {
   state.workspaces = {
     current: 'default',
     list: [
-      { id: 'default', name: 'Default', view_mode: viewMode, is_default: true },
-      { id: 'research', name: 'Research', view_mode: 'timeline', is_default: false },
+      { workspace_id: 'default', workspace_name: 'Default', view_mode: viewMode, is_default: true },
+      { workspace_id: 'research', workspace_name: 'Research', view_mode: 'timeline', is_default: false },
     ],
   };
 }
@@ -170,8 +170,8 @@ describe('renderSidebar workspace title', () => {
     state.workspaces = {
       current: 'research',
       list: [
-        { id: 'default', name: 'Default', view_mode: 'timeline', is_default: true },
-        { id: 'research', name: 'Wiki', view_mode: 'timeline', is_default: false },
+        { workspace_id: 'default', workspace_name: 'Default', view_mode: 'timeline', is_default: true },
+        { workspace_id: 'research', workspace_name: 'Wiki', view_mode: 'timeline', is_default: false },
       ],
     };
     act(() => notifyState());

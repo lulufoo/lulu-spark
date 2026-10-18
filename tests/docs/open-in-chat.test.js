@@ -12,7 +12,7 @@ import { state } from '../../frontend/src/host/state.ts';
 
 const ID = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
 
-const DEFAULT_WORKSPACE = { id: 'default', name: 'Default', view_mode: 'directory', is_default: true };
+const DEFAULT_WORKSPACE = { workspace_id: 'default', workspace_name: 'Default', view_mode: 'directory', is_default: true };
 
 function resetTitleSources() {
   state.workspaces = { current: 'default', list: [DEFAULT_WORKSPACE] };
@@ -67,11 +67,11 @@ describe('noteReferenceDraft', () => {
   it('shows the current name of the entry workspace, so a rename shows up at once', () => {
     state.workspaces = {
       current: 'default',
-      list: [DEFAULT_WORKSPACE, { id: 'k3x9ab', name: 'Research', view_mode: 'timeline', is_default: false }],
+      list: [DEFAULT_WORKSPACE, { workspace_id: 'k3x9ab', workspace_name: 'Research', view_mode: 'timeline', is_default: false }],
     };
-    const entry = { _id: ID, workspace: 'k3x9ab', common_path: 'a.md', title: 'Paper' };
+    const entry = { _id: ID, workspace_id: 'k3x9ab', common_path: 'a.md', title: 'Paper' };
     expect(noteReferenceDraft(entry, ID)).toBe(`[Research：Paper](spark-doc:${ID}) `);
-    expect(noteReferenceDraft({ ...entry, workspace: 'gone' }, ID)).toBe(`[gone：Paper](spark-doc:${ID}) `);
+    expect(noteReferenceDraft({ ...entry, workspace_id: 'gone' }, ID)).toBe(`[gone：Paper](spark-doc:${ID}) `);
   });
 
   it('is a reference the composer shows as a chip', () => {

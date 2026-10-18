@@ -26,7 +26,7 @@ import { CreateTargetDialog } from '../../frontend/src/notes/ui/create-target-di
 function seed({ active = '', titles = { ideas: 'Ideas', inbox: 'Inbox' }, order = ['inbox', 'ideas'], view = 'timeline' } = {}) {
   state.workspaces = {
     current: 'default',
-    list: [{ id: 'default', name: 'Default', view_mode: view, is_default: true }],
+    list: [{ workspace_id: 'default', workspace_name: 'Default', view_mode: view, is_default: true }],
   };
   state.index.topicTitles = titles;
   state.index.topicOrder = order;
@@ -48,7 +48,7 @@ describe('startCreateDocument (the document page "+")', () => {
     expect(createTargetStore.getSnapshot().open).toBe(false);
     expect(openCreateNote).toHaveBeenCalledTimes(1);
     expect(openCreateNote).toHaveBeenCalledWith(
-      expect.objectContaining({ workspace: 'default', project: 'ideas', temp_id: expect.any(String) }),
+      expect.objectContaining({ workspace_id: 'default', project_id: 'ideas', temp_id: expect.any(String) }),
     );
   });
 
@@ -63,7 +63,7 @@ describe('startCreateDocument (the document page "+")', () => {
     createTargetStore.set((p) => ({ ...p, project: 'ideas' }));
     confirmCreateProject();
     expect(createTargetStore.getSnapshot().open).toBe(false);
-    expect(openCreateNote).toHaveBeenCalledWith(expect.objectContaining({ workspace: 'default', project: 'ideas' }));
+    expect(openCreateNote).toHaveBeenCalledWith(expect.objectContaining({ workspace_id: 'default', project_id: 'ideas' }));
   });
 
   it('cancelling the chooser creates nothing', () => {
@@ -104,7 +104,7 @@ describe('chooser dialog', () => {
       host.querySelector('#btn-create-target-confirm').click();
     });
     expect(host.querySelector('#create-target-dialog')).toBeNull();
-    expect(openCreateNote).toHaveBeenCalledWith(expect.objectContaining({ project: 'inbox' }));
+    expect(openCreateNote).toHaveBeenCalledWith(expect.objectContaining({ project_id: 'inbox' }));
     await act(async () => root.unmount());
   });
 });

@@ -15,7 +15,11 @@ function newTempId(): string {
 }
 
 function beginCreate(project: string) {
-  void openCreateNote({ temp_id: newTempId(), workspace: state.workspaces.current, project });
+  void openCreateNote({
+    temp_id: newTempId(),
+    workspace_id: state.workspaces.current,
+    project_id: project,
+  });
 }
 
 /**

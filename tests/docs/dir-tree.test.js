@@ -45,7 +45,7 @@ const titles = { android: 'Android', ai: 'AI', empty: 'Empty project' };
 function setView(mode) {
   state.workspaces = {
     current: 'default',
-    list: [{ id: 'default', name: 'Default', view_mode: mode, is_default: true }],
+    list: [{ workspace_id: 'default', workspace_name: 'Default', view_mode: mode, is_default: true }],
   };
 }
 

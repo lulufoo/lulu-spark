@@ -251,7 +251,7 @@ describe('T5 openCreateNote / finalizeCreateSession on note outlet', () => {
     expect(api.createNote).toHaveBeenCalledWith({
       body: 'hello archived note',
       source_type: 'jot',
-      workspace: 'default',
+      workspace_id: 'default',
     });
     expect(navigateToNoteMock).toHaveBeenCalledWith({
       date: '20260710',

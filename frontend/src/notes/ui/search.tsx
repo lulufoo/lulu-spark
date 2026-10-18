@@ -11,7 +11,7 @@ type WbHit = {
   title?: string;
   id?: string;
   layer?: string;
-  topic?: string;
+  project_id?: string;
   body?: string;
   _formatted?: { body?: string };
 };
@@ -97,7 +97,7 @@ function GsHitRow({ hit, onOpen }: { hit: WbHit; onOpen: (hit: WbHit) => void })
       onClick={() => onOpen(hit)}
     >
       <div className="gs-hit-title">{hit.title || hit.id || ''}</div>
-      <span className="gs-hit-repo">{hit.topic || ''}</span>
+      <span className="gs-hit-repo">{hit.project_id || ''}</span>
       <div className="gs-hit-snippet" dangerouslySetInnerHTML={{ __html: getSnippet(hit) }} />
     </div>
   );

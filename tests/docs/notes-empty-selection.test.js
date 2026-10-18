@@ -37,7 +37,7 @@ let root;
 function setView(viewMode) {
   state.workspaces = {
     current: 'default',
-    list: [{ id: 'default', name: 'Default', view_mode: viewMode, is_default: true }],
+    list: [{ workspace_id: 'default', workspace_name: 'Default', view_mode: viewMode, is_default: true }],
   };
 }
 
