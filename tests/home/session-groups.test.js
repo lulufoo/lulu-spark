@@ -196,6 +196,18 @@ describe('SessionList headings', () => {
     expect(rule).toMatch(/margin-top: 4px/);
   });
 
+  it('keeps the delete button in the layout, only hidden, so a title is cut at the same place hovered or not', () => {
+    const css = readFileSync(join(repoRoot, 'frontend/home.css'), 'utf8');
+    const idle = css.match(/\.home-chat-session-delete \{[^}]*\}/)?.[0] ?? '';
+    expect(idle).toMatch(/display: inline-flex/);
+    expect(idle).toMatch(/opacity: 0/);
+    expect(idle).toMatch(/pointer-events: none/);
+    expect(idle).not.toMatch(/display: none/);
+    const shown = css.match(/\.home-chat-session:hover \.home-chat-session-delete,\s*\.home-chat-session:focus-within \.home-chat-session-delete \{[^}]*\}/)?.[0] ?? '';
+    expect(shown).toMatch(/opacity: 1/);
+    expect(shown).toMatch(/pointer-events: auto/);
+  });
+
   it('stretches the open button to the full row height, so the whole row is clickable', () => {
     const css = readFileSync(join(repoRoot, 'frontend/home.css'), 'utf8');
     const rule = css.match(/\.home-chat-session-open \{[^}]*\}/)?.[0] ?? '';
