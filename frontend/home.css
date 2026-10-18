@@ -12,7 +12,8 @@
 .home-chat-sidebar {
   --home-chat-row-h: 36px;
   --home-chat-list-rows: 3;
-  --home-nav-row-h: 30px;
+  --home-nav-row-h: 32px;
+  --home-nav-group-gap: 14px;
   background: var(--bg-canvas);
   border-right-color: var(--border-muted);
 }
@@ -34,9 +35,9 @@
 }
 .home-chat-nav .home-desktop-shortcut-icon,
 .home-chat-nav .home-desktop-shortcut-icon svg { width: 16px; height: 16px; }
-.home-nav-workspace + .home-nav-workspace { margin-top: 10px; }
+.home-nav-workspace + .home-nav-workspace { margin-top: var(--home-nav-group-gap); }
 .home-chat-nav .home-nav-project {
-  font-size: 14px;
+  font-size: 13.5px;
   color: color-mix(in srgb, var(--fg-default) 80%, var(--bg-canvas));
 }
 .home-nav-project-icon { color: var(--fg-subtle); }
