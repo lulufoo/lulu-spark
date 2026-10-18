@@ -54,6 +54,7 @@ export const READ_API_INVOKE_MAP: Record<string, ReadInvokeEntry> = {
       limit: url.searchParams.has('limit')
         ? Number(url.searchParams.get('limit'))
         : undefined,
+      allWorkspaces: url.searchParams.get('all_workspaces') === '1' ? true : undefined,
     }),
   },
   '/api/annotations': { cmd: 'get_annotations' },

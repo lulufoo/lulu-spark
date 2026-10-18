@@ -18,7 +18,7 @@ pub use collect_docs::{collect_workspace_docs, workspace_doc_chunks};
 pub use hit_meta::resolve_hits;
 pub use query::{
     cache_dir_or_err, classify_query, fold_by_doc_id, parse_limit, search, search_desktop_docs,
-    search_in_cache, QueryHit, QueryRoute, SearchFilter,
+    search_desktop_docs_in, search_in_cache, DocSearchScope, QueryHit, QueryRoute, SearchFilter,
 };
 pub use store::{
     existing_hash, index_exists, indexed_doc_ids, open, rebuild, IndexStats, INDEX_FILE, SCHEMA_VERSION,
