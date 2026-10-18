@@ -8,16 +8,14 @@ export type NotesCategoryRow = {
   is_inbox: boolean;
   /** Id of the configured icon; empty = the default project icon. */
   icon: string;
-  /** Position among every project of the workspace, disabled ones included. */
-  sortIndex: number;
+  /** How many documents the project holds. */
+  doc_count: number;
 };
 
 export type NotesCategoriesSnap = {
   /** Workspace whose projects the panel shows (the selected settings nav item). */
   workspaceId: string;
   rows: NotesCategoryRow[];
-  /** Disabled projects of that workspace; they can be enabled again. */
-  disabled: NotesCategoryRow[];
   selectedId: string;
   draftTitle: string;
   draftDescription: string;
@@ -26,15 +24,16 @@ export type NotesCategoriesSnap = {
   error: string;
   busy: boolean;
   editorOpen: boolean;
-  /** Project row waiting for "Confirm disable"; empty when none. */
-  confirmDisableId: string;
+  /** Project the confirm dialog asks about deleting; empty = no dialog. */
+  deleteId: string;
+  /** Why the last delete failed; shown in the confirm dialog, not in the list. */
+  deleteError: string;
 };
 
 export function emptyNotesCategoriesSnap(): NotesCategoriesSnap {
   return {
     workspaceId: '',
     rows: [],
-    disabled: [],
     selectedId: '',
     draftTitle: '',
     draftDescription: '',
@@ -42,7 +41,8 @@ export function emptyNotesCategoriesSnap(): NotesCategoriesSnap {
     error: '',
     busy: false,
     editorOpen: false,
-    confirmDisableId: '',
+    deleteId: '',
+    deleteError: '',
   };
 }
 

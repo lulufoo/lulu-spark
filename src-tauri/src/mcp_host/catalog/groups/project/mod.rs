@@ -1,7 +1,6 @@
 //! Project business group: `list_projects`, `create_project`, `update_project`.
 //!
-//! There is no delete, disable or enable tool: a project is disabled and enabled by a person in
-//! Settings only.
+//! There is no delete tool: a project is removed by a person in Settings only.
 
 mod routes;
 

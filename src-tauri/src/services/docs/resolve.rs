@@ -145,14 +145,6 @@ pub(super) fn ensure_workspace_enabled(workspace: &WorkspaceRow) -> Result<(), V
     Ok(())
 }
 
-/// 409 when `project` is disabled. Guards every write; reads by id keep working.
-pub(super) fn ensure_project_enabled(project: &ProjectRow) -> Result<(), Value> {
-    if project.disabled_at.is_some() {
-        return Err(conflict(format!("Project {} is disabled", project.id)));
-    }
-    Ok(())
-}
-
 /// A document of `workspace` plus the project it belongs to.
 pub(super) fn resolve_doc(
     conn: &Connection,

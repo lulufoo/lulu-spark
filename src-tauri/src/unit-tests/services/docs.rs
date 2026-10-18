@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use serde_json::{json, Value};
 
 use super::*;
-use crate::services::spark_data::{self, count_docs_in_project, get_workspace};
+use crate::services::spark_data::{self, get_workspace};
 use crate::test_support::TestSandbox;
 
 const BODY: &str = "# 标题\n\n这是正文，足够写入。\n";
@@ -264,53 +264,39 @@ fn project_crud_follows_the_workspace_and_protects_inbox_and_documents() {
     );
 
     ok(&update_project(&json!({ "workspace_id": ws, "project_id": inbox_id, "project_name": "Catch-all" })));
-    assert_eq!(status(&disable_project(&json!({ "workspace_id": ws, "project_id": inbox_id }))), 400);
-    assert_eq!(status(&disable_project(&json!({ "workspace_id": ws, "project_id": "inbox" }))), 400);
 }
 
 #[test]
-fn a_disabled_project_is_hidden_keeps_its_documents_and_can_be_enabled_again() {
+fn a_project_row_with_a_legacy_disabled_at_is_an_ordinary_project() {
     let _sandbox = TestSandbox::new();
     let ws = new_workspace("Work");
     let plans = new_project(Some(&ws), "Plans");
     let id = text(ok(&write(Some(&ws), Some(&plans))), "id");
 
-    let disabled = disable_project(&json!({ "workspace_id": ws, "project_id": plans }));
-    assert!(ok(&disabled)["disabled_at"].is_string(), "documents do not block it");
-    assert!(!project_ids(&list_projects(&json!({ "workspace_id": ws }))).contains(&plans));
-    assert_eq!(project_ids(&list_disabled_projects(&json!({ "workspace_id": ws }))), vec![plans.clone()]);
-
-    // Hidden from the index, still readable by id, and not writable.
+    // Older versions could disable a project; that column is no longer read.
     let conn = spark_data::open().expect("db");
-    let row = get_workspace(&conn, &ws).expect("get").expect("row");
-    assert!(spark_data::list_doc_entries(&conn, &row).expect("entries").is_empty());
-    assert_eq!(get_file(&json!({ "workspace_id": ws, "id": id }))["content"], json!(BODY));
-    assert_eq!(status(&write(Some(&ws), Some(&plans))), 409);
-    let update = update_doc_content(&json!({ "workspace_id": ws, "id": id, "content": BODY, "digest": "never" }));
-    assert_eq!(status(&update), 409);
-    let other = new_project(Some(&ws), "Other");
-    assert_eq!(status(&move_doc(&json!({ "workspace_id": ws, "id": id, "project_id": other }))), 409);
-    assert_eq!(status(&update_project(&json!({ "workspace_id": ws, "project_id": plans, "project_name": "x" }))), 409);
+    conn.execute("UPDATE project SET disabled_at = '2026-01-01T00:00:00Z' WHERE id = ?1", [&plans])
+        .expect("legacy mark");
 
-    ok(&create_project(&json!({ "workspace_id": ws, "project_name": "Again" })));
-
-    ok(&enable_project(&json!({ "workspace_id": ws, "project_id": plans })));
     assert!(project_ids(&list_projects(&json!({ "workspace_id": ws }))).contains(&plans));
-    assert_eq!(spark_data::list_doc_entries(&conn, &row).expect("entries").len(), 1);
+    let row = get_workspace(&conn, &ws).expect("get").expect("row");
+    assert!(spark_data::list_doc_entries(&conn, &row).expect("entries").contains_key(&id));
     ok(&write(Some(&ws), Some(&plans)));
+    let update = update_doc_content(&json!({ "workspace_id": ws, "id": id, "content": BODY, "digest": "never" }));
+    ok(&update);
+    let other = new_project(Some(&ws), "Other");
+    ok(&move_doc(&json!({ "workspace_id": ws, "id": id, "project_id": other })));
+    ok(&update_project(&json!({ "workspace_id": ws, "project_id": plans, "project_name": "Roadmaps" })));
 }
 
 #[test]
-fn a_project_of_a_disabled_workspace_cannot_be_enabled_on_its_own() {
+fn a_disabled_workspace_refuses_new_projects_until_it_is_enabled() {
     let _sandbox = TestSandbox::new();
     let ws = new_workspace("Work");
-    let plans = new_project(Some(&ws), "Plans");
-    ok(&disable_project(&json!({ "workspace_id": ws, "project_id": plans })));
     ok(&disable_workspace(&json!({ "workspace_id": ws })));
-    assert_eq!(status(&enable_project(&json!({ "workspace_id": ws, "project_id": plans }))), 409);
     assert_eq!(status(&create_project(&json!({ "workspace_id": ws, "project_name": "X" }))), 409);
     ok(&enable_workspace(&json!({ "workspace_id": ws })));
-    ok(&enable_project(&json!({ "workspace_id": ws, "project_id": plans })));
+    ok(&create_project(&json!({ "workspace_id": ws, "project_name": "X" })));
 }
 
 #[test]
@@ -624,8 +610,6 @@ fn a_project_icon_is_kept_unless_changed_and_cleared_by_an_empty_string() {
     let listed = list_projects(&json!({ "workspace_id": ws }));
     let row = listed["projects"].as_array().expect("array").iter().find(|p| text(p, "project_id") == plans).expect("row").clone();
     assert_eq!(icon_of(&row), "02bb22");
-    ok(&disable_project(&json!({ "workspace_id": ws, "project_id": plans })));
-    assert_eq!(icon_of(&list_disabled_projects(&json!({ "workspace_id": ws }))["projects"][0]), "02bb22");
 }
 
 #[test]
@@ -688,7 +672,7 @@ fn workspace_and_project_results_are_flat_and_keyed_by_resource() {
     keys.sort_unstable();
     assert_eq!(
         keys,
-        vec!["description", "disabled_at", "icon", "is_inbox", "ok", "project_id", "project_name", "sort_index"],
+        vec!["description", "doc_count", "icon", "is_inbox", "ok", "project_id", "project_name", "sort_index"],
         "a project result is flat and does not echo workspace_id: {project}"
     );
     let listed = list_projects(&json!({ "workspace_id": ws }));
@@ -711,7 +695,6 @@ fn the_old_workspace_and_project_keys_are_ignored() {
 
     let plans = new_project(Some(&ws), "Plans");
     assert_eq!(status(&update_project(&json!({ "workspace_id": ws, "project": plans, "title": "x" }))), 400);
-    assert_eq!(status(&disable_project(&json!({ "workspace_id": ws, "project": plans }))), 400);
 
     // `workspace` is not read any more: the project lands in Default, not in `ws`.
     let stray = create_project(&json!({ "workspace": ws, "project_name": "Stray" }));

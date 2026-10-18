@@ -10,6 +10,7 @@ mod doc_table;
 mod drop_folder_step;
 mod json_column;
 mod legacy_rows_step;
+mod project_merge;
 mod project_row;
 mod tag_rows;
 mod workspace_row;
@@ -17,17 +18,16 @@ mod workspace_row;
 pub use backup::{backup_daily, backup_dir, backup_for_day, BACKUP_DIR};
 pub use db::{db_path, open, open_at, DB_FILE};
 pub use doc_row::{
-    count_docs_in_project, delete_doc, get_doc, insert_doc, list_docs, update_doc, DocRow,
+    count_docs_by_project, count_docs_in_project, delete_doc, get_doc, insert_doc, list_docs, update_doc, DocRow,
 };
 pub use doc_table::{create_doc_table, doc_table_for_id, validate_doc_table_name, validate_workspace_id};
 pub use doc_annotation::annotation_object;
 pub use doc_id::{duplicate_doc_ids, is_valid_doc_id, new_doc_id, split_doc_id};
 pub use doc_entry::{entry_from_doc, find_doc, list_doc_entries, translation_common_paths, FoundDoc};
 
+pub use project_merge::delete_project_after_merge;
 pub use project_row::{
-    disable_project, enable_project, get_inbox_project, get_project,
-    insert_project,
-    list_all_projects, list_disabled_projects, list_projects, reorder_projects, update_project,
+    get_inbox_project, get_project, insert_project, list_projects, reorder_projects, update_project,
     ProjectRow,
 };
 pub use tag_rows::{

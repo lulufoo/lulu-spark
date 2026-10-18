@@ -9,7 +9,6 @@ vi.mock('../../frontend/src/host/api.ts', () => ({
   setConfig: vi.fn(),
   invoke: vi.fn(async () => ({ channels: [], groups: [], enabled: {} })),
   fetchProjects: vi.fn(async () => ({ projects: [] })),
-  fetchDisabledProjects: vi.fn(async () => ({ projects: [] })),
   fetchDisabledWorkspaces: vi.fn(async () => ({ workspaces: [] })),
   fetchHidePatterns: vi.fn(async () => ({ patterns: [] })),
 }));

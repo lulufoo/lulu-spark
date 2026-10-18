@@ -18,7 +18,7 @@ fn with(extra: serde_json::Value) -> serde_json::Value {
 pub fn build_list(_channel: &str) -> Option<ToolRoute> {
     Some(route(
         "list_projects",
-        "List the projects of one workspace. workspace_id defaults to Default. Each project has a project_id (the value other tools take as project_id), a project_name, is_inbox, and a description.",
+        "List the projects of one workspace. workspace_id defaults to Default. Each project has a project_id (the value other tools take as project_id), a project_name, is_inbox, a description, and doc_count (the number of documents in it).",
         object_schema(with(json!({})), &[]),
         true,
         false,

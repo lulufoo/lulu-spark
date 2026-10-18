@@ -279,24 +279,17 @@ fn doc_tables_need_a_real_project_and_block_a_raw_delete_of_it() {
 }
 
 #[test]
-fn disable_hides_a_project_keeps_it_by_id_and_enable_brings_it_back() {
+fn a_legacy_disabled_at_does_not_hide_a_project() {
     let (_dir, path) = temp_db();
     let conn = open_at(&path).expect("open");
     insert_project(&conn, &ProjectRow::new("p1", "default", "Work", "")).expect("project");
     insert_doc(&conn, "doc_default", "d1", "p1").expect("doc");
+    conn.execute("UPDATE project SET disabled_at = '2026-01-01T00:00:00Z' WHERE id = 'p1'", [])
+        .expect("legacy mark");
 
-    assert!(disable_project(&conn, "p1").expect("disable"), "a project with documents can be disabled");
-    let ids = |rows: Vec<ProjectRow>| rows.into_iter().map(|p| p.id).collect::<Vec<_>>();
-    assert!(!ids(list_projects(&conn, "default").expect("list")).contains(&"p1".to_string()));
-    assert_eq!(ids(list_disabled_projects(&conn, "default").expect("disabled")), vec!["p1".to_string()]);
-    assert!(ids(list_all_projects(&conn, "default").expect("all")).contains(&"p1".to_string()));
-    let kept = get_project(&conn, "p1").expect("get").expect("row");
-    assert!(kept.disabled_at.is_some(), "still found by id");
-
-    assert!(enable_project(&conn, "p1").expect("enable"));
-    assert!(ids(list_projects(&conn, "default").expect("list")).contains(&"p1".to_string()));
-    assert!(!disable_project(&conn, "ghost").expect("missing"));
-    assert!(!enable_project(&conn, "ghost").expect("missing"));
+    let ids = list_projects(&conn, "default").expect("list").into_iter().map(|p| p.id).collect::<Vec<_>>();
+    assert!(ids.contains(&"p1".to_string()), "the old column is not read");
+    assert!(get_project(&conn, "p1").expect("get").is_some());
 }
 
 #[test]
@@ -387,21 +380,18 @@ fn a_reorder_must_name_every_entry_once_and_changes_nothing_otherwise() {
 }
 
 #[test]
-fn disabled_entries_keep_their_place_and_come_back_to_it() {
+fn projects_keep_the_order_they_were_given_and_a_disabled_workspace_comes_back_to_its_place() {
     let (_dir, path) = temp_db();
     let conn = open_at(&path).expect("open");
     let made = create_workspace(&conn, "Made", None).expect("made");
     for (id, folder) in [("p1", "one"), ("p2", "two"), ("p3", "three")] {
         insert_project(&conn, &ProjectRow::new(id, &made.id, folder, "")).expect(folder);
     }
-    assert!(disable_project(&conn, "p2").expect("disable"));
-    assert_eq!(project_ids(&conn, &made.id), strings(&["p1", "p3"]));
+    assert_eq!(project_ids(&conn, &made.id), strings(&["p1", "p2", "p3"]));
 
-    // The caller passes every project, the disabled one included, at the position it wants.
+    // The caller passes every project at the position it wants.
     reorder_projects(&conn, &made.id, &strings(&["p3", "p2", "p1"])).expect("reorder");
-    assert_eq!(project_ids(&conn, &made.id), strings(&["p3", "p1"]));
-    assert!(enable_project(&conn, "p2").expect("enable"));
-    assert_eq!(project_ids(&conn, &made.id), strings(&["p3", "p2", "p1"]), "back in place");
+    assert_eq!(project_ids(&conn, &made.id), strings(&["p3", "p2", "p1"]));
 
     assert!(disable_workspace(&conn, &made.id).expect("disable workspace"));
     assert!(!workspace_ids(&conn).contains(&made.id));

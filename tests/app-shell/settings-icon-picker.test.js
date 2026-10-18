@@ -27,11 +27,8 @@ vi.mock('../../frontend/src/host/api.ts', () => ({
   enableWorkspace: async (...a) => reply('enable-ws', a),
   fetchDisabledWorkspaces: async () => ({ workspaces: [] }),
   fetchProjects: async (ws) => ({ projects: projects[ws] }),
-  fetchDisabledProjects: async () => ({ projects: [] }),
   createProject: async (...a) => reply('create-p', a),
   updateProject: async (...a) => reply('update-p', a),
-  disableProject: async (...a) => reply('disable-p', a),
-  enableProject: async (...a) => reply('enable-p', a),
 }));
 vi.mock('../../frontend/src/notes/commands/workspace.ts', () => ({ loadWorkspaces: async () => {} }));
 vi.mock('../../frontend/src/notes/commands/workspace-switch.ts', () => ({ applyViewModeChange: () => {} }));
@@ -339,7 +336,7 @@ describe('project icon in the Edit dialog', () => {
 
   it('shows the picker left of the title, defaulting to Folder', () => {
     mount(NotesCategoriesEditHost);
-    act(() => host.querySelector('button.notes-cat-item[data-project="inbox"]').click());
+    act(() => host.querySelector('.notes-cat-row[data-project="inbox"] .notes-cat-row-open').click());
     const row = host.querySelector('#notes-cat-edit-dialog .icon-name-row');
     expect(row.firstElementChild.classList.contains('icon-picker')).toBe(true);
     expect(row.querySelector('#notes-cat-edit-title')).not.toBeNull();

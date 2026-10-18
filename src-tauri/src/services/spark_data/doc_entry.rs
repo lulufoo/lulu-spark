@@ -1,6 +1,6 @@
 //! A document row in the shape of the docs-index entry, and lookup of a document by id.
 
-use std::collections::HashMap;
+use std::collections::HashSet;
 
 use rusqlite::Connection;
 use serde_json::{json, Map, Value};
@@ -9,7 +9,7 @@ use crate::services::archive_parse::expected_lang_common_path;
 
 use super::doc_id::split_doc_id;
 use super::doc_row::{get_doc, list_docs, DocRow};
-use super::project_row::list_all_projects;
+use super::project_row::list_projects;
 use super::workspace_row::{get_workspace, list_all_workspaces, WorkspaceRow};
 
 /// A document together with the workspace whose table holds it.
@@ -82,22 +82,19 @@ pub fn entry_from_doc(doc: &DocRow, workspace_id: &str) -> Result<Value, String>
 }
 
 /// `doc_id → entry` for every document of the workspace that is still shown: none for a
-/// disabled workspace, and none from a disabled project. Those stay readable by id.
+/// disabled workspace. Those stay readable by id.
 pub fn list_doc_entries(conn: &Connection, workspace: &WorkspaceRow) -> Result<Map<String, Value>, String> {
     let mut entries = Map::new();
     if workspace.disabled_at.is_some() {
         return Ok(entries);
     }
-    let projects: HashMap<String, bool> = list_all_projects(conn, &workspace.id)?
+    let projects: HashSet<String> = list_projects(conn, &workspace.id)?
         .into_iter()
-        .map(|p| (p.id, p.disabled_at.is_some()))
+        .map(|p| p.id)
         .collect();
     for doc in list_docs(conn, &workspace.doc_table)? {
-        let Some(disabled) = projects.get(&doc.project_id) else {
+        if !projects.contains(&doc.project_id) {
             return Err(format!("project {} missing", doc.project_id));
-        };
-        if *disabled {
-            continue;
         }
         entries.insert(doc.doc_id.clone(), entry_from_doc(&doc, &workspace.id)?);
     }

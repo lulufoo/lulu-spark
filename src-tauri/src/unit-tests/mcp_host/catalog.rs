@@ -94,6 +94,20 @@ fn catalog_groups_are_the_five_groups_in_settings_order() {
 }
 
 #[test]
+fn no_tool_deletes_disables_or_enables_a_workspace_or_project() {
+    for (group, routes) in catalog_groups() {
+        for route in routes {
+            let name = route.name.as_str();
+            let on_container = name.contains("workspace") || name.contains("project");
+            assert!(
+                !(on_container && ["delete", "disable", "enable"].iter().any(|verb| name.starts_with(verb))),
+                "{group} offers {name}: a person does that in Settings"
+            );
+        }
+    }
+}
+
+#[test]
 fn every_tool_belongs_to_exactly_one_group() {
     let mut seen = std::collections::HashSet::new();
     for (group, routes) in catalog_groups() {

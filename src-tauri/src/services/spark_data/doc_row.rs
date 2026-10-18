@@ -3,6 +3,8 @@
 //! Every function takes the table name from the `workspace` registry row and checks it with
 //! [`validate_doc_table_name`] before splicing it into SQL.
 
+use std::collections::HashMap;
+
 use rusqlite::{params, Connection, OptionalExtension, Row};
 use serde_json::Value;
 
@@ -155,6 +157,18 @@ pub fn delete_doc(conn: &Connection, table: &str, doc_id: &str) -> Result<bool, 
         .execute(&format!("DELETE FROM {table} WHERE doc_id = ?1"), params![doc_id])
         .map_err(|e| e.to_string())?;
     Ok(changed > 0)
+}
+
+/// Documents per project in one query. A project with no document has no entry.
+pub fn count_docs_by_project(conn: &Connection, table: &str) -> Result<HashMap<String, i64>, String> {
+    validate_doc_table_name(table)?;
+    let mut stmt = conn
+        .prepare(&format!("SELECT project_id, count(*) FROM {table} GROUP BY project_id"))
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)))
+        .map_err(|e| e.to_string())?;
+    rows.collect::<Result<HashMap<_, _>, _>>().map_err(|e| e.to_string())
 }
 
 /// How many documents of the table belong to the project.

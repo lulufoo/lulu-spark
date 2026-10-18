@@ -1,5 +1,4 @@
 import * as api from '../../../host/api.ts';
-import { withDisabledInPlace } from '../../../shared/reorder.ts';
 import { announceRegistryChange } from '../../../shared/registry-events.ts';
 import { notifyState, state } from '../../../host/state.ts';
 import {
@@ -17,14 +16,14 @@ function asRows(data: unknown): NotesCategoryRow[] {
       project_name?: unknown;
       description?: unknown;
       icon?: unknown;
-      sort_index?: unknown;
       is_inbox?: unknown;
+      doc_count?: unknown;
     }>;
     error?: string;
   };
   if (rec?.error) throw new Error(rec.error);
   const rows: NotesCategoryRow[] = [];
-  for (const [at, c] of (rec.projects || []).entries()) {
+  for (const c of rec.projects || []) {
     const id = typeof c.project_id === 'string' ? c.project_id.trim() : '';
     if (!id) continue;
     rows.push({
@@ -33,7 +32,7 @@ function asRows(data: unknown): NotesCategoryRow[] {
       description: typeof c.description === 'string' ? c.description : '',
       is_inbox: c.is_inbox === true,
       icon: typeof c.icon === 'string' ? c.icon : '',
-      sortIndex: typeof c.sort_index === 'number' ? c.sort_index : at,
+      doc_count: typeof c.doc_count === 'number' ? c.doc_count : 0,
     });
   }
   return rows;
@@ -73,27 +72,24 @@ function rowById(rows: NotesCategoryRow[], id: string) {
   return rows.find((row) => row.id === id);
 }
 
-/** Reload both lists of `workspaceId`; a late answer for a workspace that is no longer selected is dropped. */
+/** Reload the projects of `workspaceId`; a late answer for a workspace that is no longer selected is dropped. */
 export async function loadNotesCategories(workspaceId: string) {
   const snap = notesCategoriesStore.getSnapshot();
   const keepId = snap.editorOpen && snap.workspaceId === workspaceId ? snap.selectedId : '';
   patchNotesCategories({ error: '', busy: true });
   try {
     const rows = asRows(await api.fetchProjects(workspaceId));
-    const disabled = asRows(await api.fetchDisabledProjects(workspaceId));
     if (notesCategoriesStore.getSnapshot().workspaceId !== workspaceId) return;
     if (workspaceId === state.workspaces.current) applyNotesCategoryMaps(rows);
     const selected = keepId ? rowById(rows, keepId) : undefined;
     patchNotesCategories({
       rows,
-      disabled,
       selectedId: selected?.id || '',
       draftTitle: selected?.title || '',
       draftDescription: selected?.description || '',
       draftIcon: selected?.icon || '',
       busy: false,
       editorOpen: !!selected,
-      confirmDisableId: '',
     });
   } catch (e) {
     failWith(e);
@@ -112,18 +108,16 @@ export async function selectProjectsWorkspace(workspaceId: string) {
 
 /**
  * Drag-reorder: show the new order at once, then ask the backend; a refusal puts the old order
- * back and says why. `ids` are the enabled projects in their new order, disabled ones keep
- * their place.
+ * back and says why. `ids` are every project of the workspace in their new order.
  */
 export async function reorderNotesCategories(workspaceId: string, ids: string[]): Promise<boolean> {
   const snap = notesCategoriesStore.getSnapshot();
   const byId = new Map(snap.rows.map((row) => [row.id, row]));
   const next = ids.map((id) => byId.get(id)).filter((row): row is NotesCategoryRow => Boolean(row));
   if (snap.workspaceId !== workspaceId || next.length !== snap.rows.length) return false;
-  const whole = withDisabledInPlace(snap.rows.map((r) => ({ id: r.id, sortIndex: r.sortIndex })), snap.disabled.map((r) => ({ id: r.id, sortIndex: r.sortIndex })), ids);
   patchNotesCategories({ rows: next, error: '' });
   try {
-    throwOnError(await api.reorderProjects(workspaceId, whole));
+    throwOnError(await api.reorderProjects(workspaceId, ids));
     await loadNotesCategories(workspaceId);
     announceRegistryChange();
     return true;
@@ -145,13 +139,12 @@ export function openNotesCategoryEditor(id: string) {
     draftIcon: selected.icon,
     error: '',
     editorOpen: true,
-    confirmDisableId: '',
   });
 }
 
 export function closeNotesCategoryEditor() {
   const snap = notesCategoriesStore.getSnapshot();
-  if (!snap.editorOpen && !snap.selectedId && !snap.confirmDisableId) return;
+  if (!snap.editorOpen && !snap.selectedId) return;
   patchNotesCategories({
     selectedId: '',
     draftTitle: '',
@@ -159,19 +152,7 @@ export function closeNotesCategoryEditor() {
     draftIcon: '',
     error: '',
     editorOpen: false,
-    confirmDisableId: '',
   });
-}
-
-/** The inbox (`is_inbox`) cannot be disabled. */
-export function askNotesCategoryDisable(id: string) {
-  const row = rowById(notesCategoriesStore.getSnapshot().rows, id);
-  if (!row || row.is_inbox) return;
-  patchNotesCategories({ confirmDisableId: id, error: '' });
-}
-
-export function cancelNotesCategoryDisable() {
-  patchNotesCategories({ confirmDisableId: '' });
 }
 
 export function setNotesCategoryDraft(title: string, description: string) {
@@ -211,29 +192,6 @@ export async function saveNotesCategory(workspaceId: string) {
         : api.updateProject(workspaceId, snap.selectedId, snap.draftTitle, snap.draftDescription)),
     );
     closeNotesCategoryEditor();
-    await loadNotesCategories(workspaceId);
-    announceRegistryChange();
-  } catch (e) {
-    failWith(e);
-  }
-}
-
-export async function disableNotesCategory(workspaceId: string, id: string) {
-  patchNotesCategories({ error: '', busy: true });
-  try {
-    throwOnError(await api.disableProject(workspaceId, id));
-    closeNotesCategoryEditor();
-    await loadNotesCategories(workspaceId);
-    announceRegistryChange();
-  } catch (e) {
-    failWith(e);
-  }
-}
-
-export async function enableNotesCategory(workspaceId: string, id: string) {
-  patchNotesCategories({ error: '', busy: true });
-  try {
-    throwOnError(await api.enableProject(workspaceId, id));
     await loadNotesCategories(workspaceId);
     announceRegistryChange();
   } catch (e) {

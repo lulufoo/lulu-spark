@@ -5536,7 +5536,54 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   font-weight: 600;
   color: var(--fg-accent);
 }
+/* A project row: a click area (title, description) and, apart from it, the Delete and Edit buttons. */
+.notes-cat-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-right: 8px;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--bg-surface);
+}
+.notes-cat-row:hover { background: var(--bg-canvas); border-color: var(--border-subtle-2); }
+.notes-cat-row-open {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  margin: 0;
+  padding: 10px 0 10px 12px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+.notes-cat-row-actions { flex: none; display: flex; align-items: center; gap: 4px; }
+.notes-cat-row-actions button {
+  margin: 0;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.notes-cat-row-edit { color: var(--fg-accent); }
+.notes-cat-row-delete { color: var(--fg-danger); }
+.notes-cat-row-edit:hover:not(:disabled) { background: var(--bg-subtle); }
+.notes-cat-row-delete:hover:not(:disabled) { background: var(--bg-hex-ffebe9); }
+.notes-cat-row-open:focus-visible,
+.notes-cat-row-actions button:focus-visible {
+  outline: 2px solid var(--border-accent);
+  outline-offset: 1px;
+}
+.notes-cat-row-open:disabled,
+.notes-cat-row-actions button:disabled { opacity: .65; cursor: default; }
 #notes-cat-edit-dialog,
+#notes-cat-delete-dialog,
 #notes-ws-edit-dialog {
   position: fixed;
   inset: 0;
@@ -5547,8 +5594,10 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   background: var(--bg-rgba-000000-55);
 }
 #notes-cat-edit-dialog.open,
+#notes-cat-delete-dialog.open,
 #notes-ws-edit-dialog.open { display: flex; }
 #notes-cat-edit-dialog-box,
+#notes-cat-delete-dialog-box,
 #notes-ws-edit-dialog-box {
   background: var(--bg-surface);
   border-radius: 8px;
@@ -5560,6 +5609,7 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   overflow: hidden;
 }
 #notes-cat-edit-dialog-header,
+#notes-cat-delete-dialog-header,
 #notes-ws-edit-dialog-header {
   display: flex;
   align-items: center;
@@ -5569,6 +5619,7 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   border-bottom: 1px solid var(--border-default);
 }
 #notes-cat-edit-dialog-title,
+#notes-cat-delete-dialog-title,
 #notes-ws-edit-dialog-title {
   margin: 0;
   font-size: 15px;
@@ -5576,6 +5627,7 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   color: var(--fg-emphasis);
 }
 #notes-cat-edit-dialog-body,
+#notes-cat-delete-dialog-body,
 #notes-ws-edit-dialog-body {
   display: flex;
   flex-direction: column;
@@ -5737,6 +5789,20 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   font-size: 13px;
 }
 .notes-cat-edit-actions-spacer { margin-right: auto; }
+/* Confirm button of the delete-project dialog: solid red, and it stays beside Cancel. */
+.notes-cat-edit-actions .notes-cat-delete-confirm {
+  margin-right: 0;
+  color: var(--bg-surface);
+  background: var(--fg-danger);
+  border-color: var(--fg-danger);
+}
+.notes-cat-edit-actions .notes-cat-delete-confirm:hover:not(:disabled) {
+  color: var(--bg-surface);
+  background: var(--fg-danger);
+  border-color: var(--fg-danger);
+  filter: brightness(.9);
+}
+.notes-cat-edit-actions .notes-cat-delete-confirm:disabled { opacity: .65; cursor: default; }
 
 /* ── Convert tool dialog (Base64 + QR) ── */
 #convert-dialog {

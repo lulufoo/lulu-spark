@@ -37,7 +37,7 @@ export async function reorderWorkspaces(ids: string[]) {
   return writePost('/api/workspaces-reorder', { ids });
 }
 
-/** Every project id of the workspace, enabled and disabled, in the order to list them. */
+/** Every project id of the workspace, in the order to list them. */
 export async function reorderProjects(workspaceId: string, ids: string[]) {
   return writePost('/api/projects-reorder', { workspace_id: workspaceId, ids });
 }
@@ -80,16 +80,21 @@ export async function updateProject(
   });
 }
 
-export async function fetchDisabledProjects(workspaceId: string) {
-  return readGet(`/api/projects-disabled?workspace_id=${encodeURIComponent(workspaceId)}&_=${Date.now()}`);
-}
+export type DeleteProjectResult = {
+  ok?: boolean;
+  error?: string;
+  project_id?: string;
+  /** Documents given to the built-in project. */
+  moved?: number;
+  /** Of those, how many had to take a new file name. */
+  renamed?: number;
+  target_project_id?: string;
+  target_project_name?: string;
+};
 
-export async function disableProject(workspaceId: string, projectId: string) {
-  return writePost('/api/project-disable', { workspace_id: workspaceId, project_id: projectId });
-}
-
-export async function enableProject(workspaceId: string, projectId: string) {
-  return writePost('/api/project-enable', { workspace_id: workspaceId, project_id: projectId });
+/** Delete a project: its documents move to the workspace's built-in project first. */
+export async function deleteProject(workspaceId: string, projectId: string) {
+  return writePost('/api/project-delete', { workspace_id: workspaceId, project_id: projectId }) as Promise<DeleteProjectResult>;
 }
 
 export type HidePatternRow = { id: string; pattern: string };
