@@ -164,8 +164,8 @@ pub fn tag_update_value(
     Ok(tag_write::tag_update_value(&repo_root()?, &key, &value))
 }
 
-/// Thin Tauri wrapper around the docs service: `workspace` + `project` in the payload locate
-/// the new document (default workspace, inbox when `project` is omitted).
+/// Thin Tauri wrapper around the docs service: `workspace_id` + `project_id` in the payload locate
+/// the new document (default workspace, inbox when `project_id` is omitted).
 /// Business errors stay in the Value (`error` + `_status`); do not convert to Err.
 /// App jot-create may pass `{ body, source_type: "jot" }` (no `source_path`) → Host synthesis.
 /// Path create uses `source_path` + `title`; `document` is rejected.
@@ -182,8 +182,8 @@ pub fn create_note_json(payload: Value) -> Result<Value, String> {
             .and_then(|v| v.as_str())
             .unwrap_or("");
         if source_type == "jot" {
-            let workspace = payload.get("workspace").and_then(|v| v.as_str());
-            let project = payload.get("project").and_then(|v| v.as_str());
+            let workspace = payload.get("workspace_id").and_then(|v| v.as_str());
+            let project = payload.get("project_id").and_then(|v| v.as_str());
             return match docs::create_jot(workspace, project, body, &docs::JotCreateOpts::default()) {
                 Ok(v) => Ok(v),
                 Err(msg) => {

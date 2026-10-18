@@ -2,9 +2,11 @@
 //! `{cache_dir}/workspace-viewer-state/{workspace_id}.json`.
 //!
 //! ```json
-//! { "version": 2, "project": "<last project folder, empty = All>",
-//!   "projects": { "<folder>": { "node": "<dir node key>", "doc": "<doc id>", "date": "<day>" } } }
+//! { "version": 2, "project": "<last project id, empty = All>",
+//!   "projects": { "<project id>": { "node": "<dir node key>", "doc": "<doc id>", "date": "<day>" } } }
 //! ```
+//!
+//! The file format keeps the `project` key; only the API names it `project_id`.
 //!
 //! The directory view records `node` + `doc`, the timeline only `date`. A project without an
 //! entry has no record. File missing, corrupt or of the old `{ id }` shape → empty, no overwrite;
@@ -98,7 +100,7 @@ fn load_unlocked(workspace_id: &str) -> ViewerStateFile {
 
 fn workspace_id_of(payload: &Value) -> Result<String, Value> {
     let conn = open_data()?;
-    resolve_workspace(&conn, text_field(payload, "workspace")).map(|ws| ws.id)
+    resolve_workspace(&conn, text_field(payload, "workspace_id")).map(|ws| ws.id)
 }
 
 /// A field of the patch: `None` = not given (leave alone), `Some("")` = clear.
@@ -110,11 +112,17 @@ fn patch_field(payload: &Value, key: &str) -> Result<Option<String>, Value> {
     }
 }
 
-fn to_value(data: &ViewerStateFile) -> Value {
+/// The file shape.
+fn to_file_value(data: &ViewerStateFile) -> Value {
     json!({ "version": data.version, "project": data.project, "projects": data.projects })
 }
 
-/// `{ workspace? }` → `{ version, project, projects }`; empty when nothing is remembered.
+/// The API shape: the file's `project` is named `project_id`.
+fn to_value(data: &ViewerStateFile) -> Value {
+    json!({ "version": data.version, "project_id": data.project, "projects": data.projects })
+}
+
+/// `{ workspace_id? }` → `{ version, project_id, projects }`; empty when nothing is remembered.
 pub fn get_viewer_state(payload: &Value) -> Value {
     let workspace = match workspace_id_of(payload) {
         Ok(id) => id,
@@ -124,7 +132,7 @@ pub fn get_viewer_state(payload: &Value) -> Value {
     to_value(&load_unlocked(&workspace))
 }
 
-/// `{ workspace?, project, node?, doc?, date? }` → the whole state. `project` (empty = All) is
+/// `{ workspace_id?, project_id, node?, doc?, date? }` → the whole state. `project_id` (empty = All) is
 /// the last selected project; the other fields update that project's entry: left out = kept,
 /// empty = cleared.
 pub fn set_viewer_state(payload: &Value) -> Value {
@@ -132,9 +140,9 @@ pub fn set_viewer_state(payload: &Value) -> Value {
         Ok(id) => id,
         Err(v) => return v,
     };
-    let project = match patch_field(payload, "project") {
+    let project = match patch_field(payload, "project_id") {
         Ok(Some(project)) => project,
-        Ok(None) => return bad_request("Missing project"),
+        Ok(None) => return bad_request("Missing project_id"),
         Err(v) => return v,
     };
     let mut patch = Vec::new();
@@ -163,7 +171,7 @@ pub fn set_viewer_state(payload: &Value) -> Value {
         }
     }
     data.project = project;
-    match atomic_json::write_json(&path, &to_value(&data)) {
+    match atomic_json::write_json(&path, &to_file_value(&data)) {
         Ok(()) => to_value(&data),
         Err(e) => internal(e),
     }

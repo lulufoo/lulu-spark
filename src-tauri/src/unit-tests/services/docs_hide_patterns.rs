@@ -38,7 +38,7 @@ fn new_workspace(name: &str) -> String {
 }
 
 fn in_workspace(workspace: &str) -> Value {
-    json!({ "workspace": workspace })
+    json!({ "workspace_id": workspace })
 }
 
 #[test]
@@ -71,7 +71,7 @@ fn first_read_takes_the_rules_of_the_old_global_list_when_it_exists() {
 fn rules_belong_to_one_workspace() {
     let _sandbox = TestSandbox::new();
     let other = new_workspace("Memory");
-    let added = add_hide_pattern(&json!({ "workspace": "default", "pattern": "^draft$" }));
+    let added = add_hide_pattern(&json!({ "workspace_id": "default", "pattern": "^draft$" }));
     assert!(patterns(&added).contains(&"^draft$".to_string()));
 
     assert!(!patterns(&list_hide_patterns(&in_workspace(&other))).contains(&"^draft$".to_string()));
@@ -82,7 +82,7 @@ fn rules_belong_to_one_workspace() {
 fn an_unknown_workspace_is_refused() {
     let _sandbox = TestSandbox::new();
     assert_eq!(status(&list_hide_patterns(&in_workspace("nope"))), 404);
-    assert_eq!(status(&add_hide_pattern(&json!({ "workspace": "nope", "pattern": "^x$" }))), 404);
+    assert_eq!(status(&add_hide_pattern(&json!({ "workspace_id": "nope", "pattern": "^x$" }))), 404);
 }
 
 #[test]

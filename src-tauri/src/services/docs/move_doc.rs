@@ -25,14 +25,15 @@ fn rollback(completed: &[(PathBuf, PathBuf)]) {
     }
 }
 
-/// `{ workspace?, id, project }` → `{ ok, id, workspace, project }`.
+/// `{ workspace_id?, id, project_id }` →
+/// `{ ok, id, workspace_id, workspace_name, project_id, project_name }`.
 pub fn move_doc(payload: &Value) -> Value {
     let id = match doc_id_field(payload) {
         Ok(id) => id,
         Err(v) => return v,
     };
-    let Some(target) = text_field(payload, "project") else {
-        return bad_request("Missing project");
+    let Some(target) = text_field(payload, "project_id") else {
+        return bad_request("Missing project_id");
     };
     let conn = match open_data() {
         Ok(c) => c,
@@ -124,5 +125,12 @@ pub fn move_doc(payload: &Value) -> Value {
         return internal(e);
     }
     search_index::sync_workspace_docs_best_effort(&workspace.id, &[id.as_str()]);
-    json!({ "ok": true, "id": id, "workspace": workspace.id, "project": new_project.id })
+    json!({
+        "ok": true,
+        "id": id,
+        "workspace_id": workspace.id,
+        "workspace_name": workspace.name,
+        "project_id": new_project.id,
+        "project_name": new_project.name,
+    })
 }

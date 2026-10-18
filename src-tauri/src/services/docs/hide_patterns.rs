@@ -139,13 +139,13 @@ pub fn path_is_hidden(raw_path: &str, regexes: &[Regex]) -> bool {
             .any(|segment| regexes.iter().any(|re| re.is_match(segment)))
 }
 
-/// `payload.workspace` (default workspace when absent) resolved against the registry.
+/// `payload.workspace_id` (default workspace when absent) resolved against the registry.
 fn workspace_id_of(payload: &Value) -> Result<String, Value> {
     let conn = open_data()?;
-    resolve_workspace(&conn, text_field(payload, "workspace")).map(|ws| ws.id)
+    resolve_workspace(&conn, text_field(payload, "workspace_id")).map(|ws| ws.id)
 }
 
-/// `{ workspace? }` → `{ patterns: [{ id, pattern }] }`.
+/// `{ workspace_id? }` → `{ patterns: [{ id, pattern }] }`.
 pub fn list_hide_patterns(payload: &Value) -> Value {
     let id = match workspace_id_of(payload) {
         Ok(id) => id,
@@ -158,7 +158,7 @@ pub fn list_hide_patterns(payload: &Value) -> Value {
     }
 }
 
-/// `{ workspace?, pattern }` → the updated list. 400 for an empty or invalid regex, 409 for a duplicate.
+/// `{ workspace_id?, pattern }` → the updated list. 400 for an empty or invalid regex, 409 for a duplicate.
 pub fn add_hide_pattern(payload: &Value) -> Value {
     let id = match workspace_id_of(payload) {
         Ok(id) => id,
@@ -187,7 +187,7 @@ pub fn add_hide_pattern(payload: &Value) -> Value {
     }
 }
 
-/// `{ workspace?, id, pattern }` → the updated list.
+/// `{ workspace_id?, id, pattern }` → the updated list.
 pub fn update_hide_pattern(payload: &Value) -> Value {
     let workspace = match workspace_id_of(payload) {
         Ok(id) => id,
@@ -219,7 +219,7 @@ pub fn update_hide_pattern(payload: &Value) -> Value {
     }
 }
 
-/// `{ workspace?, id }` → the updated list.
+/// `{ workspace_id?, id }` → the updated list.
 pub fn remove_hide_pattern(payload: &Value) -> Value {
     let workspace = match workspace_id_of(payload) {
         Ok(id) => id,

@@ -289,7 +289,7 @@ fn a_disabled_project_is_hidden_keeps_its_documents_and_can_be_enabled_again() {
     let update = update_doc_content(&json!({ "workspace_id": ws, "id": id, "content": BODY, "digest": "never" }));
     assert_eq!(status(&update), 409);
     let other = new_project(Some(&ws), "Other");
-    assert_eq!(status(&move_doc(&json!({ "workspace_id": ws, "id": id, "project": other }))), 409);
+    assert_eq!(status(&move_doc(&json!({ "workspace_id": ws, "id": id, "project_id": other }))), 409);
     assert_eq!(status(&update_project(&json!({ "workspace_id": ws, "project_id": plans, "project_name": "x" }))), 409);
 
     ok(&create_project(&json!({ "workspace_id": ws, "project_name": "Again" })));
@@ -425,7 +425,13 @@ fn a_three_level_folder_works_through_create_read_move_search_and_delete() {
     let found = search(&json!({ "q": "narwhal" }));
     assert_eq!(text(&found["items"][0], "id"), id, "{found}");
 
-    ok(&move_doc(&json!({ "id": id, "project": plans })));
+    assert_eq!(status(&move_doc(&json!({ "id": id, "project": plans }))), 400, "the old key is not read");
+    let moved = move_doc(&json!({ "id": id, "project_id": plans }));
+    assert_eq!(
+        [text(ok(&moved), "workspace_id"), text(&moved, "workspace_name"), text(&moved, "project_id"), text(&moved, "project_name")],
+        ["default".to_string(), "Default".to_string(), plans.clone(), "Plans".to_string()],
+        "{moved}"
+    );
     assert!(workspaces_dir(&sandbox).join("default/raw").join(&plans).join("ai/agents/notes").is_dir());
     assert_eq!(fs::read_dir(&dir).expect("old dir").count(), 0, "both files left the old project");
     assert_eq!(get_file(&json!({ "id": id, "lang": "fr" }))["content"], json!("# Titre\n\ncorps"));

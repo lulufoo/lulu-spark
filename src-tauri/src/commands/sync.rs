@@ -51,7 +51,7 @@ pub async fn move_entry_project(_app: AppHandle, payload: Value) -> Result<Value
     tauri::async_runtime::spawn_blocking(move || {
         let mut payload = with_workspace(payload);
         if let Some(project) = payload.get("new_project").cloned() {
-            payload["project"] = project;
+            payload["project_id"] = project;
         }
         docs::move_doc(&payload)
     })

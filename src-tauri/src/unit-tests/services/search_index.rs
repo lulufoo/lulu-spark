@@ -107,7 +107,7 @@ fn desktop_spark_hits_always_expose_raw_layer() {
         assert_eq!(hits[0]["layer"], "raw");
         assert_eq!(hits[0]["id"], "doc-n");
         assert!(hits[0].get("common_path").is_none());
-        assert_eq!(hits[0]["topic"], "seed-proj");
+        assert_eq!(hits[0]["project_id"], "seed-proj");
     });
 }
 

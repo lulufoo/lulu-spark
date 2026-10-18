@@ -15,12 +15,12 @@ pub async fn search_spark(
     _app: AppHandle,
     q: String,
     limit: Option<u32>,
-    workspace: Option<String>,
+    workspace_id: Option<String>,
 ) -> Result<Value, String> {
     let _ = repo_root()?;
     tauri::async_runtime::spawn_blocking(move || {
         let cache = cache_dir_or_err()?;
-        Ok(search_desktop_docs(&cache, &q, limit, workspace.as_deref()))
+        Ok(search_desktop_docs(&cache, &q, limit, workspace_id.as_deref()))
     })
     .await
     .map_err(|e| e.to_string())?
@@ -71,8 +71,8 @@ pub async fn fetch_link_title(_app: AppHandle, url: String) -> Result<Value, Str
 }
 
 #[tauri::command]
-pub fn get_docs_index(_app: AppHandle, workspace: Option<String>) -> Result<Value, String> {
-    Ok(spark_read::get_docs_index(workspace.as_deref()))
+pub fn get_docs_index(_app: AppHandle, workspace_id: Option<String>) -> Result<Value, String> {
+    Ok(spark_read::get_docs_index(workspace_id.as_deref()))
 }
 
 #[tauri::command]
