@@ -55,7 +55,8 @@
   justify-content: center;
   height: 32px;
   min-width: 32px;
-  padding: 0;
+  /* Fixed: icon (16) + 2 x 8 = the 32px collapsed width. Animating the padding pinned the icon to the edge and bounced it back. */
+  padding: 0 8px;
   border: none;
   border-radius: 999px;
   background: transparent;
@@ -64,12 +65,11 @@
   font-size: 13.5px;
   font-weight: 500;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease, padding 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 .home-sidebar-tab:hover { background: var(--home-hover); color: var(--fg-default); }
 .home-sidebar-tab:focus-visible { outline: 2px solid var(--home-accent); outline-offset: 1px; }
 .home-sidebar-tab.is-active {
-  padding: 0 12px;
   background: var(--bg-muted);
   color: var(--fg-emphasis);
 }
@@ -77,16 +77,20 @@
 .home-sidebar-tab .home-desktop-shortcut-icon svg,
 .home-sidebar-search .home-desktop-shortcut-icon,
 .home-sidebar-search .home-desktop-shortcut-icon svg { width: 16px; height: 16px; }
+/* The selected pill has 12px beside the icon and the label: the extra 4px grows on the icon and the label, on the same 0.18s clock. */
+.home-sidebar-tab .home-desktop-shortcut-icon { margin-left: 0; transition: margin-left 0.18s ease; }
+.home-sidebar-tab.is-active .home-desktop-shortcut-icon { margin-left: 4px; }
 .home-sidebar-tab-label {
   max-width: 0;
   margin-left: 0;
+  margin-right: 0;
   overflow: hidden;
   white-space: nowrap;
   opacity: 0;
-  transition: max-width 0.18s ease, margin-left 0.18s ease, opacity 0.12s ease;
+  transition: max-width 0.18s ease, margin-left 0.18s ease, margin-right 0.18s ease, opacity 0.12s ease;
 }
 /* The cap sits just above the widest label (Spark AI, about 54px). A looser cap makes the two tabs overshoot their final total width while switching. */
-.home-sidebar-tab.is-active .home-sidebar-tab-label { max-width: 5.9em; margin-left: 8px; opacity: 1; }
+.home-sidebar-tab.is-active .home-sidebar-tab-label { max-width: 4.6em; margin-left: 8px; margin-right: 4px; opacity: 1; }
 .home-sidebar-search { margin-left: auto; flex: none; }
 
 /* ── Panes: both stay mounted (the workspace list measures itself); the inactive one is hidden ── */

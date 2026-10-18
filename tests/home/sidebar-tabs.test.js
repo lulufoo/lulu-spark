@@ -143,7 +143,22 @@ describe('Home sidebar tabs (styles)', () => {
 
   it('collapses the unselected tab to an icon and expands the selected one', () => {
     expect(css).toMatch(/\.home-sidebar-tab-label \{[^}]*max-width: 0;/);
-    expect(css).toMatch(/\.home-sidebar-tab\.is-active \.home-sidebar-tab-label \{[^}]*max-width: 5\.9em;/);
+    expect(css).toMatch(/\.home-sidebar-tab\.is-active \.home-sidebar-tab-label \{[^}]*max-width: 4\.6em;/);
+  });
+
+  it('keeps the tab padding fixed so the icon does not slide to the edge and bounce back', () => {
+    const tab = /\.home-sidebar-tab \{([^}]*)\}/.exec(css)?.[1] ?? '';
+    expect(tab).toMatch(/padding: 0 8px;/);
+    expect(tab).toMatch(/transition: [^;]*;/);
+    expect(tab).not.toMatch(/transition: [^;]*padding/);
+    expect(/\.home-sidebar-tab\.is-active \{([^}]*)\}/.exec(css)?.[1]).not.toMatch(/padding/);
+  });
+
+  it('grows the selected pill from the icon and label margins, on the label clock', () => {
+    expect(css).toMatch(/\.home-sidebar-tab \.home-desktop-shortcut-icon \{ margin-left: 0; transition: margin-left 0\.18s ease; \}/);
+    expect(css).toMatch(/\.home-sidebar-tab\.is-active \.home-desktop-shortcut-icon \{ margin-left: 4px; \}/);
+    expect(css).toMatch(/\.home-sidebar-tab-label \{[^}]*transition: max-width 0\.18s ease, margin-left 0\.18s ease, margin-right 0\.18s ease/);
+    expect(css).toMatch(/\.home-sidebar-tab\.is-active \.home-sidebar-tab-label \{[^}]*margin-left: 8px; margin-right: 4px;/);
   });
 
   it('lets the chat list fill the pane instead of a fixed row count', () => {
