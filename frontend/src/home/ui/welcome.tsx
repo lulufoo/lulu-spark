@@ -1,6 +1,6 @@
 const PROMPTS = [
   { label: 'Find documents', text: 'Find documents about ' },
-  { label: 'Overview', text: 'Summarize what is in each of my workspaces' },
+  { label: 'Overview', text: 'Summarize my workspaces' },
   { label: 'Read Later', text: 'What did I save to Read Later this week?' },
 ];
 
@@ -14,8 +14,7 @@ export function ChatWelcome({ onPick }: { onPick: (text: string) => void }) {
         <path d="M8 8h7v9h9v7H8z" fill="#f5f5f7" />
         <rect x="18" y="8" width="6" height="6" rx="1.5" fill="#0071e3" />
       </svg>
-      <h2 className="home-welcome-title">What are we working on?</h2>
-      <p className="home-welcome-hint">Ask about the documents in your workspaces and projects.</p>
+      <h2 className="home-welcome-title">What can I help with?</h2>
       <div className="home-welcome-prompts">
         {PROMPTS.map((p) => (
           <button
