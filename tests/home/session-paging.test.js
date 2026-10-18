@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -93,16 +93,45 @@ describe('Chats list in the sidebar', () => {
   let cleanup;
   let invokeSpy;
   let channelSpy;
+  let total;
+  let currentId;
+
+  // jsdom has no layout: give the chat list a height, and a content height of 36px per row, so the
+  // list can be "full" or "short". A list inside a hidden pane has no height (display:none).
+  const LIST_HEIGHT = 500;
+  const ROW_PX = 36;
+  const realClient = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientHeight');
+  const realScroll = Object.getOwnPropertyDescriptor(Element.prototype, 'scrollHeight');
+
+  function stubLayout() {
+    Object.defineProperty(HTMLElement.prototype, 'clientHeight', {
+      configurable: true,
+      get() {
+        if (!this.matches('[data-role="session-list"]')) return 0;
+        return this.closest('[hidden]') ? 0 : LIST_HEIGHT;
+      },
+    });
+    Object.defineProperty(HTMLElement.prototype, 'scrollHeight', {
+      configurable: true,
+      get() {
+        return this.matches('[data-role="session-list"]')
+          ? this.querySelectorAll('.home-chat-session').length * ROW_PX
+          : 0;
+      },
+    });
+  }
 
   beforeEach(() => {
     window.__TAURI__ = {};
+    total = 45;
+    currentId = '';
     container = document.createElement('div');
     document.body.appendChild(container);
     channelSpy = vi.spyOn(api, 'createChannel').mockImplementation(async (onmessage) => ({ onmessage }));
     invokeSpy = vi.spyOn(api, 'invoke').mockImplementation(async (cmd) => {
       if (cmd === 'query_binding') return { state: 'bound' };
-      if (cmd === 'list_chat_sessions') return { sessions: sessionsOf(45), current_session_id: '' };
-      if (cmd === 'get_ai_assistant_binding') return { session_id: '', turns: [] };
+      if (cmd === 'list_chat_sessions') return { sessions: sessionsOf(total), current_session_id: currentId };
+      if (cmd === 'get_ai_assistant_binding') return { session_id: currentId, turns: [] };
       return {};
     });
   });
@@ -111,70 +140,126 @@ describe('Chats list in the sidebar', () => {
     cleanup?.();
     channelSpy.mockRestore();
     invokeSpy.mockRestore();
+    if (realClient) Object.defineProperty(HTMLElement.prototype, 'clientHeight', realClient);
+    else delete HTMLElement.prototype.clientHeight;
+    if (realScroll) Object.defineProperty(Element.prototype, 'scrollHeight', realScroll);
+    delete HTMLElement.prototype.scrollHeight;
     container.remove();
     delete window.__TAURI__;
   });
 
-  const sidebarRows = () => container.querySelectorAll('[data-role="session-list"] .home-chat-session').length;
-  const panelRows = () => container.querySelectorAll('[data-role="history-list"] .home-chat-session').length;
+  const list = () => container.querySelector('[data-role="session-list"]');
+  const rows = () => list().querySelectorAll('.home-chat-session').length;
 
-  it('lists 3 in the sidebar; the popover lists 10, then 10 more each time it is scrolled to the bottom', async () => {
-    cleanup = mountHomeHub(container, { navigate: vi.fn() });
-    await vi.waitFor(() => expect(sidebarRows()).toBe(3));
-    expect(container.querySelector('[data-role="history-trigger"]')?.getAttribute('aria-label')).toBe('All chats (45)');
-    expect(container.querySelector('[data-role="history-panel"]')).toBeNull();
-
-    container.querySelector('[data-role="history-trigger"]').click();
-    await vi.waitFor(() => expect(panelRows()).toBe(10));
-    expect(sidebarRows()).toBe(3);
-
-    const list = container.querySelector('[data-role="history-list"]');
-    const metrics = { scrollHeight: 400, clientHeight: 200, scrollTop: 0 };
+  function setScroll(el, metrics) {
     for (const key of Object.keys(metrics)) {
-      Object.defineProperty(list, key, { configurable: true, get: () => metrics[key] });
+      Object.defineProperty(el, key, { configurable: true, get: () => metrics[key] });
     }
+  }
 
-    list.dispatchEvent(new Event('scroll', { bubbles: true }));
-    expect(panelRows()).toBe(10);
-
-    metrics.scrollTop = 200;
-    list.dispatchEvent(new Event('scroll', { bubbles: true }));
-    await vi.waitFor(() => expect(panelRows()).toBe(20));
-    list.dispatchEvent(new Event('scroll', { bubbles: true }));
-    await vi.waitFor(() => expect(panelRows()).toBe(30));
-    list.dispatchEvent(new Event('scroll', { bubbles: true }));
-    list.dispatchEvent(new Event('scroll', { bubbles: true }));
-    await vi.waitFor(() => expect(panelRows()).toBe(45));
-  });
-
-  it('picking a chat in the popover selects it and closes the popover', async () => {
+  const mount = () => {
     cleanup = mountHomeHub(container, { navigate: vi.fn() });
-    await vi.waitFor(() => expect(sidebarRows()).toBe(3));
-    container.querySelector('[data-role="history-trigger"]').click();
-    await vi.waitFor(() => expect(panelRows()).toBe(10));
-    container.querySelector('[data-role="history-list"] [data-session-id="s8"]').click();
-    await vi.waitFor(() => expect(container.querySelector('[data-role="history-panel"]')).toBeNull());
-    expect(invokeSpy).toHaveBeenCalledWith('select_chat_session', { sessionId: 's8' });
-  });
+  };
+  const showChatsTab = () => container.querySelector('.home-sidebar-tab[data-pane="chat"]').click();
 
-  it('shows no All chats button when every chat already fits in the sidebar', async () => {
-    invokeSpy.mockImplementation(async (cmd) => {
-      if (cmd === 'query_binding') return { state: 'bound' };
-      if (cmd === 'list_chat_sessions') return { sessions: sessionsOf(3), current_session_id: '' };
-      return {};
+  it('lists every chat, a page at a time: first 10 of 45, 10 more each time it is scrolled to the bottom', async () => {
+    mount();
+    await vi.waitFor(() => expect(rows()).toBe(10));
+
+    // The content grows as chats are revealed, like a real list; the scroll position stays put.
+    const el = list();
+    let scrollTop = 0;
+    Object.defineProperty(el, 'clientHeight', { configurable: true, get: () => 200 });
+    Object.defineProperty(el, 'scrollHeight', {
+      configurable: true,
+      get: () => el.querySelectorAll('.home-chat-session').length * ROW_PX,
     });
-    cleanup = mountHomeHub(container, { navigate: vi.fn() });
-    await vi.waitFor(() => expect(sidebarRows()).toBe(3));
+    Object.defineProperty(el, 'scrollTop', { configurable: true, get: () => scrollTop });
+    const scrollToBottom = () => {
+      scrollTop = el.scrollHeight - 200;
+      el.dispatchEvent(new Event('scroll', { bubbles: true }));
+    };
+
+    scrollTop = 20;
+    el.dispatchEvent(new Event('scroll', { bubbles: true }));
+    expect(rows()).toBe(10);
+
+    scrollToBottom();
+    await vi.waitFor(() => expect(rows()).toBe(20));
+    scrollToBottom();
+    await vi.waitFor(() => expect(rows()).toBe(30));
+    scrollToBottom();
+    await vi.waitFor(() => expect(rows()).toBe(40));
+    scrollToBottom();
+    await vi.waitFor(() => expect(rows()).toBe(45));
+    scrollToBottom();
+    expect(rows()).toBe(45);
+  });
+
+  it('reveals the next page by itself while the revealed chats do not fill the list', async () => {
+    stubLayout();
+    mount();
+    showChatsTab();
+    // 500px of list: 10 rows = 360px is short, so it grows to 20 rows = 720px, which fills it.
+    await vi.waitFor(() => expect(rows()).toBe(20));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(rows()).toBe(20);
+  });
+
+  it('shows all of them, with no scrolling needed, when they are few', async () => {
+    stubLayout();
+    total = 4;
+    mount();
+    showChatsTab();
+    await vi.waitFor(() => expect(rows()).toBe(4));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(rows()).toBe(4);
+  });
+
+  it('reveals nothing while the Spark AI pane is hidden, and starts once it is shown', async () => {
+    stubLayout();
+    mount();
+    await vi.waitFor(() => expect(rows()).toBe(10));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(rows()).toBe(10);
+    showChatsTab();
+    await vi.waitFor(() => expect(rows()).toBe(20));
+  });
+
+  it('keeps the current chat in the list even when it is beyond the first page', async () => {
+    currentId = 's27';
+    mount();
+    await vi.waitFor(() => expect(rows()).toBe(27));
+    expect(list().querySelector('[data-session-id="s27"]')).not.toBeNull();
+  });
+
+  it('picking a chat in the list selects it', async () => {
+    mount();
+    await vi.waitFor(() => expect(rows()).toBe(10));
+    list().querySelector('[data-session-id="s8"]').click();
+    await vi.waitFor(() => expect(invokeSpy).toHaveBeenCalledWith('select_chat_session', { sessionId: 's8' }));
+  });
+
+  it('has no history icon and no All chats popover; the header is just the title', async () => {
+    mount();
+    await vi.waitFor(() => expect(rows()).toBe(10));
+    const head = container.querySelector('.home-chat-pane .home-chat-sessions-head');
+    expect([...head.children].map((el) => el.className)).toEqual(['home-chat-sessions-title']);
     expect(container.querySelector('[data-role="history-trigger"]')).toBeNull();
+    expect(container.querySelector('[data-role="history-panel"]')).toBeNull();
+    expect(container.querySelector('.home-chat-sessions-actions')).toBeNull();
+  });
+
+  it('the popover code and styles are deleted', () => {
+    expect(existsSync(join(root, 'frontend/src/home/ui/session-history.tsx'))).toBe(false);
+    expect(existsSync(join(root, 'frontend/src/home/state/sidebar-sessions.ts'))).toBe(false);
+    const home = readFileSync(join(root, 'frontend/home.css'), 'utf8');
+    expect(home).not.toMatch(/\.home-history|\.home-chat-sessions-actions/);
   });
 
   it('keeps the empty-state text when there are no chats', async () => {
-    invokeSpy.mockImplementation(async (cmd) => {
-      if (cmd === 'query_binding') return { state: 'bound' };
-      if (cmd === 'list_chat_sessions') return { sessions: [], current_session_id: '' };
-      return {};
-    });
-    cleanup = mountHomeHub(container, { navigate: vi.fn() });
+    total = 0;
+    mount();
     await vi.waitFor(() => {
       expect(container.querySelector('.home-chat-sessions-empty')?.textContent).toBe('No conversations yet.');
     });

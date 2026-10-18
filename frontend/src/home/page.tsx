@@ -16,14 +16,13 @@ import { AboutDialog } from './ui/about-dialog.tsx';
 import { ApprovalDialog } from './ui/approval-dialog.tsx';
 import { AccountBar } from './ui/account-bar.tsx';
 import { HelpMenu } from './ui/help-menu.tsx';
-import { SessionHistory } from './ui/session-history.tsx';
+import { useRevealMoreChats } from './ui/reveal-more-chats.ts';
 import { SidebarTabs, type SidebarPane } from './ui/sidebar-tabs.tsx';
 import { attachHomeShortcuts, detachHomeShortcuts } from './ui/home-shortcuts.ts';
 import { SearchModal } from '../shared/search-modal/search-modal.tsx';
 import { homeSearchNames } from './state/search-names.ts';
 import { openDocById } from './commands/open-doc-link.ts';
 import { SessionList } from './ui/session-list.tsx';
-import { SIDEBAR_CHAT_LIMIT, sidebarSessions } from './state/sidebar-sessions.ts';
 import { SessionMenu } from './ui/session-menu.tsx';
 import { ContextPercent } from './ui/context-percent.tsx';
 import { ComposerFileLists } from './ui/composer-file-lists.tsx';
@@ -191,6 +190,11 @@ export function HomePage({
   const [searchOpen, setSearchOpen] = useState(false);
   const imeEnterRef = useRef(createImeEnterGuard());
   const sidebarRef = useRef<HTMLElement | null>(null);
+  const sessionListRef = useRef<HTMLDivElement | null>(null);
+  const revealMoreChats = useRevealMoreChats(sessionListRef, showMoreSessions, [
+    visibleSessionCount(state),
+    sidebarPane,
+  ]);
   const lastPaintKeyRef = useRef('');
   const mdPaintGenRef = useRef(0);
   const paintKey = messagePaintKey(state);
@@ -393,28 +397,16 @@ export function HomePage({
         <div className="home-chat-pane" hidden={sidebarPane !== 'chat'}>
           <div className="home-chat-sessions-head">
             <span className="home-chat-sessions-title">Chats</span>
-            <span className="home-chat-sessions-actions">
-              {state.sessions.length > SIDEBAR_CHAT_LIMIT ? (
-                <SessionHistory
-                  total={state.sessions.length}
-                  sessions={state.sessions.slice(0, visibleSessionCount(state))}
-                  currentSessionId={state.currentSessionId}
-                  progressByChat={state.progressByChat}
-                  inFlightIds={state.inFlightIds}
-                  onSelect={pickSession}
-                  onDelete={removeSession}
-                  onNearEnd={showMoreSessions}
-                />
-              ) : null}
-            </span>
           </div>
           <div
             className="home-chat-sessions"
             data-role="session-list"
             role="list"
+            ref={sessionListRef}
+            onScroll={revealMoreChats}
           >
             <SessionList
-              sessions={sidebarSessions(state.sessions, state.currentSessionId)}
+              sessions={state.sessions.slice(0, visibleSessionCount(state))}
               currentSessionId={state.currentSessionId}
               progressByChat={state.progressByChat}
               inFlightIds={state.inFlightIds}
