@@ -101,10 +101,11 @@ describe('Home sidebar tabs', () => {
     expect(pane().querySelector('[data-role="session-list"]')).not.toBeNull();
   });
 
-  it('has no "+" in the Chats header', async () => {
+  it('has no Chats header, so no "+" or search sits above the list', async () => {
     await mountReady();
-    expect(container.querySelector('.home-chat-sessions-head [data-role="new-session"]')).toBeNull();
-    expect(container.querySelector('.home-chat-sessions-head .home-chat-new')).toBeNull();
+    expect(container.querySelector('.home-chat-sessions-head')).toBeNull();
+    expect(pane().querySelector('[data-role="new-session"]')).toBeNull();
+    expect(pane().querySelector('.home-chat-new')).toBeNull();
   });
 
   it('pins New chat above the account row, outside both panes', async () => {

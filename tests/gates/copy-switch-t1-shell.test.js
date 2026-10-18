@@ -42,12 +42,10 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
     expect(css).toMatch(/\.home-chat-sidebar \{[\s\S]*?--home-rail: 16px;/);
     expect(css).toMatch(/\.home-chat-sidebar \{[\s\S]*?--home-chat-row-inset: 8px;/);
     expect(css).toMatch(/\.home-chat-nav \{[\s\S]*?padding: 8px var\(--home-chat-row-inset\) 12px;/);
-    expect(css).toMatch(/\.home-chat-nav-label,\s*\.home-chat-sessions-title \{[\s\S]*?font-size: 12px;/);
+    expect(css).toMatch(/\.home-chat-nav-label \{[\s\S]*?font-size: 12px;/);
     expect(css).toMatch(/\.home-chat-nav-label \{[\s\S]*?height: var\(--home-nav-label-h\);[\s\S]*?padding: 0 8px;/);
     expect(css).toMatch(/\.home-chat-nav-item \{[\s\S]*?height: var\(--home-nav-row-h\);[\s\S]*?padding: 0 8px;/);
-    expect(css).toMatch(
-      /\.home-chat-sessions-head \{[\s\S]*?padding: 0 var\(--home-chat-row-inset\) 0 var\(--home-rail\);/,
-    );
+    expect(css).not.toMatch(/\.home-chat-sessions-head/);
     expect(css).toMatch(/--home-chat-list-pad: 2px;/);
     expect(css).toMatch(
       /\.home-chat-sessions \{[\s\S]*?padding: var\(--home-chat-list-pad\) var\(--home-chat-row-inset\);/,

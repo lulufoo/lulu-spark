@@ -112,11 +112,10 @@ describe('Chats list in the sidebar', () => {
     await vi.waitFor(() => expect(invokeSpy).toHaveBeenCalledWith('select_chat_session', { sessionId: 's8' }));
   });
 
-  it('has no history icon and no All chats popover; the header is just the title', async () => {
+  it('has no history icon, no All chats popover and no header above the list', async () => {
     mount();
     await vi.waitFor(() => expect(rows()).toBe(45));
-    const head = container.querySelector('.home-chat-pane .home-chat-sessions-head');
-    expect([...head.children].map((el) => el.className)).toEqual(['home-chat-sessions-title']);
+    expect(container.querySelector('.home-chat-pane .home-chat-sessions-head')).toBeNull();
     expect(container.querySelector('[data-role="history-trigger"]')).toBeNull();
     expect(container.querySelector('[data-role="history-panel"]')).toBeNull();
     expect(container.querySelector('.home-chat-sessions-actions')).toBeNull();

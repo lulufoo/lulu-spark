@@ -6568,8 +6568,7 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
 .home-nav-workspaces[data-home-nav-overflow="true"] {
   overflow-y: auto;
 }
-.home-chat-nav-label,
-.home-chat-sessions-title {
+.home-chat-nav-label {
   font-size: 12px;
   font-weight: 400;
   line-height: 16px;
@@ -6748,14 +6747,6 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   height: 8px;
   border-radius: 50%;
   background: var(--bg-danger);
-}
-.home-chat-sessions-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  height: var(--home-nav-label-h);
-  margin-top: 12px;
-  padding: 0 var(--home-chat-row-inset) 0 var(--home-rail);
 }
 .home-chat-sessions {
   flex: 0 0 auto;

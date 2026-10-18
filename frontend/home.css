@@ -18,8 +18,7 @@
   border-right-color: var(--border-muted);
 }
 .home-chat-nav { border-bottom: none; padding-top: 4px; }
-.home-chat-nav-label,
-.home-chat-sessions-title {
+.home-chat-nav-label {
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.06em;
@@ -42,12 +41,6 @@
 }
 .home-nav-project-icon { color: var(--fg-subtle); }
 
-.home-chat-sessions-head {
-  margin-top: 4px;
-  padding-top: 8px;
-  border-top: 1px solid var(--border-muted);
-  height: calc(var(--home-nav-label-h) + 8px);
-}
 /* ── Tabs: Home / Spark AI capsules + search, one row under the window chrome ── */
 .home-sidebar-tabs {
   display: flex;
@@ -103,12 +96,6 @@
   flex-direction: column;
   flex: 1 1 0;
   min-height: 0;
-}
-.home-chat-pane .home-chat-sessions-head {
-  margin-top: 0;
-  padding-top: 0;
-  border-top: none;
-  height: var(--home-nav-label-h);
 }
 /* Chat list fills the height the dock and the account row leave, instead of a fixed five rows. */
 .home-chat-pane .home-chat-sessions {

@@ -12,7 +12,6 @@ const TABLE_A_BRANDS = [
   { zh: '沉淀知识库', en: 'Knowledge', file: 'frontend/src/home/page.tsx' },
   { zh: 'Lulu Spark', en: 'Lulu Spark', file: 'frontend/src/home/page.tsx' },
   { zh: '笔记助手', en: 'Notes Assistant', file: 'frontend/src/notes/ui/assistant.tsx' },
-  { zh: 'AI 助手', en: 'Chats', file: 'frontend/src/home/page.tsx' },
 ];
 
 const KEY_PATH_FILES = [
