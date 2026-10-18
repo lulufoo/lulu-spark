@@ -82,7 +82,7 @@ describe('home composer dock hit area', () => {
       'utf8',
     );
     expect(appCss).toMatch(
-      /\.home-chat-staged-summary:hover\s*\{[^}]*background:\s*var\(--bg-accent-hover\)/,
+      /\.home-chat-staged-summary:hover\s*\{[^}]*background:\s*var\(--bg-hover\)/,
     );
     expect(appCss).toMatch(
       /\.home-chat-context-percent:hover \.home-chat-context-ring-track/,

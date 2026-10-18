@@ -4,7 +4,7 @@
   /* bg */
   --bg-accent: #576ae0;
   --bg-accent-emphasis: #4a5cd4;
-  --bg-accent-hover: rgba(110, 127, 229, 0.12);
+  --bg-accent-subtle: #262a45;
   --bg-canvas: #1c1d1f;
   --bg-danger: #c24b3e;
   --bg-dark: #4c4851;
@@ -35,7 +35,6 @@
   --bg-hex-d1fae5: #1a2a22;
   --bg-hex-dafbe1: #1a2a22;
   --bg-hex-dbeafe: #2e3358;
-  --bg-hex-ddf4ff: #262a45;
   --bg-hex-e0e0e3: #19181b;
   --bg-hex-e3e9f0: #19181b;
   --bg-hex-e6ebf0: #19181b;
@@ -70,6 +69,7 @@
   --bg-hex-fff8e6: #19181b;
   --bg-hex-fff8f0: #19181b;
   --bg-hex-fff8f8: #19181b;
+  --bg-hover: rgba(110, 127, 229, 0.12);
   --bg-inset: #2e2c32;
   --bg-muted: #26272b;
   --bg-rgba-000000-45: rgba(0, 0, 0, 0.53);
@@ -83,6 +83,7 @@
   --bg-rgba-f0f3f6-12: rgba(14, 15, 17, 0.12);
   --bg-rgba-ffffff-00: rgba(28, 29, 31, 0);
   --bg-rgba-ffffff-12: rgba(14, 15, 17, 0.12);
+  --bg-selected: #262a45;
   --bg-subtle: #26272b;
   --bg-success: #1a9d62;
   --bg-surface: #212023;

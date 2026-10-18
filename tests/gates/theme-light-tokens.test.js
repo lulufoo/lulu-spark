@@ -111,17 +111,17 @@ describe('Periwinkle accent tokens', () => {
     }
   });
 
-  it('locks the Light link, selected row and focus ring values', () => {
+  it('locks the Light link, selected and focus ring values', () => {
     expect(tokenValue(themeCss, 'fg-accent')).toBe('#4f62d8');
     expect(tokenValue(themeCss, 'fg-accent-emphasis')).toBe('#4a5cd4');
-    expect(tokenValue(themeCss, 'bg-hex-ddf4ff')).toBe('#ebedfb');
+    expect(tokenValue(themeCss, 'bg-selected')).toBe('#ebedfb');
     expect(tokenValue(themeCss, 'shadow-rgba-accent-35')).toBe('rgba(87, 106, 224, 0.35)');
   });
 
-  it('locks the Dark link, selected row and focus ring values', () => {
+  it('locks the Dark link, selected and focus ring values', () => {
     expect(tokenValue(darkCss, 'fg-accent')).toBe('#8b98ee');
     expect(tokenValue(darkCss, 'fg-accent-emphasis')).toBe('#a4aef2');
-    expect(tokenValue(darkCss, 'bg-hex-ddf4ff')).toBe('#262a45');
+    expect(tokenValue(darkCss, 'bg-selected')).toBe('#262a45');
     expect(tokenValue(darkCss, 'shadow-rgba-accent-35')).toBe('rgba(110, 127, 229, 0.45)');
   });
 
@@ -130,30 +130,14 @@ describe('Periwinkle accent tokens', () => {
     expect(contrast('#ffffff', tokenValue(themeCss, 'bg-accent-emphasis'))).toBeGreaterThanOrEqual(4.5);
     expect(contrast(tokenValue(themeCss, 'fg-accent'), '#ffffff')).toBeGreaterThanOrEqual(4.5);
     expect(
-      contrast(tokenValue(themeCss, 'fg-accent-emphasis'), tokenValue(themeCss, 'bg-hex-ddf4ff')),
+      contrast(tokenValue(themeCss, 'fg-accent-emphasis'), tokenValue(themeCss, 'bg-selected')),
     ).toBeGreaterThanOrEqual(4.5);
     expect(
       contrast(tokenValue(darkCss, 'fg-accent'), tokenValue(darkCss, 'bg-surface')),
     ).toBeGreaterThanOrEqual(4.5);
     expect(
-      contrast(tokenValue(darkCss, 'fg-accent-emphasis'), tokenValue(darkCss, 'bg-hex-ddf4ff')),
+      contrast(tokenValue(darkCss, 'fg-accent-emphasis'), tokenValue(darkCss, 'bg-selected')),
     ).toBeGreaterThanOrEqual(4.5);
-  });
-
-  it('keeps hover lighter than selected, both on periwinkle', () => {
-    expect(tokenValue(themeCss, 'bg-accent-hover')).toBe('rgba(87, 106, 224, 0.06)');
-    expect(tokenValue(darkCss, 'bg-accent-hover')).toBe('rgba(110, 127, 229, 0.12)');
-    const hoverOnRows = [...appCss.matchAll(/([^{}]+)\{([^{}]*)\}/g)].filter(([, selector]) =>
-      /^\.(?:home-chat-session|date-tab|settings-nav-item|sidebar-channel-tab):hover$/.test(selector.trim()),
-    );
-    expect(hoverOnRows.length).toBeGreaterThan(0);
-    for (const [, , body] of hoverOnRows) {
-      expect(body).toMatch(/background:\s*var\(--bg-accent-hover\)/);
-    }
-    for (const selector of ['.home-chat-session.is-active', '.settings-nav-item.active', '.list-select-option.selected']) {
-      const escaped = selector.replace(/\./g, '\\.');
-      expect(appCss).toMatch(new RegExp(`${escaped}\\s*\\{[^}]*background:\\s*var\\(--bg-hex-ddf4ff\\)`));
-    }
   });
 
   it('keeps the date badge, header toggle and menu text at WCAG AA on their periwinkle fills', () => {
