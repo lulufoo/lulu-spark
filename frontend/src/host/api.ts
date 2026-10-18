@@ -76,7 +76,8 @@ export {
   updateLinks,
 } from './api/spark.ts';
 
-export { getReindexAllStatus, reindexAll, searchSpark } from './api/search.ts';
+export { getReindexAllStatus, reindexAll, searchChats, searchSpark } from './api/search.ts';
+export type { ChatSearchHit } from './api/search.ts';
 
 export { fetchDocCategories, saveDocCategories } from './api/doc-categories.ts';
 export type { DocCategory } from './api/doc-categories.ts';

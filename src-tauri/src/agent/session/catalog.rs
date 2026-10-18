@@ -175,3 +175,50 @@ pub fn touch(path: &PathBuf, session_id: &str, updated_at: i64) -> Result<(), St
     .map_err(|e| e.to_string())?;
     Ok(())
 }
+
+/// Escape `\`, `%` and `_` so a `LIKE ... ESCAPE '\'` pattern matches them as plain characters.
+fn escape_like(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    for c in text.chars() {
+        if matches!(c, '\\' | '%' | '_') {
+            out.push('\\');
+        }
+        out.push(c);
+    }
+    out
+}
+
+/// Chats whose title contains `query` (case-insensitive for ASCII letters), newest first, at most
+/// `limit`, across the whole catalog. `%`, `_` and `\` in `query` are plain characters. An empty
+/// (or all-blank) query, or a `limit` of 0, finds nothing.
+pub fn search_titles(path: &PathBuf, query: &str, limit: usize) -> Result<Vec<Value>, String> {
+    let query = query.trim();
+    if query.is_empty() || limit == 0 || !path.is_file() {
+        return Ok(Vec::new());
+    }
+    let pattern = format!("%{}%", escape_like(query));
+    let conn = open(path)?;
+    let mut stmt = conn
+        .prepare(
+            "SELECT session_id, title, updated_at
+             FROM sessions
+             WHERE title LIKE ?1 ESCAPE '\\'
+             ORDER BY updated_at DESC, rowid DESC
+             LIMIT ?2",
+        )
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map(params![pattern, limit as i64], |row| {
+            Ok(json!({
+                "session_id": row.get::<_, String>(0)?,
+                "title": row.get::<_, String>(1)?,
+                "updated_at": row.get::<_, i64>(2)?,
+            }))
+        })
+        .map_err(|e| e.to_string())?;
+    let mut hits = Vec::new();
+    for row in rows {
+        hits.push(row.map_err(|e| e.to_string())?);
+    }
+    Ok(hits)
+}

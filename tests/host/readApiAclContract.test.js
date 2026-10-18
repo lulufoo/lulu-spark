@@ -91,6 +91,12 @@ describe('read-api ACL 与前端 invoke 映射一致', () => {
     expect(aclAllow).toContain('get_message_channel_unread')
   })
 
+  it('chat search read command 已加入 read-api ACL', () => {
+    expect(mappedCmds).toContain('search_chat_sessions')
+    expect(tomlAllow).toContain('search_chat_sessions')
+    expect(aclAllow).toContain('search_chat_sessions')
+  })
+
   it('package snapshot read command 已加入 read-api ACL', () => {
     expect(tomlAllow).toContain('get_package_snapshot')
     expect(aclAllow).toContain('get_package_snapshot')

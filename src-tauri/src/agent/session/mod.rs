@@ -10,6 +10,7 @@ mod session_db;
 mod step_clock;
 mod step_codec;
 mod store;
+mod title_search;
 mod turn_store;
 mod types;
 
@@ -19,6 +20,7 @@ pub use recent::*;
 pub use redact::*;
 pub use step_clock::*;
 pub use store::*;
+pub use title_search::*;
 pub use types::*;
 
 #[cfg(test)]
@@ -40,3 +42,7 @@ mod step_extra_tests;
 #[cfg(test)]
 #[path = "../../unit-tests/agent/session_recent_cutoff.rs"]
 mod session_recent_cutoff_tests;
+
+#[cfg(test)]
+#[path = "../../unit-tests/agent/session_title_search.rs"]
+mod session_title_search_tests;

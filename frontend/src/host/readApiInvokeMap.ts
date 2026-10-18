@@ -57,6 +57,15 @@ export const READ_API_INVOKE_MAP: Record<string, ReadInvokeEntry> = {
       allWorkspaces: url.searchParams.get('all_workspaces') === '1' ? true : undefined,
     }),
   },
+  '/api/search-chats': {
+    cmd: 'search_chat_sessions',
+    args: (url) => ({
+      q: url.searchParams.get('q') ?? '',
+      limit: url.searchParams.has('limit')
+        ? Number(url.searchParams.get('limit'))
+        : undefined,
+    }),
+  },
   '/api/annotations': { cmd: 'get_annotations' },
   '/api/tags/registry': { cmd: 'get_tags_registry' },
   '/api/annotation': {

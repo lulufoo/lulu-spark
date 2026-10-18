@@ -28,3 +28,16 @@ export async function searchSpark(
   const res = await getReadDriver().fetchGet(`/api/search-spark?${params.toString()}`);
   return res.json();
 }
+
+/** One chat found by title. */
+export type ChatSearchHit = { session_id: string; title: string; updated_at: number };
+
+/**
+ * Search chats by title over the whole history, newest first (matching is done by the host).
+ * Resolves to `{ hits }`.
+ */
+export async function searchChats(q: string, limit = 20): Promise<{ hits: ChatSearchHit[] }> {
+  const params = new URLSearchParams({ q, limit: String(limit) });
+  const res = await getReadDriver().fetchGet(`/api/search-chats?${params.toString()}`);
+  return res.json();
+}

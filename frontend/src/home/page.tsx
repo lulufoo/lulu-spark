@@ -312,6 +312,12 @@ export function HomePage({
     void selectSession(id).catch(showActionError);
   }
 
+  /** A chat chosen in the search modal: open it, and show the Spark AI tab it lives in. */
+  function openSearchedChat(id: string) {
+    pickSession(id);
+    setSidebarPane('chat');
+  }
+
   function removeSession(id: string) {
     void deleteSession(id);
   }
@@ -511,9 +517,11 @@ export function HomePage({
       <ApprovalDialog />
       <SearchModal
         open={searchOpen}
+        mode={sidebarPane === 'chat' ? 'chats' : 'docs'}
         scope={{ kind: 'all-workspaces' }}
         names={searchNames(state.workspaceProjects)}
         onOpenDoc={(id) => void openDocById(id)}
+        onOpenChat={openSearchedChat}
         onClose={() => setSearchOpen(false)}
       />
     </div>

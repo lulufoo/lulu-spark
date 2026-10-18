@@ -43,6 +43,7 @@ const INVOKE_MAP_COMMANDS: &[&str] = &[
     "list_hide_patterns",
     "get_viewer_state",
     "search_spark",
+    "search_chat_sessions",
     "get_annotations",
     "get_annotation",
     "get_draft",

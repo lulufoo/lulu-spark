@@ -103,6 +103,11 @@ pub fn list_chat_sessions_core() -> Result<Value, String> {
     }))
 }
 
+/// Search chats by title over the whole history. Does not change the live session.
+pub fn search_chat_sessions_core(query: &str, limit: usize) -> Result<Value, String> {
+    Ok(json!({ "hits": session::search_session_titles(query, limit)? }))
+}
+
 /// Make an existing disk session the live chat session. Does not Set Binding.
 pub fn select_chat_session_core(session_id: &str) -> Result<Value, String> {
     let id = session_id.trim();

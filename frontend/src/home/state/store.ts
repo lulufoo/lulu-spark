@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import { flushSync } from 'react-dom';
+import { formatDayHeading } from '../../shared/day-heading.ts';
 import { createModuleStore } from '../../shared/module-store.ts';
 
 export type HubSession = {
@@ -191,16 +192,6 @@ function localDayKey(date: Date) {
   return `${date.getFullYear()}-${mm}-${dd}`;
 }
 
-/** `Oct 13`, or `Oct 13, 2025` when the day is not in the current year. */
-function dayHeading(date: Date, now: Date) {
-  const withYear = date.getFullYear() !== now.getFullYear();
-  return date.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    ...(withYear ? { year: 'numeric' } : {}),
-  });
-}
-
 /**
  * Groups chats under one heading per local calendar day of `updated_at` (Unix seconds): `Today`,
  * `Yesterday`, then the date (`Oct 13`, with the year when it is not the current one). The input
@@ -233,7 +224,7 @@ export function groupSessionsByDay(
     if (!group) {
       if (key === todayKey) group = { key: 'today', label: 'Today', sessions: [] };
       else if (key === yesterdayKey) group = { key: 'yesterday', label: 'Yesterday', sessions: [] };
-      else group = { key, label: dayHeading(day, now), sessions: [] };
+      else group = { key, label: formatDayHeading(day, now), sessions: [] };
       byKey.set(key, group);
       groups.push(group);
     }

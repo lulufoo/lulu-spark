@@ -1,20 +1,22 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
-import { searchSpark } from '../../host/api.ts';
 import {
   addSearchHistory,
   getSearchHistory,
   normalizeSearchQuery,
   removeSearchHistory,
 } from './history.ts';
-import { hitLocation, type SearchHit, type SearchNames, type SearchScope } from './hit-location.ts';
+import type { SearchNames, SearchScope } from './hit-location.ts';
+import {
+  getHistoryKey,
+  getModeTexts,
+  searchByMode,
+  type ResultRow,
+  type SearchMode,
+} from './modal-mode.ts';
+import { getRowId, SearchResultList, type View } from './search-result-list.tsx';
 
 const RESULT_LIMIT = 8;
 const DEBOUNCE_MS = 300;
-
-type View =
-  | { kind: 'history' }
-  | { kind: 'status'; text: string }
-  | { kind: 'hits'; hits: SearchHit[] };
 
 function openEntry(id: string) {
   document.dispatchEvent(new CustomEvent('cta:open-entry', { detail: { id } }));
@@ -30,18 +32,24 @@ export function SearchGlyph({ className = 'search-modal-glyph' }: { className?: 
 }
 
 function SearchModalBody({
+  mode,
   scope,
   names,
   onOpenDoc,
+  onOpenChat,
   onClose,
 }: {
+  mode: SearchMode;
   scope: SearchScope;
   names: SearchNames;
   onOpenDoc: (id: string) => void;
+  onOpenChat: (id: string) => void;
   onClose: () => void;
 }) {
+  const historyKey = getHistoryKey(mode);
+  const texts = getModeTexts(mode, scope);
   const [query, setQuery] = useState('');
-  const [history, setHistory] = useState<string[]>(() => getSearchHistory());
+  const [history, setHistory] = useState<string[]>(() => getSearchHistory(historyKey));
   const [view, setView] = useState<View>({ kind: 'history' });
   const [active, setActive] = useState(0);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -70,21 +78,11 @@ function SearchModalBody({
     const request = ++requestRef.current;
     setView({ kind: 'status', text: 'Searching…' });
     try {
-      const data = await searchSpark(
-        q,
-        RESULT_LIMIT,
-        scope.kind === 'workspace' ? scope.workspaceId : '',
-        { allWorkspaces: scope.kind === 'all-workspaces' },
-      );
+      const result = await searchByMode(mode, q, RESULT_LIMIT, scope, names);
       if (request !== requestRef.current) return;
-      if (data.error === 'not_indexed') {
-        setView({ kind: 'status', text: 'Index not built yet.' });
-      } else if (data.error) {
-        setView({ kind: 'status', text: 'Search error' });
-      } else {
-        const hits = (data.hits || []) as SearchHit[];
-        setView(hits.length ? { kind: 'hits', hits } : { kind: 'status', text: 'No related results' });
-      }
+      if (result.status) setView({ kind: 'status', text: result.status });
+      else if (result.rows.length) setView({ kind: 'hits', rows: result.rows });
+      else setView({ kind: 'status', text: texts.noResults });
     } catch {
       if (request === requestRef.current) setView({ kind: 'status', text: 'Search error' });
     }
@@ -103,7 +101,7 @@ function SearchModalBody({
     const q = normalizeSearchQuery(raw);
     if (!q) {
       requestRef.current += 1;
-      setHistory(getSearchHistory());
+      setHistory(getSearchHistory(historyKey));
       setView({ kind: 'history' });
       return;
     }
@@ -117,13 +115,13 @@ function SearchModalBody({
     }
   }
 
-  function openHit(hit: SearchHit) {
-    if (hit.id) onOpenDoc(hit.id);
-    addSearchHistory(query);
+  function openRow(row: ResultRow) {
+    if (row.id) (mode === 'chats' ? onOpenChat : onOpenDoc)(row.id);
+    addSearchHistory(query, historyKey);
     onClose();
   }
 
-  const rowCount = view.kind === 'hits' ? view.hits.length : view.kind === 'history' ? history.length : 0;
+  const rowCount = view.kind === 'hits' ? view.rows.length : view.kind === 'history' ? history.length : 0;
 
   function onKeyDown(e: KeyboardEvent<HTMLInputElement>) {
     if (e.key === 'Escape') {
@@ -144,8 +142,8 @@ function SearchModalBody({
       // The query changed and its search is still waiting for the typing pause: search now.
       applyQuery(query, true);
     } else if (view.kind === 'hits') {
-      const hit = view.hits[active];
-      if (hit) openHit(hit);
+      const row = view.rows[active];
+      if (row) openRow(row);
     } else if (view.kind === 'history') {
       const q = history[active];
       if (q) applyQuery(q, true);
@@ -156,7 +154,6 @@ function SearchModalBody({
   }
 
   const listId = 'search-modal-list';
-  const rowId = (i: number) => `search-modal-row-${i}`;
 
   return (
     <div
@@ -166,7 +163,7 @@ function SearchModalBody({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="search-modal" role="dialog" aria-modal="true" aria-label="Search documents">
+      <div className="search-modal" role="dialog" aria-modal="true" aria-label={texts.label}>
         <div className="search-modal-head">
           <SearchGlyph />
           <input
@@ -177,8 +174,8 @@ function SearchModalBody({
             role="combobox"
             aria-expanded="true"
             aria-controls={listId}
-            aria-activedescendant={rowCount > 0 ? rowId(active) : undefined}
-            placeholder={scope.kind === 'all-workspaces' ? 'Search all workspaces…' : 'Search this workspace…'}
+            aria-activedescendant={rowCount > 0 ? getRowId(active) : undefined}
+            placeholder={texts.placeholder}
             autoComplete="off"
             spellCheck={false}
             value={query}
@@ -189,96 +186,64 @@ function SearchModalBody({
             esc
           </button>
         </div>
-        <div id={listId} className="search-modal-list" role="listbox" ref={listRef}>
-          {view.kind === 'status' ? <div className="search-modal-status">{view.text}</div> : null}
-          {view.kind === 'hits'
-            ? view.hits.map((hit, i) => {
-                const location = hitLocation(hit, scope, names);
-                return (
-                  <div
-                    key={`${hit.id || ''}-${i}`}
-                    id={rowId(i)}
-                    className="search-modal-row"
-                    role="option"
-                    aria-selected={i === active}
-                    data-role="search-hit"
-                    data-note-id={hit.id || ''}
-                    data-active={i === active ? 'true' : undefined}
-                    onMouseEnter={() => setActive(i)}
-                    onClick={() => openHit(hit)}
-                  >
-                    <span className="search-modal-row-title">{hit.title || hit.id || ''}</span>
-                    {location ? <span className="search-modal-row-sub">{location}</span> : null}
-                  </div>
-                );
-              })
-            : null}
-          {view.kind === 'history' && history.length === 0 ? (
-            <div className="search-modal-status">Type to search documents.</div>
-          ) : null}
-          {view.kind === 'history' && history.length > 0 ? (
-            <>
-              <div className="search-modal-section">Recent searches</div>
-              {history.map((q, i) => (
-                <div
-                  key={q}
-                  id={rowId(i)}
-                  className="search-modal-row search-modal-row--history"
-                  role="option"
-                  aria-selected={i === active}
-                  data-role="search-history-item"
-                  data-q={q}
-                  data-active={i === active ? 'true' : undefined}
-                  onMouseEnter={() => setActive(i)}
-                  onClick={() => applyQuery(q, true)}
-                >
-                  <span className="search-modal-row-title">{q}</span>
-                  <button
-                    type="button"
-                    className="search-modal-history-remove"
-                    data-role="search-history-remove"
-                    data-q={q}
-                    data-tip="Delete"
-                    aria-label={`Delete “${q}” from recent searches`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      removeSearchHistory(q);
-                      const next = getSearchHistory();
-                      setHistory(next);
-                      setActive((a) => Math.min(a, Math.max(0, next.length - 1)));
-                    }}
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
-            </>
-          ) : null}
-        </div>
+        <SearchResultList
+          listId={listId}
+          listRef={listRef}
+          mode={mode}
+          view={view}
+          history={history}
+          emptyHistoryText={texts.emptyHistory}
+          active={active}
+          onActive={setActive}
+          onOpenRow={openRow}
+          onPickHistory={(q) => applyQuery(q, true)}
+          onRemoveHistory={(q) => {
+            removeSearchHistory(q, historyKey);
+            const next = getSearchHistory(historyKey);
+            setHistory(next);
+            setActive((a) => Math.min(a, Math.max(0, next.length - 1)));
+          }}
+        />
       </div>
     </div>
   );
 }
 
 /**
- * The document search modal shared by Home and the notes page. Controlled: the page decides when it
- * is `open` and what `scope` it covers. Documents only; an empty query lists the recent searches.
- * `onOpenDoc` defaults to the shared `cta:open-entry` event; Home passes its own opener because
- * the notes index may not be loaded there.
+ * The search modal shared by Home and the notes page. Controlled: the page decides when it is
+ * `open`, what `scope` it covers and which `mode` it searches: documents (default) or chats by
+ * title. An empty query lists the recent searches of that mode. `onOpenDoc` defaults to the shared
+ * `cta:open-entry` event; Home passes its own opener because the notes index may not be loaded
+ * there. `onOpenChat` is called with the chat id when a chat row is chosen.
  */
 export function SearchModal({
   open,
+  mode = 'docs',
   scope,
   names,
   onOpenDoc = openEntry,
+  onOpenChat = () => {},
   onClose,
 }: {
   open: boolean;
+  mode?: SearchMode;
   scope: SearchScope;
   names: SearchNames;
   onOpenDoc?: (id: string) => void;
+  onOpenChat?: (id: string) => void;
   onClose: () => void;
 }) {
   if (!open) return null;
-  return <SearchModalBody scope={scope} names={names} onOpenDoc={onOpenDoc} onClose={onClose} />;
+  // `key` restarts the body when the mode changes, so one mode's query never shows in the other.
+  return (
+    <SearchModalBody
+      key={mode}
+      mode={mode}
+      scope={scope}
+      names={names}
+      onOpenDoc={onOpenDoc}
+      onOpenChat={onOpenChat}
+      onClose={onClose}
+    />
+  );
 }
