@@ -20,7 +20,7 @@ class ToolDispatcherTest {
     @Test
     fun remoteToolKeepsHostInputSchema() {
         val schema =
-            """{"type":"object","properties":{"title":{"type":"string"},"content":{"type":"string"},"workspace":{"type":"string"},"project":{"type":"string"},"folder":{"type":"string"}},"required":["title","content"]}"""
+            """{"type":"object","properties":{"title":{"type":"string"},"content":{"type":"string"},"workspace_id":{"type":"string"},"project_id":{"type":"string"},"folder":{"type":"string"}},"required":["title","content"]}"""
         val defs =
             ToolDispatcher(
                 FsTools(),
@@ -38,7 +38,7 @@ class ToolDispatcherTest {
         assertEquals(schema, create.parametersJson)
         assertTrue(create.parametersJson.contains("\"title\""))
         assertTrue(create.parametersJson.contains("\"content\""))
-        assertTrue(create.parametersJson.contains("\"workspace\""))
+        assertTrue(create.parametersJson.contains("\"workspace_id\""))
         assertTrue(create.parametersJson.contains("\"folder\""))
     }
 
@@ -103,7 +103,7 @@ class ToolDispatcherTest {
                     McpTool(
                         name = "get_doc_content",
                         description = "Read one document's raw Markdown by id.",
-                        inputSchemaJson = """{"type":"object","properties":{"id":{"type":"string"},"workspace":{"type":"string"}},"required":["id"]}""",
+                        inputSchemaJson = """{"type":"object","properties":{"id":{"type":"string"},"workspace_id":{"type":"string"}},"required":["id"]}""",
                     ),
                 ),
                 MemoryStorage(),
