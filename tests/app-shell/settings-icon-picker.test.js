@@ -27,11 +27,8 @@ vi.mock('../../frontend/src/host/api.ts', () => ({
   enableWorkspace: async (...a) => reply('enable-ws', a),
   fetchDisabledWorkspaces: async () => ({ workspaces: [] }),
   fetchProjects: async (ws) => ({ projects: projects[ws] }),
-  fetchDisabledProjects: async () => ({ projects: [] }),
   createProject: async (...a) => reply('create-p', a),
   updateProject: async (...a) => reply('update-p', a),
-  disableProject: async (...a) => reply('disable-p', a),
-  enableProject: async (...a) => reply('enable-p', a),
 }));
 vi.mock('../../frontend/src/notes/commands/workspace.ts', () => ({ loadWorkspaces: async () => {} }));
 vi.mock('../../frontend/src/notes/commands/workspace-switch.ts', () => ({ applyViewModeChange: () => {} }));

@@ -38,10 +38,6 @@ export const READ_API_INVOKE_MAP: Record<string, ReadInvokeEntry> = {
     cmd: 'list_projects',
     args: (url) => ({ payload: { workspace_id: url.searchParams.get('workspace_id') || undefined } }),
   },
-  '/api/projects-disabled': {
-    cmd: 'list_disabled_projects',
-    args: (url) => ({ payload: { workspace_id: url.searchParams.get('workspace_id') || undefined } }),
-  },
   '/api/hide-patterns': {
     cmd: 'list_hide_patterns',
     args: (url) => ({ payload: { workspace_id: url.searchParams.get('workspace_id') || undefined } }),

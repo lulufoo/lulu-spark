@@ -25,15 +25,12 @@ describe('readApi contract map', () => {
     });
   });
 
-  it('resolveInvokeFromPath maps the disabled workspace and project lists', () => {
+  it('resolveInvokeFromPath maps the disabled workspace list and no longer a project one', () => {
     expect(resolveInvokeFromPath('/api/workspaces-disabled?_=1')).toEqual({
       cmd: 'list_disabled_workspaces',
       args: {},
     });
-    expect(resolveInvokeFromPath('/api/projects-disabled?workspace_id=ws1&_=1')).toEqual({
-      cmd: 'list_disabled_projects',
-      args: { payload: { workspace_id: 'ws1' } },
-    });
+    expect(resolveInvokeFromPath('/api/projects-disabled?workspace_id=ws1&_=1')).toBeNull();
   });
 
   it('resolveInvokeFromPath maps the per-workspace hidden-files rules and viewer state', () => {

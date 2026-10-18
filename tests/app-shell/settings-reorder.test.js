@@ -7,14 +7,12 @@ const calls = [];
 let failWith = '';
 let workspaceDisabled = [];
 let projectRows = [];
-let projectDisabled = [];
 
 vi.mock('../../frontend/src/host/api.ts', () => ({
   reorderWorkspaces: async (ids) => reply(['reorderWorkspaces', ids]),
   reorderProjects: async (ws, folders) => reply(['reorderProjects', ws, folders]),
   fetchDisabledWorkspaces: async () => ({ workspaces: workspaceDisabled }),
   fetchProjects: async () => ({ projects: projectRows }),
-  fetchDisabledProjects: async () => ({ projects: projectDisabled }),
 }));
 vi.mock('../../frontend/src/notes/commands/workspace.ts', () => ({ loadWorkspaces: async () => {} }));
 vi.mock('../../frontend/src/notes/commands/workspace-switch.ts', () => ({ applyViewModeChange: () => {} }));
@@ -56,8 +54,7 @@ beforeEach(() => {
   calls.length = 0;
   failWith = '';
   workspaceDisabled = [{ workspace_id: 'off', workspace_name: 'Off', sort_index: 1 }];
-  projectRows = [project('inbox', 0), project('a', 2), project('b', 3)];
-  projectDisabled = [project('old', 1)];
+  projectRows = [project('inbox', 0), project('a', 1), project('b', 2)];
   state.workspaces.list = [ws('default', 0), ws('x', 2), ws('y', 3)];
   workspacesPanelStore.set({ ...emptyWorkspacesPanelSnap(), disabled: [{ id: 'off', name: 'Off', sortIndex: 1 }] });
   notesCategoriesStore.set(emptyNotesCategoriesSnap());
@@ -89,12 +86,12 @@ describe('reordering workspaces', () => {
 describe('reordering projects', () => {
   const rows = () => notesCategoriesStore.getSnapshot().rows.map((r) => r.id);
 
-  it('keeps the disabled project in its place and sends every id', async () => {
+  it('shows the new order at once and sends every id', async () => {
     await categories.selectProjectsWorkspace('default');
     const done = categories.reorderNotesCategories('default', ['b', 'inbox', 'a']);
     expect(rows()).toEqual(['b', 'inbox', 'a']);
     expect(await done).toBe(true);
-    expect(calls).toEqual([['reorderProjects', 'default', ['b', 'old', 'inbox', 'a']]]);
+    expect(calls).toEqual([['reorderProjects', 'default', ['b', 'inbox', 'a']]]);
   });
 
   it('rolls back on a refusal', async () => {

@@ -80,18 +80,6 @@ export async function updateProject(
   });
 }
 
-export async function fetchDisabledProjects(workspaceId: string) {
-  return readGet(`/api/projects-disabled?workspace_id=${encodeURIComponent(workspaceId)}&_=${Date.now()}`);
-}
-
-export async function disableProject(workspaceId: string, projectId: string) {
-  return writePost('/api/project-disable', { workspace_id: workspaceId, project_id: projectId });
-}
-
-export async function enableProject(workspaceId: string, projectId: string) {
-  return writePost('/api/project-enable', { workspace_id: workspaceId, project_id: projectId });
-}
-
 export type HidePatternRow = { id: string; pattern: string };
 
 /** Hidden files rules of one workspace. */

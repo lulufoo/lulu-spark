@@ -50,7 +50,7 @@ describe('Settings workspace UI', () => {
     expect(indexHtml).toContain('Disabled (');
   });
 
-  it('a workspace page uses Tabs: Directory, Add project, Edit & Disable project, Hidden files', () => {
+  it('a workspace page uses Tabs: Directory, Add project, Edit project, Hidden files', () => {
     const panel = readFileSync(
       join(repoRoot, 'frontend/src/app-shell/ui/settings/workspace-projects-panel.tsx'),
       'utf8',

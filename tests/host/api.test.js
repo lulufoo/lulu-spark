@@ -12,8 +12,8 @@ import {
   saveFile,
   updateComments, updateLinks, setImportance, setDone,
   deleteEntry,
-  fetchWorkspaces, createWorkspace, renameWorkspace, setWorkspaceViewMode, setWorkspaceIcon, disableWorkspace, enableWorkspace, fetchDisabledWorkspaces, fetchDisabledProjects,
-  fetchProjects, createProject, updateProject, disableProject, enableProject, moveToProject,
+  fetchWorkspaces, createWorkspace, renameWorkspace, setWorkspaceViewMode, setWorkspaceIcon, disableWorkspace, enableWorkspace, fetchDisabledWorkspaces,
+  fetchProjects, createProject, updateProject, moveToProject,
   reorderWorkspaces, reorderProjects,
   fetchHidePatterns, addHidePattern, updateHidePattern, removeHidePattern, fetchViewerState, saveViewerState,
 } from '../../frontend/src/host/api.ts'
@@ -230,12 +230,10 @@ test('fetchWorkspaces calls /api/workspaces', async () => {
   expect(result.workspaces[0].workspace_id).toBe('default')
 })
 
-test('fetchDisabledWorkspaces and fetchDisabledProjects read the disabled lists', async () => {
-  mockFetch({ workspaces: [], projects: [] })
+test('fetchDisabledWorkspaces reads the disabled list', async () => {
+  mockFetch({ workspaces: [] })
   await fetchDisabledWorkspaces()
-  await fetchDisabledProjects('ws1')
   expect(fetch.mock.calls[0][0]).toMatch(new RegExp(`^${API_READ_PREFIX}/workspaces-disabled\\?_=\\d+$`))
-  expect(fetch.mock.calls[1][0]).toMatch(new RegExp(`^${API_READ_PREFIX}/projects-disabled\\?workspace_id=ws1&_=\\d+$`))
 })
 
 test('createWorkspace posts workspace_name and view mode', async () => {
@@ -307,19 +305,13 @@ test('project writes post workspace_id, project_id, project_name and description
   mockFetch({ ok: true })
   await createProject('ws1', 'Ops', 'desc')
   await updateProject('ws1', 'ops', 'Operations', 'runbooks')
-  await disableProject('ws1', 'ops')
-  await enableProject('ws1', 'ops')
   expect(fetch.mock.calls.map((call) => call[0])).toEqual([
     `${DEFAULT_DEV_BASE}/api/project-create`,
     `${DEFAULT_DEV_BASE}/api/project-update`,
-    `${DEFAULT_DEV_BASE}/api/project-disable`,
-    `${DEFAULT_DEV_BASE}/api/project-enable`,
   ])
   expect(fetch.mock.calls.map((call) => JSON.parse(call[1].body))).toEqual([
     { workspace_id: 'ws1', project_name: 'Ops', description: 'desc' },
     { workspace_id: 'ws1', project_id: 'ops', project_name: 'Operations', description: 'runbooks' },
-    { workspace_id: 'ws1', project_id: 'ops' },
-    { workspace_id: 'ws1', project_id: 'ops' },
   ])
 })
 

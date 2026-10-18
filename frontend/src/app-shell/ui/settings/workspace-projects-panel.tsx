@@ -27,7 +27,7 @@ export function WorkspaceProjectsPanel() {
           Add project
         </button>
         <button type="button" className="settings-tab" data-tab="edit" role="tab">
-          Edit &amp; Disable project
+          Edit project
         </button>
         <button type="button" className="settings-tab" data-tab="hidden" role="tab">
           Hidden files

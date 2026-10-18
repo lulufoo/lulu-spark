@@ -166,14 +166,6 @@ export const WRITE_API_INVOKE_MAP: Record<string, WriteInvokeEntry> = {
     cmd: 'reorder_projects',
     args: (body) => ({ payload: body ?? {} }),
   },
-  '/api/project-disable': {
-    cmd: 'disable_project',
-    args: (body) => ({ payload: body ?? {} }),
-  },
-  '/api/project-enable': {
-    cmd: 'enable_project',
-    args: (body) => ({ payload: body ?? {} }),
-  },
   '/api/hide-pattern-add': {
     cmd: 'add_hide_pattern',
     args: (body) => ({ payload: body ?? {} }),
