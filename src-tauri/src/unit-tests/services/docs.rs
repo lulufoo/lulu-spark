@@ -653,13 +653,13 @@ fn a_project_icon_is_kept_unless_changed_and_cleared_by_an_empty_string() {
 #[test]
 fn workspaces_and_projects_can_be_reordered_through_the_service() {
     let _sandbox = TestSandbox::new();
+    let default = default_id();
+    let knowledge = knowledge_id();
     let a = new_workspace("Aaa");
     let b = new_workspace("Bbb");
     let ids = |v: &Value| -> Vec<String> {
         v["workspaces"].as_array().expect("array").iter().map(|w| text(w, "workspace_id")).collect()
     };
-    let default = default_id();
-    let knowledge = knowledge_id();
     assert_eq!(ids(&list_workspaces()), vec![default.clone(), knowledge.clone(), a.clone(), b.clone()]);
 
     let moved = reorder_workspaces(&json!({ "ids": [b, default, a, knowledge] }));

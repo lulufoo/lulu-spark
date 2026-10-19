@@ -12,8 +12,12 @@ fn default_ws(conn: &Connection) -> WorkspaceRow {
     get_default_workspace(conn).expect("default workspace")
 }
 
+/// The seed has only `Default`; this makes a second, timeline workspace named `Knowledge`.
 fn knowledge_ws(conn: &Connection) -> WorkspaceRow {
-    get_workspace_by_name(conn, "Knowledge").expect("lookup").expect("Knowledge")
+    match get_workspace_by_name(conn, "Knowledge").expect("lookup") {
+        Some(row) => row,
+        None => create_workspace(conn, "Knowledge", Some(ViewMode::Timeline)).expect("create Knowledge"),
+    }
 }
 
 fn table_exists(conn: &Connection, name: &str) -> bool {
@@ -49,13 +53,11 @@ fn seed_registry_rows_and_modes_are_right() {
     let (_dir, path) = temp_db();
     let conn = open_at(&path).expect("open");
     let rows = list_workspaces(&conn).expect("list");
-    assert_eq!(rows.len(), 2);
+    assert_eq!(rows.len(), 1, "the seed is Default only");
     assert_eq!((rows[0].name.as_str(), rows[0].view_mode, rows[0].is_default), ("Default", ViewMode::Directory, true));
-    assert_eq!((rows[1].name.as_str(), rows[1].view_mode, rows[1].is_default), ("Knowledge", ViewMode::Timeline, false));
     assert_ne!(rows[0].id, "default");
-    assert_ne!(rows[1].id, "knowledge");
     assert_eq!(rows[0].doc_table, format!("doc_{}", rows[0].id));
-    assert_eq!(rows[1].doc_table, format!("doc_{}", rows[1].id));
+    assert!(get_workspace_by_name(&conn, "Knowledge").expect("lookup").is_none());
 }
 
 #[test]
@@ -97,7 +99,7 @@ fn create_workspace_rejects_blank_and_duplicate_names_without_leaving_a_table() 
     assert!(create_workspace(&conn, "   ", None).is_err());
     assert!(create_workspace(&conn, "Default", None).is_err(), "name is unique");
     assert_eq!(count(&conn, "sqlite_master"), tables);
-    assert_eq!(count(&conn, "workspace"), 2);
+    assert_eq!(count(&conn, "workspace"), 1);
 }
 
 #[test]
@@ -369,10 +371,10 @@ fn new_workspaces_and_projects_are_appended_and_the_default_can_move() {
 fn a_reorder_must_name_every_entry_once_and_changes_nothing_otherwise() {
     let (_dir, path) = temp_db();
     let conn = open_at(&path).expect("open");
-    let made = create_workspace(&conn, "Made", None).expect("made");
-    let before = workspace_ids(&conn);
     let default = default_ws(&conn);
     let knowledge = knowledge_ws(&conn);
+    let made = create_workspace(&conn, "Made", None).expect("made");
+    let before = workspace_ids(&conn);
 
     for bad in [
         vec![default.id.clone()],

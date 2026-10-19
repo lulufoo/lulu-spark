@@ -17,11 +17,14 @@ pub fn default_workspace() -> crate::services::spark_data::WorkspaceRow {
     crate::services::spark_data::get_default_workspace(&conn).expect("default workspace")
 }
 
+/// A second, timeline workspace named `Knowledge`. The seed has only `Default`, so it is created on first use.
 pub fn knowledge_workspace() -> crate::services::spark_data::WorkspaceRow {
+    use crate::services::spark_data::{create_workspace, get_workspace_by_name, ViewMode};
     let conn = crate::services::spark_data::open().expect("db");
-    crate::services::spark_data::get_workspace_by_name(&conn, "Knowledge")
-        .expect("lookup")
-        .expect("Knowledge")
+    match get_workspace_by_name(&conn, "Knowledge").expect("lookup") {
+        Some(row) => row,
+        None => create_workspace(&conn, "Knowledge", Some(ViewMode::Timeline)).expect("create Knowledge"),
+    }
 }
 
 pub fn default_workspace_dir() -> PathBuf {

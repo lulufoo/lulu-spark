@@ -7,11 +7,7 @@ mod doc_entry;
 mod doc_id;
 mod doc_row;
 mod doc_table;
-mod drop_folder_step;
 mod json_column;
-mod legacy_rows_step;
-mod prefix_legacy_doc_ids;
-mod remap_builtin_ids;
 mod project_merge;
 mod project_row;
 mod tag_rows;
@@ -24,7 +20,7 @@ pub use doc_row::{
 };
 pub use doc_table::{create_doc_table, doc_table_for_id, validate_doc_table_name, validate_workspace_id};
 pub use doc_annotation::annotation_object;
-pub use doc_id::{duplicate_doc_ids, is_valid_doc_id, new_doc_id, prefixed_doc_id, split_doc_id};
+pub use doc_id::{duplicate_doc_ids, is_valid_doc_id, new_doc_id, split_doc_id};
 pub use doc_entry::{entry_from_doc, find_doc, list_doc_entries, translation_common_paths, FoundDoc};
 
 pub use project_merge::delete_project_after_merge;
@@ -48,15 +44,3 @@ mod tests;
 #[cfg(test)]
 #[path = "../../unit-tests/services/spark_data_workspace.rs"]
 mod workspace_tests;
-
-#[cfg(test)]
-#[path = "../../unit-tests/services/spark_data_legacy_copy.rs"]
-mod legacy_copy_tests;
-
-#[cfg(test)]
-#[path = "../../unit-tests/services/spark_data_remap.rs"]
-mod remap_tests;
-
-#[cfg(test)]
-#[path = "../../unit-tests/services/spark_data_prefix.rs"]
-mod prefix_tests;
