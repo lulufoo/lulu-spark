@@ -6,8 +6,9 @@ use crate::test_support::TestSandbox;
 
 fn seeded_db(dir: &Path) -> Connection {
     let conn = open_at(&dir.join("live").join("spark-data.sqlite")).expect("open");
-    let table = crate::services::spark_data::get_default_workspace(&conn).expect("default").doc_table;
-    insert_doc(&conn, &table, &DocRow::new("n1", "a/b.md", "inbox")).expect("seed");
+    let default = crate::services::spark_data::get_default_workspace(&conn).expect("default");
+    let inbox = crate::services::spark_data::get_inbox_project(&conn, &default.id).expect("lookup").expect("inbox");
+    insert_doc(&conn, &default.doc_table, &DocRow::new("n1", "a/b.md", &inbox.id)).expect("seed");
     conn
 }
 

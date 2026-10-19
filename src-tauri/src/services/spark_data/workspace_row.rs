@@ -8,6 +8,7 @@
 use rusqlite::{params, Connection, OptionalExtension, Row};
 
 use super::doc_table::{create_doc_table, doc_table_for_id, validate_doc_table_name};
+use super::project_row::insert_inbox_project;
 use crate::services::id::random_alnum6;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -117,6 +118,7 @@ pub fn create_workspace(
     )
     .map_err(|e| e.to_string())?;
     create_doc_table(&tx, &doc_table)?;
+    insert_inbox_project(&tx, &id)?;
     let row = get_workspace(&tx, &id)?.ok_or("workspace row missing after insert")?;
     tx.commit().map_err(|e| e.to_string())?;
     Ok(row)

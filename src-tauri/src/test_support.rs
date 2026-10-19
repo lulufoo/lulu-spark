@@ -27,6 +27,16 @@ pub fn knowledge_workspace() -> crate::services::spark_data::WorkspaceRow {
     }
 }
 
+/// The id of the default workspace's inbox project (minted, not a fixed string).
+pub fn default_inbox_id() -> String {
+    let conn = crate::services::spark_data::open().expect("db");
+    let workspace = crate::services::spark_data::get_default_workspace(&conn).expect("default workspace");
+    crate::services::spark_data::get_inbox_project(&conn, &workspace.id)
+        .expect("lookup")
+        .expect("inbox")
+        .id
+}
+
 pub fn default_workspace_dir() -> PathBuf {
     crate::config::paths::workspaces_root()
         .expect("workspaces root")

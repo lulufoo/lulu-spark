@@ -7,11 +7,8 @@ use std::collections::HashMap;
 use rusqlite::Connection;
 use serde_json::{json, Value};
 
-use chrono::{FixedOffset, Utc};
-
-use crate::services::id::random_alnum6;
 use crate::services::spark_data::{
-    count_docs_by_project, count_docs_in_project, get_project, insert_project,
+    count_docs_by_project, count_docs_in_project, insert_project, mint_project_id,
     list_projects as list_project_rows, reorder_projects as reorder_project_rows,
     update_project as update_project_row, ProjectRow, WorkspaceRow,
 };
@@ -45,36 +42,6 @@ fn list_project_values(conn: &Connection, workspace: &WorkspaceRow) -> Result<Ve
     let rows = list_project_rows(conn, &workspace.id).map_err(internal)?;
     let counts: HashMap<String, i64> = count_docs_by_project(conn, &workspace.doc_table).map_err(internal)?;
     Ok(rows.iter().map(|r| project_value(r, counts.get(&r.id).copied().unwrap_or(0))).collect())
-}
-
-/// `YYYYMMDDHHMMSSmmm` (UTC+8) plus six random characters.
-fn generate_project_id() -> String {
-    let tz = FixedOffset::east_opt(8 * 3600).expect("UTC+8");
-    let now = Utc::now().with_timezone(&tz);
-    format!(
-        "{}{:03}{}",
-        now.format("%Y%m%d%H%M%S"),
-        now.timestamp_subsec_millis(),
-        random_alnum6()
-    )
-}
-
-fn mint_project_id(conn: &Connection) -> Result<String, String> {
-    for _ in 0..8 {
-        let id = generate_project_id();
-        if get_project(conn, &id)?.is_none() {
-            return Ok(id);
-        }
-    }
-    Err("Could not allocate project id".to_string())
-}
-
-/// The empty `inbox` project every workspace starts with.
-pub(super) fn insert_inbox_project(conn: &Connection, workspace_id: &str) -> Result<(), String> {
-    let id = mint_project_id(conn)?;
-    let mut row = ProjectRow::new(&id, workspace_id, "Inbox", "");
-    row.is_inbox = true;
-    insert_project(conn, &row)
 }
 
 /// `{ workspace_id? }` → `{ projects: [...] }`.

@@ -157,7 +157,7 @@ fn get_doc_file_returns_content() {
     let id = "cccccccccccccccccccccccccccccccc";
     with_notes_repo(
         move |_, notes| {
-            let raw = notes.join("raw").join("inbox").join("a.md");
+            let raw = notes.join("raw").join(crate::test_support::default_inbox_id()).join("a.md");
             fs::create_dir_all(raw.parent().unwrap()).expect("mkdir");
             fs::write(&raw, b"hello").expect("write");
             seed_note_entries(&json!({ id: { "common_path": "a.md" } }));
@@ -209,10 +209,10 @@ fn get_doc_asset_rejects_non_whitelist_ext() {
     let id = "ffffffffffffffffffffffffffffffff";
     with_notes_repo(
         move |_, notes| {
-            let svg = notes.join("raw").join("inbox").join("x.svg");
+            let svg = notes.join("raw").join(crate::test_support::default_inbox_id()).join("x.svg");
             fs::create_dir_all(svg.parent().unwrap()).expect("mkdir");
             fs::write(&svg, b"<svg").expect("write");
-            fs::write(notes.join("raw").join("inbox").join("x.md"), b"#").expect("md");
+            fs::write(notes.join("raw").join(crate::test_support::default_inbox_id()).join("x.md"), b"#").expect("md");
             seed_note_entries(&json!({ id: { "common_path": "x.md" } }));
         },
         move |_cfg_dir| {

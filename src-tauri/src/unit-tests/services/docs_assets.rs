@@ -57,7 +57,7 @@ fn create_with_assets(sandbox: &TestSandbox, assets: Vec<PathBuf>) -> serde_json
 fn theme_dir() -> PathBuf {
     crate::test_support::default_workspace_dir()
         .join("raw")
-        .join("inbox")
+        .join(crate::test_support::default_inbox_id())
         .join("notes")
 }
 

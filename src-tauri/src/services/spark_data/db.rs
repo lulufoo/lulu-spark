@@ -19,6 +19,7 @@ use rusqlite::Connection;
 use rusqlite::params;
 
 use super::doc_table::{create_doc_table, doc_table_for_id};
+use super::project_row::insert_inbox_project;
 use crate::config::paths;
 use crate::services::id::random_alnum6;
 
@@ -197,12 +198,7 @@ fn seed_default_workspace(conn: &Connection) -> Result<(), String> {
     )
     .map_err(|e| e.to_string())?;
     create_doc_table(conn, &table)?;
-    conn.execute(
-        "INSERT INTO project (id, workspace_id, name, description, sort_index, is_inbox)
-         VALUES ('inbox', ?1, 'Inbox', '', 0, 1)",
-        params![id],
-    )
-    .map_err(|e| e.to_string())?;
+    insert_inbox_project(conn, &id)?;
     Ok(())
 }
 

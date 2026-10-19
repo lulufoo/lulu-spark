@@ -7,7 +7,7 @@ use crate::test_support::{seed_note_entries, TestSandbox};
 fn save_entry_updates_file() {
     let sandbox = TestSandbox::new();
     let notes = crate::test_support::default_workspace_dir();
-    let md = notes.join("digest").join("inbox").join("foo.md");
+    let md = notes.join("digest").join(crate::test_support::default_inbox_id()).join("foo.md");
     fs::create_dir_all(md.parent().unwrap()).expect("mkdir");
     fs::write(&md, "old").expect("w");
     let id = "a".repeat(32);

@@ -5,8 +5,8 @@
 //! the data stays and `enable` brings it back. Its name stays taken while it is disabled.
 //!
 //! `create` takes only a display name and an optional view mode; the id and the document
-//! table are made by the Host. A new workspace gets an empty `inbox` project so documents
-//! can be written to it right away.
+//! table are made by the Host. A new workspace gets an empty inbox project (made with the workspace
+//! row, in one transaction) so documents can be written to it right away.
 
 use serde_json::{json, Value};
 
@@ -20,7 +20,6 @@ use crate::services::spark_data::{
     set_workspace_view_mode, ViewMode, WorkspaceRow,
 };
 
-use super::project::insert_inbox_project;
 use super::resolve::{
     bad_request, conflict, icon_field, internal, not_found, open_data, resolve_workspace,
     string_list_field, text_field, workspace_root,
@@ -112,10 +111,6 @@ pub fn create_workspace(payload: &Value) -> Value {
         Ok(row) => row,
         Err(e) => return registry_error(e),
     };
-    if let Err(e) = insert_inbox_project(&conn, &row.id) {
-        let _ = discard_new_workspace(&conn, &row.id);
-        return internal(e);
-    }
     if let Err(v) = workspace_root(&row) {
         let _ = discard_new_workspace(&conn, &row.id);
         return v;

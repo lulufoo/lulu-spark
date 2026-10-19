@@ -124,7 +124,7 @@ fn create_note_json_jot_takes_an_optional_project() {
         .expect("jot with project");
     assert_eq!(into_project["project_id"], json!(plans), "{into_project}");
     let default = create_note_json(json!({ "body": "没有项目", "source_type": "jot" })).expect("jot");
-    assert_eq!(default["project_id"], json!("inbox"), "{default}");
+    assert_eq!(default["project_id"], json!(crate::test_support::default_inbox_id()), "{default}");
     let missing = create_note_json(json!({ "body": "项目不存在", "source_type": "jot", "project_id": "ghost" }))
         .expect("jot with missing project");
     assert_eq!(missing["_status"], json!(400), "{missing}");

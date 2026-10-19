@@ -99,8 +99,8 @@ fn omitting_workspace_and_project_writes_to_default_inbox() {
     let sandbox = TestSandbox::new();
     let created = write(None, None);
     let id = text(ok(&created), "id");
-    assert_eq!((text(&created, "workspace_id"), text(&created, "project_id")), (default_id(), "inbox".to_string()));
-    assert!(workspaces_dir(&sandbox).join(default_id()).join("raw/inbox/notes").is_dir());
+    assert_eq!((text(&created, "workspace_id"), text(&created, "project_id")), (default_id(), inbox_of(&default_id())));
+    assert!(workspaces_dir(&sandbox).join(default_id()).join("raw").join(inbox_of(&default_id())).join("notes").is_dir());
     assert_eq!(get_file(&json!({ "id": id }))["content"], json!(BODY));
 }
 
@@ -177,7 +177,7 @@ fn delete_doc_removes_files_and_row() {
     assert_eq!(ok(&removed)["removed"], json!(2));
     assert_eq!(status(&get_file(&json!({ "id": id }))), 404);
 
-    let leftover = fs::read_dir(workspaces_dir(&sandbox).join(default_id()).join("raw/inbox/notes")).expect("dir").count();
+    let leftover = fs::read_dir(workspaces_dir(&sandbox).join(default_id()).join("raw").join(inbox_of(&default_id())).join("notes")).expect("dir").count();
     assert_eq!(leftover, 0);
 }
 
@@ -336,7 +336,7 @@ fn get_path_points_at_the_raw_file_without_its_body() {
     let id = text(ok(&created), "id");
     let got = get_path(&json!({ "id": id }));
     let path = PathBuf::from(text(ok(&got), "path"));
-    let expected = workspaces_dir(&sandbox).join(default_id()).join("raw/inbox").canonicalize().expect("dir");
+    let expected = workspaces_dir(&sandbox).join(default_id()).join("raw").join(inbox_of(&default_id())).canonicalize().expect("dir");
     assert!(path.canonicalize().expect("file").starts_with(expected), "{path:?}");
     assert_eq!(fs::read_to_string(path).expect("read"), BODY);
     assert!(got.get("content").is_none());
@@ -419,7 +419,7 @@ fn a_three_level_folder_works_through_create_read_move_search_and_delete() {
 
     let rel = spark_data::find_doc(&spark_data::open().expect("db"), &id).expect("find").expect("doc").doc.raw_path;
     assert!(rel.starts_with("ai/agents/notes/"), "{rel}");
-    let dir = workspaces_dir(&sandbox).join(default_id()).join("raw/inbox/ai/agents/notes");
+    let dir = workspaces_dir(&sandbox).join(default_id()).join("raw").join(inbox_of(&default_id())).join("ai/agents/notes");
     assert_eq!(fs::read_dir(&dir).expect("dir").count(), 2, "the document and its translation");
     assert_eq!(get_file(&json!({ "id": id }))["content"], json!(BODY));
     assert_eq!(get_file(&json!({ "id": id, "lang": "fr" }))["content"], json!("# Titre\n\ncorps"));
@@ -452,7 +452,7 @@ fn a_folder_with_four_levels_or_unsafe_segments_is_rejected() {
         let v = write_in_folder(bad, json!({}));
         assert_eq!(status(&v), 400, "folder {bad:?} gave {v}");
     }
-    assert!(!workspaces_dir(&sandbox).join(default_id()).join("raw").join("inbox").exists(), "nothing is written for a rejected folder");
+    assert!(!workspaces_dir(&sandbox).join(default_id()).join("raw").join(inbox_of(&default_id())).exists(), "nothing is written for a rejected folder");
     for good in ["notes", "a/b", "a/b/c"] {
         ok(&write_in_folder(good, json!({})));
     }
@@ -519,7 +519,7 @@ fn a_plain_32_hex_id_from_before_the_prefix_still_reads_updates_and_deletes() {
     let old = "0123456789abcdef0123456789abcdef";
     let conn = spark_data::open().expect("db");
     spark_data::insert_doc(&conn, &crate::test_support::default_workspace().doc_table, &plain_hex_row(old, &inbox_id(&default_id()))).expect("insert");
-    let dir = workspaces_dir(&sandbox).join(default_id()).join("raw/inbox/notes");
+    let dir = workspaces_dir(&sandbox).join(default_id()).join("raw").join(inbox_of(&default_id())).join("notes");
     fs::write(dir.join("202601011200-old123.md"), "# Old\n\n旧文档正文。\n").expect("file");
 
     assert_eq!(get_file(&json!({ "id": old }))["content"], json!("# Old\n\n旧文档正文。\n"));

@@ -353,9 +353,10 @@ fn new_workspaces_and_projects_are_appended_and_the_default_can_move() {
         "appended in creation order, not by name"
     );
 
+    let zeta_inbox = get_inbox_project(&conn, &zeta.id).expect("lookup").expect("a new workspace has an inbox").id;
     insert_project(&conn, &ProjectRow::new("pz", &zeta.id, "Zz", "")).expect("pz");
     insert_project(&conn, &ProjectRow::new("pa", &zeta.id, "Aa", "")).expect("pa");
-    assert_eq!(project_ids(&conn, &zeta.id), strings(&["pz", "pa"]));
+    assert_eq!(project_ids(&conn, &zeta.id), strings(&[&zeta_inbox, "pz", "pa"]));
 
     let mut all = workspace_ids(&conn);
     all.rotate_left(1);
@@ -363,8 +364,8 @@ fn new_workspaces_and_projects_are_appended_and_the_default_can_move() {
     assert_eq!(workspace_ids(&conn), all);
     assert_eq!(workspace_ids(&conn).last(), Some(&default.id));
 
-    reorder_projects(&conn, &zeta.id, &strings(&["pa", "pz"])).expect("reorder projects");
-    assert_eq!(project_ids(&conn, &zeta.id), strings(&["pa", "pz"]));
+    reorder_projects(&conn, &zeta.id, &strings(&["pa", "pz", &zeta_inbox])).expect("reorder projects");
+    assert_eq!(project_ids(&conn, &zeta.id), strings(&["pa", "pz", &zeta_inbox]));
 }
 
 #[test]
@@ -400,14 +401,15 @@ fn projects_keep_the_order_they_were_given_and_a_disabled_workspace_comes_back_t
     let (_dir, path) = temp_db();
     let conn = open_at(&path).expect("open");
     let made = create_workspace(&conn, "Made", None).expect("made");
+    let inbox = get_inbox_project(&conn, &made.id).expect("lookup").expect("a new workspace has an inbox").id;
     for (id, folder) in [("p1", "one"), ("p2", "two"), ("p3", "three")] {
         insert_project(&conn, &ProjectRow::new(id, &made.id, folder, "")).expect(folder);
     }
-    assert_eq!(project_ids(&conn, &made.id), strings(&["p1", "p2", "p3"]));
+    assert_eq!(project_ids(&conn, &made.id), strings(&[&inbox, "p1", "p2", "p3"]));
 
     // The caller passes every project at the position it wants.
-    reorder_projects(&conn, &made.id, &strings(&["p3", "p2", "p1"])).expect("reorder");
-    assert_eq!(project_ids(&conn, &made.id), strings(&["p3", "p2", "p1"]));
+    reorder_projects(&conn, &made.id, &strings(&["p3", "p2", "p1", &inbox])).expect("reorder");
+    assert_eq!(project_ids(&conn, &made.id), strings(&["p3", "p2", "p1", &inbox]));
 
     assert!(disable_workspace(&conn, &made.id).expect("disable workspace"));
     assert!(!workspace_ids(&conn).contains(&made.id));

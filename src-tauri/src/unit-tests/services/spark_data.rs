@@ -104,7 +104,9 @@ fn the_seed_is_default_and_its_inbox_only() {
 
     let projects = list_projects(&conn, &default.id).expect("projects");
     assert_eq!(projects.len(), 1);
-    assert_eq!((projects[0].id.as_str(), projects[0].name.as_str(), projects[0].is_inbox), ("inbox", "Inbox", true));
+    assert_eq!((projects[0].name.as_str(), projects[0].is_inbox), ("Inbox", true));
+    assert_ne!(projects[0].id, "inbox", "the inbox id is minted like any project id");
+    assert_eq!(projects[0].id.len(), 23, "YYYYMMDDHHMMSSmmm + 6 characters: {}", projects[0].id);
     assert_eq!(count(&conn, "SELECT count(*) FROM project"), 1);
 }
 
@@ -114,7 +116,8 @@ fn reopening_changes_nothing_and_keeps_rows() {
     let first = open_at(&path).expect("first open");
     let default = default_ws(&first);
     let tables = table_names(&first);
-    insert_doc(&first, &default.doc_table, &DocRow::new("n1", "a/b.md", "inbox")).expect("seed");
+    let inbox = get_inbox_project(&first, &default.id).expect("lookup").expect("inbox");
+    insert_doc(&first, &default.doc_table, &DocRow::new("n1", "a/b.md", &inbox.id)).expect("seed");
     drop(first);
 
     let second = open_at(&path).expect("reopen");
@@ -122,7 +125,7 @@ fn reopening_changes_nothing_and_keeps_rows() {
     assert_eq!(table_names(&second), tables);
     assert_eq!(user_version(&second), BASELINE_VERSION as i64);
     let kept = get_doc(&second, &default.doc_table, "n1").expect("get").expect("row");
-    assert_eq!(kept.project_id, "inbox");
+    assert_eq!(kept.project_id, inbox.id);
 }
 
 #[test]
@@ -189,7 +192,7 @@ fn a_baseline_file_without_a_default_workspace_gets_one_and_an_existing_one_is_k
     assert!(table_names(&healed).contains(&fresh.doc_table));
     assert_eq!(count(&healed, "SELECT count(*) FROM workspace"), 1);
     assert_eq!(
-        count(&healed, &format!("SELECT count(*) FROM project WHERE id = 'inbox' AND is_inbox = 1 AND workspace_id = '{}'", fresh.id)),
+        count(&healed, &format!("SELECT count(*) FROM project WHERE is_inbox = 1 AND workspace_id = '{}'", fresh.id)),
         1
     );
 }
@@ -229,11 +232,11 @@ fn a_workspace_accepts_only_one_inbox_and_the_flag_cannot_change() {
     extra.is_inbox = true;
     assert!(insert_project(&conn, &extra).is_err(), "one inbox per workspace");
     assert!(
-        conn.execute("UPDATE project SET is_inbox = 0 WHERE id = 'inbox'", []).is_err(),
+        conn.execute("UPDATE project SET is_inbox = 0 WHERE is_inbox = 1", []).is_err(),
         "is_inbox is immutable"
     );
     assert!(
-        conn.execute("UPDATE project SET id = 'moved' WHERE id = 'inbox'", []).is_err(),
+        conn.execute("UPDATE project SET id = 'moved' WHERE is_inbox = 1", []).is_err(),
         "id is immutable"
     );
     extra.is_inbox = false;
