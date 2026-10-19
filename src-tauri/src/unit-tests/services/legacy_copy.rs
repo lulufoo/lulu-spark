@@ -23,7 +23,7 @@ fn notes_and_knowledge_files_land_in_their_workspace_folders() {
     write(&data.join("knowledge/demo/docs/x.md"), "x");
     write(&data.join("knowledge/demo/.git/HEAD"), "ref");
 
-    let report = copy_legacy_files(data, &knowledge(&["demo", "ghost"])).expect("copy");
+    let report = copy_legacy_files(data, "default", "knowledge", &knowledge(&["demo", "ghost"])).expect("copy");
 
     let ws = data.join("workspaces");
     assert_eq!(read(&ws.join("default/raw/inbox/a.md")), "raw a");
@@ -43,10 +43,10 @@ fn a_finished_copy_is_not_repeated() {
     let dir = tempfile::tempdir().expect("tmp");
     let data = dir.path();
     write(&data.join("notes/raw/inbox/a.md"), "one");
-    copy_legacy_files(data, &knowledge(&[])).expect("first");
+    copy_legacy_files(data, "default", "knowledge", &knowledge(&[])).expect("first");
 
     write(&data.join("notes/raw/inbox/b.md"), "two");
-    let again = copy_legacy_files(data, &knowledge(&[])).expect("second");
+    let again = copy_legacy_files(data, "default", "knowledge", &knowledge(&[])).expect("second");
     assert!(again.already_done);
     assert!(!data.join("workspaces/default/raw/inbox/b.md").exists());
 }
@@ -59,7 +59,7 @@ fn an_interrupted_copy_resumes_without_overwriting_existing_files() {
     write(&data.join("notes/raw/inbox/b.md"), "b");
     write(&data.join("workspaces/default/raw/inbox/a.md"), "edited in new place");
 
-    let report = copy_legacy_files(data, &knowledge(&[])).expect("copy");
+    let report = copy_legacy_files(data, "default", "knowledge", &knowledge(&[])).expect("copy");
     assert_eq!((report.copied, report.skipped_existing), (1, 1));
     assert_eq!(read(&data.join("workspaces/default/raw/inbox/a.md")), "edited in new place");
     assert_eq!(read(&data.join("workspaces/default/raw/inbox/b.md")), "b");
@@ -68,7 +68,7 @@ fn an_interrupted_copy_resumes_without_overwriting_existing_files() {
 #[test]
 fn nothing_to_copy_still_finishes_and_writes_the_marker() {
     let dir = tempfile::tempdir().expect("tmp");
-    let report = copy_legacy_files(dir.path(), &knowledge(&[])).expect("copy");
+    let report = copy_legacy_files(dir.path(), "default", "knowledge", &knowledge(&[])).expect("copy");
     assert_eq!(report, LegacyCopyReport::default());
     assert!(dir.path().join("workspaces").join(LEGACY_COPY_MARKER).exists());
 }
@@ -87,7 +87,7 @@ fn removal_deletes_only_files_with_an_identical_workspace_copy() {
     write(&data.join("workspaces/default/digest/inbox/a.md"), "digest");
     write(&data.join("workspaces/knowledge/raw/knowledge:demo/docs/x.md"), "x");
 
-    let removed = remove_copied_legacy_files(data, &knowledge(&["demo"])).expect("remove");
+    let removed = remove_copied_legacy_files(data, "default", "knowledge", &knowledge(&["demo"])).expect("remove");
 
     assert_eq!(removed, 3);
     assert!(!data.join("notes/raw/inbox/a.md").exists());
@@ -104,9 +104,9 @@ fn removal_empties_and_deletes_the_legacy_roots() {
     let data = dir.path();
     write(&data.join("notes/raw/inbox/a.md"), "a");
     write(&data.join("knowledge/demo/x.md"), "x");
-    copy_legacy_files(data, &knowledge(&["demo"])).expect("copy");
+    copy_legacy_files(data, "default", "knowledge", &knowledge(&["demo"])).expect("copy");
 
-    let removed = remove_copied_legacy_files(data, &knowledge(&["demo"])).expect("remove");
+    let removed = remove_copied_legacy_files(data, "default", "knowledge", &knowledge(&["demo"])).expect("remove");
 
     assert_eq!(removed, 2);
     assert!(!data.join("notes").exists());
@@ -120,7 +120,7 @@ fn removal_leaves_a_legacy_file_with_no_copy_at_all() {
     let data = dir.path();
     write(&data.join("notes/raw/inbox/a.md"), "never copied");
 
-    let removed = remove_copied_legacy_files(data, &knowledge(&[])).expect("remove");
+    let removed = remove_copied_legacy_files(data, "default", "knowledge", &knowledge(&[])).expect("remove");
 
     assert_eq!(removed, 0);
     assert_eq!(read(&data.join("notes/raw/inbox/a.md")), "never copied");

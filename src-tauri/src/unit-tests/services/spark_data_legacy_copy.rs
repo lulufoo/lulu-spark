@@ -76,33 +76,39 @@ fn legacy_rows_are_copied_into_default_and_knowledge_and_the_old_tables_are_drop
     drop(old);
 
     let conn = open_at(&path).expect("→ latest");
-    assert_eq!(tables(&conn), vec!["doc_default", "doc_knowledge", "project", "tag", "workspace"]);
+    let default = get_default_workspace(&conn).expect("default");
+    let knowledge = get_workspace_by_name(&conn, "Knowledge").expect("lookup").expect("Knowledge");
+    let mut names = tables(&conn);
+    names.sort();
+    let mut expected = vec![default.doc_table.clone(), knowledge.doc_table.clone(), "project".into(), "tag".into(), "workspace".into()];
+    expected.sort();
+    assert_eq!(names, expected);
 
-    let default_projects = list_projects(&conn, "default").expect("list");
+    let default_projects = list_projects(&conn, &default.id).expect("list");
     let ids: Vec<_> = default_projects.iter().map(|p| p.id.as_str()).collect();
     assert_eq!(ids, vec!["inbox", "ops"]);
     let ops = get_project(&conn, "ops").expect("get").expect("ops");
     assert_eq!((ops.name.as_str(), ops.description.as_str()), ("Ops", "ops desc"));
 
-    assert_eq!(list_projects(&conn, "knowledge").expect("list").len(), 3);
+    assert_eq!(list_projects(&conn, &knowledge.id).expect("list").len(), 3);
     let demo = get_project(&conn, "knowledge:demo").expect("get").expect("demo");
-    assert_eq!(demo.workspace_id.as_str(), "knowledge");
+    assert_eq!(demo.workspace_id.as_str(), knowledge.id.as_str());
     assert_eq!(demo.description, "分组：AI\nabout demo");
     assert_eq!(get_project(&conn, "knowledge:plain").expect("get").expect("plain").description, "");
     assert_eq!(get_project(&conn, "knowledge:inbox").expect("get").expect("inbox").description, "分组：AI");
-    assert_eq!(get_project(&conn, "inbox").expect("get").expect("notes inbox").workspace_id, "default");
+    assert_eq!(get_project(&conn, "inbox").expect("get").expect("notes inbox").workspace_id, default.id);
 
-    assert_eq!(count(&conn, "doc_default"), 2);
-    let n2 = get_doc(&conn, "doc_default", "n2").expect("get").expect("n2");
+    assert_eq!(count(&conn, &default.doc_table), 2);
+    let n2 = get_doc(&conn, &default.doc_table, "n2").expect("get").expect("n2");
     assert_eq!((n2.raw_path.as_str(), n2.project_id.as_str(), n2.title.as_deref()), ("notes/b.md", "ops", Some("B")));
     assert_eq!(n2.tags, serde_json::json!(["x"]));
     assert!(n2.comments.to_string().contains("c1"));
 
-    assert_eq!(count(&conn, "doc_knowledge"), 2, "the missing record is not copied");
-    let k1 = get_doc(&conn, "doc_knowledge", "k1").expect("get").expect("k1");
+    assert_eq!(count(&conn, &knowledge.doc_table), 2, "the missing record is not copied");
+    let k1 = get_doc(&conn, &knowledge.doc_table, "k1").expect("get").expect("k1");
     assert_eq!((k1.raw_path.as_str(), k1.project_id.as_str()), ("docs/a.md", "knowledge:demo"));
-    let k3 = get_doc(&conn, "doc_knowledge", "k3").expect("get").expect("k3");
+    let k3 = get_doc(&conn, &knowledge.doc_table, "k3").expect("get").expect("k3");
     assert_eq!((k3.raw_path.as_str(), k3.project_id.as_str()), ("x.md", "knowledge:inbox"));
     assert!(k3.highlights.to_string().contains("h1"));
-    assert!(get_doc(&conn, "doc_knowledge", "k2").expect("get").is_none());
+    assert!(get_doc(&conn, &knowledge.doc_table, "k2").expect("get").is_none());
 }

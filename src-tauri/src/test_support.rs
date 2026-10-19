@@ -12,6 +12,24 @@ mod sandbox_layout;
 
 pub(crate) use notes_fixture::{block_note_writes, read_note_entries, seed_note_entries};
 
+pub fn default_workspace() -> crate::services::spark_data::WorkspaceRow {
+    let conn = crate::services::spark_data::open().expect("db");
+    crate::services::spark_data::get_default_workspace(&conn).expect("default workspace")
+}
+
+pub fn knowledge_workspace() -> crate::services::spark_data::WorkspaceRow {
+    let conn = crate::services::spark_data::open().expect("db");
+    crate::services::spark_data::get_workspace_by_name(&conn, "Knowledge")
+        .expect("lookup")
+        .expect("Knowledge")
+}
+
+pub fn default_workspace_dir() -> PathBuf {
+    crate::config::paths::workspaces_root()
+        .expect("workspaces root")
+        .join(default_workspace().id)
+}
+
 pub(crate) use config_env::{install_env_restore_probe, install_test_config_env_construction_probe};
 pub use config_env::TestConfigEnv;
 

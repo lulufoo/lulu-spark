@@ -2,8 +2,8 @@
 //!
 //! The database rows are copied by a migration step; this copies the files they point at:
 //!
-//! - `notes/{raw,digest}`           → `workspaces/default/{raw,digest}`
-//! - `knowledge/{name}` (legacy knowledge id) → `workspaces/knowledge/raw/{project.id}`
+//! - `notes/{raw,digest}` → `workspaces/{default workspace id}/{raw,digest}`
+//! - `knowledge/{name}` (legacy folder) → `workspaces/{Knowledge workspace id}/raw/{project.id}`
 //!
 //! The copy never overwrites an existing destination file, skips `.git` and symlinks, and
 //! writes a marker once it finishes, so an interrupted run is simply resumed on next start.
@@ -14,7 +14,9 @@
 use std::fs;
 use std::path::Path;
 
-use crate::services::spark_data::{list_projects, DEFAULT_WORKSPACE_ID, KNOWLEDGE_WORKSPACE_ID};
+use crate::services::spark_data::{
+    get_default_workspace, get_workspace_by_name, list_projects, list_workspaces,
+};
 
 /// Marker written under `workspaces/` once the copy completed.
 pub const LEGACY_COPY_MARKER: &str = ".legacy_copied";
@@ -36,6 +38,8 @@ pub struct LegacyCopyReport {
 /// `knowledge` is `(source folder under knowledge/, dest project id)`.
 pub fn copy_legacy_files(
     data_dir: &Path,
+    default_workspace_id: &str,
+    knowledge_workspace_id: &str,
     knowledge: &[(String, String)],
 ) -> Result<LegacyCopyReport, String> {
     let workspaces = data_dir.join("workspaces");
@@ -46,11 +50,11 @@ pub fn copy_legacy_files(
         return Ok(report);
     }
 
-    let default_dir = workspaces.join(DEFAULT_WORKSPACE_ID);
+    let default_dir = workspaces.join(default_workspace_id);
     for layer in ["raw", "digest"] {
         copy_tree(&data_dir.join("notes").join(layer), &default_dir.join(layer), &mut report)?;
     }
-    let knowledge_raw = workspaces.join(KNOWLEDGE_WORKSPACE_ID).join("raw");
+    let knowledge_raw = workspaces.join(knowledge_workspace_id).join("raw");
     for (folder, dest_id) in knowledge {
         let src = data_dir.join("knowledge").join(folder);
         if !src.is_dir() {
@@ -79,25 +83,46 @@ fn knowledge_source_name(project_id: &str) -> &str {
     project_id.strip_prefix("knowledge:").unwrap_or(project_id)
 }
 
-fn knowledge_projects() -> Result<Vec<(String, String)>, String> {
+fn knowledge_workspace_id(conn: &rusqlite::Connection) -> Result<Option<String>, String> {
+    if let Some(row) = get_workspace_by_name(conn, "Knowledge")? {
+        return Ok(Some(row.id));
+    }
+    for workspace in list_workspaces(conn)? {
+        if list_projects(conn, &workspace.id)?
+            .iter()
+            .any(|p| p.id.starts_with("knowledge:"))
+        {
+            return Ok(Some(workspace.id));
+        }
+    }
+    Ok(None)
+}
+
+fn knowledge_projects() -> Result<(String, String, Vec<(String, String)>), String> {
     let conn = crate::services::spark_data::open()?;
-    Ok(list_projects(&conn, KNOWLEDGE_WORKSPACE_ID)?
+    let default_id = get_default_workspace(&conn)?.id;
+    let Some(knowledge_id) = knowledge_workspace_id(&conn)? else {
+        return Ok((default_id, String::new(), Vec::new()));
+    };
+    let projects = list_projects(&conn, &knowledge_id)?
         .into_iter()
         .map(|p| (knowledge_source_name(&p.id).to_string(), p.id))
-        .collect())
+        .collect();
+    Ok((default_id, knowledge_id, projects))
 }
 
 /// Startup entry: read the knowledge project folders from the database, copy, then clean up.
 pub fn copy_legacy_files_at_startup(data_dir: &Path) -> Result<LegacyCopyReport, String> {
     let marker = data_dir.join("workspaces").join(LEGACY_COPY_MARKER);
+    let (default_id, knowledge_id, projects) = knowledge_projects()?;
     let mut report = if marker.exists() {
         LegacyCopyReport { already_done: true, ..Default::default() }
     } else {
         rename_sediment_kb(data_dir)?;
-        copy_legacy_files(data_dir, &knowledge_projects()?)?
+        copy_legacy_files(data_dir, &default_id, &knowledge_id, &projects)?
     };
     if marker.exists() {
-        report.removed = remove_copied_legacy_files(data_dir, &knowledge_projects()?)?;
+        report.removed = remove_copied_legacy_files(data_dir, &default_id, &knowledge_id, &projects)?;
     }
     Ok(report)
 }
@@ -107,15 +132,17 @@ pub fn copy_legacy_files_at_startup(data_dir: &Path) -> Result<LegacyCopyReport,
 /// anything unknown stay where they are.
 pub fn remove_copied_legacy_files(
     data_dir: &Path,
+    default_workspace_id: &str,
+    knowledge_workspace_id: &str,
     knowledge: &[(String, String)],
 ) -> Result<usize, String> {
     let workspaces = data_dir.join("workspaces");
-    let default_dir = workspaces.join(DEFAULT_WORKSPACE_ID);
+    let default_dir = workspaces.join(default_workspace_id);
     let mut removed = 0;
     for layer in ["raw", "digest"] {
         removed += remove_copied_tree(&data_dir.join("notes").join(layer), &default_dir.join(layer))?;
     }
-    let knowledge_raw = workspaces.join(KNOWLEDGE_WORKSPACE_ID).join("raw");
+    let knowledge_raw = workspaces.join(knowledge_workspace_id).join("raw");
     for (folder, dest_id) in knowledge {
         removed += remove_copied_tree(&data_dir.join("knowledge").join(folder), &knowledge_raw.join(dest_id))?;
     }

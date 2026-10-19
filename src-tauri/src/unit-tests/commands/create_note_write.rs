@@ -46,7 +46,8 @@ fn create_note_json_success_returns_entry_handle() {
     .expect("command Result");
     assert_eq!(v.get("ok"), Some(&json!(true)), "archive failed: {v}");
     let id = v["id"].as_str().expect("id");
-    assert!(crate::services::spark_data::is_valid_doc_id(id) && id.starts_with("default-"), "{id}");
+    let prefix = format!("{}-", crate::test_support::default_workspace().id);
+    assert!(crate::services::spark_data::is_valid_doc_id(id) && id.starts_with(&prefix), "{id}");
     assert!(v.get("common_path").is_none());
     assert!(v.get("error").is_none());
 }

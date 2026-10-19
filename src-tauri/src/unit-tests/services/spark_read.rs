@@ -41,7 +41,7 @@ fn with_notes_repo<F: FnOnce(&std::path::Path)>(
 ) {
     let sandbox = TestSandbox::new();
     let cfg_dir = sandbox.config_dir();
-    let notes = sandbox.data_dir().join("workspaces").join("default");
+    let notes = crate::test_support::default_workspace_dir();
     fs::create_dir_all(&notes).expect("workspace dir");
     setup(cfg_dir, notes.as_path());
     f(cfg_dir);
@@ -76,18 +76,19 @@ fn get_docs_index_is_built_from_the_doc_table_in_the_entry_shape() {
             }));
         },
         |_cfg_dir| {
+            let ws = crate::test_support::default_workspace().id;
             let v = get_docs_index(None);
             assert_eq!(
                 v,
-                json!({ "workspace_id": "default", "entries": {
+                json!({ "workspace_id": ws, "entries": {
                     "n1": {
-                        "id": "n1", "workspace_id": "default", "project_id": "seed-ai",
+                        "id": "n1", "workspace_id": ws, "project_id": "seed-ai",
                         "raw_path": "topic/20260101-a.md", "created_at": "202601010000",
                         "layers": ["raw", "digest"], "source_type": "article", "title": "A",
                         "translations": { "zh": "topic/20260101-a-zh.md" }
                     },
                     "n2": {
-                        "id": "n2", "workspace_id": "default", "project_id": "seed-ai",
+                        "id": "n2", "workspace_id": ws, "project_id": "seed-ai",
                         "raw_path": "topic/20260102-b.md", "layers": ["raw"]
                     },
                 }})
@@ -100,7 +101,10 @@ fn get_docs_index_is_built_from_the_doc_table_in_the_entry_shape() {
 fn get_docs_index_of_an_empty_table_has_no_entries() {
     with_notes_repo(
         |_, _| {},
-        |_| assert_eq!(get_docs_index(None), json!({ "workspace_id": "default", "entries": {} })),
+        |_| {
+            let ws = crate::test_support::default_workspace().id;
+            assert_eq!(get_docs_index(None), json!({ "workspace_id": ws, "entries": {} }));
+        },
     );
 }
 

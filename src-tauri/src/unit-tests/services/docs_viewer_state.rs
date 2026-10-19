@@ -8,8 +8,12 @@ use crate::test_support::TestSandbox;
 
 const DOC: &str = "abcdefabcdefabcdefabcdefabcdefab";
 
+fn default_id() -> String {
+    crate::test_support::default_workspace().id
+}
+
 fn state_path(sandbox: &TestSandbox) -> std::path::PathBuf {
-    sandbox.cache_dir().join("workspace-viewer-state/default.json")
+    sandbox.cache_dir().join("workspace-viewer-state").join(format!("{}.json", default_id()))
 }
 
 #[test]
@@ -84,9 +88,9 @@ fn each_workspace_remembers_its_own_state() {
         .as_str()
         .expect("id")
         .to_string();
-    set_viewer_state(&json!({ "workspace_id": "default", "project_id": "a", "doc": DOC }));
+    set_viewer_state(&json!({ "workspace_id": default_id(), "project_id": "a", "doc": DOC }));
     assert_eq!(get_viewer_state(&json!({ "workspace_id": other }))["projects"], json!({}));
-    assert_eq!(get_viewer_state(&json!({ "workspace_id": "default" }))["projects"]["a"]["doc"], DOC);
+    assert_eq!(get_viewer_state(&json!({ "workspace_id": default_id() }))["projects"]["a"]["doc"], DOC);
 }
 
 #[test]

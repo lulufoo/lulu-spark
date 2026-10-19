@@ -36,6 +36,21 @@ pub fn is_valid_doc_id(id: &str) -> bool {
     split_doc_id(id).is_some()
 }
 
+/// The id stored in `workspace_id`'s table for a request id.
+///
+/// After the built-in workspaces leave the literal ids `default` / `knowledge`,
+/// a `spark-doc:default-…` link still names the hex; this rewrites the prefix.
+pub fn stored_doc_id(workspace_id: &str, requested: &str) -> String {
+    match split_doc_id(requested) {
+        Some((Some(prefix), hex))
+            if prefix != workspace_id && (prefix == "default" || prefix == "knowledge") =>
+        {
+            format!("{workspace_id}-{hex}")
+        }
+        _ => requested.to_string(),
+    }
+}
+
 /// Document ids present in more than one workspace table, with the workspaces that hold them.
 /// Each table keeps its ids unique on its own; nothing enforces it across tables.
 pub fn duplicate_doc_ids(conn: &Connection) -> Result<Vec<(String, Vec<String>)>, String> {

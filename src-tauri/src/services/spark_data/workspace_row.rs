@@ -10,11 +10,6 @@ use rusqlite::{params, Connection, OptionalExtension, Row};
 use super::doc_table::{create_doc_table, doc_table_for_id, validate_doc_table_name};
 use crate::services::id::random_alnum6;
 
-/// Id of the built-in default workspace (the former Notes).
-pub const DEFAULT_WORKSPACE_ID: &str = "default";
-/// Id of the seeded workspace that took over the former Knowledge.
-pub const KNOWLEDGE_WORKSPACE_ID: &str = "knowledge";
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ViewMode {
     Directory,
@@ -82,7 +77,7 @@ fn clean_name(name: &str) -> Result<&str, String> {
     Ok(name)
 }
 
-fn mint_id(conn: &Connection) -> Result<String, String> {
+pub(super) fn mint_workspace_id(conn: &Connection) -> Result<String, String> {
     for _ in 0..8 {
         let id = random_alnum6();
         if get_workspace(conn, &id)?.is_none() {
@@ -90,6 +85,14 @@ fn mint_id(conn: &Connection) -> Result<String, String> {
         }
     }
     Err("could not mint a unique workspace id".to_string())
+}
+
+/// The workspace with `is_default = 1`. Its id is Host-made and is not a literal.
+pub fn get_default_workspace(conn: &Connection) -> Result<WorkspaceRow, String> {
+    list_workspaces(conn)?
+        .into_iter()
+        .find(|w| w.is_default)
+        .ok_or_else(|| "default workspace missing".to_string())
 }
 
 /// Register a workspace and create its document table in one transaction.
@@ -102,7 +105,7 @@ pub fn create_workspace(
     let name = clean_name(name)?;
     let mode = view_mode.unwrap_or(ViewMode::Directory);
     let tx = conn.unchecked_transaction().map_err(|e| e.to_string())?;
-    let id = mint_id(&tx)?;
+    let id = mint_workspace_id(&tx)?;
     let doc_table = doc_table_for_id(&id)?;
     tx.execute(
         &format!(

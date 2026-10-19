@@ -51,7 +51,7 @@ fn create_update_and_reorder_report_the_count_too() {
     let created = create_project(&json!({ "project_name": "Plans" }));
     assert_eq!(created["doc_count"], json!(0), "{created}");
     let plans = created["project_id"].as_str().expect("id").to_string();
-    add_doc("default", &plans, "notes/202601011200-aaaaaa.md");
+    add_doc(&crate::test_support::default_workspace().id, &plans, "notes/202601011200-aaaaaa.md");
 
     let updated = update_project(&json!({ "project_id": plans, "project_name": "Roadmaps" }));
     assert_eq!(updated["doc_count"], json!(1), "{updated}");

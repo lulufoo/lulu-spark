@@ -7,8 +7,8 @@ use crate::test_support::{seed_note_entries, TestSandbox};
 
 const ID: &str = "abcdefabcdefabcdefabcdefabcdefab";
 
-fn seed_index(sandbox: &TestSandbox) {
-    let notes = sandbox.data_dir().join("workspaces").join("default");
+fn seed_index(_sandbox: &TestSandbox) {
+    let notes = crate::test_support::default_workspace_dir();
     fs::create_dir_all(&notes).expect("mkdir notes");
     let index = json!({
         "entries": {

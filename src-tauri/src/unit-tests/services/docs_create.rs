@@ -20,7 +20,7 @@ const SAMPLE_DOC: &str = r#"# Test Title
 
 fn setup_notes() -> TestSandbox {
     let sandbox = TestSandbox::new();
-    let notes = sandbox.data_dir().join("workspaces").join("default");
+    let notes = crate::test_support::default_workspace_dir();
     fs::create_dir_all(notes.join("raw")).expect("raw dir");
     fs::create_dir_all(notes.join("digest")).expect("digest dir");
     sandbox
@@ -58,7 +58,7 @@ fn path_payload(sandbox: &TestSandbox, content: &str, mut base: serde_json::Valu
 }
 
 fn default_workspace_dir() -> PathBuf {
-    crate::config::paths::workspaces_root().expect("workspaces root").join("default")
+    crate::test_support::default_workspace_dir()
 }
 
 fn inbox_id() -> String {
@@ -127,7 +127,8 @@ fn create_note_writes_raw_and_index() {
     );
     assert_eq!(v.get("ok"), Some(&json!(true)), "create_note failed: {v}");
     let id = v["id"].as_str().expect("id");
-    assert!(crate::services::spark_data::is_valid_doc_id(id) && id.starts_with("default-"), "{id}");
+    let prefix = format!("{}-", crate::test_support::default_workspace().id);
+    assert!(crate::services::spark_data::is_valid_doc_id(id) && id.starts_with(&prefix), "{id}");
     let notes = default_workspace_dir();
     let rel = note_row(id).raw_path;
     assert!(rel.starts_with("notes/"), "{rel}");
@@ -586,7 +587,8 @@ fn create_note_content_writes_from_markdown_body() {
     );
     assert_eq!(v.get("ok"), Some(&json!(true)), "create_note_content failed: {v}");
     let id = v["id"].as_str().expect("id");
-    assert!(crate::services::spark_data::is_valid_doc_id(id) && id.starts_with("default-"), "{id}");
+    let prefix = format!("{}-", crate::test_support::default_workspace().id);
+    assert!(crate::services::spark_data::is_valid_doc_id(id) && id.starts_with(&prefix), "{id}");
     let rel = note_row(id).raw_path;
     assert!(rel.starts_with("notes/"), "{rel}");
     assert!(rel.ends_with(".md"), "{rel}");
@@ -1127,7 +1129,8 @@ fn create_jot_refuses_a_project_of_another_workspace() {
     assert_eq!(made["ok"], json!(true), "{made}");
     let theirs = made["project_id"].as_str().expect("project id");
     let before = jot_dirs(&default_workspace_dir());
-    let err = create_jot(Some("default"), Some(theirs), "跨工作区", &jot_opts_with_ts("202607101443"))
+    let default = crate::test_support::default_workspace().id;
+    let err = create_jot(Some(&default), Some(theirs), "跨工作区", &jot_opts_with_ts("202607101443"))
         .expect_err("another workspace's project");
     assert!(err.starts_with("400:") || err.starts_with("404:"), "{err}");
     assert_eq!(jot_dirs(&default_workspace_dir()), before);

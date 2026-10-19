@@ -45,7 +45,7 @@ export function useHostState() {
 }
 
 export const state: HostState = {
-  workspaces: { current: 'default', list: [] },
+  workspaces: { current: '', list: [] },
   index: {
     data: null,
     groupedByDate: [],

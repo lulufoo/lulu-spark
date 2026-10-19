@@ -4,7 +4,7 @@
 
 use std::collections::HashMap;
 
-use crate::services::spark_data::{self, get_doc, get_project, get_workspace};
+use crate::services::spark_data::{self, get_doc, get_project, get_workspace, stored_doc_id};
 
 use super::collect::DOCS_CATEGORY;
 use super::query::QueryHit;
@@ -23,7 +23,8 @@ fn locate(
             let Some(workspace) = get_workspace(conn, workspace_id)? else {
                 return Ok(None);
             };
-            let Some(doc) = get_doc(conn, &workspace.doc_table, doc_id)? else {
+            let stored = stored_doc_id(&workspace.id, doc_id);
+            let Some(doc) = get_doc(conn, &workspace.doc_table, &stored)? else {
                 return Ok(None);
             };
             let project = get_project(conn, &doc.project_id)?.map(|p| p.id).unwrap_or_default();

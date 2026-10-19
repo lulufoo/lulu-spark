@@ -136,19 +136,14 @@ const MessageThread = memo(function MessageThread({
   );
 });
 
-const DEFAULT_WORKSPACE_ID = 'default';
-
-/** Seed rows, used until the workspace registry is loaded. */
-const SEED_WORKSPACES: HomeWorkspaceRow[] = [
-  { id: DEFAULT_WORKSPACE_ID, name: 'Default', isDefault: true, icon: '' },
-  { id: 'knowledge', name: 'Knowledge', isDefault: false, icon: '' },
-];
-
 /** One row per enabled workspace; the label follows its current name, so a rename shows up here. */
 function navWorkspaces(): HomeWorkspaceRow[] {
-  const list = state.workspaces.list;
-  if (list.length === 0) return SEED_WORKSPACES;
-  return list.map((w) => ({ id: w.workspace_id, name: w.workspace_name, isDefault: w.is_default, icon: w.icon }));
+  return state.workspaces.list.map((w) => ({
+    id: w.workspace_id,
+    name: w.workspace_name,
+    isDefault: w.is_default,
+    icon: w.icon,
+  }));
 }
 
 /** Names for the search results: workspaces from the host list, projects from the Home sidebar. */
@@ -383,11 +378,11 @@ export function HomePage({
               projects={state.workspaceProjects}
               unreadDocs={state.channelUnread.docs}
               onOpenWorkspace={(id) => {
-                if (id === DEFAULT_WORKSPACE_ID) void markHomeEntryRead('spark');
+                if (navWorkspaces().find((w) => w.id === id)?.isDefault) void markHomeEntryRead('spark');
                 openWorkspace(id, navigateFn);
               }}
               onOpenProject={(id, projectId) => {
-                if (id === DEFAULT_WORKSPACE_ID) void markHomeEntryRead('spark');
+                if (navWorkspaces().find((w) => w.id === id)?.isDefault) void markHomeEntryRead('spark');
                 void openProject(id, projectId, navigateFn);
               }}
             />

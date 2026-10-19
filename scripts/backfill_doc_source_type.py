@@ -30,7 +30,6 @@ from datetime import datetime
 from pathlib import Path
 
 DEFAULT_DATA_DIR = Path.home() / ".cache" / "lulu-spark" / "data"
-KNOWLEDGE_WORKSPACE_ID = "knowledge"
 DOC_TABLE_RE = re.compile(r"^doc_[a-z0-9_]{1,48}$")
 
 
@@ -40,9 +39,17 @@ def validate_doc_table(table: str) -> str:
     return table
 
 
-def workspaces(conn: sqlite3.Connection) -> list[tuple[str, str]]:
+def workspaces(conn: sqlite3.Connection) -> list[tuple[str, str, str | None]]:
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(workspace)")}
+    if "name" in cols:
+        rows = conn.execute("SELECT id, doc_table, name FROM workspace ORDER BY id").fetchall()
+        return [(workspace_id, validate_doc_table(table), name) for workspace_id, table, name in rows]
     rows = conn.execute("SELECT id, doc_table FROM workspace ORDER BY id").fetchall()
-    return [(workspace_id, validate_doc_table(table)) for workspace_id, table in rows]
+    return [(workspace_id, validate_doc_table(table), None) for workspace_id, table in rows]
+
+
+def is_knowledge_workspace(workspace_id: str, name: str | None) -> bool:
+    return workspace_id == "knowledge" or name == "Knowledge"
 
 
 def count_rows(conn: sqlite3.Connection, table: str, where: str) -> int:
@@ -53,9 +60,9 @@ def plan_changes(conn: sqlite3.Connection) -> tuple[list[tuple[str, str, int]], 
     """Per-workspace NULL→article (Knowledge only) and theme-line→video (every table)."""
     nulls: list[tuple[str, str, int]] = []
     themes: list[tuple[str, str, int]] = []
-    for workspace_id, table in workspaces(conn):
+    for workspace_id, table, name in workspaces(conn):
         themes.append((workspace_id, table, count_rows(conn, table, "source_type = 'theme-line'")))
-        if workspace_id == KNOWLEDGE_WORKSPACE_ID:
+        if is_knowledge_workspace(workspace_id, name):
             nulls.append((workspace_id, table, count_rows(conn, table, "source_type IS NULL")))
     return nulls, themes
 

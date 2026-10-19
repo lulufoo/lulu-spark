@@ -26,7 +26,7 @@ fn chunk(id: &str, doc: &str, category: &str, body: &str) -> SourceChunk {
 
 /// A chunk of a document of the default workspace.
 fn doc_chunk(id: &str, doc: &str, body: &str) -> SourceChunk {
-    chunk(id, doc, "docs", body).in_workspace("default")
+    chunk(id, doc, "docs", body).in_workspace(&crate::test_support::default_workspace().id)
 }
 
 #[test]
@@ -73,7 +73,7 @@ fn replace_doc_chunks_drops_stale_tail_chunks() {
 #[test]
 fn sync_workspace_docs_is_noop_without_index_file() {
     let _sandbox = crate::test_support::TestSandbox::new();
-    let n = sync_workspace_docs("default", &["x"]).expect("noop");
+    let n = sync_workspace_docs(&crate::test_support::default_workspace().id, &["x"]).expect("noop");
     assert_eq!(n, 0);
     assert!(
         !index_exists(&cache_dir_or_err().expect("cache")),
@@ -98,7 +98,7 @@ fn desktop_spark_hits_always_expose_raw_layer() {
             "",
             0,
         )
-        .in_workspace("default");
+        .in_workspace(&crate::test_support::default_workspace().id);
         upsert_chunks(&conn, &[digest_only]).expect("seed");
         drop(conn);
         let out = search_desktop_docs(&cache, "角色扮演", Some(5), None);
