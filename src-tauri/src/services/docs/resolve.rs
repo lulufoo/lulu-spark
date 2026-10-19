@@ -12,7 +12,7 @@ use serde_json::{json, Value};
 use crate::config::paths;
 use crate::services::docs::workspace_dir;
 use crate::services::spark_data::{
-    self, find_doc, get_doc, get_inbox_project, get_project, get_workspace, list_workspaces, DocRow,
+    self, find_doc, get_doc, get_default_project, get_project, get_workspace, list_workspaces, DocRow,
     ProjectRow, WorkspaceRow,
 };
 
@@ -143,7 +143,7 @@ pub(super) fn resolve_project(
         Some(id) => get_project(conn, id)
             .map_err(internal)?
             .ok_or_else(|| bad_request(format!("Unknown project: {id}")))?,
-        None => get_inbox_project(conn, &workspace.id)
+        None => get_default_project(conn, &workspace.id)
             .map_err(internal)?
             .ok_or_else(|| bad_request(format!("Inbox missing in workspace {}", workspace.id)))?,
     };

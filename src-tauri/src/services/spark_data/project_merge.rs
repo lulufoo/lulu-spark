@@ -19,7 +19,7 @@ pub fn delete_project_after_merge(
         }
     }
     let removed = tx
-        .execute("DELETE FROM project WHERE id = ?1 AND is_inbox = 0", params![project_id])
+        .execute("DELETE FROM project WHERE id = ?1 AND is_default = 0", params![project_id])
         .map_err(|e| e.to_string())?;
     if removed == 0 {
         return Err(format!("project {project_id} does not exist or is built-in"));

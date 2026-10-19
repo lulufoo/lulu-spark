@@ -69,7 +69,7 @@ fn an_empty_file_is_created_at_the_baseline_with_the_whole_schema() {
     assert_eq!(user_version(&conn), BASELINE_VERSION as i64);
 
     assert_eq!(table_names(&conn), ["document", "project", "tag", "workspace"]);
-    assert_eq!(names(&conn, "index"), ["document_project_id", "project_one_inbox", "workspace_one_default"]);
+    assert_eq!(names(&conn, "index"), ["document_project_id", "project_one_default", "workspace_one_default"]);
     assert_eq!(
         names(&conn, "trigger"),
         vec!["project_keys_immutable", "workspace_default_undeletable", "workspace_keys_immutable"]
@@ -91,7 +91,7 @@ fn the_seed_is_default_and_its_inbox_only() {
 
     let projects = list_projects(&conn, &default.id).expect("projects");
     assert_eq!(projects.len(), 1);
-    assert_eq!((projects[0].name.as_str(), projects[0].is_inbox), ("Inbox", true));
+    assert_eq!((projects[0].name.as_str(), projects[0].is_default), ("Inbox", true));
     assert_ne!(projects[0].id, "inbox", "the inbox id is minted like any project id");
     assert_eq!(projects[0].id.len(), 23, "YYYYMMDDHHMMSSmmm + 6 characters: {}", projects[0].id);
     assert_eq!(count(&conn, "SELECT count(*) FROM project"), 1);
@@ -103,7 +103,7 @@ fn reopening_changes_nothing_and_keeps_rows() {
     let first = open_at(&path).expect("first open");
     let default = default_ws(&first);
     let tables = table_names(&first);
-    let inbox = get_inbox_project(&first, &default.id).expect("lookup").expect("inbox");
+    let inbox = get_default_project(&first, &default.id).expect("lookup").expect("inbox");
     insert_doc(&first, &DocRow::new("n1", "a/b.md", &inbox.id)).expect("seed");
     drop(first);
 
@@ -175,7 +175,7 @@ fn a_baseline_file_without_a_default_workspace_gets_one_and_an_existing_one_is_k
     assert_eq!((fresh.name.as_str(), fresh.is_default), ("Default", true));
     assert_eq!(count(&healed, "SELECT count(*) FROM workspace"), 1);
     assert_eq!(
-        count(&healed, &format!("SELECT count(*) FROM project WHERE is_inbox = 1 AND workspace_id = '{}'", fresh.id)),
+        count(&healed, &format!("SELECT count(*) FROM project WHERE is_default = 1 AND workspace_id = '{}'", fresh.id)),
         1
     );
 }
@@ -194,7 +194,7 @@ fn open_uses_wal_and_foreign_keys() {
 fn schema_rejects_bad_values() {
     let (_dir, path) = temp_db();
     let conn = open_at(&path).expect("open");
-    let inbox = get_inbox_project(&conn, &default_ws(&conn).id).expect("lookup").expect("inbox");
+    let inbox = get_default_project(&conn, &default_ws(&conn).id).expect("lookup").expect("inbox");
     insert_doc(&conn, &DocRow::new("ok", "a.md", &inbox.id)).expect("a valid row goes in");
     let mut doc = DocRow::new("n1", "a.md", &inbox.id);
     doc.importance = Some("urgent".into());
@@ -214,17 +214,17 @@ fn a_workspace_accepts_only_one_inbox_and_the_flag_cannot_change() {
     let (_dir, path) = temp_db();
     let conn = open_at(&path).expect("open");
     let mut extra = ProjectRow::new("i2", &default_ws(&conn).id, "Other", "");
-    extra.is_inbox = true;
+    extra.is_default = true;
     assert!(insert_project(&conn, &extra).is_err(), "one inbox per workspace");
     assert!(
-        conn.execute("UPDATE project SET is_inbox = 0 WHERE is_inbox = 1", []).is_err(),
-        "is_inbox is immutable"
+        conn.execute("UPDATE project SET is_default = 0 WHERE is_default = 1", []).is_err(),
+        "is_default is immutable"
     );
     assert!(
-        conn.execute("UPDATE project SET id = 'moved' WHERE is_inbox = 1", []).is_err(),
+        conn.execute("UPDATE project SET id = 'moved' WHERE is_default = 1", []).is_err(),
         "id is immutable"
     );
-    extra.is_inbox = false;
+    extra.is_default = false;
     insert_project(&conn, &extra).expect("a non-inbox project is fine");
 }
 

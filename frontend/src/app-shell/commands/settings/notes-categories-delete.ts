@@ -9,7 +9,7 @@ import { loadNotesCategories } from './notes-categories.ts';
 export function askDeleteProject(id: string) {
   const snap = notesCategoriesStore.getSnapshot();
   const row = snap.rows.find((r) => r.id === id);
-  if (!row || row.is_inbox || snap.busy) return;
+  if (!row || row.is_default || snap.busy) return;
   patchNotesCategories({ deleteId: id, deleteError: '' });
 }
 
@@ -42,7 +42,7 @@ export async function confirmDeleteProject(workspaceId: string): Promise<boolean
   const snap = notesCategoriesStore.getSnapshot();
   const id = snap.deleteId;
   if (!id || snap.busy) return false;
-  const inboxId = snap.rows.find((r) => r.is_inbox)?.id ?? '';
+  const inboxId = snap.rows.find((r) => r.is_default)?.id ?? '';
   patchNotesCategories({ busy: true, deleteError: '' });
   try {
     const result = await api.deleteProject(workspaceId, id);

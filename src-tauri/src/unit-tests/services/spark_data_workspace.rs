@@ -82,7 +82,7 @@ fn create_workspace_registers_row_and_inbox_in_one_step() {
     assert_eq!(made.view_mode, ViewMode::Directory);
     assert!(!made.is_default);
     assert!(validate_workspace_id(&made.id).is_ok(), "id {:?}", made.id);
-    assert!(get_inbox_project(&conn, &made.id).expect("inbox").is_some());
+    assert!(get_default_project(&conn, &made.id).expect("inbox").is_some());
     assert_eq!(get_workspace(&conn, &made.id).expect("get"), Some(made.clone()));
 
     let timeline = create_workspace(&conn, "Log", Some(ViewMode::Timeline)).expect("create");
@@ -95,8 +95,8 @@ fn a_workspace_is_created_with_its_inbox_or_not_at_all() {
     let (_dir, path) = temp_db();
     let conn = open_at(&path).expect("open");
     let made = create_workspace(&conn, "Made", None).expect("made");
-    let inbox = get_inbox_project(&conn, &made.id).expect("lookup").expect("inbox");
-    assert!(inbox.is_inbox && inbox.name == "Inbox");
+    let inbox = get_default_project(&conn, &made.id).expect("lookup").expect("inbox");
+    assert!(inbox.is_default && inbox.name == "Inbox");
 
     // The inbox is the last step; when it fails the row must not stay.
     conn.execute_batch(
@@ -358,7 +358,7 @@ fn new_workspaces_and_projects_are_appended_and_the_default_can_move() {
         "appended in creation order, not by name"
     );
 
-    let zeta_inbox = get_inbox_project(&conn, &zeta.id).expect("lookup").expect("a new workspace has an inbox").id;
+    let zeta_inbox = get_default_project(&conn, &zeta.id).expect("lookup").expect("a new workspace has an inbox").id;
     insert_project(&conn, &ProjectRow::new("pz", &zeta.id, "Zz", "")).expect("pz");
     insert_project(&conn, &ProjectRow::new("pa", &zeta.id, "Aa", "")).expect("pa");
     assert_eq!(project_ids(&conn, &zeta.id), strings(&[&zeta_inbox, "pz", "pa"]));
@@ -406,7 +406,7 @@ fn projects_keep_the_order_they_were_given_and_a_disabled_workspace_comes_back_t
     let (_dir, path) = temp_db();
     let conn = open_at(&path).expect("open");
     let made = create_workspace(&conn, "Made", None).expect("made");
-    let inbox = get_inbox_project(&conn, &made.id).expect("lookup").expect("a new workspace has an inbox").id;
+    let inbox = get_default_project(&conn, &made.id).expect("lookup").expect("a new workspace has an inbox").id;
     for (id, folder) in [("p1", "one"), ("p2", "two"), ("p3", "three")] {
         insert_project(&conn, &ProjectRow::new(id, &made.id, folder, "")).expect(folder);
     }

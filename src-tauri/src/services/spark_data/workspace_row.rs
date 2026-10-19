@@ -7,7 +7,7 @@
 
 use rusqlite::{params, Connection, OptionalExtension, Row};
 
-use super::project_row::insert_inbox_project;
+use super::project_row::insert_default_project;
 use crate::services::id::random_alnum6;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -138,7 +138,7 @@ fn insert_workspace(
             params![id, name, view_mode.as_str(), is_default as i64],
         )
         .map_err(|e| e.to_string())?;
-        insert_inbox_project(conn, &id)?;
+        insert_default_project(conn, &id)?;
         get_workspace(conn, &id)?.ok_or_else(|| "workspace row missing after insert".to_string())
     })
 }

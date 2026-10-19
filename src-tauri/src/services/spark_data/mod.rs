@@ -23,7 +23,7 @@ pub use doc_entry::{entry_from_doc, find_doc, list_doc_entries, translation_comm
 
 pub use project_merge::delete_project_after_merge;
 pub use project_row::{
-    get_inbox_project, get_project, insert_inbox_project, insert_project, list_projects, mint_project_id,
+    get_default_project, get_project, insert_default_project, insert_project, list_projects, mint_project_id,
     reorder_projects, update_project, ProjectRow,
 };
 pub use tag_rows::{

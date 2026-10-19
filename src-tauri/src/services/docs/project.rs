@@ -1,6 +1,6 @@
 //! Project operations inside one workspace: `list` / `create` / `update` / `reorder`.
 //!
-//! A project is addressed by its id. The inbox is the `is_inbox` row; its name can change.
+//! A project is addressed by its id. The inbox is the `is_default` row; its name can change.
 
 use std::collections::HashMap;
 
@@ -32,7 +32,7 @@ fn project_value(row: &ProjectRow, doc_count: i64) -> Value {
         "description": row.description,
         "icon": row.icon.clone().unwrap_or_default(),
         "sort_index": row.sort_index,
-        "is_inbox": row.is_inbox,
+        "is_default": row.is_default,
         "doc_count": doc_count,
     })
 }

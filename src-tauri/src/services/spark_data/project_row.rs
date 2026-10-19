@@ -17,7 +17,7 @@ pub struct ProjectRow {
     /// Position in the user's order inside the workspace; ignored on insert (new rows go last).
     pub sort_index: i64,
     /// The built-in inbox of this workspace. At most one row per workspace.
-    pub is_inbox: bool,
+    pub is_default: bool,
 }
 
 impl ProjectRow {
@@ -29,12 +29,12 @@ impl ProjectRow {
             description: description.to_string(),
             icon: None,
             sort_index: 0,
-            is_inbox: false,
+            is_default: false,
         }
     }
 }
 
-const COLUMNS: &str = "id, workspace_id, name, description, icon, sort_index, is_inbox";
+const COLUMNS: &str = "id, workspace_id, name, description, icon, sort_index, is_default";
 
 fn map_row(row: &Row<'_>) -> rusqlite::Result<ProjectRow> {
     Ok(ProjectRow {
@@ -44,13 +44,13 @@ fn map_row(row: &Row<'_>) -> rusqlite::Result<ProjectRow> {
         description: row.get(3)?,
         icon: row.get(4)?,
         sort_index: row.get(5)?,
-        is_inbox: row.get::<_, i64>(6)? != 0,
+        is_default: row.get::<_, i64>(6)? != 0,
     })
 }
 
 pub fn insert_project(conn: &Connection, row: &ProjectRow) -> Result<(), String> {
     conn.execute(
-        "INSERT INTO project(id, workspace_id, name, description, icon, sort_index, is_inbox)
+        "INSERT INTO project(id, workspace_id, name, description, icon, sort_index, is_default)
          VALUES (?1, ?2, ?3, ?4, ?5,
                  (SELECT coalesce(max(sort_index) + 1, 0) FROM project WHERE workspace_id = ?2),
                  ?6)",
@@ -60,7 +60,7 @@ pub fn insert_project(conn: &Connection, row: &ProjectRow) -> Result<(), String>
             row.name,
             row.description,
             row.icon,
-            if row.is_inbox { 1 } else { 0 }
+            if row.is_default { 1 } else { 0 }
         ],
     )
     .map(|_| ())
@@ -112,19 +112,19 @@ pub fn mint_project_id(conn: &Connection) -> Result<String, String> {
 }
 
 /// The empty inbox project every workspace starts with. Called wherever a workspace is
-/// created, so a workspace never exists without one. The inbox is the `is_inbox` row; its
+/// created, so a workspace never exists without one. The inbox is the `is_default` row; its
 /// id is minted like any other project id.
-pub fn insert_inbox_project(conn: &Connection, workspace_id: &str) -> Result<ProjectRow, String> {
+pub fn insert_default_project(conn: &Connection, workspace_id: &str) -> Result<ProjectRow, String> {
     let mut row = ProjectRow::new(&mint_project_id(conn)?, workspace_id, "Inbox", "");
-    row.is_inbox = true;
+    row.is_default = true;
     insert_project(conn, &row)?;
     Ok(row)
 }
 
 /// The built-in inbox of this workspace, if the row exists.
-pub fn get_inbox_project(conn: &Connection, workspace_id: &str) -> Result<Option<ProjectRow>, String> {
+pub fn get_default_project(conn: &Connection, workspace_id: &str) -> Result<Option<ProjectRow>, String> {
     conn.query_row(
-        &format!("SELECT {COLUMNS} FROM project WHERE workspace_id = ?1 AND is_inbox = 1"),
+        &format!("SELECT {COLUMNS} FROM project WHERE workspace_id = ?1 AND is_default = 1"),
         params![workspace_id],
         map_row,
     )

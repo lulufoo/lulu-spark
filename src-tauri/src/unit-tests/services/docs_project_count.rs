@@ -29,7 +29,7 @@ fn new_project(ws: &str, name: &str) -> String {
 fn list_projects_counts_documents_per_project() {
     let _sandbox = TestSandbox::new();
     let ws = create_workspace(&json!({ "workspace_name": "Work" }))["workspace_id"].as_str().expect("ws").to_string();
-    let inbox = spark_data::get_inbox_project(&spark_data::open().expect("db"), &ws).expect("get").expect("inbox").id;
+    let inbox = spark_data::get_default_project(&spark_data::open().expect("db"), &ws).expect("get").expect("inbox").id;
     let plans = new_project(&ws, "Plans");
     new_project(&ws, "Empty");
     add_doc(&inbox, "notes/202601011200-aaaaaa.md");

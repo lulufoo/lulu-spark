@@ -36,7 +36,7 @@ fn new_workspace(name: &str) -> String {
 }
 
 fn inbox_of(workspace: &str) -> String {
-    spark_data::get_inbox_project(&spark_data::open().expect("db"), workspace)
+    spark_data::get_default_project(&spark_data::open().expect("db"), workspace)
         .expect("lookup")
         .expect("inbox")
         .id
@@ -262,7 +262,7 @@ fn project_crud_follows_the_workspace_and_protects_inbox_and_documents() {
         .as_array()
         .expect("array")
         .iter()
-        .find(|p| p["is_inbox"] == true)
+        .find(|p| p["is_default"] == true)
         .expect("created workspace has an inbox");
     let inbox_id = text(inbox, "project_id");
     assert_eq!(text(inbox, "project_name"), "Inbox");
@@ -661,7 +661,7 @@ fn workspace_and_project_results_are_flat_and_keyed_by_resource() {
     keys.sort_unstable();
     assert_eq!(
         keys,
-        vec!["description", "doc_count", "icon", "is_inbox", "ok", "project_id", "project_name", "sort_index"],
+        vec!["description", "doc_count", "icon", "is_default", "ok", "project_id", "project_name", "sort_index"],
         "a project result is flat and does not echo workspace_id: {project}"
     );
     let listed = list_projects(&json!({ "workspace_id": ws }));

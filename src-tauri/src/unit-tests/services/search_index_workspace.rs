@@ -52,7 +52,7 @@ fn searching_with_a_workspace_only_hits_that_workspace() {
     let scoped = search_in_cache(&cache, WORD, &only_workspace(&other), 10).expect("scoped");
     assert_eq!(ids(&scoped), vec![in_other.as_str()]);
     assert_eq!(scoped[0].workspace_id, other);
-    let inbox = crate::services::spark_data::get_inbox_project(
+    let inbox = crate::services::spark_data::get_default_project(
         &crate::services::spark_data::open().expect("db"),
         &other,
     )

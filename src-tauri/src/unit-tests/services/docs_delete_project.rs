@@ -22,7 +22,7 @@ fn setup() -> Setup {
     let sandbox = TestSandbox::new();
     let ws = create_workspace(&json!({ "workspace_name": "Work" }))["workspace_id"].as_str().expect("ws").to_string();
     let conn = spark_data::open().expect("db");
-    let inbox = spark_data::get_inbox_project(&conn, &ws).expect("lookup").expect("inbox").id;
+    let inbox = spark_data::get_default_project(&conn, &ws).expect("lookup").expect("inbox").id;
     let made = create_project(&json!({ "workspace_id": ws, "project_name": "Plans" }));
     let project = made["project_id"].as_str().expect("project").to_string();
     Setup { sandbox, ws, inbox, project }

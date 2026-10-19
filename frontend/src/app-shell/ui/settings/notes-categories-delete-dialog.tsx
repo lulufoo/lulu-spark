@@ -14,7 +14,7 @@ export function describeProjectDelete(title: string, count: number, inboxTitle: 
 export function NotesCategoriesDeleteDialog() {
   const snap = useSyncExternalStore(notesCategoriesStore.subscribe, notesCategoriesStore.getSnapshot);
   const row = snap.rows.find((r) => r.id === snap.deleteId);
-  const inbox = snap.rows.find((r) => r.is_inbox);
+  const inbox = snap.rows.find((r) => r.is_default);
   const open = Boolean(row && inbox);
 
   useEffect(() => {

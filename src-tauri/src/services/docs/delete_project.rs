@@ -30,7 +30,7 @@ pub fn delete_project(payload: &Value) -> Value {
     let result = open_data().and_then(|conn| {
         let workspace = resolve_workspace(&conn, text_field(payload, "workspace_id"))?;
         let project = resolve_project(&conn, &workspace, Some(project_id))?;
-        if project.is_inbox {
+        if project.is_default {
             return Err(bad_request("Cannot delete the built-in project"));
         }
         ensure_workspace_enabled(&workspace)?;

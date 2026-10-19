@@ -4,7 +4,7 @@ use rusqlite::Connection;
 use serde_json::{json, Value};
 
 use crate::services::spark_data::{
-    self, get_default_workspace, get_inbox_project, get_project, insert_doc, insert_project, list_doc_entries, DocRow,
+    self, get_default_workspace, get_default_project, get_project, insert_doc, insert_project, list_doc_entries, DocRow,
     ProjectRow,
 };
 
@@ -38,7 +38,7 @@ fn ensure_project(conn: &Connection, project_id: &str) -> String {
     if project_id == "inbox" {
         // The seed's "inbox" folder is the default workspace's inbox, whatever its minted id is.
         let workspace = get_default_workspace(conn).expect("default workspace");
-        return get_inbox_project(conn, &workspace.id).expect("lookup").expect("inbox").id;
+        return get_default_project(conn, &workspace.id).expect("lookup").expect("inbox").id;
     }
     if get_project(conn, project_id).expect("lookup").is_some() {
         return project_id.to_string();

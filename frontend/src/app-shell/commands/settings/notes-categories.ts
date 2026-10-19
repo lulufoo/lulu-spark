@@ -16,7 +16,7 @@ function asRows(data: unknown): NotesCategoryRow[] {
       project_name?: unknown;
       description?: unknown;
       icon?: unknown;
-      is_inbox?: unknown;
+      is_default?: unknown;
       doc_count?: unknown;
     }>;
     error?: string;
@@ -30,7 +30,7 @@ function asRows(data: unknown): NotesCategoryRow[] {
       id,
       title: typeof c.project_name === 'string' && c.project_name ? c.project_name : id,
       description: typeof c.description === 'string' ? c.description : '',
-      is_inbox: c.is_inbox === true,
+      is_default: c.is_default === true,
       icon: typeof c.icon === 'string' ? c.icon : '',
       doc_count: typeof c.doc_count === 'number' ? c.doc_count : 0,
     });
@@ -58,7 +58,7 @@ function applyNotesCategoryMaps(rows: NotesCategoryRow[]) {
     order.push(key);
     titleMap[key] = row.title || key;
     descMap[key] = row.description || '';
-    inboxMap[key] = row.is_inbox;
+    inboxMap[key] = row.is_default;
   }
   state.index.topicTitles = titleMap;
   state.index.topicOrder = order;

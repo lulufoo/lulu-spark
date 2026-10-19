@@ -60,11 +60,11 @@ CREATE TABLE project (
   disabled_at  TEXT,
   icon         TEXT,
   sort_index   INTEGER NOT NULL DEFAULT 0,
-  is_inbox     INTEGER NOT NULL DEFAULT 0 CHECK (is_inbox IN (0, 1))
+  is_default     INTEGER NOT NULL DEFAULT 0 CHECK (is_default IN (0, 1))
 );
-CREATE UNIQUE INDEX project_one_inbox ON project(workspace_id) WHERE is_inbox = 1;
-CREATE TRIGGER project_keys_immutable BEFORE UPDATE OF id, is_inbox ON project
-BEGIN SELECT RAISE(ABORT, 'project id and is_inbox cannot change'); END;
+CREATE UNIQUE INDEX project_one_default ON project(workspace_id) WHERE is_default = 1;
+CREATE TRIGGER project_keys_immutable BEFORE UPDATE OF id, is_default ON project
+BEGIN SELECT RAISE(ABORT, 'project id and is_default cannot change'); END;
 CREATE TABLE document (
   doc_id       TEXT PRIMARY KEY,
   project_id   TEXT NOT NULL REFERENCES project(id),
