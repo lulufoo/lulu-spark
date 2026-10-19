@@ -145,7 +145,7 @@ fn writes_through_the_doc_service_keep_the_index_in_step() {
     assert!(search_in_cache(&cache, WORD, &only_workspace(&ws), 10).expect("before").is_empty());
 
     let updated = update_doc_content(&json!({
-        "workspace_id": ws, "id": id, "content": format!("# 一\n\n现在有{WORD}了。\n"), "digest": "never"
+        "id": id, "content": format!("# 一\n\n现在有{WORD}了。\n"), "digest": "never"
     }));
     assert_eq!(updated["ok"], json!(true), "{updated}");
     let found = search_in_cache(&cache, WORD, &only_workspace(&ws), 10).expect("after update");

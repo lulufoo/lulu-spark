@@ -112,6 +112,14 @@ pub(super) fn resolve_doc_workspace(
     if let Some(id) = text_field(payload, "workspace_id") {
         return resolve_workspace(conn, Some(id));
     }
+    resolve_workspace_from_doc_id(conn, id)
+}
+
+/// The workspace a prefixed document id names; the default workspace when the id has no prefix.
+pub(super) fn resolve_workspace_from_doc_id(
+    conn: &Connection,
+    id: &str,
+) -> Result<WorkspaceRow, Value> {
     if let Some((Some(prefix), _)) = spark_data::split_doc_id(id) {
         return workspace_for_doc_prefix(conn, prefix)
             .map_err(internal)?

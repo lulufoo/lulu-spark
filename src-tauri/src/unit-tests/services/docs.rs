@@ -124,7 +124,7 @@ fn a_document_is_only_found_in_its_own_workspace() {
 
     assert_eq!(status(&get_file(&json!({ "workspace_id": other, "id": id }))), 404);
     let update = update_doc_content(&json!({ "workspace_id": other, "id": id, "content": BODY, "digest": "never" }));
-    assert_eq!(status(&update), 404);
+    assert_eq!(status(&update), 400, "update_doc rejects workspace_id");
     assert_eq!(status(&delete_doc(&json!({ "workspace_id": other, "id": id }))), 404);
     ok(&delete_doc(&json!({ "id": id })));
 }
@@ -136,6 +136,16 @@ fn update_overwrites_the_body_and_refuses_create_only_fields() {
     let newer = "# 新标题\n\n更新后的正文。\n";
     ok(&update_doc_content(&json!({ "id": id, "content": newer, "digest": "never" })));
     assert_eq!(get_file(&json!({ "id": id }))["content"], json!(newer));
+    assert_eq!(
+        status(&update_doc_content(&json!({
+            "workspace_id": default_id(),
+            "id": id,
+            "content": newer,
+            "digest": "never"
+        }))),
+        400,
+        "workspace_id is not an update_doc field"
+    );
 
     for key in ["title", "project_id", "folder", "theme", "created_at", "source_type"] {
         let mut payload = json!({ "id": id, "content": newer, "digest": "never" });
@@ -291,7 +301,7 @@ fn a_project_row_with_a_legacy_disabled_at_is_an_ordinary_project() {
     let row = get_workspace(&conn, &ws).expect("get").expect("row");
     assert!(spark_data::list_doc_entries(&conn, &row).expect("entries").contains_key(&id));
     ok(&write(Some(&ws), Some(&plans)));
-    let update = update_doc_content(&json!({ "workspace_id": ws, "id": id, "content": BODY, "digest": "never" }));
+    let update = update_doc_content(&json!({ "id": id, "content": BODY, "digest": "never" }));
     ok(&update);
     let other = new_project(Some(&ws), "Other");
     ok(&move_doc(&json!({ "workspace_id": ws, "id": id, "project_id": other })));
@@ -475,6 +485,18 @@ fn a_new_doc_id_starts_with_its_workspace_id_and_survives_a_rename() {
     assert_eq!(text(&get_path(&json!({ "id": in_ws })), "id"), in_ws);
     ok(&delete_doc(&json!({ "id": in_ws })));
     assert_eq!(status(&get_file(&json!({ "id": in_ws }))), 404);
+}
+
+#[test]
+fn a_prefixed_id_updates_a_document_in_any_workspace() {
+    let _sandbox = TestSandbox::new();
+    let ws = new_workspace("Memory");
+    let id = text(ok(&write(Some(&ws), None)), "id");
+    let newer = "# 新标题\n\n写进另一个工作区。\n";
+    let updated = update_doc_content(&json!({ "id": id, "content": newer, "digest": "never" }));
+    assert_eq!(text(ok(&updated), "id"), id);
+    assert_eq!(text(&updated, "workspace_id"), ws);
+    assert_eq!(get_file(&json!({ "id": id }))["content"], json!(newer));
 }
 
 #[test]
@@ -760,7 +782,7 @@ fn write_results_carry_the_four_scope_fields_and_delete_carries_none() {
     assert_eq!(text(&inbox, "project_id"), inbox_of(&ws));
     assert_eq!(text(&inbox, "project_name"), "Inbox", "omitting project_id names the workspace inbox");
 
-    let updated = update_doc_content(&json!({ "workspace_id": ws, "id": id, "content": BODY, "digest": "never" }));
+    let updated = update_doc_content(&json!({ "id": id, "content": BODY, "digest": "never" }));
     assert_eq!(
         [text(ok(&updated), "workspace_id"), text(&updated, "project_id"), text(&updated, "project_name")],
         [ws.clone(), plans.clone(), "Plans".to_string()],
