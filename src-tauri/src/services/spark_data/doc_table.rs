@@ -36,7 +36,7 @@ pub fn doc_table_for_id(workspace_id: &str) -> Result<String, String> {
     Ok(format!("{DOC_TABLE_PREFIX}{workspace_id}"))
 }
 
-/// Runtime form of the template used by the migration step.
+/// The DDL for one document table: columns from `doc_table_columns!` plus the `raw_path` index.
 fn doc_table_ddl(table: &str) -> Result<String, String> {
     validate_doc_table_name(table)?;
     Ok(format!(

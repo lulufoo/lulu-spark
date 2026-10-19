@@ -6,8 +6,8 @@ use crate::test_support::{seed_note_entries, TestSandbox};
 #[test]
 fn save_entry_updates_file() {
     let sandbox = TestSandbox::new();
-    let notes = sandbox.data_dir().join("workspaces").join("default");
-    let md = notes.join("digest").join("inbox").join("foo.md");
+    let notes = crate::test_support::default_workspace_dir();
+    let md = notes.join("digest").join(crate::test_support::default_inbox_id()).join("foo.md");
     fs::create_dir_all(md.parent().unwrap()).expect("mkdir");
     fs::write(&md, "old").expect("w");
     let id = "a".repeat(32);
@@ -31,7 +31,7 @@ fn save_entry_syncs_search_index_for_touched_file() {
     use crate::services::search_index::{open, search, search_desktop_docs, SearchFilter};
 
     let sandbox = TestSandbox::new();
-    let notes = sandbox.data_dir().join("workspaces").join("default");
+    let notes = crate::test_support::default_workspace_dir();
     let md = notes.join("raw").join("seed-proj").join("sync.md");
     fs::create_dir_all(md.parent().unwrap()).expect("mkdir");
     fs::write(&md, "# Sync\n\nold body without keywords").expect("w");
@@ -55,7 +55,7 @@ fn save_entry_syncs_search_index_for_touched_file() {
     assert!(hits[0].get("common_path").is_none());
 
     fs::remove_file(&md).expect("rm");
-    crate::services::search_index::sync_workspace_docs("default", &[&id])
+    crate::services::search_index::sync_workspace_docs(&crate::test_support::default_workspace().id, &[&id])
         .expect("sync delete");
     let conn = open(&sandbox.cache_dir()).expect("open");
     let filter = SearchFilter {

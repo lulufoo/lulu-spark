@@ -205,41 +205,15 @@ pub fn run() {
             host::create_main_window(app)?;
             app.manage(services::reindex::ReindexState::new());
 
-            // Startup, in order: copy the legacy files into their workspaces (the index reads them),
-            // rebuild the keyword index (index only, no git pull; the header does not show this
-            // job), then back up the database. No Agent Loop warmup: the first chat pays cold start.
+            // Startup, in order: report duplicate document ids, rebuild the keyword index
+            // (index only, no git pull; the header does not show this job), then back up the
+            // database. No Agent Loop warmup: the first chat pays cold start.
             {
                 use tauri::Manager;
                 let reindex = app.state::<services::reindex::ReindexState>();
                 let spark_slot = std::sync::Arc::clone(&reindex.spark_job);
                 std::thread::spawn(move || {
                     use crate::services::app_log::{log, Level, Side};
-                    if let Ok(data) = crate::config::paths::runtime_data_dir() {
-                        match crate::services::legacy_copy::copy_legacy_files_at_startup(&data) {
-                            Ok(report) if report.already_done && report.removed == 0 => {}
-                            Ok(report) => log(
-                                "workspaces",
-                                "legacy_copy_done",
-                                None,
-                                Some(serde_json::json!({
-                                    "copied": report.copied,
-                                    "skipped_existing": report.skipped_existing,
-                                    "missing_folders": report.missing_folders,
-                                    "removed": report.removed,
-                                })),
-                                Side::Host,
-                                Level::Info,
-                            ),
-                            Err(error) => log(
-                                "workspaces",
-                                "legacy_copy_failed",
-                                None,
-                                Some(serde_json::json!({ "error": error })),
-                                Side::Host,
-                                Level::Error,
-                            ),
-                        }
-                    }
                     // Ids are unique inside each document table, not across tables. Report any
                     // id that two workspaces share; nothing is repaired.
                     match crate::services::spark_data::open().and_then(|c| crate::services::spark_data::duplicate_doc_ids(&c)) {

@@ -4,11 +4,9 @@ use rusqlite::Connection;
 use serde_json::{json, Value};
 
 use crate::services::spark_data::{
-    self, get_project, get_workspace, insert_doc, insert_project, list_doc_entries, DocRow,
-    ProjectRow, DEFAULT_WORKSPACE_ID,
+    self, get_default_workspace, get_inbox_project, get_project, insert_doc, insert_project, list_doc_entries, DocRow,
+    ProjectRow,
 };
-
-const DEFAULT_DOC_TABLE: &str = "doc_default";
 
 fn text(entry: &Value, key: &str) -> Option<String> {
     entry.get(key).and_then(Value::as_str).map(String::from)
@@ -37,12 +35,18 @@ fn project_id_for_seed(folder: &str) -> String {
 }
 
 fn ensure_project(conn: &Connection, project_id: &str) -> String {
+    if project_id == "inbox" {
+        // The seed's "inbox" folder is the default workspace's inbox, whatever its minted id is.
+        let workspace = get_default_workspace(conn).expect("default workspace");
+        return get_inbox_project(conn, &workspace.id).expect("lookup").expect("inbox").id;
+    }
     if get_project(conn, project_id).expect("lookup").is_some() {
         return project_id.to_string();
     }
+    let workspace = get_default_workspace(conn).expect("default workspace");
     insert_project(
         conn,
-        &ProjectRow::new(project_id, DEFAULT_WORKSPACE_ID, project_id, ""),
+        &ProjectRow::new(project_id, &workspace.id, project_id, ""),
     )
     .expect("project");
     project_id.to_string()
@@ -72,14 +76,15 @@ pub fn seed_note_entries(entries: &Value) {
             .unwrap_or_default();
         langs.sort();
         note.translations = json!(langs);
-        insert_doc(&conn, DEFAULT_DOC_TABLE, &note).expect("insert doc");
+        insert_doc(&conn, &get_default_workspace(&conn).expect("default workspace").doc_table, &note)
+            .expect("insert doc");
     }
 }
 
 /// What `index.json` used to hold: `{ "entries": { id: entry } }`.
 pub fn read_note_entries() -> Value {
     let conn = spark_data::open().expect("open spark-data");
-    let workspace = get_workspace(&conn, DEFAULT_WORKSPACE_ID).expect("workspace").expect("default workspace");
+    let workspace = get_default_workspace(&conn).expect("default workspace");
     json!({ "entries": list_doc_entries(&conn, &workspace).expect("list docs") })
 }
 
@@ -88,8 +93,9 @@ pub fn read_note_entries() -> Value {
 pub fn block_note_writes(event: &str) {
     assert!(matches!(event, "INSERT" | "UPDATE" | "DELETE"));
     let conn = spark_data::open().expect("open spark-data");
+    let table = get_default_workspace(&conn).expect("default workspace").doc_table;
     conn.execute_batch(&format!(
-        "CREATE TRIGGER block_note_{event} BEFORE {event} ON doc_default \
+        "CREATE TRIGGER block_note_{event} BEFORE {event} ON {table} \
          BEGIN SELECT RAISE(ABORT, 'blocked by test'); END;"
     ))
     .expect("create trigger");

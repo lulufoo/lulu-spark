@@ -128,7 +128,7 @@ fn create_workspace_to_delete_doc_uses_the_unified_keys() {
 
     let updated = ok(call(
         "update_doc",
-        json!({ "id": doc_id, "workspace_id": workspace_id, "source_path": copy, "digest": "never" }),
+        json!({ "id": doc_id, "source_path": copy, "digest": "never" }),
     ));
     assert_eq!(text(&updated, "id"), doc_id);
     assert_eq!(text(&updated, "workspace_id"), workspace_id);
@@ -163,7 +163,7 @@ fn retired_scope_keys_are_ignored_and_land_in_default() {
             "source_type": "summary",
         }),
     ));
-    assert_eq!(text(&created, "workspace_id"), "default");
+    assert_eq!(text(&created, "workspace_id"), crate::test_support::default_workspace().id);
     assert_ne!(text(&created, "workspace_id"), elsewhere);
 
     let renamed = call("rename_workspace", json!({ "workspace": elsewhere, "workspace_name": "X" }));

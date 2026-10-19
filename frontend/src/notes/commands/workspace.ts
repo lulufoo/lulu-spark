@@ -6,7 +6,6 @@ import { dirKeyOf, nodeKeyOfEntry } from '../state/dir-tree.ts';
 import type { NoteEntry } from '../state/types.ts';
 
 const CURRENT_WORKSPACE_KEY = 'spark_workspace';
-const DEFAULT_WORKSPACE_ID = 'default';
 
 function parseWorkspace(raw: unknown): HostWorkspace | null {
   const rec = raw as Partial<HostWorkspace> | null;
@@ -47,9 +46,9 @@ export function entryGroupKey(entry: NoteEntry): string {
 
 export function readStoredWorkspaceId(): string {
   try {
-    return localStorage.getItem(CURRENT_WORKSPACE_KEY) || DEFAULT_WORKSPACE_ID;
+    return localStorage.getItem(CURRENT_WORKSPACE_KEY) || '';
   } catch {
-    return DEFAULT_WORKSPACE_ID;
+    return '';
   }
 }
 
@@ -67,10 +66,8 @@ export async function loadWorkspaces(): Promise<void> {
   if (data?.error) throw new Error(data.error);
   const list = (data?.workspaces || []).map(parseWorkspace).filter((w): w is HostWorkspace => w !== null);
   state.workspaces.list = list;
-  const wanted = state.workspaces.current !== DEFAULT_WORKSPACE_ID
-    ? state.workspaces.current
-    : readStoredWorkspaceId();
-  const fallback = list.find((w) => w.is_default)?.workspace_id || DEFAULT_WORKSPACE_ID;
+  const wanted = state.workspaces.current || readStoredWorkspaceId();
+  const fallback = list.find((w) => w.is_default)?.workspace_id || list[0]?.workspace_id || '';
   state.workspaces.current = list.some((w) => w.workspace_id === wanted) ? wanted : fallback;
   notifyState();
 }

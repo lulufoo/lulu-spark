@@ -7,9 +7,7 @@ mod doc_entry;
 mod doc_id;
 mod doc_row;
 mod doc_table;
-mod drop_folder_step;
 mod json_column;
-mod legacy_rows_step;
 mod project_merge;
 mod project_row;
 mod tag_rows;
@@ -27,17 +25,16 @@ pub use doc_entry::{entry_from_doc, find_doc, list_doc_entries, translation_comm
 
 pub use project_merge::delete_project_after_merge;
 pub use project_row::{
-    get_inbox_project, get_project, insert_project, list_projects, reorder_projects, update_project,
-    ProjectRow,
+    get_inbox_project, get_project, insert_inbox_project, insert_project, list_projects, mint_project_id,
+    reorder_projects, update_project, ProjectRow,
 };
 pub use tag_rows::{
     delete_unused_tags, find_tag_key_by_value, has_tag, insert_tag, read_tag_registry, update_tag_value,
 };
 pub use workspace_row::{
-    create_workspace, disable_workspace, discard_new_workspace, enable_workspace, get_workspace,
-    get_workspace_by_name, list_all_workspaces, list_disabled_workspaces, list_workspaces,
-    rename_workspace, reorder_workspaces, set_workspace_icon, set_workspace_view_mode, ViewMode, WorkspaceRow, DEFAULT_WORKSPACE_ID,
-    KNOWLEDGE_WORKSPACE_ID,
+    create_workspace, disable_workspace, discard_new_workspace, enable_workspace, get_default_workspace,
+    get_workspace, get_workspace_by_name, list_all_workspaces, list_disabled_workspaces, list_workspaces,
+    rename_workspace, reorder_workspaces, set_workspace_icon, set_workspace_view_mode, ViewMode, WorkspaceRow,
 };
 
 #[cfg(test)]
@@ -47,7 +44,3 @@ mod tests;
 #[cfg(test)]
 #[path = "../../unit-tests/services/spark_data_workspace.rs"]
 mod workspace_tests;
-
-#[cfg(test)]
-#[path = "../../unit-tests/services/spark_data_legacy_copy.rs"]
-mod legacy_copy_tests;

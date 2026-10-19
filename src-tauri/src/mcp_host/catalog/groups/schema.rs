@@ -106,10 +106,9 @@ pub fn create_doc_properties(include_source_path: bool) -> Value {
 
 pub fn update_doc_properties(include_source_path: bool) -> Value {
     let mut props = json!({
-        "workspace_id": doc_workspace_id_schema(),
         "id": {
             "type": "string",
-            "description": "Document id from search or create_doc."
+            "description": "Document id from search or create_doc. The prefix before the first hyphen names the workspace."
         },
         "digest": {
             "type": "string",

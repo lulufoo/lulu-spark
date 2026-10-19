@@ -257,6 +257,7 @@ fn mobile_update_doc_uses_content_invoke() {
     let route = build("document", "update_doc", "mobile").expect("mobile update_doc");
     assert!(invoke_eq(route.invoke, update_doc_from_content));
     assert!(!invoke_eq(route.invoke, update_doc_from_source));
+    assert!(route.input_schema["properties"].get("workspace_id").is_none());
 }
 
 #[test]
@@ -264,6 +265,7 @@ fn spark_update_doc_uses_source_invoke() {
     let route = build("document", "update_doc", "spark").expect("spark update_doc");
     assert!(invoke_eq(route.invoke, update_doc_from_source));
     assert!(!invoke_eq(route.invoke, update_doc_from_content));
+    assert!(route.input_schema["properties"].get("workspace_id").is_none());
 }
 
 #[test]

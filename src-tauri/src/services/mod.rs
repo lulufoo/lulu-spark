@@ -20,7 +20,6 @@ pub mod auth_login_landing;
 pub mod os_notify_trace;
 pub mod reindex;
 pub mod docs;
-pub mod legacy_copy;
 pub mod tag_write;
 pub mod tags_registry;
 pub mod settings;

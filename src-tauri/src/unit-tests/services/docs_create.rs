@@ -20,7 +20,7 @@ const SAMPLE_DOC: &str = r#"# Test Title
 
 fn setup_notes() -> TestSandbox {
     let sandbox = TestSandbox::new();
-    let notes = sandbox.data_dir().join("workspaces").join("default");
+    let notes = crate::test_support::default_workspace_dir();
     fs::create_dir_all(notes.join("raw")).expect("raw dir");
     fs::create_dir_all(notes.join("digest")).expect("digest dir");
     sandbox
@@ -58,11 +58,11 @@ fn path_payload(sandbox: &TestSandbox, content: &str, mut base: serde_json::Valu
 }
 
 fn default_workspace_dir() -> PathBuf {
-    crate::config::paths::workspaces_root().expect("workspaces root").join("default")
+    crate::test_support::default_workspace_dir()
 }
 
 fn inbox_id() -> String {
-    "inbox".into()
+    crate::test_support::default_inbox_id()
 }
 
 fn note_row(id: &str) -> crate::services::spark_data::DocRow {
@@ -127,7 +127,8 @@ fn create_note_writes_raw_and_index() {
     );
     assert_eq!(v.get("ok"), Some(&json!(true)), "create_note failed: {v}");
     let id = v["id"].as_str().expect("id");
-    assert!(crate::services::spark_data::is_valid_doc_id(id) && id.starts_with("default-"), "{id}");
+    let prefix = format!("{}-", crate::test_support::default_workspace().id);
+    assert!(crate::services::spark_data::is_valid_doc_id(id) && id.starts_with(&prefix), "{id}");
     let notes = default_workspace_dir();
     let rel = note_row(id).raw_path;
     assert!(rel.starts_with("notes/"), "{rel}");
@@ -530,7 +531,7 @@ fn create_jot_writes_raw_index_with_source_type_jot() {
         read_note_entries();
     let entry = &index["entries"][id];
     assert_eq!(entry["source_type"], json!("jot"));
-    assert_eq!(entry["project_id"], json!("inbox"));
+    assert_eq!(entry["project_id"], json!(inbox_id()));
     assert!(entry.get("folder").is_none(), "{entry}");
     assert!(entry["layers"]
         .as_array()
@@ -567,8 +568,8 @@ fn create_jot_rejects_empty_body_without_writing() {
     let index_after: serde_json::Value =
         read_note_entries();
     assert_eq!(index_after, index_before);
-    assert!(!notes.join("raw/inbox/notes").exists() || {
-        fs::read_dir(notes.join("raw/inbox/notes"))
+    assert!(!notes.join("raw").join(inbox_id()).join("notes").exists() || {
+        fs::read_dir(notes.join("raw").join(inbox_id()).join("notes"))
             .map(|mut d| d.next().is_none())
             .unwrap_or(true)
     });
@@ -586,7 +587,8 @@ fn create_note_content_writes_from_markdown_body() {
     );
     assert_eq!(v.get("ok"), Some(&json!(true)), "create_note_content failed: {v}");
     let id = v["id"].as_str().expect("id");
-    assert!(crate::services::spark_data::is_valid_doc_id(id) && id.starts_with("default-"), "{id}");
+    let prefix = format!("{}-", crate::test_support::default_workspace().id);
+    assert!(crate::services::spark_data::is_valid_doc_id(id) && id.starts_with(&prefix), "{id}");
     let rel = note_row(id).raw_path;
     assert!(rel.starts_with("notes/"), "{rel}");
     assert!(rel.ends_with(".md"), "{rel}");
@@ -754,8 +756,8 @@ fn create_note_rejects_full_english_without_zh() {
             .contains("translations.zh"),
         "{v}"
     );
-    assert!(!notes.join("raw/inbox").exists() || {
-        fs::read_dir(notes.join("raw/inbox"))
+    assert!(!notes.join("raw").join(inbox_id()).exists() || {
+        fs::read_dir(notes.join("raw").join(inbox_id()))
             .map(|mut d| d.next().is_none())
             .unwrap_or(true)
     });
@@ -781,7 +783,7 @@ fn create_note_writes_source_as_is_with_zh_and_no_separator() {
     assert_eq!(raw, FREEFORM_EN);
     let rel = note_row(id).raw_path;
     let zh_path = format!("{}-zh.md", rel.trim_end_matches(".md"));
-    let zh_raw = fs::read_to_string(notes.join("raw/inbox").join(zh_path)).unwrap();
+    let zh_raw = fs::read_to_string(notes.join("raw").join(inbox_id()).join(zh_path)).unwrap();
     assert_eq!(zh_raw, FREEFORM_ZH);
 }
 
@@ -884,7 +886,7 @@ fn update_note_always_overwrites_digest_and_adds_layer() {
     let index: serde_json::Value =
         read_note_entries();
     assert_eq!(index["entries"][&id]["layers"], json!(["raw", "digest"]));
-    assert_eq!(index["entries"][&id]["project_id"], json!("inbox"));
+    assert_eq!(index["entries"][&id]["project_id"], json!(inbox_id()));
     assert!(index["entries"][&id].get("folder").is_none());
 }
 
@@ -1101,9 +1103,9 @@ fn create_jot_without_a_folder_still_goes_to_notes() {
 fn create_jot_without_a_project_still_goes_to_inbox() {
     let _sandbox = setup_notes();
     let v = create_jot(None, None, "没有指定项目", &jot_opts_with_ts("202607101441")).expect("create_jot");
-    assert_eq!(v["project_id"], json!("inbox"));
+    assert_eq!(v["project_id"], json!(inbox_id()));
     let id = v["id"].as_str().expect("id");
-    assert_eq!(read_note_entries()["entries"][id]["project_id"], json!("inbox"));
+    assert_eq!(read_note_entries()["entries"][id]["project_id"], json!(inbox_id()));
 }
 
 #[test]
@@ -1127,7 +1129,8 @@ fn create_jot_refuses_a_project_of_another_workspace() {
     assert_eq!(made["ok"], json!(true), "{made}");
     let theirs = made["project_id"].as_str().expect("project id");
     let before = jot_dirs(&default_workspace_dir());
-    let err = create_jot(Some("default"), Some(theirs), "跨工作区", &jot_opts_with_ts("202607101443"))
+    let default = crate::test_support::default_workspace().id;
+    let err = create_jot(Some(&default), Some(theirs), "跨工作区", &jot_opts_with_ts("202607101443"))
         .expect_err("another workspace's project");
     assert!(err.starts_with("400:") || err.starts_with("404:"), "{err}");
     assert_eq!(jot_dirs(&default_workspace_dir()), before);

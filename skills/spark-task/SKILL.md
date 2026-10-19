@@ -60,7 +60,7 @@ Map the user request, then call **only** the tools that match. Do not run a fixe
 | Search documents | `search`, optionally limited to one workspace | Do not list a catalog's full id set |
 | Read one digest | `get_doc_digest` with the `workspace_id` of the search hit | — |
 | Read one document body | Spark / Cursor / Codex / Claude: `get_doc_file` with a `dest_dir`, then read the returned copy. Mobile: `get_doc_content` | Do not read the data directory directly |
-| Edit an existing document | `get_doc_file`, edit the copy, then `update_doc` with `source_path` set to the copy | Do not edit the data directory directly |
+| Edit an existing document | `get_doc_file`, edit the copy, then `update_doc` with `source_path` set to the copy. Do not pass `workspace_id`; the document id names the workspace. | Do not edit the data directory directly |
 | Delete a document | Only when the user explicitly asks, and only when `delete_doc` is in the tool list: confirm the document, then `delete_doc` | Irreversible — never delete as a side step of another task |
 | Open a Read Later link `[title](read-later:<id>)` | `get_read_later` with the 32-hex id | Do not look the entry up by title |
 

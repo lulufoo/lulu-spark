@@ -20,7 +20,7 @@ const PNG: &[u8] = b"\x89PNG\r\n";
 
 fn setup_notes() -> TestSandbox {
     let sandbox = TestSandbox::new();
-    let notes = sandbox.data_dir().join("workspaces").join("default");
+    let notes = crate::test_support::default_workspace_dir();
     fs::create_dir_all(notes.join("raw")).expect("raw dir");
     fs::create_dir_all(notes.join("digest")).expect("digest dir");
     sandbox
@@ -55,9 +55,9 @@ fn create_with_assets(sandbox: &TestSandbox, assets: Vec<PathBuf>) -> serde_json
 }
 
 fn theme_dir() -> PathBuf {
-    crate::config::paths::workspaces_root().expect("workspaces root").join("default")
+    crate::test_support::default_workspace_dir()
         .join("raw")
-        .join("inbox")
+        .join(crate::test_support::default_inbox_id())
         .join("notes")
 }
 

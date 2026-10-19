@@ -1,4 +1,4 @@
-use super::db::{migrate, open_with_steps, MIGRATIONS};
+use super::db::{migrate, open_with_steps, BASELINE_VERSION, MIGRATIONS};
 use super::*;
 
 use rusqlite::Connection;
@@ -9,14 +9,18 @@ fn temp_db() -> (tempfile::TempDir, std::path::PathBuf) {
     (dir, path)
 }
 
-fn table_names(conn: &Connection) -> Vec<String> {
+fn names(conn: &Connection, kind: &str) -> Vec<String> {
     let mut stmt = conn
-        .prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name")
+        .prepare("SELECT name FROM sqlite_master WHERE type = ?1 AND name NOT LIKE 'sqlite_%' ORDER BY name")
         .expect("prepare");
-    stmt.query_map([], |r| r.get::<_, String>(0))
+    stmt.query_map([kind], |r| r.get::<_, String>(0))
         .expect("query")
         .collect::<Result<_, _>>()
         .expect("rows")
+}
+
+fn table_names(conn: &Connection) -> Vec<String> {
+    names(conn, "table")
 }
 
 fn user_version(conn: &Connection) -> i64 {
@@ -27,24 +31,170 @@ fn count(conn: &Connection, sql: &str) -> i64 {
     conn.query_row(sql, [], |r| r.get(0)).expect("count")
 }
 
-const LATEST: i64 = MIGRATIONS.len() as i64;
+fn default_ws(conn: &Connection) -> WorkspaceRow {
+    get_default_workspace(conn).expect("default workspace")
+}
+
+/// A file that was never opened by this build, at the given `user_version`.
+fn file_at_version(path: &std::path::Path, version: i64) {
+    std::fs::create_dir_all(path.parent().expect("parent")).expect("dir");
+    let conn = Connection::open(path).expect("raw");
+    conn.execute_batch(&format!("CREATE TABLE marker (id INTEGER); PRAGMA user_version = {version};"))
+        .expect("version");
+}
+
+/// Everything in `dir`: file names with their bytes. A refused open must leave this unchanged.
+fn snapshot(dir: &std::path::Path) -> Vec<(String, Vec<u8>)> {
+    let mut files: Vec<(String, Vec<u8>)> = std::fs::read_dir(dir)
+        .expect("read dir")
+        .map(|e| {
+            let e = e.expect("entry");
+            (e.file_name().to_string_lossy().into_owned(), std::fs::read(e.path()).expect("read"))
+        })
+        .collect();
+    files.sort();
+    files
+}
 
 #[test]
-fn first_open_creates_the_workspace_tables_and_no_legacy_ones() {
+fn the_baseline_is_version_17_and_nothing_follows_it_yet() {
+    assert_eq!(BASELINE_VERSION, 17);
+    assert!(MIGRATIONS.is_empty());
+}
+
+#[test]
+fn an_empty_file_is_created_at_the_baseline_with_the_whole_schema() {
+    let (_dir, path) = temp_db();
+    let conn = open_at(&path).expect("first open");
+    assert_eq!(user_version(&conn), BASELINE_VERSION as i64);
+
+    let default = default_ws(&conn);
+    assert_eq!(table_names(&conn), {
+        let mut expected = vec![default.doc_table.clone(), "project".to_string(), "tag".to_string(), "workspace".to_string()];
+        expected.sort();
+        expected
+    });
+    assert_eq!(
+        names(&conn, "index"),
+        {
+            let mut expected = vec!["project_one_inbox".to_string(), "workspace_one_default".to_string(), format!("{}_raw_path", default.doc_table)];
+            expected.sort();
+            expected
+        }
+    );
+    assert_eq!(
+        names(&conn, "trigger"),
+        vec!["project_keys_immutable", "workspace_default_undeletable", "workspace_keys_immutable"]
+    );
+    assert_eq!(count(&conn, "SELECT count(*) FROM tag"), 0);
+}
+
+#[test]
+fn the_seed_is_default_and_its_inbox_only() {
+    let (_dir, path) = temp_db();
+    let conn = open_at(&path).expect("open");
+    let workspaces = list_workspaces(&conn).expect("list");
+    assert_eq!(workspaces.len(), 1);
+    let default = &workspaces[0];
+    assert_eq!((default.name.as_str(), default.is_default, default.view_mode), ("Default", true, ViewMode::Directory));
+    assert_eq!(default.id.len(), 6);
+    assert_ne!(default.id, "default", "the id is random, not a literal");
+    assert_eq!(default.doc_table, format!("doc_{}", default.id));
+    assert!(get_workspace_by_name(&conn, "Knowledge").expect("lookup").is_none());
+
+    let projects = list_projects(&conn, &default.id).expect("projects");
+    assert_eq!(projects.len(), 1);
+    assert_eq!((projects[0].name.as_str(), projects[0].is_inbox), ("Inbox", true));
+    assert_ne!(projects[0].id, "inbox", "the inbox id is minted like any project id");
+    assert_eq!(projects[0].id.len(), 23, "YYYYMMDDHHMMSSmmm + 6 characters: {}", projects[0].id);
+    assert_eq!(count(&conn, "SELECT count(*) FROM project"), 1);
+}
+
+#[test]
+fn reopening_changes_nothing_and_keeps_rows() {
     let (_dir, path) = temp_db();
     let first = open_at(&path).expect("first open");
+    let default = default_ws(&first);
     let tables = table_names(&first);
-    assert_eq!(tables, vec!["doc_default", "doc_knowledge", "project", "tag", "workspace"]);
-    let version = user_version(&first);
-    assert_eq!(version, LATEST);
-    insert_doc(&first, "doc_default", &DocRow::new("n1", "a/b.md", "inbox")).expect("seed");
+    let inbox = get_inbox_project(&first, &default.id).expect("lookup").expect("inbox");
+    insert_doc(&first, &default.doc_table, &DocRow::new("n1", "a/b.md", &inbox.id)).expect("seed");
     drop(first);
 
     let second = open_at(&path).expect("reopen");
+    assert_eq!(default_ws(&second).id, default.id, "the seeded id is stable");
     assert_eq!(table_names(&second), tables);
-    assert_eq!(user_version(&second), version);
-    let kept = get_doc(&second, "doc_default", "n1").expect("get").expect("row");
-    assert_eq!(kept.project_id, "inbox");
+    assert_eq!(user_version(&second), BASELINE_VERSION as i64);
+    let kept = get_doc(&second, &default.doc_table, "n1").expect("get").expect("row");
+    assert_eq!(kept.project_id, inbox.id);
+}
+
+#[test]
+fn a_file_below_the_baseline_is_refused_and_left_untouched() {
+    for version in [1, 15, 16] {
+        let (dir, path) = temp_db();
+        file_at_version(&path, version);
+        let before = snapshot(dir.path().join("data").as_path());
+        let err = open_at(&path).expect_err("below the baseline");
+        assert!(err.contains(&format!("version {version}")) && err.contains("not supported"), "{err}");
+        assert_eq!(snapshot(dir.path().join("data").as_path()), before, "version {version}: file changed");
+    }
+}
+
+#[test]
+fn a_file_newer_than_the_build_is_refused_and_left_untouched() {
+    let (dir, path) = temp_db();
+    file_at_version(&path, BASELINE_VERSION as i64 + 1);
+    let before = snapshot(dir.path().join("data").as_path());
+    let err = open_at(&path).expect_err("newer than this build");
+    assert!(err.contains("newer than this build"), "{err}");
+    assert_eq!(snapshot(dir.path().join("data").as_path()), before);
+}
+
+#[test]
+fn a_baseline_file_opens_without_being_written() {
+    let (dir, path) = temp_db();
+    drop(open_at(&path).expect("create"));
+    let before = snapshot(dir.path().join("data").as_path());
+    let conn = open_at(&path).expect("reopen");
+    assert_eq!(user_version(&conn), BASELINE_VERSION as i64);
+    drop(conn);
+    assert_eq!(snapshot(dir.path().join("data").as_path()), before);
+}
+
+#[test]
+fn a_baseline_file_without_a_default_workspace_gets_one_and_an_existing_one_is_kept() {
+    let (_dir, path) = temp_db();
+    let conn = open_at(&path).expect("create");
+    let old = default_ws(&conn);
+
+    // Opening again keeps the one it has.
+    drop(conn);
+    let conn = open_at(&path).expect("reopen");
+    assert_eq!(default_ws(&conn).id, old.id);
+    assert_eq!(count(&conn, "SELECT count(*) FROM workspace"), 1);
+
+    // Take Default away by hand (the guard trigger has to go first), at the same version.
+    conn.execute_batch(&format!(
+        "DROP TRIGGER workspace_default_undeletable;
+         DROP TABLE {table};
+         DELETE FROM project;
+         DELETE FROM workspace;",
+        table = old.doc_table
+    ))
+    .expect("remove Default");
+    assert_eq!(user_version(&conn), BASELINE_VERSION as i64);
+    drop(conn);
+
+    let healed = open_at(&path).expect("open without Default");
+    let fresh = default_ws(&healed);
+    assert_eq!((fresh.name.as_str(), fresh.is_default), ("Default", true));
+    assert_eq!(fresh.doc_table, format!("doc_{}", fresh.id));
+    assert!(table_names(&healed).contains(&fresh.doc_table));
+    assert_eq!(count(&healed, "SELECT count(*) FROM workspace"), 1);
+    assert_eq!(
+        count(&healed, &format!("SELECT count(*) FROM project WHERE is_inbox = 1 AND workspace_id = '{}'", fresh.id)),
+        1
+    );
 }
 
 #[test]
@@ -61,17 +211,39 @@ fn open_uses_wal_and_foreign_keys() {
 fn schema_rejects_bad_values() {
     let (_dir, path) = temp_db();
     let conn = open_at(&path).expect("open");
+    let table = default_ws(&conn).doc_table;
     let mut doc = DocRow::new("n1", "a.md", "inbox");
     doc.importance = Some("urgent".into());
-    assert!(insert_doc(&conn, "doc_default", &doc).is_err(), "importance outside high|medium|low");
+    assert!(insert_doc(&conn, &table, &doc).is_err(), "importance outside high|medium|low");
     let mut doc = DocRow::new("n2", "a.md", "inbox");
     doc.tags = serde_json::json!({ "not": "an array" });
-    assert!(insert_doc(&conn, "doc_default", &doc).is_err(), "JSON columns must be arrays");
+    assert!(insert_doc(&conn, &table, &doc).is_err(), "JSON columns must be arrays");
     assert!(
-        insert_doc(&conn, "doc_default", &DocRow::new("n3", "a.md", "missing")).is_err(),
+        insert_doc(&conn, &table, &DocRow::new("n3", "a.md", "missing")).is_err(),
         "FK to project(id)"
     );
 }
+
+#[test]
+fn a_workspace_accepts_only_one_inbox_and_the_flag_cannot_change() {
+    let (_dir, path) = temp_db();
+    let conn = open_at(&path).expect("open");
+    let mut extra = ProjectRow::new("i2", &default_ws(&conn).id, "Other", "");
+    extra.is_inbox = true;
+    assert!(insert_project(&conn, &extra).is_err(), "one inbox per workspace");
+    assert!(
+        conn.execute("UPDATE project SET is_inbox = 0 WHERE is_inbox = 1", []).is_err(),
+        "is_inbox is immutable"
+    );
+    assert!(
+        conn.execute("UPDATE project SET id = 'moved' WHERE is_inbox = 1", []).is_err(),
+        "id is immutable"
+    );
+    extra.is_inbox = false;
+    insert_project(&conn, &extra).expect("a non-inbox project is fine");
+}
+
+// Upgrade machinery, exercised with test-only steps after the baseline.
 
 const STEP_A: &str = "CREATE TABLE a (id INTEGER); INSERT INTO a VALUES (1);";
 const STEP_B: &str = "CREATE TABLE b (id INTEGER); INSERT INTO a VALUES (2);";
@@ -82,236 +254,94 @@ fn a_rows(conn: &Connection) -> i64 {
 
 #[test]
 fn each_user_version_runs_only_the_remaining_steps() {
+    let base = BASELINE_VERSION as i64;
+
+    // empty file → baseline, then both steps
     let (_dir, path) = temp_db();
-    // empty file → both steps
     let fresh = open_with_steps(&path, &[STEP_A, STEP_B]).expect("fresh");
-    assert_eq!(user_version(&fresh), 2);
+    assert_eq!(user_version(&fresh), base + 2);
     assert_eq!(a_rows(&fresh), 2);
+    assert!(table_names(&fresh).contains(&"workspace".to_string()), "the baseline is there too");
     drop(fresh);
 
-    // already current → nothing runs again
+    // already latest → nothing runs again
     let current = open_with_steps(&path, &[STEP_A, STEP_B]).expect("current");
-    assert_eq!(user_version(&current), 2);
+    assert_eq!(user_version(&current), base + 2);
     assert_eq!(a_rows(&current), 2);
     drop(current);
 
-    // version 1 file → only the second step
+    // baseline file → both steps; one step done → only the second
     let (_dir2, path2) = temp_db();
-    drop(open_with_steps(&path2, &[STEP_A]).expect("v1"));
-    let upgraded = open_with_steps(&path2, &[STEP_A, STEP_B]).expect("v1 → v2");
-    assert_eq!(user_version(&upgraded), 2);
+    drop(open_with_steps(&path2, &[]).expect("baseline"));
+    drop(open_with_steps(&path2, &[STEP_A]).expect("17 → 18"));
+    let upgraded = open_with_steps(&path2, &[STEP_A, STEP_B]).expect("18 → 19");
+    assert_eq!(user_version(&upgraded), base + 2);
     assert_eq!(a_rows(&upgraded), 2, "step A must not run twice");
     assert!(table_names(&upgraded).contains(&"b".to_string()));
 }
 
 #[test]
-fn newer_file_is_refused_and_failed_step_leaves_version_unchanged() {
+fn a_file_newer_than_the_step_list_is_refused() {
     let (_dir, path) = temp_db();
-    drop(open_with_steps(&path, &[STEP_A, STEP_B]).expect("v2"));
+    drop(open_with_steps(&path, &[STEP_A, STEP_B]).expect("latest + 2"));
     let err = open_with_steps(&path, &[STEP_A]).expect_err("file newer than build");
     assert!(err.contains("newer"), "{err}");
+}
 
+#[test]
+fn a_failed_step_rolls_back_and_leaves_the_version_unchanged() {
     let conn = Connection::open_in_memory().expect("mem");
     let broken = "CREATE TABLE c (id INTEGER); THIS IS NOT SQL;";
     assert!(migrate(&conn, &[STEP_A, broken]).is_err());
-    assert_eq!(user_version(&conn), 1, "failed step must roll back and keep the version");
-    assert!(!conn
-        .prepare("SELECT 1 FROM sqlite_master WHERE name = 'c'")
-        .expect("prepare")
-        .exists([])
-        .expect("exists"));
+    assert_eq!(user_version(&conn), BASELINE_VERSION as i64 + 1, "the failed step must not move the version");
+    assert!(table_names(&conn).contains(&"a".to_string()), "the earlier step stays");
+    assert!(!table_names(&conn).contains(&"c".to_string()), "the failed step must roll back");
 }
 
-/// Every released `user_version` upgraded step by step, starting from a file that holds
-/// legacy rows at version 1; the rows must arrive in the workspace tables and the legacy
-/// tables must be gone at the end.
-#[test]
-fn full_migration_chain_from_the_earliest_version_to_the_latest() {
-    let (_dir, path) = temp_db();
-    let v1 = open_with_steps(&path, &MIGRATIONS[..1]).expect("v1");
-    assert_eq!(user_version(&v1), 1);
-    v1.execute("INSERT INTO note (doc_id, raw_path, title) VALUES ('n1', 'ai/x.md', 'X')", [])
-        .expect("note");
-    for (id, repo, file) in [("k1", "demo", "docs/a.md"), ("k2", "ai-dev-docs", "x.md")] {
-        v1.execute(
-            "INSERT INTO knowledge_doc (doc_id, repo, path) VALUES (?1, ?2, ?3)",
-            [id, repo, file],
-        )
-        .expect("knowledge doc");
+/// Connections that open the same file at the same moment must create the baseline once and
+/// run every step once.
+fn open_concurrently(path: &std::path::Path, steps: &'static [&'static str], threads: usize) {
+    let barrier = std::sync::Arc::new(std::sync::Barrier::new(threads));
+    let handles: Vec<_> = (0..threads)
+        .map(|_| {
+            let path = path.to_path_buf();
+            let barrier = std::sync::Arc::clone(&barrier);
+            std::thread::spawn(move || {
+                barrier.wait();
+                open_with_steps(&path, steps).map(drop)
+            })
+        })
+        .collect();
+    for handle in handles {
+        handle.join().expect("thread").expect("every concurrent open succeeds");
     }
-    v1.execute("INSERT INTO tag (key, value) VALUES ('t1', 'ai')", []).expect("tag");
-    drop(v1);
+}
 
-    for version in 2..=LATEST {
-        let conn = open_with_steps(&path, &MIGRATIONS[..version as usize]).expect("next step");
-        assert_eq!(user_version(&conn), version, "stopped at step {version}");
+#[test]
+fn concurrent_opens_of_an_empty_file_create_it_once() {
+    static STEPS: [&str; 2] = [STEP_A, STEP_B];
+    for _ in 0..10 {
+        let (_dir, path) = temp_db();
+        open_concurrently(&path, &STEPS, 8);
+        let conn = open_with_steps(&path, &STEPS).expect("check");
+        assert_eq!(user_version(&conn), BASELINE_VERSION as i64 + 2);
+        assert_eq!(a_rows(&conn), 2, "each step ran once");
+        assert_eq!(count(&conn, "SELECT count(*) FROM workspace"), 1);
+        assert_eq!(count(&conn, "SELECT count(*) FROM project"), 1);
     }
-
-    let conn = open_at(&path).expect("latest");
-    assert_eq!(user_version(&conn), LATEST);
-    assert_eq!(table_names(&conn), vec!["doc_default", "doc_knowledge", "project", "tag", "workspace"]);
-
-    let note = get_doc(&conn, "doc_default", "n1").expect("get").expect("note copied");
-    assert_eq!((note.raw_path.as_str(), note.project_id.as_str(), note.title.as_deref()), ("ai/x.md", "inbox", Some("X")));
-    assert_eq!(get_project(&conn, "inbox").expect("get").expect("inbox").workspace_id, "default");
-
-    let k1 = get_doc(&conn, "doc_knowledge", "k1").expect("get").expect("knowledge copied");
-    assert_eq!((k1.raw_path.as_str(), k1.project_id.as_str()), ("docs/a.md", "knowledge:demo"));
-    assert!(get_doc(&conn, "doc_knowledge", "k2").expect("get").is_none(), "retired repo stays out");
-    assert_eq!(count(&conn, "SELECT count(*) FROM project WHERE workspace_id = 'knowledge'"), 1);
-    assert_eq!(count(&conn, "SELECT count(*) FROM tag"), 1, "tags are untouched");
 }
 
-/// Running step 8 (drop the legacy tables) on a file that no longer has them must not fail.
 #[test]
-fn dropping_the_legacy_tables_is_repeatable() {
-    let (_dir, path) = temp_db();
-    drop(open_at(&path).expect("latest"));
-    let conn = Connection::open(&path).expect("raw");
-    conn.execute_batch(MIGRATIONS[8]).expect("step runs again");
-}
-
-/// Step 10 adds a nullable `icon` to `workspace` and `project`; rows made before it have none.
-#[test]
-fn the_icon_step_leaves_existing_rows_without_an_icon() {
-    let (_dir, path) = temp_db();
-    let before = open_with_steps(&path, &MIGRATIONS[..9]).expect("v9");
-    assert_eq!(user_version(&before), 9);
-    before
-        .execute(
-            "INSERT INTO project(id, workspace_id, folder, title) VALUES ('p9', 'default', 'old', 'Old')",
-            [],
-        )
-        .expect("project at v9");
-    drop(before);
-
-    let conn = open_at(&path).expect("latest");
-    assert_eq!(count(&conn, "SELECT count(*) FROM workspace WHERE icon IS NOT NULL"), 0);
-    assert_eq!(count(&conn, "SELECT count(*) FROM project WHERE icon IS NOT NULL"), 0);
-    assert_eq!(count(&conn, "SELECT count(*) FROM project WHERE id = 'p9'"), 1);
-}
-
-/// Step 11 adds `sort_index`: workspaces start numbered default first then by name, projects
-/// by title inside their workspace, from 0 and without gaps.
-#[test]
-fn the_sort_step_numbers_existing_rows_in_the_old_order() {
-    let (_dir, path) = temp_db();
-    let before = open_with_steps(&path, &MIGRATIONS[..11]).expect("v11");
-    assert_eq!(user_version(&before), 11);
-    for (id, name) in [("zed", "Zed"), ("amy", "amy")] {
-        before
-            .execute(
-                "INSERT INTO workspace(id, name, doc_table) VALUES (?1, ?2, 'doc_' || ?1)",
-                [id, name],
-            )
-            .expect("workspace at v11");
+fn concurrent_opens_of_a_baseline_file_run_each_step_once() {
+    static STEPS: [&str; 2] = [STEP_A, STEP_B];
+    for _ in 0..10 {
+        let (_dir, path) = temp_db();
+        drop(open_with_steps(&path, &[]).expect("baseline"));
+        open_concurrently(&path, &STEPS, 8);
+        let conn = open_with_steps(&path, &STEPS).expect("check");
+        assert_eq!(user_version(&conn), BASELINE_VERSION as i64 + 2);
+        assert_eq!(a_rows(&conn), 2, "each step ran once");
     }
-    for (id, folder, title) in [("p1", "z", "Zebra"), ("p2", "a", "apple"), ("p3", "b", "Banana")] {
-        before
-            .execute(
-                "INSERT INTO project(id, workspace_id, folder, title) VALUES (?1, 'knowledge', ?2, ?3)",
-                [id, folder, title],
-            )
-            .expect("project at v11");
-    }
-    drop(before);
-
-    let conn = open_at(&path).expect("latest");
-    let ids = |sql: &str| -> Vec<String> {
-        conn.prepare(sql)
-            .expect("prepare")
-            .query_map([], |r| r.get::<_, String>(0))
-            .expect("query")
-            .collect::<Result<_, _>>()
-            .expect("rows")
-    };
-    assert_eq!(
-        ids("SELECT id FROM workspace ORDER BY sort_index"),
-        vec!["default", "amy", "knowledge", "zed"]
-    );
-    assert_eq!(
-        ids("SELECT CAST(sort_index AS TEXT) FROM workspace ORDER BY sort_index"),
-        vec!["0", "1", "2", "3"]
-    );
-    assert_eq!(
-        ids("SELECT id FROM project WHERE workspace_id = 'knowledge' ORDER BY sort_index"),
-        vec!["p2", "p3", "p1"]
-    );
-    assert_eq!(
-        ids("SELECT CAST(sort_index AS TEXT) FROM project WHERE workspace_id = 'knowledge' ORDER BY sort_index"),
-        vec!["0", "1", "2"]
-    );
-}
-
-/// Step 12 marks the seeded Default inbox and does not invent one for Knowledge.
-/// Step 13 then drops `folder`; the latest file has `is_inbox` and no `folder`.
-#[test]
-fn the_inbox_step_marks_seeded_inbox_and_skips_knowledge() {
-    let (_dir, path) = temp_db();
-    let after_inbox = open_with_steps(&path, &MIGRATIONS[..13]).expect("v13");
-    assert_eq!(
-        count(&after_inbox, "SELECT count(*) FROM project WHERE id = 'inbox' AND workspace_id = 'default' AND is_inbox = 1"),
-        1
-    );
-    assert_eq!(
-        count(&after_inbox, "SELECT count(*) FROM project WHERE workspace_id = 'knowledge' AND is_inbox = 1"),
-        0
-    );
-    drop(after_inbox);
-    let conn = open_at(&path).expect("latest");
-    let cols: Vec<String> = conn
-        .prepare("PRAGMA table_info(project)")
-        .expect("pragma")
-        .query_map([], |r| r.get(1))
-        .expect("query")
-        .collect::<Result<_, _>>()
-        .expect("rows");
-    assert!(cols.contains(&"is_inbox".to_string()), "{cols:?}");
-    assert!(!cols.contains(&"folder".to_string()), "{cols:?}");
-}
-
-/// Step 14 renames `project.title` to `name`; a row made before it keeps its text.
-#[test]
-fn the_rename_step_turns_project_title_into_name_and_keeps_rows() {
-    let (_dir, path) = temp_db();
-    let before = open_with_steps(&path, &MIGRATIONS[..14]).expect("v14");
-    assert_eq!(user_version(&before), 14);
-    before
-        .execute("INSERT INTO project(id, workspace_id, title) VALUES ('p14', 'default', 'Old')", [])
-        .expect("project at v14");
-    drop(before);
-
-    let conn = open_at(&path).expect("latest");
-    assert_eq!(user_version(&conn), LATEST);
-    let cols: Vec<String> = conn
-        .prepare("PRAGMA table_info(project)")
-        .expect("pragma")
-        .query_map([], |r| r.get(1))
-        .expect("query")
-        .collect::<Result<_, _>>()
-        .expect("rows");
-    assert!(cols.contains(&"name".to_string()), "{cols:?}");
-    assert!(!cols.contains(&"title".to_string()), "{cols:?}");
-    assert_eq!(get_project(&conn, "p14").expect("get").expect("row").name, "Old");
-}
-
-#[test]
-fn a_workspace_accepts_only_one_inbox_and_the_flag_cannot_change() {
-    let (_dir, path) = temp_db();
-    let conn = open_at(&path).expect("open");
-    let mut extra = ProjectRow::new("i2", "default", "Other", "");
-    extra.is_inbox = true;
-    assert!(insert_project(&conn, &extra).is_err(), "one inbox per workspace");
-    assert!(
-        conn.execute("UPDATE project SET is_inbox = 0 WHERE id = 'inbox'", []).is_err(),
-        "is_inbox is immutable"
-    );
-    assert!(
-        conn.execute("UPDATE project SET id = 'moved' WHERE id = 'inbox'", []).is_err(),
-        "id is immutable"
-    );
-    extra.is_inbox = false;
-    insert_project(&conn, &extra).expect("a non-inbox project is fine");
 }
 
 /// Manual acceptance (LW-440): `SPARK_DB_COPY=/path/to/copy cargo test --lib migrate_real_copy -- --ignored`.
@@ -321,5 +351,5 @@ fn migrate_real_copy() {
     let path = std::env::var("SPARK_DB_COPY").expect("SPARK_DB_COPY");
     let conn = open_at(std::path::Path::new(&path)).expect("migrate");
     let version: i64 = conn.query_row("PRAGMA user_version", [], |r| r.get(0)).unwrap();
-    assert_eq!(version, MIGRATIONS.len() as i64);
+    assert_eq!(version, (BASELINE_VERSION + MIGRATIONS.len()) as i64);
 }

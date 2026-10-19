@@ -12,6 +12,37 @@ mod sandbox_layout;
 
 pub(crate) use notes_fixture::{block_note_writes, read_note_entries, seed_note_entries};
 
+pub fn default_workspace() -> crate::services::spark_data::WorkspaceRow {
+    let conn = crate::services::spark_data::open().expect("db");
+    crate::services::spark_data::get_default_workspace(&conn).expect("default workspace")
+}
+
+/// A second, timeline workspace named `Knowledge`. The seed has only `Default`, so it is created on first use.
+pub fn knowledge_workspace() -> crate::services::spark_data::WorkspaceRow {
+    use crate::services::spark_data::{create_workspace, get_workspace_by_name, ViewMode};
+    let conn = crate::services::spark_data::open().expect("db");
+    match get_workspace_by_name(&conn, "Knowledge").expect("lookup") {
+        Some(row) => row,
+        None => create_workspace(&conn, "Knowledge", Some(ViewMode::Timeline)).expect("create Knowledge"),
+    }
+}
+
+/// The id of the default workspace's inbox project (minted, not a fixed string).
+pub fn default_inbox_id() -> String {
+    let conn = crate::services::spark_data::open().expect("db");
+    let workspace = crate::services::spark_data::get_default_workspace(&conn).expect("default workspace");
+    crate::services::spark_data::get_inbox_project(&conn, &workspace.id)
+        .expect("lookup")
+        .expect("inbox")
+        .id
+}
+
+pub fn default_workspace_dir() -> PathBuf {
+    crate::config::paths::workspaces_root()
+        .expect("workspaces root")
+        .join(default_workspace().id)
+}
+
 pub(crate) use config_env::{install_env_restore_probe, install_test_config_env_construction_probe};
 pub use config_env::TestConfigEnv;
 

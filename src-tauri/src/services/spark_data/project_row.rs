@@ -1,8 +1,10 @@
 //! Basic reads and writes of one `project` row (one global table, keyed by workspace).
 
+use chrono::{FixedOffset, Utc};
 use rusqlite::{params, Connection, OptionalExtension, Row};
 
 use super::workspace_row::ensure_same_set;
+use crate::services::id::random_alnum6;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProjectRow {
@@ -84,6 +86,39 @@ pub fn get_project(conn: &Connection, id: &str) -> Result<Option<ProjectRow>, St
     )
     .optional()
     .map_err(|e| e.to_string())
+}
+
+/// `YYYYMMDDHHMMSSmmm` (UTC+8) plus six random characters.
+fn generate_project_id() -> String {
+    let tz = FixedOffset::east_opt(8 * 3600).expect("UTC+8");
+    let now = Utc::now().with_timezone(&tz);
+    format!(
+        "{}{:03}{}",
+        now.format("%Y%m%d%H%M%S"),
+        now.timestamp_subsec_millis(),
+        random_alnum6()
+    )
+}
+
+/// A project id nobody has used yet.
+pub fn mint_project_id(conn: &Connection) -> Result<String, String> {
+    for _ in 0..8 {
+        let id = generate_project_id();
+        if get_project(conn, &id)?.is_none() {
+            return Ok(id);
+        }
+    }
+    Err("Could not allocate project id".to_string())
+}
+
+/// The empty inbox project every workspace starts with. Called wherever a workspace is
+/// created, so a workspace never exists without one. The inbox is the `is_inbox` row; its
+/// id is minted like any other project id.
+pub fn insert_inbox_project(conn: &Connection, workspace_id: &str) -> Result<ProjectRow, String> {
+    let mut row = ProjectRow::new(&mint_project_id(conn)?, workspace_id, "Inbox", "");
+    row.is_inbox = true;
+    insert_project(conn, &row)?;
+    Ok(row)
 }
 
 /// The built-in inbox of this workspace, if the row exists.

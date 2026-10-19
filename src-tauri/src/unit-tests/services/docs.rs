@@ -9,6 +9,14 @@ use crate::test_support::TestSandbox;
 
 const BODY: &str = "# 标题\n\n这是正文，足够写入。\n";
 
+fn default_id() -> String {
+    crate::test_support::default_workspace().id
+}
+
+fn knowledge_id() -> String {
+    crate::test_support::knowledge_workspace().id
+}
+
 fn ok(value: &Value) -> &Value {
     assert_eq!(value.get("ok"), Some(&json!(true)), "expected ok, got {value}");
     value
@@ -91,8 +99,8 @@ fn omitting_workspace_and_project_writes_to_default_inbox() {
     let sandbox = TestSandbox::new();
     let created = write(None, None);
     let id = text(ok(&created), "id");
-    assert_eq!((text(&created, "workspace_id"), text(&created, "project_id")), ("default".to_string(), "inbox".to_string()));
-    assert!(workspaces_dir(&sandbox).join("default/raw/inbox/notes").is_dir());
+    assert_eq!((text(&created, "workspace_id"), text(&created, "project_id")), (default_id(), inbox_of(&default_id())));
+    assert!(workspaces_dir(&sandbox).join(default_id()).join("raw").join(inbox_of(&default_id())).join("notes").is_dir());
     assert_eq!(get_file(&json!({ "id": id }))["content"], json!(BODY));
 }
 
@@ -116,7 +124,7 @@ fn a_document_is_only_found_in_its_own_workspace() {
 
     assert_eq!(status(&get_file(&json!({ "workspace_id": other, "id": id }))), 404);
     let update = update_doc_content(&json!({ "workspace_id": other, "id": id, "content": BODY, "digest": "never" }));
-    assert_eq!(status(&update), 404);
+    assert_eq!(status(&update), 400, "update_doc rejects workspace_id");
     assert_eq!(status(&delete_doc(&json!({ "workspace_id": other, "id": id }))), 404);
     ok(&delete_doc(&json!({ "id": id })));
 }
@@ -128,6 +136,16 @@ fn update_overwrites_the_body_and_refuses_create_only_fields() {
     let newer = "# 新标题\n\n更新后的正文。\n";
     ok(&update_doc_content(&json!({ "id": id, "content": newer, "digest": "never" })));
     assert_eq!(get_file(&json!({ "id": id }))["content"], json!(newer));
+    assert_eq!(
+        status(&update_doc_content(&json!({
+            "workspace_id": default_id(),
+            "id": id,
+            "content": newer,
+            "digest": "never"
+        }))),
+        400,
+        "workspace_id is not an update_doc field"
+    );
 
     for key in ["title", "project_id", "folder", "theme", "created_at", "source_type"] {
         let mut payload = json!({ "id": id, "content": newer, "digest": "never" });
@@ -159,19 +177,20 @@ fn delete_doc_removes_files_and_row() {
     assert_eq!(ok(&removed)["removed"], json!(2));
     assert_eq!(status(&get_file(&json!({ "id": id }))), 404);
 
-    let leftover = fs::read_dir(workspaces_dir(&sandbox).join("default/raw/inbox/notes")).expect("dir").count();
+    let leftover = fs::read_dir(workspaces_dir(&sandbox).join(default_id()).join("raw").join(inbox_of(&default_id())).join("notes")).expect("dir").count();
     assert_eq!(leftover, 0);
 }
 
 #[test]
 fn default_workspace_cannot_be_disabled_and_the_default_can_be_renamed() {
     let _sandbox = TestSandbox::new();
-    assert_eq!(status(&disable_workspace(&json!({ "workspace_id": "default" }))), 400);
-    let renamed = rename_workspace(&json!({ "workspace_id": "default", "workspace_name": "Home" }));
+    let default = default_id();
+    assert_eq!(status(&disable_workspace(&json!({ "workspace_id": default }))), 400);
+    let renamed = rename_workspace(&json!({ "workspace_id": default, "workspace_name": "Home" }));
     assert_eq!(ok(&renamed)["workspace_name"], json!("Home"));
-    assert_eq!(ok(&renamed)["workspace_id"], json!("default"));
+    assert_eq!(ok(&renamed)["workspace_id"], json!(default));
     let listed = list_workspaces();
-    assert_eq!(listed["workspaces"][0]["workspace_id"], json!("default"), "default comes first");
+    assert_eq!(listed["workspaces"][0]["workspace_id"], json!(default), "default comes first");
 }
 
 #[test]
@@ -282,7 +301,7 @@ fn a_project_row_with_a_legacy_disabled_at_is_an_ordinary_project() {
     let row = get_workspace(&conn, &ws).expect("get").expect("row");
     assert!(spark_data::list_doc_entries(&conn, &row).expect("entries").contains_key(&id));
     ok(&write(Some(&ws), Some(&plans)));
-    let update = update_doc_content(&json!({ "workspace_id": ws, "id": id, "content": BODY, "digest": "never" }));
+    let update = update_doc_content(&json!({ "id": id, "content": BODY, "digest": "never" }));
     ok(&update);
     let other = new_project(Some(&ws), "Other");
     ok(&move_doc(&json!({ "workspace_id": ws, "id": id, "project_id": other })));
@@ -317,7 +336,7 @@ fn get_path_points_at_the_raw_file_without_its_body() {
     let id = text(ok(&created), "id");
     let got = get_path(&json!({ "id": id }));
     let path = PathBuf::from(text(ok(&got), "path"));
-    let expected = workspaces_dir(&sandbox).join("default/raw/inbox").canonicalize().expect("dir");
+    let expected = workspaces_dir(&sandbox).join(default_id()).join("raw").join(inbox_of(&default_id())).canonicalize().expect("dir");
     assert!(path.canonicalize().expect("file").starts_with(expected), "{path:?}");
     assert_eq!(fs::read_to_string(path).expect("read"), BODY);
     assert!(got.get("content").is_none());
@@ -339,7 +358,7 @@ fn write_text(workspace: &str, body: &str) -> String {
 fn search_spans_workspaces_or_narrows_to_one() {
     let _sandbox = TestSandbox::new();
     let ws = new_workspace("Memory");
-    let in_default = write_text("default", "# Searchable\n\n这是默认空间里的迁移笔记 zebrafish 内容。");
+    let in_default = write_text(&default_id(), "# Searchable\n\n这是默认空间里的迁移笔记 zebrafish 内容。");
     let in_ws = write_text(&ws, "# Searchable\n\n这是记忆空间里保存的偏好 zebrafish 内容。");
 
     crate::services::index_build::rebuild_spark_index(&crate::config::paths::repo_root().expect("root")).expect("index");
@@ -370,12 +389,12 @@ fn a_full_rebuild_indexes_every_workspace_and_drops_chunks_of_deleted_documents(
     let _sandbox = TestSandbox::new();
     let ws = new_workspace("Memory");
     let kept = write_text(&ws, "# Searchable\n\n这是重建后保留的文档 platypus 内容。");
-    let gone = write_text("default", "# Searchable\n\n这是重建后消失的文档 platypus 内容。");
+    let gone = write_text(&default_id(), "# Searchable\n\n这是重建后消失的文档 platypus 内容。");
     let root = crate::config::paths::repo_root().expect("root");
 
     // Remove the row behind the index's back, then rebuild from the tables.
     let conn = spark_data::open().expect("db");
-    spark_data::delete_doc(&conn, "doc_default", &gone).expect("delete row");
+    spark_data::delete_doc(&conn, &crate::test_support::default_workspace().doc_table, &gone).expect("delete row");
     crate::services::index_build::rebuild_spark_index(&root).expect("rebuild");
 
     let found = search(&json!({ "q": "platypus" }));
@@ -400,7 +419,7 @@ fn a_three_level_folder_works_through_create_read_move_search_and_delete() {
 
     let rel = spark_data::find_doc(&spark_data::open().expect("db"), &id).expect("find").expect("doc").doc.raw_path;
     assert!(rel.starts_with("ai/agents/notes/"), "{rel}");
-    let dir = workspaces_dir(&sandbox).join("default/raw/inbox/ai/agents/notes");
+    let dir = workspaces_dir(&sandbox).join(default_id()).join("raw").join(inbox_of(&default_id())).join("ai/agents/notes");
     assert_eq!(fs::read_dir(&dir).expect("dir").count(), 2, "the document and its translation");
     assert_eq!(get_file(&json!({ "id": id }))["content"], json!(BODY));
     assert_eq!(get_file(&json!({ "id": id, "lang": "fr" }))["content"], json!("# Titre\n\ncorps"));
@@ -415,10 +434,10 @@ fn a_three_level_folder_works_through_create_read_move_search_and_delete() {
     let moved = move_doc(&json!({ "id": id, "project_id": plans }));
     assert_eq!(
         [text(ok(&moved), "workspace_id"), text(&moved, "workspace_name"), text(&moved, "project_id"), text(&moved, "project_name")],
-        ["default".to_string(), "Default".to_string(), plans.clone(), "Plans".to_string()],
+        [default_id(), "Default".to_string(), plans.clone(), "Plans".to_string()],
         "{moved}"
     );
-    assert!(workspaces_dir(&sandbox).join("default/raw").join(&plans).join("ai/agents/notes").is_dir());
+    assert!(workspaces_dir(&sandbox).join(default_id()).join("raw").join(&plans).join("ai/agents/notes").is_dir());
     assert_eq!(fs::read_dir(&dir).expect("old dir").count(), 0, "both files left the old project");
     assert_eq!(get_file(&json!({ "id": id, "lang": "fr" }))["content"], json!("# Titre\n\ncorps"));
 
@@ -433,7 +452,7 @@ fn a_folder_with_four_levels_or_unsafe_segments_is_rejected() {
         let v = write_in_folder(bad, json!({}));
         assert_eq!(status(&v), 400, "folder {bad:?} gave {v}");
     }
-    assert!(!workspaces_dir(&sandbox).join("default/raw").join("inbox").exists(), "nothing is written for a rejected folder");
+    assert!(!workspaces_dir(&sandbox).join(default_id()).join("raw").join(inbox_of(&default_id())).exists(), "nothing is written for a rejected folder");
     for good in ["notes", "a/b", "a/b/c"] {
         ok(&write_in_folder(good, json!({})));
     }
@@ -457,7 +476,7 @@ fn a_new_doc_id_starts_with_its_workspace_id_and_survives_a_rename() {
     let in_ws = text(ok(&write(Some(&ws), None)), "id");
 
     let (prefix, hex) = in_default.split_once('-').expect("prefixed");
-    assert_eq!(prefix, "default");
+    assert_eq!(prefix, default_id());
     assert_eq!(hex.len(), 32);
     assert!(in_ws.starts_with(&format!("{ws}-")), "{in_ws}");
 
@@ -469,13 +488,25 @@ fn a_new_doc_id_starts_with_its_workspace_id_and_survives_a_rename() {
 }
 
 #[test]
+fn a_prefixed_id_updates_a_document_in_any_workspace() {
+    let _sandbox = TestSandbox::new();
+    let ws = new_workspace("Memory");
+    let id = text(ok(&write(Some(&ws), None)), "id");
+    let newer = "# 新标题\n\n写进另一个工作区。\n";
+    let updated = update_doc_content(&json!({ "id": id, "content": newer, "digest": "never" }));
+    assert_eq!(text(ok(&updated), "id"), id);
+    assert_eq!(text(&updated, "workspace_id"), ws);
+    assert_eq!(get_file(&json!({ "id": id }))["content"], json!(newer));
+}
+
+#[test]
 fn a_prefixed_id_only_looks_in_the_workspace_it_names() {
     let _sandbox = TestSandbox::new();
     let ws = new_workspace("Memory");
     let id = text(ok(&write(Some(&ws), None)), "id");
     let hex = id.split_once('-').expect("prefixed").1;
 
-    assert_eq!(status(&get_file(&json!({ "id": format!("default-{hex}") }))), 404);
+    assert_eq!(status(&get_file(&json!({ "id": format!("{}-{hex}", default_id()) }))), 404);
     assert_eq!(status(&get_file(&json!({ "id": format!("nope-{hex}") }))), 404);
     assert_eq!(status(&get_file(&json!({ "id": format!("Bad-Prefix-{hex}") }))), 400);
     assert_eq!(status(&get_file(&json!({ "id": format!("{ws}-short") }))), 400);
@@ -487,8 +518,8 @@ fn a_plain_32_hex_id_from_before_the_prefix_still_reads_updates_and_deletes() {
     ok(&write(None, None));
     let old = "0123456789abcdef0123456789abcdef";
     let conn = spark_data::open().expect("db");
-    spark_data::insert_doc(&conn, "doc_default", &plain_hex_row(old, &inbox_id("default"))).expect("insert");
-    let dir = workspaces_dir(&sandbox).join("default/raw/inbox/notes");
+    spark_data::insert_doc(&conn, &crate::test_support::default_workspace().doc_table, &plain_hex_row(old, &inbox_id(&default_id()))).expect("insert");
+    let dir = workspaces_dir(&sandbox).join(default_id()).join("raw").join(inbox_of(&default_id())).join("notes");
     fs::write(dir.join("202601011200-old123.md"), "# Old\n\n旧文档正文。\n").expect("file");
 
     assert_eq!(get_file(&json!({ "id": old }))["content"], json!("# Old\n\n旧文档正文。\n"));
@@ -506,12 +537,19 @@ fn an_id_shared_by_two_workspace_tables_is_reported() {
     assert!(spark_data::duplicate_doc_ids(&conn).expect("scan").is_empty());
 
     let shared = "fedcba9876543210fedcba9876543210";
-    let project = inbox_id("default");
-    for table in ["doc_default", "doc_knowledge"] {
+    let project = inbox_id(&default_id());
+    let default = crate::test_support::default_workspace();
+    let knowledge = crate::test_support::knowledge_workspace();
+    for table in [&default.doc_table, &knowledge.doc_table] {
         spark_data::insert_doc(&conn, table, &plain_hex_row(shared, &project)).expect("insert");
     }
     let dups = spark_data::duplicate_doc_ids(&conn).expect("scan");
-    assert_eq!(dups, vec![(shared.to_string(), vec!["default".to_string(), "knowledge".to_string()])]);
+    let mut owners = dups[0].1.clone();
+    owners.sort();
+    let mut expected = vec![default.id.clone(), knowledge.id.clone()];
+    expected.sort();
+    assert_eq!(dups[0].0, shared);
+    assert_eq!(owners, expected);
 }
 
 #[test]
@@ -615,15 +653,17 @@ fn a_project_icon_is_kept_unless_changed_and_cleared_by_an_empty_string() {
 #[test]
 fn workspaces_and_projects_can_be_reordered_through_the_service() {
     let _sandbox = TestSandbox::new();
+    let default = default_id();
+    let knowledge = knowledge_id();
     let a = new_workspace("Aaa");
     let b = new_workspace("Bbb");
     let ids = |v: &Value| -> Vec<String> {
         v["workspaces"].as_array().expect("array").iter().map(|w| text(w, "workspace_id")).collect()
     };
-    assert_eq!(ids(&list_workspaces()), vec!["default".to_string(), "knowledge".into(), a.clone(), b.clone()]);
+    assert_eq!(ids(&list_workspaces()), vec![default.clone(), knowledge.clone(), a.clone(), b.clone()]);
 
-    let moved = reorder_workspaces(&json!({ "ids": [b, "default", a, "knowledge"] }));
-    assert_eq!(ids(ok(&moved)), vec![b.clone(), "default".to_string(), a.clone(), "knowledge".into()]);
+    let moved = reorder_workspaces(&json!({ "ids": [b, default, a, knowledge] }));
+    assert_eq!(ids(ok(&moved)), vec![b.clone(), default.clone(), a.clone(), knowledge.clone()]);
     assert_eq!(ids(&list_workspaces()), ids(&moved), "the list follows the new order");
     let indexes: Vec<i64> = list_workspaces()["workspaces"]
         .as_array()
@@ -636,7 +676,7 @@ fn workspaces_and_projects_can_be_reordered_through_the_service() {
     assert_eq!(status(&reorder_workspaces(&json!({}))), 400, "ids is required");
     assert_eq!(status(&reorder_workspaces(&json!({ "ids": "default" }))), 400);
     assert_eq!(status(&reorder_workspaces(&json!({ "ids": [1] }))), 400);
-    assert_eq!(status(&reorder_workspaces(&json!({ "ids": ["default"] }))), 400, "must name every workspace");
+    assert_eq!(status(&reorder_workspaces(&json!({ "ids": [default] }))), 400, "must name every workspace");
     assert_eq!(ids(&list_workspaces()), ids(&moved), "a refused reorder changes nothing");
 
     let inbox = inbox_of(&a);
@@ -723,7 +763,7 @@ fn write_results_carry_the_four_scope_fields_and_delete_carries_none() {
     assert_eq!(text(&inbox, "project_id"), inbox_of(&ws));
     assert_eq!(text(&inbox, "project_name"), "Inbox", "omitting project_id names the workspace inbox");
 
-    let updated = update_doc_content(&json!({ "workspace_id": ws, "id": id, "content": BODY, "digest": "never" }));
+    let updated = update_doc_content(&json!({ "id": id, "content": BODY, "digest": "never" }));
     assert_eq!(
         [text(ok(&updated), "workspace_id"), text(&updated, "project_id"), text(&updated, "project_name")],
         [ws.clone(), plans.clone(), "Plans".to_string()],
@@ -742,7 +782,7 @@ fn the_old_workspace_key_is_ignored_by_the_document_tools() {
 
     // `workspace` is not read: create lands in Default, not in `ws`.
     let stray = create_doc_content(&json!({ "workspace": ws, "title": "T", "content": BODY, "digest": "never", "source_type": "summary" }));
-    assert_eq!(text(ok(&stray), "workspace_id"), "default");
+    assert_eq!(text(ok(&stray), "workspace_id"), default_id());
     // `project` is not read either: the document goes to the inbox.
     let plans = new_project(Some(&ws), "Plans");
     let inboxed = create_doc_content(&json!({ "workspace_id": ws, "project": plans, "title": "T", "content": BODY, "digest": "never", "source_type": "summary" }));

@@ -8,7 +8,7 @@ use serde_json::{json, Value};
 
 use super::chunk::char_len;
 use super::hit_meta::resolve_hits;
-use crate::services::spark_data::DEFAULT_WORKSPACE_ID;
+use crate::services::spark_data;
 use super::store::{index_exists, open};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -305,12 +305,13 @@ pub fn search_desktop_docs_in(
     }
     let workspace = match scope {
         DocSearchScope::AllWorkspaces => None,
-        DocSearchScope::Workspace(w) => Some(
-            w.map(str::trim)
-                .filter(|w| !w.is_empty())
-                .unwrap_or(DEFAULT_WORKSPACE_ID)
-                .to_string(),
-        ),
+        DocSearchScope::Workspace(w) => match w.map(str::trim).filter(|w| !w.is_empty()) {
+            Some(id) => Some(id.to_string()),
+            None => match default_workspace_id() {
+                Ok(id) => Some(id),
+                Err(error) => return json!({ "hits": [], "error": error }),
+            },
+        },
     };
     let filter = SearchFilter {
         workspace,
@@ -340,4 +341,9 @@ pub fn search_desktop_docs_in(
 
 pub fn cache_dir_or_err() -> Result<std::path::PathBuf, String> {
     crate::config::paths::cache_dir().map_err(|e| format!("{e:?}"))
+}
+
+fn default_workspace_id() -> Result<String, String> {
+    let conn = spark_data::open()?;
+    Ok(spark_data::get_default_workspace(&conn)?.id)
 }

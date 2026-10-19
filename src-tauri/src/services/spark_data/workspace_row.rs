@@ -8,12 +8,8 @@
 use rusqlite::{params, Connection, OptionalExtension, Row};
 
 use super::doc_table::{create_doc_table, doc_table_for_id, validate_doc_table_name};
+use super::project_row::insert_inbox_project;
 use crate::services::id::random_alnum6;
-
-/// Id of the built-in default workspace (the former Notes).
-pub const DEFAULT_WORKSPACE_ID: &str = "default";
-/// Id of the seeded workspace that took over the former Knowledge.
-pub const KNOWLEDGE_WORKSPACE_ID: &str = "knowledge";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ViewMode {
@@ -82,7 +78,7 @@ fn clean_name(name: &str) -> Result<&str, String> {
     Ok(name)
 }
 
-fn mint_id(conn: &Connection) -> Result<String, String> {
+pub(super) fn mint_workspace_id(conn: &Connection) -> Result<String, String> {
     for _ in 0..8 {
         let id = random_alnum6();
         if get_workspace(conn, &id)?.is_none() {
@@ -92,31 +88,73 @@ fn mint_id(conn: &Connection) -> Result<String, String> {
     Err("could not mint a unique workspace id".to_string())
 }
 
-/// Register a workspace and create its document table in one transaction.
-/// The caller supplies only a display name; `id` and table name are Host-made.
+/// The workspace with `is_default = 1`. Its id is Host-made and is not a literal.
+pub fn get_default_workspace(conn: &Connection) -> Result<WorkspaceRow, String> {
+    list_workspaces(conn)?
+        .into_iter()
+        .find(|w| w.is_default)
+        .ok_or_else(|| "default workspace missing".to_string())
+}
+
+/// Name of the workspace every file starts with.
+pub(super) const DEFAULT_WORKSPACE_NAME: &str = "Default";
+
+/// Run `body` atomically: a `SAVEPOINT` is its own transaction when none is open and nests
+/// inside one when the caller already holds it (the Default seed runs under the open-time lock).
+fn atomically<T>(conn: &Connection, body: impl FnOnce() -> Result<T, String>) -> Result<T, String> {
+    conn.execute_batch("SAVEPOINT create_workspace").map_err(|e| e.to_string())?;
+    match body() {
+        Ok(value) => {
+            conn.execute_batch("RELEASE create_workspace").map_err(|e| e.to_string())?;
+            Ok(value)
+        }
+        Err(error) => {
+            let _ = conn.execute_batch("ROLLBACK TO create_workspace; RELEASE create_workspace");
+            Err(error)
+        }
+    }
+}
+
+/// The one way a workspace is created: its registry row, its document table and its inbox
+/// project, together or not at all. `id` and table name are Host-made.
+fn insert_workspace(
+    conn: &Connection,
+    name: &str,
+    view_mode: ViewMode,
+    is_default: bool,
+) -> Result<WorkspaceRow, String> {
+    let name = clean_name(name)?;
+    atomically(conn, || {
+        let id = mint_workspace_id(conn)?;
+        let doc_table = doc_table_for_id(&id)?;
+        conn.execute(
+            &format!(
+                "INSERT INTO workspace({INSERT_COLUMNS}, sort_index)
+                 VALUES (?1, ?2, ?3, ?4, ?5, strftime('%Y-%m-%dT%H:%M:%SZ', 'now'),
+                         (SELECT coalesce(max(sort_index) + 1, 0) FROM workspace))"
+            ),
+            params![id, name, doc_table, view_mode.as_str(), is_default as i64],
+        )
+        .map_err(|e| e.to_string())?;
+        create_doc_table(conn, &doc_table)?;
+        insert_inbox_project(conn, &id)?;
+        get_workspace(conn, &id)?.ok_or_else(|| "workspace row missing after insert".to_string())
+    })
+}
+
+/// Create a (non-default) workspace with its document table and inbox project in one
+/// transaction. The caller supplies only a display name.
 pub fn create_workspace(
     conn: &Connection,
     name: &str,
     view_mode: Option<ViewMode>,
 ) -> Result<WorkspaceRow, String> {
-    let name = clean_name(name)?;
-    let mode = view_mode.unwrap_or(ViewMode::Directory);
-    let tx = conn.unchecked_transaction().map_err(|e| e.to_string())?;
-    let id = mint_id(&tx)?;
-    let doc_table = doc_table_for_id(&id)?;
-    tx.execute(
-        &format!(
-            "INSERT INTO workspace({INSERT_COLUMNS}, sort_index)
-             VALUES (?1, ?2, ?3, ?4, 0, strftime('%Y-%m-%dT%H:%M:%SZ', 'now'),
-                     (SELECT coalesce(max(sort_index) + 1, 0) FROM workspace))"
-        ),
-        params![id, name, doc_table, mode.as_str()],
-    )
-    .map_err(|e| e.to_string())?;
-    create_doc_table(&tx, &doc_table)?;
-    let row = get_workspace(&tx, &id)?.ok_or("workspace row missing after insert")?;
-    tx.commit().map_err(|e| e.to_string())?;
-    Ok(row)
+    insert_workspace(conn, name, view_mode.unwrap_or(ViewMode::Directory), false)
+}
+
+/// Create the `Default` workspace through the same path as every other workspace.
+pub(super) fn create_default_workspace(conn: &Connection) -> Result<WorkspaceRow, String> {
+    insert_workspace(conn, DEFAULT_WORKSPACE_NAME, ViewMode::Directory, true)
 }
 
 pub fn get_workspace(conn: &Connection, id: &str) -> Result<Option<WorkspaceRow>, String> {

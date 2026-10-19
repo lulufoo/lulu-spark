@@ -41,6 +41,10 @@ fn in_workspace(workspace: &str) -> Value {
     json!({ "workspace_id": workspace })
 }
 
+fn default_id() -> String {
+    crate::test_support::default_workspace().id
+}
+
 #[test]
 fn first_read_seeds_the_four_default_rules_and_writes_the_workspace_file() {
     let sandbox = TestSandbox::new();
@@ -48,7 +52,7 @@ fn first_read_seeds_the_four_default_rules_and_writes_the_workspace_file() {
     assert_eq!(patterns(&listed), SEED_PATTERNS);
     let ids: Vec<_> = listed["patterns"].as_array().unwrap().iter().map(|r| r["id"].as_str().unwrap()).collect();
     assert_eq!(ids, ["seed00", "seed01", "seed02", "seed03"]);
-    assert!(sandbox.cache_dir().join("workspace-hide-patterns/default.json").is_file());
+    assert!(sandbox.cache_dir().join("workspace-hide-patterns").join(format!("{}.json", default_id())).is_file());
 }
 
 #[test]
@@ -71,11 +75,11 @@ fn first_read_takes_the_rules_of_the_old_global_list_when_it_exists() {
 fn rules_belong_to_one_workspace() {
     let _sandbox = TestSandbox::new();
     let other = new_workspace("Memory");
-    let added = add_hide_pattern(&json!({ "workspace_id": "default", "pattern": "^draft$" }));
+    let added = add_hide_pattern(&json!({ "workspace_id": default_id(), "pattern": "^draft$" }));
     assert!(patterns(&added).contains(&"^draft$".to_string()));
 
     assert!(!patterns(&list_hide_patterns(&in_workspace(&other))).contains(&"^draft$".to_string()));
-    assert!(patterns(&list_hide_patterns(&in_workspace("default"))).contains(&"^draft$".to_string()));
+    assert!(patterns(&list_hide_patterns(&in_workspace(&default_id()))).contains(&"^draft$".to_string()));
 }
 
 #[test]
@@ -115,12 +119,12 @@ fn update_and_remove_work_by_id() {
 #[test]
 fn a_corrupt_file_reads_as_no_rules_and_is_not_overwritten() {
     let sandbox = TestSandbox::new();
-    let path = sandbox.cache_dir().join("workspace-hide-patterns/default.json");
+    let path = sandbox.cache_dir().join("workspace-hide-patterns").join(format!("{}.json", default_id()));
     fs::create_dir_all(path.parent().unwrap()).expect("mkdir");
     fs::write(&path, "{not-json").expect("write");
 
     assert!(patterns(&list_hide_patterns(&json!({}))).is_empty());
-    assert!(compiled_hide_regexes("default").is_empty());
+    assert!(compiled_hide_regexes(&default_id()).is_empty());
     assert_eq!(fs::read_to_string(&path).expect("read"), "{not-json");
 }
 

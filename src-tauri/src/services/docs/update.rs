@@ -18,8 +18,8 @@ use crate::services::spark_data::{update_doc as update_doc_row, DocRow};
 use crate::services::translation_gate;
 
 use super::resolve::{
-    bad_request, doc_id_field, ensure_workspace_enabled, internal, not_found,
-    open_data, resolve_doc, resolve_doc_workspace, workspace_root,
+    bad_request, doc_id_field, ensure_workspace_enabled, internal, not_found, open_data,
+    resolve_doc, resolve_workspace_from_doc_id, workspace_root,
 };
 
 /// Fields that only `create_doc` accepts.
@@ -66,6 +66,9 @@ pub fn update_doc_content(payload: &Value) -> Value {
 }
 
 fn update_from_body(payload: &Value, source: &str) -> Value {
+    if payload.get("workspace_id").is_some() {
+        return bad_request("workspace_id is not supported on update_doc");
+    }
     for key in DEFERRED_FIELDS {
         if payload.get(*key).is_some() {
             return bad_request(format!("{key} is not supported on update_doc"));
@@ -90,7 +93,7 @@ fn update_from_body(payload: &Value, source: &str) -> Value {
         Ok(c) => c,
         Err(v) => return v,
     };
-    let workspace = match resolve_doc_workspace(&conn, payload, &id) {
+    let workspace = match resolve_workspace_from_doc_id(&conn, &id) {
         Ok(w) => w,
         Err(v) => return v,
     };
@@ -149,11 +152,11 @@ fn update_from_body(payload: &Value, source: &str) -> Value {
         }
     }
 
-    search_index::sync_workspace_docs_best_effort(&workspace.id, &[id.as_str()]);
+    search_index::sync_workspace_docs_best_effort(&workspace.id, &[doc.doc_id.as_str()]);
 
     let mut response = json!({
         "ok": true,
-        "id": id,
+        "id": doc.doc_id,
         "workspace_id": workspace.id,
         "workspace_name": workspace.name,
         "project_id": project.id,
