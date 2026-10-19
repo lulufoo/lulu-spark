@@ -3500,8 +3500,8 @@
   .doc-card.importance-low    { border-left: 4px solid var(--border-hex-6e7781); padding-left: 13px; }
 
   /* Inbox / 暂缓 — 待安放目录 */
-  .doc-card.inbox-pending { border-left: 4px solid var(--border-danger); padding-left: 13px; background: var(--bg-hex-fff8f8); }
-  .doc-card.inbox-pending .doc-topic { color: var(--fg-danger); font-weight: 600; }
+  .doc-card.default-project-pending { border-left: 4px solid var(--border-danger); padding-left: 13px; background: var(--bg-hex-fff8f8); }
+  .doc-card.default-project-pending .doc-topic { color: var(--fg-danger); font-weight: 600; }
 
   /* Importance badge */
   .badge-importance { cursor: pointer; font-size: 10px; }

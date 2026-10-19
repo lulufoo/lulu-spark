@@ -58,8 +58,8 @@ export type HostIndex = {
   topicTitles: Record<string, string>;
   /** Project ids in the order Settings arranged them (the order the backend lists them). */
   topicOrder: string[];
-  /** Which project ids are the workspace inbox. */
-  topicInbox: Record<string, boolean>;
+  /** Which project ids are the workspace default project. */
+  topicDefault: Record<string, boolean>;
   topicRepos: Record<string, string>;
 };
 

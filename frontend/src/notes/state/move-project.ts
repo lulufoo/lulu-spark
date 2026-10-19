@@ -6,6 +6,7 @@ export type MoveProjectItem = {
   project_id: string;
   project_name: string;
   description: string;
+  is_default: boolean;
 };
 
 export type MoveProjectView = {

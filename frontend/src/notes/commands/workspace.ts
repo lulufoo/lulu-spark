@@ -100,7 +100,7 @@ export async function loadProjects(): Promise<void> {
   state.index.topicTitles = titles;
   state.index.topicOrder = order;
   state.index.topicDescriptions = descriptions;
-  state.index.topicInbox = inbox;
+  state.index.topicDefault = inbox;
   state.index.topicRepos = {};
   notifyState();
 }

@@ -57,7 +57,7 @@ export const state: HostState = {
     topicDescriptions: {},
     topicTitles: {},
     topicOrder: [],
-    topicInbox: {},
+    topicDefault: {},
     topicRepos: {},
   },
   ui: {

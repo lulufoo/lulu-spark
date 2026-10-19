@@ -63,7 +63,7 @@ function applyNotesCategoryMaps(rows: NotesCategoryRow[]) {
   state.index.topicTitles = titleMap;
   state.index.topicOrder = order;
   state.index.topicDescriptions = descMap;
-  state.index.topicInbox = inboxMap;
+  state.index.topicDefault = inboxMap;
   state.index.topicRepos = {};
   notifyState();
 }

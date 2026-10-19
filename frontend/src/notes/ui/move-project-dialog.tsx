@@ -31,15 +31,15 @@ export function MoveProjectDialog() {
           id="move-project-list"
           style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '300px', overflowY: 'auto' }}
         >
-          {view.items.map(({ project_id, project_name, description }) => {
-            const inbox = project_id === 'inbox';
+          {view.items.map(({ project_id, project_name, description, is_default }) => {
+            const isDefault = is_default;
             return (
               <button
                 key={project_id}
                 type="button"
                 className="move-project-item"
                 disabled={view.busy}
-                style={inbox ? { color: '#cf222e', borderColor: '#ffcbc8' } : undefined}
+                style={isDefault ? { color: '#cf222e', borderColor: '#ffcbc8' } : undefined}
                 onClick={() => void doMoveProject(project_id)}
               >
                 <span className="move-project-item-name">{project_name}</span>
