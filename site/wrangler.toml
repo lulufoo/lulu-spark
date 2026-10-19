@@ -1,0 +1,9 @@
+name = "lulu-spark-site"
+compatibility_date = "2026-10-18"
+
+[assets]
+directory = "./public"
+# /foo -> /foo/ (foo/index.html); pinned so a changed default cannot break redirects
+html_handling = "auto-trailing-slash"
+# unknown paths return public/404.html with status 404
+not_found_handling = "404-page"
