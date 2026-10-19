@@ -67,28 +67,31 @@ describe("spark-auto saves on signal", () => {
     }
   });
 
-  it("has the signal section, templates, write contract, and variables", () => {
-    assert.match(text, /^## Signals$/m);
-    assert.match(text, /This SKILL defines none/);
-    assert.match(text, /unbound → no automatic save/);
-    assert.match(text, /^## Shape$/m);
-    for (const headings of ["选项 / 选择 / 理由", "原以为 / 实际 / 依据", "目标 / 结果", "Problem / What we learned / Takeaways", "原话"]) {
-      assert.match(text, new RegExp(headings), `template headings ${headings}`);
+  it("has Variables, Signal, Save, and Done, and no note template", () => {
+    for (const section of ["Variables", "Signal", "Save", "Done"]) {
+      assert.match(text, new RegExp(`^## ${section}$`, "m"), `section ${section}`);
     }
-    assert.match(text, /^## Write contract$/m);
-    assert.match(text, /^## Variables$/m);
-    assert.match(text, /^\| `\$SPARK_AUTO_SIGNALS` \|/m);
-    assert.match(text, /`\$SPARK_TARGET_WORKSPACE`/);
-    assert.match(text, /`\$SPARK_TARGET_PROJECT`/);
+    assert.equal(/^## Shape$/m.test(text), false, "spark-auto must not prescribe a note template");
+    for (const headings of ["选项 / 选择 / 理由", "原以为 / 实际 / 依据", "Problem / What we learned / Takeaways"]) {
+      assert.equal(new RegExp(headings).test(text), false, `template headings ${headings}`);
+    }
   });
 
-  it("writes through create_doc with a category from list_doc_categories, omitting the target ids", () => {
-    assert.match(text, /`list_doc_categories`/);
-    assert.match(text, /`create_doc`/);
-    assert.match(text, /Omit `workspace_id` and `project_id`/);
+  it("binds the signal set and the target ids to the host, omitting an unbound one", () => {
+    assert.match(text, /^\| `\$SPARK_AUTO_SIGNALS` \| Host-bound; required \| The signal set\. Unbound → no automatic save \|$/m);
+    assert.match(text, /^\| `\$SPARK_TARGET_WORKSPACE` \| Host-bound; optional \| `workspace_id` of the save\. Unbound → not passed \|$/m);
+    assert.match(text, /^\| `\$SPARK_TARGET_PROJECT` \| Host-bound; optional \| `project_id` of the save\. Unbound → not passed \|$/m);
+    assert.equal(/not consumed/.test(text), false);
+    assert.equal(/Omit `workspace_id` and `project_id`/.test(text), false);
+    assert.match(text, /match each bound variable/);
+  });
+
+  it("delegates the write to spark-task and fixes only source_type and the target ids", () => {
+    assert.match(text, /`spark-task` create flow, with `source_type` fitting the unit and the target ids from Variables/);
     assert.equal(/`source_type`[^\n]*`jot`/.test(text), false, "source_type must not be fixed to jot");
+    assert.equal(/`digest`/.test(text), false, "digest belongs to spark-task");
     assert.match(text, /已存入 Spark：<title>/);
-    assert.match(text, /建议存入 Spark：<title>/);
+    assert.equal(/建议存入/.test(text), false, "permission handling belongs to host rules");
   });
 
   it("depends on no skill outside the pack, and no sibling depends on it", () => {
