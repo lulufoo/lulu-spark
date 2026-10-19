@@ -530,25 +530,6 @@ fn a_plain_32_hex_id_from_before_the_prefix_still_reads_updates_and_deletes() {
 }
 
 #[test]
-fn a_retired_default_prefix_still_opens_the_rewritten_document() {
-    let sandbox = TestSandbox::new();
-    ok(&write(None, None));
-    let hex = "cccccccccccccccccccccccccccccccc";
-    let stored = format!("{}-{hex}", default_id());
-    spark_data::insert_doc(
-        &spark_data::open().expect("db"),
-        &crate::test_support::default_workspace().doc_table,
-        &plain_hex_row(&stored, &inbox_id(&default_id())),
-    )
-    .expect("insert");
-    let dir = workspaces_dir(&sandbox).join(default_id()).join("raw/inbox/notes");
-    fs::write(dir.join("202601011200-old123.md"), "# Old\n\n旧前缀链接。\n").expect("file");
-
-    assert_eq!(get_file(&json!({ "id": format!("default-{hex}") }))["content"], json!("# Old\n\n旧前缀链接。\n"));
-    assert_eq!(text(&get_path(&json!({ "id": format!("default-{hex}") })), "id"), stored);
-}
-
-#[test]
 fn an_id_shared_by_two_workspace_tables_is_reported() {
     let _sandbox = TestSandbox::new();
     ok(&write(None, None));

@@ -12,8 +12,8 @@ use serde_json::{json, Value};
 use crate::config::paths;
 use crate::services::docs::workspace_dir;
 use crate::services::spark_data::{
-    self, get_inbox_project, get_project, get_requested_doc, get_workspace, list_workspaces,
-    workspace_for_doc_prefix, DocRow, ProjectRow, WorkspaceRow,
+    self, get_doc, get_inbox_project, get_project, get_workspace, list_workspaces, DocRow,
+    ProjectRow, WorkspaceRow,
 };
 
 pub(super) fn bad_request(message: impl Into<String>) -> Value {
@@ -120,12 +120,8 @@ pub(super) fn resolve_workspace_from_doc_id(
     conn: &Connection,
     id: &str,
 ) -> Result<WorkspaceRow, Value> {
-    if let Some((Some(prefix), _)) = spark_data::split_doc_id(id) {
-        return workspace_for_doc_prefix(conn, prefix)
-            .map_err(internal)?
-            .ok_or_else(|| not_found(format!("Unknown workspace: {prefix}")));
-    }
-    resolve_workspace(conn, None)
+    let named = spark_data::split_doc_id(id).and_then(|(workspace, _)| workspace);
+    resolve_workspace(conn, named)
 }
 
 /// The project with this id inside `workspace`. Omitted id → the inbox. 400 when missing
@@ -166,7 +162,7 @@ pub(super) fn resolve_doc(
     workspace: &WorkspaceRow,
     id: &str,
 ) -> Result<(DocRow, ProjectRow), Value> {
-    let doc = get_requested_doc(conn, workspace, id)
+    let doc = get_doc(conn, &workspace.doc_table, id)
         .map_err(internal)?
         .ok_or_else(|| not_found("Entry not found"))?;
     let project = get_project(conn, &doc.project_id)
