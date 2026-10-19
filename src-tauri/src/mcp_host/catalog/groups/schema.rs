@@ -33,6 +33,25 @@ pub fn workspace_id_property() -> Value {
     })
 }
 
+const DIGEST_DESCRIPTION: &str = "Required. auto writes a digest when Host AD-0 applies; always writes; never skips. digest_body is required whenever a digest is written.";
+
+const DIGEST_BODY_DESCRIPTION: &str = "One paragraph, 100-300 characters, in the same language as the raw. No heading, Overview, Created line, relative images, or digest nav.";
+
+fn digest_property() -> Value {
+    json!({
+        "type": "string",
+        "enum": ["auto", "always", "never"],
+        "description": DIGEST_DESCRIPTION
+    })
+}
+
+fn digest_body_property() -> Value {
+    json!({
+        "type": "string",
+        "description": DIGEST_BODY_DESCRIPTION
+    })
+}
+
 pub fn create_doc_properties(include_source_path: bool) -> Value {
     let mut props = json!({
         "title": {
@@ -53,15 +72,8 @@ pub fn create_doc_properties(include_source_path: bool) -> Value {
             "description": "Optional YYYYMMDDHHMM (UTC+8). Defaults to now."
         },
         "source_type": source_type_schema(),
-        "digest": {
-            "type": "string",
-            "enum": ["auto", "always", "never"],
-            "description": "Required. auto writes a digest when Host AD-0 applies; always writes; never skips. digest_body is required whenever a digest is written."
-        },
-        "digest_body": {
-            "type": "string",
-            "description": "Digest Markdown. Required when digest is always, or auto and the document meets Host digest rules."
-        },
+        "digest": digest_property(),
+        "digest_body": digest_body_property(),
         "translations": {
             "type": "array",
             "items": {
@@ -110,15 +122,8 @@ pub fn update_doc_properties(include_source_path: bool) -> Value {
             "type": "string",
             "description": "Document id from search or create_doc: 32 lowercase hex characters. The document belongs to exactly one workspace."
         },
-        "digest": {
-            "type": "string",
-            "enum": ["auto", "always", "never"],
-            "description": "Required. auto writes a digest when Host AD-0 applies; always writes; never skips. digest_body is required whenever a digest is written."
-        },
-        "digest_body": {
-            "type": "string",
-            "description": "Digest Markdown. Required when digest is always, or auto and the document meets Host digest rules."
-        }
+        "digest": digest_property(),
+        "digest_body": digest_body_property()
     });
     if include_source_path {
         props["source_path"] = json!({
@@ -132,4 +137,33 @@ pub fn update_doc_properties(include_source_path: bool) -> Value {
         });
     }
     props
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn digest_body_desc(props: &Value) -> &str {
+        props["digest_body"]["description"].as_str().unwrap()
+    }
+
+    #[test]
+    fn digest_body_description_is_the_paragraph_standard() {
+        let create = create_doc_properties(true);
+        let update = update_doc_properties(true);
+        let mobile_create = create_doc_properties(false);
+        let mobile_update = update_doc_properties(false);
+        for desc in [
+            digest_body_desc(&create),
+            digest_body_desc(&update),
+            digest_body_desc(&mobile_create),
+            digest_body_desc(&mobile_update),
+        ] {
+            assert!(desc.contains("same language as the raw"), "{desc}");
+            assert!(desc.contains("100-300"), "{desc}");
+            assert!(!desc.contains("# Title"), "{desc}");
+            assert!(!desc.contains("## Overview"), "{desc}");
+        }
+        assert_eq!(digest_body_desc(&create), digest_body_desc(&update));
+    }
 }
