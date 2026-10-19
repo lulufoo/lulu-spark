@@ -59,24 +59,25 @@ describe("spark skills pack sub-skills", () => {
 describe("spark-auto saves on signal", () => {
   const text = read("spark-auto", "SKILL.md");
 
-  it("description carries the signal trigger words", () => {
+  it("description names the host-bound $SPARK_AUTO_SIGNALS and defines no signal itself", () => {
     const frontmatter = text.match(/^---\n([\s\S]*?)\n---/)?.[1] ?? "";
+    assert.match(frontmatter, /`\$SPARK_AUTO_SIGNALS`/);
     for (const word of ["记一下", "原来如此", "下次注意", "学到了", "overturned", "achieved"]) {
-      assert.match(frontmatter, new RegExp(word), `description must carry ${word}`);
+      assert.equal(new RegExp(word).test(text), false, `spark-auto must not define the signal ${word}`);
     }
   });
 
-  it("has the five-row signal table, templates, write contract, and variables", () => {
+  it("has the signal section, templates, write contract, and variables", () => {
     assert.match(text, /^## Signals$/m);
-    for (const n of [1, 2, 3, 4, 5]) {
-      assert.match(text, new RegExp(`^\\| ${n} \\| `, "m"), `signal row ${n}`);
-    }
+    assert.match(text, /This SKILL defines none/);
+    assert.match(text, /unbound → no automatic save/);
     assert.match(text, /^## Shape$/m);
     for (const headings of ["选项 / 选择 / 理由", "原以为 / 实际 / 依据", "目标 / 结果", "Problem / What we learned / Takeaways", "原话"]) {
       assert.match(text, new RegExp(headings), `template headings ${headings}`);
     }
     assert.match(text, /^## Write contract$/m);
     assert.match(text, /^## Variables$/m);
+    assert.match(text, /^\| `\$SPARK_AUTO_SIGNALS` \|/m);
     assert.match(text, /`\$SPARK_TARGET_WORKSPACE`/);
     assert.match(text, /`\$SPARK_TARGET_PROJECT`/);
   });
