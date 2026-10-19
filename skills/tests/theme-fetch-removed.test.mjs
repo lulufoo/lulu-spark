@@ -22,7 +22,7 @@ describe("theme-fetch skill removal", () => {
       "frontmatter description must not advertise theme-fetch",
     );
     assert.equal(
-      /发现子 skill（[^）]*theme-fetch/.test(text),
+      /discovers sub-skill \(`theme-fetch`\)/.test(text),
       false,
       "discovery list must not include theme-fetch",
     );

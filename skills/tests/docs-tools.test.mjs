@@ -105,6 +105,16 @@ describe("skills use the generic docs MCP tools", () => {
     assert.equal(/project `inbox`/.test(text), false);
   });
 
+  it("digest_body shape is not a skill reference file", () => {
+    assert.equal(
+      fs.existsSync(path.join(root, "spark-task", "references", "digest-body.md")),
+      false,
+    );
+    const text = fs.readFileSync(path.join(root, "spark-task", "SKILL.md"), "utf8");
+    assert.equal(/digest-body/.test(text), false);
+    assert.match(text, /live MCP `digest_body` description/);
+  });
+
   it("path-or-paste names `folder`, not the retired `theme` field", () => {
     const text = fs.readFileSync(path.join(root, "spark-task", "references", "path-or-paste.md"), "utf8");
     assert.match(text, /^\| `folder` \|/m);
