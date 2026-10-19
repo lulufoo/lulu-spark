@@ -16,12 +16,8 @@ use std::time::Duration;
 
 use rusqlite::Connection;
 
-use rusqlite::params;
-
-use super::doc_table::{create_doc_table, doc_table_for_id};
-use super::project_row::insert_inbox_project;
+use super::workspace_row::create_default_workspace;
 use crate::config::paths;
-use crate::services::id::random_alnum6;
 
 pub const DB_FILE: &str = "spark-data.sqlite";
 
@@ -172,8 +168,8 @@ fn default_workspace_exists(conn: &Connection) -> Result<bool, String> {
         .map_err(|e| e.to_string())
 }
 
-/// Create the `Default` workspace (random id, its document table, its inbox project) when
-/// the file has none, and do nothing when it does. Decided from the rows, not from the
+/// Create the `Default` workspace (the same creation as any workspace: row, document table,
+/// inbox project, one transaction) when the file has none, and do nothing when it does. Decided from the rows, not from the
 /// version, and re-checked under the write lock so concurrent opens seed it once.
 fn ensure_default_workspace(conn: &Connection) -> Result<(), String> {
     if default_workspace_exists(conn)? {
@@ -183,23 +179,8 @@ fn ensure_default_workspace(conn: &Connection) -> Result<(), String> {
         if default_workspace_exists(conn)? {
             return Ok(());
         }
-        seed_default_workspace(conn)
+        create_default_workspace(conn).map(drop)
     })
-}
-
-/// The rows behind [`ensure_default_workspace`]; the caller holds the write lock.
-fn seed_default_workspace(conn: &Connection) -> Result<(), String> {
-    let id = random_alnum6();
-    let table = doc_table_for_id(&id)?;
-    conn.execute(
-        "INSERT INTO workspace (id, name, doc_table, view_mode, is_default, created_at, sort_index)
-         VALUES (?1, 'Default', ?2, 'directory', 1, strftime('%Y-%m-%dT%H:%M:%SZ', 'now'), 0)",
-        params![id, table],
-    )
-    .map_err(|e| e.to_string())?;
-    create_doc_table(conn, &table)?;
-    insert_inbox_project(conn, &id)?;
-    Ok(())
 }
 
 /// A version this build can open: 0 (empty file), or `BASELINE_VERSION..=latest`.

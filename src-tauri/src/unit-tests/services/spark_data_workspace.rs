@@ -92,6 +92,29 @@ fn create_workspace_registers_row_and_table_in_one_step() {
 }
 
 #[test]
+fn a_workspace_is_created_with_its_table_and_inbox_or_not_at_all() {
+    let (_dir, path) = temp_db();
+    let conn = open_at(&path).expect("open");
+    let made = create_workspace(&conn, "Made", None).expect("made");
+    let inbox = get_inbox_project(&conn, &made.id).expect("lookup").expect("inbox");
+    assert!(inbox.is_inbox && inbox.name == "Inbox");
+    assert!(table_exists(&conn, &made.doc_table));
+
+    // The inbox is the last step; when it fails the row and the table must not stay.
+    conn.execute_batch(
+        "CREATE TRIGGER block_project BEFORE INSERT ON project
+         BEGIN SELECT RAISE(ABORT, 'blocked by test'); END;",
+    )
+    .expect("trigger");
+    let workspaces = count(&conn, "workspace");
+    let tables = count(&conn, "sqlite_master");
+    assert!(create_workspace(&conn, "Lost", None).is_err());
+    assert_eq!(count(&conn, "workspace"), workspaces, "no registry row left behind");
+    assert_eq!(count(&conn, "sqlite_master"), tables, "no document table left behind");
+    assert!(get_workspace_by_name(&conn, "Lost").expect("lookup").is_none());
+}
+
+#[test]
 fn create_workspace_rejects_blank_and_duplicate_names_without_leaving_a_table() {
     let (_dir, path) = temp_db();
     let conn = open_at(&path).expect("open");
