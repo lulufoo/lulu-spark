@@ -72,7 +72,7 @@ fn merge_into_inbox(
     inbox: &ProjectRow,
 ) -> Result<Value, Value> {
     let root = workspace_root(workspace)?;
-    let all = list_docs(conn, &workspace.doc_table).map_err(internal)?;
+    let all = list_docs(conn, &workspace.id).map_err(internal)?;
     let docs = pick_docs(&all, &project.id);
     let inbox_docs = pick_docs(&all, &inbox.id);
 
@@ -94,7 +94,7 @@ fn merge_into_inbox(
     let done = run_moves(&moves, &keep).map_err(internal)?;
 
     let rows: Vec<DocRow> = docs.iter().zip(&targets).map(|(d, t)| move_row(d, t, inbox)).collect();
-    if let Err(e) = delete_project_after_merge(conn, &workspace.doc_table, &project.id, &rows) {
+    if let Err(e) = delete_project_after_merge(conn, &project.id, &rows) {
         undo_moves(&done, &keep);
         return Err(internal(e));
     }

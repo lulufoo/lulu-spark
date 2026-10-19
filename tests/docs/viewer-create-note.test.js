@@ -250,6 +250,7 @@ describe('openCreateNote', () => {
 describe('create session exit', () => {
   beforeEach(async () => {
     resetViewerDom();
+    state.workspaces.current = 'default'; // any registered workspace id; the app has no literal one
     await openCreateNote({ temp_id: 'tmp-exit' });
     vi.clearAllMocks();
     api.createNote.mockResolvedValue({

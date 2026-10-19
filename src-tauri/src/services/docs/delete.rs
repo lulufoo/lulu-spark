@@ -56,7 +56,7 @@ pub fn delete_doc(payload: &Value) -> Value {
             removed += 1;
         }
     }
-    if let Err(e) = delete_doc_row(&conn, &workspace.doc_table, &id)
+    if let Err(e) = delete_doc_row(&conn, &id)
         .and_then(|_| delete_unused_tags(&conn).map(|_| ()))
     {
         return internal(e);

@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as api from '../../frontend/src/host/api.ts';
 import { mountHomeHub } from '../../frontend/src/home/hub.tsx';
+import { useLoadedWorkspaces } from '../helpers/workspaces.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const openCreateNoteMock = vi.hoisted(() => vi.fn());
@@ -51,7 +52,10 @@ describe('Home has no create-document entry · behavior', () => {
   let container;
   let cleanup;
 
+  let restoreWorkspaces;
+
   beforeEach(() => {
+    restoreWorkspaces = useLoadedWorkspaces();
     container = document.createElement('div');
     document.body.appendChild(container);
     cleanup = null;
@@ -67,6 +71,7 @@ describe('Home has no create-document entry · behavior', () => {
   });
 
   afterEach(() => {
+    restoreWorkspaces();
     cleanup?.();
     vi.restoreAllMocks();
     container.remove();

@@ -1,6 +1,6 @@
 //! Edit the document row identified by doc id, in one immediate transaction.
 //!
-//! The row is found in whichever workspace's table holds it.
+//! The row is found by its global id; its workspace is its project's workspace.
 
 use rusqlite::{Connection, TransactionBehavior};
 use serde_json::{json, Value};
@@ -46,7 +46,7 @@ pub fn edit_doc(
             .map_err(internal)?;
         let mut found = require_doc(&tx, id)?;
         let reply = edit(&tx, &mut found.doc)?;
-        update_doc(&tx, &found.workspace.doc_table, &found.doc).map_err(internal)?;
+        update_doc(&tx, &found.doc).map_err(internal)?;
         delete_unused_tags(&tx).map_err(internal)?;
         tx.commit().map_err(internal)?;
         Ok(reply)

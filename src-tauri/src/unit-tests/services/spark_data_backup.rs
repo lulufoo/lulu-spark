@@ -8,7 +8,7 @@ fn seeded_db(dir: &Path) -> Connection {
     let conn = open_at(&dir.join("live").join("spark-data.sqlite")).expect("open");
     let default = crate::services::spark_data::get_default_workspace(&conn).expect("default");
     let inbox = crate::services::spark_data::get_inbox_project(&conn, &default.id).expect("lookup").expect("inbox");
-    insert_doc(&conn, &default.doc_table, &DocRow::new("n1", "a/b.md", &inbox.id)).expect("seed");
+    insert_doc(&conn, &DocRow::new("n1", "a/b.md", &inbox.id)).expect("seed");
     conn
 }
 
@@ -30,8 +30,7 @@ fn snapshot_holds_the_data_and_a_second_run_the_same_day_does_nothing() {
     let made = backup_for_day(&conn, &dir, "20261016", 7).expect("backup").expect("new snapshot");
     assert!(made.ends_with("spark-data-20261016.sqlite"));
     let copy = open_at(&made).expect("open snapshot");
-    let table = crate::services::spark_data::get_default_workspace(&copy).expect("default").doc_table;
-    assert!(get_doc(&copy, &table, "n1").expect("get").is_some());
+    assert!(get_doc(&copy, "n1").expect("get").is_some());
     drop(copy);
     assert_eq!(backup_for_day(&conn, &dir, "20261016", 7).expect("again"), None);
     assert_eq!(snapshot_days(&dir), vec!["spark-data-20261016.sqlite"], "no partial file left behind");

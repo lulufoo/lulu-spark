@@ -52,11 +52,11 @@ describe('parseReferences', () => {
     ]);
   });
 
-  it('accepts a plain 32-hex id and a `<workspace id>-<32 hex>` id', () => {
-    const prefixed = parseReferences(`[A](spark-doc:default-${NOTE_ID})`);
-    const other = parseReferences(`[B](spark-doc:k3x9ab-${NOTE_ID})`);
-    expect(prefixed[0]).toMatchObject({ type: 'ref', kind: 'doc', id: `default-${NOTE_ID}` });
-    expect(other[0]).toMatchObject({ type: 'ref', kind: 'doc', id: `k3x9ab-${NOTE_ID}` });
+  it('accepts a 32-hex doc id and leaves a workspace-prefixed one as text', () => {
+    const plain = parseReferences(`[A](spark-doc:${NOTE_ID})`);
+    expect(plain[0]).toMatchObject({ type: 'ref', kind: 'doc', id: NOTE_ID });
+    const raw = `[B](spark-doc:k3x9ab-${NOTE_ID})`;
+    expect(parseReferences(raw)).toEqual([{ type: 'text', text: raw }]);
   });
 
   it('accepts a 32-hex read-later id and leaves a short id as text', () => {
@@ -73,13 +73,13 @@ describe('parseReferences', () => {
   });
 
   it('parses adjacent references', () => {
-    const segments = parseReferences(`[A](spark-doc:${NOTE_ID})[B](spark-doc:default-${NOTE_ID})`);
+    const segments = parseReferences(`[A](spark-doc:${NOTE_ID})[B](spark-doc:${READ_LATER_ID})`);
     expect(segments.map((s) => s.type)).toEqual(['ref', 'ref']);
   });
 
   it('leaves anything that is not a valid registered reference as text', () => {
     const cases = [
-      '[x](spark-doc:abc)', // ids are 32 hex, optionally behind a workspace id
+      '[x](spark-doc:abc)', // ids are 32 hex
       `[x](spark-doc:${NOTE_ID.toUpperCase()})`,
       `[x](spark-doc:Bad-${NOTE_ID})`,
       `[x](doc:${NOTE_ID})`, // the old scheme is no longer a reference

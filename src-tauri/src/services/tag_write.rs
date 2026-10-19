@@ -1,4 +1,4 @@
-//! Tag attach / detach / update_value on the document tables and the `tag` table.
+//! Tag attach / detach / update_value on the `document` table and the `tag` table.
 
 use std::path::Path;
 

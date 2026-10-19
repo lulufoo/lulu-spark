@@ -14,7 +14,7 @@ pub fn source_type_schema() -> Value {
 fn doc_workspace_id_schema() -> Value {
     json!({
         "type": "string",
-        "description": "Optional workspace id from list_workspaces. Defaults to the Default workspace; a document id that starts with a workspace id (<workspace>-<hex>) already names its workspace."
+        "description": "Optional workspace id from list_workspaces. Defaults to the Default workspace. A document id already names its workspace, so it is not needed when a document id is given."
     })
 }
 
@@ -108,7 +108,7 @@ pub fn update_doc_properties(include_source_path: bool) -> Value {
     let mut props = json!({
         "id": {
             "type": "string",
-            "description": "Document id from search or create_doc. The prefix before the first hyphen names the workspace."
+            "description": "Document id from search or create_doc: 32 lowercase hex characters. The document belongs to exactly one workspace."
         },
         "digest": {
             "type": "string",

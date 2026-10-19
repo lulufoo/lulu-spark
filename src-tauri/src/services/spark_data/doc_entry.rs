@@ -7,35 +7,28 @@ use serde_json::{json, Map, Value};
 
 use crate::services::archive_parse::expected_lang_common_path;
 
-use super::doc_id::split_doc_id;
 use super::doc_row::{get_doc, list_docs, DocRow};
-use super::project_row::list_projects;
-use super::workspace_row::{get_workspace, list_all_workspaces, WorkspaceRow};
+use super::project_row::{get_project, list_projects};
+use super::workspace_row::{get_workspace, WorkspaceRow};
 
-/// A document together with the workspace whose table holds it.
+/// A document together with the workspace its project belongs to.
 #[derive(Debug, Clone)]
 pub struct FoundDoc {
     pub workspace: WorkspaceRow,
     pub doc: DocRow,
 }
 
-/// The document with this id. A prefixed id (`<workspace id>-<hex>`) goes straight to that
-/// workspace's table; a plain 32 hex id from before the prefix scans the tables in order and
-/// returns the first match (nothing enforces uniqueness across tables).
+/// The document with this id, with the workspace of its project. Disabled workspaces stay
+/// searchable by id: a known id keeps opening.
 pub fn find_doc(conn: &Connection, id: &str) -> Result<Option<FoundDoc>, String> {
-    if let Some((Some(workspace_id), _)) = split_doc_id(id) {
-        let Some(workspace) = get_workspace(conn, workspace_id)? else {
-            return Ok(None);
-        };
-        return Ok(get_doc(conn, &workspace.doc_table, id)?.map(|doc| FoundDoc { workspace, doc }));
-    }
-    // Disabled workspaces stay searchable by id: a known id keeps opening.
-    for workspace in list_all_workspaces(conn)? {
-        if let Some(doc) = get_doc(conn, &workspace.doc_table, id)? {
-            return Ok(Some(FoundDoc { workspace, doc }));
-        }
-    }
-    Ok(None)
+    let Some(doc) = get_doc(conn, id)? else {
+        return Ok(None);
+    };
+    let project = get_project(conn, &doc.project_id)?
+        .ok_or_else(|| format!("project {} missing", doc.project_id))?;
+    let workspace = get_workspace(conn, &project.workspace_id)?
+        .ok_or_else(|| format!("workspace {} missing", project.workspace_id))?;
+    Ok(Some(FoundDoc { workspace, doc }))
 }
 
 /// `translations` is stored as a language list; each path is derived from `raw_path`.
@@ -92,7 +85,7 @@ pub fn list_doc_entries(conn: &Connection, workspace: &WorkspaceRow) -> Result<M
         .into_iter()
         .map(|p| p.id)
         .collect();
-    for doc in list_docs(conn, &workspace.doc_table)? {
+    for doc in list_docs(conn, &workspace.id)? {
         if !projects.contains(&doc.project_id) {
             return Err(format!("project {} missing", doc.project_id));
         }

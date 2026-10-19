@@ -76,8 +76,7 @@ pub fn seed_note_entries(entries: &Value) {
             .unwrap_or_default();
         langs.sort();
         note.translations = json!(langs);
-        insert_doc(&conn, &get_default_workspace(&conn).expect("default workspace").doc_table, &note)
-            .expect("insert doc");
+        insert_doc(&conn, &note).expect("insert doc");
     }
 }
 
@@ -88,14 +87,13 @@ pub fn read_note_entries() -> Value {
     json!({ "entries": list_doc_entries(&conn, &workspace).expect("list docs") })
 }
 
-/// Make every `INSERT` / `UPDATE` / `DELETE` (`event`) on the default document table fail, to prove what
+/// Make every `INSERT` / `UPDATE` / `DELETE` (`event`) on the document table fail, to prove what
 /// happens when the table step fails after the file step.
 pub fn block_note_writes(event: &str) {
     assert!(matches!(event, "INSERT" | "UPDATE" | "DELETE"));
     let conn = spark_data::open().expect("open spark-data");
-    let table = get_default_workspace(&conn).expect("default workspace").doc_table;
     conn.execute_batch(&format!(
-        "CREATE TRIGGER block_note_{event} BEFORE {event} ON {table} \
+        "CREATE TRIGGER block_note_{event} BEFORE {event} ON document \
          BEGIN SELECT RAISE(ABORT, 'blocked by test'); END;"
     ))
     .expect("create trigger");

@@ -57,8 +57,8 @@ fn snapshot(dir: &std::path::Path) -> Vec<(String, Vec<u8>)> {
 }
 
 #[test]
-fn the_baseline_is_version_17_and_nothing_follows_it_yet() {
-    assert_eq!(BASELINE_VERSION, 17);
+fn the_baseline_is_version_18_and_nothing_follows_it_yet() {
+    assert_eq!(BASELINE_VERSION, 18);
     assert!(MIGRATIONS.is_empty());
 }
 
@@ -68,20 +68,8 @@ fn an_empty_file_is_created_at_the_baseline_with_the_whole_schema() {
     let conn = open_at(&path).expect("first open");
     assert_eq!(user_version(&conn), BASELINE_VERSION as i64);
 
-    let default = default_ws(&conn);
-    assert_eq!(table_names(&conn), {
-        let mut expected = vec![default.doc_table.clone(), "project".to_string(), "tag".to_string(), "workspace".to_string()];
-        expected.sort();
-        expected
-    });
-    assert_eq!(
-        names(&conn, "index"),
-        {
-            let mut expected = vec!["project_one_inbox".to_string(), "workspace_one_default".to_string(), format!("{}_raw_path", default.doc_table)];
-            expected.sort();
-            expected
-        }
-    );
+    assert_eq!(table_names(&conn), ["document", "project", "tag", "workspace"]);
+    assert_eq!(names(&conn, "index"), ["document_project_id", "project_one_inbox", "workspace_one_default"]);
     assert_eq!(
         names(&conn, "trigger"),
         vec!["project_keys_immutable", "workspace_default_undeletable", "workspace_keys_immutable"]
@@ -99,7 +87,6 @@ fn the_seed_is_default_and_its_inbox_only() {
     assert_eq!((default.name.as_str(), default.is_default, default.view_mode), ("Default", true, ViewMode::Directory));
     assert_eq!(default.id.len(), 6);
     assert_ne!(default.id, "default", "the id is random, not a literal");
-    assert_eq!(default.doc_table, format!("doc_{}", default.id));
     assert!(get_workspace_by_name(&conn, "Knowledge").expect("lookup").is_none());
 
     let projects = list_projects(&conn, &default.id).expect("projects");
@@ -117,20 +104,20 @@ fn reopening_changes_nothing_and_keeps_rows() {
     let default = default_ws(&first);
     let tables = table_names(&first);
     let inbox = get_inbox_project(&first, &default.id).expect("lookup").expect("inbox");
-    insert_doc(&first, &default.doc_table, &DocRow::new("n1", "a/b.md", &inbox.id)).expect("seed");
+    insert_doc(&first, &DocRow::new("n1", "a/b.md", &inbox.id)).expect("seed");
     drop(first);
 
     let second = open_at(&path).expect("reopen");
     assert_eq!(default_ws(&second).id, default.id, "the seeded id is stable");
     assert_eq!(table_names(&second), tables);
     assert_eq!(user_version(&second), BASELINE_VERSION as i64);
-    let kept = get_doc(&second, &default.doc_table, "n1").expect("get").expect("row");
+    let kept = get_doc(&second, "n1").expect("get").expect("row");
     assert_eq!(kept.project_id, inbox.id);
 }
 
 #[test]
 fn a_file_below_the_baseline_is_refused_and_left_untouched() {
-    for version in [1, 15, 16] {
+    for version in [1, 16, 17] {
         let (dir, path) = temp_db();
         file_at_version(&path, version);
         let before = snapshot(dir.path().join("data").as_path());
@@ -174,13 +161,11 @@ fn a_baseline_file_without_a_default_workspace_gets_one_and_an_existing_one_is_k
     assert_eq!(count(&conn, "SELECT count(*) FROM workspace"), 1);
 
     // Take Default away by hand (the guard trigger has to go first), at the same version.
-    conn.execute_batch(&format!(
+    conn.execute_batch(
         "DROP TRIGGER workspace_default_undeletable;
-         DROP TABLE {table};
          DELETE FROM project;
          DELETE FROM workspace;",
-        table = old.doc_table
-    ))
+    )
     .expect("remove Default");
     assert_eq!(user_version(&conn), BASELINE_VERSION as i64);
     drop(conn);
@@ -188,8 +173,6 @@ fn a_baseline_file_without_a_default_workspace_gets_one_and_an_existing_one_is_k
     let healed = open_at(&path).expect("open without Default");
     let fresh = default_ws(&healed);
     assert_eq!((fresh.name.as_str(), fresh.is_default), ("Default", true));
-    assert_eq!(fresh.doc_table, format!("doc_{}", fresh.id));
-    assert!(table_names(&healed).contains(&fresh.doc_table));
     assert_eq!(count(&healed, "SELECT count(*) FROM workspace"), 1);
     assert_eq!(
         count(&healed, &format!("SELECT count(*) FROM project WHERE is_inbox = 1 AND workspace_id = '{}'", fresh.id)),
@@ -211,17 +194,19 @@ fn open_uses_wal_and_foreign_keys() {
 fn schema_rejects_bad_values() {
     let (_dir, path) = temp_db();
     let conn = open_at(&path).expect("open");
-    let table = default_ws(&conn).doc_table;
-    let mut doc = DocRow::new("n1", "a.md", "inbox");
+    let inbox = get_inbox_project(&conn, &default_ws(&conn).id).expect("lookup").expect("inbox");
+    insert_doc(&conn, &DocRow::new("ok", "a.md", &inbox.id)).expect("a valid row goes in");
+    let mut doc = DocRow::new("n1", "a.md", &inbox.id);
     doc.importance = Some("urgent".into());
-    assert!(insert_doc(&conn, &table, &doc).is_err(), "importance outside high|medium|low");
-    let mut doc = DocRow::new("n2", "a.md", "inbox");
+    assert!(insert_doc(&conn, &doc).is_err(), "importance outside high|medium|low");
+    let mut doc = DocRow::new("n2", "a.md", &inbox.id);
     doc.tags = serde_json::json!({ "not": "an array" });
-    assert!(insert_doc(&conn, &table, &doc).is_err(), "JSON columns must be arrays");
+    assert!(insert_doc(&conn, &doc).is_err(), "JSON columns must be arrays");
     assert!(
-        insert_doc(&conn, &table, &DocRow::new("n3", "a.md", "missing")).is_err(),
+        insert_doc(&conn, &DocRow::new("n3", "a.md", "missing")).is_err(),
         "FK to project(id)"
     );
+    assert!(insert_doc(&conn, &DocRow::new("ok", "b.md", &inbox.id)).is_err(), "doc_id is the primary key");
 }
 
 #[test]
@@ -273,8 +258,8 @@ fn each_user_version_runs_only_the_remaining_steps() {
     // baseline file → both steps; one step done → only the second
     let (_dir2, path2) = temp_db();
     drop(open_with_steps(&path2, &[]).expect("baseline"));
-    drop(open_with_steps(&path2, &[STEP_A]).expect("17 → 18"));
-    let upgraded = open_with_steps(&path2, &[STEP_A, STEP_B]).expect("18 → 19");
+    drop(open_with_steps(&path2, &[STEP_A]).expect("18 → 19"));
+    let upgraded = open_with_steps(&path2, &[STEP_A, STEP_B]).expect("19 → 20");
     assert_eq!(user_version(&upgraded), base + 2);
     assert_eq!(a_rows(&upgraded), 2, "step A must not run twice");
     assert!(table_names(&upgraded).contains(&"b".to_string()));

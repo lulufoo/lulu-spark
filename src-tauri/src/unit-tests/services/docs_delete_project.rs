@@ -5,7 +5,7 @@ use serde_json::{json, Value};
 
 use super::*;
 use crate::services::archive_parse::expected_lang_common_path;
-use crate::services::spark_data::{self, find_doc, get_workspace, new_doc_id, DocRow};
+use crate::services::spark_data::{self, find_doc, new_doc_id, DocRow};
 use crate::test_support::TestSandbox;
 
 const A: &str = "notes/202601011200-alpha1.md";
@@ -50,12 +50,11 @@ impl Setup {
     /// A document row and its files: raw, a digest when asked, one file per translation language.
     fn seed(&self, project: &str, rel: &str, digest: bool, langs: &[&str]) -> String {
         let conn = spark_data::open().expect("db");
-        let table = get_workspace(&conn, &self.ws).expect("get").expect("row").doc_table;
-        let id = new_doc_id(&self.ws);
+        let id = new_doc_id();
         let mut row = DocRow::new(&id, rel, project);
         row.digest_path = digest.then(|| rel.to_string());
         row.translations = json!(langs);
-        spark_data::insert_doc(&conn, &table, &row).expect("insert");
+        spark_data::insert_doc(&conn, &row).expect("insert");
         self.put("raw", project, rel, "raw");
         if digest {
             self.put("digest", project, rel, "digest");

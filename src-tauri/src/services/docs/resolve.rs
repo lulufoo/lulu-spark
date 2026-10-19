@@ -12,7 +12,7 @@ use serde_json::{json, Value};
 use crate::config::paths;
 use crate::services::docs::workspace_dir;
 use crate::services::spark_data::{
-    self, get_doc, get_inbox_project, get_project, get_workspace, list_workspaces, DocRow,
+    self, find_doc, get_doc, get_inbox_project, get_project, get_workspace, list_workspaces, DocRow,
     ProjectRow, WorkspaceRow,
 };
 
@@ -102,26 +102,34 @@ pub(super) fn resolve_workspace(conn: &Connection, requested: Option<&str>) -> R
     }
 }
 
-/// The workspace of a request about document `id`: the `workspace_id` field when given, else the
-/// one a prefixed id names, else the default workspace.
+/// The workspace of a request about document `id`: the workspace of the document's project.
+/// A `workspace_id` field, when given, must name that same workspace: an unknown one is a 404
+/// and so is a document that lives elsewhere.
 pub(super) fn resolve_doc_workspace(
     conn: &Connection,
     payload: &Value,
     id: &str,
 ) -> Result<WorkspaceRow, Value> {
-    if let Some(id) = text_field(payload, "workspace_id") {
-        return resolve_workspace(conn, Some(id));
+    let named = match text_field(payload, "workspace_id") {
+        Some(requested) => Some(resolve_workspace(conn, Some(requested))?),
+        None => None,
+    };
+    let workspace = resolve_workspace_from_doc_id(conn, id)?;
+    match named {
+        Some(named) if named.id != workspace.id => Err(not_found("Entry not found")),
+        _ => Ok(workspace),
     }
-    resolve_workspace_from_doc_id(conn, id)
 }
 
-/// The workspace a prefixed document id names; the default workspace when the id has no prefix.
+/// The workspace that holds document `id`.
 pub(super) fn resolve_workspace_from_doc_id(
     conn: &Connection,
     id: &str,
 ) -> Result<WorkspaceRow, Value> {
-    let named = spark_data::split_doc_id(id).and_then(|(workspace, _)| workspace);
-    resolve_workspace(conn, named)
+    find_doc(conn, id)
+        .map_err(internal)?
+        .map(|found| found.workspace)
+        .ok_or_else(|| not_found("Entry not found"))
 }
 
 /// The project with this id inside `workspace`. Omitted id → the inbox. 400 when missing
@@ -162,12 +170,15 @@ pub(super) fn resolve_doc(
     workspace: &WorkspaceRow,
     id: &str,
 ) -> Result<(DocRow, ProjectRow), Value> {
-    let doc = get_doc(conn, &workspace.doc_table, id)
+    let doc = get_doc(conn, id)
         .map_err(internal)?
         .ok_or_else(|| not_found("Entry not found"))?;
     let project = get_project(conn, &doc.project_id)
         .map_err(internal)?
         .ok_or_else(|| internal(format!("project {} missing", doc.project_id)))?;
+    if project.workspace_id != workspace.id {
+        return Err(not_found("Entry not found"));
+    }
     Ok((doc, project))
 }
 

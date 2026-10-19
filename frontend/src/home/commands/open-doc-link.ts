@@ -4,9 +4,9 @@ import { refreshNotesIndex } from '../../notes/commands/reload-index.ts';
 import { showWorkspace } from '../../notes/commands/workspace-switch.ts';
 import { showActionError } from './hub.ts';
 
-/** Chat links that open a document: `[Workspace name：Title](spark-doc:<id>)`. The id is `<workspace id>-<32 hex>`
- * or a plain 32 hex from before the prefix. Only the id is read; the link text is for display. */
-const DOC_HREF = /^spark-doc:((?:[a-z0-9_]+-)?[0-9a-f]{32})$/;
+/** Chat links that open a document: `[Workspace name：Title](spark-doc:<id>)`. The id is 32 lowercase hex and names
+ * the document alone. Only the id is read; the link text is for display. */
+const DOC_HREF = /^spark-doc:([0-9a-f]{32})$/;
 
 export function docIdFromHref(href: string | null | undefined): string | null {
   const match = DOC_HREF.exec((href ?? '').trim());

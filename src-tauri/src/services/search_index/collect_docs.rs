@@ -1,4 +1,4 @@
-//! Chunks of the documents in the per-workspace tables (`doc_<workspace id>`).
+//! Chunks of the documents in the `document` table.
 //!
 //! Files live at `{workspaces_root}/{workspace id}/{layer}/{project id}/{rel}`.
 
@@ -53,7 +53,7 @@ fn workspace_chunks(conn: &Connection, workspace: &WorkspaceRow) -> Result<Vec<S
         .collect();
     let hide = compiled_hide_regexes(&workspace.id);
     let mut chunks = Vec::new();
-    for doc in list_docs(conn, &workspace.doc_table)? {
+    for doc in list_docs(conn, &workspace.id)? {
         if path_is_hidden(&doc.raw_path, &hide) {
             continue;
         }
@@ -85,10 +85,11 @@ pub fn workspace_doc_chunks(workspace_id: &str, doc_id: &str) -> Result<Vec<Sour
     if workspace.disabled_at.is_some() {
         return Ok(Vec::new());
     }
-    let Some(doc) = get_doc(&conn, &workspace.doc_table, doc_id)? else {
+    let Some(doc) = get_doc(&conn, doc_id)? else {
         return Ok(Vec::new());
     };
-    let Some(project) = get_project(&conn, &doc.project_id)? else {
+    // The document must belong to this workspace through its project.
+    let Some(project) = get_project(&conn, &doc.project_id)?.filter(|p| p.workspace_id == workspace_id) else {
         return Ok(Vec::new());
     };
     // Hidden files: a document with a hidden path segment is not searchable.

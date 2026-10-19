@@ -1,14 +1,11 @@
-//! Reads and writes of one row of a per-workspace document table (`doc_<workspace id>`).
-//!
-//! Every function takes the table name from the `workspace` registry row and checks it with
-//! [`validate_doc_table_name`] before splicing it into SQL.
+//! Reads and writes of the `document` table: one row per document, `doc_id` the global key.
+//! A document's workspace is its project's workspace; the row stores only `project_id`.
 
 use std::collections::HashMap;
 
 use rusqlite::{params, Connection, OptionalExtension, Row};
 use serde_json::Value;
 
-use super::doc_table::validate_doc_table_name;
 use super::json_column::{read_array, write_array};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -72,10 +69,9 @@ fn map_row(row: &Row<'_>) -> rusqlite::Result<DocRow> {
     })
 }
 
-pub fn insert_doc(conn: &Connection, table: &str, doc: &DocRow) -> Result<(), String> {
-    validate_doc_table_name(table)?;
+pub fn insert_doc(conn: &Connection, doc: &DocRow) -> Result<(), String> {
     conn.execute(
-        &format!("INSERT INTO {table}({COLUMNS}) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)"),
+        &format!("INSERT INTO document({COLUMNS}) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)"),
         params![
             doc.doc_id,
             doc.raw_path,
@@ -98,12 +94,11 @@ pub fn insert_doc(conn: &Connection, table: &str, doc: &DocRow) -> Result<(), St
 }
 
 /// Replace every column of the row with this `doc_id`. `false` when it does not exist.
-pub fn update_doc(conn: &Connection, table: &str, doc: &DocRow) -> Result<bool, String> {
-    validate_doc_table_name(table)?;
+pub fn update_doc(conn: &Connection, doc: &DocRow) -> Result<bool, String> {
     let changed = conn
         .execute(
             &format!(
-                "UPDATE {table} SET raw_path = ?2, digest_path = ?3, source_type = ?4, created_at = ?5,
+                "UPDATE document SET raw_path = ?2, digest_path = ?3, source_type = ?4, created_at = ?5,
                         importance = ?6, done = ?7, links = ?8, comments = ?9, tags = ?10,
                         highlights = ?11, translations = ?12, title = ?13, project_id = ?14
                  WHERE doc_id = ?1"
@@ -129,10 +124,9 @@ pub fn update_doc(conn: &Connection, table: &str, doc: &DocRow) -> Result<bool, 
     Ok(changed > 0)
 }
 
-pub fn get_doc(conn: &Connection, table: &str, doc_id: &str) -> Result<Option<DocRow>, String> {
-    validate_doc_table_name(table)?;
+pub fn get_doc(conn: &Connection, doc_id: &str) -> Result<Option<DocRow>, String> {
     conn.query_row(
-        &format!("SELECT {COLUMNS} FROM {table} WHERE doc_id = ?1"),
+        &format!("SELECT {COLUMNS} FROM document WHERE doc_id = ?1"),
         params![doc_id],
         map_row,
     )
@@ -140,30 +134,30 @@ pub fn get_doc(conn: &Connection, table: &str, doc_id: &str) -> Result<Option<Do
     .map_err(|e| e.to_string())
 }
 
-/// Every document of the table, ordered by `doc_id`.
-pub fn list_docs(conn: &Connection, table: &str) -> Result<Vec<DocRow>, String> {
-    validate_doc_table_name(table)?;
+/// Every document of the workspace (those whose project belongs to it), ordered by `doc_id`.
+pub fn list_docs(conn: &Connection, workspace_id: &str) -> Result<Vec<DocRow>, String> {
     let mut stmt = conn
-        .prepare(&format!("SELECT {COLUMNS} FROM {table} ORDER BY doc_id"))
+        .prepare(&format!(
+            "SELECT {COLUMNS} FROM document
+             WHERE project_id IN (SELECT id FROM project WHERE workspace_id = ?1) ORDER BY doc_id"
+        ))
         .map_err(|e| e.to_string())?;
-    let rows = stmt.query_map([], map_row).map_err(|e| e.to_string())?;
+    let rows = stmt.query_map(params![workspace_id], map_row).map_err(|e| e.to_string())?;
     rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
 }
 
 /// `false` when the row did not exist.
-pub fn delete_doc(conn: &Connection, table: &str, doc_id: &str) -> Result<bool, String> {
-    validate_doc_table_name(table)?;
+pub fn delete_doc(conn: &Connection, doc_id: &str) -> Result<bool, String> {
     let changed = conn
-        .execute(&format!("DELETE FROM {table} WHERE doc_id = ?1"), params![doc_id])
+        .execute(&format!("DELETE FROM document WHERE doc_id = ?1"), params![doc_id])
         .map_err(|e| e.to_string())?;
     Ok(changed > 0)
 }
 
-/// Documents per project in one query. A project with no document has no entry.
-pub fn count_docs_by_project(conn: &Connection, table: &str) -> Result<HashMap<String, i64>, String> {
-    validate_doc_table_name(table)?;
+/// Documents per project (all workspaces; project ids are global) in one query. A project with no document has no entry.
+pub fn count_docs_by_project(conn: &Connection) -> Result<HashMap<String, i64>, String> {
     let mut stmt = conn
-        .prepare(&format!("SELECT project_id, count(*) FROM {table} GROUP BY project_id"))
+        .prepare(&format!("SELECT project_id, count(*) FROM document GROUP BY project_id"))
         .map_err(|e| e.to_string())?;
     let rows = stmt
         .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)))
@@ -171,11 +165,10 @@ pub fn count_docs_by_project(conn: &Connection, table: &str) -> Result<HashMap<S
     rows.collect::<Result<HashMap<_, _>, _>>().map_err(|e| e.to_string())
 }
 
-/// How many documents of the table belong to the project.
-pub fn count_docs_in_project(conn: &Connection, table: &str, project_id: &str) -> Result<i64, String> {
-    validate_doc_table_name(table)?;
+/// How many documents belong to the project.
+pub fn count_docs_in_project(conn: &Connection, project_id: &str) -> Result<i64, String> {
     conn.query_row(
-        &format!("SELECT count(*) FROM {table} WHERE project_id = ?1"),
+        &format!("SELECT count(*) FROM document WHERE project_id = ?1"),
         params![project_id],
         |r| r.get(0),
     )

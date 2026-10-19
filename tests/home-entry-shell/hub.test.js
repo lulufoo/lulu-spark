@@ -9,6 +9,7 @@ import { mountHomeHub } from '../../frontend/src/home/hub.tsx';
 import * as chatRender from '../../frontend/src/home/ui/chat-render.ts';
 import { readFrontendJs, readMainSource } from '../helpers/read-frontend-js.js';
 import { composerValue, setComposerValue, composerDisabled, composerPlaceholder } from '../helpers/composer.js';
+import { useLoadedWorkspaces } from '../helpers/workspaces.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const mainJs = readMainSource();
@@ -18,7 +19,10 @@ describe('mountHomeHub', () => {
   let navigate;
   let cleanup;
 
+  let restoreWorkspaces;
+
   beforeEach(() => {
+    restoreWorkspaces = useLoadedWorkspaces();
     container = document.createElement('div');
     document.body.appendChild(container);
     navigate = vi.fn();
@@ -26,6 +30,7 @@ describe('mountHomeHub', () => {
   });
 
   afterEach(() => {
+    restoreWorkspaces();
     cleanup?.();
     container.remove();
   });

@@ -165,14 +165,14 @@ fn write_doc(source: &str, payload: &Value, source_basename: Option<&str>) -> Va
         return v;
     }
 
-    let id = new_doc_id(&workspace.id);
+    let id = new_doc_id();
     let mut row = DocRow::new(&id, &meta.common_path, &project.id);
     row.title = Some(meta.title.clone());
     row.created_at = Some(meta.created_at.clone());
     row.source_type = Some(meta.source_type.clone());
     row.digest_path = digest_rel.as_ref().map(|_| meta.common_path.clone());
     row.translations = json!(translations.iter().map(|t| t.lang.as_str()).collect::<Vec<_>>());
-    if let Err(e) = insert_doc(&conn, &workspace.doc_table, &row) {
+    if let Err(e) = insert_doc(&conn, &row) {
         rollback_written(&written);
         return internal(e);
     }

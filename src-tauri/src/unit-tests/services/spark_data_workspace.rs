@@ -20,13 +20,6 @@ fn knowledge_ws(conn: &Connection) -> WorkspaceRow {
     }
 }
 
-fn table_exists(conn: &Connection, name: &str) -> bool {
-    conn.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?1")
-        .expect("prepare")
-        .exists([name])
-        .expect("exists")
-}
-
 fn count(conn: &Connection, table: &str) -> i64 {
     conn.query_row(&format!("SELECT count(*) FROM {table}"), [], |r| r.get(0)).expect("count")
 }
@@ -41,9 +34,9 @@ fn columns(conn: &Connection, table: &str) -> Vec<(String, String, i64, Option<S
         .expect("rows")
 }
 
-fn insert_doc(conn: &Connection, table: &str, doc_id: &str, project_id: &str) -> rusqlite::Result<usize> {
+fn insert_doc(conn: &Connection, doc_id: &str, project_id: &str) -> rusqlite::Result<usize> {
     conn.execute(
-        &format!("INSERT INTO {table}(doc_id, raw_path, project_id) VALUES (?1, 'a.md', ?2)"),
+        "INSERT INTO document(doc_id, raw_path, project_id) VALUES (?1, 'a.md', ?2)",
         [doc_id, project_id],
     )
 }
@@ -56,25 +49,32 @@ fn seed_registry_rows_and_modes_are_right() {
     assert_eq!(rows.len(), 1, "the seed is Default only");
     assert_eq!((rows[0].name.as_str(), rows[0].view_mode, rows[0].is_default), ("Default", ViewMode::Directory, true));
     assert_ne!(rows[0].id, "default");
-    assert_eq!(rows[0].doc_table, format!("doc_{}", rows[0].id));
     assert!(get_workspace_by_name(&conn, "Knowledge").expect("lookup").is_none());
 }
 
 #[test]
-fn migration_and_runtime_templates_make_the_same_doc_table() {
+fn the_schema_has_one_document_table_and_no_per_workspace_tables() {
     let (_dir, path) = temp_db();
     let conn = open_at(&path).expect("open");
-    let made = create_workspace(&conn, "Scratch", None).expect("create");
-    assert_eq!(columns(&conn, &default_ws(&conn).doc_table), columns(&conn, &made.doc_table));
-    assert_eq!(columns(&conn, &knowledge_ws(&conn).doc_table), columns(&conn, &made.doc_table));
-    let names: Vec<String> = columns(&conn, &made.doc_table).into_iter().map(|c| c.0).collect();
-    assert!(names.contains(&"project_id".to_string()));
-    assert!(!names.contains(&"status".to_string()));
-    assert!(!names.contains(&"category_id".to_string()));
+    create_workspace(&conn, "Scratch", None).expect("create");
+    knowledge_ws(&conn);
+    let mut tables: Vec<String> = conn
+        .prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name")
+        .expect("prepare")
+        .query_map([], |r| r.get(0))
+        .expect("tables")
+        .collect::<Result<_, _>>()
+        .expect("rows");
+    tables.retain(|t| !t.starts_with("sqlite_"));
+    assert_eq!(tables, ["document", "project", "tag", "workspace"]);
+    let names: Vec<String> = columns(&conn, "document").into_iter().map(|c| c.0).collect();
+    assert_eq!(names[..2], ["doc_id", "project_id"]);
+    assert!(!names.contains(&"workspace_id".to_string()), "the workspace comes from the project");
+    assert!(!columns(&conn, "workspace").iter().any(|c| c.0 == "doc_table"));
 }
 
 #[test]
-fn create_workspace_registers_row_and_table_in_one_step() {
+fn create_workspace_registers_row_and_inbox_in_one_step() {
     let (_dir, path) = temp_db();
     let conn = open_at(&path).expect("open");
     let made = create_workspace(&conn, "  Ai Memory  ", None).expect("create");
@@ -82,8 +82,7 @@ fn create_workspace_registers_row_and_table_in_one_step() {
     assert_eq!(made.view_mode, ViewMode::Directory);
     assert!(!made.is_default);
     assert!(validate_workspace_id(&made.id).is_ok(), "id {:?}", made.id);
-    assert_eq!(made.doc_table, format!("doc_{}", made.id));
-    assert!(table_exists(&conn, &made.doc_table));
+    assert!(get_inbox_project(&conn, &made.id).expect("inbox").is_some());
     assert_eq!(get_workspace(&conn, &made.id).expect("get"), Some(made.clone()));
 
     let timeline = create_workspace(&conn, "Log", Some(ViewMode::Timeline)).expect("create");
@@ -92,53 +91,45 @@ fn create_workspace_registers_row_and_table_in_one_step() {
 }
 
 #[test]
-fn a_workspace_is_created_with_its_table_and_inbox_or_not_at_all() {
+fn a_workspace_is_created_with_its_inbox_or_not_at_all() {
     let (_dir, path) = temp_db();
     let conn = open_at(&path).expect("open");
     let made = create_workspace(&conn, "Made", None).expect("made");
     let inbox = get_inbox_project(&conn, &made.id).expect("lookup").expect("inbox");
     assert!(inbox.is_inbox && inbox.name == "Inbox");
-    assert!(table_exists(&conn, &made.doc_table));
 
-    // The inbox is the last step; when it fails the row and the table must not stay.
+    // The inbox is the last step; when it fails the row must not stay.
     conn.execute_batch(
         "CREATE TRIGGER block_project BEFORE INSERT ON project
          BEGIN SELECT RAISE(ABORT, 'blocked by test'); END;",
     )
     .expect("trigger");
     let workspaces = count(&conn, "workspace");
-    let tables = count(&conn, "sqlite_master");
     assert!(create_workspace(&conn, "Lost", None).is_err());
     assert_eq!(count(&conn, "workspace"), workspaces, "no registry row left behind");
-    assert_eq!(count(&conn, "sqlite_master"), tables, "no document table left behind");
     assert!(get_workspace_by_name(&conn, "Lost").expect("lookup").is_none());
 }
 
 #[test]
-fn create_workspace_rejects_blank_and_duplicate_names_without_leaving_a_table() {
+fn create_workspace_rejects_blank_and_duplicate_names_without_leaving_a_row() {
     let (_dir, path) = temp_db();
     let conn = open_at(&path).expect("open");
-    let tables = count(&conn, "sqlite_master");
     assert!(create_workspace(&conn, "   ", None).is_err());
     assert!(create_workspace(&conn, "Default", None).is_err(), "name is unique");
-    assert_eq!(count(&conn, "sqlite_master"), tables);
     assert_eq!(count(&conn, "workspace"), 1);
+    assert_eq!(count(&conn, "project"), 1, "only the Default workspace's inbox");
 }
 
 #[test]
-fn table_names_with_anything_but_doc_prefix_and_lowercase_id_are_refused() {
-    for ok in ["doc_default", "doc_a1_b2", "doc_0"] {
-        assert!(validate_doc_table_name(ok).is_ok(), "{ok}");
+fn workspace_ids_are_lowercase_ascii_names_for_a_folder() {
+    for ok in ["default", "a1_b2", "0", "zl7mly"] {
+        assert!(validate_workspace_id(ok).is_ok(), "{ok}");
     }
     for bad in [
-        "", "doc_", "note", "docs_a", "DOC_a", "doc_A", "doc_a-b", "doc_a b", "doc_a;DROP TABLE note",
-        "doc_a\"", "doc_ä", "doc_a.b", format!("doc_{}", "x".repeat(60)).as_str(),
+        "", "Ws", "a-b", "a b", "a;b", "a\"", "ä", "a.b", "../x", "a/b", "x".repeat(60).as_str(),
     ] {
-        assert!(validate_doc_table_name(bad).is_err(), "{bad:?}");
+        assert!(validate_workspace_id(bad).is_err(), "{bad:?}");
     }
-    assert_eq!(doc_table_for_id("ws_1").expect("ok"), "doc_ws_1");
-    assert!(doc_table_for_id("Ws").is_err());
-    assert!(doc_table_for_id("a;b").is_err());
 }
 
 #[test]
@@ -150,7 +141,6 @@ fn default_workspace_cannot_be_disabled_and_not_deleted_even_by_raw_sql() {
     assert!(discard_new_workspace(&conn, &default.id).is_err());
     assert!(conn.execute("DELETE FROM workspace WHERE id = ?1", [&default.id]).is_err(), "trigger");
     assert!(get_workspace(&conn, &default.id).expect("get").is_some());
-    assert!(table_exists(&conn, &default.doc_table));
 }
 
 #[test]
@@ -169,15 +159,13 @@ fn discard_drops_a_fresh_workspace_without_documents_and_refuses_one_with_docume
     let conn = open_at(&path).expect("open");
     let made = create_workspace(&conn, "Temp", None).expect("create");
     insert_project(&conn, &ProjectRow::new("p1", &made.id, "Notes", "")).expect("project");
-    insert_doc(&conn, &made.doc_table, "d1", "p1").expect("doc");
+    insert_doc(&conn, "d1", "p1").expect("doc");
     assert!(discard_new_workspace(&conn, &made.id).is_err(), "has a document");
-    assert!(table_exists(&conn, &made.doc_table));
     assert!(get_project(&conn, "p1").expect("get").is_some());
 
-    conn.execute(&format!("DELETE FROM {} WHERE doc_id = 'd1'", made.doc_table), []).expect("remove doc");
+    conn.execute("DELETE FROM document WHERE doc_id = 'd1'", []).expect("remove doc");
     assert!(discard_new_workspace(&conn, &made.id).expect("discard"), "the empty project goes with it");
     assert!(get_project(&conn, "p1").expect("get").is_none());
-    assert!(!table_exists(&conn, &made.doc_table));
     assert!(get_workspace(&conn, &made.id).expect("get").is_none());
     assert!(!discard_new_workspace(&conn, &made.id).expect("again"), "already gone");
 }
@@ -188,7 +176,7 @@ fn disable_hides_a_workspace_keeps_its_data_and_enable_brings_it_back() {
     let conn = open_at(&path).expect("open");
     let made = create_workspace(&conn, "Temp", None).expect("create");
     insert_project(&conn, &ProjectRow::new("p1", &made.id, "Notes", "")).expect("project");
-    insert_doc(&conn, &made.doc_table, "d1", "p1").expect("doc");
+    insert_doc(&conn, "d1", "p1").expect("doc");
     assert!(made.disabled_at.is_none());
 
     assert!(disable_workspace(&conn, &made.id).expect("disable"), "a workspace with documents can be disabled");
@@ -201,7 +189,7 @@ fn disable_hides_a_workspace_keeps_its_data_and_enable_brings_it_back() {
     assert!(!ids(list_workspaces(&conn).expect("list")).contains(&made.id));
     assert_eq!(ids(list_disabled_workspaces(&conn).expect("disabled")), vec![made.id.clone()]);
     assert!(ids(list_all_workspaces(&conn).expect("all")).contains(&made.id));
-    assert_eq!(count(&conn, &made.doc_table), 1, "the document stays");
+    assert_eq!(count(&conn, "document"), 1, "the document stays");
     assert!(create_workspace(&conn, "Temp", None).is_err(), "the name stays taken");
     assert_eq!(
         get_workspace_by_name(&conn, "Temp").expect("by name").map(|w| w.id),
@@ -229,20 +217,20 @@ fn the_disabled_at_column_is_empty_for_every_existing_row() {
 }
 
 #[test]
-fn rename_changes_name_only_and_id_and_table_are_immutable() {
+fn rename_changes_name_only_and_id_is_immutable() {
     let (_dir, path) = temp_db();
     let conn = open_at(&path).expect("open");
     let made = create_workspace(&conn, "Before", None).expect("create");
     assert!(rename_workspace(&conn, &made.id, "After").expect("rename"));
     assert!(rename_workspace(&conn, &default_ws(&conn).id, "Home").expect("rename default"));
     let got = get_workspace(&conn, &made.id).expect("get").expect("row");
-    assert_eq!((got.name.as_str(), got.id.as_str(), got.doc_table.as_str()), ("After", made.id.as_str(), made.doc_table.as_str()));
+    assert_eq!((got.name.as_str(), got.id.as_str()), ("After", made.id.as_str()));
     assert!(rename_workspace(&conn, &made.id, "Home").is_err(), "name is unique");
     assert!(rename_workspace(&conn, &made.id, " ").is_err());
     assert!(!rename_workspace(&conn, "missing", "X").expect("missing"));
 
     assert!(conn.execute("UPDATE workspace SET id = 'other' WHERE id = ?1", [&made.id]).is_err());
-    assert!(conn.execute("UPDATE workspace SET doc_table = 'doc_x' WHERE id = ?1", [&made.id]).is_err());
+    assert!(conn.execute("UPDATE workspace SET is_default = 1 WHERE id = ?1", [&made.id]).is_err());
     assert!(set_workspace_view_mode(&conn, &made.id, ViewMode::Timeline).expect("mode"));
     assert_eq!(
         get_workspace(&conn, &made.id).expect("get").expect("row").view_mode,
@@ -251,21 +239,15 @@ fn rename_changes_name_only_and_id_and_table_are_immutable() {
 }
 
 #[test]
-fn registry_rejects_a_doc_table_that_does_not_match_the_id() {
+fn registry_rejects_an_id_that_is_not_a_lowercase_name() {
     let (_dir, path) = temp_db();
     let conn = open_at(&path).expect("open");
-    assert!(conn
-        .execute(
-            "INSERT INTO workspace(id, name, doc_table) VALUES ('x1', 'X', 'note')",
-            []
-        )
-        .is_err());
-    assert!(conn
-        .execute(
-            "INSERT INTO workspace(id, name, doc_table) VALUES ('X1', 'X', 'doc_X1')",
-            []
-        )
-        .is_err());
+    for bad in ["", "X1", "a-b", "a b"] {
+        assert!(
+            conn.execute("INSERT INTO workspace(id, name) VALUES (?1, 'X')", [bad]).is_err(),
+            "{bad:?}"
+        );
+    }
 }
 
 #[test]
@@ -296,19 +278,19 @@ fn projects_are_unique_per_workspace_and_need_a_real_workspace() {
 }
 
 #[test]
-fn doc_tables_need_a_real_project_and_block_a_raw_delete_of_it() {
+fn documents_need_a_real_project_and_block_a_raw_delete_of_it() {
     let (_dir, path) = temp_db();
     let conn = open_at(&path).expect("open");
     let default = default_ws(&conn);
     insert_project(&conn, &ProjectRow::new("p1", &default.id, "Work", "")).expect("project");
-    assert!(insert_doc(&conn, &default.doc_table, "d1", "missing").is_err(), "FK to project");
-    insert_doc(&conn, &default.doc_table, "d1", "p1").expect("doc");
-    assert!(insert_doc(&conn, &default.doc_table, "d1", "p1").is_err(), "primary key");
+    assert!(insert_doc(&conn, "d1", "missing").is_err(), "FK to project");
+    insert_doc(&conn, "d1", "p1").expect("doc");
+    assert!(insert_doc(&conn, "d1", "p1").is_err(), "primary key");
     assert!(
         conn.execute("DELETE FROM project WHERE id = 'p1'", []).is_err(),
         "a document still references it"
     );
-    conn.execute(&format!("DELETE FROM {} WHERE doc_id = 'd1'", default.doc_table), []).expect("remove doc");
+    conn.execute("DELETE FROM document WHERE doc_id = 'd1'", []).expect("remove doc");
     assert!(conn.execute("DELETE FROM project WHERE id = 'p1'", []).is_ok());
 }
 
@@ -318,7 +300,7 @@ fn a_legacy_disabled_at_does_not_hide_a_project() {
     let conn = open_at(&path).expect("open");
     let default = default_ws(&conn);
     insert_project(&conn, &ProjectRow::new("p1", &default.id, "Work", "")).expect("project");
-    insert_doc(&conn, &default.doc_table, "d1", "p1").expect("doc");
+    insert_doc(&conn, "d1", "p1").expect("doc");
     conn.execute("UPDATE project SET disabled_at = '2026-01-01T00:00:00Z' WHERE id = 'p1'", [])
         .expect("legacy mark");
 

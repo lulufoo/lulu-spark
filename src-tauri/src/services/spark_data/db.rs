@@ -23,39 +23,15 @@ pub const DB_FILE: &str = "spark-data.sqlite";
 
 const BUSY_TIMEOUT: Duration = Duration::from_secs(5);
 
-/// Columns of every per-workspace document table (`doc_<workspace id>`).
-///
-/// A macro so the column list is one literal, used by the runtime table template in
-/// `doc_table.rs`.
-macro_rules! doc_table_columns {
-    () => {
-        "doc_id       TEXT PRIMARY KEY,
-  raw_path     TEXT NOT NULL,
-  digest_path  TEXT,
-  source_type  TEXT,
-  created_at   TEXT,
-  importance   TEXT CHECK (importance IS NULL OR importance IN ('high', 'medium', 'low')),
-  done         INTEGER NOT NULL DEFAULT 0 CHECK (done IN (0, 1)),
-  links        TEXT NOT NULL DEFAULT '[]' CHECK (json_type(links) = 'array'),
-  comments     TEXT NOT NULL DEFAULT '[]' CHECK (json_type(comments) = 'array'),
-  tags         TEXT NOT NULL DEFAULT '[]' CHECK (json_type(tags) = 'array'),
-  highlights   TEXT NOT NULL DEFAULT '[]' CHECK (json_type(highlights) = 'array'),
-  translations TEXT NOT NULL DEFAULT '[]' CHECK (json_type(translations) = 'array'),
-  title        TEXT,
-  project_id   TEXT NOT NULL REFERENCES project(id)"
-    };
-}
-pub(crate) use doc_table_columns;
-
 /// The version a new file is created at, and the lowest version this build opens.
-pub(crate) const BASELINE_VERSION: usize = 17;
+pub(crate) const BASELINE_VERSION: usize = 18;
 
 /// Steps after the baseline. Append a step to change the schema; never edit an
 /// existing one. Empty while the baseline is the latest version.
 pub(crate) const MIGRATIONS: [&str; 0] = [];
 
-/// Whole schema at [`BASELINE_VERSION`]. The `Default` workspace, its document
-/// table and its inbox are added by [`ensure_default_workspace`] because their id is random.
+/// Whole schema at [`BASELINE_VERSION`]. The `Default` workspace and its inbox project are
+/// added by [`ensure_default_workspace`] because their ids are random.
 const BASELINE_SQL: &str = r#"
 CREATE TABLE tag (
   key   TEXT PRIMARY KEY,
@@ -64,7 +40,6 @@ CREATE TABLE tag (
 CREATE TABLE workspace (
   id         TEXT PRIMARY KEY CHECK (id <> '' AND id NOT GLOB '*[^a-z0-9_]*'),
   name       TEXT NOT NULL UNIQUE CHECK (name <> ''),
-  doc_table  TEXT NOT NULL UNIQUE CHECK (doc_table = 'doc_' || id),
   view_mode  TEXT NOT NULL DEFAULT 'directory' CHECK (view_mode IN ('directory', 'timeline')),
   is_default INTEGER NOT NULL DEFAULT 0 CHECK (is_default IN (0, 1)),
   created_at TEXT,
@@ -73,8 +48,8 @@ CREATE TABLE workspace (
   sort_index INTEGER NOT NULL DEFAULT 0
 );
 CREATE UNIQUE INDEX workspace_one_default ON workspace(is_default) WHERE is_default = 1;
-CREATE TRIGGER workspace_keys_immutable BEFORE UPDATE OF id, doc_table, is_default ON workspace
-BEGIN SELECT RAISE(ABORT, 'workspace id, doc_table and is_default cannot change'); END;
+CREATE TRIGGER workspace_keys_immutable BEFORE UPDATE OF id, is_default ON workspace
+BEGIN SELECT RAISE(ABORT, 'workspace id and is_default cannot change'); END;
 CREATE TRIGGER workspace_default_undeletable BEFORE DELETE ON workspace WHEN OLD.is_default = 1
 BEGIN SELECT RAISE(ABORT, 'the default workspace cannot be deleted'); END;
 CREATE TABLE project (
@@ -90,6 +65,23 @@ CREATE TABLE project (
 CREATE UNIQUE INDEX project_one_inbox ON project(workspace_id) WHERE is_inbox = 1;
 CREATE TRIGGER project_keys_immutable BEFORE UPDATE OF id, is_inbox ON project
 BEGIN SELECT RAISE(ABORT, 'project id and is_inbox cannot change'); END;
+CREATE TABLE document (
+  doc_id       TEXT PRIMARY KEY,
+  project_id   TEXT NOT NULL REFERENCES project(id),
+  raw_path     TEXT NOT NULL,
+  digest_path  TEXT,
+  source_type  TEXT,
+  created_at   TEXT,
+  importance   TEXT CHECK (importance IS NULL OR importance IN ('high', 'medium', 'low')),
+  done         INTEGER NOT NULL DEFAULT 0 CHECK (done IN (0, 1)),
+  links        TEXT NOT NULL DEFAULT '[]' CHECK (json_type(links) = 'array'),
+  comments     TEXT NOT NULL DEFAULT '[]' CHECK (json_type(comments) = 'array'),
+  tags         TEXT NOT NULL DEFAULT '[]' CHECK (json_type(tags) = 'array'),
+  highlights   TEXT NOT NULL DEFAULT '[]' CHECK (json_type(highlights) = 'array'),
+  translations TEXT NOT NULL DEFAULT '[]' CHECK (json_type(translations) = 'array'),
+  title        TEXT
+);
+CREATE INDEX document_project_id ON document(project_id);
 "#;
 
 pub fn db_path() -> Result<PathBuf, String> {
@@ -166,8 +158,8 @@ fn default_workspace_exists(conn: &Connection) -> Result<bool, String> {
         .map_err(|e| e.to_string())
 }
 
-/// Create the `Default` workspace (the same creation as any workspace: row, document table,
-/// inbox project, one transaction) when the file has none, and do nothing when it does. Decided from the rows, not from the
+/// Create the `Default` workspace (the same creation as any workspace: row and inbox
+/// project, one transaction) when the file has none, and do nothing when it does. Decided from the rows, not from the
 /// version, and re-checked under the write lock so concurrent opens seed it once.
 fn ensure_default_workspace(conn: &Connection) -> Result<(), String> {
     if default_workspace_exists(conn)? {

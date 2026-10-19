@@ -40,7 +40,7 @@ pub fn get_annotations_summary(_repo_root: &Path) -> Value {
     let notes = match spark_data::open().and_then(|conn| {
         let mut all = Vec::new();
         for workspace in spark_data::list_workspaces(&conn)? {
-            all.extend(spark_data::list_docs(&conn, &workspace.doc_table)?);
+            all.extend(spark_data::list_docs(&conn, &workspace.id)?);
         }
         Ok(all)
     }) {
