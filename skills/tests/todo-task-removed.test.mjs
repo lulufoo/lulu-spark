@@ -22,7 +22,7 @@ describe("todo-task skill removal", () => {
       "frontmatter description must not advertise todo-task",
     );
     assert.equal(
-      /发现子 skill（[^）]*todo-task/.test(text),
+      /discovers sub-skill \(`todo-task`\)/.test(text),
       false,
       "discovery list must not include todo-task",
     );

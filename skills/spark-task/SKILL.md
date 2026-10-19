@@ -64,7 +64,7 @@ Map the user request, then call **only** the tools that match. Do not run a fixe
 | Delete a document | Only when the user explicitly asks, and only when `delete_doc` is in the tool list: confirm the document, then `delete_doc` | Irreversible — never delete as a side step of another task |
 | Open a Read Later link `[title](read-later:<id>)` | `get_read_later` with the 32-hex id | Do not look the entry up by title |
 
-**Create is one tool.** `digest` is a required `create_doc` field. When a digest will be written, pass `digest_body` on the same call. Host AD-0 decides whether `auto` writes. Companion-image when-to-pass is the live MCP description; collecting sibling files is [path-or-paste.md](references/path-or-paste.md).
+**Create is one tool.** `digest` is a required `create_doc` field. When a digest will be written, pass `digest_body` on the same call. Host AD-0 decides whether `auto` writes. `digest_body` shape is the live MCP parameter description. Companion-image when-to-pass is the live MCP description; collecting sibling files is [path-or-paste.md](references/path-or-paste.md).
 
 ## Document Norms
 
@@ -77,7 +77,7 @@ Do not invent norms not listed here.
 | Standalone path / paste | [path-or-paste.md](references/path-or-paste.md) | Path or paste with no producer (includes summary image strip and sibling-file collection) |
 | Sibling image files | [path-or-paste.md](references/path-or-paste.md) | How to collect files next to a staged Markdown |
 | Full-English detect | [chinese-companion.md](references/chinese-companion.md) | Before every `create_doc` |
-| `digest_body` shape | [digest-body.md](references/digest-body.md) | Before composing `digest_body` (`auto` / `always`) |
+| `digest_body` shape | live MCP `digest_body` description | Before composing `digest_body` (`auto` / `always`) |
 
 - User-explicit values override the corresponding norm; say so briefly when skipping.
 - Field limits still come from live MCP schema (Parameter SSOT).
@@ -125,5 +125,4 @@ Observable completion for a write request:
 ## References
 
 - Choosing a title: [choosing-a-title](references/choosing-a-title.md)
-- Digest body: [digest-body](references/digest-body.md)
 - Chinese companion: [chinese-companion](references/chinese-companion.md)

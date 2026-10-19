@@ -33,10 +33,10 @@ describe("spark skills pack keeps only spark-task", () => {
     );
     const text = fs.readFileSync(path.join(root, "SKILL.md"), "utf8");
     assert.match(text, /^name: lulu-spark-skills$/m);
-    assert.match(text, /发现子 skill（`spark-task`）/);
+    assert.match(text, /discovers sub-skill \(`spark-task`\)/);
     for (const name of gone) {
       assert.equal(
-        new RegExp(`发现子 skill（[^）]*${name}`).test(text),
+        new RegExp(`discovers sub-skill \\(\`${name}\`\\)`).test(text),
         false,
         `discovery must not include ${name}`,
       );
