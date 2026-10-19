@@ -251,7 +251,7 @@ describe('getEntryDiffState 只保留 unreachable', () => {
   });
 });
 
-describe('digest tooltip 挂在最底徽章行（buildCard / DocCard）', () => {
+describe('digest 小图标 hover 预览（buildCard / DocCard）', () => {
   let reactRoot;
 
   function hover(el) {
@@ -288,18 +288,11 @@ describe('digest tooltip 挂在最底徽章行（buildCard / DocCard）', () => 
     return host.querySelector('.doc-card');
   }
 
-  function hideBadgesQuery() {
-    const orig = Element.prototype.querySelector;
-    return vi.spyOn(Element.prototype, 'querySelector').mockImplementation(function (sel) {
-      if (sel === '.badges') return null;
-      return orig.call(this, sel);
-    });
-  }
-
   beforeEach(() => {
     vi.useFakeTimers();
     api.fetchFileContent.mockReset();
     digestCache.clear();
+    vi.mocked(openNoteInChat).mockClear();
   });
 
   afterEach(() => {
@@ -311,12 +304,36 @@ describe('digest tooltip 挂在最底徽章行（buildCard / DocCard）', () => 
     document.querySelector('.ui-tip-preview')?.remove();
   });
 
-  it('buildCard：悬停 .badges 延迟后显示纯文本预览；空 digest 无 DOM 反应', async () => {
+  it('buildCard：有 digest 的卡片，图标在 Open in chat 左边、星标右边', () => {
+    const card = buildCard('pos1', makeEntry('proj/topic/202605181199-pos.md'), 'Title');
+    const icon = card.querySelector('.badge-digest');
+    expect(icon).not.toBeNull();
+    expect(icon.tagName).toBe('BUTTON');
+    expect(icon.getAttribute('aria-label')).toBe('Digest preview');
+    expect(icon.hasAttribute('data-tip')).toBe(false);
+    expect(icon.querySelector('[data-viewer-icon="digest"]')).not.toBeNull();
+    expect(card.querySelector('.badge-importance').nextElementSibling).toBe(icon);
+    expect(icon.nextElementSibling).toBe(card.querySelector('.badge-open-in-chat'));
+  });
+
+  it('buildCard：没有 digest 的卡片没有图标，悬停徽章区也不请求', async () => {
+    api.fetchFileContent.mockResolvedValue('# digest');
+    const card = buildCard('nod1', makeEntry('proj/topic/202605181198-nod.md', { layers: ['raw'] }), 'Title');
+    document.getElementById('doc-list').appendChild(card);
+    expect(card.querySelector('.badge-digest')).toBeNull();
+
+    hover(card.querySelector('.badges'));
+    await vi.advanceTimersByTimeAsync(300);
+    expect(tooltipEl()).toBeNull();
+    expect(api.fetchFileContent).not.toHaveBeenCalled();
+  });
+
+  it('buildCard：悬停图标延迟后显示纯文本预览；移开收起；空 digest 无 DOM 反应', async () => {
     const cp = 'proj/topic/202605181200-tip.md';
     api.fetchFileContent.mockResolvedValueOnce('# **Plain** digest preview');
     const card = buildCard('tip1', makeEntry(cp), 'Title');
     document.getElementById('doc-list').appendChild(card);
-    const badges = card.querySelector('.badges');
+    const badges = card.querySelector('.badge-digest');
 
     hover(badges);
     await vi.advanceTimersByTimeAsync(TIP_DELAY_MS - 1);
@@ -334,16 +351,34 @@ describe('digest tooltip 挂在最底徽章行（buildCard / DocCard）', () => 
 
     const cp2 = 'proj/topic/202605181201-tip2.md';
     api.fetchFileContent.mockResolvedValueOnce('');
-    const card2 = buildCard('tip2', makeEntry(cp2, { created_at: '202605181201', layers: ['raw'] }), 'Title2');
+    const card2 = buildCard('tip2', makeEntry(cp2, { created_at: '202605181201' }), 'Title2');
     document.getElementById('doc-list').appendChild(card2);
 
-    hover(card2.querySelector('.badges'));
+    hover(card2.querySelector('.badge-digest'));
     await vi.advanceTimersByTimeAsync(300);
     expect(api.fetchFileContent).toHaveBeenLastCalledWith('digest', 'tip2');
     expect(tooltipEl()).toBeNull();
   });
 
-  it.each(['.doc-card', '.doc-topic', '.doc-title-btn', '.doc-meta'])(
+  it('buildCard：点击图标什么都不发生（不弹出、不打开文档、不开聊天）', async () => {
+    api.fetchFileContent.mockResolvedValue('# digest');
+    const opened = [];
+    const onOpen = (e) => opened.push(e.detail);
+    document.addEventListener('cta:open-entry', onOpen);
+    const card = buildCard('clk1', makeEntry('proj/topic/202605181202-clk.md'), 'Title');
+    document.getElementById('doc-list').appendChild(card);
+
+    card.querySelector('.badge-digest').click();
+    await vi.advanceTimersByTimeAsync(300);
+    document.removeEventListener('cta:open-entry', onOpen);
+
+    expect(tooltipEl()).toBeNull();
+    expect(api.fetchFileContent).not.toHaveBeenCalled();
+    expect(opened).toEqual([]);
+    expect(openNoteInChat).not.toHaveBeenCalled();
+  });
+
+  it.each(['.doc-card', '.doc-topic', '.doc-title-btn', '.doc-meta', '.badges', '.badge-done', '.badge-open-in-chat'])(
     'buildCard：悬停 %s 不显示浮层、不发 digest 请求',
     async (sel) => {
       const cp = `proj/topic/202605181210-${sel.replace(/[^a-z]+/g, '')}.md`;
@@ -358,53 +393,92 @@ describe('digest tooltip 挂在最底徽章行（buildCard / DocCard）', () => 
     },
   );
 
-  it('DocCard：悬停 .badges 显示浮层；主题/标题/时间/整卡不触发', async () => {
+  it('DocCard：悬停图标显示浮层；其它位置不触发；点击图标无事发生', async () => {
     const cp = 'proj/topic/202605181220-doccard.md';
     api.fetchFileContent.mockResolvedValue('# **DocCard** digest');
+    const opened = [];
+    const onOpen = (e) => opened.push(e.detail);
+    document.addEventListener('cta:open-entry', onOpen);
     const card = renderDocCard('dc1', makeEntry(cp), 'Title');
-    const badges = card.querySelector('.badges');
 
     hover(card.querySelector('.doc-topic'));
     hover(card.querySelector('.doc-title-btn'));
     hover(card.querySelector('.doc-meta'));
+    hover(card.querySelector('.badges'));
     hover(card);
     await vi.advanceTimersByTimeAsync(300);
     expect(tooltipEl()).toBeNull();
     expect(api.fetchFileContent).not.toHaveBeenCalled();
 
-    hover(badges);
+    const icon = card.querySelector('.badge-digest');
+    hover(icon);
     await vi.advanceTimersByTimeAsync(300);
     const tip = tooltipEl();
     expect(tip).not.toBeNull();
     expect(tip.textContent).toBe('DocCard digest');
     expect(api.fetchFileContent).toHaveBeenCalledWith('digest', 'dc1');
+
+    leave(icon);
+    expect(tooltipEl()).toBeNull();
+    icon.click();
+    await vi.advanceTimersByTimeAsync(300);
+    document.removeEventListener('cta:open-entry', onOpen);
+    expect(tooltipEl()).toBeNull();
+    expect(opened).toEqual([]);
+    expect(openNoteInChat).not.toHaveBeenCalled();
   });
 
-  it('buildCard 没有 .badges：不回退挂到整张卡片', async () => {
-    const cp = 'proj/topic/202605181230-nobadges.md';
-    api.fetchFileContent.mockResolvedValue('# digest');
-    const qs = hideBadgesQuery();
-    const card = buildCard('nb1', makeEntry(cp), 'Title');
-    qs.mockRestore();
+  it('DocCard：没有 digest 没有图标；digest 出现后重渲染图标出现且可悬停', async () => {
+    const cp = 'proj/topic/202605181230-later.md';
+    api.fetchFileContent.mockResolvedValue('# later digest');
+    const card = renderDocCard('lt1', makeEntry(cp, { layers: ['raw'] }), 'Title');
+    expect(card.querySelector('.badge-digest')).toBeNull();
+
+    flushSync(() => {
+      reactRoot.render(createElement(DocCard, { id: 'lt1', entry: makeEntry(cp), title: 'Title' }));
+    });
+    const icon = card.querySelector('.badge-digest');
+    expect(icon).not.toBeNull();
+
+    hover(icon);
+    await vi.advanceTimersByTimeAsync(300);
+    expect(tooltipEl().textContent).toBe('later digest');
+  });
+
+  it('updateTitlesInDOM 重建徽章行后，新图标重新绑定 hover，旧浮层被清掉', async () => {
+    const cp = 'proj/topic/202605181240-rebuild.md';
+    api.fetchFileContent.mockResolvedValue('# rebuilt digest');
+    const entry = makeEntry(cp);
+    const card = buildCard('rb1', entry, null);
     document.getElementById('doc-list').appendChild(card);
 
-    hover(card);
+    const oldIcon = card.querySelector('.badge-digest');
+    hover(oldIcon);
     await vi.advanceTimersByTimeAsync(300);
+    expect(tooltipEl()).not.toBeNull();
+
+    state.index.titleCache.set('20260518', new Map([['rb1', 'Loaded Title']]));
+    state.index.groupedByDate = [{ date: '20260518', entries: [{ id: 'rb1', entry }] }];
+    updateTitlesInDOM('20260518');
+
     expect(tooltipEl()).toBeNull();
-    expect(api.fetchFileContent).not.toHaveBeenCalled();
+    const newIcon = card.querySelector('.badge-digest');
+    expect(newIcon).not.toBeNull();
+    expect(newIcon).not.toBe(oldIcon);
+
+    hover(newIcon);
+    await vi.advanceTimersByTimeAsync(300);
+    expect(tooltipEl().textContent).toBe('rebuilt digest');
   });
 
-  it('DocCard 没有 .badges：不回退挂到整张卡片', async () => {
-    const cp = 'proj/topic/202605181240-nobadges-dc.md';
-    api.fetchFileContent.mockResolvedValue('# digest');
-    const qs = hideBadgesQuery();
-    const card = renderDocCard('nb2', makeEntry(cp), 'Title');
-    qs.mockRestore();
-
-    hover(card);
-    await vi.advanceTimersByTimeAsync(300);
-    expect(tooltipEl()).toBeNull();
-    expect(api.fetchFileContent).not.toHaveBeenCalled();
+  it('updateTitlesInDOM：没有 digest 的卡片重建后仍没有图标', () => {
+    const entry = makeEntry('proj/topic/202605181250-nod2.md', { layers: ['raw'] });
+    const card = buildCard('rb2', entry, null);
+    document.getElementById('doc-list').appendChild(card);
+    state.index.titleCache.set('20260518', new Map([['rb2', 'T']]));
+    state.index.groupedByDate = [{ date: '20260518', entries: [{ id: 'rb2', entry }] }];
+    updateTitlesInDOM('20260518');
+    expect(card.querySelector('.badge-digest')).toBeNull();
   });
 });
 
@@ -486,5 +560,44 @@ describe('card open-in-chat sits next to the star', () => {
     expect(css).toMatch(
       /\.badge-open-in-chat\s+\.viewer-header-icon\s*\{[^}]*width:\s*12px[^}]*height:\s*12px/,
     );
+  });
+
+  it('digest icon shares the chat icon size, color and hover style', () => {
+    const css = readFileSync(join(repoRoot, 'frontend/app.css'), 'utf8');
+    expect(css).toMatch(/\.badge-digest,\s*\n\s*\.badge-importance-unset,\s*\n\s*\.badge-open-in-chat\s*\{[^}]*min-height:\s*18px/);
+    expect(css).toMatch(/\.badge-digest,\s*\n\s*\.badge-open-in-chat\s*\{[^}]*cursor:\s*pointer[^}]*background:\s*none/);
+    expect(css).toMatch(
+      /\.badge-digest\s+\.viewer-header-icon,\s*\n\s*\.badge-open-in-chat\s+\.viewer-header-icon\s*\{[^}]*width:\s*12px[^}]*height:\s*12px/,
+    );
+  });
+
+  it('bottom-row action buttons have no border and share one hover rule', () => {
+    const css = readFileSync(join(repoRoot, 'frontend/app.css'), 'utf8');
+    const buttons = [
+      '.badge-importance-unset',
+      '.badge-digest',
+      '.badge-open-in-chat',
+      '.badge-done',
+      '.badge-move-project',
+    ];
+
+    const shared = css.match(
+      /((?:\.badge-[a-z-]+:hover,\s*)+\.badge-[a-z-]+:hover)\s*\{([^}]*)\}/,
+    );
+    expect(shared).not.toBeNull();
+    const sharedSelectors = shared[1].split(',').map((s) => s.trim());
+    expect(sharedSelectors).toEqual(buttons.map((b) => `${b}:hover`));
+    expect(shared[2]).toMatch(/color:\s*var\(--fg-muted\)/);
+    expect(shared[2]).toMatch(/background:\s*var\(--bg-hover\)/);
+    expect(shared[2]).toMatch(/border-color:\s*transparent/);
+
+    // No other rule gives one of these buttons its own hover look or a visible border.
+    for (const b of buttons) {
+      const count = css.split(`${b}:hover`).length - 1;
+      expect(count, `${b}:hover must only appear in the shared rule`).toBe(1);
+    }
+    const move = css.match(/\.badge-move-project\s*\{([^}]*)\}/);
+    expect(move[1]).toMatch(/border-color:\s*transparent/);
+    expect(css).not.toMatch(/\.badge-move-project[^{]*\{[^}]*border-color:\s*var\(--border-hex-(?:e2e8ee|96c6f8)\)/);
   });
 });

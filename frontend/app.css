@@ -3472,7 +3472,6 @@
     margin-left: auto;
     flex-shrink: 0;
   }
-  .badge-done:hover { background: var(--bg-hover); color: var(--fg-muted); opacity: 1; }
   .doc-card.done .badge-done { color: var(--fg-muted); border-color: transparent; }
   .badge-move-project {
     display: inline-flex;
@@ -3480,7 +3479,7 @@
     gap: 2px;
     background: none;
     color: var(--fg-hex-b0b8c1);
-    border-color: var(--border-hex-e2e8ee);
+    border-color: transparent;
     cursor: pointer;
     font-size: 10px;
     flex-shrink: 0;
@@ -3492,8 +3491,6 @@
     line-height: 1;
     transform: translateY(0.5px);
   }
-  .badge-move-project:hover { background: var(--bg-hover); color: var(--fg-accent-emphasis); border-color: var(--border-hex-96c6f8); opacity: 1; }
-
   /* Importance left strip */
   .doc-card.importance-high   { border-left: 4px solid var(--border-danger); padding-left: 13px; }
   .doc-card.importance-medium { border-left: 4px solid var(--border-hex-e09b00); padding-left: 13px; }
@@ -3509,12 +3506,12 @@
   .badge-importance-medium { background: var(--bg-hex-fff8c5); color: var(--fg-hex-9a6700); border-color: var(--border-hex-f1e05a); }
   .badge-importance-low    { background: var(--bg-canvas); color: var(--fg-muted); border-color: var(--border-default); }
   .badge-importance-unset  { background: none; color: var(--fg-hex-c8d0d8); border-color: transparent; }
-  .badge-importance-unset:hover { color: var(--fg-muted); border-color: var(--border-default); background: var(--bg-hover); }
   .doc-card-icon-actions {
     display: inline-flex;
     align-items: center;
     gap: 2px;
   }
+  .badge-digest,
   .badge-importance-unset,
   .badge-open-in-chat {
     min-height: 18px;
@@ -3527,21 +3524,28 @@
     font-size: 12px;
     line-height: 1;
   }
+  .badge-digest,
   .badge-open-in-chat {
     cursor: pointer;
     background: none;
     color: var(--fg-hex-c8d0d8);
     border-color: transparent;
   }
+  .badge-digest .viewer-header-icon,
   .badge-open-in-chat .viewer-header-icon {
     width: 12px;
     height: 12px;
     display: block;
   }
-  .badge-open-in-chat:hover {
+  /* Bottom-row action buttons: no border at rest or on hover, one shared hover look. */
+  .badge-importance-unset:hover,
+  .badge-digest:hover,
+  .badge-open-in-chat:hover,
+  .badge-done:hover,
+  .badge-move-project:hover {
     color: var(--fg-muted);
-    border-color: var(--border-default);
     background: var(--bg-hover);
+    border-color: transparent;
     opacity: 1;
   }
   .doc-title-btn.loading {

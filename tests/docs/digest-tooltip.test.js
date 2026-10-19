@@ -258,6 +258,57 @@ describe('attachDigestTooltip 边界分支：徽章行可点子控件不触发',
   });
 });
 
+describe('attachDigestTooltip 边界分支：锚点本身是按钮', () => {
+  function iconButton() {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'badge badge-digest';
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    btn.appendChild(svg);
+    document.body.appendChild(btn);
+    return { btn, svg };
+  }
+
+  it('锚点是 button：mouseover 按钮与其图标子元素，延迟后显示预览', async () => {
+    const { btn, svg } = iconButton();
+    attachDigestTooltip(btn, CP);
+    hoverFrom(btn, svg);
+    await vi.advanceTimersByTimeAsync(TIP_DELAY_MS);
+    expect(tooltipEl()).not.toBeNull();
+    expect(api.fetchFileContent).toHaveBeenCalledWith('digest', CP);
+  });
+
+  it('锚点是 button：移开立即收起', async () => {
+    const { btn } = iconButton();
+    attachDigestTooltip(btn, CP);
+    hover(btn);
+    await vi.advanceTimersByTimeAsync(300);
+    expect(tooltipEl()).not.toBeNull();
+    leave(btn);
+    expect(tooltipEl()).toBeNull();
+  });
+
+  it('锚点是 button：点击不弹出也不请求', async () => {
+    const { btn } = iconButton();
+    attachDigestTooltip(btn, CP);
+    btn.click();
+    await vi.advanceTimersByTimeAsync(300);
+    expect(tooltipEl()).toBeNull();
+    expect(api.fetchFileContent).not.toHaveBeenCalled();
+  });
+
+  it('锚点内部的可点子控件仍然压制 hover', async () => {
+    const { btn } = iconButton();
+    const inner = document.createElement('button');
+    btn.appendChild(inner);
+    attachDigestTooltip(btn, CP);
+    hoverFrom(btn, inner);
+    await vi.advanceTimersByTimeAsync(300);
+    expect(tooltipEl()).toBeNull();
+    expect(api.fetchFileContent).not.toHaveBeenCalled();
+  });
+});
+
 describe('attachDigestTooltip 边界分支：视同无 digest', () => {
   it('digest 内容为空字符串：不显示、缓存 null、再次悬停不再请求', async () => {
     api.fetchFileContent.mockResolvedValue('');
