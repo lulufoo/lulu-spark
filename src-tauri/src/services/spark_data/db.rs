@@ -25,10 +25,8 @@ const BUSY_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// Columns of every per-workspace document table (`doc_<workspace id>`).
 ///
-/// A macro so one literal feeds both the static migration step below (via
-/// `concat!`) and the runtime table template in `doc_table.rs`. Same columns as
-/// `note`, with `category_id` replaced by `project_id` and no `status` (the
-/// scan-and-reconcile mode is retired).
+/// A macro so the column list is one literal, used by the runtime table template in
+/// `doc_table.rs`.
 macro_rules! doc_table_columns {
     () => {
         "doc_id       TEXT PRIMARY KEY,
