@@ -117,7 +117,7 @@ pub fn move_doc(payload: &Value) -> Value {
     }
 
     doc.project_id = new_project.id.clone();
-    if let Err(e) = update_doc_row(&conn, &workspace.doc_table, &doc) {
+    if let Err(e) = update_doc_row(&conn, &doc) {
         rollback(&completed);
         return internal(e);
     }

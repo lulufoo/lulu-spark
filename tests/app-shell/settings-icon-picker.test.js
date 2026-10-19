@@ -81,7 +81,7 @@ beforeEach(() => {
     { workspace_id: 'ws2', workspace_name: 'Wiki', view_mode: 'timeline', is_default: false, icon: ICON_A },
   ];
   projects.default = [
-    { project_id: 'inbox', project_name: 'Inbox', description: '', icon: '', is_inbox: true },
+    { project_id: 'inbox', project_name: 'Inbox', description: '', icon: '', is_default: true },
     { project_id: 'plans', project_name: 'Plans', description: 'd', icon: ICON_A },
   ];
 });

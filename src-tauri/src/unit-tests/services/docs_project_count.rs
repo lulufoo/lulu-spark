@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use serde_json::{json, Value};
 
 use super::*;
-use crate::services::spark_data::{self, get_workspace, new_doc_id, DocRow};
+use crate::services::spark_data::{self, new_doc_id, DocRow};
 use crate::test_support::TestSandbox;
 
 fn counts(listed: &Value) -> HashMap<String, i64> {
@@ -15,11 +15,10 @@ fn counts(listed: &Value) -> HashMap<String, i64> {
         .collect()
 }
 
-fn add_doc(ws: &str, project: &str, rel: &str) {
+fn add_doc(project: &str, rel: &str) {
     let conn = spark_data::open().expect("db");
-    let table = get_workspace(&conn, ws).expect("get").expect("row").doc_table;
-    let row = DocRow::new(&new_doc_id(ws), rel, project);
-    spark_data::insert_doc(&conn, &table, &row).expect("insert");
+    let row = DocRow::new(&new_doc_id(), rel, project);
+    spark_data::insert_doc(&conn, &row).expect("insert");
 }
 
 fn new_project(ws: &str, name: &str) -> String {
@@ -30,12 +29,12 @@ fn new_project(ws: &str, name: &str) -> String {
 fn list_projects_counts_documents_per_project() {
     let _sandbox = TestSandbox::new();
     let ws = create_workspace(&json!({ "workspace_name": "Work" }))["workspace_id"].as_str().expect("ws").to_string();
-    let inbox = spark_data::get_inbox_project(&spark_data::open().expect("db"), &ws).expect("get").expect("inbox").id;
+    let inbox = spark_data::get_default_project(&spark_data::open().expect("db"), &ws).expect("get").expect("inbox").id;
     let plans = new_project(&ws, "Plans");
     new_project(&ws, "Empty");
-    add_doc(&ws, &inbox, "notes/202601011200-aaaaaa.md");
-    add_doc(&ws, &plans, "notes/202601011200-bbbbbb.md");
-    add_doc(&ws, &plans, "notes/202601011200-cccccc.md");
+    add_doc(&inbox, "notes/202601011200-aaaaaa.md");
+    add_doc(&plans, "notes/202601011200-bbbbbb.md");
+    add_doc(&plans, "notes/202601011200-cccccc.md");
 
     let listed = list_projects(&json!({ "workspace_id": ws }));
     let got = counts(&listed);
@@ -51,7 +50,7 @@ fn create_update_and_reorder_report_the_count_too() {
     let created = create_project(&json!({ "project_name": "Plans" }));
     assert_eq!(created["doc_count"], json!(0), "{created}");
     let plans = created["project_id"].as_str().expect("id").to_string();
-    add_doc(&crate::test_support::default_workspace().id, &plans, "notes/202601011200-aaaaaa.md");
+    add_doc(&plans, "notes/202601011200-aaaaaa.md");
 
     let updated = update_project(&json!({ "project_id": plans, "project_name": "Roadmaps" }));
     assert_eq!(updated["doc_count"], json!(1), "{updated}");

@@ -89,7 +89,7 @@ fn create_workspace_to_delete_doc_uses_the_unified_keys() {
     let doc_id = text(&created, "id");
     assert_eq!(text(&created, "workspace_id"), workspace_id);
     assert_eq!(text(&created, "workspace_name"), "Smoke WS");
-    let inbox = rows.iter().find(|row| row["is_inbox"] == json!(true)).expect("inbox row");
+    let inbox = rows.iter().find(|row| row["is_default"] == json!(true)).expect("inbox row");
     assert_eq!(text(&created, "project_id"), text(inbox, "project_id"));
     assert!(created.get("project_name").is_some(), "{created}");
     has_no_old_scope_keys(&created);

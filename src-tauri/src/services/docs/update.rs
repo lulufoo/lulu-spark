@@ -147,7 +147,7 @@ fn update_from_body(payload: &Value, source: &str) -> Value {
     if digest_rel.is_some() && doc.digest_path.is_none() {
         let mut updated = doc.clone();
         updated.digest_path = Some(rel.clone());
-        if let Err(e) = update_doc_row(&conn, &workspace.doc_table, &updated) {
+        if let Err(e) = update_doc_row(&conn, &updated) {
             return restore_raw(&raw_path, &prev_raw, internal(e));
         }
     }

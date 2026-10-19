@@ -73,7 +73,7 @@ export function NotesCategoriesEditHost() {
                     <span className="notes-cat-item-main">
                       <span className="notes-cat-item-title-row">
                         <span className="notes-cat-item-title">{row.title || row.id}</span>
-                        {row.is_inbox ? <span className="notes-cat-badge">Built-in</span> : null}
+                        {row.is_default ? <span className="notes-cat-badge">Built-in</span> : null}
                       </span>
                       <span className={`notes-cat-item-desc${desc ? '' : ' is-empty'}`}>
                         {desc || 'No description'}
@@ -81,7 +81,7 @@ export function NotesCategoriesEditHost() {
                     </span>
                   </button>
                   <span className="notes-cat-row-actions">
-                    {row.is_inbox ? null : (
+                    {row.is_default ? null : (
                       <button
                         type="button"
                         className="notes-cat-row-delete"

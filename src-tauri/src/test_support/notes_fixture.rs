@@ -4,7 +4,7 @@ use rusqlite::Connection;
 use serde_json::{json, Value};
 
 use crate::services::spark_data::{
-    self, get_default_workspace, get_inbox_project, get_project, insert_doc, insert_project, list_doc_entries, DocRow,
+    self, get_default_workspace, get_default_project, get_project, insert_doc, insert_project, list_doc_entries, DocRow,
     ProjectRow,
 };
 
@@ -38,7 +38,7 @@ fn ensure_project(conn: &Connection, project_id: &str) -> String {
     if project_id == "inbox" {
         // The seed's "inbox" folder is the default workspace's inbox, whatever its minted id is.
         let workspace = get_default_workspace(conn).expect("default workspace");
-        return get_inbox_project(conn, &workspace.id).expect("lookup").expect("inbox").id;
+        return get_default_project(conn, &workspace.id).expect("lookup").expect("inbox").id;
     }
     if get_project(conn, project_id).expect("lookup").is_some() {
         return project_id.to_string();
@@ -76,8 +76,7 @@ pub fn seed_note_entries(entries: &Value) {
             .unwrap_or_default();
         langs.sort();
         note.translations = json!(langs);
-        insert_doc(&conn, &get_default_workspace(&conn).expect("default workspace").doc_table, &note)
-            .expect("insert doc");
+        insert_doc(&conn, &note).expect("insert doc");
     }
 }
 
@@ -88,14 +87,13 @@ pub fn read_note_entries() -> Value {
     json!({ "entries": list_doc_entries(&conn, &workspace).expect("list docs") })
 }
 
-/// Make every `INSERT` / `UPDATE` / `DELETE` (`event`) on the default document table fail, to prove what
+/// Make every `INSERT` / `UPDATE` / `DELETE` (`event`) on the document table fail, to prove what
 /// happens when the table step fails after the file step.
 pub fn block_note_writes(event: &str) {
     assert!(matches!(event, "INSERT" | "UPDATE" | "DELETE"));
     let conn = spark_data::open().expect("open spark-data");
-    let table = get_default_workspace(&conn).expect("default workspace").doc_table;
     conn.execute_batch(&format!(
-        "CREATE TRIGGER block_note_{event} BEFORE {event} ON {table} \
+        "CREATE TRIGGER block_note_{event} BEFORE {event} ON document \
          BEGIN SELECT RAISE(ABORT, 'blocked by test'); END;"
     ))
     .expect("create trigger");

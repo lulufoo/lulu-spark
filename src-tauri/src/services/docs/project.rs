@@ -1,6 +1,6 @@
 //! Project operations inside one workspace: `list` / `create` / `update` / `reorder`.
 //!
-//! A project is addressed by its id. The inbox is the `is_inbox` row; its name can change.
+//! A project is addressed by its id. The inbox is the `is_default` row; its name can change.
 
 use std::collections::HashMap;
 
@@ -32,7 +32,7 @@ fn project_value(row: &ProjectRow, doc_count: i64) -> Value {
         "description": row.description,
         "icon": row.icon.clone().unwrap_or_default(),
         "sort_index": row.sort_index,
-        "is_inbox": row.is_inbox,
+        "is_default": row.is_default,
         "doc_count": doc_count,
     })
 }
@@ -40,7 +40,7 @@ fn project_value(row: &ProjectRow, doc_count: i64) -> Value {
 /// Every project of the workspace in the user's order, each with its document count.
 fn list_project_values(conn: &Connection, workspace: &WorkspaceRow) -> Result<Vec<Value>, Value> {
     let rows = list_project_rows(conn, &workspace.id).map_err(internal)?;
-    let counts: HashMap<String, i64> = count_docs_by_project(conn, &workspace.doc_table).map_err(internal)?;
+    let counts: HashMap<String, i64> = count_docs_by_project(conn).map_err(internal)?;
     Ok(rows.iter().map(|r| project_value(r, counts.get(&r.id).copied().unwrap_or(0))).collect())
 }
 
@@ -103,7 +103,7 @@ pub fn update_project(payload: &Value) -> Value {
             row.icon = icon;
         }
         update_project_row(&conn, &row).map_err(internal)?;
-        let count = count_docs_in_project(&conn, &ws.doc_table, &row.id).map_err(internal)?;
+        let count = count_docs_in_project(&conn, &row.id).map_err(internal)?;
         Ok((row, count))
     });
     match result {

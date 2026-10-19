@@ -63,7 +63,7 @@ fn check_spark_root_requires_an_existing_directory() {
 }
 
 #[test]
-fn get_docs_index_is_built_from_the_doc_table_in_the_entry_shape() {
+fn get_docs_index_is_built_from_the_document_table_in_the_entry_shape() {
     with_notes_repo(
         |_, _| {
             seed_note_entries(&json!({
@@ -138,7 +138,7 @@ fn get_annotations_summary_includes_resolved_tags() {
         let found = find_doc(&conn, &id).expect("get").expect("row");
         let mut note = found.doc;
         note.tags = serde_json::json!([known, "ghostkey123456"]);
-        update_doc(&conn, &found.workspace.doc_table, &note).expect("update");
+        update_doc(&conn, &note).expect("update");
 
         let summary = get_annotations_summary(dir);
         let entry = summary[&id].as_object().expect("entry");

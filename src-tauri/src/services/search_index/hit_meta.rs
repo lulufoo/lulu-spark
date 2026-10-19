@@ -1,10 +1,10 @@
 //! Hits come out of the index as `doc_id` only; the place a document lives is looked up
-//! in `spark-data.sqlite` (a `docs` hit through its workspace's document table). A hit whose
+//! in `spark-data.sqlite` (a `docs` hit through the `document` table). A hit whose
 //! document is gone is dropped.
 
 use std::collections::HashMap;
 
-use crate::services::spark_data::{self, get_doc, get_project, get_workspace};
+use crate::services::spark_data::{self, get_doc, get_project};
 
 use super::collect::DOCS_CATEGORY;
 use super::query::QueryHit;
@@ -20,13 +20,15 @@ fn locate(
 ) -> Result<Location, String> {
     match category {
         DOCS_CATEGORY => {
-            let Some(workspace) = get_workspace(conn, workspace_id)? else {
+            let Some(doc) = get_doc(conn, doc_id)? else {
                 return Ok(None);
             };
-            let Some(doc) = get_doc(conn, &workspace.doc_table, doc_id)? else {
-                return Ok(None);
+            // A hit stays only while its document still belongs to the workspace it was indexed in.
+            let project = match get_project(conn, &doc.project_id)? {
+                Some(p) if p.workspace_id != workspace_id => return Ok(None),
+                Some(p) => p.id,
+                None => String::new(),
             };
-            let project = get_project(conn, &doc.project_id)?.map(|p| p.id).unwrap_or_default();
             Ok(Some((doc.raw_path, String::new(), project)))
         }
         _ => Ok(None),

@@ -205,39 +205,15 @@ pub fn run() {
             host::create_main_window(app)?;
             app.manage(services::reindex::ReindexState::new());
 
-            // Startup, in order: report duplicate document ids, rebuild the keyword index
-            // (index only, no git pull; the header does not show this job), then back up the
-            // database. No Agent Loop warmup: the first chat pays cold start.
+            // Startup, in order: rebuild the keyword index (index only, no git pull; the header
+            // does not show this job), then back up the database. No Agent Loop warmup: the
+            // first chat pays cold start.
             {
                 use tauri::Manager;
                 let reindex = app.state::<services::reindex::ReindexState>();
                 let spark_slot = std::sync::Arc::clone(&reindex.spark_job);
                 std::thread::spawn(move || {
                     use crate::services::app_log::{log, Level, Side};
-                    // Ids are unique inside each document table, not across tables. Report any
-                    // id that two workspaces share; nothing is repaired.
-                    match crate::services::spark_data::open().and_then(|c| crate::services::spark_data::duplicate_doc_ids(&c)) {
-                        Ok(dups) if dups.is_empty() => {}
-                        Ok(dups) => log(
-                            "workspaces",
-                            "duplicate_doc_ids",
-                            None,
-                            Some(serde_json::json!({
-                                "count": dups.len(),
-                                "ids": dups.iter().map(|(id, workspaces)| serde_json::json!({ "id": id, "workspaces": workspaces })).collect::<Vec<_>>(),
-                            })),
-                            Side::Host,
-                            Level::Warn,
-                        ),
-                        Err(error) => log(
-                            "workspaces",
-                            "duplicate_doc_ids_check_failed",
-                            None,
-                            Some(serde_json::json!({ "error": error })),
-                            Side::Host,
-                            Level::Error,
-                        ),
-                    }
                     if let Ok(repo_root) = crate::config::paths::repo_root() {
                         let _ = services::reindex::run_all_reindex_blocking(&repo_root, &spark_slot);
                     }

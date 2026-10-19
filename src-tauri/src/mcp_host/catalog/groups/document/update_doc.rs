@@ -40,7 +40,7 @@ pub fn build(channel: &str) -> Option<ToolRoute> {
     if channel == "mobile" {
         return Some(route(
             "update_doc",
-            "Replace an existing document body by id. Send content; do not send source_path. The id prefix names the workspace; do not send workspace_id. The document stays in its workspace and project. digest is required (auto|always|never). When a digest is written, pass digest_body on this same call. Does not change title, translations, or location. Success is {ok, id, workspace_id, workspace_name, project_id, project_name}; digest_written is true when a digest is written.",
+            "Replace an existing document body by id. Send content; do not send source_path. The id already names the document's workspace; do not send workspace_id. The document stays in its workspace and project. digest is required (auto|always|never). When a digest is written, pass digest_body on this same call. Does not change title, translations, or location. Success is {ok, id, workspace_id, workspace_name, project_id, project_name}; digest_written is true when a digest is written.",
             object_schema(update_doc_properties(false), &["id", "content", "digest"]),
             false,
             false,
@@ -49,7 +49,7 @@ pub fn build(channel: &str) -> Option<ToolRoute> {
     }
     Some(route(
         "update_doc",
-        "Replace an existing document body by id. Send an allow-listed Markdown source_path; the Host reads the file and never accepts document text. The id prefix names the workspace; do not send workspace_id. The document stays in its workspace and project. digest is required (auto|always|never). When a digest is written, pass digest_body on this same call. Does not change title, translations, or location. Success is {ok, id, workspace_id, workspace_name, project_id, project_name}; digest_written is true when a digest is written.",
+        "Replace an existing document body by id. Send an allow-listed Markdown source_path; the Host reads the file and never accepts document text. The id already names the document's workspace; do not send workspace_id. The document stays in its workspace and project. digest is required (auto|always|never). When a digest is written, pass digest_body on this same call. Does not change title, translations, or location. Success is {ok, id, workspace_id, workspace_name, project_id, project_name}; digest_written is true when a digest is written.",
         object_schema(update_doc_properties(true), &["id", "source_path", "digest"]),
         false,
         false,

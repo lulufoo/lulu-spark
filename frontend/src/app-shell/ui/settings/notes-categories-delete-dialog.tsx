@@ -3,7 +3,7 @@ import { OverlayDismissButton } from '../../../shared/overlay-dismiss-button.tsx
 import { cancelDeleteProject, confirmDeleteProject } from '../../commands/settings/notes-categories-delete.ts';
 import { notesCategoriesStore } from '../../state/settings/notes-categories.ts';
 
-/** What the dialog tells the user will happen; the inbox can be renamed, so its name comes from the list. */
+/** What the dialog tells the user will happen; the default project can be renamed, so its name comes from the list. */
 export function describeProjectDelete(title: string, count: number, inboxTitle: string): string {
   if (count <= 0) return `“${title}” has no documents. It will be deleted. This cannot be undone.`;
   const docs = count === 1 ? '1 document' : `${count} documents`;
@@ -14,7 +14,7 @@ export function describeProjectDelete(title: string, count: number, inboxTitle: 
 export function NotesCategoriesDeleteDialog() {
   const snap = useSyncExternalStore(notesCategoriesStore.subscribe, notesCategoriesStore.getSnapshot);
   const row = snap.rows.find((r) => r.id === snap.deleteId);
-  const inbox = snap.rows.find((r) => r.is_inbox);
+  const inbox = snap.rows.find((r) => r.is_default);
   const open = Boolean(row && inbox);
 
   useEffect(() => {

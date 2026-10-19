@@ -35,7 +35,7 @@ Lulu Spark App **MUST** be running, with its Host MCP server reachable.
 |-------|-------|----------------|
 | Global | `search` | Find documents across every workspace, or in one |
 | Workspace | `list_workspaces`, `create_workspace`, `rename_workspace` | The containers; `Default` always exists |
-| Project | `list_projects`, `create_project`, `update_project` | The projects inside a workspace; `list_projects` returns `project_id`, `project_name`, and `is_inbox` |
+| Project | `list_projects`, `create_project`, `update_project` | The projects inside a workspace; `list_projects` returns `project_id`, `project_name`, and `is_default` |
 | Document | `list_doc_categories`, `get_doc_digest`, `get_doc_file`, `get_doc_content`, `create_doc`, `update_doc`, `delete_doc` | The documents themselves |
 | Read Later | `get_read_later` | One saved reading-list entry |
 
@@ -98,7 +98,7 @@ Do not invent norms not listed here.
 | `list_workspaces` | Workspace | List workspaces; the `Default` workspace always exists |
 | `create_workspace` | Workspace | Create a workspace; returns its generated `workspace_id` |
 | `rename_workspace` | Workspace | Rename a workspace (including `Default`); the id never changes |
-| `list_projects` | Project | List the projects of one workspace (`project_id`, `project_name`, `is_inbox`); does not list documents |
+| `list_projects` | Project | List the projects of one workspace (`project_id`, `project_name`, `is_default`); does not list documents |
 | `create_project` | Project | Add a project to a workspace; does not move existing documents |
 | `update_project` | Project | Change a project's name and description; the `project_id` is kept |
 | `list_doc_categories` | Document | Classification ids `create_doc.source_type` accepts |

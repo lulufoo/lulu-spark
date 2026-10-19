@@ -79,7 +79,7 @@ export async function loadProjects(): Promise<void> {
       project_id?: string;
       project_name?: string;
       description?: string;
-      is_inbox?: boolean;
+      is_default?: boolean;
     }>;
     error?: string;
   };
@@ -95,12 +95,12 @@ export async function loadProjects(): Promise<void> {
     titles[id] =
       typeof project.project_name === 'string' && project.project_name ? project.project_name : id;
     descriptions[id] = typeof project.description === 'string' ? project.description : '';
-    inbox[id] = project.is_inbox === true;
+    inbox[id] = project.is_default === true;
   }
   state.index.topicTitles = titles;
   state.index.topicOrder = order;
   state.index.topicDescriptions = descriptions;
-  state.index.topicInbox = inbox;
+  state.index.topicDefault = inbox;
   state.index.topicRepos = {};
   notifyState();
 }

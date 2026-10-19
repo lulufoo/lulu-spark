@@ -13,7 +13,7 @@ import type { NoteEntry } from '../state/types.ts';
 export { moveProjectOpenStore };
 export { moveProjectViewStore } from '../state/move-project.ts';
 
-type ProjectRec = { project_id?: string; project_name?: string; description?: string };
+type ProjectRec = { project_id?: string; project_name?: string; description?: string; is_default?: boolean };
 
 let currentEntry: NoteEntry | null = null;
 
@@ -43,6 +43,7 @@ async function loadProjects(currentProject: string) {
           project_name:
             typeof c.project_name === 'string' && c.project_name.trim() ? c.project_name.trim() : id,
           description: typeof c.description === 'string' ? c.description : '',
+          is_default: c.is_default === true,
         };
       })
       .filter((item): item is MoveProjectItem => Boolean(item))

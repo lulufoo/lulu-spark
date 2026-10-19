@@ -27,7 +27,7 @@ pub struct SourceChunk {
     pub idx: usize,
 }
 
-/// `category` of chunks collected from the per-workspace document tables.
+/// `category` of chunks collected from the `document` table.
 pub const DOCS_CATEGORY: &str = "docs";
 
 impl SourceChunk {

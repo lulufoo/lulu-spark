@@ -32,7 +32,7 @@ const row = (id, title = id, extra = {}) => ({
   project_id: id,
   project_name: title,
   description: '',
-  is_inbox: extra.is_inbox ?? id === 'inbox',
+  is_default: extra.is_default ?? id === 'inbox',
   doc_count: extra.doc_count ?? 0,
 });
 

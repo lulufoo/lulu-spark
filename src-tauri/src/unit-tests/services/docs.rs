@@ -36,7 +36,7 @@ fn new_workspace(name: &str) -> String {
 }
 
 fn inbox_of(workspace: &str) -> String {
-    spark_data::get_inbox_project(&spark_data::open().expect("db"), workspace)
+    spark_data::get_default_project(&spark_data::open().expect("db"), workspace)
         .expect("lookup")
         .expect("inbox")
         .id
@@ -89,9 +89,9 @@ fn a_new_workspace_is_writable_at_once_and_files_land_in_its_folder() {
     assert_eq!(read["content"], json!(BODY));
 
     let conn = spark_data::open().expect("db");
-    let table = get_workspace(&conn, &ws).expect("get").expect("row").doc_table;
-    assert_eq!(table, format!("doc_{ws}"));
-    assert!(spark_data::get_doc(&conn, &table, &id).expect("get").is_some());
+    let row = spark_data::get_doc(&conn, &id).expect("get").expect("the document row");
+    assert_eq!(row.project_id, inbox, "the row names its project; the workspace comes from the project");
+    assert_eq!(spark_data::find_doc(&conn, &id).expect("find").expect("found").workspace.id, ws);
 }
 
 #[test]
@@ -262,7 +262,7 @@ fn project_crud_follows_the_workspace_and_protects_inbox_and_documents() {
         .as_array()
         .expect("array")
         .iter()
-        .find(|p| p["is_inbox"] == true)
+        .find(|p| p["is_default"] == true)
         .expect("created workspace has an inbox");
     let inbox_id = text(inbox, "project_id");
     assert_eq!(text(inbox, "project_name"), "Inbox");
@@ -394,7 +394,7 @@ fn a_full_rebuild_indexes_every_workspace_and_drops_chunks_of_deleted_documents(
 
     // Remove the row behind the index's back, then rebuild from the tables.
     let conn = spark_data::open().expect("db");
-    spark_data::delete_doc(&conn, &crate::test_support::default_workspace().doc_table, &gone).expect("delete row");
+    spark_data::delete_doc(&conn, &gone).expect("delete row");
     crate::services::index_build::rebuild_spark_index(&root).expect("rebuild");
 
     let found = search(&json!({ "q": "platypus" }));
@@ -458,27 +458,17 @@ fn a_folder_with_four_levels_or_unsafe_segments_is_rejected() {
     }
 }
 
-fn plain_hex_row(id: &str, project_id: &str) -> spark_data::DocRow {
-    let mut row = spark_data::DocRow::new(id, "notes/202601011200-old123.md", project_id);
-    row.title = Some("Old".into());
-    row
-}
-
-fn inbox_id(workspace: &str) -> String {
-    inbox_of(workspace)
-}
-
 #[test]
-fn a_new_doc_id_starts_with_its_workspace_id_and_survives_a_rename() {
+fn a_new_doc_id_is_32_hex_with_no_workspace_in_it_and_survives_a_rename() {
     let _sandbox = TestSandbox::new();
     let ws = new_workspace("Memory");
     let in_default = text(ok(&write(None, None)), "id");
     let in_ws = text(ok(&write(Some(&ws), None)), "id");
 
-    let (prefix, hex) = in_default.split_once('-').expect("prefixed");
-    assert_eq!(prefix, default_id());
-    assert_eq!(hex.len(), 32);
-    assert!(in_ws.starts_with(&format!("{ws}-")), "{in_ws}");
+    for id in [&in_default, &in_ws] {
+        assert_eq!(id.len(), 32, "{id}");
+        assert!(id.chars().all(|c| c.is_ascii_digit() || ('a'..='f').contains(&c)), "{id}");
+    }
 
     ok(&rename_workspace(&json!({ "workspace_id": ws, "workspace_name": "Renamed" })));
     assert_eq!(get_file(&json!({ "id": in_ws }))["content"], json!(BODY), "found by the id alone, no workspace given");
@@ -488,7 +478,7 @@ fn a_new_doc_id_starts_with_its_workspace_id_and_survives_a_rename() {
 }
 
 #[test]
-fn a_prefixed_id_updates_a_document_in_any_workspace() {
+fn an_id_updates_a_document_in_any_workspace() {
     let _sandbox = TestSandbox::new();
     let ws = new_workspace("Memory");
     let id = text(ok(&write(Some(&ws), None)), "id");
@@ -500,56 +490,15 @@ fn a_prefixed_id_updates_a_document_in_any_workspace() {
 }
 
 #[test]
-fn a_prefixed_id_only_looks_in_the_workspace_it_names() {
+fn only_a_32_lowercase_hex_id_is_valid_and_it_names_exactly_one_document() {
     let _sandbox = TestSandbox::new();
     let ws = new_workspace("Memory");
     let id = text(ok(&write(Some(&ws), None)), "id");
-    let hex = id.split_once('-').expect("prefixed").1;
 
-    assert_eq!(status(&get_file(&json!({ "id": format!("{}-{hex}", default_id()) }))), 404);
-    assert_eq!(status(&get_file(&json!({ "id": format!("nope-{hex}") }))), 404);
-    assert_eq!(status(&get_file(&json!({ "id": format!("Bad-Prefix-{hex}") }))), 400);
-    assert_eq!(status(&get_file(&json!({ "id": format!("{ws}-short") }))), 400);
-}
-
-#[test]
-fn a_plain_32_hex_id_from_before_the_prefix_still_reads_updates_and_deletes() {
-    let sandbox = TestSandbox::new();
-    ok(&write(None, None));
-    let old = "0123456789abcdef0123456789abcdef";
-    let conn = spark_data::open().expect("db");
-    spark_data::insert_doc(&conn, &crate::test_support::default_workspace().doc_table, &plain_hex_row(old, &inbox_id(&default_id()))).expect("insert");
-    let dir = workspaces_dir(&sandbox).join(default_id()).join("raw").join(inbox_of(&default_id())).join("notes");
-    fs::write(dir.join("202601011200-old123.md"), "# Old\n\n旧文档正文。\n").expect("file");
-
-    assert_eq!(get_file(&json!({ "id": old }))["content"], json!("# Old\n\n旧文档正文。\n"));
-    ok(&update_doc_content(&json!({ "id": old, "content": "# Old\n\n改过。\n", "digest": "never" })));
-    assert_eq!(get_file(&json!({ "id": old }))["content"], json!("# Old\n\n改过。\n"));
-    ok(&delete_doc(&json!({ "id": old })));
-    assert_eq!(status(&get_file(&json!({ "id": old }))), 404);
-}
-
-#[test]
-fn an_id_shared_by_two_workspace_tables_is_reported() {
-    let _sandbox = TestSandbox::new();
-    ok(&write(None, None));
-    let conn = spark_data::open().expect("db");
-    assert!(spark_data::duplicate_doc_ids(&conn).expect("scan").is_empty());
-
-    let shared = "fedcba9876543210fedcba9876543210";
-    let project = inbox_id(&default_id());
-    let default = crate::test_support::default_workspace();
-    let knowledge = crate::test_support::knowledge_workspace();
-    for table in [&default.doc_table, &knowledge.doc_table] {
-        spark_data::insert_doc(&conn, table, &plain_hex_row(shared, &project)).expect("insert");
-    }
-    let dups = spark_data::duplicate_doc_ids(&conn).expect("scan");
-    let mut owners = dups[0].1.clone();
-    owners.sort();
-    let mut expected = vec![default.id.clone(), knowledge.id.clone()];
-    expected.sort();
-    assert_eq!(dups[0].0, shared);
-    assert_eq!(owners, expected);
+    assert_eq!(status(&get_file(&json!({ "id": "0123456789abcdef0123456789abcdef" }))), 404, "valid shape, no such document");
+    assert_eq!(status(&get_file(&json!({ "id": format!("{ws}-{id}") }))), 400, "the workspace prefix is gone");
+    assert_eq!(status(&get_file(&json!({ "id": id.to_uppercase() }))), 400);
+    assert_eq!(status(&get_file(&json!({ "id": &id[..31] }))), 400);
 }
 
 #[test]
@@ -712,7 +661,7 @@ fn workspace_and_project_results_are_flat_and_keyed_by_resource() {
     keys.sort_unstable();
     assert_eq!(
         keys,
-        vec!["description", "doc_count", "icon", "is_inbox", "ok", "project_id", "project_name", "sort_index"],
+        vec!["description", "doc_count", "icon", "is_default", "ok", "project_id", "project_name", "sort_index"],
         "a project result is flat and does not echo workspace_id: {project}"
     );
     let listed = list_projects(&json!({ "workspace_id": ws }));
@@ -787,6 +736,6 @@ fn the_old_workspace_key_is_ignored_by_the_document_tools() {
     let plans = new_project(Some(&ws), "Plans");
     let inboxed = create_doc_content(&json!({ "workspace_id": ws, "project": plans, "title": "T", "content": BODY, "digest": "never", "source_type": "summary" }));
     assert_eq!(text(ok(&inboxed), "project_id"), inbox_of(&ws));
-    // A prefixed id still names its workspace, so the old key changes nothing on reads.
+    // The document id names its workspace, so the old key changes nothing on reads.
     assert_eq!(get_file(&json!({ "workspace": "default", "id": id }))["content"], json!(BODY));
 }

@@ -60,8 +60,7 @@ describe('docIdFromHref', () => {
   it('accepts spark-doc:<id> only; the old doc:, note:, and knowledge: schemes are gone', () => {
     expect(docIdFromHref(`spark-doc:${ID}`)).toBe(ID);
     expect(docIdFromHref(`  spark-doc:${ID} `)).toBe(ID);
-    expect(docIdFromHref(`spark-doc:default-${ID}`)).toBe(`default-${ID}`);
-    expect(docIdFromHref(`spark-doc:k3x9ab-${ID}`)).toBe(`k3x9ab-${ID}`);
+    expect(docIdFromHref(`spark-doc:default-${ID}`)).toBeNull(); // the workspace prefix is gone
     for (const bad of [
       `doc:${ID}`,
       'spark-doc:bad',

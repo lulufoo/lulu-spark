@@ -235,6 +235,7 @@ describe('T5 openCreateNote / finalizeCreateSession on note outlet', () => {
   });
 
   it('create success: navigate note=id from createNote', async () => {
+    state.workspaces.current = 'default'; // any registered workspace id; the app has no literal one
     await openCreateNote({ temp_id: 'tmp-ok' });
     makeEl('md-edit-area').value = 'hello archived note';
     vi.clearAllMocks();

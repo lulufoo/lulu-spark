@@ -182,7 +182,7 @@ export async function moveToProject(id: string, projectId: string) {
 
 /** Create a note via HTTP/MCP `create_note` parity.
  * Jot create: `{ body, source_type: 'jot', workspace_id?, project_id? }` (Host synthesize; digest=never);
- * `project_id` is a project id of that workspace; omit it for the inbox.
+ * `project_id` is a project id of that workspace; omit it for the default project.
  * Path create: `{ source_path, title, digest, asset_paths? }` — no `document` body. */
 export async function createNote(payload?: unknown) {
   return writePost('/api/create-note', payload || {});

@@ -46,7 +46,7 @@ const project = (id, sort_index, extra = {}) => ({
   description: '',
   icon: '',
   sort_index,
-  is_inbox: extra.is_inbox ?? id === 'inbox',
+  is_default: extra.is_default ?? id === 'inbox',
 });
 const ids = () => state.workspaces.list.map((w) => w.workspace_id);
 

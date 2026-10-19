@@ -4,8 +4,8 @@ export type NotesCategoryRow = {
   id: string;
   title: string;
   description: string;
-  /** The built-in inbox of this workspace. Title may change; this flag does not. */
-  is_inbox: boolean;
+  /** The default project of this workspace. Title may change; this flag does not. */
+  is_default: boolean;
   /** Id of the configured icon; empty = the default project icon. */
   icon: string;
   /** How many documents the project holds. */

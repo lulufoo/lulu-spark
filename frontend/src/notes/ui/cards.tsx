@@ -23,8 +23,8 @@ function catalogTopicLabel(entry: NoteEntry): string {
   return title && title !== key ? title : key;
 }
 
-function isInboxCard(entry: NoteEntry): boolean {
-  return state.index.topicInbox?.[projectKeyOf(entry)] === true;
+function isDefaultProjectCard(entry: NoteEntry): boolean {
+  return state.index.topicDefault?.[projectKeyOf(entry)] === true;
 }
 
 function asRecord(entry: NoteEntry): Record<string, unknown> {
@@ -276,7 +276,7 @@ export function buildCard(id: string, entry: NoteEntry, title?: string | null) {
   );
   if (entry.done) card.classList.add('done');
   if (entry.importance) card.classList.add(`importance-${entry.importance}`);
-  if (isInboxCard(entry)) card.classList.add('inbox-pending');
+  if (isDefaultProjectCard(entry)) card.classList.add('default-project-pending');
   bindCardActions(card, entry);
   attachCardDigestTooltip(card, id);
   return card;
@@ -328,7 +328,7 @@ export function DocCard({
     'doc-card',
     entry.done ? 'done' : '',
     entry.importance ? `importance-${entry.importance}` : '',
-    isInboxCard(entry) ? 'inbox-pending' : '',
+    isDefaultProjectCard(entry) ? 'default-project-pending' : '',
   ]
     .filter(Boolean)
     .join(' ');

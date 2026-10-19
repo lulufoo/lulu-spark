@@ -9,6 +9,7 @@ import { mountHomeEntryShell } from '../../frontend/src/home-entry-shell/shell.t
 import { getBaselineEntries } from '../../frontend/src/home-entry-shell/entry-config.ts';
 import { createContentRegistry } from '../../frontend/src/home-entry-shell/content-registry.ts';
 import { readFrontendJs } from '../helpers/read-frontend-js.js';
+import { useLoadedWorkspaces } from '../helpers/workspaces.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 
@@ -32,7 +33,10 @@ describe('home three-entry boolean unread', () => {
   /** @type {Record<string, boolean>} */
   let unreadByChannel;
 
+  let restoreWorkspaces;
+
   beforeEach(() => {
+    restoreWorkspaces = useLoadedWorkspaces();
     container = document.createElement('div');
     document.body.appendChild(container);
     cleanup = null;
@@ -64,6 +68,7 @@ describe('home three-entry boolean unread', () => {
   });
 
   afterEach(() => {
+    restoreWorkspaces();
     cleanup?.();
     unreadSpy.mockRestore();
     markSpy.mockRestore();

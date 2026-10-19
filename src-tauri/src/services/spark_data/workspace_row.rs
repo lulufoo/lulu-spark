@@ -1,14 +1,13 @@
-//! The `workspace` registry: one row per workspace, pointing at its document table.
+//! The `workspace` registry: one row per workspace.
 //!
-//! `id` and `doc_table` never change after creation (a trigger enforces it);
+//! `id` and `is_default` never change after creation (a trigger enforces it);
 //! only `name`, `view_mode`, `icon`, `sort_index` and `disabled_at` are editable. A workspace is never deleted:
 //! it is disabled (hidden, data kept) and can be enabled again. The default workspace
 //! cannot be disabled.
 
 use rusqlite::{params, Connection, OptionalExtension, Row};
 
-use super::doc_table::{create_doc_table, doc_table_for_id, validate_doc_table_name};
-use super::project_row::insert_inbox_project;
+use super::project_row::insert_default_project;
 use crate::services::id::random_alnum6;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -38,7 +37,6 @@ impl ViewMode {
 pub struct WorkspaceRow {
     pub id: String,
     pub name: String,
-    pub doc_table: String,
     pub view_mode: ViewMode,
     pub is_default: bool,
     pub created_at: Option<String>,
@@ -50,24 +48,31 @@ pub struct WorkspaceRow {
     pub sort_index: i64,
 }
 
-const COLUMNS: &str = "id, name, doc_table, view_mode, is_default, created_at, disabled_at, icon, sort_index";
-const INSERT_COLUMNS: &str = "id, name, doc_table, view_mode, is_default, created_at";
+const COLUMNS: &str = "id, name, view_mode, is_default, created_at, disabled_at, icon, sort_index";
 
 fn map_row(row: &Row<'_>) -> rusqlite::Result<WorkspaceRow> {
-    let mode: String = row.get(3)?;
+    let mode: String = row.get(2)?;
     Ok(WorkspaceRow {
         id: row.get(0)?,
         name: row.get(1)?,
-        doc_table: row.get(2)?,
         view_mode: ViewMode::parse(&mode).map_err(|e| {
-            rusqlite::Error::FromSqlConversionFailure(3, rusqlite::types::Type::Text, e.into())
+            rusqlite::Error::FromSqlConversionFailure(2, rusqlite::types::Type::Text, e.into())
         })?,
-        is_default: row.get::<_, i64>(4)? != 0,
-        created_at: row.get(5)?,
-        disabled_at: row.get(6)?,
-        icon: row.get(7)?,
-        sort_index: row.get(8)?,
+        is_default: row.get::<_, i64>(3)? != 0,
+        created_at: row.get(4)?,
+        disabled_at: row.get(5)?,
+        icon: row.get(6)?,
+        sort_index: row.get(7)?,
     })
+}
+
+/// Workspace ids are `[a-z0-9_]`, non-empty, short. They name a folder on disk.
+pub fn validate_workspace_id(id: &str) -> Result<(), String> {
+    let ok_char = |c: char| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_';
+    if id.is_empty() || id.len() > 48 || !id.chars().all(ok_char) {
+        return Err(format!("invalid workspace id: {id:?}"));
+    }
+    Ok(())
 }
 
 fn clean_name(name: &str) -> Result<&str, String> {
@@ -115,8 +120,8 @@ fn atomically<T>(conn: &Connection, body: impl FnOnce() -> Result<T, String>) ->
     }
 }
 
-/// The one way a workspace is created: its registry row, its document table and its inbox
-/// project, together or not at all. `id` and table name are Host-made.
+/// The one way a workspace is created: its registry row and its inbox project, together or
+/// not at all. The id is Host-made.
 fn insert_workspace(
     conn: &Connection,
     name: &str,
@@ -126,24 +131,19 @@ fn insert_workspace(
     let name = clean_name(name)?;
     atomically(conn, || {
         let id = mint_workspace_id(conn)?;
-        let doc_table = doc_table_for_id(&id)?;
         conn.execute(
-            &format!(
-                "INSERT INTO workspace({INSERT_COLUMNS}, sort_index)
-                 VALUES (?1, ?2, ?3, ?4, ?5, strftime('%Y-%m-%dT%H:%M:%SZ', 'now'),
-                         (SELECT coalesce(max(sort_index) + 1, 0) FROM workspace))"
-            ),
-            params![id, name, doc_table, view_mode.as_str(), is_default as i64],
+            "INSERT INTO workspace(id, name, view_mode, is_default, created_at, sort_index)
+             VALUES (?1, ?2, ?3, ?4, strftime('%Y-%m-%dT%H:%M:%SZ', 'now'),
+                     (SELECT coalesce(max(sort_index) + 1, 0) FROM workspace))",
+            params![id, name, view_mode.as_str(), is_default as i64],
         )
         .map_err(|e| e.to_string())?;
-        create_doc_table(conn, &doc_table)?;
-        insert_inbox_project(conn, &id)?;
+        insert_default_project(conn, &id)?;
         get_workspace(conn, &id)?.ok_or_else(|| "workspace row missing after insert".to_string())
     })
 }
 
-/// Create a (non-default) workspace with its document table and inbox project in one
-/// transaction. The caller supplies only a display name.
+/// Create a (non-default) workspace with its inbox project in one transaction. The caller supplies only a display name.
 pub fn create_workspace(
     conn: &Connection,
     name: &str,
@@ -234,7 +234,7 @@ pub fn set_workspace_icon(conn: &Connection, id: &str, icon: Option<&str>) -> Re
         .map_err(|e| e.to_string())
 }
 
-/// Disable a workspace: it disappears from lists and search, its documents and table stay.
+/// Disable a workspace: it disappears from lists and search, its documents stay.
 /// Disabling twice keeps the first timestamp. Refuses the default workspace.
 /// `false` when it does not exist.
 pub fn disable_workspace(conn: &Connection, id: &str) -> Result<bool, String> {
@@ -260,8 +260,8 @@ pub fn enable_workspace(conn: &Connection, id: &str) -> Result<bool, String> {
         .map_err(|e| e.to_string())
 }
 
-/// Undo a `create_workspace` whose follow-up steps failed: drops the (still empty) projects,
-/// the document table and the registry row together. Not a user operation: refuses the
+/// Undo a `create_workspace` whose follow-up steps failed: drops the (still empty) projects
+/// and the registry row together. Not a user operation: refuses the
 /// default workspace and any workspace that holds documents. `false` when it did not exist.
 pub fn discard_new_workspace(conn: &Connection, id: &str) -> Result<bool, String> {
     let Some(row) = get_workspace(conn, id)? else {
@@ -270,18 +270,19 @@ pub fn discard_new_workspace(conn: &Connection, id: &str) -> Result<bool, String
     if row.is_default {
         return Err("the default workspace cannot be discarded".to_string());
     }
-    // `doc_table` came out of the registry, whose CHECK ties it to a valid id.
-    validate_doc_table_name(&row.doc_table)?;
     let docs: i64 = conn
-        .query_row(&format!("SELECT count(*) FROM {}", row.doc_table), [], |r| r.get(0))
+        .query_row(
+            "SELECT count(*) FROM document
+             WHERE project_id IN (SELECT id FROM project WHERE workspace_id = ?1)",
+            params![id],
+            |r| r.get(0),
+        )
         .map_err(|e| e.to_string())?;
     if docs > 0 {
         return Err(format!("workspace {id} still has {docs} document(s)"));
     }
     let tx = conn.unchecked_transaction().map_err(|e| e.to_string())?;
     tx.execute("DELETE FROM project WHERE workspace_id = ?1", params![id])
-        .map_err(|e| e.to_string())?;
-    tx.execute_batch(&format!("DROP TABLE {}", row.doc_table))
         .map_err(|e| e.to_string())?;
     tx.execute("DELETE FROM workspace WHERE id = ?1", params![id])
         .map_err(|e| e.to_string())?;

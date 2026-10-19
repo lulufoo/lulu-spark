@@ -25,7 +25,7 @@ const row = (id, title = id, extra = {}) => ({
   project_id: id,
   project_name: title,
   description: '',
-  is_inbox: extra.is_inbox ?? id === 'inbox',
+  is_default: extra.is_default ?? id === 'inbox',
   ...(extra.doc_count === undefined ? {} : { doc_count: extra.doc_count }),
 });
 
@@ -68,7 +68,7 @@ describe('Workspace projects settings', () => {
   });
 
   it('still treats a renamed inbox as Built-in when its id is not inbox', async () => {
-    projects.default = [row('minted', 'Catch-all', { is_inbox: true }), row('work', 'Work')];
+    projects.default = [row('minted', 'Catch-all', { is_default: true }), row('work', 'Work')];
     await commands.selectProjectsWorkspace('default');
     const host = document.createElement('div');
     document.body.appendChild(host);

@@ -10,7 +10,7 @@ import { ComposerInput } from '../../frontend/src/home/ui/composer-input.tsx';
 import { registerReferenceKind } from '../../frontend/src/home/references/index.ts';
 
 const NOTE_ID = 'f6692dc5d5242eec5206b6400e704bd6';
-const GUIDE_ID = 'knowledge-0123456789abcdef0123456789abcdef';
+const GUIDE_ID = '0123456789abcdef0123456789abcdef';
 const NOTE = `[Default：Agent Mock](spark-doc:${NOTE_ID})`;
 const GUIDE = `[Knowledge：Guide](spark-doc:${GUIDE_ID})`;
 

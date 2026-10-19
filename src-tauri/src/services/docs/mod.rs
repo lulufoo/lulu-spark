@@ -1,5 +1,5 @@
 //! One document service for every workspace: `workspace` + `project` locate a document,
-//! the `workspace` registry resolves the document table and the folder on disk.
+//! the `workspace` registry resolves the folder on disk; a document's workspace is its project's.
 //!
 //! This replaces the separate `notes` and `knowledge` services. The shared file helpers
 //! (`assets`, `create_meta`, `digest`, `store`, `jot`) and the row editor (`edit`) live here too.
