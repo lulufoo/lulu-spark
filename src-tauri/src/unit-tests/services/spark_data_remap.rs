@@ -1,6 +1,8 @@
 //! Migration step 15: remap seeded `default` / `knowledge` ids.
 
 use super::db::{open_with_steps, MIGRATIONS};
+use super::prefix_legacy_doc_ids::PREFIX_LEGACY_DOC_IDS_STEP;
+use super::remap_builtin_ids::REMAP_BUILTIN_WORKSPACE_IDS_STEP;
 use super::*;
 use rusqlite::Connection;
 
@@ -25,14 +27,18 @@ fn user_version(conn: &Connection) -> i64 {
 }
 
 fn before_remap() -> &'static [&'static str] {
-    &MIGRATIONS[..MIGRATIONS.len() - 1]
+    let i = MIGRATIONS
+        .iter()
+        .position(|s| *s == REMAP_BUILTIN_WORKSPACE_IDS_STEP)
+        .expect("remap step");
+    &MIGRATIONS[..i]
 }
 
 #[test]
 fn the_seeded_ids_stay_literal_until_the_remap_step() {
     let (_dir, path) = temp_db();
     let conn = open_with_steps(&path, before_remap()).expect("v15");
-    assert_eq!(user_version(&conn), (MIGRATIONS.len() - 1) as i64);
+    assert_eq!(user_version(&conn), before_remap().len() as i64);
     assert!(get_workspace(&conn, "default").expect("get").is_some());
     assert!(get_workspace(&conn, "knowledge").expect("get").is_some());
 }
@@ -88,7 +94,11 @@ fn prefixed_doc_ids_are_rewritten_and_old_links_still_resolve() {
     .expect("prefixed knowledge");
     drop(before);
 
-    let conn = open_at(&path).expect("remap");
+    let through_remap = MIGRATIONS
+        .iter()
+        .position(|s| *s == PREFIX_LEGACY_DOC_IDS_STEP)
+        .expect("prefix step");
+    let conn = open_with_steps(&path, &MIGRATIONS[..through_remap]).expect("remap");
     let default = default_ws(&conn);
     let knowledge = knowledge_ws(&conn);
     let new_default = format!("{}-{PREFIXED_HEX}", default.id);

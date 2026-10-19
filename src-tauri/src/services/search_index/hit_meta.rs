@@ -4,13 +4,13 @@
 
 use std::collections::HashMap;
 
-use crate::services::spark_data::{self, get_doc, get_project, get_workspace, stored_doc_id};
+use crate::services::spark_data::{self, get_project, get_requested_doc, get_workspace};
 
 use super::collect::DOCS_CATEGORY;
 use super::query::QueryHit;
 
-/// Where one document lives: `(path relative to its root, unused repo, project id)`.
-type Location = Option<(String, String, String)>;
+/// Where one document lives: `(path, unused repo, project id, stored doc id)`.
+type Location = Option<(String, String, String, String)>;
 
 fn locate(
     conn: &rusqlite::Connection,
@@ -23,12 +23,11 @@ fn locate(
             let Some(workspace) = get_workspace(conn, workspace_id)? else {
                 return Ok(None);
             };
-            let stored = stored_doc_id(&workspace.id, doc_id);
-            let Some(doc) = get_doc(conn, &workspace.doc_table, &stored)? else {
+            let Some(doc) = get_requested_doc(conn, &workspace, doc_id)? else {
                 return Ok(None);
             };
             let project = get_project(conn, &doc.project_id)?.map(|p| p.id).unwrap_or_default();
-            Ok(Some((doc.raw_path, String::new(), project)))
+            Ok(Some((doc.raw_path, String::new(), project, doc.doc_id)))
         }
         _ => Ok(None),
     }
@@ -47,10 +46,11 @@ pub fn resolve_hits(hits: Vec<QueryHit>) -> Result<Vec<QueryHit>, String> {
             let found = locate(&conn, &hit.category, &hit.workspace_id, &hit.doc_id)?;
             seen.insert(hit.doc_id.clone(), found);
         }
-        if let Some(Some((path, repo, topic))) = seen.get(&hit.doc_id) {
+        if let Some(Some((path, repo, topic, stored))) = seen.get(&hit.doc_id) {
             hit.common_path = path.clone();
             hit.repo = repo.clone();
             hit.topic = topic.clone();
+            hit.doc_id = stored.clone();
             out.push(hit);
         }
     }

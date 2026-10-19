@@ -12,7 +12,7 @@ use serde_json::{json, Value};
 use crate::config::paths;
 use crate::services::docs::workspace_dir;
 use crate::services::spark_data::{
-    self, get_doc, get_inbox_project, get_project, get_workspace, list_workspaces, stored_doc_id,
+    self, get_inbox_project, get_project, get_requested_doc, get_workspace, list_workspaces,
     workspace_for_doc_prefix, DocRow, ProjectRow, WorkspaceRow,
 };
 
@@ -158,8 +158,7 @@ pub(super) fn resolve_doc(
     workspace: &WorkspaceRow,
     id: &str,
 ) -> Result<(DocRow, ProjectRow), Value> {
-    let stored = stored_doc_id(&workspace.id, id);
-    let doc = get_doc(conn, &workspace.doc_table, &stored)
+    let doc = get_requested_doc(conn, workspace, id)
         .map_err(internal)?
         .ok_or_else(|| not_found("Entry not found"))?;
     let project = get_project(conn, &doc.project_id)

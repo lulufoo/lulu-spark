@@ -7,7 +7,7 @@ use serde_json::{json, Map, Value};
 
 use crate::services::archive_parse::expected_lang_common_path;
 
-use super::doc_id::{split_doc_id, stored_doc_id};
+use super::doc_id::{prefixed_doc_id, split_doc_id, stored_doc_id};
 use super::doc_row::{get_doc, list_docs, DocRow};
 use super::project_row::list_projects;
 use super::workspace_row::{
@@ -43,13 +43,36 @@ pub fn find_doc(conn: &Connection, id: &str) -> Result<Option<FoundDoc>, String>
         let Some(workspace) = workspace_for_doc_prefix(conn, prefix)? else {
             return Ok(None);
         };
-        let stored = stored_doc_id(&workspace.id, id);
-        return Ok(get_doc(conn, &workspace.doc_table, &stored)?.map(|doc| FoundDoc { workspace, doc }));
+        return Ok(get_requested_doc(conn, &workspace, id)?.map(|doc| FoundDoc { workspace, doc }));
     }
     // Disabled workspaces stay searchable by id: a known id keeps opening.
     for workspace in list_all_workspaces(conn)? {
-        if let Some(doc) = get_doc(conn, &workspace.doc_table, id)? {
+        if let Some(doc) = get_requested_doc(conn, &workspace, id)? {
             return Ok(Some(FoundDoc { workspace, doc }));
+        }
+    }
+    Ok(None)
+}
+
+/// The row in `workspace`'s table for `requested`, including a retired prefix or a plain hex.
+pub fn get_requested_doc(
+    conn: &Connection,
+    workspace: &WorkspaceRow,
+    requested: &str,
+) -> Result<Option<DocRow>, String> {
+    let mut ids = vec![requested.to_string()];
+    let stored = stored_doc_id(&workspace.id, requested);
+    if stored != requested {
+        ids.push(stored);
+    }
+    if let Some(prefixed) = prefixed_doc_id(&workspace.id, requested) {
+        if !ids.iter().any(|id| id == &prefixed) {
+            ids.push(prefixed);
+        }
+    }
+    for id in ids {
+        if let Some(doc) = get_doc(conn, &workspace.doc_table, &id)? {
+            return Ok(Some(doc));
         }
     }
     Ok(None)
