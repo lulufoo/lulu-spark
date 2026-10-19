@@ -159,6 +159,42 @@ fn a_baseline_file_opens_without_being_written() {
 }
 
 #[test]
+fn a_baseline_file_without_a_default_workspace_gets_one_and_an_existing_one_is_kept() {
+    let (_dir, path) = temp_db();
+    let conn = open_at(&path).expect("create");
+    let old = default_ws(&conn);
+
+    // Opening again keeps the one it has.
+    drop(conn);
+    let conn = open_at(&path).expect("reopen");
+    assert_eq!(default_ws(&conn).id, old.id);
+    assert_eq!(count(&conn, "SELECT count(*) FROM workspace"), 1);
+
+    // Take Default away by hand (the guard trigger has to go first), at the same version.
+    conn.execute_batch(&format!(
+        "DROP TRIGGER workspace_default_undeletable;
+         DROP TABLE {table};
+         DELETE FROM project;
+         DELETE FROM workspace;",
+        table = old.doc_table
+    ))
+    .expect("remove Default");
+    assert_eq!(user_version(&conn), BASELINE_VERSION as i64);
+    drop(conn);
+
+    let healed = open_at(&path).expect("open without Default");
+    let fresh = default_ws(&healed);
+    assert_eq!((fresh.name.as_str(), fresh.is_default), ("Default", true));
+    assert_eq!(fresh.doc_table, format!("doc_{}", fresh.id));
+    assert!(table_names(&healed).contains(&fresh.doc_table));
+    assert_eq!(count(&healed, "SELECT count(*) FROM workspace"), 1);
+    assert_eq!(
+        count(&healed, &format!("SELECT count(*) FROM project WHERE id = 'inbox' AND is_inbox = 1 AND workspace_id = '{}'", fresh.id)),
+        1
+    );
+}
+
+#[test]
 fn open_uses_wal_and_foreign_keys() {
     let (_dir, path) = temp_db();
     let conn = open_at(&path).expect("open");

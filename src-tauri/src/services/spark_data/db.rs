@@ -60,7 +60,7 @@ pub(crate) const BASELINE_VERSION: usize = 17;
 pub(crate) const MIGRATIONS: [&str; 0] = [];
 
 /// Whole schema at [`BASELINE_VERSION`]. The `Default` workspace, its document
-/// table and its inbox are added by [`create_baseline`] because their id is random.
+/// table and its inbox are added by [`ensure_default_workspace`] because their id is random.
 const BASELINE_SQL: &str = r#"
 CREATE TABLE tag (
   key   TEXT PRIMARY KEY,
@@ -166,7 +166,27 @@ fn with_write_lock(conn: &Connection, body: impl FnOnce() -> Result<(), String>)
     }
 }
 
-/// The `Default` workspace with a random id, its document table, and its inbox project.
+fn default_workspace_exists(conn: &Connection) -> Result<bool, String> {
+    conn.query_row("SELECT EXISTS (SELECT 1 FROM workspace WHERE is_default = 1)", [], |row| row.get(0))
+        .map_err(|e| e.to_string())
+}
+
+/// Create the `Default` workspace (random id, its document table, its inbox project) when
+/// the file has none, and do nothing when it does. Decided from the rows, not from the
+/// version, and re-checked under the write lock so concurrent opens seed it once.
+fn ensure_default_workspace(conn: &Connection) -> Result<(), String> {
+    if default_workspace_exists(conn)? {
+        return Ok(());
+    }
+    with_write_lock(conn, || {
+        if default_workspace_exists(conn)? {
+            return Ok(());
+        }
+        seed_default_workspace(conn)
+    })
+}
+
+/// The rows behind [`ensure_default_workspace`]; the caller holds the write lock.
 fn seed_default_workspace(conn: &Connection) -> Result<(), String> {
     let id = random_alnum6();
     let table = doc_table_for_id(&id)?;
@@ -202,35 +222,34 @@ fn check_supported(version: usize, latest: usize) -> Result<(), String> {
     Ok(())
 }
 
-/// Bring the file to the latest version. Every write re-reads the version after taking
-/// the write lock, so connections that open at the same moment never repeat a step.
-/// A file below the baseline, or newer than this build, is refused untouched.
+/// Bring the file to the latest version, then make sure a `Default` workspace exists.
+/// Every write re-reads its precondition after taking the write lock, so connections that
+/// open at the same moment never repeat a step. A file below the baseline, or newer than
+/// this build, is refused untouched.
 pub(crate) fn migrate(conn: &Connection, steps: &[&str]) -> Result<(), String> {
     let latest = BASELINE_VERSION + steps.len();
     let version = user_version(conn)?;
     check_supported(version, latest)?;
-    if version == latest {
-        return Ok(());
+    if version != latest {
+        if version == 0 {
+            with_write_lock(conn, || {
+                if user_version(conn)? != 0 {
+                    return Ok(());
+                }
+                conn.execute_batch(BASELINE_SQL).map_err(|e| e.to_string())?;
+                set_user_version(conn, BASELINE_VERSION)
+            })?;
+        }
+        for (i, step) in steps.iter().enumerate() {
+            let from = BASELINE_VERSION + i;
+            with_write_lock(conn, || {
+                if user_version(conn)? != from {
+                    return Ok(());
+                }
+                conn.execute_batch(step).map_err(|e| e.to_string())?;
+                set_user_version(conn, from + 1)
+            })?;
+        }
     }
-    if version == 0 {
-        with_write_lock(conn, || {
-            if user_version(conn)? != 0 {
-                return Ok(());
-            }
-            conn.execute_batch(BASELINE_SQL).map_err(|e| e.to_string())?;
-            seed_default_workspace(conn)?;
-            set_user_version(conn, BASELINE_VERSION)
-        })?;
-    }
-    for (i, step) in steps.iter().enumerate() {
-        let from = BASELINE_VERSION + i;
-        with_write_lock(conn, || {
-            if user_version(conn)? != from {
-                return Ok(());
-            }
-            conn.execute_batch(step).map_err(|e| e.to_string())?;
-            set_user_version(conn, from + 1)
-        })?;
-    }
-    Ok(())
+    ensure_default_workspace(conn)
 }
