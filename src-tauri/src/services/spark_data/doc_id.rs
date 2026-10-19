@@ -36,6 +36,12 @@ pub fn is_valid_doc_id(id: &str) -> bool {
     split_doc_id(id).is_some()
 }
 
+/// `{workspace id}-{hex}` for a valid doc id. `None` when `requested` is not a doc id.
+pub fn prefixed_doc_id(workspace_id: &str, requested: &str) -> Option<String> {
+    let (_, hex) = split_doc_id(requested)?;
+    Some(format!("{workspace_id}-{hex}"))
+}
+
 /// Document ids present in more than one workspace table, with the workspaces that hold them.
 /// Each table keeps its ids unique on its own; nothing enforces it across tables.
 pub fn duplicate_doc_ids(conn: &Connection) -> Result<Vec<(String, Vec<String>)>, String> {

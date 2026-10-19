@@ -29,21 +29,44 @@ fn count(conn: &Connection, sql: &str) -> i64 {
 
 const LATEST: i64 = MIGRATIONS.len() as i64;
 
+fn default_ws(conn: &Connection) -> WorkspaceRow {
+    get_default_workspace(conn).expect("default workspace")
+}
+
+fn knowledge_ws(conn: &Connection) -> WorkspaceRow {
+    get_workspace_by_name(conn, "Knowledge").expect("lookup").expect("Knowledge")
+}
+
+fn assert_no_literal_ids(conn: &Connection) {
+    let ids: Vec<String> = list_workspaces(conn).expect("list").into_iter().map(|w| w.id).collect();
+    assert!(!ids.iter().any(|id| id == "default" || id == "knowledge"), "{ids:?}");
+    let tables = table_names(conn);
+    assert!(!tables.iter().any(|n| n == "doc_default" || n == "doc_knowledge"), "{tables:?}");
+}
+
+
 #[test]
 fn first_open_creates_the_workspace_tables_and_no_legacy_ones() {
     let (_dir, path) = temp_db();
     let first = open_at(&path).expect("first open");
     let tables = table_names(&first);
-    assert_eq!(tables, vec!["doc_default", "doc_knowledge", "project", "tag", "workspace"]);
+    let default = default_ws(&first);
+    let knowledge = knowledge_ws(&first);
+    assert_eq!(tables, {
+        let mut names = vec![default.doc_table.clone(), knowledge.doc_table.clone(), "project".into(), "tag".into(), "workspace".into()];
+        names.sort();
+        names
+    });
+    assert_no_literal_ids(&first);
     let version = user_version(&first);
     assert_eq!(version, LATEST);
-    insert_doc(&first, "doc_default", &DocRow::new("n1", "a/b.md", "inbox")).expect("seed");
+    insert_doc(&first, &default.doc_table, &DocRow::new("n1", "a/b.md", "inbox")).expect("seed");
     drop(first);
 
     let second = open_at(&path).expect("reopen");
     assert_eq!(table_names(&second), tables);
     assert_eq!(user_version(&second), version);
-    let kept = get_doc(&second, "doc_default", "n1").expect("get").expect("row");
+    let kept = get_doc(&second, &default_ws(&second).doc_table, "n1").expect("get").expect("row");
     assert_eq!(kept.project_id, "inbox");
 }
 
@@ -61,14 +84,15 @@ fn open_uses_wal_and_foreign_keys() {
 fn schema_rejects_bad_values() {
     let (_dir, path) = temp_db();
     let conn = open_at(&path).expect("open");
+    let table = default_ws(&conn).doc_table;
     let mut doc = DocRow::new("n1", "a.md", "inbox");
     doc.importance = Some("urgent".into());
-    assert!(insert_doc(&conn, "doc_default", &doc).is_err(), "importance outside high|medium|low");
+    assert!(insert_doc(&conn, &table, &doc).is_err(), "importance outside high|medium|low");
     let mut doc = DocRow::new("n2", "a.md", "inbox");
     doc.tags = serde_json::json!({ "not": "an array" });
-    assert!(insert_doc(&conn, "doc_default", &doc).is_err(), "JSON columns must be arrays");
+    assert!(insert_doc(&conn, &table, &doc).is_err(), "JSON columns must be arrays");
     assert!(
-        insert_doc(&conn, "doc_default", &DocRow::new("n3", "a.md", "missing")).is_err(),
+        insert_doc(&conn, &table, &DocRow::new("n3", "a.md", "missing")).is_err(),
         "FK to project(id)"
     );
 }
@@ -113,7 +137,7 @@ fn newer_file_is_refused_and_failed_step_leaves_version_unchanged() {
 
     let conn = Connection::open_in_memory().expect("mem");
     let broken = "CREATE TABLE c (id INTEGER); THIS IS NOT SQL;";
-    assert!(migrate(&conn, &[STEP_A, broken]).is_err());
+    assert!(migrate(&conn, std::path::Path::new(":memory:"), &[STEP_A, broken]).is_err());
     assert_eq!(user_version(&conn), 1, "failed step must roll back and keep the version");
     assert!(!conn
         .prepare("SELECT 1 FROM sqlite_master WHERE name = 'c'")
@@ -149,16 +173,23 @@ fn full_migration_chain_from_the_earliest_version_to_the_latest() {
 
     let conn = open_at(&path).expect("latest");
     assert_eq!(user_version(&conn), LATEST);
-    assert_eq!(table_names(&conn), vec!["doc_default", "doc_knowledge", "project", "tag", "workspace"]);
+    let default = default_ws(&conn);
+    let knowledge = knowledge_ws(&conn);
+    assert_no_literal_ids(&conn);
+    let mut tables = table_names(&conn);
+    tables.sort();
+    let mut expected = vec![default.doc_table.clone(), knowledge.doc_table.clone(), "project".into(), "tag".into(), "workspace".into()];
+    expected.sort();
+    assert_eq!(tables, expected);
 
-    let note = get_doc(&conn, "doc_default", "n1").expect("get").expect("note copied");
+    let note = get_doc(&conn, &default.doc_table, "n1").expect("get").expect("note copied");
     assert_eq!((note.raw_path.as_str(), note.project_id.as_str(), note.title.as_deref()), ("ai/x.md", "inbox", Some("X")));
-    assert_eq!(get_project(&conn, "inbox").expect("get").expect("inbox").workspace_id, "default");
+    assert_eq!(get_project(&conn, "inbox").expect("get").expect("inbox").workspace_id, default.id);
 
-    let k1 = get_doc(&conn, "doc_knowledge", "k1").expect("get").expect("knowledge copied");
+    let k1 = get_doc(&conn, &knowledge.doc_table, "k1").expect("get").expect("knowledge copied");
     assert_eq!((k1.raw_path.as_str(), k1.project_id.as_str()), ("docs/a.md", "knowledge:demo"));
-    assert!(get_doc(&conn, "doc_knowledge", "k2").expect("get").is_none(), "retired repo stays out");
-    assert_eq!(count(&conn, "SELECT count(*) FROM project WHERE workspace_id = 'knowledge'"), 1);
+    assert!(get_doc(&conn, &knowledge.doc_table, "k2").expect("get").is_none(), "retired repo stays out");
+    assert_eq!(count(&conn, &format!("SELECT count(*) FROM project WHERE workspace_id = '{}'", knowledge.id)), 1);
     assert_eq!(count(&conn, "SELECT count(*) FROM tag"), 1, "tags are untouched");
 }
 
@@ -226,21 +257,23 @@ fn the_sort_step_numbers_existing_rows_in_the_old_order() {
             .expect("rows")
     };
     assert_eq!(
-        ids("SELECT id FROM workspace ORDER BY sort_index"),
-        vec!["default", "amy", "knowledge", "zed"]
+        ids("SELECT name FROM workspace ORDER BY sort_index"),
+        vec!["Default", "amy", "Knowledge", "Zed"]
     );
     assert_eq!(
         ids("SELECT CAST(sort_index AS TEXT) FROM workspace ORDER BY sort_index"),
         vec!["0", "1", "2", "3"]
     );
+    let knowledge = knowledge_ws(&conn);
     assert_eq!(
-        ids("SELECT id FROM project WHERE workspace_id = 'knowledge' ORDER BY sort_index"),
+        ids(&format!("SELECT id FROM project WHERE workspace_id = '{}' ORDER BY sort_index", knowledge.id)),
         vec!["p2", "p3", "p1"]
     );
     assert_eq!(
-        ids("SELECT CAST(sort_index AS TEXT) FROM project WHERE workspace_id = 'knowledge' ORDER BY sort_index"),
+        ids(&format!("SELECT CAST(sort_index AS TEXT) FROM project WHERE workspace_id = '{}' ORDER BY sort_index", knowledge.id)),
         vec!["0", "1", "2"]
     );
+    assert_no_literal_ids(&conn);
 }
 
 /// Step 12 marks the seeded Default inbox and does not invent one for Knowledge.
@@ -299,7 +332,7 @@ fn the_rename_step_turns_project_title_into_name_and_keeps_rows() {
 fn a_workspace_accepts_only_one_inbox_and_the_flag_cannot_change() {
     let (_dir, path) = temp_db();
     let conn = open_at(&path).expect("open");
-    let mut extra = ProjectRow::new("i2", "default", "Other", "");
+    let mut extra = ProjectRow::new("i2", &default_ws(&conn).id, "Other", "");
     extra.is_inbox = true;
     assert!(insert_project(&conn, &extra).is_err(), "one inbox per workspace");
     assert!(
@@ -312,6 +345,31 @@ fn a_workspace_accepts_only_one_inbox_and_the_flag_cannot_change() {
     );
     extra.is_inbox = false;
     insert_project(&conn, &extra).expect("a non-inbox project is fine");
+}
+
+#[test]
+fn seeded_workspaces_get_random_ids_and_keep_names() {
+    let dir = tempfile::tempdir().expect("tmp");
+    let data = dir.path().join("data");
+    let path = data.join(DB_FILE);
+    std::fs::create_dir_all(data.join("workspaces").join("default").join("raw")).expect("dir");
+    std::fs::write(data.join("workspaces").join("default").join("raw").join("keep.txt"), "x").expect("file");
+    let conn = open_at(&path).expect("open");
+    let default = default_ws(&conn);
+    let knowledge = knowledge_ws(&conn);
+    assert_eq!((default.name.as_str(), default.is_default, default.view_mode), ("Default", true, ViewMode::Directory));
+    assert_eq!((knowledge.name.as_str(), knowledge.is_default, knowledge.view_mode), ("Knowledge", false, ViewMode::Timeline));
+    assert_eq!(default.id.len(), 6);
+    assert_eq!(knowledge.id.len(), 6);
+    assert_ne!(default.id, knowledge.id);
+    assert_eq!(default.doc_table, format!("doc_{}", default.id));
+    assert_eq!(knowledge.doc_table, format!("doc_{}", knowledge.id));
+    assert_no_literal_ids(&conn);
+    assert!(data.join("workspaces").join(&default.id).join("raw").join("keep.txt").is_file());
+    assert!(!data.join("workspaces").join("default").exists());
+    drop(conn);
+    let again = open_at(&path).expect("reopen");
+    assert_eq!(default_ws(&again).id, default.id, "remap is stable");
 }
 
 /// Manual acceptance (LW-440): `SPARK_DB_COPY=/path/to/copy cargo test --lib migrate_real_copy -- --ignored`.

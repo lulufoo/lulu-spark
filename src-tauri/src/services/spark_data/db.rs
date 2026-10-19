@@ -14,6 +14,8 @@ use rusqlite::Connection;
 
 use super::drop_folder_step::{run_with_foreign_keys_off, DROP_PROJECT_FOLDER_STEP};
 use super::legacy_rows_step::{DROP_LEGACY_STEP, LEGACY_ROWS_STEP};
+use super::prefix_legacy_doc_ids::{prefix_legacy_doc_ids, PREFIX_LEGACY_DOC_IDS_STEP};
+use super::remap_builtin_ids::{remap_builtin_workspace_ids, REMAP_BUILTIN_WORKSPACE_IDS_STEP};
 use crate::config::paths;
 
 pub const DB_FILE: &str = "spark-data.sqlite";
@@ -70,7 +72,9 @@ macro_rules! doc_table_sql {
 /// Step 9 `disabled_at`; 10 `icon`; 11 `sort_index` (default workspace first, then name;
 /// projects by title). Step 12 `is_inbox` (marks folder `inbox`; does not insert).
 /// Step 13 rebuilds `project` without `folder`. Step 14 renames `project.title` to `name`.
-pub(crate) const MIGRATIONS: [&str; 15] = [r#"
+/// Step 15 remaps seeded `default` / `knowledge` ids to `random_alnum6`.
+/// Step 16 prefixes leftover `doc_id` values with the current workspace id.
+pub(crate) const MIGRATIONS: [&str; 17] = [r#"
 CREATE TABLE IF NOT EXISTS note (
   doc_id       TEXT PRIMARY KEY,
   raw_path     TEXT NOT NULL,
@@ -245,7 +249,7 @@ CREATE TRIGGER project_keys_immutable BEFORE UPDATE OF id, is_inbox ON project
 BEGIN SELECT RAISE(ABORT, 'project id and is_inbox cannot change'); END;
 "#, DROP_PROJECT_FOLDER_STEP, r#"
 ALTER TABLE project RENAME COLUMN title TO name;
-"#];
+"#, REMAP_BUILTIN_WORKSPACE_IDS_STEP, PREFIX_LEGACY_DOC_IDS_STEP];
 
 pub fn db_path() -> Result<PathBuf, String> {
     paths::spark_data_db_path().map_err(|e| format!("{e:?}"))
@@ -268,13 +272,13 @@ pub(crate) fn open_with_steps(path: &Path, steps: &[&str]) -> Result<Connection,
     conn.busy_timeout(BUSY_TIMEOUT).map_err(|e| e.to_string())?;
     conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;")
         .map_err(|e| e.to_string())?;
-    migrate(&conn, steps)?;
+    migrate(&conn, path, steps)?;
     Ok(conn)
 }
 
 /// Run every step from the file's `user_version` up to `steps.len()`, each in its
 /// own transaction. A file newer than this build is refused untouched.
-pub(crate) fn migrate(conn: &Connection, steps: &[&str]) -> Result<(), String> {
+pub(crate) fn migrate(conn: &Connection, db_path: &Path, steps: &[&str]) -> Result<(), String> {
     let version: usize = conn
         .query_row("PRAGMA user_version", [], |row| row.get::<_, i64>(0))
         .map_err(|e| e.to_string())? as usize;
@@ -294,6 +298,14 @@ pub(crate) fn migrate(conn: &Connection, steps: &[&str]) -> Result<(), String> {
         };
         if *step == DROP_PROJECT_FOLDER_STEP {
             run_with_foreign_keys_off(conn, apply)?;
+        } else if *step == REMAP_BUILTIN_WORKSPACE_IDS_STEP {
+            remap_builtin_workspace_ids(conn, db_path)?;
+            conn.pragma_update(None, "user_version", from + 1)
+                .map_err(|e| e.to_string())?;
+        } else if *step == PREFIX_LEGACY_DOC_IDS_STEP {
+            prefix_legacy_doc_ids(conn, db_path)?;
+            conn.pragma_update(None, "user_version", from + 1)
+                .map_err(|e| e.to_string())?;
         } else {
             apply()?;
         }
