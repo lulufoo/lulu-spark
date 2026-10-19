@@ -132,6 +132,20 @@ function OpenInChatBadge() {
   );
 }
 
+/** Same signal the backend sets in `entry_from_doc`: `digest` in `layers` iff the doc has a digest. */
+function hasDigestLayer(entry: NoteEntry): boolean {
+  return Boolean(entry.layers?.includes('digest'));
+}
+
+/** Hover-only entry to the digest preview; no `data-tip` so the global tip does not compete. */
+function DigestBadge() {
+  return (
+    <button type="button" className="badge badge-digest" aria-label="Digest preview">
+      <ViewerHeaderIcon name="digest" />
+    </button>
+  );
+}
+
 function startOpenInChat(entry: NoteEntry, button?: HTMLButtonElement | null) {
   void openNoteInChat(entry, button).catch((err) => {
     alert(err instanceof Error ? err.message : String(err));
@@ -222,6 +236,7 @@ function CardInner({
         <LinksBadge links={entry.links} />
         <span className="doc-card-icon-actions">
           <ImportanceBadge importance={entry.importance} />
+          {hasDigestLayer(entry) ? <DigestBadge /> : null}
           <OpenInChatBadge />
         </span>
         <DoneBadge done={!!entry.done} />
@@ -282,10 +297,21 @@ export function buildCard(id: string, entry: NoteEntry, title?: string | null) {
   return card;
 }
 
+/** Current digest tooltip binding per card, so a rebuilt badge row can swap it out. */
+const cardDigestDetach = new WeakMap<Element, () => void>();
+
+function detachCardDigestTooltip(root: HTMLElement) {
+  cardDigestDetach.get(root)?.();
+  cardDigestDetach.delete(root);
+}
+
+/** Digest preview opens only from the `.badge-digest` icon; cards without a digest have no icon. */
 function attachCardDigestTooltip(root: HTMLElement, id: string): (() => void) | undefined {
-  const badges = root.querySelector('.badges');
-  if (!(badges instanceof HTMLElement)) return;
-  return attachDigestTooltip(badges, id);
+  detachCardDigestTooltip(root);
+  const trigger = root.querySelector('.badge-digest');
+  if (!(trigger instanceof HTMLElement)) return;
+  cardDigestDetach.set(root, attachDigestTooltip(trigger, id));
+  return () => detachCardDigestTooltip(root);
 }
 
 function openEntry(entry: NoteEntry) {
@@ -313,11 +339,12 @@ export function DocCard({
   );
   const cardRef = useRef<HTMLDivElement | null>(null);
 
+  const hasDigest = hasDigestLayer(entry);
   useEffect(() => {
     const el = cardRef.current;
     if (!el) return;
     return attachCardDigestTooltip(el, id);
-  }, [id]);
+  }, [id, hasDigest]);
 
   entry._id = id;
   const topic = catalogTopicLabel(entry);
@@ -447,6 +474,7 @@ export function updateTitlesInDOM(date: string) {
           <LinksBadge links={entry.links} />
           <span className="doc-card-icon-actions">
             <ImportanceBadge importance={entry.importance} />
+            {hasDigestLayer(entry) ? <DigestBadge /> : null}
             <OpenInChatBadge />
           </span>
           <DoneBadge done={!!entry.done} />
@@ -469,6 +497,8 @@ export function updateTitlesInDOM(date: string) {
         e.stopPropagation();
         startOpenInChat(entry, e.currentTarget as HTMLButtonElement);
       });
+      // The row was rebuilt, so the old digest icon (and its hover binding) is gone.
+      if (card instanceof HTMLElement) attachCardDigestTooltip(card, id);
     }
   }
 }

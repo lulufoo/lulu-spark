@@ -5,8 +5,11 @@ const PREVIEW_MAX_CHARS = 400;
 const DIGEST_HEADER_RE = /^#\s+[^\n]+\n+>\s*创建时间：[^\n]+\n+(?:---\s*\n+)?/;
 const INTERACTIVE_SEL = 'button, [data-action], [data-tag-key], .badge-links, [data-tip]';
 
-function isInteractiveTarget(target: EventTarget | null): boolean {
-  return target instanceof Element && Boolean(target.closest(INTERACTIVE_SEL));
+/** A control *inside* `root`. `root` itself never counts, so the tooltip can sit on a button. */
+function isInteractiveTarget(target: EventTarget | null, root: HTMLElement): boolean {
+  if (!(target instanceof Element)) return false;
+  const hit = target.closest(INTERACTIVE_SEL);
+  return hit !== null && hit !== root && root.contains(hit);
 }
 
 /** 模块级会话内缓存：commonPath → digest 原文；null = 已确认无 digest、不再请求 */
@@ -75,7 +78,7 @@ export function attachDigestTooltip(el: HTMLElement, id: string): () => void {
   }
 
   function onMouseOver(e: MouseEvent) {
-    if (isInteractiveTarget(e.target)) {
+    if (isInteractiveTarget(e.target, el)) {
       suppressShow = true;
       return;
     }
@@ -84,7 +87,7 @@ export function attachDigestTooltip(el: HTMLElement, id: string): () => void {
   }
 
   function onMouseEnter(e: MouseEvent) {
-    if (suppressShow || isInteractiveTarget(e.target)) return;
+    if (suppressShow || isInteractiveTarget(e.target, el)) return;
     scheduleShow();
   }
 

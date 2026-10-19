@@ -3515,6 +3515,7 @@
     align-items: center;
     gap: 2px;
   }
+  .badge-digest,
   .badge-importance-unset,
   .badge-open-in-chat {
     min-height: 18px;
@@ -3527,17 +3528,20 @@
     font-size: 12px;
     line-height: 1;
   }
+  .badge-digest,
   .badge-open-in-chat {
     cursor: pointer;
     background: none;
     color: var(--fg-hex-c8d0d8);
     border-color: transparent;
   }
+  .badge-digest .viewer-header-icon,
   .badge-open-in-chat .viewer-header-icon {
     width: 12px;
     height: 12px;
     display: block;
   }
+  .badge-digest:hover,
   .badge-open-in-chat:hover {
     color: var(--fg-muted);
     border-color: var(--border-default);
