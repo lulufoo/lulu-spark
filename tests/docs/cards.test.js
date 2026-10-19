@@ -569,6 +569,35 @@ describe('card open-in-chat sits next to the star', () => {
     expect(css).toMatch(
       /\.badge-digest\s+\.viewer-header-icon,\s*\n\s*\.badge-open-in-chat\s+\.viewer-header-icon\s*\{[^}]*width:\s*12px[^}]*height:\s*12px/,
     );
-    expect(css).toMatch(/\.badge-digest:hover,\s*\n\s*\.badge-open-in-chat:hover\s*\{/);
+  });
+
+  it('bottom-row action buttons have no border and share one hover rule', () => {
+    const css = readFileSync(join(repoRoot, 'frontend/app.css'), 'utf8');
+    const buttons = [
+      '.badge-importance-unset',
+      '.badge-digest',
+      '.badge-open-in-chat',
+      '.badge-done',
+      '.badge-move-project',
+    ];
+
+    const shared = css.match(
+      /((?:\.badge-[a-z-]+:hover,\s*)+\.badge-[a-z-]+:hover)\s*\{([^}]*)\}/,
+    );
+    expect(shared).not.toBeNull();
+    const sharedSelectors = shared[1].split(',').map((s) => s.trim());
+    expect(sharedSelectors).toEqual(buttons.map((b) => `${b}:hover`));
+    expect(shared[2]).toMatch(/color:\s*var\(--fg-muted\)/);
+    expect(shared[2]).toMatch(/background:\s*var\(--bg-hover\)/);
+    expect(shared[2]).toMatch(/border-color:\s*transparent/);
+
+    // No other rule gives one of these buttons its own hover look or a visible border.
+    for (const b of buttons) {
+      const count = css.split(`${b}:hover`).length - 1;
+      expect(count, `${b}:hover must only appear in the shared rule`).toBe(1);
+    }
+    const move = css.match(/\.badge-move-project\s*\{([^}]*)\}/);
+    expect(move[1]).toMatch(/border-color:\s*transparent/);
+    expect(css).not.toMatch(/\.badge-move-project[^{]*\{[^}]*border-color:\s*var\(--border-hex-(?:e2e8ee|96c6f8)\)/);
   });
 });
