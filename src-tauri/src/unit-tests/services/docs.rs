@@ -556,6 +556,76 @@ fn a_workspace_icon_is_set_on_create_changed_cleared_and_checked() {
     assert!(!names.contains(&"Bad".to_string()), "{names:?}");
 }
 
+fn description_of(value: &Value) -> String {
+    text(value, "description")
+}
+
+#[test]
+fn a_workspace_description_is_empty_on_list_then_set_and_read() {
+    let _sandbox = TestSandbox::new();
+    let made = create_workspace(&json!({ "workspace_name": "Plain" }));
+    assert_eq!(description_of(&ok(&made)), "", "no description means empty");
+    let ws = text(&made, "workspace_id");
+
+    let listed = list_workspaces();
+    let row = listed["workspaces"]
+        .as_array()
+        .expect("array")
+        .iter()
+        .find(|w| text(w, "workspace_id") == ws)
+        .expect("row")
+        .clone();
+    assert_eq!(description_of(&row), "");
+
+    let written = create_workspace(&json!({
+        "workspace_name": "Named",
+        "description": "  Daily notes  "
+    }));
+    assert_eq!(description_of(&ok(&written)), "Daily notes");
+    let named = text(&written, "workspace_id");
+
+    assert_eq!(
+        description_of(&ok(&set_description(&json!({ "workspace_id": named, "description": "Research inbox" })))),
+        "Research inbox"
+    );
+    let after = list_workspaces();
+    let named_row = after["workspaces"]
+        .as_array()
+        .expect("array")
+        .iter()
+        .find(|w| text(w, "workspace_id") == named)
+        .expect("row")
+        .clone();
+    assert_eq!(description_of(&named_row), "Research inbox");
+
+    assert_eq!(
+        description_of(&ok(&set_description(&json!({ "workspace_id": named, "description": "" })))),
+        "",
+        "empty clears"
+    );
+    assert_eq!(status(&set_description(&json!({ "workspace_id": named }))), 400, "description is required here");
+    assert_eq!(status(&set_description(&json!({ "description": "x" }))), 400);
+    assert_eq!(status(&set_description(&json!({ "workspace_id": named, "description": 5 }))), 400);
+    assert_eq!(
+        status(&set_description(&json!({ "workspace_id": "ghost", "description": "x" }))),
+        404
+    );
+
+    assert_eq!(
+        description_of(&ok(&set_description(&json!({ "workspace_id": named, "description": "Parked" })))),
+        "Parked"
+    );
+    ok(&disable_workspace(&json!({ "workspace_id": named })));
+    let disabled = list_disabled_workspaces();
+    let disabled_row = disabled["workspaces"]
+        .as_array()
+        .expect("array")
+        .iter()
+        .find(|w| text(w, "workspace_id") == named)
+        .expect("row");
+    assert_eq!(description_of(disabled_row), "Parked");
+}
+
 #[test]
 fn a_disabled_workspace_keeps_and_lists_its_icon() {
     let _sandbox = TestSandbox::new();

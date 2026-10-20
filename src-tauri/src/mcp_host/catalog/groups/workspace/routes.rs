@@ -11,7 +11,7 @@ fn list_invoke(_args: &serde_json::Value) -> serde_json::Value {
 pub fn build_list(_channel: &str) -> Option<ToolRoute> {
     Some(route(
         "list_workspaces",
-        "List workspaces. Each has a workspace_id, a workspace_name and a view mode. The Default workspace always exists. Pass a workspace_id to the document and project tools.",
+        "List workspaces. Each has a workspace_id, a workspace_name, a view mode and a description. The Default workspace always exists. Pass a workspace_id to the document and project tools.",
         object_schema(json!({}), &[]),
         true,
         false,
@@ -30,7 +30,8 @@ pub fn build_create(_channel: &str) -> Option<ToolRoute> {
                     "type": "string",
                     "enum": ["directory", "timeline"],
                     "description": "Optional list layout. Defaults to directory."
-                }
+                },
+                "description": { "type": "string", "description": "Optional. What this workspace is for. Empty until written." }
             }),
             &["workspace_name"],
         ),

@@ -27,6 +27,22 @@ fn user_version(conn: &Connection) -> i64 {
     conn.query_row("PRAGMA user_version", [], |r| r.get(0)).expect("version")
 }
 
+fn latest_version() -> i64 {
+    (BASELINE_VERSION + MIGRATIONS.len()) as i64
+}
+
+fn has_column(conn: &Connection, table: &str, column: &str) -> bool {
+    let mut stmt = conn
+        .prepare(&format!("PRAGMA table_info({table})"))
+        .expect("pragma");
+    let names: Vec<String> = stmt
+        .query_map([], |r| r.get::<_, String>(1))
+        .expect("query")
+        .collect::<Result<_, _>>()
+        .expect("rows");
+    names.iter().any(|name| name == column)
+}
+
 fn count(conn: &Connection, sql: &str) -> i64 {
     conn.query_row(sql, [], |r| r.get(0)).expect("count")
 }
@@ -57,16 +73,18 @@ fn snapshot(dir: &std::path::Path) -> Vec<(String, Vec<u8>)> {
 }
 
 #[test]
-fn the_baseline_is_version_18_and_nothing_follows_it_yet() {
+fn the_baseline_is_version_18_and_one_migration_adds_workspace_description() {
     assert_eq!(BASELINE_VERSION, 18);
-    assert!(MIGRATIONS.is_empty());
+    assert_eq!(MIGRATIONS.len(), 1);
+    assert!(MIGRATIONS[0].contains("workspace") && MIGRATIONS[0].contains("description"));
 }
 
 #[test]
 fn an_empty_file_is_created_at_the_baseline_with_the_whole_schema() {
     let (_dir, path) = temp_db();
     let conn = open_at(&path).expect("first open");
-    assert_eq!(user_version(&conn), BASELINE_VERSION as i64);
+    assert_eq!(user_version(&conn), latest_version());
+    assert!(has_column(&conn, "workspace", "description"));
 
     assert_eq!(table_names(&conn), ["document", "project", "tag", "workspace"]);
     assert_eq!(names(&conn, "index"), ["document_project_id", "project_one_default", "workspace_one_default"]);
@@ -86,6 +104,7 @@ fn the_seed_is_default_and_its_inbox_only() {
     let default = &workspaces[0];
     assert_eq!((default.name.as_str(), default.is_default, default.view_mode), ("Default", true, ViewMode::Directory));
     assert_eq!(default.id.len(), 6);
+    assert_eq!(default.description, "", "a new workspace starts with an empty description");
     assert_ne!(default.id, "default", "the id is random, not a literal");
     assert!(get_workspace_by_name(&conn, "Knowledge").expect("lookup").is_none());
 
@@ -110,9 +129,27 @@ fn reopening_changes_nothing_and_keeps_rows() {
     let second = open_at(&path).expect("reopen");
     assert_eq!(default_ws(&second).id, default.id, "the seeded id is stable");
     assert_eq!(table_names(&second), tables);
-    assert_eq!(user_version(&second), BASELINE_VERSION as i64);
+    assert_eq!(user_version(&second), latest_version());
     let kept = get_doc(&second, "n1").expect("get").expect("row");
     assert_eq!(kept.project_id, inbox.id);
+}
+
+#[test]
+fn a_baseline_file_gains_workspace_description() {
+    let (_dir, path) = temp_db();
+    drop(open_with_steps(&path, &[]).expect("baseline"));
+    let before = Connection::open(&path).expect("raw");
+    assert_eq!(user_version(&before), BASELINE_VERSION as i64);
+    assert!(!has_column(&before, "workspace", "description"));
+    drop(before);
+
+    let after = open_at(&path).expect("upgrade");
+    assert_eq!(user_version(&after), latest_version());
+    assert!(has_column(&after, "workspace", "description"));
+    let desc: String = after
+        .query_row("SELECT description FROM workspace WHERE is_default = 1", [], |r| r.get(0))
+        .expect("description");
+    assert_eq!(desc, "");
 }
 
 #[test]
@@ -130,7 +167,7 @@ fn a_file_below_the_baseline_is_refused_and_left_untouched() {
 #[test]
 fn a_file_newer_than_the_build_is_refused_and_left_untouched() {
     let (dir, path) = temp_db();
-    file_at_version(&path, BASELINE_VERSION as i64 + 1);
+    file_at_version(&path, latest_version() + 1);
     let before = snapshot(dir.path().join("data").as_path());
     let err = open_at(&path).expect_err("newer than this build");
     assert!(err.contains("newer than this build"), "{err}");
@@ -143,7 +180,7 @@ fn a_baseline_file_opens_without_being_written() {
     drop(open_at(&path).expect("create"));
     let before = snapshot(dir.path().join("data").as_path());
     let conn = open_at(&path).expect("reopen");
-    assert_eq!(user_version(&conn), BASELINE_VERSION as i64);
+    assert_eq!(user_version(&conn), latest_version());
     drop(conn);
     assert_eq!(snapshot(dir.path().join("data").as_path()), before);
 }
@@ -167,7 +204,7 @@ fn a_baseline_file_without_a_default_workspace_gets_one_and_an_existing_one_is_k
          DELETE FROM workspace;",
     )
     .expect("remove Default");
-    assert_eq!(user_version(&conn), BASELINE_VERSION as i64);
+    assert_eq!(user_version(&conn), latest_version());
     drop(conn);
 
     let healed = open_at(&path).expect("open without Default");

@@ -28,7 +28,9 @@ pub(crate) const BASELINE_VERSION: usize = 18;
 
 /// Steps after the baseline. Append a step to change the schema; never edit an
 /// existing one. Empty while the baseline is the latest version.
-pub(crate) const MIGRATIONS: [&str; 0] = [];
+pub(crate) const MIGRATIONS: [&str; 1] = [
+    "ALTER TABLE workspace ADD COLUMN description TEXT NOT NULL DEFAULT '';",
+];
 
 /// Whole schema at [`BASELINE_VERSION`]. The `Default` workspace and its inbox project are
 /// added by [`ensure_default_workspace`] because their ids are random.

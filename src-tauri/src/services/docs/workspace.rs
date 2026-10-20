@@ -1,4 +1,4 @@
-//! Workspace operations: `list` / `create` / `rename` / `set_view_mode` / `set_icon` / `reorder` /
+//! Workspace operations: `list` / `create` / `rename` / `set_view_mode` / `set_icon` / `set_description` / `reorder` /
 //! `disable` / `enable`.
 //!
 //! A workspace is never deleted. Disabling hides it (and its documents) from lists and search;
@@ -16,6 +16,7 @@ use crate::services::spark_data::{
     get_workspace_by_name,
     list_disabled_workspaces as list_disabled_workspace_rows, list_workspaces as list_workspace_rows,
     rename_workspace as rename_workspace_row, reorder_workspaces as reorder_workspace_rows,
+    set_workspace_description as set_workspace_description_row,
     set_workspace_icon as set_workspace_icon_row,
     set_workspace_view_mode, ViewMode, WorkspaceRow,
 };
@@ -35,7 +36,17 @@ fn workspace_value(row: &WorkspaceRow) -> Value {
         "disabled_at": row.disabled_at,
         "icon": row.icon.clone().unwrap_or_default(),
         "sort_index": row.sort_index,
+        "description": row.description,
     })
+}
+
+/// `None` when absent; `Some(trimmed)` when a string, including empty.
+fn description_field(payload: &Value) -> Result<Option<String>, Value> {
+    match payload.get("description") {
+        None | Some(Value::Null) => Ok(None),
+        Some(Value::String(raw)) => Ok(Some(raw.trim().to_string())),
+        Some(_) => Err(bad_request("Invalid description")),
+    }
 }
 
 /// Registry errors are plain strings; give the caller a status that fits the cause.
@@ -87,7 +98,7 @@ pub fn list_disabled_workspaces() -> Value {
     }
 }
 
-/// `{ workspace_name, view_mode?, icon? }` → `{ ok, workspace_id, workspace_name, ... }`.
+/// `{ workspace_name, view_mode?, icon?, description? }` → `{ ok, workspace_id, workspace_name, ... }`.
 pub fn create_workspace(payload: &Value) -> Value {
     let Some(name) = text_field(payload, "workspace_name") else {
         return bad_request("Missing workspace_name");
@@ -98,6 +109,10 @@ pub fn create_workspace(payload: &Value) -> Value {
     };
     let icon = match icon_field(payload) {
         Ok(icon) => icon.flatten(),
+        Err(v) => return v,
+    };
+    let description = match description_field(payload) {
+        Ok(description) => description,
         Err(v) => return v,
     };
     let conn = match open_data() {
@@ -115,21 +130,43 @@ pub fn create_workspace(payload: &Value) -> Value {
         let _ = discard_new_workspace(&conn, &row.id);
         return v;
     }
-    let row = match icon {
-        None => row,
-        Some(icon) => {
-            let saved = set_workspace_icon_row(&conn, &row.id, Some(&icon))
-                .and_then(|_| get_workspace(&conn, &row.id).map(|r| r.unwrap_or(row.clone())));
-            match saved {
-                Ok(updated) => updated,
-                Err(e) => {
-                    let _ = discard_new_workspace(&conn, &row.id);
-                    return internal(e);
-                }
-            }
-        }
+    let row = match apply_create_extras(&conn, row, icon.as_deref(), description.as_deref()) {
+        Ok(row) => row,
+        Err(v) => return v,
     };
     ok_workspace(&row)
+}
+
+fn apply_create_extras(
+    conn: &rusqlite::Connection,
+    row: WorkspaceRow,
+    icon: Option<&str>,
+    description: Option<&str>,
+) -> Result<WorkspaceRow, Value> {
+    if let Some(icon) = icon {
+        set_workspace_icon_row(conn, &row.id, Some(icon)).map_err(|e| {
+            let _ = discard_new_workspace(conn, &row.id);
+            internal(e)
+        })?;
+    }
+    if let Some(description) = description {
+        set_workspace_description_row(conn, &row.id, description).map_err(|e| {
+            let _ = discard_new_workspace(conn, &row.id);
+            internal(e)
+        })?;
+    }
+    if icon.is_none() && description.is_none() {
+        return Ok(row);
+    }
+    get_workspace(conn, &row.id)
+        .map_err(|e| {
+            let _ = discard_new_workspace(conn, &row.id);
+            internal(e)
+        })?
+        .ok_or_else(|| {
+            let _ = discard_new_workspace(conn, &row.id);
+            internal("workspace row missing after create extras".to_string())
+        })
 }
 
 /// A workspace's flat fields with `ok: true` in front.
@@ -177,6 +214,20 @@ pub fn set_icon(payload: &Value) -> Value {
         Err(v) => return v,
     };
     update_workspace(id, |conn| set_workspace_icon_row(conn, id, icon.as_deref()))
+}
+
+/// `{ workspace_id, description }` → `{ ok, workspace_id, workspace_name, ... }`. An empty
+/// `description` clears it.
+pub fn set_description(payload: &Value) -> Value {
+    let Some(id) = text_field(payload, "workspace_id") else {
+        return bad_request("Missing workspace_id");
+    };
+    let description = match description_field(payload) {
+        Ok(Some(description)) => description,
+        Ok(None) => return bad_request("Missing description"),
+        Err(v) => return v,
+    };
+    update_workspace(id, |conn| set_workspace_description_row(conn, id, &description))
 }
 
 /// `{ ids }` → `{ ok, workspaces }`. `ids` is every workspace, disabled ones included, in the

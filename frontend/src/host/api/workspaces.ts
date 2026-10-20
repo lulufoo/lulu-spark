@@ -7,11 +7,17 @@ export async function fetchWorkspaces() {
 }
 
 /** `icon` is an icon id; leave it out for the default icon, `''` also means none. */
-export async function createWorkspace(workspaceName: string, viewMode: ViewMode = 'directory', icon?: string) {
+export async function createWorkspace(
+  workspaceName: string,
+  viewMode: ViewMode = 'directory',
+  icon?: string,
+  description?: string,
+) {
   return writePost('/api/workspace-create', {
     workspace_name: workspaceName,
     view_mode: viewMode,
     ...(icon !== undefined ? { icon } : {}),
+    ...(description !== undefined ? { description } : {}),
   });
 }
 
@@ -26,6 +32,11 @@ export async function setWorkspaceViewMode(workspaceId: string, viewMode: ViewMo
 /** Set the workspace icon; `''` clears it (back to the default icon). */
 export async function setWorkspaceIcon(workspaceId: string, icon: string) {
   return writePost('/api/workspace-icon', { workspace_id: workspaceId, icon });
+}
+
+/** Set the workspace description; `''` clears it. */
+export async function setWorkspaceDescription(workspaceId: string, description: string) {
+  return writePost('/api/workspace-description', { workspace_id: workspaceId, description });
 }
 
 export async function fetchDisabledWorkspaces() {

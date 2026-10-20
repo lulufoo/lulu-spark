@@ -1,7 +1,7 @@
 //! The `workspace` registry: one row per workspace.
 //!
 //! `id` and `is_default` never change after creation (a trigger enforces it);
-//! only `name`, `view_mode`, `icon`, `sort_index` and `disabled_at` are editable. A workspace is never deleted:
+//! only `name`, `view_mode`, `icon`, `sort_index`, `description` and `disabled_at` are editable. A workspace is never deleted:
 //! it is disabled (hidden, data kept) and can be enabled again. The default workspace
 //! cannot be disabled.
 
@@ -46,9 +46,11 @@ pub struct WorkspaceRow {
     pub icon: Option<String>,
     /// Position in the user's order; ignored on insert (new rows go last).
     pub sort_index: i64,
+    /// What this workspace is for; empty until someone writes one. Shown to MCP as `description`.
+    pub description: String,
 }
 
-const COLUMNS: &str = "id, name, view_mode, is_default, created_at, disabled_at, icon, sort_index";
+const COLUMNS: &str = "id, name, view_mode, is_default, created_at, disabled_at, icon, sort_index, description";
 
 fn map_row(row: &Row<'_>) -> rusqlite::Result<WorkspaceRow> {
     let mode: String = row.get(2)?;
@@ -63,6 +65,7 @@ fn map_row(row: &Row<'_>) -> rusqlite::Result<WorkspaceRow> {
         disabled_at: row.get(5)?,
         icon: row.get(6)?,
         sort_index: row.get(7)?,
+        description: row.get(8)?,
     })
 }
 
@@ -86,7 +89,10 @@ fn clean_name(name: &str) -> Result<&str, String> {
 pub(super) fn mint_workspace_id(conn: &Connection) -> Result<String, String> {
     for _ in 0..8 {
         let id = random_alnum6();
-        if get_workspace(conn, &id)?.is_none() {
+        let taken: bool = conn
+            .query_row("SELECT EXISTS(SELECT 1 FROM workspace WHERE id = ?1)", params![id], |r| r.get(0))
+            .map_err(|e| e.to_string())?;
+        if !taken {
             return Ok(id);
         }
     }
@@ -139,7 +145,24 @@ fn insert_workspace(
         )
         .map_err(|e| e.to_string())?;
         insert_default_project(conn, &id)?;
-        get_workspace(conn, &id)?.ok_or_else(|| "workspace row missing after insert".to_string())
+        let (created_at, sort_index): (Option<String>, i64) = conn
+            .query_row(
+                "SELECT created_at, sort_index FROM workspace WHERE id = ?1",
+                params![id],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .map_err(|e| e.to_string())?;
+        Ok(WorkspaceRow {
+            id,
+            name: name.to_string(),
+            view_mode,
+            is_default,
+            created_at,
+            disabled_at: None,
+            icon: None,
+            sort_index,
+            description: String::new(),
+        })
     })
 }
 
@@ -232,6 +255,16 @@ pub fn set_workspace_icon(conn: &Connection, id: &str, icon: Option<&str>) -> Re
     conn.execute("UPDATE workspace SET icon = ?2 WHERE id = ?1", params![id, icon])
         .map(|changed| changed > 0)
         .map_err(|e| e.to_string())
+}
+
+/// Set the description. An empty string clears it. `false` when the workspace does not exist.
+pub fn set_workspace_description(conn: &Connection, id: &str, description: &str) -> Result<bool, String> {
+    conn.execute(
+        "UPDATE workspace SET description = ?2 WHERE id = ?1",
+        params![id, description],
+    )
+    .map(|changed| changed > 0)
+    .map_err(|e| e.to_string())
 }
 
 /// Disable a workspace: it disappears from lists and search, its documents stay.

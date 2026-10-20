@@ -323,6 +323,16 @@ fn icons_are_stored_per_workspace_and_project_and_can_be_cleared() {
     assert_eq!(get_workspace(&conn, &made.id).expect("get").expect("row").icon, None);
     assert!(!set_workspace_icon(&conn, "missing", Some("03abcd")).expect("missing"));
 
+    assert_eq!(made.description, "", "new rows start with an empty description");
+    assert!(set_workspace_description(&conn, &made.id, "Daily notes").expect("set"));
+    assert_eq!(
+        get_workspace(&conn, &made.id).expect("get").expect("row").description,
+        "Daily notes"
+    );
+    assert!(set_workspace_description(&conn, &made.id, "").expect("clear"));
+    assert_eq!(get_workspace(&conn, &made.id).expect("get").expect("row").description, "");
+    assert!(!set_workspace_description(&conn, "missing", "x").expect("missing"));
+
     let mut row = ProjectRow::new("pi", &made.id, "Work", "");
     row.icon = Some("01a1b2".into());
     insert_project(&conn, &row).expect("insert with icon");
