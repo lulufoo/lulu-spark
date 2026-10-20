@@ -140,11 +140,10 @@ fn create_workspace_to_delete_doc_uses_the_unified_keys() {
     assert!(removed.get("removed").is_some(), "{removed}");
 }
 
-/// Hard cut: the retired `workspace` / `project` keys are ignored, so the write lands in
-/// `Default` / inbox. The Host does not reject them; only a client that validates the
-/// `additionalProperties: false` schema would.
+/// Hard cut: the retired `workspace` / `project` keys are ignored. Without `workspace_id`
+/// the create is refused. The Host does not treat the old keys as a workspace.
 #[test]
-fn retired_scope_keys_are_ignored_and_land_in_default() {
+fn retired_scope_keys_are_ignored_and_missing_workspace_id_is_rejected() {
     let sandbox = TestSandbox::new();
     fs::create_dir_all(sandbox.data_dir().join("notes").join("raw")).expect("raw");
     fs::create_dir_all(sandbox.data_dir().join("notes").join("digest")).expect("digest");
@@ -152,7 +151,7 @@ fn retired_scope_keys_are_ignored_and_land_in_default() {
     let ws = ok(call("create_workspace", json!({ "workspace_name": "Elsewhere" })));
     let elsewhere = text(&ws, "workspace_id");
 
-    let created = ok(call(
+    let created = call(
         "create_doc",
         json!({
             "workspace": elsewhere,
@@ -162,9 +161,10 @@ fn retired_scope_keys_are_ignored_and_land_in_default() {
             "digest": "never",
             "source_type": "summary",
         }),
-    ));
-    assert_eq!(text(&created, "workspace_id"), crate::test_support::default_workspace().id);
-    assert_ne!(text(&created, "workspace_id"), elsewhere);
+    );
+    assert!(created.get("error").is_some(), "{created}");
+    assert_eq!(created.get("_status"), Some(&json!(400)));
+    assert!(created["error"].as_str().unwrap_or("").contains("workspace_id"), "{created}");
 
     let renamed = call("rename_workspace", json!({ "workspace": elsewhere, "workspace_name": "X" }));
     assert!(renamed.get("error").is_some(), "old workspace key must not address the workspace: {renamed}");

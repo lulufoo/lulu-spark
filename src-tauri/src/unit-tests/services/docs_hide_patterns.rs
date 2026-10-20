@@ -169,7 +169,7 @@ fn the_index_lists_no_document_under_a_hidden_segment() {
 #[test]
 fn search_collect_skips_a_hidden_document() {
     let _sandbox = TestSandbox::new();
-    let created = create_doc_content(&json!({ "title": "T", "content": "# 标题\n\n这是足够长的正文内容。\n", "digest": "never", "source_type": "summary" }));
+    let created = create_doc_content(&json!({ "workspace_id": crate::test_support::default_workspace().id, "title": "T", "content": "# 标题\n\n这是足够长的正文内容。\n", "digest": "never", "source_type": "summary" }));
     assert!(created["id"].as_str().is_some(), "create failed: {created}");
     assert_eq!(collect_workspace_docs().expect("collect").len(), 1);
 

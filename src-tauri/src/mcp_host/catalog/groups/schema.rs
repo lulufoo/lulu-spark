@@ -58,7 +58,10 @@ pub fn create_doc_properties(include_source_path: bool) -> Value {
             "type": "string",
             "description": "Required display title. May be Chinese."
         },
-        "workspace_id": doc_workspace_id_schema(),
+        "workspace_id": {
+            "type": "string",
+            "description": "Required workspace id from list_workspaces."
+        },
         "project_id": {
             "type": "string",
             "description": "Optional project id from list_projects. Omit to use the workspace inbox."

@@ -40,10 +40,17 @@ fn add_project(title: &str) -> String {
     v["project_id"].as_str().expect("id").to_string()
 }
 
+fn default_ws() -> String {
+    crate::test_support::default_workspace().id
+}
+
 fn path_payload(sandbox: &TestSandbox, content: &str, mut base: serde_json::Value) -> serde_json::Value {
     let path = stage_source(sandbox, "source.md", content);
     let obj = base.as_object_mut().expect("object");
     obj.insert("source_path".to_string(), json!(path.to_str().unwrap()));
+    if !obj.contains_key("workspace_id") {
+        obj.insert("workspace_id".to_string(), json!(default_ws()));
+    }
     if !obj.contains_key("title") {
         obj.insert("title".to_string(), json!("Test Title"));
     }
@@ -509,7 +516,7 @@ fn synthesize_jot_document_empty_first_line_falls_back_to_ts() {
 fn create_jot_writes_raw_index_with_source_type_jot() {
     let _sandbox = setup_notes();
     let body = "快速记录\n\nDetails here.";
-    let v = create_jot(None, None, body, &jot_opts_with_ts("202607101433"))
+    let v = create_jot(Some(&default_ws()), None, body, &jot_opts_with_ts("202607101433"))
         .expect("create_jot");
     assert_eq!(v.get("ok"), Some(&json!(true)), "failed: {v}");
     let id = v["id"].as_str().expect("id");
@@ -543,8 +550,8 @@ fn create_jot_second_write_gets_new_filename() {
     let _sandbox = setup_notes();
     let opts = jot_opts_with_ts("202607101434");
     let body = "同一路径笔记";
-    let first = create_jot(None, None, body, &opts).expect("first create");
-    let second = create_jot(None, None, body, &opts).expect("second create");
+    let first = create_jot(Some(&default_ws()), None, body, &opts).expect("first create");
+    let second = create_jot(Some(&default_ws()), None, body, &opts).expect("second create");
     assert_eq!(first.get("ok"), Some(&json!(true)));
     assert_eq!(second.get("ok"), Some(&json!(true)));
     assert_ne!(
@@ -560,7 +567,7 @@ fn create_jot_rejects_empty_body_without_writing() {
     let index_before: serde_json::Value =
         read_note_entries();
 
-    let err = create_jot(None, None, "   \n  ", &jot_opts_with_ts("202607101435"))
+    let err = create_jot(Some(&default_ws()), None, "   \n  ", &jot_opts_with_ts("202607101435"))
         .expect_err("empty body");
     assert!(!err.is_empty());
 
@@ -578,6 +585,7 @@ fn create_jot_rejects_empty_body_without_writing() {
 fn create_note_content_writes_from_markdown_body() {
     let _sandbox = setup_notes();
     let v = create_doc_content(&json!({
+            "workspace_id": default_ws(),
             "content": SAMPLE_DOC,
             "title": "Test Title",
             "source_type": "summary",
@@ -950,6 +958,7 @@ fn update_note_rejects_bad_or_missing_id() {
 fn update_note_content_overwrites_and_rejects_source_path() {
     let _sandbox = setup_notes();
     let created = create_doc_content(&json!({
+            "workspace_id": default_ws(),
             "content": SAMPLE_DOC,
             "title": "Test Title",
             "digest": "never",
@@ -996,7 +1005,7 @@ fn update_note_rejects_full_english_without_zh() {
 #[test]
 fn create_jot_rejects_full_english_without_zh() {
     let _sandbox = setup_notes();
-    let err = create_jot(None, None, "Only English jot body.",
+    let err = create_jot(Some(&default_ws()), None, "Only English jot body.",
         &jot_opts_with_ts("202607101440"),
     )
     .expect_err("english jot");
@@ -1024,7 +1033,7 @@ fn jot_dirs(root: &std::path::Path) -> Vec<PathBuf> {
 fn create_jot_with_a_project_writes_into_that_project() {
     let _sandbox = setup_notes();
     let plans = add_project("plans");
-    let v = create_jot(None, Some(&plans), "放进计划\n\n正文", &jot_opts_with_ts("202607101440"))
+    let v = create_jot(Some(&default_ws()), Some(&plans), "放进计划\n\n正文", &jot_opts_with_ts("202607101440"))
         .expect("create_jot");
     assert_eq!(v["ok"], json!(true), "{v}");
     assert_eq!(v["project_id"], json!(plans));
@@ -1049,7 +1058,7 @@ fn jot_opts_in(folder: &str, ts: &str) -> JotCreateOpts {
 fn create_jot_with_a_folder_writes_into_that_folder() {
     let _sandbox = setup_notes();
     let plans = add_project("plans");
-    let v = create_jot(None, Some(&plans), "放进子目录\n\n正文", &jot_opts_in("q1/goals", "202607101450"))
+    let v = create_jot(Some(&default_ws()), Some(&plans), "放进子目录\n\n正文", &jot_opts_in("q1/goals", "202607101450"))
         .expect("create_jot");
     assert_eq!(v["ok"], json!(true), "{v}");
     let id = v["id"].as_str().expect("id");
@@ -1061,7 +1070,7 @@ fn create_jot_with_a_folder_writes_into_that_folder() {
 fn create_jot_with_the_root_folder_writes_into_the_project_root() {
     let _sandbox = setup_notes();
     let plans = add_project("plans");
-    let v = create_jot(None, Some(&plans), "放进项目根\n\n正文", &jot_opts_in("/", "202607101451"))
+    let v = create_jot(Some(&default_ws()), Some(&plans), "放进项目根\n\n正文", &jot_opts_in("/", "202607101451"))
         .expect("create_jot");
     assert_eq!(v["ok"], json!(true), "{v}");
     let id = v["id"].as_str().expect("id");
@@ -1082,7 +1091,7 @@ fn create_jot_refuses_a_bad_folder_and_writes_nothing() {
     let before = jot_dirs(&default_workspace_dir());
     for (n, folder) in ["a/b/c/d", "a//b", "../x", "/a", "a/", "a\\b", "//"].iter().enumerate() {
         let ts = format!("2026071014{:02}", 52 + n);
-        let err = create_jot(None, Some(&plans), "不该写入", &jot_opts_in(folder, &ts)).expect_err(folder);
+        let err = create_jot(Some(&default_ws()), Some(&plans), "不该写入", &jot_opts_in(folder, &ts)).expect_err(folder);
         assert!(err.starts_with("400:"), "{folder}: {err}");
     }
     assert_eq!(jot_dirs(&default_workspace_dir()), before, "nothing was written");
@@ -1092,7 +1101,7 @@ fn create_jot_refuses_a_bad_folder_and_writes_nothing() {
 fn create_jot_without_a_folder_still_goes_to_notes() {
     let _sandbox = setup_notes();
     let plans = add_project("plans");
-    let v = create_jot(None, Some(&plans), "默认目录", &jot_opts_with_ts("202607101460")).expect("create_jot");
+    let v = create_jot(Some(&default_ws()), Some(&plans), "默认目录", &jot_opts_with_ts("202607101460")).expect("create_jot");
     let id = v["id"].as_str().expect("id");
     assert!(note_row(id).raw_path.starts_with("notes/202607101460-"));
 }
@@ -1100,7 +1109,7 @@ fn create_jot_without_a_folder_still_goes_to_notes() {
 #[test]
 fn create_jot_without_a_project_still_goes_to_inbox() {
     let _sandbox = setup_notes();
-    let v = create_jot(None, None, "没有指定项目", &jot_opts_with_ts("202607101441")).expect("create_jot");
+    let v = create_jot(Some(&default_ws()), None, "没有指定项目", &jot_opts_with_ts("202607101441")).expect("create_jot");
     assert_eq!(v["project_id"], json!(inbox_id()));
     let id = v["id"].as_str().expect("id");
     assert_eq!(read_note_entries()["entries"][id]["project_id"], json!(inbox_id()));
@@ -1111,7 +1120,7 @@ fn create_jot_refuses_a_missing_project_and_writes_nothing() {
     let _sandbox = setup_notes();
     let before = jot_dirs(&default_workspace_dir());
 
-    let err = create_jot(None, Some("ghost"), "不该写入", &jot_opts_with_ts("202607101442")).expect_err("ghost");
+    let err = create_jot(Some(&default_ws()), Some("ghost"), "不该写入", &jot_opts_with_ts("202607101442")).expect_err("ghost");
     assert!(err.starts_with("400:") || err.starts_with("404:"), "ghost: {err}");
     assert_eq!(jot_dirs(&default_workspace_dir()), before, "nothing was written");
 }

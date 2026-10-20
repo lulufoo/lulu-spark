@@ -224,7 +224,7 @@ fn workspace_and_project_tools_take_only_the_id_and_name_keys() {
         keys.sort();
         keys
     };
-    assert_eq!(keys("workspace", "create_workspace"), vec!["view_mode", "workspace_name"]);
+    assert_eq!(keys("workspace", "create_workspace"), vec!["description", "view_mode", "workspace_name"]);
     assert_eq!(keys("workspace", "rename_workspace"), vec!["workspace_id", "workspace_name"]);
     assert_eq!(keys("project", "list_projects"), vec!["workspace_id"]);
     assert_eq!(keys("project", "create_project"), vec!["description", "project_name", "workspace_id"]);
@@ -462,6 +462,7 @@ fn mcp_create_doc_requires_exposed_source_type() {
         assert_eq!(rejected["_status"], serde_json::json!(400), "{bad}: {rejected}");
     }
     let ok = invoke(&serde_json::json!({
+        "workspace_id": crate::test_support::default_workspace().id,
         "content": "# 标题\n\n这是足够长的正文内容。\n",
         "title": "T",
         "digest": "never",
@@ -477,6 +478,10 @@ fn create_doc_schema_requires_source_type() {
         let required = route.input_schema["required"].as_array().expect("required");
         assert!(
             required.iter().any(|v| v.as_str() == Some("source_type")),
+            "{channel}"
+        );
+        assert!(
+            required.iter().any(|v| v.as_str() == Some("workspace_id")),
             "{channel}"
         );
     }

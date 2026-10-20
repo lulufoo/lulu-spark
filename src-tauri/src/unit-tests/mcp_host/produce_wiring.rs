@@ -146,6 +146,7 @@ fn assert_notes_produced(action: &str, result: &Value, before: usize) {
 
 fn content_note_args() -> Value {
     json!({
+        "workspace_id": crate::test_support::default_workspace().id,
         "content": "MCP 产出笔记正文",
         "title": "MCP produce content",
         "digest": "never",
@@ -155,6 +156,7 @@ fn content_note_args() -> Value {
 
 fn source_note_args(sandbox: &TestSandbox) -> Value {
     json!({
+        "workspace_id": crate::test_support::default_workspace().id,
         "source_path": stage_source(sandbox, SAMPLE_DOC).to_str().unwrap(),
         "title": "MCP produce source",
         "digest": "never",
@@ -265,6 +267,7 @@ fn other_note_and_tauri_writes_are_not_wired() {
         assert_eq!(channel_record_count("docs"), notes_before);
 
         let tauri_note = create_note_json(json!({
+            "workspace_id": crate::test_support::default_workspace().id,
             "source_path": stage_source(sandbox, SAMPLE_DOC).to_str().unwrap(),
             "title": "Tauri create_note",
             "digest": "never",
@@ -275,7 +278,7 @@ fn other_note_and_tauri_writes_are_not_wired() {
         assert_eq!(channel_record_count("docs"), notes_before);
 
         let jot = create_jot(
-            None,
+            Some(&crate::test_support::default_workspace().id),
             None,
             "随手记一行",
             &Default::default(),

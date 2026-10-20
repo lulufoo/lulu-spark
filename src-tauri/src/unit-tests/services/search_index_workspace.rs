@@ -15,9 +15,7 @@ fn new_workspace(name: &str) -> String {
 
 fn write(workspace: Option<&str>, body: &str) -> String {
     let mut payload = json!({ "title": "T", "content": body, "digest": "never", "source_type": "summary" });
-    if let Some(w) = workspace {
-        payload["workspace_id"] = json!(w);
-    }
+    payload["workspace_id"] = json!(workspace.map(str::to_string).unwrap_or_else(default_id));
     let created = create_doc_content(&payload);
     created["id"].as_str().unwrap_or_else(|| panic!("create failed: {created}")).to_string()
 }

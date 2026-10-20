@@ -61,9 +61,7 @@ fn project_ids(value: &Value) -> Vec<String> {
 
 fn write(workspace: Option<&str>, project: Option<&str>) -> Value {
     let mut payload = json!({ "title": "T", "content": BODY, "digest": "never", "source_type": "summary" });
-    if let Some(w) = workspace {
-        payload["workspace_id"] = json!(w);
-    }
+    payload["workspace_id"] = json!(workspace.map(str::to_string).unwrap_or_else(default_id));
     if let Some(p) = project {
         payload["project_id"] = json!(p);
     }
@@ -95,7 +93,19 @@ fn a_new_workspace_is_writable_at_once_and_files_land_in_its_folder() {
 }
 
 #[test]
-fn omitting_workspace_and_project_writes_to_default_inbox() {
+fn omitting_workspace_id_is_rejected_and_writes_nothing() {
+    let sandbox = TestSandbox::new();
+    let created = create_doc_content(&json!({
+        "title": "T", "content": BODY, "digest": "never", "source_type": "summary"
+    }));
+    assert_eq!(status(&created), 400);
+    assert!(created["error"].as_str().unwrap_or("").contains("workspace_id"), "{created}");
+    let inbox = workspaces_dir(&sandbox).join(default_id()).join("raw").join(inbox_of(&default_id())).join("notes");
+    assert!(!inbox.is_dir() || fs::read_dir(&inbox).map(|mut d| d.next().is_none()).unwrap_or(true));
+}
+
+#[test]
+fn passing_default_workspace_and_omitting_project_writes_to_default_inbox() {
     let sandbox = TestSandbox::new();
     let created = write(None, None);
     let id = text(ok(&created), "id");
@@ -158,7 +168,7 @@ fn update_overwrites_the_body_and_refuses_create_only_fields() {
 fn a_digest_is_written_and_read_back() {
     let _sandbox = TestSandbox::new();
     let created = create_doc_content(&json!({
-        "title": "T", "content": BODY, "digest": "always", "digest_body": "# 摘要\n\n要点。\n", "source_type": "summary"
+        "workspace_id": default_id(), "title": "T", "content": BODY, "digest": "always", "digest_body": "# 摘要\n\n要点。\n", "source_type": "summary"
     }));
     let id = text(ok(&created), "id");
     // The digest body is trimmed on the way in, as it always was.
@@ -170,7 +180,7 @@ fn a_digest_is_written_and_read_back() {
 fn delete_doc_removes_files_and_row() {
     let sandbox = TestSandbox::new();
     let created = create_doc_content(&json!({
-        "title": "T", "content": BODY, "digest": "always", "digest_body": "# 摘要\n\n要点。\n", "source_type": "summary"
+        "workspace_id": default_id(), "title": "T", "content": BODY, "digest": "always", "digest_body": "# 摘要\n\n要点。\n", "source_type": "summary"
     }));
     let id = text(ok(&created), "id");
     let removed = delete_doc(&json!({ "id": id }));
@@ -403,7 +413,7 @@ fn a_full_rebuild_indexes_every_workspace_and_drops_chunks_of_deleted_documents(
 }
 
 fn write_in_folder(folder: &str, extra: Value) -> Value {
-    let mut payload = json!({ "title": "Nested", "content": BODY, "digest": "never", "source_type": "summary", "folder": folder });
+    let mut payload = json!({ "workspace_id": default_id(), "title": "Nested", "content": BODY, "digest": "never", "source_type": "summary", "folder": folder });
     for (key, value) in extra.as_object().expect("object") {
         payload[key] = value.clone();
     }
@@ -799,9 +809,10 @@ fn the_old_workspace_key_is_ignored_by_the_document_tools() {
     let ws = new_workspace("Other");
     let id = text(ok(&write(Some(&ws), None)), "id");
 
-    // `workspace` is not read: create lands in Default, not in `ws`.
+    // `workspace` is not read: without workspace_id the create is refused.
     let stray = create_doc_content(&json!({ "workspace": ws, "title": "T", "content": BODY, "digest": "never", "source_type": "summary" }));
-    assert_eq!(text(ok(&stray), "workspace_id"), default_id());
+    assert_eq!(status(&stray), 400);
+    assert!(stray["error"].as_str().unwrap_or("").contains("workspace_id"), "{stray}");
     // `project` is not read either: the document goes to the inbox.
     let plans = new_project(Some(&ws), "Plans");
     let inboxed = create_doc_content(&json!({ "workspace_id": ws, "project": plans, "title": "T", "content": BODY, "digest": "never", "source_type": "summary" }));
