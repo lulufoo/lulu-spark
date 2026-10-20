@@ -18,7 +18,7 @@ describe('Settings left nav: workspaces sit indented under "Workspaces"', () => 
       list: [
         { workspace_id: 'default', workspace_name: 'Default', view_mode: 'timeline', is_default: true },
         { workspace_id: 'knowledge', workspace_name: 'Knowledge', view_mode: 'directory', is_default: false },
-        { workspace_id: 'research', workspace_name: 'Research', view_mode: 'directory', is_default: false },
+        { workspace_id: 'research', workspace_name: 'Research', view_mode: 'directory', is_default: false, description: 'Lab notes' },
       ],
     };
     const host = document.createElement('div');
@@ -30,6 +30,7 @@ describe('Settings left nav: workspaces sit indented under "Workspaces"', () => 
     });
     const items = [...host.querySelectorAll('.settings-nav-item')];
     expect(items.map((b) => b.dataset.panel)).toEqual(['workspace:default', 'workspace:knowledge', 'workspace:research']);
+    expect(items.map((b) => b.textContent)).toEqual(['Default', 'Knowledge', 'Research']);
     for (const item of items) expect(item.classList.contains('settings-nav-child')).toBe(true);
     await act(async () => root.unmount());
   });

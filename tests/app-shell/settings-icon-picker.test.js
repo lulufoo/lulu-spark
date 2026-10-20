@@ -23,6 +23,7 @@ vi.mock('../../frontend/src/host/api.ts', () => ({
   renameWorkspace: async (...a) => reply('rename-ws', a),
   setWorkspaceViewMode: async (...a) => reply('view-ws', a),
   setWorkspaceIcon: async (...a) => reply('icon-ws', a),
+  setWorkspaceDescription: async (...a) => reply('description-ws', a),
   disableWorkspace: async (...a) => reply('disable-ws', a),
   enableWorkspace: async (...a) => reply('enable-ws', a),
   fetchDisabledWorkspaces: async () => ({ workspaces: [] }),
@@ -290,6 +291,21 @@ describe('workspace icon in the Add form', () => {
   it('adds without an icon argument when none was chosen', async () => {
     await wsCommands.addWorkspace('Plain', 'timeline');
     expect(calls).toEqual([['create-ws', 'Plain', 'timeline']]);
+  });
+
+  it('submits a description with the create and clears the field after', async () => {
+    mount(NotesWorkspacesAddHost);
+    const name = host.querySelector('#notes-workspace-new-name');
+    const note = host.querySelector('#notes-workspace-new-description');
+    act(() => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(name, 'Research');
+      name.dispatchEvent(new Event('input', { bubbles: true }));
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set.call(note, 'Daily notes');
+      note.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await act(async () => host.querySelector('#btn-notes-workspace-add').click());
+    expect(calls).toEqual([['create-ws', 'Research', 'directory', undefined, 'Daily notes']]);
+    expect(host.querySelector('#notes-workspace-new-description').value).toBe('');
   });
 });
 

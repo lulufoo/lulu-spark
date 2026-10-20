@@ -71,9 +71,13 @@ export function clearWorkspacesError() {
   patchWorkspacesPanel({ error: '' });
 }
 
-/** `icon` empty = the default icon. */
-export function addWorkspace(name: string, viewMode: api.ViewMode, icon = '') {
-  return run(() => (icon ? api.createWorkspace(name, viewMode, icon) : api.createWorkspace(name, viewMode)));
+/** `icon` empty = the default icon. `description` empty is omitted from the create. */
+export function addWorkspace(name: string, viewMode: api.ViewMode, icon = '', description = '') {
+  const note = description.trim();
+  return run(() => {
+    if (icon) return note ? api.createWorkspace(name, viewMode, icon, note) : api.createWorkspace(name, viewMode, icon);
+    return note ? api.createWorkspace(name, viewMode, undefined, note) : api.createWorkspace(name, viewMode);
+  });
 }
 
 export function renameWorkspace(id: string, name: string) {
@@ -93,6 +97,11 @@ export function changeWorkspaceViewMode(id: string, mode: api.ViewMode) {
 /** Empty `icon` clears it, back to the default icon. */
 export function changeWorkspaceIcon(id: string, icon: string) {
   return run(() => api.setWorkspaceIcon(id, icon));
+}
+
+/** Empty `description` clears it. */
+export function changeWorkspaceDescription(id: string, description: string) {
+  return run(() => api.setWorkspaceDescription(id, description));
 }
 
 /**
@@ -143,6 +152,7 @@ export function openWorkspaceEditor(id: string) {
     draftName: workspace.workspace_name,
     draftViewMode: workspace.view_mode,
     draftIcon: workspace.icon,
+    draftDescription: workspace.description ?? '',
     confirmDisable: false,
     error: '',
   });
@@ -157,6 +167,7 @@ export function closeWorkspaceEditor() {
     draftName: '',
     draftViewMode: 'directory',
     draftIcon: '',
+    draftDescription: '',
     confirmDisable: false,
     error: '',
   });
@@ -168,6 +179,10 @@ export function setWorkspaceDraft(name: string, viewMode: api.ViewMode) {
 
 export function setWorkspaceDraftIcon(icon: string) {
   patchWorkspacesPanel({ draftIcon: icon });
+}
+
+export function setWorkspaceDraftDescription(description: string) {
+  patchWorkspacesPanel({ draftDescription: description });
 }
 
 /** The built-in workspace cannot be disabled. */
@@ -182,7 +197,7 @@ export function cancelWorkspaceDisable() {
 }
 
 /**
- * Save the dialog: rename, change the view and change the icon, each only when it differs, then
+ * Save the dialog: rename, change the view, icon and description, each only when it differs, then
  * close it. Stops at the first refusal and leaves the dialog open with the reason.
  */
 export async function saveWorkspaceEditor(): Promise<boolean> {
@@ -192,9 +207,12 @@ export async function saveWorkspaceEditor(): Promise<boolean> {
   if (!workspace || !name) return false;
   const viewChanged = snap.draftViewMode !== workspace.view_mode;
   const iconChanged = snap.draftIcon !== workspace.icon;
+  const nextDescription = snap.draftDescription.trim();
+  const descriptionChanged = nextDescription !== (workspace.description ?? '');
   if (name !== workspace.workspace_name && !(await renameWorkspace(workspace.workspace_id, name))) return false;
   if (viewChanged && !(await changeWorkspaceViewMode(workspace.workspace_id, snap.draftViewMode))) return false;
   if (iconChanged && !(await changeWorkspaceIcon(workspace.workspace_id, snap.draftIcon))) return false;
+  if (descriptionChanged && !(await changeWorkspaceDescription(workspace.workspace_id, nextDescription))) return false;
   closeWorkspaceEditor();
   return true;
 }

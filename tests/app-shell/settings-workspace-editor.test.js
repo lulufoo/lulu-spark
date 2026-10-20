@@ -20,6 +20,7 @@ vi.mock('../../frontend/src/host/api.ts', () => ({
   createWorkspace: async (...a) => reply('create', a),
   renameWorkspace: async (...a) => reply('rename', a),
   setWorkspaceViewMode: async (...a) => reply('view', a),
+  setWorkspaceDescription: async (...a) => reply('description', a),
   disableWorkspace: async (...a) => reply('disable', a),
   enableWorkspace: async (...a) => reply('enable', a),
   fetchDisabledWorkspaces: async () => ({ workspaces: [{ workspace_id: 'old', workspace_name: 'Old' }] }),
@@ -46,14 +47,20 @@ describe('Workspace editor commands', () => {
     workspacesPanelStore.set(emptyWorkspacesPanelSnap());
     state.workspaces.current = 'default';
     state.workspaces.list = [
-      { workspace_id: 'default', workspace_name: 'Default', view_mode: 'directory', is_default: true },
-      { workspace_id: 'ws2', workspace_name: 'Wiki', view_mode: 'timeline', is_default: false },
+      { workspace_id: 'default', workspace_name: 'Default', view_mode: 'directory', is_default: true, description: '' },
+      { workspace_id: 'ws2', workspace_name: 'Wiki', view_mode: 'timeline', is_default: false, description: 'Team wiki' },
     ];
   });
 
   it('opens with the current name and view in the draft, and closes clean', () => {
     commands.openWorkspaceEditor('ws2');
-    expect(snap()).toMatchObject({ editorOpen: true, selectedId: 'ws2', draftName: 'Wiki', draftViewMode: 'timeline' });
+    expect(snap()).toMatchObject({
+      editorOpen: true,
+      selectedId: 'ws2',
+      draftName: 'Wiki',
+      draftViewMode: 'timeline',
+      draftDescription: 'Team wiki',
+    });
     commands.closeWorkspaceEditor();
     expect(snap()).toMatchObject({ editorOpen: false, selectedId: '', confirmDisable: false });
   });
@@ -70,6 +77,18 @@ describe('Workspace editor commands', () => {
     commands.setWorkspaceDraft('Wiki', 'directory');
     await commands.saveWorkspaceEditor();
     expect(calls).toEqual([['view', 'ws2', 'directory']]);
+
+    calls.length = 0;
+    commands.openWorkspaceEditor('ws2');
+    commands.setWorkspaceDraftDescription('Daily notes');
+    await commands.saveWorkspaceEditor();
+    expect(calls).toEqual([['description', 'ws2', 'Daily notes']]);
+
+    calls.length = 0;
+    commands.openWorkspaceEditor('ws2');
+    commands.setWorkspaceDraftDescription('   ');
+    await commands.saveWorkspaceEditor();
+    expect(calls).toEqual([['description', 'ws2', '']]);
   });
 
   it('keeps the dialog open and shows the refusal when the host rejects', async () => {
@@ -115,8 +134,8 @@ describe('Workspaces settings UI', () => {
     calls.length = 0;
     workspacesPanelStore.set(emptyWorkspacesPanelSnap());
     state.workspaces.list = [
-      { workspace_id: 'default', workspace_name: 'Default', view_mode: 'directory', is_default: true },
-      { workspace_id: 'ws2', workspace_name: 'Wiki', view_mode: 'timeline', is_default: false },
+      { workspace_id: 'default', workspace_name: 'Default', view_mode: 'directory', is_default: true, description: '' },
+      { workspace_id: 'ws2', workspace_name: 'Wiki', view_mode: 'timeline', is_default: false, description: 'Team wiki' },
     ];
     await commands.loadDisabledWorkspaces();
   });
@@ -126,11 +145,17 @@ describe('Workspaces settings UI', () => {
     const rows = host.querySelectorAll('button.notes-cat-item[data-workspace]');
     expect([...rows].map((r) => r.dataset.workspace)).toEqual(['default', 'ws2']);
     expect(rows[1].querySelector('.notes-cat-item-action').textContent).toBe('Edit');
+    expect(rows[0].querySelector('.notes-cat-item-desc').textContent).toBe('Directory view');
+    expect(rows[1].querySelector('.notes-cat-item-desc').textContent).toBe('Timeline view');
+    expect(rows[0].getAttribute('title')).toBeNull();
+    expect(rows[1].getAttribute('title')).toBe('Team wiki');
+    expect(host.querySelector('#notes-ws-edit-description')).toBeNull();
     expect(host.querySelector('#notes-ws-edit-dialog').classList.contains('open')).toBe(false);
 
     act(() => rows[1].click());
     expect(host.querySelector('#notes-ws-edit-dialog').classList.contains('open')).toBe(true);
     expect(host.querySelector('#notes-ws-edit-dialog-title').textContent).toBe('Edit workspace');
+    expect(host.querySelector('#notes-ws-edit-description').value).toBe('Team wiki');
     const labels = () => [...host.querySelectorAll('.notes-cat-edit-actions button')].map((b) => b.textContent);
     expect(labels()).toEqual(['Disable', 'Cancel', 'Save']);
 

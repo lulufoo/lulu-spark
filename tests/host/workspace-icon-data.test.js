@@ -23,12 +23,13 @@ const { getHomeState } = await import('../../frontend/src/home/state/store.ts');
 describe('icon fields in the data layer', () => {
   it('keeps the icon of a workspace and reads a missing one as empty', async () => {
     workspaces = [
-      { workspace_id: 'default', workspace_name: 'Default', view_mode: 'directory', is_default: true, icon: '03ab12' },
+      { workspace_id: 'default', workspace_name: 'Default', view_mode: 'directory', is_default: true, icon: '03ab12', description: 'Home' },
       { workspace_id: 'old', workspace_name: 'Old', view_mode: 'timeline', is_default: false },
-      { workspace_id: 'odd', workspace_name: 'Odd', view_mode: 'timeline', is_default: false, icon: 7 },
+      { workspace_id: 'odd', workspace_name: 'Odd', view_mode: 'timeline', is_default: false, icon: 7, description: 9 },
     ];
     await loadWorkspaces();
     expect(state.workspaces.list.map((w) => w.icon)).toEqual(['03ab12', '', '']);
+    expect(state.workspaces.list.map((w) => w.description)).toEqual(['Home', '', '']);
   });
 
   it('keeps the icon of a project in the Home sidebar and reads a missing one as empty', async () => {
