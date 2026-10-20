@@ -1,9 +1,19 @@
 use serde_json::json;
 
-use super::super::schema::workspace_id_property;
+use super::super::schema::{required_workspace_id_property, workspace_id_property};
 use crate::mcp_host::catalog::route_util::{object_schema, route};
 use crate::mcp_host::ToolRoute;
 use crate::services::docs;
+
+fn with_required_workspace(extra: serde_json::Value) -> serde_json::Value {
+    let mut props = required_workspace_id_property();
+    if let Some(extra) = extra.as_object() {
+        for (key, value) in extra {
+            props[key] = value.clone();
+        }
+    }
+    props
+}
 
 fn with(extra: serde_json::Value) -> serde_json::Value {
     let mut props = workspace_id_property();
@@ -18,8 +28,8 @@ fn with(extra: serde_json::Value) -> serde_json::Value {
 pub fn build_list(_channel: &str) -> Option<ToolRoute> {
     Some(route(
         "list_projects",
-        "List the projects of one workspace. workspace_id defaults to Default. Each project has a project_id (the value other tools take as project_id), a project_name, is_default, a description, and doc_count (the number of documents in it).",
-        object_schema(with(json!({})), &[]),
+        "List the projects of one workspace. workspace_id is required from list_workspaces. Each project has a project_id (the value other tools take as project_id), a project_name, is_default, a description, and doc_count (the number of documents in it).",
+        object_schema(with_required_workspace(json!({})), &["workspace_id"]),
         true,
         false,
         docs::list_projects,
@@ -29,13 +39,13 @@ pub fn build_list(_channel: &str) -> Option<ToolRoute> {
 pub fn build_create(_channel: &str) -> Option<ToolRoute> {
     Some(route(
         "create_project",
-        "Add a project to a workspace. workspace_id defaults to Default. Returns its generated project_id. Does not move existing documents.",
+        "Add a project to a workspace. workspace_id is required from list_workspaces. Returns its generated project_id. Does not move existing documents.",
         object_schema(
-            with(json!({
+            with_required_workspace(json!({
                 "project_name": { "type": "string", "description": "Display name." },
                 "description": { "type": "string", "description": "Optional description." }
             })),
-            &["project_name"],
+            &["workspace_id", "project_name"],
         ),
         false,
         false,

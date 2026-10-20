@@ -261,7 +261,7 @@ fn other_note_and_tauri_writes_are_not_wired() {
         let env_before = last_changed_envelope();
         let category = invoke_notes(
             "create_project",
-            json!({ "project_name": "No produce category" }),
+            json!({ "workspace_id": crate::test_support::default_workspace().id, "project_name": "No produce category" }),
         );
         assert!(category.get("error").is_none(), "{category}");
         assert_eq!(channel_record_count("docs"), notes_before);

@@ -35,7 +35,7 @@ fn stage_source(sandbox: &TestSandbox, name: &str, content: &str) -> PathBuf {
 }
 
 fn add_project(title: &str) -> String {
-    let v = crate::services::docs::create_project(&json!({ "project_name": title }));
+    let v = crate::services::docs::create_project(&json!({ "workspace_id": default_ws(), "project_name": title }));
     assert_eq!(v["ok"], json!(true), "{v}");
     v["project_id"].as_str().expect("id").to_string()
 }

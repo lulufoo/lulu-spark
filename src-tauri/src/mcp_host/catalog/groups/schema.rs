@@ -33,6 +33,16 @@ pub fn workspace_id_property() -> Value {
     })
 }
 
+/// The `workspace_id` input of tools that refuse a missing workspace.
+pub fn required_workspace_id_property() -> Value {
+    json!({
+        "workspace_id": {
+            "type": "string",
+            "description": "Required workspace id from list_workspaces."
+        }
+    })
+}
+
 const DIGEST_DESCRIPTION: &str = "Required. auto writes a digest when Host AD-0 applies; always writes; never skips. digest_body is required whenever a digest is written.";
 
 const DIGEST_BODY_DESCRIPTION: &str = "One paragraph, 100-300 characters, in the same language as the raw. No heading, Overview, Created line, relative images, or digest nav.";

@@ -44,9 +44,7 @@ fn inbox_of(workspace: &str) -> String {
 
 fn new_project(workspace: Option<&str>, title: &str) -> String {
     let mut payload = json!({ "project_name": title });
-    if let Some(ws) = workspace {
-        payload["workspace_id"] = json!(ws);
-    }
+    payload["workspace_id"] = json!(workspace.map(str::to_string).unwrap_or_else(default_id));
     text(ok(&create_project(&payload)), "project_id")
 }
 
@@ -765,11 +763,11 @@ fn the_old_workspace_and_project_keys_are_ignored() {
     let plans = new_project(Some(&ws), "Plans");
     assert_eq!(status(&update_project(&json!({ "workspace_id": ws, "project": plans, "title": "x" }))), 400);
 
-    // `workspace` is not read any more: the project lands in Default, not in `ws`.
+    // `workspace` is not read: without workspace_id the create is refused.
     let stray = create_project(&json!({ "workspace": ws, "project_name": "Stray" }));
-    let stray_id = text(ok(&stray), "project_id");
-    assert!(project_ids(&list_projects(&json!({}))).contains(&stray_id));
-    assert!(!project_ids(&list_projects(&json!({ "workspace_id": ws }))).contains(&stray_id));
+    assert_eq!(status(&stray), 400);
+    assert!(stray["error"].as_str().unwrap_or("").contains("workspace_id"), "{stray}");
+    assert_eq!(status(&list_projects(&json!({}))), 400);
 }
 
 #[test]

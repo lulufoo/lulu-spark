@@ -44,10 +44,13 @@ fn list_project_values(conn: &Connection, workspace: &WorkspaceRow) -> Result<Ve
     Ok(rows.iter().map(|r| project_value(r, counts.get(&r.id).copied().unwrap_or(0))).collect())
 }
 
-/// `{ workspace_id? }` → `{ projects: [...] }`.
+/// `{ workspace_id }` → `{ projects: [...] }`.
 pub fn list_projects(payload: &Value) -> Value {
+    let Some(workspace_id) = text_field(payload, "workspace_id") else {
+        return bad_request("Missing workspace_id");
+    };
     let result = open_data().and_then(|conn| {
-        let ws = resolve_workspace(&conn, text_field(payload, "workspace_id"))?;
+        let ws = resolve_workspace(&conn, Some(workspace_id))?;
         list_project_values(&conn, &ws)
     });
     match result {
@@ -56,10 +59,13 @@ pub fn list_projects(payload: &Value) -> Value {
     }
 }
 
-/// `{ workspace_id?, project_name, description?, icon? }` → `{ ok, project_id, project_name, ... }`.
+/// `{ workspace_id, project_name, description?, icon? }` → `{ ok, project_id, project_name, ... }`.
 pub fn create_project(payload: &Value) -> Value {
     let Some(name) = text_field(payload, "project_name") else {
         return bad_request("Missing project_name");
+    };
+    let Some(workspace_id) = text_field(payload, "workspace_id") else {
+        return bad_request("Missing workspace_id");
     };
     let description = text_field(payload, "description").unwrap_or("");
     let icon = match icon_field(payload) {
@@ -67,7 +73,7 @@ pub fn create_project(payload: &Value) -> Value {
         Err(v) => return v,
     };
     let result = open_data().and_then(|conn| {
-        let ws = resolve_workspace(&conn, text_field(payload, "workspace_id"))?;
+        let ws = resolve_workspace(&conn, Some(workspace_id))?;
         ensure_workspace_enabled(&ws)?;
         let id = mint_project_id(&conn).map_err(internal)?;
         let mut row = ProjectRow::new(&id, &ws.id, name, description);
