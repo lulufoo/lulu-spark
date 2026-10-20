@@ -147,8 +147,8 @@ describe('Workspaces settings UI', () => {
     expect(rows[1].querySelector('.notes-cat-item-action').textContent).toBe('Edit');
     expect(rows[0].querySelector('.notes-cat-item-desc').textContent).toBe('Directory view');
     expect(rows[1].querySelector('.notes-cat-item-desc').textContent).toBe('Timeline view');
-    expect(rows[0].getAttribute('title')).toBeNull();
-    expect(rows[1].getAttribute('title')).toBe('Team wiki');
+    expect(rows[0].getAttribute('data-tip')).toBeNull();
+    expect(rows[1].getAttribute('data-tip')).toBe('Team wiki');
     expect(host.querySelector('#notes-ws-edit-description')).toBeNull();
     expect(host.querySelector('#notes-ws-edit-dialog').classList.contains('open')).toBe(false);
 

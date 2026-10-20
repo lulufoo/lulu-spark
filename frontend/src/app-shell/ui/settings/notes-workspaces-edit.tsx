@@ -67,7 +67,7 @@ export function NotesWorkspacesEditHost() {
                 type="button"
                 className="notes-cat-item"
                 data-workspace={workspace.workspace_id}
-                title={workspace.description?.trim() || undefined}
+                data-tip={workspace.description?.trim() || undefined}
                 disabled={snap.busy}
                 onClick={() => openWorkspaceEditor(workspace.workspace_id)}
               >
