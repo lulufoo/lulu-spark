@@ -27,11 +27,9 @@ describe('paintFilePopupDoc', () => {
         return `<h1>${String(raw).replace(/^#\s*/, '')}</h1>`;
       },
     };
-    global.mermaid = {
-      initialize: vi.fn(),
-      render: vi.fn(async (_id, src) => ({
+    global.pele = {
+      render: vi.fn((src) => ({
         svg: `<svg data-src="${src}"></svg>`,
-        bindFunctions: vi.fn(),
       })),
     };
   });
@@ -39,7 +37,7 @@ describe('paintFilePopupDoc', () => {
   afterEach(() => {
     document.body.innerHTML = '';
     delete global.marked;
-    delete global.mermaid;
+    delete global.pele;
   });
 
   it('renders mermaid fences after markdown', async () => {
