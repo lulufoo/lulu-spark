@@ -60,4 +60,12 @@ class StageToolsTest {
             tools.call("delete_staged", "{}", "sess_a", "first"),
         )
     }
+
+    @Test
+    fun stageCopyRequiresWorkspaceIdFromList() {
+        val stage = StageTools(MemoryStorage()).definitions().single { it.name == "stage" }
+        assertTrue(stage.description.contains("workspace_id is required from list_workspaces"))
+        assertTrue(!stage.description.contains("optional workspace_id"))
+        assertTrue(!stage.description.contains("default Default"))
+    }
 }

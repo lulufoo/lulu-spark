@@ -5,7 +5,7 @@ import com.lulu.spark.android.agent.tools.stage.StageTools
 internal const val DOC_CONTENT_TOOL = "get_doc_content"
 
 internal const val DOC_CONTENT_STAGE_DESCRIPTION =
-    "Fetch one document's raw Markdown onto the phone staged library and tag this chat. Pass the workspace_id the search hit came from. On success returns success plus a staged handle. Does not return the body. The user reads it in Stage. Use get_doc_digest for a digest, or get_staged for the staged file."
+    "Fetch one document's raw Markdown onto the phone staged library and tag this chat. Pass the document id only; do not send workspace_id. On success returns success plus a staged handle. Does not return the body. The user reads it in Stage. Use get_doc_digest for a digest, or get_staged for the staged file."
 
 internal fun stageDocContentResult(
     remoteText: String,
