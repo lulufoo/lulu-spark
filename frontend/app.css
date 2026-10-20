@@ -4540,6 +4540,25 @@
   .mermaid-diagram {
     margin: 12px 0;
     overflow-x: auto;
+    --pele-bg: var(--bg-surface);
+    --pele-fg: var(--fg-default);
+    --pele-muted: var(--fg-muted);
+    --pele-line: var(--fg-default);
+    --pele-surface: var(--bg-subtle);
+    --pele-surface-alt: var(--bg-muted);
+    --pele-border: var(--border-default);
+    --pele-accent: var(--fg-accent);
+    --pele-error: var(--fg-danger);
+    --pele-font: inherit;
+    --pele-radius: 4px;
+    --pele-series-1: var(--fg-accent);
+    --pele-series-2: var(--fg-success);
+    --pele-series-3: var(--bg-hex-8250df);
+    --pele-series-4: var(--bg-hex-bf8700);
+    --pele-series-5: var(--fg-danger);
+    --pele-series-6: var(--fg-hex-1e40af);
+    --pele-series-7: var(--fg-hex-166534);
+    --pele-series-8: var(--fg-hex-d08770);
   }
   .mermaid-diagram svg {
     max-width: 100%;

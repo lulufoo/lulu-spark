@@ -61,13 +61,16 @@ declare global {
       }
     | undefined;
 
-  var mermaid:
+  var pele:
     | {
-        initialize: (opts: Record<string, unknown>) => void;
         render: (
-          id: string,
           source: string,
-        ) => Promise<{ svg: string; bindFunctions?: (el: Element) => void }>;
+          options?: Record<string, unknown>,
+        ) => { svg: string };
+        enableZoom?: (
+          element: HTMLElement,
+          options?: Record<string, unknown>,
+        ) => unknown;
       }
     | undefined;
 }
