@@ -81,6 +81,7 @@ Do not invent norms not listed here.
 
 - User-explicit values override the corresponding norm; say so briefly when skipping.
 - Field limits still come from live MCP schema (Parameter SSOT).
+- Document body mermaid fences use Mermaid 12.1.0 syntax.
 
 ## Hard Constraints
 

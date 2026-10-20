@@ -152,7 +152,8 @@ describe('leftover Convert / qr / move tests rewritten', () => {
     expect(existsSync(join(repoRoot, 'frontend/src/notes/ui/move-project-dialog.tsx'))).toBe(true);
     expect(existsSync(join(repoRoot, 'frontend/src/notes/commands/move-project-dialog.ts'))).toBe(true);
     expect(existsSync(join(repoRoot, 'frontend/vendor/qrcode.min.js'))).toBe(true);
-    expect(existsSync(join(repoRoot, 'frontend/vendor/mermaid.min.js'))).toBe(true);
+    expect(existsSync(join(repoRoot, 'frontend/vendor/pele.global.js'))).toBe(true);
+    expect(existsSync(join(repoRoot, 'frontend/vendor/mermaid.min.js'))).toBe(false);
     expect(existsSync(join(repoRoot, 'frontend/src/app-shell/ui/bind-dialog.tsx'))).toBe(true);
     expect(existsSync(join(repoRoot, 'frontend/src/app-shell/commands/bind-dialog.ts'))).toBe(true);
     const bindUi = readFileSync(join(repoRoot, 'frontend/src/app-shell/ui/bind-dialog.tsx'), 'utf8');

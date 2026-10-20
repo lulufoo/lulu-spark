@@ -1,36 +1,5 @@
-let _inited = false;
-let _idCounter = 0;
-
 export function initMermaid() {
-  if (_inited) return;
-  if (typeof mermaid === 'undefined') return;
-  mermaid.initialize({
-    startOnLoad: false,
-    securityLevel: 'strict',
-    suppressErrorRendering: true,
-  });
-  _inited = true;
-}
-
-function nextRenderId() {
-  _idCounter += 1;
-  return `mermaid-${Date.now()}-${_idCounter}`;
-}
-
-function removeMermaidTemp(renderId: string) {
-  for (const id of [renderId, `d${renderId}`, `i${renderId}`]) {
-    document.getElementById(id)?.remove();
-  }
-}
-
-function isMermaidErrorSvg(svg: string) {
-  const documentRoot = new DOMParser().parseFromString(svg, 'image/svg+xml');
-  return Boolean(
-    documentRoot.querySelector('.error-icon') ||
-      [...documentRoot.querySelectorAll('.error-text')].some((element) =>
-        element.textContent?.includes('Syntax error in text'),
-      ),
-  );
+  // Renderer has no initialize() step.
 }
 
 function showMermaidFallback(wrapper: HTMLElement, source: string, message: string) {
@@ -48,9 +17,7 @@ function showMermaidFallback(wrapper: HTMLElement, source: string, message: stri
 }
 
 export async function renderMermaidBlocks(container: Element | null | undefined) {
-  if (!container || typeof mermaid === 'undefined') return;
-
-  initMermaid();
+  if (!container || typeof pele === 'undefined') return;
 
   const blocks = [...container.querySelectorAll('pre > code.language-mermaid')];
   if (!blocks.length) return;
@@ -66,18 +33,15 @@ export async function renderMermaidBlocks(container: Element | null | undefined)
 
     if (!source) continue;
 
-    const renderId = nextRenderId();
     try {
-      const { svg, bindFunctions } = await mermaid.render(renderId, source);
-      removeMermaidTemp(renderId);
-      if (isMermaidErrorSvg(svg)) {
-        showMermaidFallback(wrapper, source, 'Syntax error in text');
-        continue;
-      }
+      const maxWidth = wrapper.clientWidth || undefined;
+      const { svg } = pele.render(source, {
+        maxWidth,
+        fontFamily: getComputedStyle(document.body).fontFamily || 'sans-serif',
+      });
       wrapper.innerHTML = svg;
-      bindFunctions?.(wrapper);
+      pele.enableZoom?.(wrapper, { controls: true });
     } catch (err) {
-      removeMermaidTemp(renderId);
       const message = err instanceof Error ? err.message : String(err);
       showMermaidFallback(wrapper, source, message);
     }

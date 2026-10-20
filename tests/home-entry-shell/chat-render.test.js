@@ -39,17 +39,15 @@ describe('renderHomeChatMarkdown', () => {
 
 describe('hydrateHomeChatMarkdown', () => {
   beforeEach(() => {
-    global.mermaid = {
-      initialize: vi.fn(),
-      render: vi.fn(async (_id, src) => ({
+    global.pele = {
+      render: vi.fn((src) => ({
         svg: `<svg data-src="${src}"></svg>`,
-        bindFunctions: vi.fn(),
       })),
     };
   });
 
   afterEach(() => {
-    delete global.mermaid;
+    delete global.pele;
   });
 
   it('turns mermaid fences into svg via the shared mermaid helper', async () => {

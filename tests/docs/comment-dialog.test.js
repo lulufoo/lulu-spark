@@ -89,6 +89,27 @@ describe('NoteCommentDialog', () => {
     expect(document.getElementById('comment-preview-pane').style.display).toBe('none');
   });
 
+  it('renders mermaid fences in comment preview', async () => {
+    global.marked = {
+      parse: () => '<pre><code class="language-mermaid">graph TD; A-->B;</code></pre>',
+    };
+    global.pele = {
+      render: vi.fn(() => ({ svg: '<svg data-comment="1"></svg>' })),
+    };
+    try {
+      const content = document.getElementById('comment-dialog-content');
+      await openCommentDialog(null, null, null, 1);
+      content.innerText = '```mermaid\ngraph TD; A-->B;\n```';
+      document.querySelector('#comment-dialog .comment-tab-btn[data-tab="preview"]').click();
+      await vi.waitFor(() => {
+        expect(document.querySelector('#comment-preview-pane .mermaid-diagram svg')).not.toBeNull();
+      });
+    } finally {
+      delete global.marked;
+      delete global.pele;
+    }
+  });
+
   it('delete button title carries no raw/digest layer wording', () => {
     const host = document.createElement('div');
     host.id = 'delete-zone-host';

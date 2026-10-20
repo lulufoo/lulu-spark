@@ -330,9 +330,8 @@ describe('home hub chat sessions', () => {
     global.marked = {
       parse: () => '<pre><code class="language-mermaid">graph TD; A-->B;</code></pre>',
     };
-    global.mermaid = {
-      initialize: vi.fn(),
-      render: vi.fn(async () => ({ svg: '<svg data-chat="1"></svg>' })),
+    global.pele = {
+      render: vi.fn(() => ({ svg: '<svg data-chat="1"></svg>' })),
     };
     invokeSpy.mockImplementation(async (cmd, args) => {
       if (cmd === 'query_binding') return { state: 'bound' };
@@ -359,7 +358,7 @@ describe('home hub chat sessions', () => {
       });
     } finally {
       delete global.marked;
-      delete global.mermaid;
+      delete global.pele;
     }
   });
 
