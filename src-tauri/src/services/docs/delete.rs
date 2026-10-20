@@ -10,12 +10,15 @@ use crate::services::search_index;
 use crate::services::spark_data::{delete_doc as delete_doc_row, delete_unused_tags};
 
 use super::resolve::{
-    bad_request, doc_id_field, internal, open_data, resolve_doc, resolve_doc_workspace,
+    bad_request, doc_id_field, internal, open_data, resolve_doc, resolve_workspace_from_doc_id,
     workspace_root,
 };
 
-/// `{ workspace_id?, id }` → `{ ok, id, removed }`; `removed` counts the files deleted.
+/// `{ id }` → `{ ok, id, removed }`; `removed` counts the files deleted. `workspace_id` is refused.
 pub fn delete_doc(payload: &Value) -> Value {
+    if payload.get("workspace_id").is_some() {
+        return bad_request("workspace_id is not supported on delete_doc");
+    }
     let id = match doc_id_field(payload) {
         Ok(id) => id,
         Err(v) => return v,
@@ -24,7 +27,7 @@ pub fn delete_doc(payload: &Value) -> Value {
         Ok(c) => c,
         Err(v) => return v,
     };
-    let workspace = match resolve_doc_workspace(&conn, payload, &id) {
+    let workspace = match resolve_workspace_from_doc_id(&conn, &id) {
         Ok(w) => w,
         Err(v) => return v,
     };

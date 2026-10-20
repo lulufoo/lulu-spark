@@ -304,6 +304,7 @@ fn get_doc_content_is_mobile_only() {
     assert!(invoke_eq(mobile.invoke, docs_service::get_path));
     assert!(mobile.description.contains("absolute file path"));
     assert!(!mobile.description.contains("Stage"));
+    assert!(mobile.input_schema["properties"].get("workspace_id").is_none());
 }
 
 #[test]
@@ -316,16 +317,24 @@ fn get_doc_file_is_desktop_only_and_requires_dest_dir() {
             .as_str()
             .unwrap()
             .contains("read and write"));
-        assert!(route.input_schema["properties"].get("workspace_id").is_some());
+        assert!(route.input_schema["properties"].get("workspace_id").is_none());
     }
     assert!(build("document", "get_doc_file", "mobile").is_none());
 }
 
 #[test]
 fn delete_doc_only_available_on_spark() {
-    assert!(build("document", "delete_doc", "spark").is_some());
+    let spark = build("document", "delete_doc", "spark").expect("spark");
+    assert!(spark.input_schema["properties"].get("workspace_id").is_none());
     assert!(build("document", "delete_doc", "cursor_ide").is_none());
     assert!(build("document", "delete_doc", "mobile").is_none());
+}
+
+#[test]
+fn get_doc_digest_has_no_workspace_id() {
+    let route = build("document", "get_doc_digest", "spark").expect("digest");
+    assert!(route.input_schema["properties"].get("workspace_id").is_none());
+    assert!(!route.description.contains("defaults to Default"));
 }
 
 #[test]

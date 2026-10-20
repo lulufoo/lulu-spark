@@ -121,7 +121,7 @@ fn create_workspace_to_delete_doc_uses_the_unified_keys() {
     fs::create_dir_all(&dest).expect("dest");
     let file = ok(call(
         "get_doc_file",
-        json!({ "id": doc_id, "workspace_id": workspace_id, "dest_dir": dest.to_str().unwrap() }),
+        json!({ "id": doc_id, "dest_dir": dest.to_str().unwrap() }),
     ));
     let copy = text(&file, "path");
     fs::write(&copy, "# Smoke Doc\n\nuniquesmokeneedle 已编辑\n").expect("edit copy");
@@ -135,7 +135,7 @@ fn create_workspace_to_delete_doc_uses_the_unified_keys() {
     assert_eq!(text(&updated, "project_id"), text(inbox, "project_id"));
     has_no_old_scope_keys(&updated);
 
-    let removed = ok(call("delete_doc", json!({ "id": doc_id, "workspace_id": workspace_id })));
+    let removed = ok(call("delete_doc", json!({ "id": doc_id })));
     assert_eq!(text(&removed, "id"), doc_id);
     assert!(removed.get("removed").is_some(), "{removed}");
 }

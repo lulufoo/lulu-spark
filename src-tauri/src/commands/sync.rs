@@ -41,7 +41,7 @@ fn with_workspace(mut payload: Value) -> Value {
 
 #[tauri::command]
 pub async fn delete_entry(_app: AppHandle, payload: Value) -> Result<Value, String> {
-    tauri::async_runtime::spawn_blocking(move || docs::delete_doc(&with_workspace(payload)))
+    tauri::async_runtime::spawn_blocking(move || docs::delete_doc(&payload))
         .await
         .map_err(|e| e.to_string())
 }

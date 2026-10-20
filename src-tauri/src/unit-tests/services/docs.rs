@@ -81,7 +81,7 @@ fn a_new_workspace_is_writable_at_once_and_files_land_in_its_folder() {
 
     let on_disk = fs::read_dir(workspaces_dir(&sandbox).join(&ws).join("raw").join(&inbox).join("notes")).expect("dir");
     assert_eq!(on_disk.count(), 1);
-    let read = get_file(&json!({ "workspace_id": ws, "id": id }));
+    let read = get_file(&json!({ "id": id }));
     assert_eq!(read["content"], json!(BODY));
 
     let conn = spark_data::open().expect("db");
@@ -130,11 +130,38 @@ fn a_document_is_only_found_in_its_own_workspace() {
     let other = new_workspace("Other");
     let id = text(ok(&write(None, None)), "id");
 
-    assert_eq!(status(&get_file(&json!({ "workspace_id": other, "id": id }))), 404);
+    assert_eq!(status(&get_file(&json!({ "workspace_id": other, "id": id }))), 400);
     let update = update_doc_content(&json!({ "workspace_id": other, "id": id, "content": BODY, "digest": "never" }));
     assert_eq!(status(&update), 400, "update_doc rejects workspace_id");
-    assert_eq!(status(&delete_doc(&json!({ "workspace_id": other, "id": id }))), 404);
+    assert_eq!(status(&delete_doc(&json!({ "workspace_id": other, "id": id }))), 400);
     ok(&delete_doc(&json!({ "id": id })));
+}
+
+#[test]
+fn get_and_delete_doc_refuse_workspace_id_and_find_by_id() {
+    let sandbox = TestSandbox::new();
+    let ws = new_workspace("Work");
+    let id = text(ok(&write(Some(&ws), None)), "id");
+
+    assert_eq!(get_file(&json!({ "id": id }))["content"], json!(BODY));
+    assert_eq!(text(&ok(&get_path(&json!({ "id": id }))), "id"), id);
+
+    for payload in [
+        json!({ "workspace_id": ws, "id": id }),
+        json!({ "workspace_id": default_id(), "id": id }),
+    ] {
+        assert_eq!(status(&get_file(&payload)), 400, "{payload}");
+        assert_eq!(status(&get_digest(&payload)), 400, "{payload}");
+        assert_eq!(status(&get_path(&payload)), 400, "{payload}");
+        assert_eq!(status(&delete_doc(&payload)), 400, "{payload}");
+        let dest = sandbox.cache_dir().join("export");
+        let mut export = payload.clone();
+        export["dest_dir"] = json!(dest.to_str().expect("utf8"));
+        assert_eq!(status(&export_file(&export)), 400, "{export}");
+    }
+
+    ok(&delete_doc(&json!({ "id": id })));
+    assert_eq!(status(&get_file(&json!({ "id": id }))), 404);
 }
 
 #[test]
@@ -818,7 +845,7 @@ fn write_results_carry_the_four_scope_fields_and_delete_carries_none() {
         "update_doc names the project the document lives in"
     );
 
-    let deleted = delete_doc(&json!({ "workspace_id": ws, "id": id }));
+    let deleted = delete_doc(&json!({ "id": id }));
     assert_eq!(ok(&deleted), &json!({ "ok": true, "id": id, "removed": 1 }));
 }
 

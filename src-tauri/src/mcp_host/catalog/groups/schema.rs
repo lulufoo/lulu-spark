@@ -11,18 +11,6 @@ pub fn source_type_schema() -> Value {
     })
 }
 
-fn doc_workspace_id_schema() -> Value {
-    json!({
-        "type": "string",
-        "description": "Optional workspace id from list_workspaces. Defaults to the Default workspace. A document id already names its workspace, so it is not needed when a document id is given."
-    })
-}
-
-/// The `workspace_id` input of the tools that take a document id.
-pub fn doc_workspace_id_property() -> Value {
-    json!({ "workspace_id": doc_workspace_id_schema() })
-}
-
 /// The `workspace_id` input of tools that refuse a missing workspace.
 pub fn required_workspace_id_property() -> Value {
     json!({
