@@ -50,6 +50,11 @@ pub async fn set_workspace_icon(_app: AppHandle, payload: Value) -> Result<Value
 }
 
 #[tauri::command]
+pub async fn set_workspace_description(_app: AppHandle, payload: Value) -> Result<Value, String> {
+    run(move || docs::set_description(&payload)).await
+}
+
+#[tauri::command]
 pub async fn reorder_workspaces(_app: AppHandle, payload: Value) -> Result<Value, String> {
     run(move || docs::reorder_workspaces(&payload)).await
 }

@@ -224,11 +224,11 @@ fn workspace_and_project_tools_take_only_the_id_and_name_keys() {
         keys.sort();
         keys
     };
-    assert_eq!(keys("workspace", "create_workspace"), vec!["view_mode", "workspace_name"]);
+    assert_eq!(keys("workspace", "create_workspace"), vec!["description", "view_mode", "workspace_name"]);
     assert_eq!(keys("workspace", "rename_workspace"), vec!["workspace_id", "workspace_name"]);
     assert_eq!(keys("project", "list_projects"), vec!["workspace_id"]);
     assert_eq!(keys("project", "create_project"), vec!["description", "project_name", "workspace_id"]);
-    assert_eq!(keys("project", "update_project"), vec!["description", "project_id", "project_name", "workspace_id"]);
+    assert_eq!(keys("project", "update_project"), vec!["description", "project_id", "project_name"]);
 }
 
 #[test]
@@ -304,6 +304,7 @@ fn get_doc_content_is_mobile_only() {
     assert!(invoke_eq(mobile.invoke, docs_service::get_path));
     assert!(mobile.description.contains("absolute file path"));
     assert!(!mobile.description.contains("Stage"));
+    assert!(mobile.input_schema["properties"].get("workspace_id").is_none());
 }
 
 #[test]
@@ -316,16 +317,24 @@ fn get_doc_file_is_desktop_only_and_requires_dest_dir() {
             .as_str()
             .unwrap()
             .contains("read and write"));
-        assert!(route.input_schema["properties"].get("workspace_id").is_some());
+        assert!(route.input_schema["properties"].get("workspace_id").is_none());
     }
     assert!(build("document", "get_doc_file", "mobile").is_none());
 }
 
 #[test]
 fn delete_doc_only_available_on_spark() {
-    assert!(build("document", "delete_doc", "spark").is_some());
+    let spark = build("document", "delete_doc", "spark").expect("spark");
+    assert!(spark.input_schema["properties"].get("workspace_id").is_none());
     assert!(build("document", "delete_doc", "cursor_ide").is_none());
     assert!(build("document", "delete_doc", "mobile").is_none());
+}
+
+#[test]
+fn get_doc_digest_has_no_workspace_id() {
+    let route = build("document", "get_doc_digest", "spark").expect("digest");
+    assert!(route.input_schema["properties"].get("workspace_id").is_none());
+    assert!(!route.description.contains("defaults to Default"));
 }
 
 #[test]
@@ -462,6 +471,7 @@ fn mcp_create_doc_requires_exposed_source_type() {
         assert_eq!(rejected["_status"], serde_json::json!(400), "{bad}: {rejected}");
     }
     let ok = invoke(&serde_json::json!({
+        "workspace_id": crate::test_support::default_workspace().id,
         "content": "# 标题\n\n这是足够长的正文内容。\n",
         "title": "T",
         "digest": "never",
@@ -477,6 +487,10 @@ fn create_doc_schema_requires_source_type() {
         let required = route.input_schema["required"].as_array().expect("required");
         assert!(
             required.iter().any(|v| v.as_str() == Some("source_type")),
+            "{channel}"
+        );
+        assert!(
+            required.iter().any(|v| v.as_str() == Some("workspace_id")),
             "{channel}"
         );
     }

@@ -56,7 +56,7 @@ describe('Workspace projects settings', () => {
     commands.openNotesCategoryEditor('plans');
     commands.setNotesCategoryDraft('Roadmap', '');
     await commands.saveNotesCategory('ws2');
-    expect(calls).toEqual([['create', 'ws2', 'Ideas', ''], ['update', 'ws2', 'plans', 'Roadmap', '']]);
+    expect(calls).toEqual([['create', 'ws2', 'Ideas', ''], ['update', 'plans', 'Roadmap', '']]);
     // The page browses `default`, so its title map is untouched by ws2 edits.
     expect(state.index.topicTitles).toEqual({});
   });

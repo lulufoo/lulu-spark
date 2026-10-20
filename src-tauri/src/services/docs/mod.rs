@@ -47,7 +47,7 @@ pub use update::{update_doc, update_doc_content};
 pub use viewer_state::{get_viewer_state, set_viewer_state};
 pub use workspace::{
     create_workspace, disable_workspace, enable_workspace, list_disabled_workspaces, list_workspaces,
-    rename_workspace, reorder_workspaces, set_icon, set_view_mode,
+    rename_workspace, reorder_workspaces, set_description, set_icon, set_view_mode,
 };
 
 #[cfg(test)]

@@ -22,14 +22,16 @@ export function NotesWorkspacesAddHost() {
   const [name, setName] = useState('');
   const [viewMode, setViewMode] = useState<ViewMode>('directory');
   const [icon, setIcon] = useState('');
+  const [description, setDescription] = useState('');
   const { busy } = snap;
 
   async function onAdd() {
     const trimmed = name.trim();
     if (!trimmed) return;
-    if (await addWorkspace(trimmed, viewMode, icon)) {
+    if (await addWorkspace(trimmed, viewMode, icon, description)) {
       setName('');
       setIcon('');
+      setDescription('');
     }
   }
 
@@ -68,6 +70,19 @@ export function NotesWorkspacesAddHost() {
           options={VIEW_MODE_OPTIONS}
           disabled={busy}
           onChange={(next) => setViewMode(parseViewMode(next))}
+        />
+      </div>
+      <div className="settings-field">
+        <label htmlFor="notes-workspace-new-description">Description</label>
+        <textarea
+          id="notes-workspace-new-description"
+          rows={3}
+          placeholder="Optional. Shown when you hover this workspace in the list."
+          autoComplete="off"
+          spellCheck={false}
+          disabled={busy}
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
         />
       </div>
       <div id="notes-workspace-add-error" className="settings-result notes-cat-error">

@@ -108,7 +108,7 @@ fn every_document_moves_to_the_inbox_and_the_old_folders_go() {
     assert_eq!(s.text("raw", &s.inbox, &zh), format!("zh:{}:{zh_old}", s.project));
     assert!(!s.root().join("raw").join(&s.project).exists());
     assert!(!s.root().join("digest").join(&s.project).exists());
-    let read = get_file(&json!({ "workspace_id": s.ws, "id": one, "lang": "zh" }));
+    let read = get_file(&json!({ "id": one, "lang": "zh" }));
     assert_eq!(read["content"], json!(format!("zh:{}:{zh_old}", s.project)));
 }
 

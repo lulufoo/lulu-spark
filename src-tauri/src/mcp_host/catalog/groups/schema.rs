@@ -11,24 +11,12 @@ pub fn source_type_schema() -> Value {
     })
 }
 
-fn doc_workspace_id_schema() -> Value {
-    json!({
-        "type": "string",
-        "description": "Optional workspace id from list_workspaces. Defaults to the Default workspace. A document id already names its workspace, so it is not needed when a document id is given."
-    })
-}
-
-/// The `workspace_id` input of the tools that take a document id.
-pub fn doc_workspace_id_property() -> Value {
-    json!({ "workspace_id": doc_workspace_id_schema() })
-}
-
-/// The `workspace_id` input of the workspace and project tools.
-pub fn workspace_id_property() -> Value {
+/// The `workspace_id` input of tools that refuse a missing workspace.
+pub fn required_workspace_id_property() -> Value {
     json!({
         "workspace_id": {
             "type": "string",
-            "description": "Optional workspace id from list_workspaces. Defaults to the Default workspace."
+            "description": "Required workspace id from list_workspaces."
         }
     })
 }
@@ -58,7 +46,10 @@ pub fn create_doc_properties(include_source_path: bool) -> Value {
             "type": "string",
             "description": "Required display title. May be Chinese."
         },
-        "workspace_id": doc_workspace_id_schema(),
+        "workspace_id": {
+            "type": "string",
+            "description": "Required workspace id from list_workspaces."
+        },
         "project_id": {
             "type": "string",
             "description": "Optional project id from list_projects. Omit to use the workspace inbox."

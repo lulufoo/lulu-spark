@@ -16,7 +16,7 @@ class StageTools(
         listOf(
             LlmToolDef(
                 "stage",
-                "Save a Markdown document to the on-device staged library. This is not a Spark document. Use create_doc later when MCP is connected and the user asks; it takes an optional workspace_id (default Default) and project_id (default inbox).",
+                "Save a Markdown document to the on-device staged library. This is not a Spark document. Use create_doc later when MCP is connected and the user asks; workspace_id is required from list_workspaces first, and project_id is optional (default inbox).",
                 STAGE_PARAMS,
             ),
             LlmToolDef(

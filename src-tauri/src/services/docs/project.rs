@@ -8,14 +8,14 @@ use rusqlite::Connection;
 use serde_json::{json, Value};
 
 use crate::services::spark_data::{
-    count_docs_by_project, count_docs_in_project, insert_project, mint_project_id,
+    count_docs_by_project, count_docs_in_project, get_project, insert_project, mint_project_id,
     list_projects as list_project_rows, reorder_projects as reorder_project_rows,
     update_project as update_project_row, ProjectRow, WorkspaceRow,
 };
 
 use super::resolve::{
     bad_request, ensure_workspace_enabled, icon_field, internal,
-    open_data, resolve_project, resolve_workspace, string_list_field, text_field,
+    open_data, resolve_workspace, string_list_field, text_field,
 };
 
 /// A project's flat fields with `ok: true` in front.
@@ -44,10 +44,13 @@ fn list_project_values(conn: &Connection, workspace: &WorkspaceRow) -> Result<Ve
     Ok(rows.iter().map(|r| project_value(r, counts.get(&r.id).copied().unwrap_or(0))).collect())
 }
 
-/// `{ workspace_id? }` → `{ projects: [...] }`.
+/// `{ workspace_id }` → `{ projects: [...] }`.
 pub fn list_projects(payload: &Value) -> Value {
+    let Some(workspace_id) = text_field(payload, "workspace_id") else {
+        return bad_request("Missing workspace_id");
+    };
     let result = open_data().and_then(|conn| {
-        let ws = resolve_workspace(&conn, text_field(payload, "workspace_id"))?;
+        let ws = resolve_workspace(&conn, Some(workspace_id))?;
         list_project_values(&conn, &ws)
     });
     match result {
@@ -56,10 +59,13 @@ pub fn list_projects(payload: &Value) -> Value {
     }
 }
 
-/// `{ workspace_id?, project_name, description?, icon? }` → `{ ok, project_id, project_name, ... }`.
+/// `{ workspace_id, project_name, description?, icon? }` → `{ ok, project_id, project_name, ... }`.
 pub fn create_project(payload: &Value) -> Value {
     let Some(name) = text_field(payload, "project_name") else {
         return bad_request("Missing project_name");
+    };
+    let Some(workspace_id) = text_field(payload, "workspace_id") else {
+        return bad_request("Missing workspace_id");
     };
     let description = text_field(payload, "description").unwrap_or("");
     let icon = match icon_field(payload) {
@@ -67,7 +73,7 @@ pub fn create_project(payload: &Value) -> Value {
         Err(v) => return v,
     };
     let result = open_data().and_then(|conn| {
-        let ws = resolve_workspace(&conn, text_field(payload, "workspace_id"))?;
+        let ws = resolve_workspace(&conn, Some(workspace_id))?;
         ensure_workspace_enabled(&ws)?;
         let id = mint_project_id(&conn).map_err(internal)?;
         let mut row = ProjectRow::new(&id, &ws.id, name, description);
@@ -81,9 +87,12 @@ pub fn create_project(payload: &Value) -> Value {
     }
 }
 
-/// `{ workspace_id?, project_id, project_name, description?, icon? }` →
-/// `{ ok, project_id, project_name, ... }`. `icon` absent keeps the icon, an empty string clears it.
+/// `{ project_id, project_name, description?, icon? }` → `{ ok, project_id, project_name, ... }`.
+/// `icon` absent keeps the icon, an empty string clears it. `workspace_id` is refused.
 pub fn update_project(payload: &Value) -> Value {
+    if payload.get("workspace_id").is_some() {
+        return bad_request("workspace_id is not supported on update_project");
+    }
     let (Some(id), Some(name)) =
         (text_field(payload, "project_id"), text_field(payload, "project_name"))
     else {
@@ -95,8 +104,9 @@ pub fn update_project(payload: &Value) -> Value {
         Err(v) => return v,
     };
     let result = open_data().and_then(|conn| {
-        let ws = resolve_workspace(&conn, text_field(payload, "workspace_id"))?;
-        let mut row = resolve_project(&conn, &ws, Some(id))?;
+        let mut row = get_project(&conn, id)
+            .map_err(internal)?
+            .ok_or_else(|| bad_request(format!("Unknown project: {id}")))?;
         row.name = name.to_string();
         row.description = description.to_string();
         if let Some(icon) = icon {

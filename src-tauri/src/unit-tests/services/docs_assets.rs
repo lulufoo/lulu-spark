@@ -45,6 +45,7 @@ fn create_with_assets(sandbox: &TestSandbox, assets: Vec<PathBuf>) -> serde_json
         .map(|p| p.to_str().unwrap().to_string())
         .collect();
     create_doc(&json!({
+            "workspace_id": crate::test_support::default_workspace().id,
             "source_path": source.to_str().unwrap(),
             "title": "Test Title",
             "digest": "never",
@@ -196,6 +197,7 @@ fn create_note_digest_allows_https_image() {
     let source = stage_md(&sandbox);
     let digest_body = "# Test — 摘要\n\n> 创建时间：2026年6月19日 14:30\n\n## 概述\n\n![x](https://example.com/a.png)";
     let v = create_doc(&json!({
+            "workspace_id": crate::test_support::default_workspace().id,
             "source_path": source.to_str().unwrap(),
             "title": "Test Title",
             "digest": "always",
@@ -222,6 +224,7 @@ fn create_note_content_and_update_reject_asset_paths() {
         "{content}"
     );
     let created = create_doc_content(&json!({
+            "workspace_id": crate::test_support::default_workspace().id,
             "content": SAMPLE_DOC,
             "title": "Test Title",
             "digest": "never",

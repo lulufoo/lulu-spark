@@ -6,6 +6,7 @@ use crate::test_support::TestSandbox;
 
 fn create_summary() -> String {
     let created = crate::services::docs::create_doc_content(&json!({
+        "workspace_id": crate::test_support::default_workspace().id,
         "title": "T",
         "content": "# 标题\n\n这是足够长的正文内容。\n",
         "digest": "never",

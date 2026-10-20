@@ -17,6 +17,7 @@ function parseWorkspace(raw: unknown): HostWorkspace | null {
     view_mode: rec.view_mode === 'timeline' ? 'timeline' : 'directory',
     is_default: Boolean(rec.is_default),
     icon: typeof rec.icon === 'string' ? rec.icon : '',
+    description: typeof rec.description === 'string' ? rec.description : '',
     sort_index: typeof rec.sort_index === 'number' ? rec.sort_index : undefined,
   };
 }

@@ -47,7 +47,8 @@ fn list_projects_counts_documents_per_project() {
 #[test]
 fn create_update_and_reorder_report_the_count_too() {
     let _sandbox = TestSandbox::new();
-    let created = create_project(&json!({ "project_name": "Plans" }));
+    let default = crate::test_support::default_workspace().id;
+    let created = create_project(&json!({ "workspace_id": default, "project_name": "Plans" }));
     assert_eq!(created["doc_count"], json!(0), "{created}");
     let plans = created["project_id"].as_str().expect("id").to_string();
     add_doc(&plans, "notes/202601011200-aaaaaa.md");
@@ -55,7 +56,7 @@ fn create_update_and_reorder_report_the_count_too() {
     let updated = update_project(&json!({ "project_id": plans, "project_name": "Roadmaps" }));
     assert_eq!(updated["doc_count"], json!(1), "{updated}");
 
-    let ids: Vec<String> = list_projects(&json!({}))["projects"]
+    let ids: Vec<String> = list_projects(&json!({ "workspace_id": default }))["projects"]
         .as_array()
         .expect("projects")
         .iter()

@@ -15,9 +15,7 @@ fn new_workspace(name: &str) -> String {
 
 fn write(workspace: Option<&str>, body: &str) -> String {
     let mut payload = json!({ "title": "T", "content": body, "digest": "never", "source_type": "summary" });
-    if let Some(w) = workspace {
-        payload["workspace_id"] = json!(w);
-    }
+    payload["workspace_id"] = json!(workspace.map(str::to_string).unwrap_or_else(default_id));
     let created = create_doc_content(&payload);
     created["id"].as_str().unwrap_or_else(|| panic!("create failed: {created}")).to_string()
 }
@@ -151,7 +149,7 @@ fn writes_through_the_doc_service_keep_the_index_in_step() {
     let found = search_in_cache(&cache, WORD, &only_workspace(&ws), 10).expect("after update");
     assert_eq!(ids(&found), vec![id.as_str()]);
 
-    let removed: Value = delete_doc(&json!({ "workspace_id": ws, "id": id }));
+    let removed: Value = delete_doc(&json!({ "id": id }));
     assert_eq!(removed["ok"], json!(true));
     assert!(search_in_cache(&cache, WORD, &only_workspace(&ws), 10).expect("after delete").is_empty());
 }

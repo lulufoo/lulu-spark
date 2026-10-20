@@ -142,6 +142,10 @@ export const WRITE_API_INVOKE_MAP: Record<string, WriteInvokeEntry> = {
     cmd: 'set_workspace_icon',
     args: (body) => ({ payload: body ?? {} }),
   },
+  '/api/workspace-description': {
+    cmd: 'set_workspace_description',
+    args: (body) => ({ payload: body ?? {} }),
+  },
   '/api/workspaces-reorder': {
     cmd: 'reorder_workspaces',
     args: (body) => ({ payload: body ?? {} }),

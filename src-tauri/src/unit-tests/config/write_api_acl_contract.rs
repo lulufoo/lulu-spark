@@ -78,6 +78,7 @@ const NOTE_WRITE_COMMANDS: &[&str] = &[
     "rename_workspace",
     "set_workspace_view_mode",
     "set_workspace_icon",
+    "set_workspace_description",
     "reorder_workspaces",
     "disable_workspace",
     "enable_workspace",

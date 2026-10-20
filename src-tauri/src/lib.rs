@@ -70,6 +70,7 @@ pub fn run() {
             commands::workspaces::rename_workspace,
             commands::workspaces::set_workspace_view_mode,
             commands::workspaces::set_workspace_icon,
+            commands::workspaces::set_workspace_description,
             commands::workspaces::reorder_workspaces,
             commands::workspaces::list_disabled_workspaces,
             commands::workspaces::disable_workspace,

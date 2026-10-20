@@ -12,6 +12,7 @@ import {
   reorderWorkspaceList,
   saveWorkspaceEditor,
   setWorkspaceDraft,
+  setWorkspaceDraftDescription,
   setWorkspaceDraftIcon,
 } from '../../commands/settings/workspaces.ts';
 import { workspacesPanelStore } from '../../state/settings/workspaces-panel.ts';
@@ -66,6 +67,7 @@ export function NotesWorkspacesEditHost() {
                 type="button"
                 className="notes-cat-item"
                 data-workspace={workspace.workspace_id}
+                title={workspace.description?.trim() || undefined}
                 disabled={snap.busy}
                 onClick={() => openWorkspaceEditor(workspace.workspace_id)}
               >
@@ -196,6 +198,19 @@ export function NotesWorkspacesEditHost() {
                     options={VIEW_MODE_OPTIONS}
                     disabled={snap.busy}
                     onChange={(next) => setWorkspaceDraft(snap.draftName, parseViewMode(next))}
+                  />
+                </div>
+                <div className="settings-field">
+                  <label htmlFor="notes-ws-edit-description">Description</label>
+                  <textarea
+                    id="notes-ws-edit-description"
+                    rows={3}
+                    placeholder="Optional. Shown when you hover this workspace in the list."
+                    value={snap.draftDescription}
+                    autoComplete="off"
+                    spellCheck={false}
+                    disabled={snap.busy}
+                    onChange={(e) => setWorkspaceDraftDescription(e.target.value)}
                   />
                 </div>
                 <div id="notes-ws-edit-error" className="settings-result notes-cat-error">

@@ -41,8 +41,8 @@ pub fn synthesize_jot_document(body: &str, opts: &JotCreateOpts) -> Result<Strin
 }
 
 /// Write a jot through the docs service (`{project.id}/{folder}/{ts}-{rand}.md`, `folder` is
-/// `notes` unless `opts.folder` names another) into `workspace` (the default workspace when
-/// `None`) and `project` (the inbox when `None`). A project that does not exist there is refused
+/// `notes` unless `opts.folder` names another) into `workspace` (`workspace_id` is required)
+/// and `project` (the inbox when `None`). A project that does not exist there is refused
 /// before anything is written.
 pub fn create_jot(
     workspace: Option<&str>,

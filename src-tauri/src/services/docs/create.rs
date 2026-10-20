@@ -98,7 +98,10 @@ fn write_doc(source: &str, payload: &Value, source_basename: Option<&str>) -> Va
         Ok(c) => c,
         Err(v) => return v,
     };
-    let workspace = match resolve_workspace(&conn, text_field(payload, "workspace_id")) {
+    let Some(workspace_id) = text_field(payload, "workspace_id") else {
+        return bad_request("Missing workspace_id");
+    };
+    let workspace = match resolve_workspace(&conn, Some(workspace_id)) {
         Ok(w) => w,
         Err(v) => return v,
     };

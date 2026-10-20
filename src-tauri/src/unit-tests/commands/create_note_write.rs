@@ -25,6 +25,10 @@ fn setup_notes() -> TestSandbox {
     sandbox
 }
 
+fn default_ws() -> String {
+    crate::test_support::default_workspace().id
+}
+
 fn stage_source(sandbox: &TestSandbox, content: &str) -> PathBuf {
     let dir = sandbox.cache_dir().join("archive_source_stage");
     fs::create_dir_all(&dir).expect("stage dir");
@@ -38,6 +42,7 @@ fn create_note_json_success_returns_entry_handle() {
     let sandbox = setup_notes();
     let path = stage_source(&sandbox, SAMPLE_DOC);
     let v = create_note_json(json!({
+        "workspace_id": default_ws(),
         "source_path": path.to_str().unwrap(),
         "title": "Test Title",
         "source_type": "summary",
@@ -85,6 +90,7 @@ fn create_note_json_second_write_gets_new_filename() {
     let sandbox = setup_notes();
     let path = stage_source(&sandbox, SAMPLE_DOC);
     let payload = json!({
+        "workspace_id": default_ws(),
         "source_path": path.to_str().unwrap(),
         "title": "Test Title",
         "source_type": "summary",
@@ -100,31 +106,31 @@ fn create_note_json_second_write_gets_new_filename() {
 #[test]
 fn create_note_json_jot_takes_an_optional_folder() {
     let _sandbox = TestSandbox::new();
-    let in_folder = create_note_json(json!({ "body": "写进目录", "source_type": "jot", "folder": "q1/goals" }))
+    let in_folder = create_note_json(json!({ "workspace_id": default_ws(), "body": "写进目录", "source_type": "jot", "folder": "q1/goals" }))
         .expect("jot with folder");
     assert_eq!(in_folder["ok"], json!(true), "{in_folder}");
-    let in_root = create_note_json(json!({ "body": "写进根目录", "source_type": "jot", "folder": "/" }))
+    let in_root = create_note_json(json!({ "workspace_id": default_ws(), "body": "写进根目录", "source_type": "jot", "folder": "/" }))
         .expect("jot in the root");
     assert_eq!(in_root["ok"], json!(true), "{in_root}");
-    let bad = create_note_json(json!({ "body": "非法目录", "source_type": "jot", "folder": "a/b/c/d" }))
+    let bad = create_note_json(json!({ "workspace_id": default_ws(), "body": "非法目录", "source_type": "jot", "folder": "a/b/c/d" }))
         .expect("business errors return Ok(Value)");
     assert_eq!(bad["_status"], json!(400), "{bad}");
-    let default = create_note_json(json!({ "body": "没有目录", "source_type": "jot" })).expect("jot");
+    let default = create_note_json(json!({ "workspace_id": default_ws(), "body": "没有目录", "source_type": "jot" })).expect("jot");
     assert_eq!(default["ok"], json!(true), "{default}");
 }
 
 #[test]
 fn create_note_json_jot_takes_an_optional_project() {
     let _sandbox = TestSandbox::new();
-    let made = crate::services::docs::create_project(&json!({ "project_name": "Plans" }));
+    let made = crate::services::docs::create_project(&json!({ "workspace_id": default_ws(), "project_name": "Plans" }));
     assert_eq!(made["ok"], json!(true), "{made}");
     let plans = made["project_id"].as_str().expect("id");
-    let into_project = create_note_json(json!({ "body": "写进计划", "source_type": "jot", "project_id": plans }))
+    let into_project = create_note_json(json!({ "workspace_id": default_ws(), "body": "写进计划", "source_type": "jot", "project_id": plans }))
         .expect("jot with project");
     assert_eq!(into_project["project_id"], json!(plans), "{into_project}");
-    let default = create_note_json(json!({ "body": "没有项目", "source_type": "jot" })).expect("jot");
+    let default = create_note_json(json!({ "workspace_id": default_ws(), "body": "没有项目", "source_type": "jot" })).expect("jot");
     assert_eq!(default["project_id"], json!(crate::test_support::default_inbox_id()), "{default}");
-    let missing = create_note_json(json!({ "body": "项目不存在", "source_type": "jot", "project_id": "ghost" }))
+    let missing = create_note_json(json!({ "workspace_id": default_ws(), "body": "项目不存在", "source_type": "jot", "project_id": "ghost" }))
         .expect("jot with missing project");
     assert_eq!(missing["_status"], json!(400), "{missing}");
 }

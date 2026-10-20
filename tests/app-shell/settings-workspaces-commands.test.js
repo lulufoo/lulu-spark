@@ -9,6 +9,7 @@ vi.mock('../../frontend/src/host/api.ts', () => ({
   createWorkspace: async (...a) => reply('create', a),
   renameWorkspace: async (...a) => reply('rename', a),
   setWorkspaceViewMode: async (...a) => reply('view', a),
+  setWorkspaceDescription: async (...a) => reply('description', a),
   disableWorkspace: async (...a) => reply('disable', a),
   enableWorkspace: async (...a) => reply('enable', a),
   fetchDisabledWorkspaces: async () => ({ workspaces: disabledRows }),
@@ -90,5 +91,14 @@ describe('Workspaces settings commands', () => {
     await commands.changeWorkspaceViewMode('ws-a', 'directory');
     expect(applyViewModeChange).toHaveBeenCalledTimes(1);
     expect(calls).toEqual([['view', 'ws-a', 'timeline'], ['view', 'ws-a', 'directory']]);
+  });
+
+  it('creates a workspace with a description only when one is given', async () => {
+    await commands.addWorkspace('Plain', 'directory');
+    await commands.addWorkspace('Research', 'timeline', '', 'Daily notes');
+    expect(calls).toEqual([
+      ['create', 'Plain', 'directory'],
+      ['create', 'Research', 'timeline', undefined, 'Daily notes'],
+    ]);
   });
 });

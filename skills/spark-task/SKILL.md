@@ -35,7 +35,7 @@ Lulu Spark App **MUST** be running, with its Host MCP server reachable.
 |-------|-------|----------------|
 | Global | `search` | Find documents across every workspace, or in one |
 | Workspace | `list_workspaces`, `create_workspace`, `rename_workspace` | The containers; `Default` always exists |
-| Project | `list_projects`, `create_project`, `update_project` | The projects inside a workspace; `list_projects` returns `project_id`, `project_name`, and `is_default` |
+| Project | `list_projects`, `create_project`, `update_project` | The projects inside a workspace; `list_projects` and `create_project` require `workspace_id` from `list_workspaces`. `list_projects` returns `project_id`, `project_name`, `is_default`, and `description` |
 | Document | `list_doc_categories`, `get_doc_digest`, `get_doc_file`, `get_doc_content`, `create_doc`, `update_doc`, `delete_doc` | The documents themselves |
 | Read Later | `get_read_later` | One saved reading-list entry |
 
@@ -53,15 +53,15 @@ Map the user request, then call **only** the tools that match. Do not run a fixe
 |-------------|----|--------|
 | Create a workspace | `create_workspace`; the result carries its generated `workspace_id` | Do not guess an id before the result |
 | Rename a workspace | `list_workspaces` to find the `workspace_id`, then `rename_workspace` | Do not rename by name alone |
-| Create a project | Confirm the workspace with `list_workspaces`, check `list_projects` for a near-duplicate, then `create_project` | Do not create a project to move documents: it does not move any |
-| Edit a project's name or description | `list_projects` for its `project_id`, then `update_project` | Do not change the `project_id` |
-| List workspaces / projects | `list_workspaces`; `list_projects` with the workspace | — |
-| Create / save / archive a document | Confirm the target with `list_workspaces` and `list_projects`. When the user names a project, pass that row's `project_id`. When the user names none, omit `workspace_id` (Default) and omit `project_id` (inbox). Infer document-internal `folder` and `title` when the user did not give them — [path-or-paste.md](references/path-or-paste.md) for a lone path or paste. Load [chinese-companion.md](references/chinese-companion.md). Call `list_doc_categories`, then `create_doc` with the live schema parameters. | Do not invent a workspace or project id; do not pass `project_id: "inbox"` |
+| Create a project | Confirm the workspace with `list_workspaces` (pick by `description`, else name), pass that `workspace_id` to `list_projects` and `create_project`. If none fit, ask. | Do not create a project to move documents: it does not move any; do not omit `workspace_id` |
+| Edit a project's name or description | `list_projects` for its `project_id`, then `update_project` with `project_id` only — do not send `workspace_id` | Do not change the `project_id`; this does not move the project |
+| List workspaces / projects | `list_workspaces` (each row has `description`); `list_projects` with a required `workspace_id` | Do not omit `workspace_id` on `list_projects` |
+| Create / save / archive a document | Confirm the target with `list_workspaces` and `list_projects`. When the user names no workspace, `list_workspaces` and pick by `description` (else name); pass that `workspace_id`. If none fit, ask. When the user names a project, pass that row's `project_id`. When the user names none, omit `project_id` (inbox). Infer document-internal `folder` and `title` when the user did not give them — [path-or-paste.md](references/path-or-paste.md) for a lone path or paste. Load [chinese-companion.md](references/chinese-companion.md). Call `list_doc_categories`, then `create_doc` with the live schema parameters including `workspace_id`. | Do not invent a workspace or project id; do not omit `workspace_id`; do not pass `project_id: "inbox"` |
 | Search documents | `search`, optionally limited to one workspace | Do not list a catalog's full id set |
-| Read one digest | `get_doc_digest` with the `workspace_id` of the search hit | — |
-| Read one document body | Spark / Cursor / Codex / Claude: `get_doc_file` with a `dest_dir`, then read the returned copy. Mobile: `get_doc_content` | Do not read the data directory directly |
+| Read one digest | `get_doc_digest` with the document `id` only; do not send `workspace_id` | — |
+| Read one document body | Spark / Cursor / Codex / Claude: `get_doc_file` with a `dest_dir` and the document `id` only, then read the returned copy. Mobile: `get_doc_content` with the `id` only. Do not send `workspace_id`. | Do not read the data directory directly |
 | Edit an existing document | `get_doc_file`, edit the copy, then `update_doc` with `source_path` set to the copy. Do not pass `workspace_id`; the document id names the workspace. | Do not edit the data directory directly |
-| Delete a document | Only when the user explicitly asks, and only when `delete_doc` is in the tool list: confirm the document, then `delete_doc` | Irreversible — never delete as a side step of another task |
+| Delete a document | Only when the user explicitly asks, and only when `delete_doc` is in the tool list: confirm the document, then `delete_doc` with the `id` only — do not send `workspace_id` | Irreversible — never delete as a side step of another task |
 | Open a Read Later link `[title](read-later:<id>)` | `get_read_later` with the 32-hex id | Do not look the entry up by title |
 
 **Create is one tool.** `digest` is a required `create_doc` field. When a digest will be written, pass `digest_body` on the same call. Host AD-0 decides whether `auto` writes. `digest_body` shape is the live MCP parameter description. Companion-image when-to-pass is the live MCP description; collecting sibling files is [path-or-paste.md](references/path-or-paste.md).
@@ -95,19 +95,19 @@ Do not invent norms not listed here.
 | MCP tool | Group | Purpose |
 |----------|-------|---------|
 | `search` | Global | Search Lulu Spark's own library across workspaces or in one; returns id, title, snippet, workspace_id, workspace_name, project_id, project_name |
-| `list_workspaces` | Workspace | List workspaces; the `Default` workspace always exists |
+| `list_workspaces` | Workspace | List workspaces; each row has `description`; the `Default` workspace always exists |
 | `create_workspace` | Workspace | Create a workspace; returns its generated `workspace_id` |
 | `rename_workspace` | Workspace | Rename a workspace (including `Default`); the id never changes |
-| `list_projects` | Project | List the projects of one workspace (`project_id`, `project_name`, `is_default`); does not list documents |
-| `create_project` | Project | Add a project to a workspace; does not move existing documents |
-| `update_project` | Project | Change a project's name and description; the `project_id` is kept |
+| `list_projects` | Project | List the projects of one workspace; `workspace_id` is required from `list_workspaces` |
+| `create_project` | Project | Add a project to a workspace; `workspace_id` is required; does not move existing documents |
+| `update_project` | Project | Change a project's name and description; pass `project_id` only — do not send `workspace_id` |
 | `list_doc_categories` | Document | Classification ids `create_doc.source_type` accepts |
-| `get_doc_digest` | Document | Digest Markdown for one document id |
-| `get_doc_file` | Document | Copy one document's file into `dest_dir` and return `{ok, id, path}`; the body is not returned and an existing copy is never overwritten |
-| `get_doc_content` | Document | Mobile channel only: resolve a document id to its local file path |
-| `create_doc` | Document | Create a document in a workspace and project |
+| `get_doc_digest` | Document | Digest Markdown for one document id; do not send `workspace_id` |
+| `get_doc_file` | Document | Copy one document's file into `dest_dir` and return `{ok, id, path}`; the body is not returned and an existing copy is never overwritten; do not send `workspace_id` |
+| `get_doc_content` | Document | Mobile channel only: resolve a document id to its local file path; do not send `workspace_id` |
+| `create_doc` | Document | Create a document; `workspace_id` is required from `list_workspaces`; `project_id` is optional (omit for inbox) |
 | `update_doc` | Document | Replace an existing document body from the Markdown file at `source_path` |
-| `delete_doc` | Document | Hard-delete one document; irreversible; `/mcp/spark` only |
+| `delete_doc` | Document | Hard-delete one document by `id` only; do not send `workspace_id`; irreversible; `/mcp/spark` only |
 | `get_read_later` | Read Later | One Read Later entry by id: id, url, read; `/mcp/spark` only |
 
 Field names, limits, and optionality: live MCP schema only.

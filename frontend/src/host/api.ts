@@ -36,6 +36,7 @@ export {
   reorderProjects,
   reorderWorkspaces,
   saveViewerState,
+  setWorkspaceDescription,
   setWorkspaceIcon,
   setWorkspaceViewMode,
   updateHidePattern,

@@ -112,6 +112,8 @@ export type HostWorkspace = {
   is_default: boolean;
   /** Id of the configured icon; empty = the default icon. */
   icon: string;
+  /** Optional note for list_workspaces; empty = none. */
+  description: string;
   /** Position in the order Settings arranged; the list is already in this order. */
   sort_index?: number;
 };

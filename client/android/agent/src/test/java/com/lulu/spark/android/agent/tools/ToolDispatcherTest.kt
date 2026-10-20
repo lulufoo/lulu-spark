@@ -20,7 +20,7 @@ class ToolDispatcherTest {
     @Test
     fun remoteToolKeepsHostInputSchema() {
         val schema =
-            """{"type":"object","properties":{"title":{"type":"string"},"content":{"type":"string"},"workspace_id":{"type":"string"},"project_id":{"type":"string"},"folder":{"type":"string"}},"required":["title","content"]}"""
+            """{"type":"object","properties":{"title":{"type":"string"},"content":{"type":"string"},"workspace_id":{"type":"string"},"project_id":{"type":"string"},"folder":{"type":"string"}},"required":["title","content","workspace_id"]}"""
         val defs =
             ToolDispatcher(
                 FsTools(),
@@ -103,7 +103,7 @@ class ToolDispatcherTest {
                     McpTool(
                         name = "get_doc_content",
                         description = "Read one document's raw Markdown by id.",
-                        inputSchemaJson = """{"type":"object","properties":{"id":{"type":"string"},"workspace_id":{"type":"string"}},"required":["id"]}""",
+                        inputSchemaJson = """{"type":"object","properties":{"id":{"type":"string"}},"required":["id"]}""",
                     ),
                 ),
                 MemoryStorage(),

@@ -72,6 +72,7 @@ fn assert_note_ok(value: &Value) {
 
 fn content_note_args() -> Value {
     json!({
+        "workspace_id": crate::test_support::default_workspace().id,
         "content": "AC1 内容笔记正文",
         "title": "AC1 invoke_from_content",
         "digest": "never",
@@ -81,6 +82,7 @@ fn content_note_args() -> Value {
 
 fn source_note_args(sandbox: &TestSandbox) -> Value {
     json!({
+        "workspace_id": crate::test_support::default_workspace().id,
         "source_path": stage_source(sandbox, SAMPLE_DOC).to_str().unwrap(),
         "title": "AC1 invoke_from_source",
         "digest": "never",

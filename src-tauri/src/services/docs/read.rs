@@ -12,8 +12,8 @@ use crate::services::docs::store::doc_file_path;
 use crate::services::spark_data::{DocRow, ProjectRow, WorkspaceRow};
 
 use super::resolve::{
-    bad_request, doc_id_field, internal, not_found, open_data, resolve_doc, resolve_doc_workspace,
-    text_field, workspace_root,
+    bad_request, doc_id_field, internal, not_found, open_data, resolve_doc,
+    resolve_workspace_from_doc_id, text_field, workspace_root,
 };
 
 const LAYERS: &[&str] = &["raw", "digest"];
@@ -43,14 +43,18 @@ fn locate(
 }
 
 fn find(payload: &Value) -> Result<(WorkspaceRow, ProjectRow, DocRow), Value> {
+    if payload.get("workspace_id").is_some() {
+        return Err(bad_request("workspace_id is not supported on get_doc"));
+    }
     let id = doc_id_field(payload)?;
     let conn = open_data()?;
-    let workspace = resolve_doc_workspace(&conn, payload, &id)?;
+    let workspace = resolve_workspace_from_doc_id(&conn, &id)?;
     let (doc, project) = resolve_doc(&conn, &workspace, &id)?;
     Ok((workspace, project, doc))
 }
 
-/// `{ workspace_id?, id, layer?, lang? }` → `{ content }`. `layer` is `raw` (default) or `digest`.
+/// `{ id, layer?, lang? }` → `{ content }`. `layer` is `raw` (default) or `digest`.
+/// `workspace_id` is refused.
 pub fn get_file(payload: &Value) -> Value {
     let layer = text_field(payload, "layer").unwrap_or("raw");
     if !LAYERS.contains(&layer) {
@@ -73,14 +77,14 @@ pub fn get_file(payload: &Value) -> Value {
     }
 }
 
-/// `{ workspace_id?, id }` → `{ content }` of the digest layer.
+/// `{ id }` → `{ content }` of the digest layer. `workspace_id` is refused.
 pub fn get_digest(payload: &Value) -> Value {
     let mut request = payload.clone();
     request["layer"] = json!("digest");
     get_file(&request)
 }
 
-/// `{ workspace_id?, id }` → `{ id, ok, path }`: where the raw file is on this machine. No body.
+/// `{ id }` → `{ id, ok, path }`: where the raw file is on this machine. No body. `workspace_id` is refused.
 pub fn get_path(payload: &Value) -> Value {
     let (workspace, project, doc) = match find(payload) {
         Ok(found) => found,
@@ -95,7 +99,7 @@ pub fn get_path(payload: &Value) -> Value {
     }
 }
 
-/// `{ workspace_id?, id, dest_dir }` → `{ id, ok, path }`: a versioned copy of the raw file.
+/// `{ id, dest_dir }` → `{ id, ok, path }`: a versioned copy of the raw file. `workspace_id` is refused.
 pub fn export_file(payload: &Value) -> Value {
     let Some(dest_dir) = text_field(payload, "dest_dir") else {
         return bad_request("Missing dest_dir");
