@@ -79,7 +79,7 @@ describe("spark-auto saves on signal", () => {
 
   it("binds the signal set and the target ids to the host, omitting an unbound one", () => {
     assert.match(text, /^\| `\$SPARK_AUTO_SIGNALS` \| Host-bound; required \| The signal set\. Unbound → no automatic save \|$/m);
-    assert.match(text, /^\| `\$SPARK_TARGET_WORKSPACE` \| Host-bound; optional \| `workspace_id` of the save\. Unbound → not passed \|$/m);
+    assert.match(text, /^\| `\$SPARK_TARGET_WORKSPACE` \| Host-bound; optional \| `workspace_id` of the save\. Bound → pass that id\. Unbound → `list_workspaces`, pick by `description` \(else name\), then pass that id\. Do not skip the save \|$/m);
     assert.match(text, /^\| `\$SPARK_TARGET_PROJECT` \| Host-bound; optional \| `project_id` of the save\. Unbound → not passed \|$/m);
     assert.equal(/not consumed/.test(text), false);
     assert.equal(/Omit `workspace_id` and `project_id`/.test(text), false);

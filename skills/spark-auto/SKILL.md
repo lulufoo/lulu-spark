@@ -14,7 +14,7 @@ Turn each signal hit into one knowledge unit saved through `spark-task`. Done wh
 | Variable | Binding | Role |
 |----------|---------|------|
 | `$SPARK_AUTO_SIGNALS` | Host-bound; required | The signal set. Unbound → no automatic save |
-| `$SPARK_TARGET_WORKSPACE` | Host-bound; optional | `workspace_id` of the save. Unbound → not passed |
+| `$SPARK_TARGET_WORKSPACE` | Host-bound; optional | `workspace_id` of the save. Bound → pass that id. Unbound → `list_workspaces`, pick by `description` (else name), then pass that id. Do not skip the save |
 | `$SPARK_TARGET_PROJECT` | Host-bound; optional | `project_id` of the save. Unbound → not passed |
 
 ## Signal
@@ -24,7 +24,7 @@ Turn each signal hit into one knowledge unit saved through `spark-task`. Done wh
 
 ## Save
 
-`spark-task` create flow, with `source_type` fitting the unit and the target ids from Variables. Then end the reply with one line: `已存入 Spark：<title>`.
+`spark-task` create flow, with `source_type` fitting the unit and the target ids from Variables. `create_doc` always takes a `workspace_id` (bound id, or one chosen from `list_workspaces`). Then end the reply with one line: `已存入 Spark：<title>`.
 
 ## Done
 

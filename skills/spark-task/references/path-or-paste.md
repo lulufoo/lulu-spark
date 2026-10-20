@@ -8,7 +8,7 @@ Stage the Markdown at any absolute path. Load [chinese-companion.md](chinese-com
 
 | Field | Rule |
 |-------|------|
-| `workspace_id` | The user's choice; else `Default`. Check it with `list_workspaces` |
+| `workspace_id` | Required. From `list_workspaces`; pick by `description` (else name). Do not omit |
 | `project_id` | A project id from `list_projects` that fits best; else omit (the Host uses the inbox) |
 | `folder` | kebab-case English from title or body (3–5 words); else omit and the Host uses `notes`. May be a 1–3 level relative path such as `ai/agents/notes` |
 | `title` | `#` heading or first line |
