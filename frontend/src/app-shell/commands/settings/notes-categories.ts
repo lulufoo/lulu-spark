@@ -188,8 +188,8 @@ export async function saveNotesCategory(workspaceId: string) {
   try {
     throwOnError(
       await (iconChanged
-        ? api.updateProject(workspaceId, snap.selectedId, snap.draftTitle, snap.draftDescription, snap.draftIcon)
-        : api.updateProject(workspaceId, snap.selectedId, snap.draftTitle, snap.draftDescription)),
+        ? api.updateProject(snap.selectedId, snap.draftTitle, snap.draftDescription, snap.draftIcon)
+        : api.updateProject(snap.selectedId, snap.draftTitle, snap.draftDescription)),
     );
     closeNotesCategoryEditor();
     await loadNotesCategories(workspaceId);

@@ -228,7 +228,7 @@ fn workspace_and_project_tools_take_only_the_id_and_name_keys() {
     assert_eq!(keys("workspace", "rename_workspace"), vec!["workspace_id", "workspace_name"]);
     assert_eq!(keys("project", "list_projects"), vec!["workspace_id"]);
     assert_eq!(keys("project", "create_project"), vec!["description", "project_name", "workspace_id"]);
-    assert_eq!(keys("project", "update_project"), vec!["description", "project_id", "project_name", "workspace_id"]);
+    assert_eq!(keys("project", "update_project"), vec!["description", "project_id", "project_name"]);
 }
 
 #[test]

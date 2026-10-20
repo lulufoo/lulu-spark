@@ -1,22 +1,12 @@
 use serde_json::json;
 
-use super::super::schema::{required_workspace_id_property, workspace_id_property};
+use super::super::schema::required_workspace_id_property;
 use crate::mcp_host::catalog::route_util::{object_schema, route};
 use crate::mcp_host::ToolRoute;
 use crate::services::docs;
 
 fn with_required_workspace(extra: serde_json::Value) -> serde_json::Value {
     let mut props = required_workspace_id_property();
-    if let Some(extra) = extra.as_object() {
-        for (key, value) in extra {
-            props[key] = value.clone();
-        }
-    }
-    props
-}
-
-fn with(extra: serde_json::Value) -> serde_json::Value {
-    let mut props = workspace_id_property();
     if let Some(extra) = extra.as_object() {
         for (key, value) in extra {
             props[key] = value.clone();
@@ -56,13 +46,13 @@ pub fn build_create(_channel: &str) -> Option<ToolRoute> {
 pub fn build_update(_channel: &str) -> Option<ToolRoute> {
     Some(route(
         "update_project",
-        "Change a project's name and description. The project_id is kept.",
+        "Change a project's name and description. The project_id already names its workspace; do not send workspace_id. This does not move the project.",
         object_schema(
-            with(json!({
+            json!({
                 "project_id": { "type": "string", "description": "Project id from list_projects." },
                 "project_name": { "type": "string", "description": "Display name." },
                 "description": { "type": "string", "description": "Optional description." }
-            })),
+            }),
             &["project_id", "project_name"],
         ),
         false,

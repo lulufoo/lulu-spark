@@ -278,19 +278,40 @@ fn project_crud_follows_the_workspace_and_protects_inbox_and_documents() {
     assert_ne!(inbox_id, "inbox");
     assert!(project_ids(&listed).contains(&plans), "{listed}");
 
-    let updated = update_project(&json!({ "workspace_id": ws, "project_id": plans, "project_name": "Roadmaps" }));
+    let updated = update_project(&json!({ "project_id": plans, "project_name": "Roadmaps" }));
     assert_eq!(
         (text(&ok(&updated), "project_name"), text(&updated, "project_id")),
         ("Roadmaps".into(), plans.clone())
     );
-    assert_eq!(status(&update_project(&json!({ "workspace_id": ws, "project_id": "ghost", "project_name": "x" }))), 400);
+    assert_eq!(status(&update_project(&json!({ "project_id": "ghost", "project_name": "x" }))), 400);
     assert_eq!(
-        status(&update_project(&json!({ "workspace_id": ws, "project_id": "inbox", "project_name": "Catch-all" }))),
+        status(&update_project(&json!({ "project_id": "inbox", "project_name": "Catch-all" }))),
         400,
         "old folder string is not an id"
     );
 
-    ok(&update_project(&json!({ "workspace_id": ws, "project_id": inbox_id, "project_name": "Catch-all" })));
+    ok(&update_project(&json!({ "project_id": inbox_id, "project_name": "Catch-all" })));
+}
+
+#[test]
+fn update_project_refuses_workspace_id_and_does_not_move() {
+    let _sandbox = TestSandbox::new();
+    let ws = new_workspace("Work");
+    let other = new_workspace("Other");
+    let plans = new_project(Some(&ws), "Plans");
+
+    let refused = update_project(&json!({
+        "workspace_id": other,
+        "project_id": plans,
+        "project_name": "Roadmaps"
+    }));
+    assert_eq!(status(&refused), 400);
+    assert!(refused["error"].as_str().unwrap_or("").contains("workspace_id"), "{refused}");
+
+    let renamed = update_project(&json!({ "project_id": plans, "project_name": "Roadmaps" }));
+    assert_eq!(text(&ok(&renamed), "project_name"), "Roadmaps");
+    assert!(project_ids(&list_projects(&json!({ "workspace_id": ws }))).contains(&plans));
+    assert!(!project_ids(&list_projects(&json!({ "workspace_id": other }))).contains(&plans));
 }
 
 #[test]
@@ -313,7 +334,7 @@ fn a_project_row_with_a_legacy_disabled_at_is_an_ordinary_project() {
     ok(&update);
     let other = new_project(Some(&ws), "Other");
     ok(&move_doc(&json!({ "workspace_id": ws, "id": id, "project_id": other })));
-    ok(&update_project(&json!({ "workspace_id": ws, "project_id": plans, "project_name": "Roadmaps" })));
+    ok(&update_project(&json!({ "project_id": plans, "project_name": "Roadmaps" })));
 }
 
 #[test]
@@ -655,23 +676,23 @@ fn a_project_icon_is_kept_unless_changed_and_cleared_by_an_empty_string() {
     let plans = text(&ok(&made), "project_id");
     assert_eq!(icon_of(&ok(&made)), "03k7x2");
 
-    let renamed = update_project(&json!({ "workspace_id": ws, "project_id": plans, "project_name": "Roadmaps" }));
+    let renamed = update_project(&json!({ "project_id": plans, "project_name": "Roadmaps" }));
     assert_eq!(icon_of(&ok(&renamed)), "03k7x2", "absent icon keeps it");
-    let changed = update_project(&json!({ "workspace_id": ws, "project_id": plans, "project_name": "Roadmaps", "icon": "01aa00" }));
+    let changed = update_project(&json!({ "project_id": plans, "project_name": "Roadmaps", "icon": "01aa00" }));
     assert_eq!(icon_of(&ok(&changed)), "01aa00");
-    let cleared = update_project(&json!({ "workspace_id": ws, "project_id": plans, "project_name": "Roadmaps", "icon": "" }));
+    let cleared = update_project(&json!({ "project_id": plans, "project_name": "Roadmaps", "icon": "" }));
     assert_eq!(icon_of(&ok(&cleared)), "");
 
     let before = project_ids(&list_projects(&json!({ "workspace_id": ws })));
     assert_eq!(status(&create_project(&json!({ "workspace_id": ws, "project_name": "X", "icon": "9" }))), 400);
-    assert_eq!(status(&update_project(&json!({ "workspace_id": ws, "project_id": plans, "project_name": "R", "icon": "bad" }))), 400);
+    assert_eq!(status(&update_project(&json!({ "project_id": plans, "project_name": "R", "icon": "bad" }))), 400);
     assert_eq!(
         project_ids(&list_projects(&json!({ "workspace_id": ws }))),
         before,
         "a rejected create leaves nothing"
     );
 
-    ok(&update_project(&json!({ "workspace_id": ws, "project_id": plans, "project_name": "R", "icon": "02bb22" })));
+    ok(&update_project(&json!({ "project_id": plans, "project_name": "R", "icon": "02bb22" })));
     let listed = list_projects(&json!({ "workspace_id": ws }));
     let row = listed["projects"].as_array().expect("array").iter().find(|p| text(p, "project_id") == plans).expect("row").clone();
     assert_eq!(icon_of(&row), "02bb22");
@@ -761,7 +782,7 @@ fn the_old_workspace_and_project_keys_are_ignored() {
     assert_eq!(status(&create_project(&json!({ "title": "Old" }))), 400, "title no longer names a project");
 
     let plans = new_project(Some(&ws), "Plans");
-    assert_eq!(status(&update_project(&json!({ "workspace_id": ws, "project": plans, "title": "x" }))), 400);
+    assert_eq!(status(&update_project(&json!({ "project": plans, "title": "x" }))), 400);
 
     // `workspace` is not read: without workspace_id the create is refused.
     let stray = create_project(&json!({ "workspace": ws, "project_name": "Stray" }));

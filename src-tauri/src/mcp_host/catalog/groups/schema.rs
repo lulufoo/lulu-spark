@@ -23,16 +23,6 @@ pub fn doc_workspace_id_property() -> Value {
     json!({ "workspace_id": doc_workspace_id_schema() })
 }
 
-/// The `workspace_id` input of the workspace and project tools.
-pub fn workspace_id_property() -> Value {
-    json!({
-        "workspace_id": {
-            "type": "string",
-            "description": "Optional workspace id from list_workspaces. Defaults to the Default workspace."
-        }
-    })
-}
-
 /// The `workspace_id` input of tools that refuse a missing workspace.
 pub fn required_workspace_id_property() -> Value {
     json!({

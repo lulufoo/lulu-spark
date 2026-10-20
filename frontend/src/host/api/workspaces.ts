@@ -76,14 +76,12 @@ export async function createProject(workspaceId: string, projectName: string, de
 
 /** `icon` left out keeps the project's icon; `''` clears it (back to the default icon). */
 export async function updateProject(
-  workspaceId: string,
   projectId: string,
   projectName: string,
   description = '',
   icon?: string,
 ) {
   return writePost('/api/project-update', {
-    workspace_id: workspaceId,
     project_id: projectId,
     project_name: projectName,
     description,

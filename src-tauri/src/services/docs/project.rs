@@ -8,14 +8,14 @@ use rusqlite::Connection;
 use serde_json::{json, Value};
 
 use crate::services::spark_data::{
-    count_docs_by_project, count_docs_in_project, insert_project, mint_project_id,
+    count_docs_by_project, count_docs_in_project, get_project, insert_project, mint_project_id,
     list_projects as list_project_rows, reorder_projects as reorder_project_rows,
     update_project as update_project_row, ProjectRow, WorkspaceRow,
 };
 
 use super::resolve::{
     bad_request, ensure_workspace_enabled, icon_field, internal,
-    open_data, resolve_project, resolve_workspace, string_list_field, text_field,
+    open_data, resolve_workspace, string_list_field, text_field,
 };
 
 /// A project's flat fields with `ok: true` in front.
@@ -87,9 +87,12 @@ pub fn create_project(payload: &Value) -> Value {
     }
 }
 
-/// `{ workspace_id?, project_id, project_name, description?, icon? }` →
-/// `{ ok, project_id, project_name, ... }`. `icon` absent keeps the icon, an empty string clears it.
+/// `{ project_id, project_name, description?, icon? }` → `{ ok, project_id, project_name, ... }`.
+/// `icon` absent keeps the icon, an empty string clears it. `workspace_id` is refused.
 pub fn update_project(payload: &Value) -> Value {
+    if payload.get("workspace_id").is_some() {
+        return bad_request("workspace_id is not supported on update_project");
+    }
     let (Some(id), Some(name)) =
         (text_field(payload, "project_id"), text_field(payload, "project_name"))
     else {
@@ -101,8 +104,9 @@ pub fn update_project(payload: &Value) -> Value {
         Err(v) => return v,
     };
     let result = open_data().and_then(|conn| {
-        let ws = resolve_workspace(&conn, text_field(payload, "workspace_id"))?;
-        let mut row = resolve_project(&conn, &ws, Some(id))?;
+        let mut row = get_project(&conn, id)
+            .map_err(internal)?
+            .ok_or_else(|| bad_request(format!("Unknown project: {id}")))?;
         row.name = name.to_string();
         row.description = description.to_string();
         if let Some(icon) = icon {

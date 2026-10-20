@@ -309,20 +309,20 @@ describe('project icon in the Edit dialog', () => {
   it('sends the icon only when it changed', async () => {
     catCommands.openNotesCategoryEditor('plans');
     await catCommands.saveNotesCategory('default');
-    expect(calls).toEqual([['update-p', 'default', 'plans', 'Plans', 'd']]);
+    expect(calls).toEqual([['update-p', 'plans', 'Plans', 'd']]);
 
     calls.length = 0;
     catCommands.openNotesCategoryEditor('plans');
     catCommands.setNotesCategoryDraftIcon(ICON_B);
     await catCommands.saveNotesCategory('default');
-    expect(calls).toEqual([['update-p', 'default', 'plans', 'Plans', 'd', ICON_B]]);
+    expect(calls).toEqual([['update-p', 'plans', 'Plans', 'd', ICON_B]]);
     expect(catSnap().editorOpen).toBe(false);
 
     calls.length = 0;
     catCommands.openNotesCategoryEditor('plans');
     catCommands.setNotesCategoryDraftIcon('');
     await catCommands.saveNotesCategory('default');
-    expect(calls).toEqual([['update-p', 'default', 'plans', 'Plans', 'd', '']]);
+    expect(calls).toEqual([['update-p', 'plans', 'Plans', 'd', '']]);
   });
 
   it('keeps the dialog open and shows the reason when the host refuses', async () => {

@@ -304,14 +304,14 @@ test('fetchProjects calls /api/projects for one workspace', async () => {
 test('project writes post workspace_id, project_id, project_name and description', async () => {
   mockFetch({ ok: true })
   await createProject('ws1', 'Ops', 'desc')
-  await updateProject('ws1', 'ops', 'Operations', 'runbooks')
+  await updateProject('ops', 'Operations', 'runbooks')
   expect(fetch.mock.calls.map((call) => call[0])).toEqual([
     `${DEFAULT_DEV_BASE}/api/project-create`,
     `${DEFAULT_DEV_BASE}/api/project-update`,
   ])
   expect(fetch.mock.calls.map((call) => JSON.parse(call[1].body))).toEqual([
     { workspace_id: 'ws1', project_name: 'Ops', description: 'desc' },
-    { workspace_id: 'ws1', project_id: 'ops', project_name: 'Operations', description: 'runbooks' },
+    { project_id: 'ops', project_name: 'Operations', description: 'runbooks' },
   ])
 })
 
@@ -348,8 +348,8 @@ test('icons ride along on create and update only when given, and setWorkspaceIco
   await setWorkspaceDescription('ws1', '')
   await createWorkspace('Named', 'directory', undefined, 'Research inbox')
   await createProject('ws1', 'Ops', 'desc', '03k7x2')
-  await updateProject('ws1', 'ops', 'Operations', 'runbooks', '')
-  await updateProject('ws1', 'ops', 'Operations', 'runbooks')
+  await updateProject('ops', 'Operations', 'runbooks', '')
+  await updateProject('ops', 'Operations', 'runbooks')
   expect(fetch.mock.calls.map((call) => call[0])).toEqual([
     `${DEFAULT_DEV_BASE}/api/workspace-create`,
     `${DEFAULT_DEV_BASE}/api/workspace-create`,
@@ -371,7 +371,7 @@ test('icons ride along on create and update only when given, and setWorkspaceIco
     { workspace_id: 'ws1', description: '' },
     { workspace_name: 'Named', view_mode: 'directory', description: 'Research inbox' },
     { workspace_id: 'ws1', project_name: 'Ops', description: 'desc', icon: '03k7x2' },
-    { workspace_id: 'ws1', project_id: 'ops', project_name: 'Operations', description: 'runbooks', icon: '' },
-    { workspace_id: 'ws1', project_id: 'ops', project_name: 'Operations', description: 'runbooks' },
+    { project_id: 'ops', project_name: 'Operations', description: 'runbooks', icon: '' },
+    { project_id: 'ops', project_name: 'Operations', description: 'runbooks' },
   ])
 })
