@@ -3,7 +3,7 @@ import { LAYERS } from './host/constants.ts';
 import * as api from './host/api.ts';
 import type { HostIndexAnnotation, HostNoteEntry } from './host/snapshot-types.ts';
 import { loadViewerMemory } from './notes/commands/viewer-state.ts';
-import { enterWorkspace } from './notes/commands/restore.ts';
+import { enterDocProject, enterWorkspace } from './notes/commands/restore.ts';
 import { buildGroups, selectDate, applyListFilters } from './notes/commands/sidebar.ts';
 import { entryGroupKey, loadProjects, loadWorkspaces } from './notes/commands/workspace.ts';
 import { resetDirTree } from './notes/state/dir-tree.ts';
@@ -262,6 +262,7 @@ document.addEventListener('cta:open-entry', (event) => {
     });
     return;
   }
+  enterDocProject(entry);
   const date = entryGroupKey(entry);
   selectDate(date);
   const params: { date: string; note: string; layer?: string } = { date, note: id };

@@ -53,6 +53,16 @@ export function enterProject(folder: string | null) {
 }
 
 /**
+ * Opening a document: select its project so the notes page does not stay on the workspace's
+ * last selected one. Same project is already shown and is left as-is.
+ */
+export function enterDocProject(entry: { project_id?: string } | null | undefined) {
+  const project = entry?.project_id || '';
+  if (!project || state.ui.activeTopic === project) return;
+  selectProject(project);
+}
+
+/**
  * Enter the shown workspace: its last selected Project, or the first one in the order Settings
  * arranged (the directory view always has a project, the timeline view starts at All).
  */

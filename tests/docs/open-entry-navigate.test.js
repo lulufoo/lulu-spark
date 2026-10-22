@@ -54,6 +54,7 @@ describe('T6 source: open/create entries → navigate-to-note (no modal.display 
     const listenerStart = mainJs.indexOf("addEventListener('cta:open-entry'");
     expect(listenerStart).toBeGreaterThan(-1);
     const listenerSlice = mainJs.slice(listenerStart, listenerStart + 1600);
+    expect(listenerSlice).toMatch(/enterDocProject\s*\(/);
     expect(listenerSlice).toMatch(/navigateToNote\s*\(/);
     expect(listenerSlice).not.toMatch(/openDoc\s*\(/);
   });
