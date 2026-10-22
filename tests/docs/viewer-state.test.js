@@ -32,7 +32,9 @@ const { applyListFilters, buildGroups, selectDate, selectProject } = await impor
   '../../frontend/src/notes/commands/sidebar.ts'
 );
 const { dirKeyOf, dirTreeStore, resetDirTree } = await import('../../frontend/src/notes/state/dir-tree.ts');
-const { enterProject, enterWorkspace } = await import('../../frontend/src/notes/commands/restore.ts');
+const { enterDocProject, enterProject, enterWorkspace } = await import(
+  '../../frontend/src/notes/commands/restore.ts'
+);
 const memory = await import('../../frontend/src/notes/commands/viewer-state.ts');
 const { resolveNotesListDate } = await import('../../frontend/src/notes/commands/viewer/outlet.ts');
 
@@ -200,6 +202,29 @@ describe('entering a workspace', () => {
     state.index.topicTitles = {};
     enterWorkspace();
     expect(state.ui.activeTopic).toBeNull();
+  });
+
+  it('opening a document selects its project instead of the last one', async () => {
+    await enter('directory', { recorded: rec('ops') });
+    enterWorkspace();
+    expect(state.ui.activeTopic).toBe('ops');
+    enterDocProject(data.d1);
+    expect(state.ui.activeTopic).toBe('ai');
+
+    await enter('timeline', { recorded: rec('ops') });
+    enterWorkspace();
+    expect(state.ui.activeTopic).toBe('ops');
+    enterDocProject(data.d1);
+    expect(state.ui.activeTopic).toBe('ai');
+  });
+
+  it('opening a document in the shown project leaves that project as-is', async () => {
+    await enter('directory');
+    enterProject('ai');
+    selectDate(dirKeyOf('ai/plans'));
+    enterDocProject(data.d1);
+    expect(state.ui.activeTopic).toBe('ai');
+    expect(state.ui.activeDate).toBe(dirKeyOf('ai/plans'));
   });
 
   it('each workspace keeps its own record', async () => {
