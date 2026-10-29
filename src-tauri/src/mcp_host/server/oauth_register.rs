@@ -20,7 +20,12 @@ pub(super) async fn register(request: Request) -> Response {
         Err(_) => Err(("invalid_client_metadata", Vec::new())),
     };
     match outcome {
-        Ok(client) => {
+        Ok((client, sent_uris)) => {
+            // URIs the client asked for that this server will never send a code to.
+            let dropped: Vec<String> = sent_uris
+                .into_iter()
+                .filter(|uri| !client.redirect_uris.contains(uri))
+                .collect();
             info(
                 "client.register",
                 &trace_for(&client.client_id),
@@ -29,6 +34,7 @@ pub(super) async fn register(request: Request) -> Response {
                     "client_id": client.client_id,
                     "client_name": clip(&client.client_name),
                     "redirect_uris": uris_for_log(&client.redirect_uris),
+                    "dropped_redirect_uris": uris_for_log(&dropped),
                     "user_agent": user_agent,
                 }),
             );
@@ -57,8 +63,11 @@ pub(super) async fn register(request: Request) -> Response {
     }
 }
 
-/// On refusal: the OAuth error code, plus the redirect URIs the client sent (for the log).
-fn register_client(bytes: &[u8]) -> Result<RegisteredClient, (&'static str, Vec<String>)> {
+type Refusal = (&'static str, Vec<String>);
+
+/// The new client plus the redirect URIs the client sent.
+/// On refusal: the OAuth error code plus the same URIs, for the log.
+fn register_client(bytes: &[u8]) -> Result<(RegisteredClient, Vec<String>), Refusal> {
     let Ok(body) = serde_json::from_slice::<Value>(bytes) else {
         return Err(("invalid_client_metadata", Vec::new()));
     };
@@ -69,15 +78,16 @@ fn register_client(bytes: &[u8]) -> Result<RegisteredClient, (&'static str, Vec<
         .get("client_name")
         .and_then(Value::as_str)
         .unwrap_or("");
-    shared()
-        .register_client(name, &redirect_uris)
-        .map_err(|error| {
+    match shared().register_client(name, &redirect_uris) {
+        Ok(client) => Ok((client, redirect_uris)),
+        Err(error) => {
             let code = match error {
                 AuthError::invalid_redirect_uri => "invalid_redirect_uri",
                 _ => "invalid_client_metadata",
             };
-            (code, redirect_uris.clone())
-        })
+            Err((code, redirect_uris))
+        }
+    }
 }
 
 /// Clipped, and capped at the registration limit so a hostile body cannot flood the log.

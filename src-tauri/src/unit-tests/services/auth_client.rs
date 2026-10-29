@@ -73,6 +73,31 @@ fn registration_rejects_missing_or_bad_redirects() {
 }
 
 #[test]
+fn registration_keeps_usable_redirects_and_drops_the_rest() {
+    let auth = Auth::new();
+    let client = auth
+        .register_client(
+            "Cursor",
+            &uris(&[
+                "https://www.cursor.com/agents/mcp/oauth/callback",
+                "http://localhost:8787/callback",
+                "spark://auth-login/callback",
+            ]),
+        )
+        .expect("one usable redirect is enough");
+    assert_eq!(client.redirect_uris, uris(&["http://localhost:8787/callback"]));
+    // The dropped URI is not authorized later either.
+    assert_eq!(
+        auth.authorize_client(
+            &client.client_id,
+            "https://www.cursor.com/agents/mcp/oauth/callback"
+        )
+        .unwrap_err(),
+        AuthError::invalid_request
+    );
+}
+
+#[test]
 fn registration_drops_duplicate_redirects() {
     let auth = Auth::new();
     let client = auth

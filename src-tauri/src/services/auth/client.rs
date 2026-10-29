@@ -30,14 +30,17 @@ pub(super) fn build_client(
     if redirect_uris.is_empty() || redirect_uris.len() > MAX_REDIRECT_URIS {
         return Err(AuthError::invalid_redirect_uri);
     }
-    if !redirect_uris.iter().all(|uri| valid_redirect_uri(uri)) {
-        return Err(AuthError::invalid_redirect_uri);
-    }
+    // RFC 7591 §3.2.1 lets the server replace requested values. A client may list URIs this
+    // server will never send a code to (Cursor adds its https cloud callback next to the
+    // loopback one), so keep the usable ones and refuse only when none is left.
     let mut unique: Vec<String> = Vec::new();
     for uri in redirect_uris {
-        if !unique.contains(uri) {
+        if valid_redirect_uri(uri) && !unique.contains(uri) {
             unique.push(uri.clone());
         }
+    }
+    if unique.is_empty() {
+        return Err(AuthError::invalid_redirect_uri);
     }
     Ok(RegisteredClient {
         client_id: format!("lulu-{}", &new_code()[..22]),

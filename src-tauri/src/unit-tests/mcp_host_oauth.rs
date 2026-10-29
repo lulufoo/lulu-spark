@@ -118,6 +118,34 @@ fn register_issues_a_public_client_id() {
 }
 
 #[test]
+fn register_keeps_usable_redirects_when_a_client_also_lists_a_remote_one() {
+    // Cursor registers its https cloud callback next to the loopback one (seen in the app log).
+    let handle = start();
+    let base = base(&handle);
+    let remote = "https://www.cursor.com/agents/mcp/oauth/callback";
+    let local = "http://localhost:8787/callback";
+    let response = post_json(
+        &format!("{base}/oauth/register"),
+        &json!({ "client_name": "Cursor", "redirect_uris": [remote, local] }),
+    );
+    assert_eq!(response.status().as_u16(), 201);
+    let body: Value = response.json().expect("json");
+    assert_eq!(body["redirect_uris"], json!([local]));
+    let id = body["client_id"].as_str().expect("client id");
+    let consent_status = |redirect: &str| {
+        client()
+            .get(consent_url(&base, id, redirect))
+            .send()
+            .expect("GET consent")
+            .status()
+            .as_u16()
+    };
+    assert_eq!(consent_status(local), 200);
+    assert_eq!(consent_status(remote), 400, "a dropped URI never gets a code");
+    stop_embedded_mcp_runtime(handle).expect("stop");
+}
+
+#[test]
 fn register_rejects_unusable_metadata() {
     let handle = start();
     let url = format!("{}/oauth/register", base(&handle));
