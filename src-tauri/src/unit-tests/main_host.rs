@@ -667,3 +667,6 @@ mod ac1;
 
 #[path = "main_host/auth_login.rs"]
 mod auth_login;
+
+#[path = "main_host/oauth_consent.rs"]
+mod oauth_consent;

@@ -14,6 +14,7 @@ pub const DEFAULT_HTTP_PORT: u16 = crate::config::settings::DEFAULT_PROD_HTTP_PO
 mod auth_login;
 mod bind;
 mod dispatch;
+mod oauth_consent;
 mod read_later;
 mod respond;
 
