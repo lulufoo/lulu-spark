@@ -5,7 +5,6 @@ pub mod auth_session;
 pub mod bind;
 pub mod config_cmd;
 pub mod mcp_oauth;
-pub mod mcp_ide_env;
 pub mod mcp_channel_tools;
 pub mod doc_categories;
 pub mod workspaces;

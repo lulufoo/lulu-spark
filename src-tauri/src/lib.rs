@@ -158,7 +158,6 @@ pub fn run() {
             }
             crate::services::app_log::init();
             crate::commands::approval::install_emitter(app.handle().clone());
-            crate::commands::mcp_ide_env::apply_live_ide_ticket_envs();
             let (http_port, mcp_port) = (boot.http_port, boot.mcp_port);
             if let Ok(repo_root) = crate::config::paths::repo_root() {
                 main_host.try_start(repo_root.clone(), http_port);

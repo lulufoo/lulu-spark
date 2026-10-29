@@ -64,8 +64,6 @@ pub struct McpOauthSecrets {
 pub struct SlotTicket {
     pub handle: String,
     pub state: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub env_suffix: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]

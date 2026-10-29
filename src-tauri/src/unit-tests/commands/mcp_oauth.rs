@@ -42,29 +42,16 @@ fn assert_ticket_body(value: &Value) -> String {
         .unwrap_or_else(|| panic!("success body must be an object, got {value}"));
     assert_eq!(
         obj.len(),
-        2,
-        "success body must be {{ handle, env_var }}; no url / server block: {value}"
+        1,
+        "success body must be {{ handle }}; no url / env_var / server block: {value}"
     );
     assert!(
         obj.contains_key("handle"),
         "success body must include handle, got {value}"
     );
-    let env_var = value["env_var"]
-        .as_str()
-        .unwrap_or_else(|| panic!("success body must include env_var, got {value}"));
     assert!(
-        env_var.starts_with("LULU_SPARK_")
-            && env_var.contains("_MCP_")
-            && env_var == env_var.to_ascii_uppercase()
-            && env_var
-                .rsplit('_')
-                .next()
-                .is_some_and(|suffix| {
-                    suffix.len() == 4
-                        && suffix == suffix.to_ascii_uppercase()
-                        && suffix.chars().all(|c| c.is_ascii_hexdigit())
-                }),
-        "env_var must be uppercase base + 4 hex suffix, got {env_var}"
+        value.get("env_var").is_none(),
+        "success body must not include env_var: {value}"
     );
     let secret = handle_from(value);
     assert!(!secret.is_empty(), "handle must be non-empty");
@@ -135,7 +122,7 @@ fn assert_not_live(record: Option<crate::services::mcp_oauth::LedgerRecord>) {
 }
 
 #[test]
-fn issue_cursor_ide_ticket_opens_new_or_reuses_live_and_returns_handle_and_env_var() {
+fn issue_cursor_ide_ticket_opens_new_or_reuses_live_and_returns_handle() {
     with_cmd(|| {
         let first = super::issue_cursor_ide_ticket("cursor".into()).expect("issue");
         let secret = assert_ticket_body(&first);
@@ -160,12 +147,9 @@ fn rotate_cursor_ide_ticket_voids_old_and_returns_new_handle_only() {
     with_cmd(|| {
         let old = super::issue_cursor_ide_ticket("cursor".into()).expect("seed");
         let old_secret = assert_ticket_body(&old);
-        let old_env = old["env_var"].as_str().expect("old env").to_string();
         let rotated = super::rotate_cursor_ide_ticket("cursor".into()).expect("rotate");
         let new_secret = assert_ticket_body(&rotated);
-        let new_env = rotated["env_var"].as_str().expect("new env");
         assert_ne!(old_secret, new_secret);
-        assert_ne!(old_env, new_env, "refresh must change the env var name");
         assert_eq!(
             verify_for_slot(Slot::CursorIde, TicketHandle::from_secret(old_secret))
                 .expect_err("old"),
@@ -382,6 +366,10 @@ fn commands_do_not_implement_connect_notify_auth_code_discovery_or_pkce() {
         "pkce",
         "code_challenge",
         "code_verifier",
+        "launchctl",
+        "setenv",
+        "bearer_token_env_var",
+        "env_var",
     ] {
         assert!(
             !src.contains(needle),

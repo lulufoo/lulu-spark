@@ -38,27 +38,6 @@ impl Slot {
     pub fn is_ide(self) -> bool {
         matches!(self, Slot::CursorIde | Slot::Codex | Slot::Claude)
     }
-
-    pub fn env_var_name(self) -> Option<&'static str> {
-        self.env_var_base()
-    }
-
-    pub fn env_var_base(self) -> Option<&'static str> {
-        match self {
-            Slot::Spark => None,
-            Slot::CursorIde => Some("LULU_SPARK_CURSOR_MCP"),
-            Slot::Codex => Some("LULU_SPARK_CODEX_MCP"),
-            Slot::Claude => Some("LULU_SPARK_CLAUDE_MCP"),
-        }
-    }
-
-    pub fn env_var(self, suffix: Option<&str>) -> Option<String> {
-        let base = self.env_var_base()?;
-        match suffix.filter(|s| !s.is_empty()) {
-            Some(suffix) => Some(format!("{base}_{}", suffix.to_ascii_uppercase())),
-            None => Some(base.to_string()),
-        }
-    }
 }
 
 #[derive(Clone, PartialEq, Eq)]
@@ -114,13 +93,6 @@ pub struct LedgerRecord {
     pub slot: Slot,
     pub handle: TicketHandle,
     pub state: TicketState,
-    pub env_suffix: Option<String>,
-}
-
-impl LedgerRecord {
-    pub fn env_var(&self) -> Option<String> {
-        self.slot.env_var(self.env_suffix.as_deref())
-    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -173,7 +145,6 @@ pub fn revoke_for_slot(slot: Slot) -> Result<(), OAuthError> {
             slot: record.slot,
             handle: record.handle,
             state: TicketState::Revoked,
-            env_suffix: record.env_suffix,
         }),
         _ => Ok(()),
     }
@@ -299,11 +270,6 @@ fn slot_ticket_view(slot: Slot, include_handle: bool) -> Result<Value, OAuthErro
             if include_handle && record.state == TicketState::Live {
                 value["handle"] = json!(record.handle.as_str());
             }
-            if slot.is_ide() {
-                if let Some(env_var) = record.env_var() {
-                    value["env_var"] = json!(env_var);
-                }
-            }
             Ok(value)
         }
     }
@@ -330,7 +296,6 @@ fn ticket_from_record(record: &LedgerRecord) -> SlotTicket {
     SlotTicket {
         handle: record.handle.as_str().to_string(),
         state: record.state.as_str().to_string(),
-        env_suffix: record.env_suffix.clone(),
     }
 }
 
@@ -340,7 +305,6 @@ fn record_from_ticket(slot: Slot, ticket: &SlotTicket) -> Result<LedgerRecord, O
         slot,
         handle: TicketHandle::from_secret(ticket.handle.clone()),
         state,
-        env_suffix: ticket.env_suffix.clone(),
     })
 }
 
@@ -353,41 +317,13 @@ fn read_record(slot: Slot) -> Result<Option<LedgerRecord>, OAuthError> {
 }
 
 fn persist_live(slot: Slot) -> Result<TicketHandle, OAuthError> {
-    let previous = read_record(slot).ok().flatten();
     let handle = new_handle();
-    let env_suffix = if slot.is_ide() {
-        Some(new_env_suffix(
-            previous.as_ref().and_then(|row| row.env_suffix.as_deref()),
-        ))
-    } else {
-        None
-    };
     write_record(&LedgerRecord {
         slot,
         handle: handle.clone(),
         state: TicketState::Live,
-        env_suffix,
     })?;
     Ok(handle)
-}
-
-fn new_env_suffix(avoid: Option<&str>) -> String {
-    let avoid_upper = avoid.map(|s| s.to_ascii_uppercase());
-    for _ in 0..8 {
-        let mut bytes = [0u8; 2];
-        if !read_random_bytes(&mut bytes) {
-            fill_weak_random(&mut bytes);
-        }
-        let suffix = format!("{:02X}{:02X}", bytes[0], bytes[1]);
-        if Some(suffix.as_str()) != avoid_upper.as_deref() {
-            return suffix;
-        }
-    }
-    if avoid_upper.as_deref() == Some("0000") {
-        "0001".to_string()
-    } else {
-        "0000".to_string()
-    }
 }
 
 fn write_record(record: &LedgerRecord) -> Result<(), OAuthError> {

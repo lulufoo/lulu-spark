@@ -38,7 +38,6 @@ fn json_and_toml_backends_share_the_same_tree() {
         Some(SlotTicket {
             handle: "aa".repeat(32),
             state: "live".into(),
-            env_suffix: None,
         }),
     );
     vault.set_devices(vec![BindDevice {
@@ -128,7 +127,6 @@ fn live_ticket(handle: &str) -> SlotTicket {
     SlotTicket {
         handle: handle.into(),
         state: "live".into(),
-        env_suffix: None,
     }
 }
 
@@ -164,30 +162,15 @@ fn three_ide_slots_round_trip_independently() {
 }
 
 #[test]
-fn slot_ticket_env_suffix_round_trips_and_legacy_json_defaults_none() {
+fn slot_ticket_ignores_legacy_env_suffix() {
     let legacy = vault_from_json(
-        r#"{"mcp-oauth":{"cursor":{"handle":"legacy-handle","state":"live"}}}"#,
+        r#"{"mcp-oauth":{"cursor":{"handle":"legacy-handle","state":"live","env_suffix":"AB12"}}}"#,
     )
     .expect("legacy");
     assert_eq!(
-        legacy.mcp_slot("cursor").and_then(|t| t.env_suffix.as_deref()),
-        None
+        legacy.mcp_slot("cursor").map(|t| t.handle.as_str()),
+        Some("legacy-handle")
     );
-
-    let mut vault = Vault::default();
-    vault.set_mcp_slot(
-        "cursor",
-        Some(SlotTicket {
-            handle: "new-handle".into(),
-            state: "live".into(),
-            env_suffix: Some("AB12".into()),
-        }),
-    );
-    let json = vault_to_json(&vault).expect("json");
-    assert!(json.contains("\"env_suffix\":\"AB12\"") || json.contains("\"env_suffix\": \"AB12\""));
-    let parsed = vault_from_json(&json).expect("from json");
-    assert_eq!(
-        parsed.mcp_slot("cursor").and_then(|t| t.env_suffix.as_deref()),
-        Some("AB12")
-    );
+    let json = vault_to_json(&legacy).expect("json");
+    assert!(!json.contains("env_suffix"), "{json}");
 }
