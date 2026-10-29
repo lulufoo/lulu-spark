@@ -9,7 +9,7 @@ use axum::extract::{Path, Request, State};
 use axum::http::{header, HeaderMap, StatusCode};
 use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
-use axum::routing::{any, get};
+use axum::routing::{any, get, post};
 use axum::Router;
 use rmcp::{
     ServerHandler, ServiceExt,
@@ -34,6 +34,8 @@ use crate::agent::diagnostics::TraceId;
 use crate::agent::mcp::read_trace_meta;
 
 use super::caller::{diagnose_slot_bearer, Caller};
+use super::{oauth_grant, oauth_register};
+use super::oauth_metadata::{self, www_authenticate};
 use super::request_meta::{http_log_params, peek_request, with_meta_ids};
 use crate::main_host;
 use crate::services::app_log::{self, Level, Side};
@@ -258,6 +260,24 @@ pub(super) fn mount_slot_service(
 pub(super) fn build_router(port: u16, cancel: CancellationToken) -> Router {
     let mut router = Router::new()
         .route("/health", get(move || async move { health_json(port) }))
+        .route(
+            oauth_metadata::METADATA_PATH,
+            get(oauth_metadata::protected_resource_root),
+        )
+        .route(
+            "/.well-known/oauth-protected-resource/mcp/{metadata_slot}",
+            get(oauth_metadata::protected_resource_slot),
+        )
+        .route(
+            oauth_metadata::AUTHORIZATION_SERVER_PATH,
+            get(oauth_metadata::authorization_server),
+        )
+        .route(
+            "/oauth/consent",
+            get(oauth_grant::consent_page).post(oauth_grant::consent_finish),
+        )
+        .route("/oauth/register", post(oauth_register::register))
+        .route("/oauth/token", post(oauth_grant::token))
         .route("/mcp", any(bare_mcp_reject));
 
     // Registered slots first so StreamableHttpService owns those paths exclusively.
@@ -270,6 +290,14 @@ pub(super) fn build_router(port: u16, cancel: CancellationToken) -> Router {
 
     // Unregistered `/mcp/<scene_slot>`: HTTP 404 JSON only — no LocalSessionManager / MCP session.
     router.route("/mcp/{scene_slot}", any(unknown_scene_slot_reject))
+}
+
+fn unauthorized_bearer(headers: &HeaderMap, scene_slot: &str) -> Response {
+    (
+        StatusCode::UNAUTHORIZED,
+        [(header::WWW_AUTHENTICATE, www_authenticate(headers, scene_slot))],
+    )
+        .into_response()
 }
 
 pub(super) fn bearer_secret(headers: &HeaderMap) -> Option<&str> {
@@ -314,8 +342,8 @@ pub(super) async fn slot_bearer_gate(
         &trace_id,
         http_log_params(&info, &caller, json!({})),
     );
-    if let Err(status) = verify_registered_slot(scene_slot, request.headers()) {
-        let response = status.into_response();
+    if let Err(_status) = verify_registered_slot(scene_slot, request.headers()) {
+        let response = unauthorized_bearer(request.headers(), scene_slot);
         let mut fields = json!({
             "outcome": "unauthorized",
             "http_status": response.status().as_u16(),

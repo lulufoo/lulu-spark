@@ -19,56 +19,42 @@ export function McpTicketsHost() {
             No live ticket
           </div>
           <p id="settings-mcp-spark-state" className="settings-field-hint">
-            Host-issued ticket. Masked. Expire voids it for the next session.
+            Host-issued ticket. Masked. Built-in OAuth value for the Spark agent.
           </p>
-        </div>
-        <div className="settings-panel-actions">
-          <button
-            type="button"
-            id="btn-settings-mcp-spark-expire"
-            className="btn-settings-save"
-            disabled
-          >
-            Expire
-          </button>
         </div>
       </div>
 
       <div id="settings-mcp-tickets-mobile" className="settings-mcp-ticket-pane" hidden>
-        <p className="settings-field-hint">
-          Bound devices. Tokens stay masked. Expire voids that device ticket.
-        </p>
+        <p className="settings-field-hint">Bound devices. Tokens stay masked.</p>
         <div id="settings-mcp-device-list" className="settings-mcp-device-list" />
       </div>
 
       <div id="settings-mcp-tickets-ide" className="settings-mcp-ticket-pane">
         <div className="settings-field">
-          <label htmlFor="settings-mcp-server-block" id="settings-mcp-server-block-label">
-            Cursor server block
-          </label>
           <textarea
             id="settings-mcp-server-block"
-            rows={8}
+            aria-label="MCP server block"
+            rows={5}
             spellCheck={false}
             autoComplete="off"
             readOnly
           />
           <span className="settings-field-hint">
-            No ticket: Generate. Live ticket: Refresh replaces it. Copy pastes the current block.
+            Copy pastes the current block. Discard voids a live authorization.
             Host does not write that file.
           </span>
         </div>
         <div className="settings-panel-actions">
+          <button type="button" id="btn-settings-mcp-copy" className="btn-settings-save">
+            Copy
+          </button>
           <button
             type="button"
-            id="btn-settings-mcp-primary"
+            id="btn-settings-mcp-discard"
             className="btn-settings-save"
-            data-mcp-ticket-action="generate"
+            hidden
           >
-            Generate
-          </button>
-          <button type="button" id="btn-settings-mcp-copy" className="btn-settings-save" disabled>
-            Copy
+            Discard
           </button>
         </div>
       </div>

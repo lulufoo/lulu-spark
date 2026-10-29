@@ -43,27 +43,12 @@ fn issue_for_empty_cursor_ide_slot_creates_live_ticket() {
     assert_eq!(record.slot, Slot::CursorIde);
     assert_eq!(record.handle, handle);
     assert_eq!(record.state, TicketState::Live);
-    let suffix = record.env_suffix.as_deref().expect("ide suffix");
-    assert_eq!(suffix.len(), 4);
-    assert_eq!(suffix, suffix.to_ascii_uppercase());
-    assert!(suffix.chars().all(|c| c.is_ascii_hexdigit()));
-    let expected = format!("LULU_SPARK_CURSOR_MCP_{suffix}");
-    assert_eq!(record.env_var().as_deref(), Some(expected.as_str()));
-    assert_eq!(
-        expected,
-        expected.to_ascii_uppercase(),
-        "env var name must be all uppercase"
-    );
 }
 
 #[test]
 fn issue_for_slot_reuses_existing_live_handle() {
     reset_slots();
     let first = issue_for_slot(Slot::CursorIde).expect("issue");
-    let suffix = ledger_record(Slot::CursorIde)
-        .expect("ledger")
-        .expect("record")
-        .env_suffix;
     let second = issue_for_slot(Slot::CursorIde).expect("reuse");
     assert_eq!(first, second);
     let record = ledger_record(Slot::CursorIde)
@@ -71,7 +56,6 @@ fn issue_for_slot_reuses_existing_live_handle() {
         .expect("record");
     assert_eq!(record.handle, first);
     assert_eq!(record.state, TicketState::Live);
-    assert_eq!(record.env_suffix, suffix);
 }
 
 #[test]
@@ -115,10 +99,6 @@ fn revoke_for_slot_voids_live_ticket_and_verify_rejects() {
 fn rotate_for_slot_replaces_cursor_ide_live_ticket() {
     reset_slots();
     let old = issue_for_slot(Slot::CursorIde).expect("issue");
-    let old_suffix = ledger_record(Slot::CursorIde)
-        .expect("before")
-        .expect("record")
-        .env_suffix;
     let new_handle = rotate_for_slot(Slot::CursorIde).expect("rotate");
     assert_ne!(old, new_handle);
     assert_eq!(
@@ -131,11 +111,6 @@ fn rotate_for_slot_replaces_cursor_ide_live_ticket() {
         .expect("record");
     assert_eq!(record.handle, new_handle);
     assert_eq!(record.state, TicketState::Live);
-    assert_ne!(record.env_suffix, old_suffix);
-    let suffix = record.env_suffix.as_deref().expect("rotated suffix");
-    assert_eq!(suffix.len(), 4);
-    assert_eq!(suffix, suffix.to_ascii_uppercase());
-    assert!(suffix.chars().all(|c| c.is_ascii_hexdigit()));
 }
 
 #[test]
@@ -235,14 +210,6 @@ fn unknown_slot_name_is_slot_unknown() {
     assert_eq!(Slot::CursorIde.as_str(), "cursor");
     assert_eq!(Slot::Codex.as_str(), "codex");
     assert_eq!(Slot::Claude.as_str(), "claude");
-    assert_eq!(Slot::CursorIde.env_var_name(), Some("LULU_SPARK_CURSOR_MCP"));
-    assert_eq!(Slot::Codex.env_var_name(), Some("LULU_SPARK_CODEX_MCP"));
-    assert_eq!(Slot::Claude.env_var_name(), Some("LULU_SPARK_CLAUDE_MCP"));
-    assert_eq!(Slot::Spark.env_var_name(), None);
-    assert_eq!(
-        Slot::CursorIde.env_var(Some("ab12")).as_deref(),
-        Some("LULU_SPARK_CURSOR_MCP_AB12")
-    );
 }
 
 #[test]
@@ -409,13 +376,8 @@ fn ticket_view_masks_spark_and_lists_mobile_without_secrets() {
 
         let ide = ticket_view("cursor_ide").expect("ide view");
         assert_eq!(ide["handle"], cursor.as_str());
-        let env_var = ide["env_var"].as_str().expect("ide env_var");
-        assert!(
-            env_var.starts_with("LULU_SPARK_CURSOR_MCP_")
-                && env_var.len() == "LULU_SPARK_CURSOR_MCP_".len() + 4,
-            "ide view env_var, got {env_var}"
-        );
-        assert!(wb.get("env_var").is_none(), "spark view has no IDE env var");
+        assert!(ide.get("env_var").is_none(), "ide view has no env_var");
+        assert!(wb.get("env_var").is_none(), "spark view has no env_var");
 
         let mobile = ticket_view("mobile").expect("mobile view");
         assert_eq!(mobile["devices"][0]["device_id"], "phone-view");
@@ -460,7 +422,6 @@ fn cursor_slot_reads_legacy_cursor_ide_and_write_migrates() {
         mcp.cursor_ide = Some(crate::config::vault::SlotTicket {
             handle: "legacy-cursor-ide-handle-aaaaaaaaaaaaaaaaaaaaaaaaaaaa".into(),
             state: "live".into(),
-            env_suffix: None,
         });
     })
     .expect("plant legacy");

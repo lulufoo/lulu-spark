@@ -15,10 +15,8 @@ import {
 import {
   clearMcpServerBlock,
   copyCursorIdeServerBlock,
-  expireMobileDevice,
-  expireSparkTicket,
+  discardIdeTicket,
   loadMcpTicketView,
-  runCursorIdePrimaryAction,
 } from './mcp-tickets.ts';
 import {
   setResult,
@@ -164,19 +162,11 @@ function wireSettingsDialog() {
     void saveAssistantEnginePanel();
   });
 
-  document.getElementById('btn-settings-mcp-primary')?.addEventListener('click', () => {
-    void runCursorIdePrimaryAction();
-  });
   document.getElementById('btn-settings-mcp-copy')?.addEventListener('click', () => {
     void copyCursorIdeServerBlock();
   });
-  document.getElementById('btn-settings-mcp-spark-expire')?.addEventListener('click', () => {
-    void expireSparkTicket();
-  });
-  document.getElementById('settings-mcp-device-list')?.addEventListener('click', (event) => {
-    const target = event.target as HTMLElement | null;
-    const deviceId = target?.closest('button')?.dataset.mcpDeviceExpire;
-    if (deviceId) void expireMobileDevice(deviceId);
+  document.getElementById('btn-settings-mcp-discard')?.addEventListener('click', () => {
+    void discardIdeTicket();
   });
   document.getElementById('settings-mcp-ticket-channel')?.addEventListener('change', () => {
     void loadMcpTicketView();

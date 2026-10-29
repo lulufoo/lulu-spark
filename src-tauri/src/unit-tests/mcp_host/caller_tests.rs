@@ -31,7 +31,6 @@ fn record(state: TicketState, secret: &str) -> LedgerRecord {
         slot: Slot::Codex,
         handle: TicketHandle::from_secret(secret),
         state,
-        env_suffix: None,
     }
 }
 
