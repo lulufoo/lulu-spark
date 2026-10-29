@@ -51,8 +51,8 @@ export function ticketChannel() {
 }
 
 export function showTicketPane(channel: string) {
-  const pane = isIdeChannel(channel) ? 'ide' : channel;
-  for (const id of ['spark', 'mobile', 'ide']) {
+  const pane = isIdeChannel(channel) ? 'ide' : 'mobile';
+  for (const id of ['mobile', 'ide']) {
     const el = document.getElementById(`settings-mcp-tickets-${id}`);
     if (el) el.hidden = id !== pane;
   }
@@ -75,19 +75,15 @@ async function copyServerBlock(text: string) {
 function paintSpark(view: TicketView) {
   const mask = document.getElementById('settings-mcp-spark-mask');
   const state = document.getElementById('settings-mcp-spark-state');
-  const expire = document.getElementById(
-    'btn-settings-mcp-spark-expire',
-  ) as HTMLButtonElement | null;
   const live = view.state === 'live';
   if (mask) mask.textContent = live ? view.hint || '••••' : 'No live ticket';
   if (state) {
     state.textContent = live
-      ? 'Host-issued ticket. Masked. Expire voids it for the next session.'
+      ? 'Host-issued ticket. Masked. Built-in OAuth value for the Spark agent.'
       : view.state === 'revoked'
         ? 'Expired. The next Spark session issues a new ticket.'
         : 'No Spark ticket yet.';
   }
-  if (expire) expire.disabled = !live;
 }
 
 function paintMobile(view: TicketView) {
@@ -123,19 +119,17 @@ function paintMobile(view: TicketView) {
       status.className = 'settings-field-hint';
       status.textContent = 'Expired';
       card.appendChild(status);
-    } else if (device.device_id) {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'btn-settings-save';
-      btn.dataset.mcpDeviceExpire = device.device_id;
-      btn.textContent = 'Expire';
-      card.appendChild(btn);
     }
     list.appendChild(card);
   }
 }
 
 let cursorLive = false;
+
+function paintDiscard() {
+  const discard = document.getElementById('btn-settings-mcp-discard') as HTMLButtonElement | null;
+  if (discard) discard.hidden = !cursorLive;
+}
 
 function paintCursorPrimary() {
   const btn = document.getElementById('btn-settings-mcp-primary') as HTMLButtonElement | null;
@@ -145,12 +139,13 @@ function paintCursorPrimary() {
     btn.dataset.mcpTicketAction = cursorLive ? 'refresh' : 'generate';
   }
   if (copy) copy.disabled = !cursorLive;
+  paintDiscard();
 }
 
 function paintCursor(view: TicketView) {
-  cursorLive = view.state === 'live' && Boolean(view.handle) && Boolean(view.env_var);
-  if (cursorLive && view.env_var) {
-    setMcpServerBlock(formatIdeServerBlock(ticketChannel(), view.env_var));
+  cursorLive = view.state === 'live' && Boolean(view.handle);
+  if (cursorLive) {
+    setMcpServerBlock(formatIdeServerBlock(ticketChannel()));
   } else {
     clearMcpServerBlock();
   }
@@ -161,9 +156,10 @@ export async function loadMcpTicketView() {
   const channel = ticketChannel();
   showTicketPane(channel);
   try {
+    const spark = (await api.invoke('get_mcp_ticket_view', { channel: 'spark' })) as TicketView;
+    paintSpark(spark);
     const view = (await api.invoke('get_mcp_ticket_view', { channel })) as TicketView;
-    if (channel === 'spark') paintSpark(view);
-    else if (channel === 'mobile') paintMobile(view);
+    if (channel === 'mobile') paintMobile(view);
     else paintCursor(view);
   } catch (e) {
     setResult('settings-result-mcp', `Load tickets failed: ${errMessage(e, String(e))}`, true);
@@ -178,9 +174,8 @@ async function issueOrRotateCursorIdeBlock(cmd: string, copiedMessage: string, f
       env_var?: string;
     };
     const issued = resp?.handle;
-    const envVar = resp?.env_var;
-    if (!issued || !envVar) throw new Error('Ticket command failed');
-    const text = formatIdeServerBlock(ticketChannel(), envVar);
+    if (!issued) throw new Error('Ticket command failed');
+    const text = formatIdeServerBlock(ticketChannel());
     setMcpServerBlock(text);
     const copied = await copyServerBlock(text);
     cursorLive = true;
@@ -242,30 +237,22 @@ export async function copyCursorIdeServerBlock() {
   );
 }
 
-export async function expireSparkTicket() {
-  const btn = document.getElementById(
-    'btn-settings-mcp-spark-expire',
-  ) as HTMLButtonElement | null;
+export async function discardIdeTicket() {
+  const btn = document.getElementById('btn-settings-mcp-discard') as HTMLButtonElement | null;
   if (btn) btn.disabled = true;
   setResult('settings-result-mcp', '');
   try {
-    await api.invoke('revoke_mcp_slot_ticket', { slot: 'spark' });
-    setResult('settings-result-mcp', 'Expired Spark ticket.');
-    await loadMcpTicketView();
+    await api.invoke('revoke_mcp_slot_ticket', { slot: ticketChannel() });
+    cursorLive = false;
+    clearMcpServerBlock();
+    paintCursorPrimary();
+    setResult(
+      'settings-result-mcp',
+      `Discarded ${IDE_LABELS[ticketChannel()] || 'Cursor'} authorization.`,
+    );
   } catch (e) {
-    setResult('settings-result-mcp', `Expire failed: ${errMessage(e, String(e))}`, true);
+    setResult('settings-result-mcp', `Discard failed: ${errMessage(e, String(e))}`, true);
   } finally {
     if (btn) btn.disabled = false;
-  }
-}
-
-export async function expireMobileDevice(deviceId: string) {
-  setResult('settings-result-mcp', '');
-  try {
-    await api.invoke('revoke_mcp_device_ticket', { deviceId });
-    setResult('settings-result-mcp', 'Expired device ticket.');
-    await loadMcpTicketView();
-  } catch (e) {
-    setResult('settings-result-mcp', `Expire failed: ${errMessage(e, String(e))}`, true);
   }
 }

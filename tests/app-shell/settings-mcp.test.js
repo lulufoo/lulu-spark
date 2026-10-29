@@ -121,16 +121,22 @@ function baseConfig(overrides = {}) {
 
 function parseServerBlock(text) {
   const json = JSON.parse(text);
-  if (json && typeof json === 'object' && json.url && json.headers) return json;
+  if (json && typeof json === 'object' && json.url) return json;
   if (json?.mcpServers && typeof json.mcpServers === 'object') {
     const first = Object.values(json.mcpServers)[0];
-    if (first && first.url && first.headers) return first;
+    if (first && first.url) return first;
   }
   const nested = Object.values(json).find(
-    (value) => value && typeof value === 'object' && value.url && value.headers,
+    (value) => value && typeof value === 'object' && value.url,
   );
   if (nested) return nested;
   throw new Error(`mcp.json server block not found in: ${text}`);
+}
+
+function expectNoAuthHeaders(text) {
+  expect(text).not.toMatch(/headers/i);
+  expect(text).not.toMatch(/Authorization/i);
+  expect(text).not.toMatch(/bearer_token/i);
 }
 
 function serverBlockText() {
@@ -231,10 +237,13 @@ describe('Settings MCP panel markup', () => {
     expect(indexHtml).toMatch(/id="settings-mcp-ticket-channel"/);
     expect(indexHtml).toMatch(/id="btn-settings-mcp-primary"/);
     expect(indexHtml).toMatch(/id="btn-settings-mcp-copy"/);
+    expect(indexHtml).toMatch(/id="btn-settings-mcp-discard"/);
+    expect(indexHtml).toMatch(/MCP Spark settings/);
     expect(indexHtml).toMatch(/id="settings-mcp-server-block"/);
     expect(indexHtml).not.toMatch(/id="btn-settings-mcp-generate"/);
     expect(indexHtml).not.toMatch(/id="btn-settings-mcp-rotate"/);
-    expect(indexHtml).toMatch(/id="btn-settings-mcp-spark-expire"/);
+    expect(indexHtml).not.toMatch(/id="btn-settings-mcp-spark-expire"/);
+    expect(indexHtml).not.toMatch(/>Expire</);
     expect(indexHtml).toMatch(/id="settings-mcp-device-list"/);
     expect(indexHtml).not.toMatch(/id="settings-mcp-revoke-slot"/);
     expect(indexHtml).not.toMatch(/id="btn-settings-mcp-revoke"/);
@@ -344,9 +353,8 @@ describe('Settings MCP panel actions', () => {
     await clickId('btn-settings-mcp-primary');
     expect(invokedNames()).toEqual(['rotate_cursor_ide_ticket']);
     expect(api.invoke).toHaveBeenCalledWith('rotate_cursor_ide_ticket', { channel: 'cursor' });
-    expect(parseServerBlock(serverBlockText()).headers.Authorization).toBe(
-      `Bearer \${env:${CURSOR_ENV_ROTATED}}`,
-    );
+    expect(parseServerBlock(serverBlockText()).url).toBe(CURSOR_URL);
+    expectNoAuthHeaders(serverBlockText());
     expect(serverBlockText()).not.toContain(CURSOR_ENV);
     expect(serverBlockText()).not.toContain(ROTATED_HANDLE);
   });
@@ -363,9 +371,9 @@ describe('Settings MCP panel actions', () => {
     const primary = document.getElementById('btn-settings-mcp-primary');
     expect(primary.textContent).toBe('Refresh');
     expect(document.getElementById('btn-settings-mcp-copy').disabled).toBe(false);
-    expect(parseServerBlock(serverBlockText()).headers.Authorization).toBe(
-      `Bearer \${env:${CURSOR_ENV}}`,
-    );
+    expect(document.getElementById('btn-settings-mcp-discard').hidden).toBe(false);
+    expect(parseServerBlock(serverBlockText()).url).toBe(CURSOR_URL);
+    expectNoAuthHeaders(serverBlockText());
     expect(serverBlockText()).not.toContain(LIVE_HANDLE);
 
     api.invoke.mockClear();
@@ -381,7 +389,8 @@ describe('Settings MCP panel actions', () => {
     const displayed = parseServerBlock(serverBlockText());
     expect(displayed.url).toBe(CURSOR_URL);
     expect(displayed.url).toBe(`http://127.0.0.1:${MCP_PORT}/mcp/cursor`);
-    expect(displayed.headers.Authorization).toBe(`Bearer \${env:${CURSOR_ENV}}`);
+    expect(displayed.headers).toBeUndefined();
+    expectNoAuthHeaders(serverBlockText());
     expect(serverBlockText()).not.toContain(LIVE_HANDLE);
 
     expect(writeText).toHaveBeenCalled();
@@ -404,8 +413,7 @@ describe('Settings MCP panel actions', () => {
     const toml = serverBlockText();
     expect(toml).toContain('[mcp_servers.lulu-spark]');
     expect(toml).toContain(`url = "http://127.0.0.1:${MCP_PORT}/mcp/codex"`);
-    expect(toml).toContain(`bearer_token_env_var = "${CODEX_ENV}"`);
-    expect(toml).not.toMatch(/bearer_token\s*=/);
+    expectNoAuthHeaders(toml);
     expect(toml).not.toContain(LIVE_HANDLE);
 
     select.value = 'claude';
@@ -422,7 +430,6 @@ describe('Settings MCP panel actions', () => {
         'lulu-spark': {
           type: 'http',
           url: `http://127.0.0.1:${MCP_PORT}/mcp/claude`,
-          headers: { Authorization: `Bearer \${${CLAUDE_ENV}}` },
         },
       },
     });
@@ -437,56 +444,56 @@ describe('Settings MCP panel actions', () => {
     document.getElementById('btn-settings-mcp-copy').click();
     await vi.waitFor(() => expect(writeText).toHaveBeenCalled());
     expect(invokedNames()).toEqual([]);
-    expect(parseServerBlock(writeText.mock.calls[0][0]).headers.Authorization).toBe(
-      `Bearer \${env:${CURSOR_ENV}}`,
-    );
+    expectNoAuthHeaders(writeText.mock.calls[0][0]);
+    expect(parseServerBlock(writeText.mock.calls[0][0]).url).toBe(CURSOR_URL);
   });
 
-  it('spark ticket is masked and expire voids the spark slot', async () => {
+  it('spark settings stay visible and never expire the built-in ticket', async () => {
     await openMcpPanel();
-    document.getElementById('settings-mcp-ticket-channel').value = 'spark';
-    document.getElementById('settings-mcp-ticket-channel').dispatchEvent(new Event('change'));
     await vi.waitFor(() =>
       expect(document.getElementById('settings-mcp-spark-mask')?.textContent).toBe('••••ab12'),
     );
-    expect(document.getElementById('settings-mcp-tickets-spark').hidden).toBe(false);
-    expect(document.getElementById('settings-mcp-tickets-ide').hidden).toBe(true);
+    expect(document.getElementById('settings-mcp-spark')).toBeTruthy();
+    expect(document.getElementById('settings-mcp-tickets-ide').hidden).toBe(false);
     expect(document.getElementById('settings-mcp-spark-mask')?.textContent).not.toContain(
       LIVE_HANDLE,
     );
-    api.invoke.mockClear();
-    await clickId('btn-settings-mcp-spark-expire');
-    expect(api.invoke).toHaveBeenCalledWith('revoke_mcp_slot_ticket', { slot: 'spark' });
-    expect(invokedNames()).not.toContain('rotate_cursor_ide_ticket');
+    expect(document.getElementById('btn-settings-mcp-spark-expire')).toBeNull();
+    expect(document.querySelector('#settings-mcp-spark button')).toBeNull();
+    expect(invokedNames()).not.toContain('revoke_mcp_slot_ticket');
   });
 
-  it('mobile lists bound devices and expire voids that device ticket', async () => {
+  it('mobile lists bound devices without expire', async () => {
     await openMcpPanel();
     document.getElementById('settings-mcp-ticket-channel').value = 'mobile';
     document.getElementById('settings-mcp-ticket-channel').dispatchEvent(new Event('change'));
     await vi.waitFor(() =>
-      expect(document.querySelector('[data-mcp-device-expire="phone-1"]')).toBeTruthy(),
+      expect(document.getElementById('settings-mcp-device-list')?.textContent).toMatch(/Pixel/),
     );
-    expect(document.getElementById('settings-mcp-device-list')?.textContent).toMatch(/Pixel/);
     expect(document.getElementById('settings-mcp-device-list')?.textContent).toMatch(/••••c4e2/);
-    expect(document.querySelector('[data-mcp-device-expire="phone-2"]')).toBeNull();
-    api.invoke.mockClear();
-    document.querySelector('[data-mcp-device-expire="phone-1"]').click();
-    await vi.waitFor(() =>
-      expect(api.invoke).toHaveBeenCalledWith('revoke_mcp_device_ticket', { deviceId: 'phone-1' }),
-    );
-    expect(invokedNames()).not.toContain('rotate_cursor_ide_ticket');
+    expect(document.querySelector('[data-mcp-device-expire]')).toBeNull();
+    expect(document.querySelector('#settings-mcp-device-list button')).toBeNull();
   });
 
-  it('keeps cursor_ide refresh off the spark expire control', async () => {
+  it('shows Discard only after the IDE channel is authorized', async () => {
     await openMcpPanel();
-    const expire = document.getElementById('btn-settings-mcp-spark-expire');
+    const discard = document.getElementById('btn-settings-mcp-discard');
     const primary = document.getElementById('btn-settings-mcp-primary');
-    expect(expire).toBeTruthy();
+    expect(discard.hidden).toBe(true);
     expect(primary).toBeTruthy();
-    expect(expire.id).not.toBe(primary.id);
+    expect(discard.id).not.toBe(primary.id);
     expect(document.getElementById('btn-settings-mcp-rotate')).toBeNull();
-    expect(document.getElementById('btn-settings-mcp-revoke')).toBeNull();
+    expect(document.getElementById('btn-settings-mcp-spark-expire')).toBeNull();
+
+    api.invoke.mockResolvedValueOnce({ handle: LIVE_HANDLE, env_var: CURSOR_ENV });
+    await clickId('btn-settings-mcp-primary');
+    expect(discard.hidden).toBe(false);
+
+    api.invoke.mockClear();
+    await clickId('btn-settings-mcp-discard');
+    expect(api.invoke).toHaveBeenCalledWith('revoke_mcp_slot_ticket', { slot: 'cursor' });
+    expect(discard.hidden).toBe(true);
+    expect(serverBlockText().trim()).toBe('');
   });
 
   it('never writes user mcp.json from Host or the panel', async () => {
@@ -496,13 +503,7 @@ describe('Settings MCP panel actions', () => {
     api.invoke.mockResolvedValueOnce({ handle: ROTATED_HANDLE, env_var: CURSOR_ENV_ROTATED });
     await clickId('btn-settings-mcp-primary');
     api.invoke.mockClear();
-    document.getElementById('settings-mcp-ticket-channel').value = 'spark';
-    document.getElementById('settings-mcp-ticket-channel').dispatchEvent(new Event('change'));
-    await vi.waitFor(() =>
-      expect(api.invoke).toHaveBeenCalledWith('get_mcp_ticket_view', { channel: 'spark' }),
-    );
-    api.invoke.mockClear();
-    await clickId('btn-settings-mcp-spark-expire');
+    await clickId('btn-settings-mcp-discard');
 
     expect(api.setConfig).not.toHaveBeenCalled();
     expect(invokedNames().every((cmd) =>
@@ -520,12 +521,11 @@ describe('Settings MCP panel actions', () => {
     expect(resultText()).not.toMatch(/wrote|written|saved.*mcp\.json/i);
   });
 
-  it('copied server block may include full Authorization and that is not a log', async () => {
+  it('copied server block has no Authorization header and that is not a log', async () => {
     await openMcpPanel();
     await clickId('btn-settings-mcp-primary');
     const copied = writeText.mock.calls[0][0];
-    expect(copied).toContain(`Bearer \${env:${CURSOR_ENV}}`);
-    expect(copied).toContain('Authorization');
+    expectNoAuthHeaders(copied);
     expect(copied).not.toContain(LIVE_HANDLE);
     expect(logSurfaces()).not.toContain(LIVE_HANDLE);
     expect(logSurfaces()).not.toMatch(/Bearer\s+\S+/);
@@ -548,9 +548,8 @@ describe('Settings MCP panel actions', () => {
     );
     await openMcpPanel();
     await clickId('btn-settings-mcp-primary');
-    expect(parseServerBlock(serverBlockText()).headers.Authorization).toBe(
-      `Bearer \${env:${CURSOR_ENV}}`,
-    );
+    expect(parseServerBlock(serverBlockText()).url).toBe(CURSOR_URL);
+    expectNoAuthHeaders(serverBlockText());
     expect(serverBlockText()).not.toContain(LIVE_HANDLE);
     expect(resultText()).toMatch(/Clipboard copy was blocked/i);
     expect(resultText()).not.toMatch(/^Generate failed/i);
@@ -578,21 +577,14 @@ describe('Settings MCP panel actions', () => {
     document.getElementById('btn-settings-mcp-primary').click();
     await vi.waitFor(() => expect(resultText()).toMatch(/Refresh failed/i));
     expect(invokedNames()).toEqual(['rotate_cursor_ide_ticket']);
-    expect(parseServerBlock(serverBlockText()).headers.Authorization).toBe(
-      `Bearer \${env:${CURSOR_ENV}}`,
-    );
+    expect(parseServerBlock(serverBlockText()).url).toBe(CURSOR_URL);
+    expectNoAuthHeaders(serverBlockText());
     expect(document.getElementById('btn-settings-mcp-primary').textContent).toBe('Refresh');
     expect(resultText()).not.toMatch(/wrote|written|saved/i);
 
     api.invoke.mockClear();
-    document.getElementById('settings-mcp-ticket-channel').value = 'spark';
-    document.getElementById('settings-mcp-ticket-channel').dispatchEvent(new Event('change'));
-    await vi.waitFor(() =>
-      expect(api.invoke).toHaveBeenCalledWith('get_mcp_ticket_view', { channel: 'spark' }),
-    );
-    api.invoke.mockClear();
-    api.invoke.mockRejectedValueOnce(new Error('expire failed'));
-    document.getElementById('btn-settings-mcp-spark-expire').click();
+    api.invoke.mockRejectedValueOnce(new Error('discard failed'));
+    document.getElementById('btn-settings-mcp-discard').click();
     await vi.waitFor(() => expect(resultText()).toMatch(/fail/i));
     expect(invokedNames()).toEqual(['revoke_mcp_slot_ticket']);
     expect(invokedNames()).not.toContain('rotate_cursor_ide_ticket');
