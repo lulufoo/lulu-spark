@@ -5220,6 +5220,17 @@ details.notes-disabled > button.notes-cat-item { margin-top: 6px; }
   width: auto;
 }
 .settings-mcp-ticket-pane[hidden] { display: none; }
+#settings-mcp-tickets-ide:not([hidden]) {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+#settings-mcp-tickets-ide .settings-field { gap: 8px; }
+#settings-mcp-tickets-ide .settings-field-hint {
+  display: block;
+  max-width: 38em;
+}
+#settings-mcp-tickets-ide .settings-panel-actions { padding-top: 0; }
 .settings-mcp-ticket-card {
   padding: 12px 14px;
   border: 1px solid var(--border-default);

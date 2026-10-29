@@ -51,13 +51,11 @@ export function ticketChannel() {
 }
 
 export function showTicketPane(channel: string) {
-  const pane = isIdeChannel(channel) ? 'ide' : 'mobile';
-  for (const id of ['mobile', 'ide']) {
+  const pane = isIdeChannel(channel) ? 'ide' : channel;
+  for (const id of ['spark', 'mobile', 'ide']) {
     const el = document.getElementById(`settings-mcp-tickets-${id}`);
     if (el) el.hidden = id !== pane;
   }
-  const label = document.getElementById('settings-mcp-server-block-label');
-  if (label) label.textContent = `${IDE_LABELS[channel] || 'Cursor'} server block`;
 }
 
 async function copyServerBlock(text: string) {
@@ -126,96 +124,27 @@ function paintMobile(view: TicketView) {
 
 let cursorLive = false;
 
-function paintDiscard() {
+function paintIdeActions() {
   const discard = document.getElementById('btn-settings-mcp-discard') as HTMLButtonElement | null;
   if (discard) discard.hidden = !cursorLive;
 }
 
-function paintCursorPrimary() {
-  const btn = document.getElementById('btn-settings-mcp-primary') as HTMLButtonElement | null;
-  const copy = document.getElementById('btn-settings-mcp-copy') as HTMLButtonElement | null;
-  if (btn) {
-    btn.textContent = cursorLive ? 'Refresh' : 'Generate';
-    btn.dataset.mcpTicketAction = cursorLive ? 'refresh' : 'generate';
-  }
-  if (copy) copy.disabled = !cursorLive;
-  paintDiscard();
-}
-
 function paintCursor(view: TicketView) {
   cursorLive = view.state === 'live' && Boolean(view.handle);
-  if (cursorLive) {
-    setMcpServerBlock(formatIdeServerBlock(ticketChannel()));
-  } else {
-    clearMcpServerBlock();
-  }
-  paintCursorPrimary();
+  setMcpServerBlock(formatIdeServerBlock(ticketChannel()));
+  paintIdeActions();
 }
 
 export async function loadMcpTicketView() {
   const channel = ticketChannel();
   showTicketPane(channel);
   try {
-    const spark = (await api.invoke('get_mcp_ticket_view', { channel: 'spark' })) as TicketView;
-    paintSpark(spark);
     const view = (await api.invoke('get_mcp_ticket_view', { channel })) as TicketView;
-    if (channel === 'mobile') paintMobile(view);
+    if (channel === 'spark') paintSpark(view);
+    else if (channel === 'mobile') paintMobile(view);
     else paintCursor(view);
   } catch (e) {
     setResult('settings-result-mcp', `Load tickets failed: ${errMessage(e, String(e))}`, true);
-  }
-}
-
-async function issueOrRotateCursorIdeBlock(cmd: string, copiedMessage: string, failLabel: string) {
-  setResult('settings-result-mcp', '');
-  try {
-    const resp = (await api.invoke(cmd, { channel: ticketChannel() })) as {
-      handle?: string;
-      env_var?: string;
-    };
-    const issued = resp?.handle;
-    if (!issued) throw new Error('Ticket command failed');
-    const text = formatIdeServerBlock(ticketChannel());
-    setMcpServerBlock(text);
-    const copied = await copyServerBlock(text);
-    cursorLive = true;
-    paintCursorPrimary();
-    const doneLabel = failLabel === 'Refresh' ? 'Refreshed' : 'Generated';
-    setResult(
-      'settings-result-mcp',
-      copied
-        ? copiedMessage
-        : `${doneLabel} ${IDE_LABELS[ticketChannel()] || 'Cursor'} server block. Clipboard copy was blocked — copy the block from the field.`,
-    );
-  } catch (e) {
-    if (!cursorLive) clearMcpServerBlock();
-    if (failLabel === 'Generate') {
-      cursorLive = false;
-      paintCursorPrimary();
-    }
-    setResult('settings-result-mcp', `${failLabel} failed: ${errMessage(e, String(e))}`, true);
-  }
-}
-
-export async function runCursorIdePrimaryAction() {
-  const btn = document.getElementById('btn-settings-mcp-primary') as HTMLButtonElement | null;
-  if (btn) btn.disabled = true;
-  try {
-    if (cursorLive) {
-      await issueOrRotateCursorIdeBlock(
-        'rotate_cursor_ide_ticket',
-        `Refreshed and copied ${IDE_LABELS[ticketChannel()] || 'Cursor'} server block.`,
-        'Refresh',
-      );
-    } else {
-      await issueOrRotateCursorIdeBlock(
-        'issue_cursor_ide_ticket',
-        `Generated and copied ${IDE_LABELS[ticketChannel()] || 'Cursor'} server block.`,
-        'Generate',
-      );
-    }
-  } finally {
-    if (btn) btn.disabled = false;
   }
 }
 
@@ -225,7 +154,7 @@ export async function copyCursorIdeServerBlock() {
     .trim();
   setResult('settings-result-mcp', '');
   if (!text) {
-    setResult('settings-result-mcp', `Generate a ${IDE_LABELS[ticketChannel()] || 'Cursor'} ticket first.`, true);
+    setResult('settings-result-mcp', `Copy a ${IDE_LABELS[ticketChannel()] || 'Cursor'} server block first.`, true);
     return;
   }
   const copied = await copyServerBlock(text);
@@ -244,8 +173,8 @@ export async function discardIdeTicket() {
   try {
     await api.invoke('revoke_mcp_slot_ticket', { slot: ticketChannel() });
     cursorLive = false;
-    clearMcpServerBlock();
-    paintCursorPrimary();
+    setMcpServerBlock(formatIdeServerBlock(ticketChannel()));
+    paintIdeActions();
     setResult(
       'settings-result-mcp',
       `Discarded ${IDE_LABELS[ticketChannel()] || 'Cursor'} authorization.`,

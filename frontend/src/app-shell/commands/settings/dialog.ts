@@ -17,7 +17,6 @@ import {
   copyCursorIdeServerBlock,
   discardIdeTicket,
   loadMcpTicketView,
-  runCursorIdePrimaryAction,
 } from './mcp-tickets.ts';
 import {
   setResult,
@@ -163,9 +162,6 @@ function wireSettingsDialog() {
     void saveAssistantEnginePanel();
   });
 
-  document.getElementById('btn-settings-mcp-primary')?.addEventListener('click', () => {
-    void runCursorIdePrimaryAction();
-  });
   document.getElementById('btn-settings-mcp-copy')?.addEventListener('click', () => {
     void copyCursorIdeServerBlock();
   });
