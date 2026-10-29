@@ -24,6 +24,7 @@ pub mod docs;
 pub mod tag_write;
 pub mod tags_registry;
 pub mod settings;
+pub mod auth;
 pub mod mcp_oauth;
 pub mod bind;
 pub mod spark_read;
