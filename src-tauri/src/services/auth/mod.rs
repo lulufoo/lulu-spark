@@ -1,16 +1,20 @@
 //! L4 authorization-code grant + PKCE. No HTTP bind. Not the MCP Host.
 
+mod pkce;
+mod secret;
+
 use std::collections::HashMap;
 use std::fmt;
 use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
-use base64::engine::general_purpose::URL_SAFE_NO_PAD;
-use base64::Engine;
 use serde_json::{json, Value};
-use sha2::{Digest, Sha256};
 
 use crate::services::mcp_oauth::{self, Slot};
+
+use pkce::{is_verifier, verify_pkce};
+pub(super) use pkce::s256;
+use secret::new_code;
 
 const CODE_TTL: Duration = Duration::from_secs(600);
 
@@ -173,62 +177,6 @@ pub fn token_body(grant: &TokenGrant) -> Value {
     })
 }
 
-fn verify_pkce(method: ChallengeMethod, challenge: &str, verifier: &str) -> bool {
-    match method {
-        ChallengeMethod::S256 => s256(verifier) == challenge,
-    }
-}
-
-fn s256(verifier: &str) -> String {
-    URL_SAFE_NO_PAD.encode(Sha256::digest(verifier.as_bytes()))
-}
-
-fn is_verifier(value: &str) -> bool {
-    let len = value.len();
-    (43..=128).contains(&len)
-        && value
-            .bytes()
-            .all(|b| matches!(b, b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~'))
-}
-
-fn new_code() -> String {
-    let mut bytes = [0u8; 32];
-    if !read_random_bytes(&mut bytes) {
-        fill_weak_random(&mut bytes);
-    }
-    URL_SAFE_NO_PAD.encode(bytes)
-}
-
-fn read_random_bytes(buf: &mut [u8]) -> bool {
-    use std::io::Read;
-    #[cfg(unix)]
-    {
-        if let Ok(mut file) = std::fs::File::open("/dev/urandom") {
-            return file.read_exact(buf).is_ok();
-        }
-    }
-    let _ = buf;
-    false
-}
-
-fn fill_weak_random(buf: &mut [u8]) {
-    use std::collections::hash_map::DefaultHasher;
-    use std::hash::{Hash, Hasher};
-    use std::time::{SystemTime, UNIX_EPOCH};
-
-    for (index, slot) in buf.iter_mut().enumerate() {
-        let mut hasher = DefaultHasher::new();
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_nanos()
-            .hash(&mut hasher);
-        std::thread::current().id().hash(&mut hasher);
-        index.hash(&mut hasher);
-        *slot = (hasher.finish() & 0xFF) as u8;
-    }
-}
-
 #[cfg(test)]
-#[path = "../unit-tests/services/auth.rs"]
+#[path = "../../unit-tests/services/auth.rs"]
 mod tests;

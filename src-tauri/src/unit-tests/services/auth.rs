@@ -110,9 +110,9 @@ fn token_rejects_redirect_or_client_mismatch() {
 
 #[test]
 fn production_module_declares_tests_and_is_not_an_http_host() {
-    let prod = include_str!("../../services/auth.rs");
+    let prod = include_str!("../../services/auth/mod.rs");
     assert!(
-        prod.contains("#[path = \"../unit-tests/services/auth.rs\"]"),
+        prod.contains("#[path = \"../../unit-tests/services/auth.rs\"]"),
         "production file only declares that tests exist"
     );
     assert!(!prod.contains("#[test]"), "tests belong in the test tree");
