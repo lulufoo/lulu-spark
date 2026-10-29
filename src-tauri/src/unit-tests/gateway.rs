@@ -791,6 +791,22 @@ fn post_auth_login_landing_is_unnamed_404() {
 }
 
 #[test]
+fn oauth_authorization_server_is_not_a_gateway_path() {
+    let dir = tempfile::tempdir().expect("tmp");
+    let mock_mcp = MockMcp::start();
+    let sidecar = MockSidecar::start();
+    let handle = start_gw_with_sidecar(mock_mcp.port, sidecar.port, dir.path());
+    let response = https_client()
+        .get(gw_url(&handle, "/.well-known/oauth-authorization-server"))
+        .send()
+        .expect("metadata");
+    assert_eq!(response.status().as_u16(), 404);
+    assert!(sidecar.hits().is_empty(), "metadata must not forward");
+    assert!(mock_mcp.hits().is_empty(), "metadata must not hit MCP");
+    stop(handle);
+}
+
+#[test]
 fn unnamed_path_still_404_and_does_not_enter_mcp_via_landing() {
     let dir = tempfile::tempdir().expect("tmp");
     let mock_mcp = MockMcp::start();

@@ -3,7 +3,6 @@ use tiny_http::Method;
 
 use super::auth_login::handle_auth_login_landing;
 use super::bind::handle_bind_complete;
-use super::oauth_consent::handle_oauth_consent;
 use super::read_later::handle_read_later_post;
 use super::respond::{respond_json, respond_with_cors_empty};
 
@@ -34,10 +33,6 @@ pub(super) fn handle_request(request: tiny_http::Request) {
                 handle_bind_complete(request);
                 return;
             }
-            "/oauth/consent" => {
-                handle_oauth_consent(request);
-                return;
-            }
             _ => {}
         }
     }
@@ -45,10 +40,6 @@ pub(super) fn handle_request(request: tiny_http::Request) {
     if request.method() == &Method::Get {
         if path == "/api/auth-login/landing" {
             handle_auth_login_landing(request);
-            return;
-        }
-        if path == "/oauth/consent" {
-            handle_oauth_consent(request);
             return;
         }
         respond_json(request, 404, json!({ "error": "Not found" }));

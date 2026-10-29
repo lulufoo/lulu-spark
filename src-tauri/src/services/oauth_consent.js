@@ -19,6 +19,7 @@
     add("client_id", query.get("client_id") || "");
     add("code_challenge", query.get("code_challenge") || "");
     add("state", query.get("state") || "");
+    add("resource", query.get("resource") || "");
     document.body.appendChild(form);
     form.submit();
   }

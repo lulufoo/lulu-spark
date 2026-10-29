@@ -109,6 +109,52 @@ fn token_rejects_redirect_or_client_mismatch() {
 }
 
 #[test]
+fn every_token_refusal_carries_its_own_log_reason() {
+    reset_codex();
+    let auth = Auth::new();
+    let reason = |req: TokenRequest| auth.exchange(req).err().map(|(_, why)| why);
+    let with = |code: &str, edit: &dyn Fn(&mut TokenRequest)| {
+        let mut req = token_req(code, verifier());
+        edit(&mut req);
+        req
+    };
+
+    assert_eq!(
+        reason(with("c", &|r| r.grant_type = "refresh_token".into())),
+        Some("unsupported_grant_type")
+    );
+    assert_eq!(
+        reason(token_req("", verifier())),
+        Some("code_or_verifier_missing")
+    );
+    assert_eq!(
+        reason(token_req("c", "short")),
+        Some("verifier_shape_invalid")
+    );
+    assert_eq!(
+        reason(token_req("nope", verifier())),
+        Some("code_unknown_or_used")
+    );
+
+    let code = issue_codex(&auth, Some(Duration::ZERO));
+    assert_eq!(reason(token_req(&code, verifier())), Some("code_expired"));
+
+    let code = issue_codex(&auth, None);
+    assert_eq!(
+        reason(with(&code, &|r| r.client_id = "other".into())),
+        Some("client_id_mismatch")
+    );
+    let code = issue_codex(&auth, None);
+    assert_eq!(
+        reason(with(&code, &|r| r.redirect_uri = "http://127.0.0.1/x".into())),
+        Some("redirect_uri_mismatch")
+    );
+    let code = issue_codex(&auth, None);
+    let bad = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJL";
+    assert_eq!(reason(token_req(&code, bad)), Some("pkce_mismatch"));
+}
+
+#[test]
 fn production_module_declares_tests_and_is_not_an_http_host() {
     let prod = include_str!("../../services/auth/mod.rs");
     assert!(

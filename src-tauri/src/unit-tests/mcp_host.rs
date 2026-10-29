@@ -1784,7 +1784,7 @@ fn registered_slot_missing_unknown_mismatch_revoked_are_uniform_401() {
 }
 
 #[test]
-fn registered_slot_401_www_authenticate_points_at_gateway_7654() {
+fn registered_slot_401_www_authenticate_names_resource_metadata() {
     let src = adapter_source();
     let gate = source_fn_after(src, "slot_bearer_gate")
         .split("fn millis")
@@ -1794,7 +1794,10 @@ fn registered_slot_401_www_authenticate_points_at_gateway_7654() {
         gate.contains("unauthorized_bearer"),
         "401 must be built with WWW-Authenticate"
     );
-    assert!(src.contains("7654"), "header must name Gateway 7654");
+    assert!(
+        !src.contains("7654"),
+        "MCP OAuth metadata must not send the client to Gateway 7654"
+    );
     assert!(!gate.contains("main_host::"), "gate must not call Main Host");
     assert!(!gate.contains("gateway::"), "gate must not call Gateway");
 
@@ -1810,7 +1813,77 @@ fn registered_slot_401_www_authenticate_points_at_gateway_7654() {
         www.to_ascii_lowercase().contains("bearer"),
         "scheme must be Bearer: {www}"
     );
-    assert!(www.contains("7654"), "must point at Gateway 7654: {www}");
+    assert!(
+        !www.contains("7654"),
+        "401 must not point at Gateway 7654: {www}"
+    );
+    assert!(
+        www.contains("resource_metadata="),
+        "401 must name protected-resource metadata: {www}"
+    );
+    stop_embedded_mcp_runtime(handle).expect("stop");
+}
+
+#[test]
+fn protected_resource_metadata_is_served_before_bearer_gate() {
+    let handle = start_ephemeral_mcp();
+    let port = handle.local_addr().port();
+    let client = reqwest::blocking::Client::builder()
+        .timeout(Duration::from_secs(2))
+        .build()
+        .expect("http client");
+    let meta_url = format!(
+        "http://127.0.0.1:{port}/.well-known/oauth-protected-resource/mcp/cursor"
+    );
+    let response = client.get(&meta_url).send().expect("GET metadata");
+    assert_eq!(response.status().as_u16(), 200);
+    let body: serde_json::Value = response.json().expect("metadata json");
+    assert_eq!(
+        body["resource"],
+        format!("http://127.0.0.1:{port}/mcp/cursor")
+    );
+    assert_eq!(
+        body["authorization_servers"][0],
+        format!("http://127.0.0.1:{port}")
+    );
+    assert_eq!(body["bearer_methods_supported"][0], "header");
+
+    let root = client
+        .get(format!(
+            "http://127.0.0.1:{port}/.well-known/oauth-protected-resource"
+        ))
+        .send()
+        .expect("GET root metadata");
+    assert_eq!(root.status().as_u16(), 200);
+
+    let missing = client
+        .get(format!(
+            "http://127.0.0.1:{port}/.well-known/oauth-protected-resource/mcp/nope"
+        ))
+        .send()
+        .expect("GET unknown slot metadata");
+    assert_eq!(missing.status().as_u16(), 404);
+    assert!(!missing.text().expect("body").is_empty());
+
+    let (status, www) = http_post_www_authenticate(&format!("http://127.0.0.1:{port}/mcp/cursor"));
+    assert_eq!(status, 401);
+    let www = www.expect("WWW-Authenticate");
+    assert!(
+        www.contains(&format!("resource_metadata=\"{meta_url}\"")),
+        "401 resource_metadata must match the cursor document: {www}"
+    );
+    let as_meta = client
+        .get(format!(
+            "http://127.0.0.1:{port}/.well-known/oauth-authorization-server"
+        ))
+        .send()
+        .expect("GET authorization server");
+    assert_eq!(as_meta.status().as_u16(), 200);
+    let as_body: serde_json::Value = as_meta.json().expect("authorization server json");
+    let origin = format!("http://127.0.0.1:{port}");
+    assert_eq!(as_body["issuer"], origin);
+    assert_eq!(as_body["authorization_endpoint"], format!("{origin}/oauth/consent"));
+    assert_eq!(as_body["token_endpoint"], format!("{origin}/oauth/token"));
     stop_embedded_mcp_runtime(handle).expect("stop");
 }
 

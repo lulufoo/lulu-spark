@@ -40,3 +40,33 @@ fn production_module_declares_tests_and_does_not_bind_http() {
     assert!(!prod.contains("tiny_http"));
     assert!(!prod.contains("/oauth/consent"));
 }
+
+#[test]
+fn oauth_consent_html_names_the_client_everywhere() {
+    let html = oauth_consent_html_for("Cursor");
+    assert!(html.contains("Allow Cursor to connect?"), "{html}");
+    assert!(html.contains("Cursor wants to use Lulu Spark"), "{html}");
+    assert!(html.contains("<dd>Cursor</dd>"), "{html}");
+    assert!(!html.contains("Codex"), "{html}");
+    assert!(!html.contains("{{client}}"), "{html}");
+}
+
+#[test]
+fn oauth_consent_html_escapes_an_untrusted_client_name() {
+    let html = oauth_consent_html_for("<img src=x onerror=alert(1)>\"'&");
+    assert!(!html.contains("<img src=x"), "{html}");
+    assert!(
+        html.contains("&lt;img src=x onerror=alert(1)&gt;&quot;&#39;&amp;"),
+        "{html}"
+    );
+}
+
+#[test]
+fn consent_script_posts_the_decision_back_and_never_uses_spark() {
+    let js = include_str!("../../services/oauth_consent.js");
+    assert!(js.contains("form.action = \"/oauth/consent\""), "{js}");
+    for field in ["decision", "redirect_uri", "client_id", "code_challenge", "state", "resource"] {
+        assert!(js.contains(&format!("add(\"{field}\"")), "missing {field}: {js}");
+    }
+    assert!(!js.contains("spark://"), "{js}");
+}

@@ -29,3 +29,7 @@ pub(crate) use server::{is_registered_scene_slot, REGISTERED_SCENE_SLOTS};
 #[cfg(test)]
 #[path = "../unit-tests/mcp_host.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "../unit-tests/mcp_host_oauth.rs"]
+mod oauth_tests;

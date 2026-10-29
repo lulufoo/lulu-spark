@@ -2,6 +2,10 @@
 
 mod caller;
 mod listen;
+mod oauth_grant;
+mod oauth_log;
+mod oauth_metadata;
+mod oauth_register;
 mod proxy;
 mod request_meta;
 mod slot;
