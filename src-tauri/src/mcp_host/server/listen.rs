@@ -272,6 +272,17 @@ pub(super) fn build_router(port: u16, cancel: CancellationToken) -> Router {
     router.route("/mcp/{scene_slot}", any(unknown_scene_slot_reject))
 }
 
+const WWW_AUTHENTICATE_BEARER: &str =
+    r#"Bearer realm="Lulu Spark", resource="https://127.0.0.1:7654""#;
+
+fn unauthorized_bearer() -> Response {
+    (
+        StatusCode::UNAUTHORIZED,
+        [(header::WWW_AUTHENTICATE, WWW_AUTHENTICATE_BEARER)],
+    )
+        .into_response()
+}
+
 pub(super) fn bearer_secret(headers: &HeaderMap) -> Option<&str> {
     let value = headers.get(header::AUTHORIZATION)?.to_str().ok()?;
     value
@@ -314,8 +325,8 @@ pub(super) async fn slot_bearer_gate(
         &trace_id,
         http_log_params(&info, &caller, json!({})),
     );
-    if let Err(status) = verify_registered_slot(scene_slot, request.headers()) {
-        let response = status.into_response();
+    if let Err(_status) = verify_registered_slot(scene_slot, request.headers()) {
+        let response = unauthorized_bearer();
         let mut fields = json!({
             "outcome": "unauthorized",
             "http_status": response.status().as_u16(),
