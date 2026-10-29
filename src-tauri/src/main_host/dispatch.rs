@@ -34,6 +34,10 @@ pub(super) fn handle_request(request: tiny_http::Request) {
                 handle_bind_complete(request);
                 return;
             }
+            "/oauth/consent" => {
+                handle_oauth_consent(request);
+                return;
+            }
             _ => {}
         }
     }
