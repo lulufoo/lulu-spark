@@ -55,23 +55,28 @@ main {
   flex: 1;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 440px);
-  align-items: center;
-  gap: 96px;
-  padding: clamp(32px, 6vh, 72px) 0;
-}
-.intro {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  min-height: clamp(340px, 52vh, 500px);
+  grid-template-areas:
+    "kicker ."
+    "intro card";
+  align-content: center;
+  align-items: start;
+  column-gap: 96px;
+  row-gap: 18px;
+  padding: 36px 0;
 }
 .kicker {
-  margin-bottom: 0;
+  grid-area: kicker;
   color: var(--accent);
   font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+.intro {
+  grid-area: intro;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 h1 {
   margin-bottom: 0;
@@ -89,6 +94,7 @@ h1 {
   text-wrap: balance;
 }
 .card {
+  grid-area: card;
   padding: 36px;
   border: 1px solid var(--line);
   border-radius: 20px;
@@ -143,7 +149,15 @@ h1 {
   text-align: center;
 }
 @media (max-width: 860px) {
-  .stage { grid-template-columns: minmax(0, 1fr); align-items: start; gap: 40px; padding: 40px 0 56px; }
-  .intro { min-height: 0; justify-content: flex-start; gap: 28px; }
+  .stage {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "kicker"
+      "intro"
+      "card";
+    align-content: center;
+    row-gap: 28px;
+    padding: 28px 0;
+  }
   .card { padding: 28px; }
 }
