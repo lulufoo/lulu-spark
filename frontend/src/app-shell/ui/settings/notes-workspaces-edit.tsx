@@ -50,8 +50,9 @@ export function NotesWorkspacesEditHost() {
   return (
     <>
       <p className="notes-cat-lead">
-        Click a workspace to rename it or change its view; drag the handle to change the order. Disabling a workspace hides it; nothing is
-        deleted.
+        Click a workspace to rename it or change its view; drag the handle to change the order. Disabling hides a
+        workspace and keeps its documents. Deleting moves its documents to Inbox in the default workspace and cannot be
+        undone. To delete a disabled workspace, enable it first.
       </p>
       {snap.error && !snap.editorOpen ? (
         <div id="notes-workspace-list-error" className="settings-result notes-cat-error">

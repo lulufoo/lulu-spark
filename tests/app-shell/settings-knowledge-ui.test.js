@@ -29,7 +29,7 @@ describe('Settings workspace UI', () => {
     expect(indexHtml).not.toMatch(/data-panel="knowledge"/);
   });
 
-  it('Workspaces settings use Tabs: Directory, Add workspace, Edit & Disable workspace', () => {
+  it('Workspaces settings use Tabs: Directory, Add workspace, Edit, Disable & Delete workspace', () => {
     const panel = readFileSync(join(repoRoot, 'frontend/src/app-shell/ui/settings/notes-panel.tsx'), 'utf8');
     expect(indexHtml).toContain('id="settings-panel-notes"');
     expect(panel).toContain('role="tablist"');
@@ -38,7 +38,7 @@ describe('Settings workspace UI', () => {
       expect(panel).toContain(`id="settings-tab-notes-${tab}"`);
     }
     expect(panel).toContain('Add workspace');
-    expect(panel).toContain('Edit &amp; Disable workspace');
+    expect(panel).toContain('Edit, Disable &amp; Delete workspace');
     expect(indexHtml).toMatch(/id="workspaces-root-path"[^>]*readOnly/);
     expect(panel.indexOf('workspaces-root-path')).toBeLessThan(panel.indexOf('<NotesWorkspacesAddHost'));
     expect(indexHtml).not.toContain('id="notes-root-path"');

@@ -16,7 +16,7 @@ export function NotesSettingsPanel() {
           Add workspace
         </button>
         <button type="button" className="settings-tab" data-tab="edit" role="tab">
-          Edit &amp; Disable workspace
+          Edit, Disable &amp; Delete workspace
         </button>
       </div>
       <div
