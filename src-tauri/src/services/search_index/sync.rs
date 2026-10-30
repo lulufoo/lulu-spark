@@ -1,8 +1,8 @@
 //! App-internal write paths → keep the index in step without a full rebuild.
 //!
-//! Scope (2026-09-05 /converge): create / save / delete done by the App itself. Moving
-//! a note needs no sync: chunks carry no path. Files edited outside the App still rely
-//! on the startup / manual rebuild.
+//! Scope (2026-09-05 /converge): create / save / delete done by the App itself.
+//! A cross-workspace move syncs the target workspace: chunks carry `workspace_id`.
+//! Files edited outside the App still rely on the startup / manual rebuild.
 
 use super::chunk_rows::replace_doc_chunks;
 use super::collect_docs::workspace_doc_chunks;
