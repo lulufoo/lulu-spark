@@ -1,7 +1,8 @@
-//! `delete_project`: give every document of a project to the workspace inbox, then delete the
-//! project. All or nothing: the files go back when a move or the database write fails.
-
-use std::path::PathBuf;
+//! `delete_project`: give every document of a project to the workspace inbox, then delete
+//! the project.
+//!
+//! Stage every copy, write rows and drop the project in one transaction, then cleanup
+//! sources. Dest copies stay if a later step fails (no rollback).
 
 use rusqlite::Connection;
 use serde_json::{json, Value};
@@ -10,8 +11,8 @@ use crate::services::id::random_alnum6;
 use crate::services::search_index;
 use crate::services::spark_data::{delete_project_after_merge, list_docs, DocRow, ProjectRow, WorkspaceRow};
 
-use super::merge_files::{collect_taken_paths, get_project_dir, list_doc_moves, run_moves, undo_moves};
-use super::merge_plan::{plan_merge_targets, MergeTarget};
+use super::merge_files::{collect_taken_paths, get_project_dir};
+use super::relocate::{cleanup_relocate, plan_relocate_all, stage_relocate, RelocatePlan};
 use super::resolve::{
     bad_request, ensure_workspace_enabled, internal, open_data, remove_empty_tree, resolve_project,
     resolve_workspace, text_field, workspace_root,
@@ -55,13 +56,14 @@ fn mark_loose_digest(root: &std::path::Path, project_id: &str, doc: &DocRow) -> 
     Ok(row)
 }
 
-/// The row as it is stored once the doc lives in `inbox` under `target`.
-fn move_row(doc: &DocRow, target: &MergeTarget, inbox: &ProjectRow) -> DocRow {
+/// The row as it is stored once the doc lives in `inbox` under `plan`.
+fn apply_inbox_target(doc: &DocRow, plan: &RelocatePlan, inbox: &ProjectRow) -> DocRow {
     let mut row = doc.clone();
     row.project_id = inbox.id.clone();
-    row.raw_path = target.raw_path.clone();
-    // A row that named no digest path keeps naming none.
-    row.digest_path = doc.digest_path.as_ref().and(target.digest_path.clone());
+    row.raw_path = plan.target.raw_path.clone();
+    if doc.digest_path.is_some() {
+        row.digest_path = plan.target.digest_path.clone();
+    }
     row
 }
 
@@ -75,28 +77,24 @@ fn merge_into_inbox(
     let all = list_docs(conn, &workspace.id).map_err(internal)?;
     let docs = pick_docs(&all, &project.id);
     let inbox_docs = pick_docs(&all, &inbox.id);
-
     let planning = docs
         .iter()
         .map(|d| mark_loose_digest(&root, &project.id, d))
         .collect::<Result<Vec<_>, _>>()?;
     let (taken_raw, taken_digest) = collect_taken_paths(&root, &inbox.id, &inbox_docs)?;
-    let targets = plan_merge_targets(&planning, &taken_raw, &taken_digest, random_alnum6).map_err(internal)?;
-
-    let mut moves = Vec::new();
-    for (doc, target) in docs.iter().zip(&targets) {
-        moves.extend(list_doc_moves(&root, &project.id, &inbox.id, doc, target)?);
+    let plans = plan_relocate_all(&planning, &inbox.id, &taken_raw, &taken_digest, random_alnum6)
+        .map_err(internal)?;
+    for plan in &plans {
+        stage_relocate(&root, &root, plan)?;
     }
-    let keep: Vec<PathBuf> = LAYERS
+    let rows: Vec<DocRow> = docs
         .iter()
-        .map(|layer| get_project_dir(&root, layer, &inbox.id))
-        .collect::<Result<_, _>>()?;
-    let done = run_moves(&moves, &keep).map_err(internal)?;
-
-    let rows: Vec<DocRow> = docs.iter().zip(&targets).map(|(d, t)| move_row(d, t, inbox)).collect();
-    if let Err(e) = delete_project_after_merge(conn, &project.id, &rows) {
-        undo_moves(&done, &keep);
-        return Err(internal(e));
+        .zip(&plans)
+        .map(|(doc, plan)| apply_inbox_target(doc, plan, inbox))
+        .collect();
+    delete_project_after_merge(conn, &project.id, &rows).map_err(internal)?;
+    for plan in &plans {
+        cleanup_relocate(&root, plan)?;
     }
     for layer in LAYERS {
         if let Ok(dir) = get_project_dir(&root, layer, &project.id) {
@@ -111,7 +109,7 @@ fn merge_into_inbox(
         "ok": true,
         "project_id": project.id,
         "moved": docs.len(),
-        "renamed": targets.iter().filter(|t| t.renamed).count(),
+        "renamed": plans.iter().filter(|p| p.target.renamed).count(),
         "target_project_id": inbox.id,
         "target_project_name": inbox.name,
     }))

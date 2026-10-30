@@ -71,6 +71,31 @@ pub(crate) fn plan_relocate(
     })
 }
 
+/// Plan each document in order, reserving the dest paths of earlier documents.
+pub(crate) fn plan_relocate_all(
+    docs: &[DocRow],
+    dest_project_id: &str,
+    taken_raw: &HashSet<String>,
+    taken_digest: &HashSet<String>,
+    mut next_suffix: impl FnMut() -> String,
+) -> Result<Vec<RelocatePlan>, String> {
+    let mut raw = taken_raw.clone();
+    let mut digest = taken_digest.clone();
+    let mut plans = Vec::with_capacity(docs.len());
+    for doc in docs {
+        let plan = plan_relocate(doc, dest_project_id, &raw, &digest, &mut next_suffix)?;
+        for file in &plan.files {
+            if file.layer == "digest" {
+                digest.insert(file.dest_rel.clone());
+            } else {
+                raw.insert(file.dest_rel.clone());
+            }
+        }
+        plans.push(plan);
+    }
+    Ok(plans)
+}
+
 /// Stage order for tests: attached directory, then each body file.
 pub(crate) fn stage_sequence(plan: &RelocatePlan) -> Vec<String> {
     let mut steps = vec!["attached".to_string()];
