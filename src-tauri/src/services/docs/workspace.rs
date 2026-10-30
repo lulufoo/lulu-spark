@@ -12,7 +12,7 @@ use serde_json::{json, Value};
 
 use crate::services::spark_data::{
     create_workspace as create_workspace_row, disable_workspace as disable_workspace_row,
-    discard_new_workspace, enable_workspace as enable_workspace_row, get_workspace,
+    delete_empty_workspace, enable_workspace as enable_workspace_row, get_workspace,
     get_workspace_by_name,
     list_disabled_workspaces as list_disabled_workspace_rows, list_workspaces as list_workspace_rows,
     rename_workspace as rename_workspace_row, reorder_workspaces as reorder_workspace_rows,
@@ -127,7 +127,7 @@ pub fn create_workspace(payload: &Value) -> Value {
         Err(e) => return registry_error(e),
     };
     if let Err(v) = workspace_root(&row) {
-        let _ = discard_new_workspace(&conn, &row.id);
+        let _ = delete_empty_workspace(&conn, &row.id);
         return v;
     }
     let row = match apply_create_extras(&conn, row, icon.as_deref(), description.as_deref()) {
@@ -145,13 +145,13 @@ fn apply_create_extras(
 ) -> Result<WorkspaceRow, Value> {
     if let Some(icon) = icon {
         set_workspace_icon_row(conn, &row.id, Some(icon)).map_err(|e| {
-            let _ = discard_new_workspace(conn, &row.id);
+            let _ = delete_empty_workspace(conn, &row.id);
             internal(e)
         })?;
     }
     if let Some(description) = description {
         set_workspace_description_row(conn, &row.id, description).map_err(|e| {
-            let _ = discard_new_workspace(conn, &row.id);
+            let _ = delete_empty_workspace(conn, &row.id);
             internal(e)
         })?;
     }
@@ -160,11 +160,11 @@ fn apply_create_extras(
     }
     get_workspace(conn, &row.id)
         .map_err(|e| {
-            let _ = discard_new_workspace(conn, &row.id);
+            let _ = delete_empty_workspace(conn, &row.id);
             internal(e)
         })?
         .ok_or_else(|| {
-            let _ = discard_new_workspace(conn, &row.id);
+            let _ = delete_empty_workspace(conn, &row.id);
             internal("workspace row missing after create extras".to_string())
         })
 }

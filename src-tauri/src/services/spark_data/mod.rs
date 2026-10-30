@@ -30,7 +30,7 @@ pub use tag_rows::{
     delete_unused_tags, find_tag_key_by_value, has_tag, insert_tag, read_tag_registry, update_tag_value,
 };
 pub use workspace_row::{
-    create_workspace, disable_workspace, discard_new_workspace, enable_workspace, get_default_workspace,
+    create_workspace, delete_empty_workspace, disable_workspace, enable_workspace, get_default_workspace,
     get_workspace, get_workspace_by_name, list_all_workspaces, list_disabled_workspaces, list_workspaces,
     rename_workspace, reorder_workspaces, set_workspace_description, set_workspace_icon,
     set_workspace_view_mode, validate_workspace_id, ViewMode,
