@@ -46,6 +46,7 @@ pub async fn delete_entry(_app: AppHandle, payload: Value) -> Result<Value, Stri
         .map_err(|e| e.to_string())
 }
 
+/// Forwards `project_id` and optional `target_workspace_id` to [`docs::move_doc`].
 #[tauri::command]
 pub async fn move_entry_project(_app: AppHandle, payload: Value) -> Result<Value, String> {
     tauri::async_runtime::spawn_blocking(move || {

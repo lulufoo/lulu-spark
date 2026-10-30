@@ -211,7 +211,17 @@ test('moveToProject 发送正确 POST body 并返回响应', async () => {
   const body = JSON.parse(fetch.mock.calls[0][1].body)
   expect(body.id).toBe(id)
   expect(body.project_id).toBe('ai')
+  expect(body.target_workspace_id).toBeUndefined()
   expect(result.ok).toBe(true)
+})
+
+test('moveToProject 发送目标 workspace', async () => {
+  const id = 'a'.repeat(32)
+  mockFetch({ ok: true, id })
+  await moveToProject(id, 'ai', 'ws-dest')
+  const body = JSON.parse(fetch.mock.calls[0][1].body)
+  expect(body.project_id).toBe('ai')
+  expect(body.target_workspace_id).toBe('ws-dest')
 })
 
 // 回归测试：moveToProject 也存在同样的 res.json() 前置问题，
