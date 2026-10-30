@@ -106,6 +106,22 @@ export async function deleteProject(workspaceId: string, projectId: string) {
   return writePost('/api/project-delete', { workspace_id: workspaceId, project_id: projectId }) as Promise<DeleteProjectResult>;
 }
 
+export type DeleteWorkspaceResult = {
+  ok?: boolean;
+  error?: string;
+  workspace_id?: string;
+  moved?: number;
+  projects_removed?: number;
+  folder_removed?: boolean;
+  total?: number;
+  failed_id?: string;
+};
+
+/** Delete a workspace: its documents move to Inbox in the default workspace first. */
+export async function deleteWorkspace(workspaceId: string) {
+  return writePost('/api/workspace-delete', { workspace_id: workspaceId }) as Promise<DeleteWorkspaceResult>;
+}
+
 export type HidePatternRow = { id: string; pattern: string };
 
 /** Hidden files rules of one workspace. */

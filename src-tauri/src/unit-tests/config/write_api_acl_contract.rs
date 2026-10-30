@@ -86,6 +86,7 @@ const NOTE_WRITE_COMMANDS: &[&str] = &[
     "update_project",
     "reorder_projects",
     "delete_project",
+    "delete_workspace",
     "add_hide_pattern",
     "update_hide_pattern",
     "remove_hide_pattern",

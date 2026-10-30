@@ -27,6 +27,7 @@ const P2_PATHS = [
   ['/api/workspaces-reorder', 'reorder_workspaces', ['payload']],
   ['/api/workspace-disable', 'disable_workspace', ['payload']],
   ['/api/workspace-enable', 'enable_workspace', ['payload']],
+  ['/api/workspace-delete', 'delete_workspace', ['payload']],
   ['/api/project-create', 'create_project', ['payload']],
   ['/api/project-update', 'update_project', ['payload']],
   ['/api/projects-reorder', 'reorder_projects', ['payload']],
