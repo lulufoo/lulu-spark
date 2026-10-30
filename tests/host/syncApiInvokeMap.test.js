@@ -7,7 +7,7 @@ import {
 /** [path, cmd, payload keys forwarded from HTTP body] */
 const P4_PATHS = [
   ['/api/delete', 'delete_entry', ['id']],
-  ['/api/move-project', 'move_entry_project', ['id', 'project_id']],
+  ['/api/move-project', 'move_entry_project', ['id', 'project_id', 'target_workspace_id']],
   ['/api/draft', 'save_comment_draft', ['id', 'content']],
 ];
 
@@ -43,6 +43,16 @@ describe('syncApiInvokeMap', () => {
     ).toEqual({
       cmd: 'move_entry_project',
       args: { payload: { id: 'e1', project_id: 'foo' } },
+    });
+    expect(
+      resolveSyncInvoke('/api/move-project', {
+        id: 'e1',
+        project_id: 'foo',
+        target_workspace_id: 'ws-dest',
+      })
+    ).toEqual({
+      cmd: 'move_entry_project',
+      args: { payload: { id: 'e1', project_id: 'foo', target_workspace_id: 'ws-dest' } },
     });
   });
 

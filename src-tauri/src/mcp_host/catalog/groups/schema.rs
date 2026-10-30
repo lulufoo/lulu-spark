@@ -88,7 +88,7 @@ pub fn create_doc_properties(include_source_path: bool) -> Value {
         props["asset_paths"] = json!({
             "type": "array",
             "items": { "type": "string" },
-            "description": "Absolute paths to companion images referenced by relative ![]() or <img src> in the source Markdown. Required on this call when the body has such images; omit when it has none. Host copies each into the same directory as the raw document .md, keeping only the source basename; reference each image in the Markdown by that sibling basename (png/jpg/jpeg; max 8 files, 4 MiB each). Existing dest → 409. Never send image bytes. Host does not scan the Markdown."
+            "description": "Absolute paths to companion images referenced by relative ![]() in the source Markdown. Required on this call when those images should display; omit when there are none. Host copies each into .attached/{doc_id}/ beside the raw document, keeps the source basename (png/jpg/jpeg; max 8 files, 4 MiB each), and rewrites declared ![]() hrefs. Relative ![]() with no matching file is listed as unmatched_image_refs and does not fail the call. HTML <img> is not supported. Existing dest → 409. Never send image bytes."
         });
     } else {
         props["content"] = json!({

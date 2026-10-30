@@ -43,6 +43,18 @@ impl Setup {
         fs::write(path, format!("{tag}:{project}:{rel}")).expect("write");
     }
 
+    fn put_attached(&self, project: &str, rel: &str, doc_id: &str, name: &str, bytes: &[u8]) {
+        let dest = self
+            .file("raw", project, rel)
+            .parent()
+            .expect("md dir")
+            .join(".attached")
+            .join(doc_id)
+            .join(name);
+        fs::create_dir_all(dest.parent().expect("attached")).expect("dirs");
+        fs::write(dest, bytes).expect("write");
+    }
+
     fn text(&self, layer: &str, project: &str, rel: &str) -> String {
         fs::read_to_string(self.file(layer, project, rel)).unwrap_or_else(|_| panic!("missing {layer}/{project}/{rel}"))
     }
@@ -135,6 +147,28 @@ fn a_name_clash_renames_the_whole_document_and_overwrites_nothing() {
 }
 
 #[test]
+fn delete_project_moves_attachments_into_the_inbox() {
+    let s = setup();
+    let id = s.seed(&s.project, A, false, &[]);
+    s.put_attached(&s.project, A, &id, "pic.png", b"png");
+    let done = s.delete(&s.project);
+    assert_eq!(done["ok"], json!(true), "{done}");
+    let dest = s
+        .file("raw", &s.inbox, A)
+        .parent()
+        .unwrap()
+        .join(".attached")
+        .join(&id)
+        .join("pic.png");
+    assert_eq!(fs::read(&dest).expect("attached"), b"png");
+    let src = s
+        .file("raw", &s.project, A)
+        .parent()
+        .map(|p| p.join(".attached").join(&id));
+    assert!(src.is_none_or(|p| !p.exists()));
+}
+
+#[test]
 fn the_built_in_project_cannot_be_deleted() {
     let s = setup();
     let id = s.seed(&s.inbox, A, false, &[]);
@@ -165,11 +199,10 @@ fn an_empty_project_is_simply_deleted() {
 }
 
 #[test]
-fn a_failed_file_move_puts_everything_back() {
+fn a_failed_stage_leaves_the_source_and_does_not_drop_the_project() {
     let s = setup();
     let id = s.seed(&s.project, A, true, &["zh"]);
-    // The digest folder `notes` cannot be made in the inbox: a file sits there. The raw files
-    // have moved by then.
+    // The digest folder `notes` cannot be made in the inbox: a file sits there.
     let blocker = s.file("digest", &s.inbox, "notes");
     fs::create_dir_all(blocker.parent().expect("parent")).expect("dirs");
     fs::write(&blocker, "in the way").expect("blocker");
@@ -181,12 +214,11 @@ fn a_failed_file_move_puts_everything_back() {
     assert_eq!(s.text("raw", &s.project, A), format!("raw:{}:{A}", s.project));
     assert_eq!(s.text("digest", &s.project, A), format!("digest:{}:{A}", s.project));
     assert!(s.file("raw", &s.project, &expected_lang_common_path(A, "zh").expect("zh")).is_file());
-    assert!(!s.file("raw", &s.inbox, "notes").exists(), "the folder made for the move is gone again");
     assert!(blocker.is_file());
 }
 
 #[test]
-fn a_failed_database_write_puts_the_files_and_rows_back() {
+fn a_failed_database_write_keeps_the_source_and_the_dest_copies() {
     let s = setup();
     s.seed(&s.inbox, A, true, &[]);
     let id = s.seed(&s.project, A, true, &["zh"]);
@@ -203,6 +235,6 @@ fn a_failed_database_write_puts_the_files_and_rows_back() {
     assert_eq!(s.text("raw", &s.project, A), format!("raw:{}:{A}", s.project));
     assert_eq!(s.text("digest", &s.project, A), format!("digest:{}:{A}", s.project));
     assert_eq!(s.text("raw", &s.inbox, A), format!("raw:{}:{A}", s.inbox));
-    let renamed = fs::read_dir(s.file("raw", &s.inbox, "notes")).expect("dir").count();
-    assert_eq!(renamed, 1, "only the inbox's own file is left there");
+    let leftover = fs::read_dir(s.file("raw", &s.inbox, "notes")).expect("dir").count();
+    assert!(leftover > 1, "staged dest copies stay when the database write fails");
 }

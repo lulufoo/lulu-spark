@@ -9,8 +9,16 @@ export type MoveProjectItem = {
   is_default: boolean;
 };
 
+export type MoveWorkspaceItem = {
+  workspace_id: string;
+  workspace_name: string;
+};
+
 export type MoveProjectView = {
   currentProject: string;
+  sourceWorkspaceId: string;
+  selectedWorkspaceId: string;
+  workspaces: MoveWorkspaceItem[];
   items: MoveProjectItem[];
   result: string;
   resultKind: MoveProjectResultKind;
@@ -20,6 +28,9 @@ export type MoveProjectView = {
 export function emptyMoveProjectView(): MoveProjectView {
   return {
     currentProject: '',
+    sourceWorkspaceId: '',
+    selectedWorkspaceId: '',
+    workspaces: [],
     items: [],
     result: '',
     resultKind: '',

@@ -63,19 +63,17 @@ fn theme_dir() -> PathBuf {
 }
 
 #[test]
-fn create_note_copies_png_beside_raw() {
+fn create_note_copies_png_into_attached() {
     let sandbox = setup_notes();
     let png = stage_bytes(&sandbox, "overview-diagram.png", PNG);
     let v = create_with_assets(&sandbox, vec![png]);
     assert_eq!(v.get("ok"), Some(&json!(true)), "{v}");
     let id = v["id"].as_str().unwrap();
-    assert_eq!(
-        v["asset_paths"],
-        json!(["raw/notes/overview-diagram.png"])
-    );
-    let dest = theme_dir().join("overview-diagram.png");
+    let rel = format!(".attached/{id}/overview-diagram.png");
+    assert_eq!(v["asset_paths"], json!([rel]));
+    let dest = theme_dir().join(".attached").join(id).join("overview-diagram.png");
     assert_eq!(fs::read(&dest).unwrap(), PNG);
-    let loaded = get_doc_asset("raw", id, "overview-diagram.png", None);
+    let loaded = get_doc_asset("raw", id, &rel, None);
     assert_eq!(loaded["mime_type"], "image/png");
     assert!(loaded.get("data_b64").and_then(|x| x.as_str()).is_some());
 }
@@ -87,9 +85,13 @@ fn create_note_accepts_jpg_and_jpeg() {
     let jpeg = stage_bytes(&sandbox, "b.jpeg", b"jpeg");
     let v = create_with_assets(&sandbox, vec![jpg, jpeg]);
     assert_eq!(v.get("ok"), Some(&json!(true)), "{v}");
+    let id = v["id"].as_str().unwrap();
     assert_eq!(
         v["asset_paths"],
-        json!(["raw/notes/a.jpg", "raw/notes/b.jpeg"])
+        json!([
+            format!(".attached/{id}/a.jpg"),
+            format!(".attached/{id}/b.jpeg")
+        ])
     );
 }
 
@@ -133,7 +135,7 @@ fn create_note_rejects_too_many_or_too_large() {
 }
 
 #[test]
-fn create_note_collision_is_409_and_does_not_write() {
+fn create_note_same_basename_in_two_docs_is_ok() {
     let sandbox = setup_notes();
     let first = create_with_assets(
         &sandbox,
@@ -144,16 +146,13 @@ fn create_note_collision_is_409_and_does_not_write() {
         &sandbox,
         vec![stage_bytes(&sandbox, "overview-diagram.png", PNG)],
     );
-    assert_eq!(second.get("_status"), Some(&json!(409)), "{second}");
+    assert_eq!(second.get("ok"), Some(&json!(true)), "{second}");
+    let a = first["id"].as_str().unwrap();
+    let b = second["id"].as_str().unwrap();
+    assert_ne!(a, b);
     let dir = theme_dir();
-    let mds: Vec<_> = fs::read_dir(&dir)
-        .unwrap()
-        .filter_map(|e| e.ok())
-        .filter(|e| e.path().extension().and_then(|x| x.to_str()) == Some("md"))
-        .collect();
-    assert_eq!(mds.len(), 1);
-    assert!(dir.join("overview-diagram.png").is_file());
-    assert!(mds[0].path().is_file());
+    assert!(dir.join(".attached").join(a).join("overview-diagram.png").is_file());
+    assert!(dir.join(".attached").join(b).join("overview-diagram.png").is_file());
 }
 
 #[test]
@@ -245,4 +244,42 @@ fn create_note_content_and_update_reject_asset_paths() {
         updated["error"].as_str().unwrap_or("").contains("asset_paths"),
         "{updated}"
     );
+}
+
+#[test]
+fn create_note_rewrites_declared_refs_and_lists_unmatched() {
+    let sandbox = setup_notes();
+    let png = stage_bytes(&sandbox, "overview-diagram.png", PNG);
+    let source = stage_bytes(
+        &sandbox,
+        "source.md",
+        format!("{SAMPLE_DOC}\n\n![x](overview-diagram.png)\n![y](gone.png)\n").as_bytes(),
+    );
+    let v = create_doc(&json!({
+            "workspace_id": crate::test_support::default_workspace().id,
+            "source_path": source.to_str().unwrap(),
+            "title": "Test Title",
+            "digest": "never",
+            "source_type": "summary",
+            "asset_paths": [png.to_str().unwrap()],
+            "translations": [{
+                "lang": "zh",
+                "content": "# 标题\n\n![图](overview-diagram.png)\n"
+            }],
+        }),
+    );
+    assert_eq!(v.get("ok"), Some(&json!(true)), "{v}");
+    assert_eq!(v["unmatched_image_refs"], json!(["gone.png"]));
+    let id = v["id"].as_str().unwrap();
+    let href = format!(".attached/{id}/overview-diagram.png");
+    let raw = theme_dir().read_dir().unwrap().find_map(|e| {
+        let p = e.ok()?.path();
+        (p.extension()?.to_str()? == "md" && !p.file_name()?.to_str()?.contains("-zh")).then_some(p)
+    }).expect("raw");
+    let zh = raw.with_file_name(format!("{}-zh.md", raw.file_stem().unwrap().to_str().unwrap()));
+    let raw_body = fs::read_to_string(&raw).unwrap();
+    let zh_body = fs::read_to_string(&zh).unwrap();
+    assert!(raw_body.contains(&format!("![x]({href})")), "{raw_body}");
+    assert!(raw_body.contains("![y](gone.png)"), "{raw_body}");
+    assert!(zh_body.contains(&format!("![图]({href})")), "{zh_body}");
 }

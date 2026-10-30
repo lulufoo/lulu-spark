@@ -1,32 +1,25 @@
-//! `move_doc`: move a document to another project of the same workspace.
+//! `move_doc`: move a document to another project, same workspace or another.
 //!
-//! Files move first (all or nothing), then the row.
-
-use std::fs;
-use std::path::PathBuf;
+//! Plan → stage (copy) → database (`project_id`, commit point) → cleanup → index the
+//! target workspace once.
 
 use serde_json::{json, Value};
 
-use crate::services::archive_parse::expected_lang_common_path;
-use crate::services::docs::store::doc_file_path;
+use crate::services::id::random_alnum6;
 use crate::services::search_index;
-use crate::services::spark_data::{translation_common_paths, update_doc as update_doc_row};
+use crate::services::spark_data::{list_docs, update_doc as update_doc_row};
 
+use super::merge_files::collect_taken_paths;
+use super::relocate::{cleanup_relocate, plan_relocate, stage_relocate};
 use super::resolve::{
-    bad_request, doc_id_field, ensure_workspace_enabled, internal, open_data,
-    resolve_doc, resolve_doc_workspace, resolve_project, text_field, workspace_root,
+    bad_request, doc_id_field, ensure_workspace_enabled, internal, open_data, resolve_doc,
+    resolve_doc_workspace, resolve_project, resolve_workspace, text_field, workspace_root,
 };
 
-const LAYERS: &[&str] = &["raw", "digest"];
-
-fn rollback(completed: &[(PathBuf, PathBuf)]) {
-    for (src, dst) in completed.iter().rev() {
-        let _ = fs::rename(dst, src);
-    }
-}
-
-/// `{ workspace_id?, id, project_id }` →
+/// `{ id, project_id, workspace_id?, target_workspace_id? }` →
 /// `{ ok, id, workspace_id, workspace_name, project_id, project_name }`.
+/// `workspace_id` must be the document's current workspace when sent.
+/// `target_workspace_id` defaults to that workspace.
 pub fn move_doc(payload: &Value) -> Value {
     let id = match doc_id_field(payload) {
         Ok(id) => id,
@@ -39,21 +32,31 @@ pub fn move_doc(payload: &Value) -> Value {
         Ok(c) => c,
         Err(v) => return v,
     };
-    let workspace = match resolve_doc_workspace(&conn, payload, &id) {
+    let src_ws = match resolve_doc_workspace(&conn, payload, &id) {
         Ok(w) => w,
         Err(v) => return v,
     };
-    let (mut doc, old_project) = match resolve_doc(&conn, &workspace, &id) {
+    let (mut doc, old_project) = match resolve_doc(&conn, &src_ws, &id) {
         Ok(found) => found,
         Err(v) => return v,
     };
-    let new_project = match resolve_project(&conn, &workspace, Some(target)) {
+    let dest_ws = match text_field(payload, "target_workspace_id") {
+        Some(wid) => match resolve_workspace(&conn, Some(wid)) {
+            Ok(w) => w,
+            Err(v) => return v,
+        },
+        None => src_ws.clone(),
+    };
+    if let Err(v) = ensure_workspace_enabled(&src_ws) {
+        return v;
+    }
+    if let Err(v) = ensure_workspace_enabled(&dest_ws) {
+        return v;
+    }
+    let new_project = match resolve_project(&conn, &dest_ws, Some(target)) {
         Ok(p) => p,
         Err(v) => return v,
     };
-    if let Err(v) = ensure_workspace_enabled(&workspace) {
-        return v;
-    }
     if new_project.id == old_project.id {
         return bad_request("Already in this project");
     }
@@ -61,73 +64,63 @@ pub fn move_doc(payload: &Value) -> Value {
     if rel.is_empty() || rel.contains("..") {
         return bad_request("Invalid path");
     }
-    let root = match workspace_root(&workspace) {
+    let src_root = match workspace_root(&src_ws) {
         Ok(r) => r,
         Err(v) => return v,
     };
-
-    let mut moves: Vec<(PathBuf, PathBuf)> = Vec::new();
-    for layer in LAYERS {
-        let src = match doc_file_path(&root, layer, &old_project.id, &rel) {
-            Ok(p) => p,
-            Err(v) => return v,
-        };
-        let dst = match doc_file_path(&root, layer, &new_project.id, &rel) {
-            Ok(p) => p,
-            Err(v) => return v,
-        };
-        if src.exists() {
-            moves.push((src, dst));
-        }
-    }
-    let translations = match translation_common_paths(&doc) {
-        Ok(paths) => paths,
+    let dest_root = match workspace_root(&dest_ws) {
+        Ok(r) => r,
+        Err(v) => return v,
+    };
+    let dest_docs: Vec<_> = match list_docs(&conn, &dest_ws.id) {
+        Ok(docs) => docs
+            .into_iter()
+            .filter(|d| d.project_id == new_project.id)
+            .collect(),
         Err(e) => return internal(e),
     };
-    for (lang, old_rel) in &translations {
-        let Some(new_rel) = expected_lang_common_path(&rel, lang) else {
-            return bad_request("Invalid path");
-        };
-        let src = match doc_file_path(&root, "raw", &old_project.id, old_rel) {
-            Ok(p) => p,
-            Err(v) => return v,
-        };
-        let dst = match doc_file_path(&root, "raw", &new_project.id, &new_rel) {
-            Ok(p) => p,
-            Err(v) => return v,
-        };
-        if src.exists() {
-            moves.push((src, dst));
-        }
+    let (taken_raw, taken_digest) = match collect_taken_paths(&dest_root, &new_project.id, &dest_docs)
+    {
+        Ok(v) => v,
+        Err(v) => return v,
+    };
+    let plan = match plan_relocate(
+        &doc,
+        &new_project.id,
+        &taken_raw,
+        &taken_digest,
+        random_alnum6,
+    ) {
+        Ok(p) => p,
+        Err(e) => return internal(e),
+    };
+    if let Err(v) = stage_relocate(&src_root, &dest_root, &plan) {
+        return v;
     }
-
-    let mut completed: Vec<(PathBuf, PathBuf)> = Vec::new();
-    for (src, dst) in &moves {
-        if let Some(parent) = dst.parent() {
-            if let Err(e) = fs::create_dir_all(parent) {
-                rollback(&completed);
-                return internal(format!("Move failed, rolled back: {e}"));
-            }
-        }
-        if let Err(e) = fs::rename(src, dst) {
-            rollback(&completed);
-            return internal(format!("Move failed, rolled back: {e}"));
-        }
-        completed.push((src.clone(), dst.clone()));
-    }
-
     doc.project_id = new_project.id.clone();
-    if let Err(e) = update_doc_row(&conn, &doc) {
-        rollback(&completed);
-        return internal(e);
+    doc.raw_path = plan.target.raw_path.clone();
+    if doc.digest_path.is_some() {
+        doc.digest_path = plan.target.digest_path.clone();
     }
-    search_index::sync_workspace_docs_best_effort(&workspace.id, &[id.as_str()]);
+    match update_doc_row(&conn, &doc) {
+        Ok(true) => {}
+        Ok(false) => return internal("document missing"),
+        Err(e) => return internal(e),
+    }
+    if let Err(v) = cleanup_relocate(&src_root, &plan) {
+        return v;
+    }
+    search_index::sync_workspace_docs_best_effort(&dest_ws.id, &[id.as_str()]);
     json!({
         "ok": true,
         "id": id,
-        "workspace_id": workspace.id,
-        "workspace_name": workspace.name,
+        "workspace_id": dest_ws.id,
+        "workspace_name": dest_ws.name,
         "project_id": new_project.id,
         "project_name": new_project.name,
     })
 }
+
+#[cfg(test)]
+#[path = "../../unit-tests/services/docs_move.rs"]
+mod tests;

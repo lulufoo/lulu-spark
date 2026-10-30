@@ -5,6 +5,7 @@
 //! (`assets`, `create_meta`, `digest`, `store`, `jot`) and the row editor (`edit`) live here too.
 
 pub(crate) mod assets;
+pub(crate) mod attached;
 pub(crate) mod categories;
 pub(crate) mod create_meta;
 mod create;
@@ -13,10 +14,12 @@ mod delete_project;
 pub(crate) mod digest;
 pub mod edit;
 pub(crate) mod hide_patterns;
+pub(crate) mod image_refs;
 mod jot;
 mod merge_files;
 mod merge_plan;
 mod move_doc;
+pub(crate) mod relocate;
 mod project;
 mod read;
 mod resolve;

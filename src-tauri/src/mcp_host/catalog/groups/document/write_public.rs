@@ -37,6 +37,9 @@ pub(super) fn mcp_doc_write_public(result: Value) -> Value {
     if result.get("asset_paths").is_some_and(nonempty_array) {
         public["assets_copied"] = json!(true);
     }
+    if result.get("unmatched_image_refs").is_some_and(nonempty_array) {
+        public["unmatched_image_refs"] = result["unmatched_image_refs"].clone();
+    }
     public
 }
 
@@ -113,5 +116,15 @@ mod tests {
     fn passes_errors_through() {
         let err = json!({ "error": "Missing id", "_status": 400 });
         assert_eq!(mcp_doc_write_public(err.clone()), err);
+    }
+
+    #[test]
+    fn keeps_unmatched_image_refs() {
+        let public = mcp_doc_write_public(json!({
+            "ok": true,
+            "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "unmatched_image_refs": ["gone.png"],
+        }));
+        assert_eq!(public["unmatched_image_refs"], json!(["gone.png"]));
     }
 }

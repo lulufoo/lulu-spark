@@ -171,8 +171,12 @@ export async function saveDraft(id: PathArg, content: string) {
   return writePost('/api/draft', { id, content });
 }
 
-export async function moveToProject(id: string, projectId: string) {
-  const data = await writePost('/api/move-project', { id, project_id: projectId });
+export async function moveToProject(id: string, projectId: string, targetWorkspaceId?: string) {
+  const data = await writePost('/api/move-project', {
+    id,
+    project_id: projectId,
+    ...(targetWorkspaceId ? { target_workspace_id: targetWorkspaceId } : {}),
+  });
   const rec = asRecord(data);
   if (rec?.error) {
     throw new Error(String(rec.error));

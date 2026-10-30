@@ -6,6 +6,7 @@ use std::path::Path;
 use serde_json::{json, Value};
 
 use crate::services::archive_parse::expected_lang_common_path;
+use crate::services::docs::attached::log_orphan_attachments;
 use crate::services::docs::workspace_root;
 use crate::services::docs::doc_file_path;
 use crate::services::search_index;
@@ -73,6 +74,7 @@ pub fn save_entry(
     if let Err(e) = fs::write(&target, content) {
         return json!({ "error": e.to_string(), "_status": 500 });
     }
+    log_orphan_attachments(&root, &note.project_id, &note);
     search_index::sync_workspace_docs_best_effort(&workspace.id, &[id]);
     json!({ "ok": true })
 }

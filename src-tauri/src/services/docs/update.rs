@@ -6,6 +6,7 @@ use std::path::Path;
 
 use serde_json::{json, Value};
 
+use crate::services::docs::attached::log_orphan_attachments;
 use crate::services::docs::digest::{
     digest_body_from_payload, digest_should_write, parse_digest_mode, write_digest_file_overwrite,
 };
@@ -152,6 +153,7 @@ fn update_from_body(payload: &Value, source: &str) -> Value {
         }
     }
 
+    log_orphan_attachments(&root, &project.id, &doc);
     search_index::sync_workspace_docs_best_effort(&workspace.id, &[doc.doc_id.as_str()]);
 
     let mut response = json!({
@@ -178,3 +180,7 @@ fn has_zh(doc: &DocRow) -> bool {
         .as_array()
         .is_some_and(|langs| langs.iter().any(|l| l.as_str() == Some("zh")))
 }
+
+#[cfg(test)]
+#[path = "../../unit-tests/services/docs_update.rs"]
+mod tests;
