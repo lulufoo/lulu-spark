@@ -2,6 +2,7 @@ import { useEffect, useSyncExternalStore } from 'react';
 import { getStateVersion, state, subscribeState } from '../../../host/state.ts';
 import { ReorderRows } from '../../../shared/reorder-rows.tsx';
 import { OverlayDismissButton } from '../../../shared/overlay-dismiss-button.tsx';
+import { askDeleteWorkspace } from '../../commands/settings/notes-workspaces-delete.ts';
 import {
   askWorkspaceDisable,
   cancelWorkspaceDisable,
@@ -16,6 +17,7 @@ import {
   setWorkspaceDraftIcon,
 } from '../../commands/settings/workspaces.ts';
 import { workspacesPanelStore } from '../../state/settings/workspaces-panel.ts';
+import { NotesWorkspacesDeleteDialog } from './notes-workspaces-delete-dialog.tsx';
 import { defaultWorkspaceIconName, HomeNavIcon } from '../../../home/ui/nav-icons.tsx';
 import { IconPicker } from './icon-picker.tsx';
 import { Select } from '../../../shared/components/select/index.ts';
@@ -63,25 +65,44 @@ export function NotesWorkspacesEditHost() {
           rows={state.workspaces.list.map((workspace) => ({
             id: workspace.workspace_id,
             content: (
-              <button
-                type="button"
-                className="notes-cat-item"
-                data-workspace={workspace.workspace_id}
-                data-tip={workspace.description?.trim() || undefined}
-                disabled={snap.busy}
-                onClick={() => openWorkspaceEditor(workspace.workspace_id)}
-              >
-                <span className="notes-cat-item-main">
-                  <span className="notes-cat-item-title-row">
-                    <span className="notes-cat-item-title">{workspace.workspace_name}</span>
-                    {workspace.is_default ? <span className="notes-cat-badge">Built-in</span> : null}
+              <div className="notes-cat-row" data-workspace={workspace.workspace_id} data-tip={workspace.description?.trim() || undefined}>
+                <button
+                  type="button"
+                  className="notes-cat-row-open"
+                  disabled={snap.busy}
+                  onClick={() => openWorkspaceEditor(workspace.workspace_id)}
+                >
+                  <span className="notes-cat-item-main">
+                    <span className="notes-cat-item-title-row">
+                      <span className="notes-cat-item-title">{workspace.workspace_name}</span>
+                      {workspace.is_default ? <span className="notes-cat-badge">Built-in</span> : null}
+                    </span>
+                    <span className="notes-cat-item-desc">
+                      {workspace.view_mode === 'timeline' ? 'Timeline view' : 'Directory view'}
+                    </span>
                   </span>
-                  <span className="notes-cat-item-desc">
-                    {workspace.view_mode === 'timeline' ? 'Timeline view' : 'Directory view'}
-                  </span>
+                </button>
+                <span className="notes-cat-row-actions">
+                  {workspace.is_default ? null : (
+                    <button
+                      type="button"
+                      className="notes-cat-row-delete"
+                      disabled={snap.busy}
+                      onClick={() => void askDeleteWorkspace(workspace.workspace_id)}
+                    >
+                      Delete
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="notes-cat-row-edit"
+                    disabled={snap.busy}
+                    onClick={() => openWorkspaceEditor(workspace.workspace_id)}
+                  >
+                    Edit
+                  </button>
                 </span>
-                <span className="notes-cat-item-action">Edit</span>
-              </button>
+              </div>
             ),
           }))}
         />
@@ -106,6 +127,7 @@ export function NotesWorkspacesEditHost() {
           </details>
         ) : null}
       </div>
+      <NotesWorkspacesDeleteDialog />
       <div
         id="notes-ws-edit-dialog"
         className={snap.editorOpen ? 'open' : undefined}
