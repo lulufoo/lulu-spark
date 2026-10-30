@@ -21,6 +21,13 @@ export type WorkspacesPanelSnap = {
   draftDescription: string;
   /** The edit dialog asks "Disable <name>?" instead of showing the form. */
   confirmDisable: boolean;
+  /** Workspace the confirm dialog asks about deleting; empty = no dialog. */
+  deleteId: string;
+  /** Why the last delete failed; shown in the confirm dialog, not in the list. */
+  deleteError: string;
+  deleteDocCount: number;
+  deleteProjectCount: number;
+  deleteInboxName: string;
 };
 
 export function emptyWorkspacesPanelSnap(): WorkspacesPanelSnap {
@@ -36,6 +43,11 @@ export function emptyWorkspacesPanelSnap(): WorkspacesPanelSnap {
     draftIcon: '',
     draftDescription: '',
     confirmDisable: false,
+    deleteId: '',
+    deleteError: '',
+    deleteDocCount: 0,
+    deleteProjectCount: 0,
+    deleteInboxName: '',
   };
 }
 

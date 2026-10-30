@@ -24,6 +24,7 @@ export {
   createProject,
   createWorkspace,
   deleteProject,
+  deleteWorkspace,
   disableWorkspace,
   enableWorkspace,
   fetchDisabledWorkspaces,
@@ -42,7 +43,7 @@ export {
   updateHidePattern,
   updateProject,
 } from './api/workspaces.ts';
-export type { DeleteProjectResult, HidePatternRow, ViewMode, ViewerProjectState, ViewerState } from './api/workspaces.ts';
+export type { DeleteProjectResult, DeleteWorkspaceResult, HidePatternRow, ViewMode, ViewerProjectState, ViewerState } from './api/workspaces.ts';
 
 export {
   createNote,

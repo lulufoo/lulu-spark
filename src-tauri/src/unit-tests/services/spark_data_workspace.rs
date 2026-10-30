@@ -138,7 +138,7 @@ fn default_workspace_cannot_be_disabled_and_not_deleted_even_by_raw_sql() {
     let conn = open_at(&path).expect("open");
     let default = default_ws(&conn);
     assert!(disable_workspace(&conn, &default.id).is_err());
-    assert!(discard_new_workspace(&conn, &default.id).is_err());
+    assert!(delete_empty_workspace(&conn, &default.id).is_err());
     assert!(conn.execute("DELETE FROM workspace WHERE id = ?1", [&default.id]).is_err(), "trigger");
     assert!(get_workspace(&conn, &default.id).expect("get").is_some());
 }
@@ -154,20 +154,43 @@ fn only_one_workspace_can_be_default() {
 }
 
 #[test]
-fn discard_drops_a_fresh_workspace_without_documents_and_refuses_one_with_documents() {
+fn delete_empty_workspace_drops_a_fresh_workspace_without_documents_and_refuses_one_with_documents() {
     let (_dir, path) = temp_db();
     let conn = open_at(&path).expect("open");
     let made = create_workspace(&conn, "Temp", None).expect("create");
     insert_project(&conn, &ProjectRow::new("p1", &made.id, "Notes", "")).expect("project");
     insert_doc(&conn, "d1", "p1").expect("doc");
-    assert!(discard_new_workspace(&conn, &made.id).is_err(), "has a document");
+    assert!(delete_empty_workspace(&conn, &made.id).is_err(), "has a document");
     assert!(get_project(&conn, "p1").expect("get").is_some());
+    assert!(get_workspace(&conn, &made.id).expect("get").is_some(), "row stays when refused");
 
     conn.execute("DELETE FROM document WHERE doc_id = 'd1'", []).expect("remove doc");
-    assert!(discard_new_workspace(&conn, &made.id).expect("discard"), "the empty project goes with it");
+    assert!(delete_empty_workspace(&conn, &made.id).expect("delete"), "the empty project goes with it");
     assert!(get_project(&conn, "p1").expect("get").is_none());
     assert!(get_workspace(&conn, &made.id).expect("get").is_none());
-    assert!(!discard_new_workspace(&conn, &made.id).expect("again"), "already gone");
+    assert!(!delete_empty_workspace(&conn, &made.id).expect("again"), "already gone");
+}
+
+#[test]
+fn delete_empty_workspace_drops_every_project_and_frees_the_name() {
+    let (_dir, path) = temp_db();
+    let conn = open_at(&path).expect("open");
+    let made = create_workspace(&conn, "Temp", None).expect("create");
+    let inbox = get_default_project(&conn, &made.id).expect("lookup").expect("inbox");
+    insert_project(&conn, &ProjectRow::new("p1", &made.id, "Notes", "")).expect("project");
+    insert_project(&conn, &ProjectRow::new("p2", &made.id, "Work", "")).expect("project");
+    assert_eq!(list_projects(&conn, &made.id).expect("list").len(), 3);
+
+    assert!(delete_empty_workspace(&conn, &made.id).expect("delete"));
+    assert!(get_project(&conn, &inbox.id).expect("get").is_none());
+    assert!(get_project(&conn, "p1").expect("get").is_none());
+    assert!(get_project(&conn, "p2").expect("get").is_none());
+    assert!(get_workspace(&conn, &made.id).expect("get").is_none());
+    assert!(list_projects(&conn, &made.id).expect("list").is_empty());
+
+    let again = create_workspace(&conn, "Temp", None).expect("name is free after delete");
+    assert_eq!(again.name, "Temp");
+    assert_ne!(again.id, made.id);
 }
 
 #[test]

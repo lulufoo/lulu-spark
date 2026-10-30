@@ -158,6 +158,10 @@ export const WRITE_API_INVOKE_MAP: Record<string, WriteInvokeEntry> = {
     cmd: 'enable_workspace',
     args: (body) => ({ payload: body ?? {} }),
   },
+  '/api/workspace-delete': {
+    cmd: 'delete_workspace',
+    args: (body) => ({ payload: body ?? {} }),
+  },
   '/api/project-create': {
     cmd: 'create_project',
     args: (body) => ({ payload: body ?? {} }),

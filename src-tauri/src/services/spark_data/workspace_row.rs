@@ -1,9 +1,9 @@
 //! The `workspace` registry: one row per workspace.
 //!
 //! `id` and `is_default` never change after creation (a trigger enforces it);
-//! only `name`, `view_mode`, `icon`, `sort_index`, `description` and `disabled_at` are editable. A workspace is never deleted:
-//! it is disabled (hidden, data kept) and can be enabled again. The default workspace
-//! cannot be disabled.
+//! only `name`, `view_mode`, `icon`, `sort_index`, `description` and `disabled_at` are editable.
+//! A workspace can be disabled (hidden, data kept) or deleted once it holds no documents.
+//! The default workspace cannot be disabled or deleted.
 
 use rusqlite::{params, Connection, OptionalExtension, Row};
 
@@ -293,15 +293,15 @@ pub fn enable_workspace(conn: &Connection, id: &str) -> Result<bool, String> {
         .map_err(|e| e.to_string())
 }
 
-/// Undo a `create_workspace` whose follow-up steps failed: drops the (still empty) projects
-/// and the registry row together. Not a user operation: refuses the
-/// default workspace and any workspace that holds documents. `false` when it did not exist.
-pub fn discard_new_workspace(conn: &Connection, id: &str) -> Result<bool, String> {
+/// Drop an emptied workspace: its projects (including the default) and the registry row, in one
+/// transaction. Shared by create rollback and user delete. Refuses the default workspace and any
+/// workspace that still holds documents. `false` when it did not exist.
+pub fn delete_empty_workspace(conn: &Connection, id: &str) -> Result<bool, String> {
     let Some(row) = get_workspace(conn, id)? else {
         return Ok(false);
     };
     if row.is_default {
-        return Err("the default workspace cannot be discarded".to_string());
+        return Err("the default workspace cannot be deleted".to_string());
     }
     let docs: i64 = conn
         .query_row(

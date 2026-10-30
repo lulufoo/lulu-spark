@@ -11,6 +11,7 @@ pub(crate) mod create_meta;
 mod create;
 mod delete;
 mod delete_project;
+mod delete_workspace;
 pub(crate) mod digest;
 pub mod edit;
 pub(crate) mod hide_patterns;
@@ -35,6 +36,7 @@ pub use categories::{
 pub use create::{create_doc, create_doc_content};
 pub use delete::delete_doc;
 pub use delete_project::delete_project;
+pub use delete_workspace::delete_workspace;
 pub use edit::set_source_type;
 pub use hide_patterns::{
     add_hide_pattern, list_hide_patterns, remove_hide_pattern, update_hide_pattern,

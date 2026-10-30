@@ -5544,6 +5544,7 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
 .notes-cat-row-actions button:disabled { opacity: .65; cursor: default; }
 #notes-cat-edit-dialog,
 #notes-cat-delete-dialog,
+#notes-ws-delete-dialog,
 #notes-ws-edit-dialog {
   position: fixed;
   inset: 0;
@@ -5555,9 +5556,11 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
 }
 #notes-cat-edit-dialog.open,
 #notes-cat-delete-dialog.open,
+#notes-ws-delete-dialog.open,
 #notes-ws-edit-dialog.open { display: flex; }
 #notes-cat-edit-dialog-box,
 #notes-cat-delete-dialog-box,
+#notes-ws-delete-dialog-box,
 #notes-ws-edit-dialog-box {
   background: var(--bg-surface);
   border-radius: 8px;
@@ -5570,6 +5573,7 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
 }
 #notes-cat-edit-dialog-header,
 #notes-cat-delete-dialog-header,
+#notes-ws-delete-dialog-header,
 #notes-ws-edit-dialog-header {
   display: flex;
   align-items: center;
@@ -5580,6 +5584,7 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
 }
 #notes-cat-edit-dialog-title,
 #notes-cat-delete-dialog-title,
+#notes-ws-delete-dialog-title,
 #notes-ws-edit-dialog-title {
   margin: 0;
   font-size: 15px;
@@ -5588,6 +5593,7 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
 }
 #notes-cat-edit-dialog-body,
 #notes-cat-delete-dialog-body,
+#notes-ws-delete-dialog-body,
 #notes-ws-edit-dialog-body {
   display: flex;
   flex-direction: column;

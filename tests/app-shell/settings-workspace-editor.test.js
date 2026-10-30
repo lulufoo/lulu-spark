@@ -24,6 +24,8 @@ vi.mock('../../frontend/src/host/api.ts', () => ({
   disableWorkspace: async (...a) => reply('disable', a),
   enableWorkspace: async (...a) => reply('enable', a),
   fetchDisabledWorkspaces: async () => ({ workspaces: [{ workspace_id: 'old', workspace_name: 'Old' }] }),
+  fetchProjects: async () => ({ projects: [{ project_id: 'inbox', project_name: 'Inbox', is_default: true, doc_count: 0 }] }),
+  deleteWorkspace: async (...a) => reply('delete', a),
 }));
 vi.mock('../../frontend/src/notes/commands/workspace.ts', () => ({ loadWorkspaces: async () => {} }));
 vi.mock('../../frontend/src/notes/commands/workspace-switch.ts', () => ({ applyViewModeChange: () => {} }));
@@ -140,11 +142,11 @@ describe('Workspaces settings UI', () => {
     await commands.loadDisabledWorkspaces();
   });
 
-  it('lists whole-row buttons and walks Edit → Disable → Back → Save', () => {
+  it('lists rows with Edit and walks Edit → Disable → Back → Save', () => {
     mount(NotesWorkspacesEditHost);
-    const rows = host.querySelectorAll('button.notes-cat-item[data-workspace]');
+    const rows = host.querySelectorAll('.notes-cat-row[data-workspace]');
     expect([...rows].map((r) => r.dataset.workspace)).toEqual(['default', 'ws2']);
-    expect(rows[1].querySelector('.notes-cat-item-action').textContent).toBe('Edit');
+    expect(rows[1].querySelector('.notes-cat-row-edit').textContent).toBe('Edit');
     expect(rows[0].querySelector('.notes-cat-item-desc').textContent).toBe('Directory view');
     expect(rows[1].querySelector('.notes-cat-item-desc').textContent).toBe('Timeline view');
     expect(rows[0].getAttribute('data-tip')).toBeNull();
@@ -152,7 +154,7 @@ describe('Workspaces settings UI', () => {
     expect(host.querySelector('#notes-ws-edit-description')).toBeNull();
     expect(host.querySelector('#notes-ws-edit-dialog').classList.contains('open')).toBe(false);
 
-    act(() => rows[1].click());
+    act(() => rows[1].querySelector('.notes-cat-row-open').click());
     expect(host.querySelector('#notes-ws-edit-dialog').classList.contains('open')).toBe(true);
     expect(host.querySelector('#notes-ws-edit-dialog-title').textContent).toBe('Edit workspace');
     expect(host.querySelector('#notes-ws-edit-description').value).toBe('Team wiki');
@@ -165,7 +167,7 @@ describe('Workspaces settings UI', () => {
     act(() => host.querySelector('.notes-cat-edit-actions .btn-settings-ghost').click());
     expect(labels()).toEqual(['Disable', 'Cancel', 'Save']);
 
-    act(() => rows[0].click());
+    act(() => rows[0].querySelector('.notes-cat-row-open').click());
     expect(labels()).toEqual(['Cancel', 'Save']);
     act(() => root.unmount());
   });
