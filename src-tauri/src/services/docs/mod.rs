@@ -19,6 +19,7 @@ mod jot;
 mod merge_files;
 mod merge_plan;
 mod move_doc;
+pub(crate) mod relocate;
 mod project;
 mod read;
 mod resolve;
