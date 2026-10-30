@@ -14,6 +14,7 @@ mod delete_project;
 pub(crate) mod digest;
 pub mod edit;
 pub(crate) mod hide_patterns;
+pub(crate) mod image_refs;
 mod jot;
 mod merge_files;
 mod merge_plan;
