@@ -1,7 +1,7 @@
 //! Scan Markdown image destinations (`![]()` only) and rewrite declared attachments.
 //! HTML `<img>` is left as text. No IO.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::ops::Range;
 
 use pulldown_cmark::{Event, LinkType, Options, Parser, Tag};
@@ -48,6 +48,26 @@ pub(crate) fn rewrite_declared_images(
         markdown: apply_replacements(markdown, replacements),
         unmatched,
     }
+}
+
+/// Basenames of relative inline `![]()` destinations. HTML `<img>` is ignored.
+pub(crate) fn relative_image_basenames(markdown: &str) -> HashSet<String> {
+    let parser = Parser::new_ext(markdown, Options::empty());
+    let mut out = HashSet::new();
+    for (event, _) in parser.into_offset_iter() {
+        let Event::Start(Tag::Image {
+            link_type: LinkType::Inline,
+            dest_url,
+            ..
+        }) = event
+        else {
+            continue;
+        };
+        if is_relative_href(dest_url.as_ref()) {
+            out.insert(href_basename(dest_url.as_ref()).to_string());
+        }
+    }
+    out
 }
 
 fn dest_range_in(markdown: &str, img_range: Range<usize>, dest: &str) -> Option<Range<usize>> {

@@ -137,3 +137,26 @@ fn remove_attached_dir_is_a_noop_when_missing() {
     remove_attached_dir(&md, DOC).expect("remove");
     assert!(!md.join(".attached").exists());
 }
+
+#[test]
+fn orphan_attachment_names_lists_unreferenced_files() {
+    let tmp = tempfile::tempdir().expect("tmp");
+    let md = md_dir(&tmp, "notes");
+    write_file(&md.join(".attached").join(DOC).join("keep.png"), b"k");
+    write_file(&md.join(".attached").join(DOC).join("gone.png"), b"g");
+    let names = orphan_attachment_names(&md, DOC, &["![x](.attached/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/keep.png)"]);
+    assert_eq!(names, vec!["gone.png"]);
+}
+
+#[test]
+fn orphan_attachment_names_keeps_a_translation_only_ref() {
+    let tmp = tempfile::tempdir().expect("tmp");
+    let md = md_dir(&tmp, "notes");
+    write_file(&md.join(".attached").join(DOC).join("zh-only.png"), b"z");
+    let names = orphan_attachment_names(
+        &md,
+        DOC,
+        &["# raw\n", "![图](.attached/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/zh-only.png)"],
+    );
+    assert!(names.is_empty(), "{names:?}");
+}

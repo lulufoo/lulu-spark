@@ -2,12 +2,16 @@
 //! The directory is the index; the database has no attachment column.
 //! Read still joins the href against the Markdown directory and refuses `..`.
 
+use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
 use serde_json::{json, Value};
 
-use crate::services::spark_data::is_valid_doc_id;
+use crate::services::app_log::{self, Level, Side};
+use crate::services::docs::image_refs::relative_image_basenames;
+use crate::services::docs::store::doc_file_path;
+use crate::services::spark_data::{is_valid_doc_id, translation_common_paths, DocRow};
 
 pub(crate) const ATTACHED_DIR_NAME: &str = ".attached";
 
@@ -122,6 +126,76 @@ pub(crate) fn remove_attached_dir(md_dir: &Path, doc_id: &str) -> Result<(), Val
         let _ = fs::remove_dir(parent);
     }
     Ok(())
+}
+
+/// Files in `.attached/{doc_id}/` that no body references by basename.
+pub(crate) fn orphan_attachment_names(
+    md_dir: &Path,
+    doc_id: &str,
+    bodies: &[&str],
+) -> Vec<String> {
+    let Ok(dir) = attached_dir(md_dir, doc_id) else {
+        return Vec::new();
+    };
+    if !dir.is_dir() {
+        return Vec::new();
+    }
+    let mut referenced = HashSet::new();
+    for body in bodies {
+        referenced.extend(relative_image_basenames(body));
+    }
+    let Ok(entries) = fs::read_dir(&dir) else {
+        return Vec::new();
+    };
+    let mut orphans = Vec::new();
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if !path.is_file() {
+            continue;
+        }
+        let Some(name) = entry.file_name().to_str().map(str::to_string) else {
+            continue;
+        };
+        if !referenced.contains(&name) {
+            orphans.push(name);
+        }
+    }
+    orphans.sort();
+    orphans
+}
+
+/// After a save, log orphans. Files are not deleted and the caller response is unchanged.
+pub(crate) fn log_orphan_attachments(root: &Path, project_id: &str, doc: &DocRow) {
+    let Ok(raw_path) = doc_file_path(root, "raw", project_id, &doc.raw_path) else {
+        return;
+    };
+    let Some(md_dir) = raw_path.parent() else {
+        return;
+    };
+    let mut bodies = Vec::new();
+    if let Ok(text) = fs::read_to_string(&raw_path) {
+        bodies.push(text);
+    }
+    if let Ok(pairs) = translation_common_paths(doc) {
+        for (_lang, rel) in pairs {
+            if let Ok(path) = doc_file_path(root, "raw", project_id, &rel) {
+                if let Ok(text) = fs::read_to_string(path) {
+                    bodies.push(text);
+                }
+            }
+        }
+    }
+    let refs: Vec<&str> = bodies.iter().map(String::as_str).collect();
+    for name in orphan_attachment_names(md_dir, &doc.doc_id, &refs) {
+        app_log::log(
+            "docs",
+            "orphan_attachment",
+            None,
+            Some(json!({ "doc_id": doc.doc_id, "name": name })),
+            Side::Host,
+            Level::Warn,
+        );
+    }
 }
 
 #[cfg(test)]

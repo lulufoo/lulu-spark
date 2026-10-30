@@ -58,6 +58,15 @@ fn rewrite_declared_images_matches_dot_slash_by_basename() {
 }
 
 #[test]
+fn relative_image_basenames_skips_html_and_https() {
+    let names = relative_image_basenames(
+        "![a](keep.png) <img src=\"html.png\"> ![b](https://ex.com/x.png)",
+    );
+    assert_eq!(names.len(), 1);
+    assert!(names.contains("keep.png"));
+}
+
+#[test]
 fn rewrite_declared_images_leaves_https_alone() {
     let declared = HashMap::new();
     let md = "![x](https://example.com/a.png)";
