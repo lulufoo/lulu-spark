@@ -5,6 +5,7 @@
 //! (`assets`, `create_meta`, `digest`, `store`, `jot`) and the row editor (`edit`) live here too.
 
 pub(crate) mod assets;
+pub(crate) mod attached;
 pub(crate) mod categories;
 pub(crate) mod create_meta;
 mod create;
