@@ -4272,6 +4272,26 @@
     gap: 12px;
   }
   #move-project-dialog-box h3 { font-size: 15px; color: var(--fg-default); margin: 0; }
+  #move-project-workspaces {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .move-project-workspace {
+    background: var(--bg-canvas);
+    border: 1px solid var(--border-default);
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    color: var(--fg-muted);
+  }
+  .move-project-workspace.selected {
+    border-color: var(--border-hex-54aeff);
+    color: var(--fg-accent-emphasis);
+    background: var(--bg-hover);
+  }
+  .move-project-workspace:disabled { opacity: .5; cursor: default; }
   .move-project-item {
     background: var(--bg-canvas);
     border: 1px solid var(--border-default);
