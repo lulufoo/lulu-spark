@@ -5,6 +5,7 @@ use std::fs;
 use serde_json::{json, Value};
 
 use crate::services::archive_parse::expected_lang_common_path;
+use crate::services::docs::attached::remove_attached_dir;
 use crate::services::docs::store::doc_file_path;
 use crate::services::search_index;
 use crate::services::spark_data::{delete_doc as delete_doc_row, delete_unused_tags};
@@ -59,6 +60,11 @@ pub fn delete_doc(payload: &Value) -> Value {
             removed += 1;
         }
     }
+    if let Ok(raw_file) = doc_file_path(&root, "raw", &project.id, rel) {
+        if let Some(md_dir) = raw_file.parent() {
+            let _ = remove_attached_dir(md_dir, &id);
+        }
+    }
     if let Err(e) = delete_doc_row(&conn, &id)
         .and_then(|_| delete_unused_tags(&conn).map(|_| ()))
     {
@@ -67,3 +73,7 @@ pub fn delete_doc(payload: &Value) -> Value {
     search_index::sync_workspace_docs_best_effort(&workspace.id, &[id.as_str()]);
     json!({ "ok": true, "id": id, "removed": removed })
 }
+
+#[cfg(test)]
+#[path = "../../unit-tests/services/docs_delete.rs"]
+mod tests;
