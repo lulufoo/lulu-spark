@@ -4289,7 +4289,7 @@
   .move-project-workspace.selected {
     border-color: var(--border-hex-54aeff);
     color: var(--fg-accent-emphasis);
-    background: var(--bg-hover);
+    background: var(--bg-selected);
   }
   .move-project-workspace:disabled { opacity: .5; cursor: default; }
   .move-project-item {
