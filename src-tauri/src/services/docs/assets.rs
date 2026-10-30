@@ -1,4 +1,4 @@
-//! Companion raster assets for desktop `create_note` (`asset_paths`).
+//! Companion raster assets for desktop `create_doc` (`asset_paths`).
 
 use std::collections::HashSet;
 use std::fs;
@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 
 use serde_json::{json, Value};
 
+use crate::services::docs::attached::{attached_file, attached_rel};
 use crate::services::source_path_allow;
 
 pub(crate) const MAX_NOTE_ASSET_BYTES: u64 = 4 * 1024 * 1024;
@@ -15,6 +16,7 @@ pub(crate) struct ResolvedAsset {
     pub source: PathBuf,
     pub rel: String,
     pub dest: PathBuf,
+    pub basename: String,
 }
 
 pub(crate) fn reject_unsupported_asset_paths(payload: &Value) -> Option<Value> {
@@ -31,7 +33,7 @@ pub(crate) fn reject_unsupported_asset_paths(payload: &Value) -> Option<Value> {
 pub(crate) fn resolve_create_assets(
     payload: &Value,
     raw_md_path: &Path,
-    common_path: &str,
+    doc_id: &str,
 ) -> Result<Vec<ResolvedAsset>, Value> {
     let Some(arr) = payload.get("asset_paths") else {
         return Ok(Vec::new());
@@ -51,11 +53,6 @@ pub(crate) fn resolve_create_assets(
     let parent = raw_md_path.parent().ok_or_else(|| {
         json!({ "error": "Invalid raw path", "_status": 500 })
     })?;
-    let dir_rel = Path::new(common_path)
-        .parent()
-        .map(|p| p.to_string_lossy().replace('\\', "/"))
-        .filter(|s| !s.is_empty())
-        .ok_or_else(|| json!({ "error": "Invalid path", "_status": 400 }))?;
 
     let mut out = Vec::with_capacity(items.len());
     let mut seen = HashSet::new();
@@ -74,7 +71,7 @@ pub(crate) fn resolve_create_assets(
                 "_status": 409
             }));
         }
-        let dest = parent.join(&dest_name);
+        let dest = attached_file(parent, doc_id, &dest_name)?;
         if dest.exists() {
             return Err(json!({
                 "error": "File already exists",
@@ -83,8 +80,9 @@ pub(crate) fn resolve_create_assets(
         }
         out.push(ResolvedAsset {
             source,
-            rel: format!("raw/{dir_rel}/{dest_name}"),
+            rel: attached_rel(doc_id, &dest_name)?,
             dest,
+            basename: dest_name,
         });
     }
     Ok(out)
@@ -95,6 +93,11 @@ pub(crate) fn copy_assets(
     written: &mut Vec<PathBuf>,
 ) -> Result<(), Value> {
     for asset in assets {
+        if let Some(parent) = asset.dest.parent() {
+            if let Err(e) = fs::create_dir_all(parent) {
+                return Err(json!({ "error": e.to_string(), "_status": 500 }));
+            }
+        }
         if let Err(e) = fs::copy(&asset.source, &asset.dest) {
             return Err(json!({ "error": e.to_string(), "_status": 500 }));
         }

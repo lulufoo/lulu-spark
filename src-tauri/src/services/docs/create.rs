@@ -3,16 +3,19 @@
 //! Same rules as the old `create_note`: raw file, optional translations and digest, optional
 //! companion assets, then the table row. Files are rolled back when a later step fails.
 
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use serde_json::{json, Value};
 
 use crate::services::docs::assets::{copy_assets, reject_unsupported_asset_paths, resolve_create_assets};
+use crate::services::docs::attached::remove_attached_dir;
 use crate::services::docs::create_meta::parse_create_meta_unchecked;
 use crate::services::docs::digest::{
     digest_body_from_payload, digest_body_rejects_relative_images, digest_should_write,
     parse_digest_mode, write_digest_file,
 };
+use crate::services::docs::image_refs::rewrite_declared_images;
 use crate::services::docs::store::{
     doc_file_path, parse_translations, reject_legacy_translation_fields,
     resolve_archive_source_markdown, rollback_written, write_markdown_atomic,
@@ -136,19 +139,38 @@ fn write_doc(source: &str, payload: &Value, source_basename: Option<&str>) -> Va
         }
         extra_paths.push(path);
     }
-    let assets = match resolve_create_assets(payload, &raw_path, &meta.common_path) {
+    let id = new_doc_id();
+    let assets = match resolve_create_assets(payload, &raw_path, &id) {
         Ok(v) => v,
         Err(v) => return v,
     };
+    let new_href: HashMap<String, String> = assets
+        .iter()
+        .map(|a| (a.basename.clone(), a.rel.clone()))
+        .collect();
+    let primary = rewrite_declared_images(source, &new_href);
+    let mut unmatched = primary.unmatched;
+    let translation_bodies: Vec<String> = translations
+        .iter()
+        .map(|t| {
+            let out = rewrite_declared_images(&t.content, &new_href);
+            for href in out.unmatched {
+                if !unmatched.iter().any(|s| s == &href) {
+                    unmatched.push(href);
+                }
+            }
+            out.markdown
+        })
+        .collect();
 
     let mut written: Vec<PathBuf> = Vec::new();
-    if let Err(e) = write_markdown_atomic(&raw_path, source) {
+    if let Err(e) = write_markdown_atomic(&raw_path, &primary.markdown) {
         return internal(e);
     }
-    written.push(raw_path);
-    for (t, path) in translations.iter().zip(extra_paths.iter()) {
-        if let Err(e) = write_markdown_atomic(path, &t.content) {
-            rollback_written(&written);
+    written.push(raw_path.clone());
+    for (body, path) in translation_bodies.iter().zip(extra_paths.iter()) {
+        if let Err(e) = write_markdown_atomic(path, body) {
+            rollback_create(&written, &raw_path, &id);
             return internal(e);
         }
         written.push(path.clone());
@@ -158,17 +180,16 @@ fn write_doc(source: &str, payload: &Value, source_basename: Option<&str>) -> Va
         match write_digest_file(&root, project_id, &meta.common_path, digest_md, &mut written) {
             Ok(rel) => digest_rel = Some(rel),
             Err(v) => {
-                rollback_written(&written);
+                rollback_create(&written, &raw_path, &id);
                 return v;
             }
         }
     }
     if let Err(v) = copy_assets(&assets, &mut written) {
-        rollback_written(&written);
+        rollback_create(&written, &raw_path, &id);
         return v;
     }
 
-    let id = new_doc_id();
     let mut row = DocRow::new(&id, &meta.common_path, &project.id);
     row.title = Some(meta.title.clone());
     row.created_at = Some(meta.created_at.clone());
@@ -176,7 +197,7 @@ fn write_doc(source: &str, payload: &Value, source_basename: Option<&str>) -> Va
     row.digest_path = digest_rel.as_ref().map(|_| meta.common_path.clone());
     row.translations = json!(translations.iter().map(|t| t.lang.as_str()).collect::<Vec<_>>());
     if let Err(e) = insert_doc(&conn, &row) {
-        rollback_written(&written);
+        rollback_create(&written, &raw_path, &id);
         return internal(e);
     }
 
@@ -200,5 +221,15 @@ fn write_doc(source: &str, payload: &Value, source_basename: Option<&str>) -> Va
     if !assets.is_empty() {
         response["asset_paths"] = json!(assets.iter().map(|a| a.rel.as_str()).collect::<Vec<_>>());
     }
+    if !unmatched.is_empty() {
+        response["unmatched_image_refs"] = json!(unmatched);
+    }
     response
+}
+
+fn rollback_create(written: &[PathBuf], raw_path: &Path, id: &str) {
+    rollback_written(written);
+    if let Some(md_dir) = raw_path.parent() {
+        let _ = remove_attached_dir(md_dir, id);
+    }
 }
