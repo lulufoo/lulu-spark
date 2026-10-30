@@ -74,3 +74,37 @@ fn rewrite_declared_images_leaves_https_alone() {
     assert_eq!(out.markdown, md);
     assert!(out.unmatched.is_empty());
 }
+
+#[test]
+fn rewrite_declared_images_keeps_a_non_relative_url_with_a_declared_basename() {
+    let declared = map(&[("a.png", ".attached/doc/a.png")]);
+    for md in [
+        "![x](https://example.com/a.png)",
+        "![x](HTTP://example.com/a.png)",
+        "![x](/abs/dir/a.png)",
+        "![x](file:///tmp/a.png)",
+        "![x](ftp://host/a.png)",
+        "![x](data:image/png;base64,AAAA)",
+    ] {
+        let out = rewrite_declared_images(md, &declared);
+        assert_eq!(out.markdown, md, "{md}");
+        assert!(out.unmatched.is_empty(), "{md}");
+    }
+}
+
+#[test]
+fn rewrite_declared_images_still_rewrites_a_colon_in_a_later_path_segment() {
+    let declared = map(&[("a:b.png", ".attached/doc/a:b.png")]);
+    let out = rewrite_declared_images("![x](dir/a:b.png)", &declared);
+    assert_eq!(out.markdown, "![x](.attached/doc/a:b.png)");
+}
+
+#[test]
+fn relative_image_basenames_skips_any_uri_scheme() {
+    let names = relative_image_basenames(
+        "![a](file:///tmp/x.png) ![b](keep.png) ![c](dir/with:colon.png)",
+    );
+    assert_eq!(names.len(), 2);
+    assert!(names.contains("keep.png"));
+    assert!(names.contains("with:colon.png"));
+}

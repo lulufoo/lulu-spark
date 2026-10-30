@@ -30,6 +30,9 @@ pub(crate) fn rewrite_declared_images(
             continue;
         };
         let dest = dest_url.as_ref();
+        if !is_relative_href(dest) {
+            continue;
+        }
         let Some(dest_range) = dest_range_in(markdown, range, dest) else {
             continue;
         };
@@ -40,7 +43,7 @@ pub(crate) fn rewrite_declared_images(
             }
             continue;
         }
-        if is_relative_href(dest) && !unmatched.iter().any(|s| s == dest) {
+        if !unmatched.iter().any(|s| s == dest) {
             unmatched.push(dest.to_string());
         }
     }
@@ -101,11 +104,18 @@ fn is_relative_href(href: &str) -> bool {
     if href.is_empty() || href.starts_with('#') || href.starts_with('/') {
         return false;
     }
-    let lower = href.to_ascii_lowercase();
-    !(lower.starts_with("https://")
-        || lower.starts_with("http://")
-        || lower.starts_with("data:")
-        || lower.starts_with("blob:"))
+    !has_uri_scheme(href)
+}
+
+/// `scheme:` as in RFC 3986: a letter, then letters, digits, `+`, `-` or `.`, then `:`.
+/// A colon after a `/` (`dir/a:b.png`) is part of a relative path, not a scheme.
+fn has_uri_scheme(href: &str) -> bool {
+    let Some((scheme, _)) = href.split_once(':') else {
+        return false;
+    };
+    let mut chars = scheme.chars();
+    chars.next().is_some_and(|c| c.is_ascii_alphabetic())
+        && chars.all(|c| c.is_ascii_alphanumeric() || matches!(c, '+' | '-' | '.'))
 }
 
 #[cfg(test)]
