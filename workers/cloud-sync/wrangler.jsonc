@@ -1,0 +1,15 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "lulu-spark-cloud-sync",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-23",
+  // Public project URL, not a secret. The token check reads the signing keys from
+  // `${SUPABASE_URL}/auth/v1/.well-known/jwks.json`.
+  "vars": {
+    "SUPABASE_URL": "https://ysvsmsvfyzahevkximog.supabase.co"
+  },
+  "observability": {
+    "enabled": true,
+    "traces": { "enabled": true }
+  }
+}
