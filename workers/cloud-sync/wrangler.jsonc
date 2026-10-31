@@ -3,10 +3,21 @@
   "name": "lulu-spark-cloud-sync",
   "main": "src/index.ts",
   "compatibility_date": "2026-10-23",
-  // Public project URL, not a secret. The token check reads the signing keys from
-  // `${SUPABASE_URL}/auth/v1/.well-known/jwks.json`.
+  // Public values, not secrets.
+  // - SUPABASE_URL: the token check reads the signing keys from
+  //   `${SUPABASE_URL}/auth/v1/.well-known/jwks.json`.
+  // - GCS_PROJECT_ID / GCS_PROJECT_NUMBER: the Google Cloud project that holds every user's bucket.
+  //   A bucket counts as ours only if it reports this project number.
   "vars": {
-    "SUPABASE_URL": "https://ysvsmsvfyzahevkximog.supabase.co"
+    "SUPABASE_URL": "https://ysvsmsvfyzahevkximog.supabase.co",
+    "GCS_PROJECT_ID": "spark-cloud-sync",
+    "GCS_PROJECT_NUMBER": "55973988960"
+  },
+  // Set with `wrangler secret put <NAME>`; deploy fails while one is missing.
+  // - GCS_SERVICE_ACCOUNT_KEY: the long-lived service account key file, as one JSON line.
+  // - BUCKET_NAME_KEY: random text that turns a user id into a bucket name. Never change or lose it.
+  "secrets": {
+    "required": ["GCS_SERVICE_ACCOUNT_KEY", "BUCKET_NAME_KEY"]
   },
   "observability": {
     "enabled": true,
