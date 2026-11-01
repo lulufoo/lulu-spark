@@ -171,3 +171,37 @@ fn a_negative_version_is_refused_and_the_stored_one_is_kept() {
     assert_eq!(get_doc(&conn, "n1").expect("get").expect("row").version, 3);
     assert!(conn.execute("UPDATE document SET version = NULL WHERE doc_id = 'n1'", []).is_err(), "NOT NULL");
 }
+
+#[test]
+fn the_versions_of_all_documents_come_back_by_doc_id_across_workspaces() {
+    let (_dir, path) = temp_db();
+    let conn = open_at(&path).expect("create");
+    assert_eq!(list_doc_versions(&conn).expect("empty"), []);
+    for (id, version) in [("d3", 7), ("d1", 0), ("d2", 12)] {
+        insert_doc(&conn, &doc_in_inbox(&conn, id, version)).expect("insert");
+    }
+    let other = create_workspace(&conn, "Other", None).expect("workspace");
+    let other_inbox = get_default_project(&conn, &other.id).expect("query").expect("inbox");
+    let mut elsewhere = DocRow::new("d0", "x/z.md", &other_inbox.id);
+    elsewhere.version = 3;
+    insert_doc(&conn, &elsewhere).expect("insert");
+    disable_workspace(&conn, &other.id).expect("disable");
+
+    assert_eq!(
+        list_doc_versions(&conn).expect("list"),
+        [("d0".to_string(), 3), ("d1".to_string(), 0), ("d2".to_string(), 12), ("d3".to_string(), 7)]
+    );
+}
+
+#[test]
+fn the_versions_follow_a_bump_and_a_delete() {
+    let (_dir, path) = temp_db();
+    let conn = open_at(&path).expect("create");
+    insert_doc(&conn, &doc_in_inbox(&conn, "d1", 1)).expect("insert");
+    insert_doc(&conn, &doc_in_inbox(&conn, "d2", 2)).expect("insert");
+
+    bump_doc_version(&conn, "d1").expect("bump");
+    delete_doc(&conn, "d2").expect("delete");
+
+    assert_eq!(list_doc_versions(&conn).expect("list"), [("d1".to_string(), 2)]);
+}

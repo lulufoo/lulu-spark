@@ -6,9 +6,13 @@
 //! - `upload`, `read`, `delete`: the bytes of one document, by document id. Upload goes through a
 //!   signed link from the Worker, read uses the storage token, delete goes through the Worker.
 //!
+//! - `CloudDocs`: the part of the above a sync run uses, as a trait, so the run can be tested
+//!   against a stand-in cloud.
+//!
 //! The session is only read from the vault. This service never writes it and never refreshes it:
 //! the UI refreshes the session before a sync starts. No long-lived key is held here.
 
+mod api;
 mod client;
 mod error;
 mod objects;
@@ -16,6 +20,7 @@ mod types;
 
 use std::sync::OnceLock;
 
+pub use api::CloudDocs;
 pub use client::{Clock, CloudSync, SessionSource};
 pub use error::CloudSyncError;
 pub use types::{CloudDoc, Credentials};

@@ -23,6 +23,7 @@ pub mod reindex;
 pub mod docs;
 pub mod doc_zip;
 pub mod cloud_sync;
+pub mod doc_sync;
 pub mod tag_write;
 pub mod tags_registry;
 pub mod settings;

@@ -173,6 +173,18 @@ pub fn list_docs(conn: &Connection, workspace_id: &str) -> Result<Vec<DocRow>, S
     rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
 }
 
+/// `(doc_id, version)` of every document in every workspace, disabled ones too, ordered by
+/// `doc_id`. Cloud sync compares versions and needs no other column.
+pub fn list_doc_versions(conn: &Connection) -> Result<Vec<(String, i64)>, String> {
+    let mut stmt = conn
+        .prepare("SELECT doc_id, version FROM document ORDER BY doc_id")
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)))
+        .map_err(|e| e.to_string())?;
+    rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
+}
+
 /// `false` when the row did not exist.
 pub fn delete_doc(conn: &Connection, doc_id: &str) -> Result<bool, String> {
     let changed = conn
