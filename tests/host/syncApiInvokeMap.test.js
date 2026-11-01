@@ -13,10 +13,11 @@ const P4_PATHS = [
 
 describe('syncApiInvokeMap', () => {
   it('covers all P4 POST paths with command names', () => {
-    expect(Object.keys(SYNC_API_INVOKE_MAP)).toHaveLength(3);
+    expect(Object.keys(SYNC_API_INVOKE_MAP)).toHaveLength(4);
     for (const [path, cmd] of P4_PATHS) {
       expect(SYNC_API_INVOKE_MAP[path]?.cmd, path).toBe(cmd);
     }
+    expect(SYNC_API_INVOKE_MAP['/api/cloud-sync']?.cmd).toBe('sync_documents');
   });
 
   it('every path wraps Tauri invoke args in payload (Rust sync commands)', () => {
@@ -66,6 +67,15 @@ describe('syncApiInvokeMap', () => {
       cmd: 'save_comment_draft',
       args: { payload: { id: 'ai/x.md', content: 'draft' } },
     });
+  });
+
+  it('cloud-sync maps to sync_documents with no arguments, whatever the body holds', () => {
+    for (const body of [{}, null, undefined, { id: 'x', payload: { id: 'y' } }]) {
+      expect(resolveSyncInvoke('/api/cloud-sync', body)).toEqual({
+        cmd: 'sync_documents',
+        args: {},
+      });
+    }
   });
 
   it('kb git paths are no longer mapped', () => {

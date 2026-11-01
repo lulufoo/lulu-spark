@@ -139,6 +139,37 @@ export async function deleteEntry(id: PathArg) {
   return writePost('/api/delete', { id });
 }
 
+/** What one document did in a sync that did not go as far as it should. */
+export type SyncDocumentIssue = {
+  id: string;
+  op: 'upload' | 'pull';
+  error: string;
+};
+
+/** The answer of a sync that was made, even when part of it went wrong (see `failed`, `stopped`). */
+export type SyncDocumentsResult = {
+  ok: true;
+  uploaded: number;
+  pulled: number;
+  skipped: number;
+  kept: number;
+  gone: number;
+  /** Documents the run did not get to because it stopped. */
+  not_tried: number;
+  failed: SyncDocumentIssue[];
+  /** Set when an error that would hit every document ended the run early. */
+  stopped: SyncDocumentIssue | null;
+};
+
+/**
+ * Syncs this machine's documents with the signed-in user's cloud. Throws (with `status`) when no
+ * sync was made: 401 not signed in or session not accepted, 409 already running, 502 cloud
+ * unavailable, 500 local database.
+ */
+export async function syncDocuments(): Promise<SyncDocumentsResult> {
+  return writePost('/api/cloud-sync', {});
+}
+
 export async function updateHighlight(
   id: string,
   layer: string,

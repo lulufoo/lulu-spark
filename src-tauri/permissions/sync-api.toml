@@ -3,6 +3,7 @@ identifier = "sync-api"
 description = "P4 sync Tauri invoke commands"
 commands.allow = [
   "delete_entry",
+  "sync_documents",
   "move_entry_project",
   "save_comment_draft",
   "save_doc_draft",

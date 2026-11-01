@@ -1,0 +1,118 @@
+use serde_json::json;
+
+use super::*;
+use crate::services::cloud_sync::CloudSyncError;
+use crate::services::doc_sync::{PulledDoc, UploadedDoc};
+
+fn events(lines: &[Line]) -> Vec<&'static str> {
+    lines.iter().map(|l| l.event).collect()
+}
+
+#[test]
+fn a_clean_run_writes_one_info_line_with_the_counts() {
+    // Every count is told apart from the others, so that a count put in the wrong place shows.
+    let mut report = SyncReport::default();
+    report.skipped = (0..5).map(|n| format!("s{n}")).collect();
+    report.push.uploaded = (0..3).map(|n| UploadedDoc { doc_id: format!("u{n}"), version: 1, bytes: 3 }).collect();
+    report.pull.pulled = (0..2)
+        .map(|n| PulledDoc { doc_id: format!("p{n}"), version: 2, bytes: 3, created: true, workspace_id: "w".into() })
+        .collect();
+    report.pull.kept = (0..4).map(|n| format!("k{n}")).collect();
+    report.push.gone = vec!["g1".into()];
+
+    let lines = lines_of(&report);
+
+    assert_eq!(
+        lines,
+        [Line {
+            level: Level::Info,
+            event: "sync.finished",
+            params: json!({
+                "uploaded": 3, "pulled": 2, "skipped": 5, "kept": 4, "gone": 1,
+                "failed": 0, "not_tried": 0, "stopped": false,
+            }),
+        }]
+    );
+}
+
+#[test]
+fn each_failed_document_is_logged_with_its_reason_and_the_run_ends_with_a_warning() {
+    let mut report = SyncReport::default();
+    report.push.failed = vec![(
+        "d1".into(),
+        DocSyncError::Pack { doc_id: "d1".into(), message: "raw/x.md: not found".into() },
+    )];
+    report.pull.failed = vec![("d2".into(), DocSyncError::Cloud(CloudSyncError::ObjectNotFound))];
+
+    let lines = lines_of(&report);
+
+    assert_eq!(events(&lines), ["sync.doc_failed", "sync.doc_failed", "sync.finished"]);
+    assert_eq!(
+        lines[0],
+        Line {
+            level: Level::Warn,
+            event: "sync.doc_failed",
+            params: json!({ "doc_id": "d1", "op": "upload", "error": "could not pack document d1: raw/x.md: not found" }),
+        }
+    );
+    assert_eq!(
+        lines[1].params,
+        json!({ "doc_id": "d2", "op": "pull", "error": "the document is not in the cloud" })
+    );
+    assert_eq!(lines[2].level, Level::Warn);
+    assert_eq!(lines[2].params["failed"], json!(2));
+}
+
+#[test]
+fn a_run_that_stopped_logs_where_and_why() {
+    let mut report = SyncReport::default();
+    report.push.stopped = Some(("u1".into(), DocSyncError::Cloud(CloudSyncError::Network("down".into()))));
+    report.push.not_tried = vec!["u2".into()];
+    report.pull.not_tried = vec!["p1".into(), "p2".into()];
+
+    let lines = lines_of(&report);
+
+    assert_eq!(events(&lines), ["sync.stopped", "sync.finished"]);
+    assert_eq!(
+        lines[0].params,
+        json!({ "doc_id": "u1", "op": "upload", "error": "cloud sync not reachable: down" })
+    );
+    assert_eq!(lines[1].level, Level::Warn);
+    assert_eq!(lines[1].params["stopped"], json!(true));
+    assert_eq!(lines[1].params["not_tried"], json!(3));
+}
+
+#[test]
+fn a_run_that_stopped_in_the_pulls_logs_the_pull() {
+    let mut report = SyncReport::default();
+    report.pull.stopped = Some(("p1".into(), DocSyncError::Cloud(CloudSyncError::SessionExpired)));
+
+    let lines = lines_of(&report);
+
+    assert_eq!(lines[0].params, json!({ "doc_id": "p1", "op": "pull", "error": "sign-in session expired" }));
+    assert_eq!(lines[1].params["stopped"], json!(true));
+}
+
+#[test]
+fn a_run_that_could_not_be_made_writes_a_warning() {
+    let line = line_not_made(&DocSyncError::Cloud(CloudSyncError::NotSignedIn));
+
+    assert_eq!(
+        line,
+        Line { level: Level::Warn, event: "sync.not_made", params: json!({ "error": "not signed in" }) }
+    );
+}
+
+#[test]
+fn every_event_name_is_one_the_app_log_accepts() {
+    let mut report = SyncReport::default();
+    report.push.failed = vec![("d".into(), DocSyncError::Database("x".into()))];
+    report.push.stopped = Some(("d".into(), DocSyncError::Database("x".into())));
+    let mut lines = lines_of(&report);
+    lines.push(line_not_made(&DocSyncError::Database("x".into())));
+
+    assert!(app_log::token_ok(BUSINESS));
+    for line in lines {
+        assert!(app_log::token_ok(line.event), "{}", line.event);
+    }
+}

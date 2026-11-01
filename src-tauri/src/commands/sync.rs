@@ -1,6 +1,7 @@
 use serde_json::Value;
-use tauri::AppHandle;
+use tauri::{AppHandle, State};
 
+use crate::services::doc_sync::{self, SyncGate};
 use crate::services::{
     draft, docs,
 };
@@ -46,6 +47,16 @@ pub async fn delete_entry(_app: AppHandle, payload: Value) -> Result<Value, Stri
         .map_err(|e| e.to_string())
 }
 
+/// Syncs this machine's documents with the signed-in user's cloud and answers with the counts
+/// (see [`doc_sync::summary`]). No arguments: the session is read from the vault in Rust.
+#[tauri::command]
+pub async fn sync_documents(gate: State<'_, SyncGate>) -> Result<Value, String> {
+    let gate = gate.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || doc_sync::sync_now(&gate))
+        .await
+        .map_err(|e| e.to_string())
+}
+
 /// Forwards `project_id` and optional `target_workspace_id` to [`docs::move_doc`].
 #[tauri::command]
 pub async fn move_entry_project(_app: AppHandle, payload: Value) -> Result<Value, String> {
@@ -57,3 +68,7 @@ pub async fn move_entry_project(_app: AppHandle, payload: Value) -> Result<Value
 }
 
 
+
+#[cfg(test)]
+#[path = "../unit-tests/commands/sync.rs"]
+mod tests;
