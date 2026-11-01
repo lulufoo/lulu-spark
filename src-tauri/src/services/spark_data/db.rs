@@ -24,14 +24,11 @@ pub const DB_FILE: &str = "spark-data.sqlite";
 const BUSY_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// The version a new file is created at, and the lowest version this build opens.
-pub(crate) const BASELINE_VERSION: usize = 18;
+pub(crate) const BASELINE_VERSION: usize = 20;
 
 /// Steps after the baseline. Append a step to change the schema; never edit an
 /// existing one. Empty while the baseline is the latest version.
-pub(crate) const MIGRATIONS: [&str; 2] = [
-    "ALTER TABLE workspace ADD COLUMN description TEXT NOT NULL DEFAULT '';",
-    "ALTER TABLE document ADD COLUMN version INTEGER NOT NULL DEFAULT 0 CHECK (version >= 0);",
-];
+pub(crate) const MIGRATIONS: [&str; 0] = [];
 
 /// Whole schema at [`BASELINE_VERSION`]. The `Default` workspace and its inbox project are
 /// added by [`ensure_default_workspace`] because their ids are random.
@@ -48,7 +45,8 @@ CREATE TABLE workspace (
   created_at TEXT,
   disabled_at TEXT,
   icon TEXT,
-  sort_index INTEGER NOT NULL DEFAULT 0
+  sort_index INTEGER NOT NULL DEFAULT 0,
+  description TEXT NOT NULL DEFAULT ''
 );
 CREATE UNIQUE INDEX workspace_one_default ON workspace(is_default) WHERE is_default = 1;
 CREATE TRIGGER workspace_keys_immutable BEFORE UPDATE OF id, is_default ON workspace
@@ -82,7 +80,8 @@ CREATE TABLE document (
   tags         TEXT NOT NULL DEFAULT '[]' CHECK (json_type(tags) = 'array'),
   highlights   TEXT NOT NULL DEFAULT '[]' CHECK (json_type(highlights) = 'array'),
   translations TEXT NOT NULL DEFAULT '[]' CHECK (json_type(translations) = 'array'),
-  title        TEXT
+  title        TEXT,
+  version      INTEGER NOT NULL DEFAULT 0 CHECK (version >= 0)
 );
 CREATE INDEX document_project_id ON document(project_id);
 "#;

@@ -1,19 +1,13 @@
-//! The `document.version` column: how files created before it are upgraded, and how `DocRow` reads and writes it.
+//! The `document.version` column as every new file has it, and how `DocRow` reads and writes it.
 
-use super::db::{open_with_steps, BASELINE_VERSION, MIGRATIONS};
 use super::*;
 
-use rusqlite::types::Value;
 use rusqlite::Connection;
 
 fn temp_db() -> (tempfile::TempDir, std::path::PathBuf) {
     let dir = tempfile::tempdir().expect("tmp");
     let path = dir.path().join("data").join(DB_FILE);
     (dir, path)
-}
-
-fn user_version(conn: &Connection) -> i64 {
-    conn.query_row("PRAGMA user_version", [], |r| r.get(0)).expect("version")
 }
 
 /// (name, type, notnull, default) per column of `document`, in table order.
@@ -26,44 +20,21 @@ fn document_columns(conn: &Connection) -> Vec<(String, String, i64, Option<Strin
         .expect("rows")
 }
 
-fn has_version_column(conn: &Connection) -> bool {
-    document_columns(conn).iter().any(|(name, ..)| name == "version")
-}
-
-/// The default workspace's inbox, by plain SQL so it works on a file of any version.
+/// The default workspace's inbox, by plain SQL.
 fn inbox_id(conn: &Connection) -> String {
     conn.query_row("SELECT id FROM project WHERE is_default = 1", [], |r| r.get(0)).expect("inbox")
 }
 
-/// Rows written before the version column existed: no `version` in the statement.
-fn seed_old_documents(conn: &Connection) {
+/// Rows whose statement never names `version`.
+fn insert_documents_without_version(conn: &Connection) {
     let inbox = inbox_id(conn);
-    conn.execute(
-        "INSERT INTO document(doc_id, raw_path, project_id, title, done, importance, tags, links)
-         VALUES ('d1', 'a/one.md', ?1, 'One', 1, 'high', '[\"t1\"]', '[\"https://example.com\"]')",
-        [&inbox],
-    )
-    .expect("d1");
-    conn.execute("INSERT INTO document(doc_id, raw_path, project_id) VALUES ('d2', 'a/two.md', ?1)", [&inbox])
-        .expect("d2");
-    conn.execute(
-        "INSERT INTO document(doc_id, raw_path, project_id, digest_path, source_type) VALUES ('d3', 'b/three.md', ?1, 'b/three.digest.md', 'web')",
-        [&inbox],
-    )
-    .expect("d3");
-}
-
-/// Every column of `document` except `version`, so a test can see nothing else moved.
-fn other_columns(conn: &Connection) -> Vec<Vec<Value>> {
-    conn.prepare(
-        "SELECT doc_id, raw_path, digest_path, source_type, created_at, importance, done, links, comments, tags,
-                highlights, translations, title, project_id FROM document ORDER BY doc_id",
-    )
-    .expect("prepare")
-    .query_map([], |r| (0..14).map(|i| r.get::<_, Value>(i)).collect::<Result<Vec<_>, _>>())
-    .expect("query")
-    .collect::<Result<_, _>>()
-    .expect("rows")
+    for id in ["d1", "d2", "d3"] {
+        conn.execute(
+            "INSERT INTO document(doc_id, raw_path, project_id) VALUES (?1, 'a/x.md', ?2)",
+            [id, inbox.as_str()],
+        )
+        .expect("insert");
+    }
 }
 
 fn versions(conn: &Connection) -> Vec<(String, i64)> {
@@ -82,67 +53,6 @@ fn doc_in_inbox(conn: &Connection, doc_id: &str, version: i64) -> DocRow {
 }
 
 #[test]
-fn a_file_from_before_the_column_keeps_every_row_and_every_version_is_zero() {
-    let (_dir, path) = temp_db();
-    // The file as it was before this column: the baseline plus the workspace description step.
-    drop(open_with_steps(&path, &MIGRATIONS[..1]).expect("before the column"));
-    let old = Connection::open(&path).expect("raw");
-    assert_eq!(user_version(&old), BASELINE_VERSION as i64 + 1);
-    assert!(!has_version_column(&old));
-    seed_old_documents(&old);
-    let before = other_columns(&old);
-    assert_eq!(before.len(), 3);
-    drop(old);
-
-    let conn = open_at(&path).expect("upgrade");
-
-    assert_eq!(user_version(&conn), BASELINE_VERSION as i64 + 2);
-    assert_eq!(other_columns(&conn), before, "no row lost, no other value changed");
-    assert_eq!(versions(&conn), [("d1".to_string(), 0), ("d2".to_string(), 0), ("d3".to_string(), 0)]);
-    for id in ["d1", "d2", "d3"] {
-        assert_eq!(get_doc(&conn, id).expect("get").expect("row").version, 0, "{id}");
-    }
-}
-
-#[test]
-fn a_baseline_file_goes_straight_to_the_latest_version() {
-    let (_dir, path) = temp_db();
-    drop(open_with_steps(&path, &[]).expect("baseline"));
-    let old = Connection::open(&path).expect("raw");
-    assert_eq!(user_version(&old), BASELINE_VERSION as i64);
-    seed_old_documents(&old);
-    drop(old);
-
-    let conn = open_at(&path).expect("upgrade");
-
-    assert_eq!(user_version(&conn), BASELINE_VERSION as i64 + 2);
-    assert_eq!(versions(&conn).len(), 3);
-    assert!(versions(&conn).iter().all(|(_, version)| *version == 0));
-    let has_description = conn.prepare("SELECT description FROM workspace").is_ok();
-    assert!(has_description, "the earlier step still runs");
-}
-
-#[test]
-fn the_step_does_not_run_again_and_a_stored_version_survives_reopening() {
-    let (_dir, path) = temp_db();
-    drop(open_with_steps(&path, &MIGRATIONS[..1]).expect("before the column"));
-    let old = Connection::open(&path).expect("raw");
-    seed_old_documents(&old);
-    drop(old);
-
-    let conn = open_at(&path).expect("upgrade");
-    let mut doc = get_doc(&conn, "d2").expect("get").expect("row");
-    doc.version = 5;
-    assert!(update_doc(&conn, &doc).expect("update"));
-    drop(conn);
-
-    let reopened = open_at(&path).expect("reopen");
-    assert_eq!(user_version(&reopened), BASELINE_VERSION as i64 + 2);
-    assert_eq!(get_doc(&reopened, "d2").expect("get").expect("row").version, 5);
-    assert_eq!(get_doc(&reopened, "d1").expect("get").expect("row").version, 0);
-}
-
-#[test]
 fn a_new_file_has_the_column_as_a_non_null_integer_that_defaults_to_zero() {
     let (_dir, path) = temp_db();
     let conn = open_at(&path).expect("create");
@@ -150,9 +60,8 @@ fn a_new_file_has_the_column_as_a_non_null_integer_that_defaults_to_zero() {
     let column = document_columns(&conn).into_iter().find(|(name, ..)| name == "version").expect("column");
     assert_eq!(column, ("version".to_string(), "INTEGER".to_string(), 1, Some("0".to_string())));
 
-    seed_old_documents(&conn); // a statement that never names the column gets the default
-    assert_eq!(versions(&conn).len(), 3);
-    assert!(versions(&conn).iter().all(|(_, version)| *version == 0));
+    insert_documents_without_version(&conn); // a statement that never names the column gets the default
+    assert_eq!(versions(&conn), [("d1".to_string(), 0), ("d2".to_string(), 0), ("d3".to_string(), 0)]);
 }
 
 #[test]
