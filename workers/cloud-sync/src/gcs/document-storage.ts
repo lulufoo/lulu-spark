@@ -15,12 +15,30 @@ export type UploadRequest = {
   version: unknown;
 };
 
+export type DocumentSummary = {
+  documentId: string;
+  /** The version number the client wrote on the object when it uploaded it. */
+  version: number;
+};
+
+export type DocumentList = {
+  /** One entry per document in the cloud, in document id order. */
+  documents: DocumentSummary[];
+  /** Objects left out because they are not a document this service wrote. Worth a log line. */
+  skippedObjects: number;
+};
+
 export type DocumentStorage = {
   /**
    * Checks the size and the user's total, then signs a 3-minute link that can write this one
    * object, at most `size` bytes, once.
    */
   issueUpload(userId: string, request: UploadRequest): Promise<SignedUpload>;
+  /**
+   * Every document the user has in the cloud, with its version number. Read only: it never creates
+   * a bucket, and a user who has no bucket yet simply has no documents.
+   */
+  listDocuments(userId: string): Promise<DocumentList>;
   /** Deletes the document's object from the user's bucket. A document that is not there counts as deleted. */
   deleteDocument(userId: string, documentId: unknown): Promise<void>;
 };
@@ -65,6 +83,23 @@ export function createDocumentStorage(deps: DocumentStorageDeps): DocumentStorag
       // 0 means "must not exist yet"; otherwise the link only works while the object is unchanged.
       const generation = (await store.currentGeneration(bucket, documentId)) ?? "0";
       return signer.signUpload({ bucket, object: documentId, maxBytes: size, ifGenerationMatch: generation, version });
+    },
+
+    async listDocuments(userId) {
+      const objects = await store.listObjects(await buckets.nameFor(userId));
+      const documents: DocumentSummary[] = [];
+      let skippedObjects = 0;
+      for (const object of objects ?? []) {
+        const version = object.metadata.version;
+        // Only uploads made through a link from this service carry both. Leaving anything else out lets
+        // the client treat the document as not in the cloud, so its next upload replaces the stray object.
+        if (!DOCUMENT_ID_PATTERN.test(object.name) || version === undefined || !/^\d+$/.test(version) || !Number.isSafeInteger(Number(version))) {
+          skippedObjects += 1;
+          continue;
+        }
+        documents.push({ documentId: object.name, version: Number(version) });
+      }
+      return { documents, skippedObjects };
     },
 
     async deleteDocument(userId, documentId) {

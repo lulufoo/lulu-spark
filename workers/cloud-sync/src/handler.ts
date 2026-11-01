@@ -116,6 +116,20 @@ async function handleIssueUpload(userId: string, request: Request, documents: Do
   }
 }
 
+async function handleListDocuments(userId: string, documents: DocumentStorage): Promise<Response> {
+  try {
+    const { documents: list, skippedObjects } = await documents.listDocuments(userId);
+    if (skippedObjects > 0) {
+      // Only the count: it is a sign that something other than this service wrote to the bucket.
+      console.warn(JSON.stringify({ message: "cloud document list skipped objects that are not documents", skippedObjects }));
+    }
+    // Always fresh, and specific to this user.
+    return makeJsonResponse({ documents: list }, 200, { "Cache-Control": "no-store" });
+  } catch (error) {
+    return respondToFailure("listing documents", error);
+  }
+}
+
 async function handleDeleteDocument(userId: string, documentId: string, documents: DocumentStorage): Promise<Response> {
   try {
     await documents.deleteDocument(userId, documentId);
@@ -160,6 +174,9 @@ export async function handleRequest(request: Request, services: Services): Promi
   }
   if (request.method === "POST" && pathname === "/uploads") {
     return handleIssueUpload(user.userId, request, services.documents);
+  }
+  if (request.method === "GET" && pathname === "/documents") {
+    return handleListDocuments(user.userId, services.documents);
   }
   if (request.method === "DELETE") {
     const documentId = readDocumentIdFromPath(pathname);

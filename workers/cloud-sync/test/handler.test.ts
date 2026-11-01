@@ -1,7 +1,7 @@
 import type { JWTVerifyGetKey } from "jose";
 import { describe, expect, it, vi } from "vitest";
 import type { CredentialsService, UserCredentials } from "../src/gcs/credentials-service";
-import type { DocumentStorage } from "../src/gcs/document-storage";
+import type { DocumentList, DocumentStorage } from "../src/gcs/document-storage";
 import {
   BucketNameTakenError,
   GcsRequestError,
@@ -48,7 +48,8 @@ const DOCUMENT_ID = "0123456789abcdef0123456789abcdef";
 function makeDocuments(overrides: Partial<DocumentStorage> = {}) {
   const issueUpload = vi.fn(overrides.issueUpload ?? (async () => UPLOAD));
   const deleteDocument = vi.fn(overrides.deleteDocument ?? (async () => {}));
-  return { documents: { issueUpload, deleteDocument } satisfies DocumentStorage, issueUpload, deleteDocument };
+  const listDocuments = vi.fn(overrides.listDocuments ?? (async (): Promise<DocumentList> => ({ documents: [], skippedObjects: 0 })));
+  return { documents: { issueUpload, deleteDocument, listDocuments } satisfies DocumentStorage, issueUpload, deleteDocument, listDocuments };
 }
 
 function makeServices(keys: JWTVerifyGetKey, credentials?: CredentialsService, documents?: DocumentStorage): Services {
@@ -58,7 +59,7 @@ function makeServices(keys: JWTVerifyGetKey, credentials?: CredentialsService, d
   return {
     verifier: { issuer: ISSUER, keys },
     credentials: credentials ?? makeCredentials(async () => refuse()).credentials,
-    documents: documents ?? { issueUpload: async () => refuse(), deleteDocument: async () => refuse() },
+    documents: documents ?? { issueUpload: async () => refuse(), deleteDocument: async () => refuse(), listDocuments: async () => refuse() },
   };
 }
 
@@ -448,6 +449,114 @@ describe("DELETE /documents/<id>", () => {
 
     expect(response.status).toBe(503);
     expect(logged).toHaveBeenCalledOnce();
+    logged.mockRestore();
+  });
+});
+
+describe("GET /documents", () => {
+  const LIST: DocumentList = {
+    documents: [
+      { documentId: "a".repeat(32), version: 3 },
+      { documentId: "b".repeat(32), version: 12 },
+    ],
+    skippedObjects: 0,
+  };
+
+  it("returns the signed-in user's documents with their versions, uncached", async () => {
+    const signer = await makeSigner();
+    const token = await signer.signToken();
+    const { documents, listDocuments } = makeDocuments({ listDocuments: async () => LIST });
+
+    const response = await handleRequest(makeRequest("/documents", token), makeServices(signer.keys, undefined, documents));
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ documents: LIST.documents });
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+    expect(listDocuments).toHaveBeenCalledExactlyOnceWith(USER_ID);
+  });
+
+  it("returns an empty list, not an error, for a user with no documents", async () => {
+    const signer = await makeSigner();
+    const token = await signer.signToken();
+
+    const response = await handleRequest(makeRequest("/documents", token), makeServices(signer.keys, undefined, makeDocuments().documents));
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ documents: [] });
+  });
+
+  it("answers 401 without touching storage when there is no token, a bad token or a tampered one", async () => {
+    const signer = await makeSigner();
+    const good = await signer.signToken();
+    const [head, payload, signature] = good.split(".");
+    const tampered = [head, `${payload.slice(0, 10)}${payload[10] === "A" ? "B" : "A"}${payload.slice(11)}`, signature].join(".");
+    const { documents, listDocuments } = makeDocuments();
+
+    for (const token of [undefined, "abc", tampered]) {
+      const response = await handleRequest(makeRequest("/documents", token), makeServices(signer.keys, undefined, documents));
+      expect(response.status).toBe(401);
+    }
+    expect(listDocuments).not.toHaveBeenCalled();
+  });
+
+  it("serves GET only on /documents, and DELETE only on /documents/<id>", async () => {
+    const signer = await makeSigner();
+    const token = await signer.signToken();
+    const { documents, listDocuments, deleteDocument } = makeDocuments();
+    const services = makeServices(signer.keys, undefined, documents);
+
+    expect((await handleRequest(makeRequest("/documents", token, "POST", "{}"), services)).status).toBe(404);
+    expect((await handleRequest(makeRequest("/documents", token, "DELETE"), services)).status).toBe(404);
+    expect((await handleRequest(makeRequest(`/documents/${DOCUMENT_ID}`, token, "GET"), services)).status).toBe(404);
+    expect((await handleRequest(makeRequest("/documents/", token, "GET"), services)).status).toBe(404);
+    expect(listDocuments).not.toHaveBeenCalled();
+    expect(deleteDocument).not.toHaveBeenCalled();
+  });
+
+  it("logs only a count, and keeps it out of the response, when objects were left out of the list", async () => {
+    const signer = await makeSigner();
+    const token = await signer.signToken();
+    const warned = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const { documents } = makeDocuments({ listDocuments: async () => ({ ...LIST, skippedObjects: 2 }) });
+
+    const response = await handleRequest(makeRequest("/documents", token), makeServices(signer.keys, undefined, documents));
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ documents: LIST.documents });
+    expect(warned).toHaveBeenCalledOnce();
+    const line = String(warned.mock.calls[0][0]);
+    expect(JSON.parse(line)).toMatchObject({ skippedObjects: 2 });
+    expect(line).not.toContain("a".repeat(32));
+    warned.mockRestore();
+  });
+
+  it("does not log when nothing was left out", async () => {
+    const signer = await makeSigner();
+    const token = await signer.signToken();
+    const warned = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    await handleRequest(makeRequest("/documents", token), makeServices(signer.keys, undefined, makeDocuments({ listDocuments: async () => LIST }).documents));
+
+    expect(warned).not.toHaveBeenCalled();
+    warned.mockRestore();
+  });
+
+  it("answers 503 and logs when storage fails, rather than an empty list", async () => {
+    const signer = await makeSigner();
+    const token = await signer.signToken();
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { documents } = makeDocuments({
+      listDocuments: async () => {
+        throw new GcsRequestError("list objects", 500, "INTERNAL");
+      },
+    });
+
+    const response = await handleRequest(makeRequest("/documents", token), makeServices(signer.keys, undefined, documents));
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({ error: "storage_unavailable" });
+    expect(logged).toHaveBeenCalledOnce();
+    expect(String(logged.mock.calls[0][0])).not.toContain(token);
     logged.mockRestore();
   });
 });

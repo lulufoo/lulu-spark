@@ -13,7 +13,7 @@ const MAX_OBJECT = 10_000;
 const MAX_TOTAL = 50_000;
 
 /** Google's token endpoint and a storage API with one existing bucket, whose contents the test sets. */
-function makeFakeGoogle(storage: { versionSizes: number[]; generation?: string }) {
+function makeFakeGoogle(storage: { versionSizes: number[]; generation?: string; live?: { name: string; version: string }[]; bucketMissing?: boolean }) {
   let sourceTokens = 0;
   return makeFakeFetch((request: RecordedRequest) => {
     if (request.url === TOKEN_URI) {
@@ -23,7 +23,12 @@ function makeFakeGoogle(storage: { versionSizes: number[]; generation?: string }
     const object = /\/b\/[^/?]+\/o(?:\/([^?]*))?(?:\?|$)/.exec(request.url);
     if (object) {
       if (request.method === "DELETE") return new Response(null, { status: 204 });
-      if (object[1] === undefined) return jsonReply(200, { items: storage.versionSizes.map((size) => ({ size: String(size) })) });
+      if (object[1] === undefined) {
+        if (storage.bucketMissing) return jsonReply(404, { error: { status: "NOT_FOUND" } });
+        // Old versions are only listed when asked for, which is what the size total does.
+        if (new URL(request.url).searchParams.get("versions") === "true") return jsonReply(200, { items: storage.versionSizes.map((size) => ({ size: String(size) })) });
+        return jsonReply(200, { items: (storage.live ?? []).map(({ name, version }) => ({ name, metadata: { version } })) });
+      }
       return storage.generation ? jsonReply(200, { generation: storage.generation }) : jsonReply(404, { error: { status: "NOT_FOUND" } });
     }
     if (request.method === "GET" && /\/b\/[^/?]+/.test(request.url)) return jsonReply(200, { projectNumber: "55973988960" });
@@ -117,6 +122,32 @@ describe("createGcsServices: documents", () => {
 
     const deletes = requests.filter((request) => request.method === "DELETE");
     expect(deletes.map((request) => request.url)).toEqual([`https://storage.googleapis.com/storage/v1/b/${BUCKET}/o/${DOCUMENT_ID}`]);
+  });
+});
+
+describe("createGcsServices: document list", () => {
+  it("lists the live documents of the user's bucket, with one shared access token and no bucket check or creation", async () => {
+    const { fetchFn, requests } = makeFakeGoogle({ versionSizes: [], live: [{ name: DOCUMENT_ID, version: "7" }, { name: "f".repeat(32), version: "2" }] });
+    const { documents } = await makeServices(fetchFn);
+
+    const list = await documents.listDocuments(USER_ID);
+
+    expect(list).toEqual({ documents: [{ documentId: DOCUMENT_ID, version: 7 }, { documentId: "f".repeat(32), version: 2 }], skippedObjects: 0 });
+    const storageCalls = requests.filter((request) => request.url.startsWith("https://storage.googleapis.com/"));
+    expect(storageCalls).toHaveLength(1);
+    const url = new URL(storageCalls[0].url);
+    expect(url.pathname).toBe(`/storage/v1/b/${BUCKET}/o`);
+    expect(url.searchParams.has("versions")).toBe(false);
+    expect(storageCalls[0].headers.get("Authorization")).toBe("Bearer source-tok-1");
+    expect(requests.some((request) => request.method === "POST" && request.url.startsWith("https://storage.googleapis.com/"))).toBe(false); // nothing is created
+  });
+
+  it("returns an empty list for a user whose bucket does not exist, without creating it", async () => {
+    const { fetchFn, requests } = makeFakeGoogle({ versionSizes: [], bucketMissing: true });
+    const { documents } = await makeServices(fetchFn);
+
+    expect(await documents.listDocuments(USER_ID)).toEqual({ documents: [], skippedObjects: 0 });
+    expect(requests.some((request) => request.method === "POST" && request.url.startsWith("https://storage.googleapis.com/"))).toBe(false); // nothing is created
   });
 });
 

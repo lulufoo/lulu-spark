@@ -6,6 +6,8 @@
 //   npx vitest run --config vitest.live.config.ts test-live/documents-live.test.ts
 // It writes a few kilobytes under random document ids and deletes them at the end; the old versions
 // stay until the bucket's 3-day rule removes them.
+// GCS_LIVE_MANY=1 adds one test that writes 1,101 tiny objects (about 2,200 requests, a few cents at most)
+// to prove the list is complete across pages; run it once, not on every pass.
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createAccessTokenProvider } from "../src/gcs/access-token-provider";
 import { ObjectTooLargeError, QuotaExceededError } from "../src/gcs/errors";
@@ -13,7 +15,7 @@ import { createGcsServices, type GcsServices } from "../src/gcs/gcs-services";
 import { createObjectStore } from "../src/gcs/object-store";
 import { parseServiceAccountKey } from "../src/gcs/service-account-key";
 import type { SignedUpload } from "../src/gcs/signed-upload-url";
-import { KEY_JSON, PROJECT_ID, PROJECT_NUMBER, STORAGE, makeRandomHex } from "./support";
+import { KEY_JSON, PROJECT_ID, PROJECT_NUMBER, STORAGE, UPLOAD, makeRandomHex } from "./support";
 
 const BUCKET_NAME_KEY = process.env.BUCKET_NAME_KEY?.trim();
 const USER_ID = process.env.GCS_LIVE_USER_ID;
@@ -146,4 +148,95 @@ describe.skipIf(!KEY_JSON || !BUCKET_NAME_KEY || !USER_ID)("document storage aga
     expect(await store.currentGeneration(bucket, removed)).toBeNull();
     expect(await store.currentGeneration(bucket, kept)).not.toBeNull();
   });
+
+  it("lists each document once with its latest version, and stops listing it after a delete", async () => {
+    const [first, second, third] = [newDocumentId(), newDocumentId(), newDocumentId()];
+    const write = async (id: string, version: number) =>
+      expect((await put(await documents.issueUpload(USER_ID!, { documentId: id, size: 4, version }), "data")).status).toBe(200);
+    await write(first, 1);
+    await write(second, 4);
+    await write(third, 9);
+    await write(second, 5); // overwritten: the old version must not show up as a second entry
+
+    const list = await documents.listDocuments(USER_ID!);
+
+    const mine = list.documents.filter((entry) => [first, second, third].includes(entry.documentId));
+    expect(mine).toEqual([...[
+      { documentId: first, version: 1 },
+      { documentId: second, version: 5 },
+      { documentId: third, version: 9 },
+    ]].sort((a, b) => (a.documentId < b.documentId ? -1 : 1)));
+    // Everything live is either listed or counted as left out; nothing is lost in between.
+    const live = (await store.listObjects(bucket)) ?? [];
+    expect(list.documents.length + list.skippedObjects).toBe(live.length);
+    expect(new Set(list.documents.map((entry) => entry.documentId)).size).toBe(list.documents.length);
+
+    await documents.deleteDocument(USER_ID!, second);
+
+    const after = (await documents.listDocuments(USER_ID!)).documents.map((entry) => entry.documentId);
+    expect(after).toContain(first);
+    expect(after).toContain(third);
+    expect(after).not.toContain(second);
+  });
+
+  it("lists nothing, and creates nothing, for a user who has no bucket", async () => {
+    const stranger = services(1_000_000).documents;
+    const before = await store.totalBytes(bucket);
+
+    expect(await stranger.listDocuments(crypto.randomUUID())).toEqual({ documents: [], skippedObjects: 0 });
+
+    expect(await store.totalBytes(bucket)).toBe(before);
+  });
+
+  it.skipIf(process.env.GCS_LIVE_MANY !== "1")(
+    "a list of more than one page is complete: every document once, with its own version",
+    async () => {
+      const COUNT = 1101; // one page is 1000 objects
+      const ids = Array.from({ length: COUNT }, () => makeRandomHex(16));
+      const versionOf = (index: number) => 1000 + index;
+      const boundary = `many-${makeRandomHex(8)}`;
+      const writeDirect = async (index: number) => {
+        const body =
+          `--${boundary}\r\nContent-Type: application/json\r\n\r\n${JSON.stringify({ name: ids[index], metadata: { version: String(versionOf(index)) } })}\r\n` +
+          `--${boundary}\r\nContent-Type: application/octet-stream\r\n\r\nx\r\n--${boundary}--`;
+        for (let attempt = 1; ; attempt += 1) {
+          try {
+            const response = await fetch(`${UPLOAD}/b/${bucket}/o?uploadType=multipart`, {
+              method: "POST",
+              headers: { Authorization: `Bearer ${await longLived.getAccessToken()}`, "Content-Type": `multipart/related; boundary=${boundary}` },
+              body,
+            });
+            if (!response.ok) throw new Error(`write ${index} failed: ${response.status}`);
+            return;
+          } catch (error) {
+            // The first connection after a quiet spell can be reset on this machine; a second try works.
+            if (attempt >= 3) throw error;
+          }
+        }
+      };
+      const inBatches = async (task: (index: number) => Promise<void>) => {
+        for (let start = 0; start < COUNT; start += 25) {
+          await Promise.all(Array.from({ length: Math.min(25, COUNT - start) }, (_, offset) => task(start + offset)));
+        }
+      };
+
+      try {
+        await inBatches(writeDirect);
+
+        const list = await documents.listDocuments(USER_ID!);
+
+        const listed = new Map<string, number>();
+        for (const entry of list.documents) {
+          expect(listed.has(entry.documentId)).toBe(false); // each exactly once
+          listed.set(entry.documentId, entry.version);
+        }
+        ids.forEach((id, index) => expect(listed.get(id)).toBe(versionOf(index)));
+        expect(list.documents.length).toBeGreaterThanOrEqual(COUNT);
+        expect(list.documents.map((entry) => entry.documentId)).toEqual([...list.documents.map((entry) => entry.documentId)].sort());
+      } finally {
+        await inBatches((index) => store.deleteObject(bucket, ids[index]));
+      }
+    },
+    600_000,
+  );
 });

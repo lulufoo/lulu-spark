@@ -72,6 +72,75 @@ describe("totalBytes", () => {
   });
 });
 
+describe("listObjects", () => {
+  it("lists the live objects only, asking for names and metadata, with the long-lived token", async () => {
+    const { store, requests } = makeStore(
+      replyInOrder(jsonReply(200, { items: [{ name: "a".repeat(32), metadata: { version: "3" } }, { name: "b".repeat(32), metadata: { version: "12" } }] })),
+    );
+
+    expect(await store.listObjects(BUCKET)).toEqual([
+      { name: "a".repeat(32), metadata: { version: "3" } },
+      { name: "b".repeat(32), metadata: { version: "12" } },
+    ]);
+
+    expect(requests).toHaveLength(1);
+    const url = new URL(requests[0].url);
+    expect(`${url.origin}${url.pathname}`).toBe(LIST_URL);
+    expect(url.searchParams.has("versions")).toBe(false); // old versions are not documents
+    expect(url.searchParams.get("fields")).toBe("items(name,metadata),nextPageToken");
+    expect(url.searchParams.get("maxResults")).toBe("1000"); // the default page size, never a larger one
+    expect(requests[0].headers.get("Authorization")).toBe("Bearer long-lived-token");
+  });
+
+  it("gives an object that has no metadata an empty metadata object", async () => {
+    const { store } = makeStore(replyInOrder(jsonReply(200, { items: [{ name: "c".repeat(32) }] })));
+    expect(await store.listObjects(BUCKET)).toEqual([{ name: "c".repeat(32), metadata: {} }]);
+  });
+
+  it("leaves out an item that has no name", async () => {
+    const { store } = makeStore(replyInOrder(jsonReply(200, { items: [{ metadata: { version: "1" } }, { name: "d".repeat(32), metadata: { version: "1" } }] })));
+    expect(await store.listObjects(BUCKET)).toEqual([{ name: "d".repeat(32), metadata: { version: "1" } }]);
+  });
+
+  it("returns an empty list for a bucket with no objects, which Google reports with no items", async () => {
+    const { store } = makeStore(replyInOrder(jsonReply(200, {})));
+    expect(await store.listObjects(BUCKET)).toEqual([]);
+  });
+
+  it("returns null when the bucket does not exist", async () => {
+    const { store } = makeStore(replyInOrder(jsonReply(404, { error: { status: "NOT_FOUND" } })));
+    expect(await store.listObjects(BUCKET)).toBeNull();
+  });
+
+  it("follows the page token until there is none, keeping every object in order", async () => {
+    const page = (names: string[], next?: string) => jsonReply(200, { items: names.map((name) => ({ name, metadata: { version: "1" } })), ...(next ? { nextPageToken: next } : {}) });
+    const { store, requests } = makeStore(replyInOrder(page(["a", "b"], "page-2"), page(["c"], "page-3"), page(["d", "e"])));
+
+    expect((await store.listObjects(BUCKET))?.map((object) => object.name)).toEqual(["a", "b", "c", "d", "e"]);
+
+    expect(requests.map((request) => new URL(request.url).searchParams.get("pageToken"))).toEqual([null, "page-2", "page-3"]);
+  });
+
+  it("fails instead of returning a short list when there are too many pages", async () => {
+    const { store, requests } = makeStore(() => jsonReply(200, { items: [{ name: "x", metadata: {} }], nextPageToken: "more" }));
+    await expect(store.listObjects(BUCKET)).rejects.toBeInstanceOf(ListingTooLargeError);
+    expect(requests).toHaveLength(20);
+  });
+
+  it("fails on any other error rather than answering with an empty list", async () => {
+    const { store } = makeStore(replyInOrder(jsonReply(403, { error: { status: "PERMISSION_DENIED", message: "secret detail" } })));
+    const error = await store.listObjects(BUCKET).catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(GcsRequestError);
+    expect(String((error as Error).message)).toContain("PERMISSION_DENIED");
+    expect(String((error as Error).message)).not.toContain("secret detail");
+  });
+
+  it("fails when a later page fails, rather than answering with the pages so far", async () => {
+    const { store } = makeStore(replyInOrder(jsonReply(200, { items: [{ name: "a", metadata: {} }], nextPageToken: "p2" }), jsonReply(500, { error: { status: "INTERNAL" } })));
+    await expect(store.listObjects(BUCKET)).rejects.toBeInstanceOf(GcsRequestError);
+  });
+});
+
 describe("currentGeneration", () => {
   it("returns the generation of the live object", async () => {
     const { store, requests } = makeStore(replyInOrder(jsonReply(200, { generation: "1730419200123456" })));

@@ -40,6 +40,7 @@ export default {
       credentials: { issueUserCredentials: (userId) => getGcsServices(env).credentials.issueUserCredentials(userId) },
       documents: {
         issueUpload: (userId, request) => getGcsServices(env).documents.issueUpload(userId, request),
+        listDocuments: (userId) => getGcsServices(env).documents.listDocuments(userId),
         deleteDocument: (userId, documentId) => getGcsServices(env).documents.deleteDocument(userId, documentId),
       },
     });

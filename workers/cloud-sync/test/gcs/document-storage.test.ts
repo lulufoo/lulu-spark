@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { BucketService } from "../../src/gcs/bucket-service";
 import { createDocumentStorage } from "../../src/gcs/document-storage";
 import { GcsRequestError, InvalidRequestError, ListingTooLargeError, ObjectTooLargeError, QuotaExceededError } from "../../src/gcs/errors";
-import type { ObjectStore } from "../../src/gcs/object-store";
+import type { ListedObject, ObjectStore } from "../../src/gcs/object-store";
 import type { UploadUrlRequest, UploadUrlSigner } from "../../src/gcs/signed-upload-url";
 
 const MAX_OBJECT = 1000;
@@ -16,7 +16,7 @@ function bucketOf(userId: string): string {
   return `spark-for-${userId}`;
 }
 
-function makeFixture(options: { usedBytes?: number; generation?: string | null } = {}) {
+function makeFixture(options: { usedBytes?: number; generation?: string | null; objects?: ListedObject[] | null } = {}) {
   const calls: string[] = [];
   const buckets = {
     ensureUserBucket: vi.fn(async (userId: string) => {
@@ -36,6 +36,10 @@ function makeFixture(options: { usedBytes?: number; generation?: string | null }
     }),
     deleteObject: vi.fn(async (_bucket: string, _object: string) => {
       calls.push("deleteObject");
+    }),
+    listObjects: vi.fn(async (_bucket: string) => {
+      calls.push("listObjects");
+      return options.objects === undefined ? [] : options.objects;
     }),
   } satisfies ObjectStore;
   const signer = {
@@ -249,5 +253,80 @@ describe("deleteDocument", () => {
     const { storage, store } = makeFixture();
     store.deleteObject.mockRejectedValueOnce(new GcsRequestError("delete object", 500, "INTERNAL"));
     await expect(storage.deleteDocument(USER_ID, DOCUMENT_ID)).rejects.toBeInstanceOf(GcsRequestError);
+  });
+});
+
+const ID_A = "a".repeat(32);
+const ID_B = "b".repeat(32);
+const ID_C = "0123456789abcdef0123456789abcdef";
+const live = (name: string, version?: string): ListedObject => ({ name, metadata: version === undefined ? {} : { version } });
+
+describe("listDocuments", () => {
+  it("returns one entry per object, with the version as a number, in the order Google lists them", async () => {
+    const { storage } = makeFixture({ objects: [live(ID_A, "3"), live(ID_B, "12"), live(ID_C, "0")] });
+
+    expect(await storage.listDocuments(USER_ID)).toEqual({
+      documents: [
+        { documentId: ID_A, version: 3 },
+        { documentId: ID_B, version: 12 },
+        { documentId: ID_C, version: 0 },
+      ],
+      skippedObjects: 0,
+    });
+  });
+
+  it("lists the bucket of the user who asked, without creating or checking one", async () => {
+    const { storage, buckets, store } = makeFixture({ objects: [live(ID_A, "1")] });
+
+    await storage.listDocuments(OTHER_USER_ID);
+
+    expect(buckets.nameFor).toHaveBeenCalledExactlyOnceWith(OTHER_USER_ID);
+    expect(buckets.ensureUserBucket).not.toHaveBeenCalled();
+    expect(store.listObjects).toHaveBeenCalledExactlyOnceWith(bucketOf(OTHER_USER_ID));
+  });
+
+  it("returns an empty list for an empty bucket", async () => {
+    const { storage } = makeFixture({ objects: [] });
+    expect(await storage.listDocuments(USER_ID)).toEqual({ documents: [], skippedObjects: 0 });
+  });
+
+  it("returns an empty list for a user who has no bucket yet", async () => {
+    const { storage } = makeFixture({ objects: null });
+    expect(await storage.listDocuments(USER_ID)).toEqual({ documents: [], skippedObjects: 0 });
+  });
+
+  it.each([
+    ["a name that is not a document id", live("lw726-slow-abc", "1")],
+    ["a name with capitals", live(ID_A.toUpperCase(), "1")],
+    ["a name that is too short", live(ID_A.slice(1), "1")],
+    ["a folder-like name", live(`${ID_A.slice(0, 16)}/${ID_A.slice(17)}`, "1")],
+    ["no version", live(ID_A)],
+    ["a version that is not digits", live(ID_A, "abc")],
+    ["a negative version", live(ID_A, "-1")],
+    ["a fractional version", live(ID_A, "1.5")],
+    ["an empty version", live(ID_A, "")],
+    ["a version too large to count exactly", live(ID_A, "99999999999999999999")],
+  ])("leaves out an object with %s, and counts it", async (_label, stray) => {
+    const { storage } = makeFixture({ objects: [live(ID_B, "7"), stray, live(ID_C, "2")] });
+
+    expect(await storage.listDocuments(USER_ID)).toEqual({
+      documents: [
+        { documentId: ID_B, version: 7 },
+        { documentId: ID_C, version: 2 },
+      ],
+      skippedObjects: 1,
+    });
+  });
+
+  it("lets a failure from Google through, so the client does not mistake it for an empty cloud", async () => {
+    const { storage, store } = makeFixture();
+    store.listObjects.mockRejectedValueOnce(new GcsRequestError("list objects", 500, "INTERNAL"));
+    await expect(storage.listDocuments(USER_ID)).rejects.toBeInstanceOf(GcsRequestError);
+  });
+
+  it("lets a listing that is too large through as a failure, not a short list", async () => {
+    const { storage, store } = makeFixture();
+    store.listObjects.mockRejectedValueOnce(new ListingTooLargeError("more than 20000 listed items"));
+    await expect(storage.listDocuments(USER_ID)).rejects.toBeInstanceOf(ListingTooLargeError);
   });
 });
