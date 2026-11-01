@@ -1,6 +1,19 @@
 import { refreshAuthSession } from '../../auth/refresh.ts';
-import { syncDocuments } from '../../host/api.ts';
+import { cancelSyncDocuments, syncDocuments } from '../../host/api.ts';
 import { cloudSyncStore, type CloudSyncView } from '../state/cloud-sync.ts';
+
+/** How often a cancel is repeated while the host has not yet said that it took it. */
+export const CANCEL_RETRY_MS = 250;
+/**
+ * How long a cancel is repeated. The sign-in refresh is cut at 10 s, so by then the host has been
+ * asked to sync, and a cancel it answers is a cancel it took.
+ */
+export const CANCEL_GIVE_UP_MS = 30_000;
+
+function cancelAsked(): boolean {
+  const view = cloudSyncStore.getSnapshot();
+  return view.phase === 'syncing' && view.cancelling;
+}
 
 /**
  * One sync on the user's request: make the sign-in session fresh, then ask the host to sync.
@@ -13,8 +26,34 @@ import { cloudSyncStore, type CloudSyncView } from '../state/cloud-sync.ts';
  */
 export async function runCloudSync(): Promise<void> {
   if (cloudSyncStore.getSnapshot().phase === 'syncing') return;
-  cloudSyncStore.set({ phase: 'syncing' });
+  cloudSyncStore.set({ phase: 'syncing', cancelling: false });
   cloudSyncStore.set(await outcome());
+}
+
+/**
+ * The user asks the sync that is going on to stop. Nothing happens when none is.
+ *
+ * Before the host has a sync going (the sign-in is being refreshed, or the request is on its way)
+ * it answers that there is nothing to cancel, and remembers nothing. So the cancel is asked again
+ * until the host takes it, or the sync is over; and `runCloudSync` does not ask the host to sync
+ * at all when the user cancelled while the sign-in was being refreshed.
+ *
+ * The host stops before the next document: the one being transferred is finished, and the sync
+ * then answers with `cancelled: true`.
+ */
+export async function cancelCloudSync(): Promise<void> {
+  const view = cloudSyncStore.getSnapshot();
+  if (view.phase !== 'syncing' || view.cancelling) return;
+  cloudSyncStore.set({ phase: 'syncing', cancelling: true });
+  const giveUpAt = Date.now() + CANCEL_GIVE_UP_MS;
+  while (cancelAsked() && Date.now() < giveUpAt) {
+    try {
+      if ((await cancelSyncDocuments()).cancelling) return;
+    } catch {
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, CANCEL_RETRY_MS));
+  }
 }
 
 /** Forget the last sync, e.g. when the user signs out. */
@@ -26,6 +65,7 @@ export function resetCloudSync(): void {
 async function outcome(): Promise<CloudSyncView> {
   try {
     const session = await refreshAuthSession();
+    if (cancelAsked()) return { phase: 'cancelled' };
     if (session.kind === 'signed_out') return { phase: 'refused', reason: 'signed_out' };
     if (session.kind === 'failed') {
       return { phase: 'refused', reason: session.reason === 'network' ? 'session_network' : 'session_invalid' };
