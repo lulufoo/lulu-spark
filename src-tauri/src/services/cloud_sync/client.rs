@@ -52,7 +52,11 @@ fn unix_now() -> i64 {
 
 /// The error and its causes, e.g. `error sending request: connection refused`: reqwest keeps the
 /// reason in the cause, not in its own text.
+///
+/// The URL is left out. The text goes to the log and to the UI, and the URL of an upload is a
+/// signed link that lets anyone who holds it write the object for as long as it is valid.
 pub(super) fn network(e: reqwest::Error) -> CloudSyncError {
+    let e = e.without_url();
     let mut text = e.to_string();
     let mut cause = std::error::Error::source(&e);
     while let Some(c) = cause {

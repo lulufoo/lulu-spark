@@ -4,7 +4,7 @@ use serde_json::json;
 
 use super::*;
 use crate::services::cloud_sync::tests::{
-    creds_reply, expired_reply, link_reply, xml_error, Reply, Rig, DOC_A, JWT, NOW,
+    creds_reply, dead_url, expired_reply, link_reply, xml_error, Reply, Rig, DOC_A, JWT, NOW,
 };
 
 /// Every byte value, so a package that is not text cannot pass by luck.
@@ -17,6 +17,31 @@ fn put_path(rig: &Rig, index: usize) -> String {
 }
 
 // --- upload ---
+
+#[test]
+fn a_send_that_fails_does_not_put_the_signed_link_in_the_error() {
+    let storage = dead_url();
+    let link = Reply::json(
+        200,
+        json!({
+            "method": "PUT",
+            "url": format!("{storage}/put/one?X-Goog-Signature=SECRETSIG"),
+            "headers": {},
+            "expiresAt": NOW + 600,
+        }),
+    );
+    let mut rig = Rig::new(vec![link]);
+    rig.sync.storage_url = storage;
+
+    let err = rig.sync.upload(DOC_A, &package(), 3).unwrap_err();
+
+    let CloudSyncError::Network(why) = &err else { panic!("not a network error: {err:?}") };
+    assert!(why.contains("tcp connect error"), "the cause is still there: {why}");
+    let shown = format!("{err:?} | {err}");
+    for secret in ["SECRETSIG", "X-Goog-Signature", "/put/one"] {
+        assert!(!shown.contains(secret), "{secret} in {shown}");
+    }
+}
 
 #[test]
 fn an_upload_asks_the_worker_for_a_link_and_sends_the_bytes_to_it() {
