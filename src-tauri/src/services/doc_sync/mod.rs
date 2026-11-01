@@ -18,6 +18,7 @@ mod error;
 mod gate;
 mod journal;
 mod landing;
+mod logged;
 mod now;
 mod plan;
 mod pull;

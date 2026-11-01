@@ -4,8 +4,8 @@ use serde_json::json;
 
 use super::*;
 use crate::services::cloud_sync::tests::{
-    creds_reply, dead_url, expired_reply, link_reply, list_reply, xml_error, Reply, Rig, DOC_A, JWT,
-    NOW,
+    creds_reply, cutting_url, dead_url, expired_reply, link_reply, list_reply, xml_error, Reply, Rig,
+    DOC_A, JWT, NOW,
 };
 
 /// Every byte value, so a package that is not text cannot pass by luck.
@@ -437,5 +437,40 @@ fn a_transfer_and_the_call_after_it_go_over_one_connection() {
 
         assert_eq!(rig.worker.recorded().len(), answers, "{name}: every answer was used");
         assert_eq!(rig.worker.connections(), 1, "{name}: the next call used the same connection");
+    }
+}
+
+// --- the step in a network error ---
+
+#[test]
+fn a_network_error_of_a_transfer_says_which_transfer() {
+    let link_to_dead_storage = |storage: &str| {
+        Reply::json(
+            200,
+            json!({
+                "method": "PUT",
+                "url": format!("{storage}/put/one?X-Goog-Signature=abc"),
+                "headers": {},
+                "expiresAt": NOW + 600,
+            }),
+        )
+    };
+    let dead = dead_url();
+
+    let mut upload = Rig::new(vec![link_to_dead_storage(&dead)]);
+    upload.sync.storage_url = dead.clone();
+    let mut read = Rig::new(vec![creds_reply("gcs-1", NOW + 1800)]);
+    read.sync.storage_url = dead;
+    let mut cut = Rig::new(vec![creds_reply("gcs-1", NOW + 1800)]);
+    cut.sync.storage_url = cutting_url();
+
+    let cases = [
+        ("an upload", upload.sync.upload(DOC_A, &package(), 3), "upload to storage: "),
+        ("a read", read.sync.read(DOC_A).map(drop), "download from storage: "),
+        ("a read that was cut off", cut.sync.read(DOC_A).map(drop), "download from storage: "),
+    ];
+    for (name, result, step) in cases {
+        let CloudSyncError::Network(why) = result.unwrap_err() else { panic!("{name}: not a network error") };
+        assert!(why.starts_with(step), "{name}: {why}");
     }
 }

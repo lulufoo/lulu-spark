@@ -7,7 +7,8 @@ use serde_json::{json, Value};
 
 use super::cancel::Cancellable;
 use super::gate::SyncGate;
-use super::journal;
+use super::journal::{self, Line};
+use super::logged::Logged;
 use super::pull::PulledDoc;
 use super::run::run_sync;
 use super::summary::{busy, not_made, summary};
@@ -57,18 +58,25 @@ pub fn cancel_now(gate: &SyncGate) -> Value {
 /// is already going on (409), or this machine's database cannot be read (500). A sync the user
 /// cancelled (see [`cancel_now`]) is a run that was made, with `cancelled: true`.
 pub fn sync_with(gate: &SyncGate, cloud: &dyn CloudDocs) -> Value {
-    let (answer, lines) = sync_and_journal(gate, cloud);
+    let (answer, lines) = sync_and_journal(gate, cloud, &|line| journal::write(&[line]));
     journal::write(&lines);
     answer
 }
 
-/// The sync of [`sync_with`], with the log lines it earns handed back instead of written, so that
-/// the lines can be read.
-pub(super) fn sync_and_journal(gate: &SyncGate, cloud: &dyn CloudDocs) -> (Value, Vec<journal::Line>) {
+/// The sync of [`sync_with`], with the log lines it earns when it ends handed back instead of
+/// written, so that the lines can be read. The lines of what happens on the way (the run began, a
+/// document went across) go to `live` as they happen: a run can be long, and can be cut short.
+pub(super) fn sync_and_journal(
+    gate: &SyncGate,
+    cloud: &dyn CloudDocs,
+    live: &dyn Fn(Line),
+) -> (Value, Vec<Line>) {
     let Some(run) = gate.try_begin() else {
         return (busy(), Vec::new());
     };
-    let cloud = Cancellable::new(cloud, &run);
+    live(journal::line_started());
+    let logged = Logged::new(cloud, live);
+    let cloud = Cancellable::new(&logged, &run);
     let outcome = spark_data::open()
         .map_err(super::DocSyncError::Database)
         .and_then(|conn| {

@@ -161,3 +161,24 @@ fn every_event_name_is_one_the_app_log_accepts() {
         assert!(app_log::token_ok(line.event), "{}", line.event);
     }
 }
+
+#[test]
+fn the_lines_of_what_goes_on_are_info_lines_with_their_fields() {
+    let cases = [
+        (line_started(), "sync.started", json!({})),
+        (line_listed(4, 120), "sync.listed", json!({ "cloud_docs": 4, "ms": 120 })),
+        (
+            line_uploaded("d1", 3, 2048, 340),
+            "sync.doc_uploaded",
+            json!({ "doc_id": "d1", "version": 3, "bytes": 2048, "ms": 340 }),
+        ),
+        (
+            line_downloaded("d2", 512, 90),
+            "sync.doc_downloaded",
+            json!({ "doc_id": "d2", "bytes": 512, "ms": 90 }),
+        ),
+    ];
+    for (line, event, params) in cases {
+        assert_eq!(line, Line { level: Level::Info, event, params }, "{event}");
+    }
+}

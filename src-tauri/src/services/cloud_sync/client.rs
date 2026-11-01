@@ -72,6 +72,29 @@ pub(super) fn network(e: reqwest::Error) -> CloudSyncError {
     CloudSyncError::Network(text)
 }
 
+// The steps of a sync that go over the network. A network error says which one it was in, so that
+// the log and the UI can tell a link the Worker did not give from bytes Google did not take.
+pub(super) const STEP_CREDENTIALS: &str = "credentials";
+pub(super) const STEP_LIST: &str = "document list";
+pub(super) const STEP_LINK: &str = "upload link";
+pub(super) const STEP_UPLOAD: &str = "upload to storage";
+pub(super) const STEP_DOWNLOAD: &str = "download from storage";
+pub(super) const STEP_DELETE: &str = "delete";
+
+/// `error` with `step` in front of its text when it is a network error, e.g.
+/// `upload link: error sending request: ...`. Any other error is as it was.
+pub(super) fn in_step(step: &str, error: CloudSyncError) -> CloudSyncError {
+    match error {
+        CloudSyncError::Network(text) => CloudSyncError::Network(format!("{step}: {text}")),
+        other => other,
+    }
+}
+
+/// [`network`] for `map_err`, with the step in front.
+pub(super) fn network_in(step: &'static str) -> impl Fn(reqwest::Error) -> CloudSyncError {
+    move |e| in_step(step, network(e))
+}
+
 /// The client every call goes through. It follows no redirects: neither the Worker nor Google
 /// redirects, and the session token must not follow one. `REQUEST_TIMEOUT` is for a call that
 /// sets none of its own; a transfer sets a longer one on its request.
@@ -164,6 +187,7 @@ impl CloudSync {
         path: &str,
         session: &AuthSession,
         body: Option<&Value>,
+        step: &'static str,
     ) -> Result<Vec<u8>, CloudSyncError> {
         let mut request = self
             .http()?
@@ -172,9 +196,9 @@ impl CloudSync {
         if let Some(body) = body {
             request = request.json(body);
         }
-        let response = request.send().map_err(network)?;
+        let response = request.send().map_err(network_in(step))?;
         let status = response.status();
-        let body = response.bytes().map_err(network)?;
+        let body = response.bytes().map_err(network_in(step))?;
         if !status.is_success() {
             return Err(failure(status.as_u16(), &body));
         }
@@ -187,8 +211,9 @@ impl CloudSync {
         path: &str,
         session: &AuthSession,
         body: Option<&Value>,
+        step: &'static str,
     ) -> Result<Value, CloudSyncError> {
-        serde_json::from_slice(&self.call(method, path, session, body)?)
+        serde_json::from_slice(&self.call(method, path, session, body, step)?)
             .map_err(|e| CloudSyncError::BadResponse(format!("body is not JSON: {e}")))
     }
 
@@ -203,7 +228,7 @@ impl CloudSync {
                 return Ok(kept.credentials.clone());
             }
         }
-        let body = self.call_json(Method::POST, "/credentials", &session, None)?;
+        let body = self.call_json(Method::POST, "/credentials", &session, None, STEP_CREDENTIALS)?;
         let credentials = parse_credentials(&body)?;
         *cache = Some(Cached {
             user_id: session.user.id,
@@ -220,7 +245,7 @@ impl CloudSync {
     /// The `(document id, version)` pairs the cloud holds for the signed-in user.
     pub fn list_documents(&self) -> Result<Vec<CloudDoc>, CloudSyncError> {
         let session = self.session()?;
-        parse_documents(&self.call_json(Method::GET, "/documents", &session, None)?)
+        parse_documents(&self.call_json(Method::GET, "/documents", &session, None, STEP_LIST)?)
     }
 
     /// Asks the Worker for a link that writes this one object, `size` bytes at most, once.
@@ -232,7 +257,7 @@ impl CloudSync {
     ) -> Result<UploadLink, CloudSyncError> {
         let session = self.session()?;
         let request = json!({ "documentId": document_id, "size": size, "version": version });
-        let body = self.call_json(Method::POST, "/uploads", &session, Some(&request))?;
+        let body = self.call_json(Method::POST, "/uploads", &session, Some(&request), STEP_LINK)?;
         parse_upload_link(&body)
     }
 
@@ -241,7 +266,7 @@ impl CloudSync {
     pub fn delete(&self, document_id: &str) -> Result<(), CloudSyncError> {
         check_document_id(document_id)?;
         let session = self.session()?;
-        self.call(Method::DELETE, &format!("/documents/{document_id}"), &session, None)
+        self.call(Method::DELETE, &format!("/documents/{document_id}"), &session, None, STEP_DELETE)
             .map(drop)
     }
 }

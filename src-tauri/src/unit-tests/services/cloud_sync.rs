@@ -224,6 +224,24 @@ impl Drop for MockWorker {
     }
 }
 
+/// A server that answers once with a body it promises 1000 bytes of, sends 5, and hangs up: the
+/// answer is cut. It takes one connection.
+pub(super) fn cutting_url() -> String {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
+    let url = format!("http://{}", listener.local_addr().expect("address"));
+    std::thread::spawn(move || {
+        if let Some(Ok(mut stream)) = listener.incoming().next() {
+            let mut request = [0u8; 4096];
+            let _ = std::io::Read::read(&mut stream, &mut request);
+            let _ = std::io::Write::write_all(
+                &mut stream,
+                b"HTTP/1.1 200 OK\r\nContent-Length: 1000\r\n\r\nshort",
+            );
+        }
+    });
+    url
+}
+
 /// A local address nobody listens on.
 pub(super) fn dead_url() -> String {
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind");

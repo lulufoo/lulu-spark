@@ -2,7 +2,8 @@ use serde_json::json;
 
 use super::*;
 use crate::services::cloud_sync::tests::{
-    creds_reply, dead_url, link_reply, list_reply, seen, Reply, Rig, DOC_A, DOC_B, JWT, NOW, USER,
+    creds_reply, cutting_url, dead_url, link_reply, list_reply, seen, Reply, Rig, DOC_A, DOC_B, JWT, NOW,
+    USER,
 };
 use crate::services::cloud_sync::tests::MockWorker;
 
@@ -453,5 +454,57 @@ fn the_calls_of_the_service_go_over_one_connection() {
 
         assert_eq!(rig.worker.recorded().len(), answers, "{name}: every answer was used");
         assert_eq!(rig.worker.connections(), 1, "{name}: one connection for all of them");
+    }
+}
+
+// --- the step in a network error ---
+
+/// What a network error says first: the step of the sync it happened in.
+fn network_text(err: CloudSyncError) -> String {
+    let CloudSyncError::Network(why) = err else { panic!("not a network error: {err:?}") };
+    why
+}
+
+#[test]
+fn a_network_error_of_a_call_to_the_worker_says_which_call() {
+    type Call = fn(&CloudSync) -> CloudSyncError;
+    let cases: Vec<(&str, Call, &str)> = vec![
+        ("the storage token", |s| s.credentials().unwrap_err(), "credentials: "),
+        ("the list", |s| s.list_documents().unwrap_err(), "document list: "),
+        ("the upload link", |s| s.upload(DOC_A, &[1, 2, 3], 1).unwrap_err(), "upload link: "),
+        ("the delete", |s| s.delete(DOC_A).unwrap_err(), "delete: "),
+    ];
+    for (name, call, step) in cases {
+        let rig = Rig::with_url(MockWorker::start(vec![]), &dead_url());
+
+        let why = network_text(call(&rig.sync));
+
+        assert!(why.starts_with(step), "{name}: {why}");
+        assert!(why.contains("tcp connect error"), "{name}: the cause stays: {why}");
+    }
+}
+
+#[test]
+fn an_answer_that_is_cut_off_is_a_network_error_in_the_step_it_was_read_in() {
+    let rig = Rig::with_url(MockWorker::start(vec![]), &cutting_url());
+
+    let why = network_text(rig.sync.list_documents().unwrap_err());
+
+    assert!(why.starts_with("document list: "), "{why}");
+}
+
+#[test]
+fn an_error_that_is_not_a_network_error_is_not_given_a_step() {
+    let cases = [
+        (CloudSyncError::Unauthorized, CloudSyncError::Unauthorized),
+        (CloudSyncError::Cancelled, CloudSyncError::Cancelled),
+        (
+            CloudSyncError::Rejected { status: 403, code: "forbidden".into() },
+            CloudSyncError::Rejected { status: 403, code: "forbidden".into() },
+        ),
+        (CloudSyncError::Network("down".into()), CloudSyncError::Network("a step: down".into())),
+    ];
+    for (error, expected) in cases {
+        assert_eq!(in_step("a step", error.clone()), expected, "{error:?}");
     }
 }

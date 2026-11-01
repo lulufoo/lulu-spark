@@ -7,7 +7,7 @@ use std::time::Duration;
 use reqwest::header::CONTENT_TYPE;
 use serde_json::Value;
 
-use super::client::{network, CloudSync};
+use super::client::{in_step, network_in, CloudSync, STEP_DOWNLOAD, STEP_UPLOAD};
 use super::error::CloudSyncError;
 use super::types::check_document_id;
 
@@ -97,7 +97,7 @@ impl CloudSync {
             .header(CONTENT_TYPE, "application/zip")
             .body(package.to_vec())
             .send()
-            .map_err(network)?;
+            .map_err(network_in(STEP_UPLOAD))?;
         let status = response.status();
         if status.is_success() {
             return Ok(());
@@ -135,10 +135,10 @@ impl CloudSync {
             .timeout(TRANSFER_TIMEOUT)
             .bearer_auth(&credentials.access_token)
             .send()
-            .map_err(network)?;
+            .map_err(network_in(STEP_DOWNLOAD))?;
         let status = response.status();
         if status.is_success() {
-            return read_capped(response, MAX_DOWNLOAD_BYTES);
+            return read_capped(response, MAX_DOWNLOAD_BYTES).map_err(|e| in_step(STEP_DOWNLOAD, e));
         }
         match status.as_u16() {
             401 => Err(CloudSyncError::StorageTokenRejected),

@@ -29,8 +29,18 @@ fn sync(cloud: &FakeCloud) -> Value {
     sync_with(&SyncGate::new(), cloud)
 }
 
+/// The answer, the lines written as the run went (`live`), and the lines written when it ended.
+fn sync_both(cloud: &dyn CloudDocs) -> (Value, Vec<journal::Line>, Vec<journal::Line>) {
+    let live = Mutex::new(Vec::new());
+    let (answer, ended) =
+        sync_and_journal(&SyncGate::new(), cloud, &|line| live.lock().expect("live").push(line));
+    (answer, live.into_inner().expect("live"), ended)
+}
+
+/// The answer and the lines written when the run ended.
 fn sync_lines(cloud: &FakeCloud) -> (Value, Vec<journal::Line>) {
-    sync_and_journal(&SyncGate::new(), cloud)
+    let (answer, _, ended) = sync_both(cloud);
+    (answer, ended)
 }
 
 fn events(lines: &[journal::Line]) -> Vec<&'static str> {
@@ -240,6 +250,67 @@ fn the_gate_is_open_again_after_a_run_that_failed() {
 }
 
 #[test]
+fn a_run_writes_a_line_for_each_step_as_it_goes() {
+    let _sandbox = TestSandbox::new();
+    let gone = new_doc("Gone", "这是一段足够长的正文。");
+    let cloud = FakeCloud::new();
+    sync(&cloud);
+    assert_eq!(delete_doc(&json!({ "id": gone }))["ok"], json!(true));
+    let sent = new_doc("Sent", "另一段足够长的正文。");
+
+    let (answer, live, ended) = sync_both(&cloud);
+
+    assert_eq!((answer["uploaded"].clone(), answer["pulled"].clone()), (json!(1), json!(1)), "{answer}");
+    assert_eq!(events(&live), ["sync.started", "sync.listed", "sync.doc_uploaded", "sync.doc_downloaded"]);
+    assert_eq!(live[1].params["cloud_docs"], json!(1));
+    assert_eq!(live[2].params["doc_id"], json!(sent));
+    assert_eq!(live[3].params["doc_id"], json!(gone));
+    assert_eq!(events(&ended), ["sync.finished"], "the line of the end is still written when it ends");
+}
+
+#[test]
+fn a_run_that_could_not_list_the_cloud_only_says_it_began() {
+    let _sandbox = TestSandbox::new();
+    new_doc("First", "这是一段足够长的正文。");
+    let cloud = FakeCloud::new().failing_list(CloudSyncError::Network("down".into()));
+
+    let (_, live, ended) = sync_both(&cloud);
+
+    assert_eq!(events(&live), ["sync.started"]);
+    assert_eq!(events(&ended), ["sync.not_made"]);
+}
+
+#[test]
+fn a_run_that_is_refused_writes_no_line_at_all() {
+    let _sandbox = TestSandbox::new();
+    let gate = SyncGate::new();
+    let held = gate.try_begin().expect("first run");
+    let live = Mutex::new(Vec::new());
+
+    let (answer, ended) =
+        sync_and_journal(&gate, &FakeCloud::new(), &|line| live.lock().expect("live").push(line));
+
+    assert_eq!(answer["_status"], json!(409));
+    assert!(live.lock().expect("live").is_empty());
+    assert!(ended.is_empty());
+    drop(held);
+}
+
+#[test]
+fn a_document_that_failed_is_not_logged_as_sent() {
+    let _sandbox = TestSandbox::new();
+    let bad = new_doc("Too big", "这是一段足够长的正文。");
+    let good = new_doc("Fine", "另一段足够长的正文。");
+    let cloud = FakeCloud::new().failing_upload(&bad, CloudSyncError::QuotaExceeded { limit_bytes: 100, used_bytes: 100 });
+
+    let (_, live, ended) = sync_both(&cloud);
+
+    assert_eq!(events(&live), ["sync.started", "sync.listed", "sync.doc_uploaded"]);
+    assert_eq!(live[2].params["doc_id"], json!(good));
+    assert_eq!(events(&ended), ["sync.doc_failed", "sync.finished"]);
+}
+
+#[test]
 fn a_document_that_could_not_be_sent_is_reported_and_logged_with_its_reason() {
     let _sandbox = TestSandbox::new();
     let bad = new_doc("Too big", "这是一段足够长的正文。");
@@ -328,7 +399,7 @@ fn a_cancel_asked_during_an_upload_lets_that_upload_finish_and_stops_before_the_
     let gate = SyncGate::new();
     let cloud = CancelAfter::new(FakeCloud::new(), &gate, 1);
 
-    let (answer, lines) = sync_and_journal(&gate, &cloud);
+    let (answer, lines) = sync_and_journal(&gate, &cloud, &|_| {});
 
     assert_eq!(answer["ok"], json!(true), "a cancelled run was made: {answer}");
     assert_eq!(answer["cancelled"], json!(true));

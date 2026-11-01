@@ -1,5 +1,6 @@
-//! What a run writes to the app log: how it ended, and each document that went wrong. The UI
-//! gets the summary of the run; the log keeps the reasons.
+//! What a run writes to the app log: that it began, what the cloud list was, each document that
+//! went across, each one that went wrong, and how it ended. The UI gets the summary of the run;
+//! the log keeps the reasons and the times.
 
 use serde_json::{json, Value};
 
@@ -24,6 +25,30 @@ fn doc_line(event: &'static str, doc_id: &str, op: &str, error: &DocSyncError) -
         event,
         params: json!({ "doc_id": doc_id, "op": op, "error": error.to_string() }),
     }
+}
+
+fn info(event: &'static str, params: Value) -> Line {
+    Line { level: Level::Info, event, params }
+}
+
+/// A run began.
+pub fn line_started() -> Line {
+    info("sync.started", json!({}))
+}
+
+/// The cloud's list came back with `cloud_docs` documents, after `ms` milliseconds.
+pub fn line_listed(cloud_docs: usize, ms: u64) -> Line {
+    info("sync.listed", json!({ "cloud_docs": cloud_docs, "ms": ms }))
+}
+
+/// A document's package, `bytes` long, was written to the cloud as `version`, in `ms` milliseconds.
+pub fn line_uploaded(doc_id: &str, version: i64, bytes: usize, ms: u64) -> Line {
+    info("sync.doc_uploaded", json!({ "doc_id": doc_id, "version": version, "bytes": bytes, "ms": ms }))
+}
+
+/// A document's package, `bytes` long, was read from the cloud, in `ms` milliseconds.
+pub fn line_downloaded(doc_id: &str, bytes: usize, ms: u64) -> Line {
+    info("sync.doc_downloaded", json!({ "doc_id": doc_id, "bytes": bytes, "ms": ms }))
 }
 
 /// The lines of a run that was made: each failed document (`sync.doc_failed`), the error that
