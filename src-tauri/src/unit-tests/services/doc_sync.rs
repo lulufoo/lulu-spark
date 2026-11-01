@@ -3,14 +3,18 @@
 
 use std::collections::{BTreeMap, HashMap};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
 use rusqlite::Connection;
+use serde_json::json;
 use tempfile::TempDir;
 
 use super::*;
+use crate::services::archive_parse::expected_lang_common_path;
 use crate::services::cloud_sync::{CloudDoc, CloudSyncError};
+use crate::services::doc_zip::pack_doc;
+use crate::services::docs::attached::attached_dir;
 use crate::services::docs::{doc_file_path, workspace_dir};
 use crate::services::spark_data::{
     create_workspace, disable_workspace, get_default_project, get_default_workspace, insert_doc, insert_project,
@@ -27,6 +31,7 @@ pub(super) fn id(n: u32) -> String {
 pub(super) enum Call {
     List,
     Upload { doc_id: String, version: i64, bytes: usize },
+    Read { doc_id: String },
 }
 
 #[derive(Default)]
@@ -35,6 +40,7 @@ struct CloudState {
     calls: Vec<Call>,
     list_error: Option<CloudSyncError>,
     upload_errors: HashMap<String, CloudSyncError>,
+    read_errors: HashMap<String, CloudSyncError>,
 }
 
 /// A cloud in memory. It lists what it holds, keeps what is uploaded, and fails where told to.
@@ -54,6 +60,12 @@ impl FakeCloud {
         self
     }
 
+    /// The cloud holds this package for the document at this version.
+    pub(super) fn with_package(self, doc_id: &str, version: i64, package: Vec<u8>) -> Self {
+        self.state.lock().unwrap().docs.insert(doc_id.to_string(), (version, package));
+        self
+    }
+
     pub(super) fn failing_list(self, error: CloudSyncError) -> Self {
         self.state.lock().unwrap().list_error = Some(error);
         self
@@ -62,6 +74,12 @@ impl FakeCloud {
     /// Every upload of this document fails with `error`.
     pub(super) fn failing_upload(self, doc_id: &str, error: CloudSyncError) -> Self {
         self.state.lock().unwrap().upload_errors.insert(doc_id.to_string(), error);
+        self
+    }
+
+    /// Every read of this document fails with `error`.
+    pub(super) fn failing_read(self, doc_id: &str, error: CloudSyncError) -> Self {
+        self.state.lock().unwrap().read_errors.insert(doc_id.to_string(), error);
         self
     }
 
@@ -96,6 +114,15 @@ impl CloudDocs for FakeCloud {
         }
         state.docs.insert(document_id.to_string(), (version, package.to_vec()));
         Ok(())
+    }
+
+    fn read(&self, document_id: &str) -> Result<Vec<u8>, CloudSyncError> {
+        let mut state = self.state.lock().unwrap();
+        state.calls.push(Call::Read { doc_id: document_id.to_string() });
+        if let Some(error) = state.read_errors.get(document_id) {
+            return Err(error.clone());
+        }
+        state.docs.get(document_id).map(|(_, package)| package.clone()).ok_or(CloudSyncError::ObjectNotFound)
     }
 }
 
@@ -160,6 +187,92 @@ impl World {
         row
     }
 
+    /// Like [`World::add`] for a document whose body path is `raw_path`, not the usual one.
+    pub(super) fn add_at(&self, n: u32, version: i64, raw_path: &str) -> DocRow {
+        let mut row = self.row(&self.project_id, n, version);
+        row.raw_path = raw_path.to_string();
+        self.write_body(&self.workspace_id, &row, n);
+        insert_doc(&self.conn, &row).expect("insert");
+        row
+    }
+
+    /// A document in the inbox with everything a package can hold: a body, an English
+    /// translation (the row says so), a digest at the body path (the row names it) and one
+    /// attachment.
+    pub(super) fn add_full(&self, n: u32, version: i64) -> DocRow {
+        let mut row = self.row(&self.project_id, n, version);
+        row.translations = json!(["en"]);
+        row.digest_path = Some(row.raw_path.clone());
+        let root = self.root();
+        self.write_body(&self.workspace_id, &row, n); // also makes the workspace folder
+        let translation = expected_lang_common_path(&row.raw_path, "en").expect("translation path");
+        write_at(&doc_file_path(&root, "raw", &self.project_id, &translation).expect("path"), &translation_body(n));
+        write_at(&doc_file_path(&root, "digest", &self.project_id, &row.raw_path).expect("path"), &digest_body(n));
+        let folder = doc_file_path(&root, "raw", &self.project_id, &row.raw_path).expect("path");
+        let attached = attached_dir(folder.parent().expect("folder"), &id(n)).expect("attached folder");
+        write_at(&attached.join("figure.png"), &attachment_body(n));
+        insert_doc(&self.conn, &row).expect("insert");
+        row
+    }
+
+    /// A document in another project of the Default workspace.
+    pub(super) fn add_in_project(&self, project_id: &str, n: u32, version: i64) -> DocRow {
+        self.add_in(&self.workspace_id.clone(), project_id, n, version)
+    }
+
+    /// Like [`World::add_in_project`] for a body path that is not the usual one.
+    pub(super) fn add_in_project_at(&self, project_id: &str, n: u32, version: i64, raw_path: &str) -> DocRow {
+        let mut row = self.row(project_id, n, version);
+        row.raw_path = raw_path.to_string();
+        self.write_body(&self.workspace_id, &row, n);
+        insert_doc(&self.conn, &row).expect("insert");
+        row
+    }
+
+    /// Where a file of the inbox is (or would be) on disk.
+    pub(super) fn path(&self, layer: &str, rel: &str) -> PathBuf {
+        fs::create_dir_all(self.root()).expect("workspace folder");
+        doc_file_path(&self.root(), layer, &self.project_id, rel).expect("path")
+    }
+
+    /// The workspace folder of the Default workspace.
+    pub(super) fn root(&self) -> PathBuf {
+        workspace_dir(&self.workspaces_root, &self.workspace_id).expect("workspace folder")
+    }
+
+    /// Every file of the project (both layers, attachments included) by `layer/relative path`.
+    /// Two worlds that hold the same documents give the same map whatever their project ids.
+    pub(super) fn files_of(&self, project_id: &str) -> BTreeMap<String, Vec<u8>> {
+        let mut files = BTreeMap::new();
+        for layer in ["raw", "digest"] {
+            let dir = self.root().join(layer).join(project_id);
+            collect(&dir, &dir, layer, &mut files);
+        }
+        files
+    }
+
+    /// [`World::files_of`] the inbox.
+    pub(super) fn inbox_files(&self) -> BTreeMap<String, Vec<u8>> {
+        self.files_of(&self.project_id)
+    }
+
+    /// The row of document `n`, as the database has it now.
+    pub(super) fn row_of(&self, n: u32) -> Option<DocRow> {
+        crate::services::spark_data::get_doc(&self.conn, &id(n)).expect("query")
+    }
+
+    /// The package the world would send for document `n`.
+    pub(super) fn package_of(&self, n: u32) -> Vec<u8> {
+        let row = self.row_of(n).expect("row");
+        pack_doc(&self.root(), &row).expect("pack")
+    }
+
+    fn write_body(&self, workspace_id: &str, row: &DocRow, n: u32) {
+        let root = workspace_dir(&self.workspaces_root, workspace_id).expect("workspace folder");
+        fs::create_dir_all(&root).expect("workspace folder");
+        write_at(&doc_file_path(&root, "raw", &row.project_id, &row.raw_path).expect("path"), &body(n));
+    }
+
     fn add_in(&self, workspace_id: &str, project_id: &str, n: u32, version: i64) -> DocRow {
         let row = self.row(project_id, n, version);
         let root = workspace_dir(&self.workspaces_root, workspace_id).expect("workspace folder");
@@ -186,6 +299,36 @@ impl World {
             .execute("UPDATE document SET version = ?2 WHERE doc_id = ?1", rusqlite::params![id(n), version])
             .expect("update");
     }
+}
+
+pub(super) fn write_at(path: &Path, bytes: &[u8]) {
+    fs::create_dir_all(path.parent().expect("parent")).expect("folders");
+    fs::write(path, bytes).expect("write");
+}
+
+fn collect(base: &Path, dir: &Path, layer: &str, out: &mut BTreeMap<String, Vec<u8>>) {
+    let Ok(entries) = fs::read_dir(dir) else { return };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            collect(base, &path, layer, out);
+        } else {
+            let rel = path.strip_prefix(base).expect("under base").to_string_lossy().replace('\\', "/");
+            out.insert(format!("{layer}/{rel}"), fs::read(&path).expect("read"));
+        }
+    }
+}
+
+pub(super) fn translation_body(n: u32) -> Vec<u8> {
+    format!("english {n}").into_bytes()
+}
+
+pub(super) fn digest_body(n: u32) -> Vec<u8> {
+    format!("# digest {n}\n").into_bytes()
+}
+
+pub(super) fn attachment_body(n: u32) -> Vec<u8> {
+    vec![0x89, b'P', b'N', b'G', 0, n as u8, 255]
 }
 
 /// The bytes of the body of document `n`: not text, so a package must carry bytes.

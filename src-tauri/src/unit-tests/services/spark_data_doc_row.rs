@@ -205,3 +205,59 @@ fn the_versions_follow_a_bump_and_a_delete() {
 
     assert_eq!(list_doc_versions(&conn).expect("list"), [("d1".to_string(), 2)]);
 }
+
+#[test]
+fn applying_a_pulled_package_changes_the_paths_the_translations_and_the_version_and_nothing_else() {
+    let (_dir, path) = temp_db();
+    let conn = open_at(&path).expect("create");
+    let mut doc = doc_in_inbox(&conn, "n1", 2);
+    doc.digest_path = Some("x/y.md".into());
+    doc.source_type = Some("web".into());
+    doc.created_at = Some("202606190001".into());
+    doc.importance = Some("high".into());
+    doc.done = true;
+    doc.links = serde_json::json!(["l"]);
+    doc.comments = serde_json::json!(["c"]);
+    doc.tags = serde_json::json!(["t"]);
+    doc.highlights = serde_json::json!(["h"]);
+    doc.translations = serde_json::json!(["en", "fr"]);
+    doc.title = Some("Mine".into());
+    insert_doc(&conn, &doc).expect("insert");
+    insert_doc(&conn, &doc_in_inbox(&conn, "n2", 7)).expect("insert another");
+
+    let found = apply_pulled_package(&conn, "n1", "a/b.md", None, &serde_json::json!(["zh"]), 9).expect("apply");
+
+    assert!(found);
+    let mut expected = doc;
+    expected.raw_path = "a/b.md".into();
+    expected.digest_path = None;
+    expected.translations = serde_json::json!(["zh"]);
+    expected.version = 9;
+    assert_eq!(get_doc(&conn, "n1").expect("get"), Some(expected));
+    assert_eq!(get_doc(&conn, "n2").expect("get").map(|row| (row.raw_path, row.version)), Some(("x/y.md".into(), 7)));
+}
+
+#[test]
+fn applying_a_pulled_package_takes_a_lower_version_too_and_keeps_a_digest_path() {
+    let (_dir, path) = temp_db();
+    let conn = open_at(&path).expect("create");
+    insert_doc(&conn, &doc_in_inbox(&conn, "n1", 8)).expect("insert");
+
+    assert!(apply_pulled_package(&conn, "n1", "a/b.md", Some("a/d.md"), &serde_json::json!([]), 3).expect("apply"));
+
+    let row = get_doc(&conn, "n1").expect("get").expect("row");
+    assert_eq!((row.version, row.digest_path.as_deref()), (3, Some("a/d.md")));
+}
+
+#[test]
+fn applying_a_pulled_package_to_a_missing_row_says_so_and_a_bad_value_changes_nothing() {
+    let (_dir, path) = temp_db();
+    let conn = open_at(&path).expect("create");
+    assert!(!apply_pulled_package(&conn, "nope", "a/b.md", None, &serde_json::json!([]), 1).expect("apply"));
+
+    insert_doc(&conn, &doc_in_inbox(&conn, "n1", 4)).expect("insert");
+    assert!(apply_pulled_package(&conn, "n1", "a/b.md", None, &serde_json::json!([]), -1).is_err(), "negative version");
+    assert!(apply_pulled_package(&conn, "n1", "a/b.md", None, &serde_json::json!({"en": 1}), 5).is_err(), "not an array");
+    let row = get_doc(&conn, "n1").expect("get").expect("row");
+    assert_eq!((row.raw_path.as_str(), row.version), ("x/y.md", 4));
+}

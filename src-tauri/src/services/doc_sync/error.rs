@@ -11,6 +11,10 @@ pub enum DocSyncError {
     /// The files of the document could not be packed: a file the row names is missing, a name is
     /// unsafe, and so on. The document is left out; the others go on.
     Pack { doc_id: String, message: String },
+    /// The package of the document could not be put on this machine: it is not a valid package, a
+    /// name in it is taken, a file could not be written. The local files are as they were; the
+    /// others go on.
+    Unpack { doc_id: String, message: String },
     /// The cloud refused, or could not be reached.
     Cloud(CloudSyncError),
 }
@@ -21,7 +25,7 @@ impl DocSyncError {
     /// The errors of one document (its files, its size, the total limit, its link) do not stop it.
     pub fn stops_the_run(&self) -> bool {
         match self {
-            Self::Database(_) | Self::Pack { .. } => false,
+            Self::Database(_) | Self::Pack { .. } | Self::Unpack { .. } => false,
             Self::Cloud(e) => !matches!(
                 e,
                 CloudSyncError::InvalidInput(_)
@@ -29,6 +33,7 @@ impl DocSyncError {
                     | CloudSyncError::QuotaExceeded { .. }
                     | CloudSyncError::UploadLinkExpired
                     | CloudSyncError::ObjectChanged
+                    | CloudSyncError::ObjectNotFound
             ),
         }
     }
@@ -39,6 +44,7 @@ impl fmt::Display for DocSyncError {
         match self {
             Self::Database(e) => write!(f, "could not read the document database: {e}"),
             Self::Pack { doc_id, message } => write!(f, "could not pack document {doc_id}: {message}"),
+            Self::Unpack { doc_id, message } => write!(f, "could not unpack document {doc_id}: {message}"),
             Self::Cloud(e) => write!(f, "{e}"),
         }
     }

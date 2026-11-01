@@ -86,6 +86,17 @@ impl Manifest {
         Ok(())
     }
 
+    /// The same document with its body and digest at other paths: the names translations take
+    /// follow the body. The package must have a digest exactly when the new paths name one.
+    pub(super) fn landed(&self, raw_path: &str, digest_path: Option<&str>) -> Result<Self, String> {
+        if self.digest_path.is_some() != digest_path.is_some() {
+            return Err("the new paths and the package disagree about whether there is a digest".to_string());
+        }
+        let moved = Self::new(&self.doc_id, raw_path, digest_path, self.translations.clone());
+        moved.check(&self.doc_id)?;
+        Ok(moved)
+    }
+
     /// The paths under `raw/`: the body first, then one per translation.
     pub(super) fn raw_rels(&self) -> Vec<String> {
         let mut rels = vec![self.raw_path.clone()];

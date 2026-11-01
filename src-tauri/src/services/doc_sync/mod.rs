@@ -3,20 +3,23 @@
 //!
 //! - [`plan`]: the comparison, a pure function from two lists to one action per document.
 //! - [`compare`]: lists both sides and plans.
-//! - [`upload_doc`], [`push_uploads`]: run the upload actions. The pull actions are run by the
-//!   pull step.
+//! - [`upload_doc`], [`push_uploads`]: run the upload actions.
+//! - [`pull_doc`], [`pull_downloads`]: run the pull actions.
 //!
 //! The database connection and the folder of workspace folders come from the caller, and so does
 //! the cloud ([`CloudDocs`]).
 
 mod error;
+mod landing;
 mod plan;
+mod pull;
 mod push;
 
 use rusqlite::Connection;
 
 pub use error::DocSyncError;
 pub use plan::{plan, LocalDoc, SyncAction};
+pub use pull::{pull_doc, pull_downloads, PullOutcome, PullReport, PulledDoc};
 pub use push::{push_uploads, upload_doc, PushReport, UploadOutcome, UploadedDoc};
 
 use crate::services::cloud_sync::CloudDocs;

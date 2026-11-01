@@ -45,6 +45,8 @@ pub use jot::*;
 pub use move_doc::move_doc;
 pub use project::{create_project, list_projects, reorder_projects, update_project};
 pub use read::{export_file, get_digest, get_file, get_path};
+pub(crate) use merge_files::collect_taken_paths;
+pub(crate) use merge_plan::plan_merge_targets;
 pub(crate) use resolve::workspace_root;
 pub use search::search;
 pub use store::{doc_file_path, workspace_dir};

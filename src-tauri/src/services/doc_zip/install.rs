@@ -13,27 +13,31 @@ use super::manifest::{Manifest, ATTACHED_DIR, DIGEST_DIR, RAW_DIR};
 /// `staging/new` holds the unzipped package. Old files wait in `staging/old` until the new ones
 /// are in place. On success the caller removes `staging`; on failure this function has moved every
 /// file back and removed the folders it made.
+///
+/// `manifest` names the files as they are inside the package; `landed` is the same manifest with
+/// the paths they get on disk (the manifest itself when the package keeps its names).
 pub(super) fn install(
     root: &Path,
     project_id: &str,
     manifest: &Manifest,
+    landed: &Manifest,
     staging: &Path,
     existing: Option<&DocRow>,
 ) -> Result<(), String> {
     let new_dir = staging.join("new");
     let mut incoming: Vec<(PathBuf, PathBuf)> = Vec::new();
-    for rel in manifest.raw_rels() {
-        incoming.push((new_dir.join(RAW_DIR).join(&rel), target(root, "raw", project_id, &rel)?));
+    for (inside, on_disk) in manifest.raw_rels().iter().zip(landed.raw_rels()) {
+        incoming.push((new_dir.join(RAW_DIR).join(inside), target(root, "raw", project_id, &on_disk)?));
     }
-    if let Some(rel) = &manifest.digest_path {
-        incoming.push((new_dir.join(DIGEST_DIR).join(rel), target(root, "digest", project_id, rel)?));
+    if let (Some(inside), Some(on_disk)) = (&manifest.digest_path, &landed.digest_path) {
+        incoming.push((new_dir.join(DIGEST_DIR).join(inside), target(root, "digest", project_id, on_disk)?));
     }
-    let raw_target = target(root, "raw", project_id, &manifest.raw_path)?;
-    let new_attached = attached_dir(parent_of(&raw_target)?, &manifest.doc_id).map_err(error_text)?;
+    let raw_target = target(root, "raw", project_id, &landed.raw_path)?;
+    let new_attached = attached_dir(parent_of(&raw_target)?, &landed.doc_id).map_err(error_text)?;
     if new_dir.join(ATTACHED_DIR).is_dir() {
         incoming.push((new_dir.join(ATTACHED_DIR), new_attached.clone()));
     }
-    let outgoing = outgoing(root, &manifest.doc_id, existing, new_attached)?;
+    let outgoing = outgoing(root, &landed.doc_id, existing, new_attached)?;
 
     let mut journal = Journal::default();
     let swapped = swap(&mut journal, &outgoing, &incoming, &staging.join("old"));

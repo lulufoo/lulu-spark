@@ -6,7 +6,7 @@ use zip::{CompressionMethod, ZipWriter};
 
 use super::*;
 use crate::services::doc_zip::tests::{
-    body_only, forge, full_doc, manifest_bytes, Home, DOC, OTHER_DOC, PROJECT, RAW_PATH,
+    body, body_only, forge, full_doc, manifest_bytes, Home, DOC, OTHER_DOC, PROJECT, RAW_PATH,
 };
 
 /// A package of the plain document at `RAW_PATH` (body only) plus these entries.
@@ -296,4 +296,215 @@ fn a_staging_folder_left_by_a_crash_does_not_get_in_the_way() {
     expected.put("raw", PROJECT, RAW_PATH, b"body");
     assert_eq!(home.files(), expected.files());
     assert!(fs::read_dir(&home.root).expect("ws").all(|e| e.expect("entry").file_name() != ".zip-staging"));
+}
+
+// --- peek_package ---
+
+#[test]
+fn peeking_tells_what_unpacking_would_say_and_touches_nothing() {
+    for package_of in [full_doc as fn(&Home, &str) -> DocRow, body_only] {
+        let source = Home::new();
+        let row = package_of(&source, "a");
+        let package = crate::services::doc_zip::pack_doc(&source.root, &row).expect("pack");
+
+        let peeked = peek_package(&package, DOC).expect("peek");
+
+        let target = Home::new();
+        let before = target.tree();
+        assert_eq!(unpack_doc(&target.root, PROJECT, DOC, &package, None), Ok(peeked));
+        assert_ne!(target.tree(), before);
+    }
+}
+
+#[test]
+fn peeking_refuses_what_unpacking_refuses_before_it_touches_the_disk() {
+    let raw = format!("raw/{RAW_PATH}");
+    let deflated = CompressionMethod::Deflated;
+    let other = manifest_bytes(OTHER_DOC, RAW_PATH, None, &[]);
+    let listed_en = manifest_bytes(DOC, RAW_PATH, None, &["en"]);
+    let climbing = manifest_bytes(DOC, "../evil.md", None, &[]);
+    let refused: Vec<(&str, Vec<u8>, &str)> = vec![
+        ("not a zip", b"this is not a zip".to_vec(), "not a zip package"),
+        ("another document", forge(&[("manifest.json", &other), (&raw, b"b")], deflated), "does not match"),
+        ("a listed file is missing", forge(&[("manifest.json", &listed_en), (&raw, b"b")], deflated), "lists raw/"),
+        ("an unlisted file", plain(&[("digest/notes/x.md", b"extra")]), "does not list"),
+        ("a path that climbs out", forge(&[("manifest.json", &climbing), (&raw, b"b")], deflated), "unsafe path"),
+        ("an entry of another kind", plain(&[("other/evil.md", b"evil")]), "unexpected entry"),
+    ];
+    for (what, package, fragment) in refused {
+        let err = peek_package(&package, DOC).expect_err(what);
+        assert!(err.contains(fragment), "{what}: wanted {fragment:?} in: {err}");
+    }
+    let err = peek_package(&plain(&[]), "short").expect_err("bad name");
+    assert!(err.contains("invalid doc id"), "{err}");
+}
+
+// --- unpack_doc_to ---
+
+const RENAMED: &str = "notes/202606191430-topic-sfx.md";
+const RENAMED_EN: &str = "notes/202606191430-topic-sfx-en.md";
+const RENAMED_ZH: &str = "notes/202606191430-topic-sfx-zh.md";
+
+fn landing(raw: &str, digest: Option<&str>) -> Landing {
+    Landing { raw_path: raw.to_string(), digest_path: digest.map(str::to_string) }
+}
+
+fn full_package(tag: &str) -> (Home, Vec<u8>) {
+    let source = Home::new();
+    let row = full_doc(&source, tag);
+    let package = crate::services::doc_zip::pack_doc(&source.root, &row).expect("pack");
+    (source, package)
+}
+
+#[test]
+fn a_document_lands_under_other_names_and_everything_follows_the_body() {
+    let (_source, package) = full_package("a");
+    let home = Home::new();
+
+    let unpacked =
+        unpack_doc_to(&home.root, PROJECT, DOC, &package, None, &landing(RENAMED, Some(RENAMED))).expect("unpack");
+
+    let expected = Home::new();
+    expected.put("raw", PROJECT, RENAMED, &body("a"));
+    expected.put("raw", PROJECT, RENAMED_EN, b"english a");
+    expected.put("raw", PROJECT, RENAMED_ZH, "中文 a".as_bytes());
+    expected.put("digest", PROJECT, RENAMED, b"# digest a\n");
+    expected.put_attached(PROJECT, RENAMED, DOC, "figure.png", &[0x89, b'P', b'N', b'G', 0, 1, 2, 3, 255]);
+    expected.put_attached(PROJECT, RENAMED, DOC, "notes.txt", b"note a");
+    assert_eq!(home.files(), expected.files());
+    assert_eq!(
+        unpacked,
+        Unpacked {
+            raw_path: RENAMED.to_string(),
+            digest_path: Some(RENAMED.to_string()),
+            translations: vec!["en".to_string(), "zh".to_string()],
+        }
+    );
+}
+
+#[test]
+fn a_digest_with_a_name_of_its_own_lands_under_the_name_it_is_given() {
+    let manifest = manifest_bytes(DOC, RAW_PATH, Some("notes/summary.md"), &[]);
+    let package = forge(
+        &[
+            ("manifest.json", &manifest),
+            (&format!("raw/{RAW_PATH}"), b"body"),
+            ("digest/notes/summary.md", b"digest"),
+        ],
+        CompressionMethod::Deflated,
+    );
+    let home = Home::new();
+
+    let unpacked = unpack_doc_to(&home.root, PROJECT, DOC, &package, None, &landing(RENAMED, Some("notes/summary-sfx.md")))
+        .expect("unpack");
+
+    let expected = Home::new();
+    expected.put("raw", PROJECT, RENAMED, b"body");
+    expected.put("digest", PROJECT, "notes/summary-sfx.md", b"digest");
+    assert_eq!(home.files(), expected.files());
+    assert_eq!(unpacked.digest_path.as_deref(), Some("notes/summary-sfx.md"));
+}
+
+#[test]
+fn landing_where_the_manifest_says_is_the_same_as_unpacking() {
+    let (_source, package) = full_package("a");
+    let plain_home = Home::new();
+    let landed_home = Home::new();
+
+    let plain_result = unpack_doc(&plain_home.root, PROJECT, DOC, &package, None).expect("unpack");
+    let landed_result =
+        unpack_doc_to(&landed_home.root, PROJECT, DOC, &package, None, &landing(RAW_PATH, Some(RAW_PATH))).expect("unpack");
+
+    assert_eq!(plain_home.tree(), landed_home.tree());
+    assert_eq!(plain_result, landed_result);
+}
+
+#[test]
+fn landing_over_a_local_document_removes_all_its_files_and_places_the_package_under_the_new_names() {
+    let (_source, package) = full_package("cloud");
+    let home = Home::new();
+    let row = full_doc(&home, "local");
+    home.put_attached(PROJECT, RAW_PATH, DOC, "only-here.png", b"x");
+
+    unpack_doc_to(&home.root, PROJECT, DOC, &package, Some(&row), &landing(RENAMED, Some(RENAMED))).expect("unpack");
+
+    let expected = Home::new();
+    expected.put("raw", PROJECT, RENAMED, &body("cloud"));
+    expected.put("raw", PROJECT, RENAMED_EN, b"english cloud");
+    expected.put("raw", PROJECT, RENAMED_ZH, "中文 cloud".as_bytes());
+    expected.put("digest", PROJECT, RENAMED, b"# digest cloud\n");
+    expected.put_attached(PROJECT, RENAMED, DOC, "figure.png", &[0x89, b'P', b'N', b'G', 0, 1, 2, 3, 255]);
+    expected.put_attached(PROJECT, RENAMED, DOC, "notes.txt", b"note cloud");
+    assert_eq!(home.files(), expected.files());
+}
+
+#[test]
+fn a_landing_that_does_not_fit_the_package_is_refused_and_nothing_changes() {
+    let (_source, with_digest) = full_package("a");
+    let without_digest = plain(&[]);
+    let cases: Vec<(&str, &[u8], Landing, &str)> = vec![
+        ("a digest in the package, none in the landing", &with_digest, landing(RENAMED, None), "disagree"),
+        ("no digest in the package, one in the landing", &without_digest, landing(RENAMED, Some(RENAMED)), "disagree"),
+        ("a body that climbs out", &without_digest, landing("../evil.md", None), "unsafe path"),
+        ("a body with a backslash", &without_digest, landing("notes\\evil.md", None), "unsafe path"),
+        ("a digest that climbs out", &with_digest, landing(RENAMED, Some("../evil.md")), "unsafe path"),
+        ("an empty body path", &without_digest, landing("", None), "unsafe path"),
+        ("translations and a body that is not .md", &with_digest, landing("notes/body.txt", Some("notes/body.txt")), "must end in .md"),
+    ];
+    for (what, package, landing, fragment) in cases {
+        let home = Home::new();
+        let row = full_doc(&home, "local");
+        let before = home.tree();
+
+        let err = unpack_doc_to(&home.root, PROJECT, DOC, package, Some(&row), &landing).expect_err(what);
+
+        assert!(err.contains(fragment), "{what}: wanted {fragment:?} in: {err}");
+        assert_eq!(home.tree(), before, "{what}");
+    }
+}
+
+#[test]
+fn a_file_of_another_document_is_never_overwritten_at_the_landing_either() {
+    let home = Home::new();
+    home.put("raw", PROJECT, RENAMED, b"another document's body");
+    let before = home.tree();
+
+    let err = unpack_doc_to(&home.root, PROJECT, DOC, &plain(&[]), None, &landing(RENAMED, None)).expect_err("taken");
+
+    assert!(err.contains("already used"), "{err}");
+    assert_eq!(home.tree(), before);
+}
+
+#[test]
+fn a_package_that_declares_more_than_the_limit_is_refused_by_peek_and_by_unpack_but_a_smaller_one_is_fine() {
+    let package = plain(&[("attached/big.bin", b"x")]);
+    let over = lie_about_size(&package, "attached/big.bin", (MAX_UNPACKED_BYTES + 1) as u32);
+    let under = lie_about_size(&package, "attached/big.bin", 50 * 1024 * 1024);
+
+    let err = peek_package(&over, DOC).expect_err("over the limit");
+    assert!(err.contains("limit"), "{err}");
+    let home = Home::new();
+    let err = unpack_doc(&home.root, PROJECT, DOC, &over, None).expect_err("over the limit");
+    assert!(err.contains("limit"), "{err}");
+    assert!(home.files().is_empty());
+
+    assert!(peek_package(&under, DOC).is_ok());
+}
+
+#[test]
+fn the_attachment_folder_lands_next_to_the_body_in_its_new_folder() {
+    let (_source, package) = full_package("a");
+    let home = Home::new();
+    let moved = "archive/2026/202606191430-topic-sfx.md";
+
+    unpack_doc_to(&home.root, PROJECT, DOC, &package, None, &landing(moved, Some(moved))).expect("unpack");
+
+    let expected = Home::new();
+    expected.put("raw", PROJECT, moved, &body("a"));
+    expected.put("raw", PROJECT, "archive/2026/202606191430-topic-sfx-en.md", b"english a");
+    expected.put("raw", PROJECT, "archive/2026/202606191430-topic-sfx-zh.md", "中文 a".as_bytes());
+    expected.put("digest", PROJECT, moved, b"# digest a\n");
+    expected.put_attached(PROJECT, moved, DOC, "figure.png", &[0x89, b'P', b'N', b'G', 0, 1, 2, 3, 255]);
+    expected.put_attached(PROJECT, moved, DOC, "notes.txt", b"note a");
+    assert_eq!(home.files(), expected.files());
 }

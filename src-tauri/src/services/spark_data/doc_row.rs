@@ -151,6 +151,28 @@ pub fn set_doc_version(conn: &Connection, doc_id: &str, version: i64) -> Result<
     Ok(changed > 0)
 }
 
+/// Point the row of a document just pulled from the cloud at the files of its package and give
+/// it the cloud's version, in one statement. Only `raw_path`, `digest_path`, `translations` and
+/// `version` change: whatever the user edited in the other columns since the row was read stays.
+/// `false` when the row does not exist.
+pub fn apply_pulled_package(
+    conn: &Connection,
+    doc_id: &str,
+    raw_path: &str,
+    digest_path: Option<&str>,
+    translations: &Value,
+    version: i64,
+) -> Result<bool, String> {
+    let changed = conn
+        .execute(
+            "UPDATE document SET raw_path = ?2, digest_path = ?3, translations = ?4, version = ?5
+             WHERE doc_id = ?1",
+            params![doc_id, raw_path, digest_path, write_array(translations)?, version],
+        )
+        .map_err(|e| e.to_string())?;
+    Ok(changed > 0)
+}
+
 pub fn get_doc(conn: &Connection, doc_id: &str) -> Result<Option<DocRow>, String> {
     conn.query_row(
         &format!("SELECT {COLUMNS} FROM document WHERE doc_id = ?1"),

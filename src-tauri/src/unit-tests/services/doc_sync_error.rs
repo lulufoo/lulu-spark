@@ -12,6 +12,10 @@ fn every_error_says_what_went_wrong() {
             DocSyncError::Pack { doc_id: "abc".into(), message: "raw/x.md: not found".into() },
             "could not pack document abc: raw/x.md: not found",
         ),
+        (
+            DocSyncError::Unpack { doc_id: "abc".into(), message: "not a zip package".into() },
+            "could not unpack document abc: not a zip package",
+        ),
         (cloud(CloudSyncError::NotSignedIn), "not signed in"),
         (cloud(CloudSyncError::ObjectChanged), "the document changed in the cloud during the upload"),
     ];
@@ -30,11 +34,13 @@ fn the_errors_of_one_document_do_not_stop_the_run() {
     let one_document = [
         DocSyncError::Database("x".into()),
         DocSyncError::Pack { doc_id: "a".into(), message: "x".into() },
+        DocSyncError::Unpack { doc_id: "a".into(), message: "x".into() },
         cloud(CloudSyncError::InvalidInput("x".into())),
         cloud(CloudSyncError::ObjectTooLarge { limit_bytes: 1 }),
         cloud(CloudSyncError::QuotaExceeded { limit_bytes: 2, used_bytes: 1 }),
         cloud(CloudSyncError::UploadLinkExpired),
         cloud(CloudSyncError::ObjectChanged),
+        cloud(CloudSyncError::ObjectNotFound),
     ];
     for error in one_document {
         assert!(!error.stops_the_run(), "{error:?}");
@@ -52,7 +58,6 @@ fn the_errors_that_hit_every_document_stop_the_run() {
         cloud(CloudSyncError::Rejected { status: 403, code: "x".into() }),
         cloud(CloudSyncError::BadResponse("x".into())),
         cloud(CloudSyncError::Vault("x".into())),
-        cloud(CloudSyncError::ObjectNotFound),
         cloud(CloudSyncError::StorageTokenRejected),
     ];
     for error in every_document {

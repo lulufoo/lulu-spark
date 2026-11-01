@@ -21,7 +21,7 @@ mod unpack;
 use serde_json::Value;
 
 pub use pack::pack_doc;
-pub use unpack::{unpack_doc, Unpacked};
+pub use unpack::{peek_package, unpack_doc, unpack_doc_to, Landing, Unpacked};
 
 /// The files of a package may add up to this many bytes once unzipped. A real document stays far
 /// below it; the limit stops a small package that inflates into gigabytes.

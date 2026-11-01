@@ -31,6 +31,14 @@ pub struct Unpacked {
     pub translations: Vec<String>,
 }
 
+/// Where the body and the digest of a package are to land when that is not where its manifest
+/// says (the name is taken by another document of the project). Translations follow the body.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Landing {
+    pub raw_path: String,
+    pub digest_path: Option<String>,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Kind {
     Manifest,
@@ -64,6 +72,38 @@ pub fn unpack_doc(
     unpack_capped(workspace_root, project_id, doc_id, package, existing, MAX_UNPACKED_BYTES)
 }
 
+/// [`unpack_doc`], with the body and the digest put at `landing` instead of at the paths the
+/// manifest names. The attachment folder goes next to the body wherever that is. The result
+/// holds the paths the files got.
+pub fn unpack_doc_to(
+    workspace_root: &Path,
+    project_id: &str,
+    doc_id: &str,
+    package: &[u8],
+    existing: Option<&DocRow>,
+    landing: &Landing,
+) -> Result<Unpacked, String> {
+    unpack_inner(workspace_root, project_id, doc_id, package, existing, MAX_UNPACKED_BYTES, Some(landing))
+}
+
+/// What the package of `doc_id` says about its document, after the same checks [`unpack_doc`]
+/// makes of the package, without touching the disk. Callers use it to pick a [`Landing`].
+pub fn peek_package(package: &[u8], doc_id: &str) -> Result<Unpacked, String> {
+    if !is_valid_doc_id(doc_id) {
+        return Err(format!("invalid doc id {doc_id:?}"));
+    }
+    let mut archive = ZipArchive::new(Cursor::new(package))
+        .map_err(|e| format!("not a zip package: {e}"))?;
+    let members = list_members(&mut archive, MAX_UNPACKED_BYTES)?;
+    let manifest = read_manifest(&mut archive, &members, doc_id)?;
+    check_listed(&members, &manifest)?;
+    Ok(Unpacked {
+        raw_path: manifest.raw_path,
+        digest_path: manifest.digest_path,
+        translations: manifest.translations,
+    })
+}
+
 fn unpack_capped(
     workspace_root: &Path,
     project_id: &str,
@@ -71,6 +111,18 @@ fn unpack_capped(
     package: &[u8],
     existing: Option<&DocRow>,
     cap: u64,
+) -> Result<Unpacked, String> {
+    unpack_inner(workspace_root, project_id, doc_id, package, existing, cap, None)
+}
+
+fn unpack_inner(
+    workspace_root: &Path,
+    project_id: &str,
+    doc_id: &str,
+    package: &[u8],
+    existing: Option<&DocRow>,
+    cap: u64,
+    landing: Option<&Landing>,
 ) -> Result<Unpacked, String> {
     if !is_valid_doc_id(doc_id) {
         return Err(format!("invalid doc id {doc_id:?}"));
@@ -83,18 +135,22 @@ fn unpack_capped(
     let members = list_members(&mut archive, cap)?;
     let manifest = read_manifest(&mut archive, &members, doc_id)?;
     check_listed(&members, &manifest)?;
+    let landed = match landing {
+        Some(landing) => manifest.landed(&landing.raw_path, landing.digest_path.as_deref())?,
+        None => manifest.clone(),
+    };
 
     let staging = workspace_root.join(STAGING_DIR).join(doc_id);
     let _ = fs::remove_dir_all(&staging);
     let result = stage(&mut archive, &members, &staging.join("new"))
-        .and_then(|()| install(workspace_root, project_id, &manifest, &staging, existing));
+        .and_then(|()| install(workspace_root, project_id, &manifest, &landed, &staging, existing));
     let _ = fs::remove_dir_all(&staging);
     let _ = fs::remove_dir(workspace_root.join(STAGING_DIR));
     result?;
     Ok(Unpacked {
-        raw_path: manifest.raw_path,
-        digest_path: manifest.digest_path,
-        translations: manifest.translations,
+        raw_path: landed.raw_path,
+        digest_path: landed.digest_path,
+        translations: landed.translations,
     })
 }
 
