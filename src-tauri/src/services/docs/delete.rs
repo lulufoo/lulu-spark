@@ -1,10 +1,11 @@
-//! `delete_doc`: remove a document's files, then its row.
+//! `delete_doc`: remove a document's cloud copy, then its files, then its row.
 
 use std::fs;
 
 use serde_json::{json, Value};
 
 use crate::services::archive_parse::expected_lang_common_path;
+use crate::services::cloud_sync::{self, delete_cloud_copy, CloudDocs, CloudSyncError};
 use crate::services::docs::attached::remove_attached_dir;
 use crate::services::docs::store::doc_file_path;
 use crate::services::search_index;
@@ -15,8 +16,25 @@ use super::resolve::{
     workspace_root,
 };
 
+/// The error when the cloud copy could not be removed. The document is still there, on this
+/// machine and in the cloud, so the user can try again.
+fn cloud_failed(error: &CloudSyncError) -> Value {
+    json!({
+        "error": format!("Could not remove the document from the cloud, so it was not deleted: {error}"),
+        "_status": 502,
+    })
+}
+
 /// `{ id }` → `{ ok, id, removed }`; `removed` counts the files deleted. `workspace_id` is refused.
+///
+/// A signed-in user's document is removed from the cloud first, and only when that succeeds are
+/// the files and the row deleted: a failed cloud call (offline, session expired, ...) fails the
+/// whole delete and keeps the document. A user who is not signed in deletes on this machine only.
 pub fn delete_doc(payload: &Value) -> Value {
+    delete_doc_with(payload, cloud_sync::shared())
+}
+
+fn delete_doc_with(payload: &Value, cloud: &dyn CloudDocs) -> Value {
     if payload.get("workspace_id").is_some() {
         return bad_request("workspace_id is not supported on delete_doc");
     }
@@ -44,6 +62,9 @@ pub fn delete_doc(payload: &Value) -> Value {
         Ok(r) => r,
         Err(v) => return v,
     };
+    if let Err(e) = delete_cloud_copy(cloud, &id) {
+        return cloud_failed(&e);
+    }
 
     let mut files = vec![("raw", rel.to_string()), ("digest", rel.to_string())];
     for lang in doc.translations.as_array().into_iter().flatten().filter_map(Value::as_str) {

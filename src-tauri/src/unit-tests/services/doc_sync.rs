@@ -32,6 +32,7 @@ pub(super) enum Call {
     List,
     Upload { doc_id: String, version: i64, bytes: usize },
     Read { doc_id: String },
+    Delete { doc_id: String },
 }
 
 #[derive(Default)]
@@ -123,6 +124,13 @@ impl CloudDocs for FakeCloud {
             return Err(error.clone());
         }
         state.docs.get(document_id).map(|(_, package)| package.clone()).ok_or(CloudSyncError::ObjectNotFound)
+    }
+
+    fn delete(&self, document_id: &str) -> Result<(), CloudSyncError> {
+        let mut state = self.state.lock().unwrap();
+        state.calls.push(Call::Delete { doc_id: document_id.to_string() });
+        state.docs.remove(document_id);
+        Ok(())
     }
 }
 

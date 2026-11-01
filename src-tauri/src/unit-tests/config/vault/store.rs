@@ -145,6 +145,9 @@ fn set_auth_session_round_trips_user_id_and_tokens() {
     assert_eq!(got.user.id, "user-42");
     assert_eq!(got.access_token, "access-aaa");
     assert_eq!(got.refresh_token, "refresh-bbb");
+    // The vault of a test is shared: a session left here would make a document delete elsewhere
+    // call the real cloud.
+    delete_auth_session().expect("sign out");
 }
 
 #[test]

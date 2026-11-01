@@ -8,6 +8,8 @@
 //!
 //! - `CloudDocs`: the part of the above a sync run uses, as a trait, so the run can be tested
 //!   against a stand-in cloud.
+//! - `delete_cloud_copy`: `delete` for a document the user deletes; a user who is not signed in
+//!   has nothing to remove there.
 //!
 //! The session is only read from the vault. This service never writes it and never refreshes it:
 //! the UI refreshes the session before a sync starts. No long-lived key is held here.
@@ -20,7 +22,7 @@ mod types;
 
 use std::sync::OnceLock;
 
-pub use api::CloudDocs;
+pub use api::{delete_cloud_copy, CloudDocs};
 pub use client::{Clock, CloudSync, SessionSource};
 pub use error::CloudSyncError;
 pub use types::{CloudDoc, Credentials};
