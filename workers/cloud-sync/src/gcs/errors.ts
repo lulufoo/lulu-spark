@@ -36,3 +36,37 @@ export class GcsRequestError extends Error {
 export class BucketNameTakenError extends Error {
   override name = "BucketNameTakenError";
 }
+
+/** A Workers setting that must be a number (a size limit) is missing or not usable. */
+export class InvalidLimitsError extends Error {
+  override name = "InvalidLimitsError";
+}
+
+/** The caller's request is malformed. The message is written to be sent back to the caller. */
+export class InvalidRequestError extends Error {
+  override name = "InvalidRequestError";
+}
+
+/** The upload is bigger than one object may be. */
+export class ObjectTooLargeError extends Error {
+  override name = "ObjectTooLargeError";
+  constructor(readonly limitBytes: number) {
+    super(`object is larger than the limit of ${limitBytes} bytes`);
+  }
+}
+
+/** The user's bucket would hold more than a user may store, counting old versions not yet cleaned up. */
+export class QuotaExceededError extends Error {
+  override name = "QuotaExceededError";
+  constructor(
+    readonly limitBytes: number,
+    readonly usedBytes: number,
+  ) {
+    super(`user storage would exceed the limit of ${limitBytes} bytes (${usedBytes} in use)`);
+  }
+}
+
+/** There are too many objects to add up in one request. Treated as a failure, never as "no usage". */
+export class ListingTooLargeError extends Error {
+  override name = "ListingTooLargeError";
+}

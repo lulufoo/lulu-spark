@@ -1,6 +1,7 @@
-import { SignJWT, importPKCS8 } from "jose";
+import { SignJWT } from "jose";
 import { AccessTokenError } from "./errors";
 import type { ServiceAccountKey } from "./service-account-key";
+import { createSigningKeyLoader } from "./signing-key";
 
 // Cloud Storage accepts narrower scopes, but this token is also the starting point for the narrower
 // client tokens (see client-token-issuer.ts), and the service account's own role is already the minimum.
@@ -8,8 +9,6 @@ const SCOPE = "https://www.googleapis.com/auth/cloud-platform";
 const GRANT_TYPE = "urn:ietf:params:oauth:grant-type:jwt-bearer";
 const ASSERTION_LIFETIME_SECONDS = 3600;
 const DEFAULT_MIN_VALIDITY_MS = 5 * 60 * 1000;
-
-type SigningKey = Awaited<ReturnType<typeof importPKCS8>>;
 
 export type AccessTokenProvider = {
   /**
@@ -37,17 +36,9 @@ export function createAccessTokenProvider(options: AccessTokenProviderOptions): 
   const fetchFn = options.fetchFn ?? ((input, init) => fetch(input, init));
   const now = options.now ?? Date.now;
 
-  let signingKey: Promise<SigningKey> | undefined;
+  const loadSigningKey = createSigningKeyLoader(key.privateKey);
   let cached: { token: string; expiresAt: number } | undefined;
   let inFlight: Promise<string> | undefined;
-
-  function loadSigningKey(): Promise<SigningKey> {
-    signingKey ??= importPKCS8(key.privateKey, "RS256").catch((error) => {
-      signingKey = undefined;
-      throw error;
-    });
-    return signingKey;
-  }
 
   async function requestToken(): Promise<string> {
     const issuedAt = Math.floor(now() / 1000);

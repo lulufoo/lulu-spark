@@ -13,6 +13,8 @@ export type UserBucket = {
 export type BucketService = {
   /** The user's own bucket, created on first use. Safe to call again and from two devices at once. */
   ensureUserBucket(userId: string): Promise<UserBucket>;
+  /** The name of the user's bucket, without creating or checking anything. */
+  nameFor(userId: string): Promise<string>;
 };
 
 export type BucketServiceConfig = {
@@ -44,5 +46,6 @@ export function createBucketService(config: BucketServiceConfig): BucketService 
       const { created } = await provisioner.ensureBucket(bucket);
       return { bucket, created };
     },
+    nameFor: (userId) => deriveBucketName(userId, bucketNameKey),
   };
 }

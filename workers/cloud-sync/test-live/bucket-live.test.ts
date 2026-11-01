@@ -8,21 +8,14 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { createAccessTokenProvider } from "../src/gcs/access-token-provider";
 import { createBucketProvisioner } from "../src/gcs/bucket-provisioner";
 import { createBucketService } from "../src/gcs/bucket-service";
-import { createCredentialsService, type UserCredentials } from "../src/gcs/credentials-service";
+import type { UserCredentials } from "../src/gcs/credentials-service";
 import { BucketNameTakenError } from "../src/gcs/errors";
+import { createGcsServices } from "../src/gcs/gcs-services";
 import { parseServiceAccountKey } from "../src/gcs/service-account-key";
+import { KEY_JSON, PROJECT_ID, PROJECT_NUMBER, STORAGE, UPLOAD, makeRandomHex } from "./support";
 
-const KEY_JSON = process.env.GCS_SERVICE_ACCOUNT_KEY;
-const PROJECT_ID = "spark-cloud-sync";
-const PROJECT_NUMBER = "55973988960";
-const STORAGE = "https://storage.googleapis.com/storage/v1";
-const UPLOAD = "https://storage.googleapis.com/upload/storage/v1";
 // A public bucket owned by Google: the name is taken, and readable, so its project number is not ours.
 const BUCKET_HELD_BY_SOMEONE_ELSE = "gcp-public-data-landsat";
-
-function makeRandomHex(bytes: number): string {
-  return Array.from(crypto.getRandomValues(new Uint8Array(bytes)), (b) => b.toString(16).padStart(2, "0")).join("");
-}
 
 describe.skipIf(!KEY_JSON)("real Google Cloud Storage", () => {
   const key = parseServiceAccountKey(KEY_JSON);
@@ -35,12 +28,15 @@ describe.skipIf(!KEY_JSON)("real Google Cloud Storage", () => {
     projectNumber: PROJECT_NUMBER,
     getAccessToken: () => longLived.getAccessToken(),
   });
-  const credentialsService = createCredentialsService({
+  const credentialsService = createGcsServices({
     serviceAccountKeyJson: KEY_JSON,
     bucketNameKey,
     projectId: PROJECT_ID,
     projectNumber: PROJECT_NUMBER,
-  });
+    maxObjectBytes: 52428800,
+    maxUserTotalBytes: 209715200,
+    uploadLinkLifetimeSeconds: 600,
+  }).credentials;
   const userId = crypto.randomUUID();
   const otherUserId = crypto.randomUUID();
   let bucket = "";

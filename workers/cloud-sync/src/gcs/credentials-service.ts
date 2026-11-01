@@ -1,7 +1,5 @@
-import { createAccessTokenProvider } from "./access-token-provider";
-import { createBucketService } from "./bucket-service";
-import { createClientTokenIssuer } from "./client-token-issuer";
-import { parseServiceAccountKey } from "./service-account-key";
+import type { BucketService } from "./bucket-service";
+import type { ClientTokenIssuer } from "./client-token-issuer";
 
 export type UserCredentials = {
   bucket: string;
@@ -16,46 +14,16 @@ export type CredentialsService = {
   issueUserCredentials(userId: string): Promise<UserCredentials>;
 };
 
-export type CredentialsServiceConfig = {
-  /** The key file of the long-lived service account, as JSON text. */
-  serviceAccountKeyJson: string | undefined;
-  /** The `BUCKET_NAME_KEY` secret. */
-  bucketNameKey: string | undefined;
-  projectId: string;
-  projectNumber: string;
-  /** Injected by tests. */
-  fetchFn?: typeof fetch;
-  /** Milliseconds since the epoch. Injected by tests. */
-  now?: () => number;
+export type CredentialsServiceDeps = {
+  buckets: BucketService;
+  issuer: ClientTokenIssuer;
 };
 
-/**
- * Wires the pieces together around one Google access token for the long-lived account, so the
- * bucket check and the token exchange share it.
- */
-export function createCredentialsService(config: CredentialsServiceConfig): CredentialsService {
-  const tokens = createAccessTokenProvider({
-    key: parseServiceAccountKey(config.serviceAccountKeyJson),
-    fetchFn: config.fetchFn,
-    now: config.now,
-  });
-  const buckets = createBucketService({
-    bucketNameKey: config.bucketNameKey,
-    projectId: config.projectId,
-    projectNumber: config.projectNumber,
-    getAccessToken: () => tokens.getAccessToken(),
-    fetchFn: config.fetchFn,
-  });
-  const issuer = createClientTokenIssuer({
-    getAccessToken: (minValidityMs) => tokens.getAccessToken(minValidityMs),
-    fetchFn: config.fetchFn,
-    now: config.now,
-  });
-
+export function createCredentialsService(deps: CredentialsServiceDeps): CredentialsService {
   return {
     async issueUserCredentials(userId) {
-      const { bucket } = await buckets.ensureUserBucket(userId);
-      const { accessToken, expiresAt } = await issuer.issueReadOnlyToken(bucket);
+      const { bucket } = await deps.buckets.ensureUserBucket(userId);
+      const { accessToken, expiresAt } = await deps.issuer.issueReadOnlyToken(bucket);
       return { bucket, accessToken, expiresAt };
     },
   };

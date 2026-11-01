@@ -1,14 +1,24 @@
 import type { JWTVerifyGetKey } from "jose";
 import { describe, expect, it, vi } from "vitest";
 import type { CredentialsService, UserCredentials } from "../src/gcs/credentials-service";
-import { BucketNameTakenError, GcsRequestError, TokenExchangeError } from "../src/gcs/errors";
+import type { DocumentStorage } from "../src/gcs/document-storage";
+import {
+  BucketNameTakenError,
+  GcsRequestError,
+  InvalidRequestError,
+  ObjectTooLargeError,
+  QuotaExceededError,
+  TokenExchangeError,
+} from "../src/gcs/errors";
+import type { SignedUpload } from "../src/gcs/signed-upload-url";
 import { handleRequest, type Services } from "../src/handler";
 import { ISSUER, USER_ID, makeSigner } from "./signing-fixture";
 
-function makeRequest(path: string, token?: string, method = "GET"): Request {
+function makeRequest(path: string, token?: string, method = "GET", body?: BodyInit): Request {
   return new Request(`https://worker.test${path}`, {
     method,
     headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body,
   });
 }
 
@@ -23,11 +33,33 @@ function makeCredentials(issueUserCredentials: CredentialsService["issueUserCred
   return { credentials: { issueUserCredentials: spy } satisfies CredentialsService, spy };
 }
 
-function makeServices(keys: JWTVerifyGetKey, credentials?: CredentialsService): Services {
-  const unused = makeCredentials(async () => {
+const UPLOAD: SignedUpload = {
+  method: "PUT",
+  url: "https://storage.googleapis.com/spark-dee0434c91366b18561ffdcad4380e86/0123456789abcdef0123456789abcdef?X-Goog-Signature=abc",
+  headers: {
+    "x-goog-content-length-range": "0,1024",
+    "x-goog-if-generation-match": "0",
+    "x-goog-meta-version": "3",
+  },
+  expiresAt: 1793490180,
+};
+const DOCUMENT_ID = "0123456789abcdef0123456789abcdef";
+
+function makeDocuments(overrides: Partial<DocumentStorage> = {}) {
+  const issueUpload = vi.fn(overrides.issueUpload ?? (async () => UPLOAD));
+  const deleteDocument = vi.fn(overrides.deleteDocument ?? (async () => {}));
+  return { documents: { issueUpload, deleteDocument } satisfies DocumentStorage, issueUpload, deleteDocument };
+}
+
+function makeServices(keys: JWTVerifyGetKey, credentials?: CredentialsService, documents?: DocumentStorage): Services {
+  const refuse = () => {
     throw new Error("storage must not be touched by this request");
-  }).credentials;
-  return { verifier: { issuer: ISSUER, keys }, credentials: credentials ?? unused };
+  };
+  return {
+    verifier: { issuer: ISSUER, keys },
+    credentials: credentials ?? makeCredentials(async () => refuse()).credentials,
+    documents: documents ?? { issueUpload: async () => refuse(), deleteDocument: async () => refuse() },
+  };
 }
 
 describe("handleRequest", () => {
@@ -184,6 +216,238 @@ describe("POST /credentials", () => {
     expect(JSON.parse(line)).toMatchObject({ errorName });
     expect(line).toContain(detail);
     expect(line).not.toContain(token);
+    logged.mockRestore();
+  });
+});
+
+function uploadBody(fields: Record<string, unknown> = {}): string {
+  return JSON.stringify({ documentId: DOCUMENT_ID, size: 1024, version: 3, ...fields });
+}
+
+describe("POST /uploads", () => {
+  it("signs a link for the signed-in user and returns it uncached", async () => {
+    const signer = await makeSigner();
+    const token = await signer.signToken();
+    const { documents, issueUpload } = makeDocuments();
+
+    const response = await handleRequest(
+      makeRequest("/uploads", token, "POST", uploadBody()),
+      makeServices(signer.keys, undefined, documents),
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual(UPLOAD);
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+    expect(issueUpload).toHaveBeenCalledExactlyOnceWith(USER_ID, { documentId: DOCUMENT_ID, size: 1024, version: 3 });
+  });
+
+  it("takes the user from the token alone, whatever else the body names", async () => {
+    const signer = await makeSigner();
+    const token = await signer.signToken();
+    const { documents, issueUpload } = makeDocuments();
+    const hostile = uploadBody({ userId: "someone-else", user: "someone-else", bucket: "spark-someone-else", object: "other" });
+
+    const response = await handleRequest(
+      makeRequest("/uploads", token, "POST", hostile),
+      makeServices(signer.keys, undefined, documents),
+    );
+
+    expect(response.status).toBe(200);
+    expect(issueUpload).toHaveBeenCalledExactlyOnceWith(USER_ID, { documentId: DOCUMENT_ID, size: 1024, version: 3 });
+  });
+
+  it("answers 401 without touching storage when there is no token", async () => {
+    const signer = await makeSigner();
+    const { documents, issueUpload } = makeDocuments();
+
+    const response = await handleRequest(
+      makeRequest("/uploads", undefined, "POST", uploadBody()),
+      makeServices(signer.keys, undefined, documents),
+    );
+
+    expect(response.status).toBe(401);
+    expect(issueUpload).not.toHaveBeenCalled();
+  });
+
+  it("serves POST only", async () => {
+    const signer = await makeSigner();
+    const token = await signer.signToken();
+    const { documents, issueUpload } = makeDocuments();
+
+    const response = await handleRequest(makeRequest("/uploads", token, "GET"), makeServices(signer.keys, undefined, documents));
+
+    expect(response.status).toBe(404);
+    expect(issueUpload).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["no body", undefined],
+    ["a body that is not JSON", "not json"],
+    ["a JSON array", "[1,2]"],
+    ["JSON null", "null"],
+    ["a body over 4 KiB", JSON.stringify({ documentId: DOCUMENT_ID, size: 1, version: 0, padding: "x".repeat(5000) })],
+  ])("answers 400 for %s, without touching storage", async (_label, body) => {
+    const signer = await makeSigner();
+    const token = await signer.signToken();
+    const { documents, issueUpload } = makeDocuments();
+
+    const response = await handleRequest(makeRequest("/uploads", token, "POST", body), makeServices(signer.keys, undefined, documents));
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ error: "invalid_request" });
+    expect(issueUpload).not.toHaveBeenCalled();
+  });
+
+  it("answers 400 with the reason when the request values are refused", async () => {
+    const signer = await makeSigner();
+    const token = await signer.signToken();
+    const { documents } = makeDocuments({
+      issueUpload: async () => {
+        throw new InvalidRequestError("size must be a whole number of at least 1");
+      },
+    });
+
+    const response = await handleRequest(
+      makeRequest("/uploads", token, "POST", uploadBody({ size: 0 })),
+      makeServices(signer.keys, undefined, documents),
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "invalid_request", detail: "size must be a whole number of at least 1" });
+  });
+
+  it("answers 413 object_too_large and 413 quota_exceeded, and tells the two apart", async () => {
+    const signer = await makeSigner();
+    const token = await signer.signToken();
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const tooLarge = await handleRequest(
+      makeRequest("/uploads", token, "POST", uploadBody()),
+      makeServices(signer.keys, undefined, makeDocuments({ issueUpload: async () => { throw new ObjectTooLargeError(100); } }).documents),
+    );
+    const overQuota = await handleRequest(
+      makeRequest("/uploads", token, "POST", uploadBody()),
+      makeServices(signer.keys, undefined, makeDocuments({ issueUpload: async () => { throw new QuotaExceededError(500, 450); } }).documents),
+    );
+
+    expect(tooLarge.status).toBe(413);
+    expect(await tooLarge.json()).toEqual({ error: "object_too_large", limitBytes: 100 });
+    expect(overQuota.status).toBe(413);
+    expect(await overQuota.json()).toEqual({ error: "quota_exceeded", limitBytes: 500, usedBytes: 450 });
+    expect(logged).not.toHaveBeenCalled(); // answers about the caller's own request are not failures
+    logged.mockRestore();
+  });
+
+  it("answers 503 and logs when storage fails", async () => {
+    const signer = await makeSigner();
+    const token = await signer.signToken();
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { documents } = makeDocuments({
+      issueUpload: async () => {
+        throw new GcsRequestError("list objects", 500, "backend error");
+      },
+    });
+
+    const response = await handleRequest(makeRequest("/uploads", token, "POST", uploadBody()), makeServices(signer.keys, undefined, documents));
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({ error: "storage_unavailable" });
+    expect(logged).toHaveBeenCalledOnce();
+    expect(String(logged.mock.calls[0][0])).not.toContain(token);
+    logged.mockRestore();
+  });
+});
+
+describe("DELETE /documents/<id>", () => {
+  it("deletes the signed-in user's document and answers 204", async () => {
+    const signer = await makeSigner();
+    const token = await signer.signToken();
+    const { documents, deleteDocument } = makeDocuments();
+
+    const response = await handleRequest(
+      makeRequest(`/documents/${DOCUMENT_ID}`, token, "DELETE"),
+      makeServices(signer.keys, undefined, documents),
+    );
+
+    expect(response.status).toBe(204);
+    expect(await response.text()).toBe("");
+    expect(deleteDocument).toHaveBeenCalledExactlyOnceWith(USER_ID, DOCUMENT_ID);
+  });
+
+  it("answers 401 without touching storage when there is no token", async () => {
+    const signer = await makeSigner();
+    const { documents, deleteDocument } = makeDocuments();
+
+    const response = await handleRequest(
+      makeRequest(`/documents/${DOCUMENT_ID}`, undefined, "DELETE"),
+      makeServices(signer.keys, undefined, documents),
+    );
+
+    expect(response.status).toBe(401);
+    expect(deleteDocument).not.toHaveBeenCalled();
+  });
+
+  it("serves DELETE only", async () => {
+    const signer = await makeSigner();
+    const token = await signer.signToken();
+    const { documents, deleteDocument } = makeDocuments();
+
+    const response = await handleRequest(
+      makeRequest(`/documents/${DOCUMENT_ID}`, token, "GET"),
+      makeServices(signer.keys, undefined, documents),
+    );
+
+    expect(response.status).toBe(404);
+    expect(deleteDocument).not.toHaveBeenCalled();
+  });
+
+  it("answers 404 for a path that is not exactly /documents/<id>", async () => {
+    const signer = await makeSigner();
+    const token = await signer.signToken();
+    const { documents, deleteDocument } = makeDocuments();
+
+    for (const path of ["/documents", "/documents/", `/documents/${DOCUMENT_ID}/more`]) {
+      const response = await handleRequest(makeRequest(path, token, "DELETE"), makeServices(signer.keys, undefined, documents));
+      expect(response.status).toBe(404);
+    }
+    expect(deleteDocument).not.toHaveBeenCalled();
+  });
+
+  it("passes whatever sits in the path on, so the service can refuse it with 400", async () => {
+    const signer = await makeSigner();
+    const token = await signer.signToken();
+    const { documents, deleteDocument } = makeDocuments({
+      deleteDocument: async () => {
+        throw new InvalidRequestError("documentId must be 32 lower-case hex characters");
+      },
+    });
+
+    const response = await handleRequest(
+      makeRequest("/documents/..%2Fother-bucket", token, "DELETE"),
+      makeServices(signer.keys, undefined, documents),
+    );
+
+    expect(response.status).toBe(400);
+    expect(deleteDocument).toHaveBeenCalledExactlyOnceWith(USER_ID, "../other-bucket");
+  });
+
+  it("answers 503 and logs when storage fails", async () => {
+    const signer = await makeSigner();
+    const token = await signer.signToken();
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { documents } = makeDocuments({
+      deleteDocument: async () => {
+        throw new GcsRequestError("delete object", 500, "backend error");
+      },
+    });
+
+    const response = await handleRequest(
+      makeRequest(`/documents/${DOCUMENT_ID}`, token, "DELETE"),
+      makeServices(signer.keys, undefined, documents),
+    );
+
+    expect(response.status).toBe(503);
+    expect(logged).toHaveBeenCalledOnce();
     logged.mockRestore();
   });
 });

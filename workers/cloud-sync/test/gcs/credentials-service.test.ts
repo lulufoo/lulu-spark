@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { createCredentialsService } from "../../src/gcs/credentials-service";
 import { InvalidSecretError, InvalidServiceAccountKeyError, TokenExchangeError } from "../../src/gcs/errors";
+import { createGcsServices } from "../../src/gcs/gcs-services";
 import { jsonReply, makeFakeFetch, type RecordedRequest } from "./fake-fetch";
 import { TOKEN_URI, makeServiceAccount } from "./service-account-fixture";
 
@@ -41,14 +41,17 @@ function makeFakeGoogle(options: { exchangeStatus?: number } = {}) {
 
 async function makeService(fetchFn: typeof fetch, overrides: { bucketNameKey?: string; keyJson?: string } = {}, clock = { now: START_MS }) {
   const account = await makeServiceAccount();
-  return createCredentialsService({
+  return createGcsServices({
     serviceAccountKeyJson: overrides.keyJson ?? account.keyJson,
     bucketNameKey: "bucketNameKey" in overrides ? overrides.bucketNameKey : BUCKET_NAME_KEY,
     projectId: "spark-cloud-sync",
     projectNumber: "55973988960",
+    maxObjectBytes: 52428800,
+    maxUserTotalBytes: 209715200,
+    uploadLinkLifetimeSeconds: 600,
     fetchFn,
     now: () => clock.now,
-  });
+  }).credentials;
 }
 
 describe("createCredentialsService", () => {
