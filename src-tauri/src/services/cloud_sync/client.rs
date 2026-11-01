@@ -1,4 +1,5 @@
-//! The calls to the Worker: exchange the session for a storage token, list the cloud documents.
+//! The calls to the Worker: exchange the session for a storage token, list the cloud documents,
+//! ask for an upload link, delete a document.
 
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -6,11 +7,14 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use reqwest::blocking::Client;
 use reqwest::redirect::Policy;
 use reqwest::Method;
-use serde_json::Value;
+use serde_json::{json, Value};
 
 use super::error::CloudSyncError;
-use super::types::{parse_credentials, parse_documents, CloudDoc, Credentials};
-use super::WORKER_URL;
+use super::types::{
+    check_document_id, parse_credentials, parse_documents, parse_upload_link, CloudDoc, Credentials,
+    UploadLink,
+};
+use super::{STORAGE_URL, WORKER_URL};
 use crate::config::vault::{self, AuthSession, SecretError};
 
 /// Where the signed-in session comes from. The app reads the vault.
@@ -33,6 +37,7 @@ struct Cached {
 /// Blocking calls: run them on a worker thread, not inside an async task.
 pub struct CloudSync {
     base_url: String,
+    pub(super) storage_url: String,
     sessions: SessionSource,
     clock: Clock,
     cache: Mutex<Option<Cached>>,
@@ -47,7 +52,7 @@ fn unix_now() -> i64 {
 
 /// The error and its causes, e.g. `error sending request: connection refused`: reqwest keeps the
 /// reason in the cause, not in its own text.
-fn network(e: reqwest::Error) -> CloudSyncError {
+pub(super) fn network(e: reqwest::Error) -> CloudSyncError {
     let mut text = e.to_string();
     let mut cause = std::error::Error::source(&e);
     while let Some(c) = cause {
@@ -58,13 +63,40 @@ fn network(e: reqwest::Error) -> CloudSyncError {
     CloudSyncError::Network(text)
 }
 
+/// A client for one call. It follows no redirects: neither the Worker nor Google redirects, and
+/// the session token must not follow one.
+pub(super) fn http(timeout: Duration) -> Result<Client, CloudSyncError> {
+    Client::builder()
+        .connect_timeout(CONNECT_TIMEOUT)
+        .timeout(timeout)
+        .redirect(Policy::none())
+        .build()
+        .map_err(network)
+}
+
+/// The Worker's own limits come with numbers, so the caller can say which one was hit.
+fn limit_error(code: &str, body: &Value) -> Option<CloudSyncError> {
+    let number = |field: &str| body.get(field).and_then(Value::as_u64);
+    match code {
+        "object_too_large" => Some(CloudSyncError::ObjectTooLarge { limit_bytes: number("limitBytes")? }),
+        "quota_exceeded" => Some(CloudSyncError::QuotaExceeded {
+            limit_bytes: number("limitBytes")?,
+            used_bytes: number("usedBytes")?,
+        }),
+        _ => None,
+    }
+}
+
 fn failure(status: u16, body: &[u8]) -> CloudSyncError {
-    let code = serde_json::from_slice::<Value>(body)
-        .ok()
-        .and_then(|v| v.get("error").and_then(Value::as_str).map(str::to_string))
-        .unwrap_or_else(|| "unknown".to_string());
+    let body: Value = serde_json::from_slice(body).unwrap_or(Value::Null);
+    let code = body
+        .get("error")
+        .and_then(Value::as_str)
+        .unwrap_or("unknown")
+        .to_string();
     match status {
         401 => CloudSyncError::Unauthorized,
+        413 => limit_error(&code, &body).unwrap_or(CloudSyncError::Rejected { status, code }),
         500..=599 => CloudSyncError::Unavailable { status, code },
         400..=499 => CloudSyncError::Rejected { status, code },
         _ => CloudSyncError::BadResponse(format!("unexpected status {status}")),
@@ -72,26 +104,28 @@ fn failure(status: u16, body: &[u8]) -> CloudSyncError {
 }
 
 impl CloudSync {
-    pub fn new(base_url: &str, sessions: SessionSource, clock: Clock) -> Self {
+    pub fn new(base_url: &str, storage_url: &str, sessions: SessionSource, clock: Clock) -> Self {
         Self {
             base_url: base_url.trim_end_matches('/').to_string(),
+            storage_url: storage_url.trim_end_matches('/').to_string(),
             sessions,
             clock,
             cache: Mutex::new(None),
         }
     }
 
-    /// The deployed Worker, the session in the vault, the system clock.
+    /// The deployed Worker, Google Cloud Storage, the session in the vault, the system clock.
     pub fn production() -> Self {
         Self::new(
             WORKER_URL,
+            STORAGE_URL,
             Arc::new(vault::get_auth_session),
             Arc::new(unix_now),
         )
     }
 
     /// The session to call the Worker with. Never refreshed here.
-    fn session(&self) -> Result<AuthSession, CloudSyncError> {
+    pub(super) fn session(&self) -> Result<AuthSession, CloudSyncError> {
         let session = (self.sessions)()
             .map_err(|e| CloudSyncError::Vault(e.to_string()))?
             .ok_or(CloudSyncError::NotSignedIn)?;
@@ -106,25 +140,31 @@ impl CloudSync {
         method: Method,
         path: &str,
         session: &AuthSession,
-    ) -> Result<Value, CloudSyncError> {
-        // No redirects: the Worker never redirects, and the session token must not follow one.
-        let http = Client::builder()
-            .connect_timeout(CONNECT_TIMEOUT)
-            .timeout(REQUEST_TIMEOUT)
-            .redirect(Policy::none())
-            .build()
-            .map_err(network)?;
-        let response = http
+        body: Option<&Value>,
+    ) -> Result<Vec<u8>, CloudSyncError> {
+        let mut request = http(REQUEST_TIMEOUT)?
             .request(method, format!("{}{path}", self.base_url))
-            .bearer_auth(&session.access_token)
-            .send()
-            .map_err(network)?;
+            .bearer_auth(&session.access_token);
+        if let Some(body) = body {
+            request = request.json(body);
+        }
+        let response = request.send().map_err(network)?;
         let status = response.status();
         let body = response.bytes().map_err(network)?;
         if !status.is_success() {
             return Err(failure(status.as_u16(), &body));
         }
-        serde_json::from_slice(&body)
+        Ok(body.to_vec())
+    }
+
+    fn call_json(
+        &self,
+        method: Method,
+        path: &str,
+        session: &AuthSession,
+        body: Option<&Value>,
+    ) -> Result<Value, CloudSyncError> {
+        serde_json::from_slice(&self.call(method, path, session, body)?)
             .map_err(|e| CloudSyncError::BadResponse(format!("body is not JSON: {e}")))
     }
 
@@ -139,7 +179,8 @@ impl CloudSync {
                 return Ok(kept.credentials.clone());
             }
         }
-        let credentials = parse_credentials(&self.call(Method::POST, "/credentials", &session)?)?;
+        let body = self.call_json(Method::POST, "/credentials", &session, None)?;
+        let credentials = parse_credentials(&body)?;
         *cache = Some(Cached {
             user_id: session.user.id,
             credentials: credentials.clone(),
@@ -147,10 +188,37 @@ impl CloudSync {
         Ok(credentials)
     }
 
+    /// Drops the stored token, so the next `credentials()` asks the Worker for a new one.
+    pub(super) fn forget_credentials(&self) {
+        *self.cache.lock().unwrap_or_else(|e| e.into_inner()) = None;
+    }
+
     /// The `(document id, version)` pairs the cloud holds for the signed-in user.
     pub fn list_documents(&self) -> Result<Vec<CloudDoc>, CloudSyncError> {
         let session = self.session()?;
-        parse_documents(&self.call(Method::GET, "/documents", &session)?)
+        parse_documents(&self.call_json(Method::GET, "/documents", &session, None)?)
+    }
+
+    /// Asks the Worker for a link that writes this one object, `size` bytes at most, once.
+    pub(super) fn upload_link(
+        &self,
+        document_id: &str,
+        size: usize,
+        version: i64,
+    ) -> Result<UploadLink, CloudSyncError> {
+        let session = self.session()?;
+        let request = json!({ "documentId": document_id, "size": size, "version": version });
+        let body = self.call_json(Method::POST, "/uploads", &session, Some(&request))?;
+        parse_upload_link(&body)
+    }
+
+    /// Deletes the document's object. A document that is not in the cloud counts as deleted. The
+    /// storage token only reads, so the Worker does the deleting.
+    pub fn delete(&self, document_id: &str) -> Result<(), CloudSyncError> {
+        check_document_id(document_id)?;
+        let session = self.session()?;
+        self.call(Method::DELETE, &format!("/documents/{document_id}"), &session, None)
+            .map(drop)
     }
 }
 

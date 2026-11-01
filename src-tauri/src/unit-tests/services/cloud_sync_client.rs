@@ -2,7 +2,7 @@ use serde_json::json;
 
 use super::*;
 use crate::services::cloud_sync::tests::{
-    creds_reply, dead_url, list_reply, seen, Reply, Rig, DOC_A, DOC_B, JWT, NOW, USER,
+    creds_reply, dead_url, link_reply, list_reply, seen, Reply, Rig, DOC_A, DOC_B, JWT, NOW, USER,
 };
 use crate::services::cloud_sync::tests::MockWorker;
 
@@ -14,7 +14,9 @@ fn token(rig: &Rig) -> String {
 
 #[test]
 fn the_app_talks_to_the_deployed_worker_by_the_system_clock() {
-    assert_eq!(CloudSync::production().base_url, WORKER_URL);
+    let app = CloudSync::production();
+    assert_eq!(app.base_url, WORKER_URL);
+    assert_eq!(app.storage_url, STORAGE_URL);
     let system = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as i64;
     assert!((unix_now() - system).abs() <= 5);
 }
@@ -216,7 +218,7 @@ fn rejected(status: u16, code: &str) -> CloudSyncError {
 }
 
 #[test]
-fn every_kind_of_worker_failure_is_a_clear_error_on_both_calls() {
+fn every_kind_of_worker_failure_is_a_clear_error_on_every_call() {
     let cases = [
         (Reply::json(401, json!({ "error": "unauthorized" })), CloudSyncError::Unauthorized),
         (Reply::raw(401, ""), CloudSyncError::Unauthorized),
@@ -243,10 +245,91 @@ fn every_kind_of_worker_failure_is_a_clear_error_on_both_calls() {
         (Reply::json(403, json!({ "error": 7 })), rejected(403, "unknown")),
     ];
     for (reply, expected) in cases {
-        let rig = Rig::new(vec![reply.clone(), reply.clone()]);
+        let rig = Rig::new(vec![reply.clone(), reply.clone(), reply.clone(), reply.clone()]);
         assert_eq!(rig.sync.credentials().unwrap_err(), expected, "credentials, {reply:?}");
         assert_eq!(rig.sync.list_documents().unwrap_err(), expected, "list, {reply:?}");
+        assert_eq!(rig.sync.upload_link(DOC_A, 3000, 3).unwrap_err(), expected, "link, {reply:?}");
+        assert_eq!(rig.sync.delete(DOC_A).unwrap_err(), expected, "delete, {reply:?}");
     }
+}
+
+#[test]
+fn a_document_that_is_too_big_or_over_the_total_says_which_limit() {
+    let cases = [
+        (
+            Reply::json(413, json!({ "error": "object_too_large", "limitBytes": 10_485_760 })),
+            CloudSyncError::ObjectTooLarge { limit_bytes: 10_485_760 },
+        ),
+        (
+            Reply::json(
+                413,
+                json!({ "error": "quota_exceeded", "limitBytes": 1_073_741_824_u64, "usedBytes": 1_073_000_000 }),
+            ),
+            CloudSyncError::QuotaExceeded { limit_bytes: 1_073_741_824, used_bytes: 1_073_000_000 },
+        ),
+        (
+            Reply::json(413, json!({ "error": "object_too_large" })),
+            rejected(413, "object_too_large"),
+        ),
+        (
+            Reply::json(413, json!({ "error": "quota_exceeded", "limitBytes": 5 })),
+            rejected(413, "quota_exceeded"),
+        ),
+        (
+            Reply::json(413, json!({ "error": "object_too_large", "limitBytes": "5" })),
+            rejected(413, "object_too_large"),
+        ),
+        (
+            Reply::json(413, json!({ "error": "something_else", "limitBytes": 5 })),
+            rejected(413, "something_else"),
+        ),
+        (Reply::raw(413, ""), rejected(413, "unknown")),
+    ];
+    for (reply, expected) in cases {
+        let rig = Rig::new(vec![reply.clone()]);
+        assert_eq!(rig.sync.upload_link(DOC_A, 3000, 3).unwrap_err(), expected, "{reply:?}");
+    }
+}
+
+// --- asking for an upload link ---
+
+#[test]
+fn a_link_is_asked_for_with_the_document_its_size_and_its_version() {
+    let rig = Rig::new(vec![link_reply("/put/one")]);
+
+    let link = rig.sync.upload_link(DOC_A, 3000, 7).expect("link");
+
+    assert_eq!(link.url, format!("{}/put/one?X-Goog-Signature=abc", rig.worker.url));
+    assert_eq!(link.headers.len(), 3);
+    let asked = &rig.worker.recorded()[0];
+    assert_eq!((asked.method.as_str(), asked.path.as_str()), ("POST", "/uploads"));
+    assert_eq!(asked.header("authorization"), Some(format!("Bearer {JWT}").as_str()));
+    assert_eq!(asked.json(), json!({ "documentId": DOC_A, "size": 3000, "version": 7 }));
+}
+
+// --- deleting a document ---
+
+#[test]
+fn a_delete_goes_through_the_worker_with_the_session_token() {
+    let rig = Rig::new(vec![Reply::bytes(204, b"")]);
+
+    rig.sync.delete(DOC_A).expect("delete");
+
+    assert_eq!(rig.worker.seen(), [seen("DELETE", &format!("/documents/{DOC_A}"), JWT)]);
+}
+
+#[test]
+fn a_delete_that_cannot_be_a_request_or_has_no_session_sends_nothing() {
+    let rig = Rig::new(vec![]);
+    for id in ["", "../aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", "aaaa?x=1"] {
+        assert!(matches!(rig.sync.delete(id), Err(CloudSyncError::InvalidInput(_))), "{id}");
+    }
+
+    rig.sign_out();
+    assert_eq!(rig.sync.delete(DOC_A).unwrap_err(), CloudSyncError::NotSignedIn);
+    rig.sign_in(USER, JWT, NOW);
+    assert_eq!(rig.sync.delete(DOC_A).unwrap_err(), CloudSyncError::SessionExpired);
+    assert_eq!(rig.worker.recorded().len(), 0);
 }
 
 #[test]

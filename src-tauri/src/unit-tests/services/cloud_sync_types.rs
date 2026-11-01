@@ -56,6 +56,118 @@ fn credentials_with_a_missing_or_wrong_field_are_refused() {
 }
 
 #[test]
+fn a_bucket_name_is_only_what_google_allows_because_it_goes_into_a_url() {
+    let long_enough = "a".repeat(63);
+    let accepted = ["abc", "a1b", "spark-abc", "a.b_c-d", "0abc9", long_enough.as_str()];
+    for name in accepted {
+        let body = json!({ "bucket": name, "accessToken": "t", "expiresAt": 5 });
+        assert!(parse_credentials(&body).is_ok(), "{name}");
+    }
+    let too_long = "a".repeat(64);
+    let refused = [
+        "ab",
+        too_long.as_str(),
+        "-abc",
+        "abc-",
+        "_abc",
+        "abc_",
+        ".abc",
+        "abc.",
+        "Abc",
+        "ab c",
+        "a/b",
+        "a?b",
+        "a#b",
+        "a%2fb",
+        "a\\b",
+        "ünï",
+        "abc\n",
+    ];
+    for name in refused {
+        let body = json!({ "bucket": name, "accessToken": "t", "expiresAt": 5 });
+        assert!(is_bad_response(parse_credentials(&body)), "{name:?}");
+    }
+}
+
+#[test]
+fn an_upload_link_keeps_its_url_and_its_headers_exactly() {
+    let got = parse_upload_link(&json!({
+        "method": "PUT",
+        "url": "https://storage.googleapis.com/b/o?X-Goog-Signature=abc",
+        "headers": {
+            "x-goog-content-length-range": "0,100",
+            "x-goog-if-generation-match": "0",
+            "x-goog-meta-version": "3",
+        },
+        "expiresAt": 1_800_000_600_i64,
+        "extra": true,
+    }))
+    .expect("link");
+
+    assert_eq!(got.url, "https://storage.googleapis.com/b/o?X-Goog-Signature=abc");
+    assert_eq!(got.headers.len(), 3);
+    assert_eq!(got.headers["x-goog-content-length-range"], "0,100");
+    assert_eq!(got.headers["x-goog-if-generation-match"], "0");
+    assert_eq!(got.headers["x-goog-meta-version"], "3");
+
+    let none = parse_upload_link(&json!({ "method": "PUT", "url": "u", "headers": {} })).expect("none");
+    assert!(none.headers.is_empty());
+}
+
+#[test]
+fn a_link_that_is_not_a_complete_put_link_is_refused() {
+    let good = json!({ "method": "PUT", "url": "u", "headers": { "x-goog-meta-version": "3" } });
+    assert!(parse_upload_link(&good).is_ok());
+
+    let broken: [(&str, Value); 10] = [
+        ("method", json!("POST")),
+        ("method", json!("put")),
+        ("method", json!(null)),
+        ("url", json!("")),
+        ("url", json!(5)),
+        ("url", json!(null)),
+        ("headers", json!(null)),
+        ("headers", json!([])),
+        ("headers", json!({ "x-goog-meta-version": 3 })),
+        ("headers", json!({ "bad name": "3" })),
+    ];
+    for (field, value) in broken {
+        let mut body = good.clone();
+        body[field] = value.clone();
+        assert!(is_bad_response(parse_upload_link(&body)), "{field} = {value}");
+    }
+    let mut body = good.clone();
+    body["headers"] = json!({ "x-goog-meta-version": "line\nbreak" });
+    assert!(is_bad_response(parse_upload_link(&body)), "a header value with a line break");
+    for field in ["method", "url", "headers"] {
+        let mut body = good.clone();
+        body.as_object_mut().unwrap().remove(field);
+        assert!(is_bad_response(parse_upload_link(&body)), "without {field}");
+    }
+}
+
+#[test]
+fn the_upload_link_is_not_printed() {
+    let link = parse_upload_link(&json!({
+        "method": "PUT",
+        "url": "https://storage.googleapis.com/b/o?X-Goog-Signature=link-secret",
+        "headers": {},
+    }))
+    .expect("link");
+
+    assert!(!format!("{link:?}").contains("link-secret"));
+}
+
+#[test]
+fn only_a_document_id_may_go_into_a_path() {
+    assert!(check_document_id(ID_1).is_ok());
+    assert!(check_document_id(ID_2).is_ok());
+    for id in ["", "aaaa", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "../aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"] {
+        assert!(matches!(check_document_id(id), Err(CloudSyncError::InvalidInput(_))), "{id:?}");
+    }
+}
+
+#[test]
 fn the_storage_token_is_not_printed() {
     let credentials = Credentials {
         bucket: "spark-abc".into(),

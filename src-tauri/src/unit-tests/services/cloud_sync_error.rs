@@ -29,6 +29,31 @@ fn every_error_says_what_went_wrong() {
             CloudSyncError::Vault("store: locked".into()),
             "could not read the sign-in session: store: locked",
         ),
+        (
+            CloudSyncError::InvalidInput("not a document id".into()),
+            "invalid cloud request: not a document id",
+        ),
+        (
+            CloudSyncError::ObjectTooLarge { limit_bytes: 10_485_760 },
+            "the document is over the cloud limit for one document (10485760 bytes)",
+        ),
+        (
+            CloudSyncError::QuotaExceeded { limit_bytes: 1000, used_bytes: 990 },
+            "the cloud storage limit is reached (990 of 1000 bytes used)",
+        ),
+        (
+            CloudSyncError::UploadLinkExpired,
+            "the upload link expired before the upload finished",
+        ),
+        (
+            CloudSyncError::ObjectChanged,
+            "the document changed in the cloud during the upload",
+        ),
+        (CloudSyncError::ObjectNotFound, "the document is not in the cloud"),
+        (
+            CloudSyncError::StorageTokenRejected,
+            "cloud storage refused the storage token (401)",
+        ),
     ];
     for (error, text) in cases {
         assert_eq!(error.to_string(), text);

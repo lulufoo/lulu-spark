@@ -33,11 +33,31 @@ pub(super) fn seen(method: &str, path: &str, token: &str) -> Seen {
     }
 }
 
-/// One scripted answer.
+/// Everything the Worker saw of one request: header names are lower case.
+#[derive(Debug, Clone)]
+pub(super) struct Recorded {
+    pub(super) method: String,
+    pub(super) path: String,
+    pub(super) headers: Vec<(String, String)>,
+    pub(super) body: Vec<u8>,
+}
+
+impl Recorded {
+    pub(super) fn header(&self, name: &str) -> Option<&str> {
+        self.headers.iter().find(|(n, _)| n == name).map(|(_, v)| v.as_str())
+    }
+
+    pub(super) fn json(&self) -> Value {
+        serde_json::from_slice(&self.body).expect("the body is JSON")
+    }
+}
+
+/// One scripted answer. `{mock}` in a body stands for the address of the mock itself, which is not
+/// known before it starts: that is how a link can point back at it.
 #[derive(Debug, Clone)]
 pub(super) struct Reply {
     status: u16,
-    body: String,
+    body: Vec<u8>,
     headers: Vec<(&'static str, String)>,
 }
 
@@ -47,9 +67,13 @@ impl Reply {
     }
 
     pub(super) fn raw(status: u16, body: &str) -> Self {
+        Self::bytes(status, body.as_bytes())
+    }
+
+    pub(super) fn bytes(status: u16, body: &[u8]) -> Self {
         Self {
             status,
-            body: body.into(),
+            body: body.to_vec(),
             headers: Vec::new(),
         }
     }
@@ -68,6 +92,35 @@ pub(super) fn creds_reply(access_token: &str, expires_at: i64) -> Reply {
     )
 }
 
+/// What `POST /uploads` answers: a PUT to `path` on the mock, with the headers Google will check.
+pub(super) fn link_reply(path: &str) -> Reply {
+    Reply::json(
+        200,
+        json!({
+            "method": "PUT",
+            "url": format!("{{mock}}{path}?X-Goog-Signature=abc"),
+            "headers": {
+                "x-goog-content-length-range": "0,1000000",
+                "x-goog-if-generation-match": "0",
+                "x-goog-meta-version": "3",
+            },
+            "expiresAt": NOW + 600,
+        }),
+    )
+}
+
+/// Google's XML answer to an expired link.
+pub(super) fn expired_reply() -> Reply {
+    xml_error(400, "ExpiredToken")
+}
+
+pub(super) fn xml_error(status: u16, code: &str) -> Reply {
+    Reply::raw(
+        status,
+        &format!("<?xml version='1.0' encoding='UTF-8'?><Error><Code>{code}</Code><Message>m</Message></Error>"),
+    )
+}
+
 pub(super) fn list_reply(documents: &[(&str, i64)]) -> Reply {
     let documents: Vec<Value> = documents
         .iter()
@@ -80,7 +133,7 @@ pub(super) fn list_reply(documents: &[(&str, i64)]) -> Reply {
 /// they run out.
 pub(super) struct MockWorker {
     pub(super) url: String,
-    seen: Arc<Mutex<Vec<Seen>>>,
+    recorded: Arc<Mutex<Vec<Recorded>>>,
     server: Arc<Server>,
     thread: Option<JoinHandle<()>>,
 }
@@ -89,26 +142,34 @@ impl MockWorker {
     pub(super) fn start(replies: Vec<Reply>) -> Self {
         let server = Arc::new(Server::http("127.0.0.1:0").expect("bind mock worker"));
         let url = format!("http://{}", server.server_addr().to_ip().expect("ip address"));
-        let seen = Arc::new(Mutex::new(Vec::new()));
+        let recorded = Arc::new(Mutex::new(Vec::new()));
         let thread = {
-            let (server, seen) = (server.clone(), seen.clone());
+            let (server, recorded, own_url) = (server.clone(), recorded.clone(), url.clone());
             let mut replies = replies.into_iter();
             std::thread::spawn(move || {
-                for request in server.incoming_requests() {
-                    let authorization = request
-                        .headers()
-                        .iter()
-                        .find(|h| h.field.equiv("Authorization"))
-                        .map(|h| h.value.to_string());
-                    seen.lock().unwrap().push(Seen {
+                for mut request in server.incoming_requests() {
+                    let mut body = Vec::new();
+                    let _ = request.as_reader().read_to_end(&mut body);
+                    recorded.lock().unwrap().push(Recorded {
                         method: request.method().as_str().to_string(),
                         path: request.url().to_string(),
-                        authorization,
+                        headers: request
+                            .headers()
+                            .iter()
+                            .map(|h| (h.field.as_str().as_str().to_ascii_lowercase(), h.value.to_string()))
+                            .collect(),
+                        body,
                     });
                     let reply = replies
                         .next()
                         .unwrap_or_else(|| Reply::json(500, json!({ "error": "script_ran_out" })));
-                    let mut response = Response::from_string(reply.body)
+                    let text = String::from_utf8_lossy(&reply.body);
+                    let body = if text.contains("{mock}") {
+                        text.replace("{mock}", &own_url).into_bytes()
+                    } else {
+                        reply.body
+                    };
+                    let mut response = Response::from_data(body)
                         .with_status_code(reply.status)
                         .with_header(Header::from_bytes("Content-Type", "application/json").unwrap());
                     for (name, value) in reply.headers {
@@ -120,14 +181,26 @@ impl MockWorker {
         };
         Self {
             url,
-            seen,
+            recorded,
             server,
             thread: Some(thread),
         }
     }
 
+    pub(super) fn recorded(&self) -> Vec<Recorded> {
+        self.recorded.lock().unwrap().clone()
+    }
+
+    /// Method, path and `Authorization` of each request.
     pub(super) fn seen(&self) -> Vec<Seen> {
-        self.seen.lock().unwrap().clone()
+        self.recorded()
+            .into_iter()
+            .map(|r| Seen {
+                authorization: r.header("authorization").map(str::to_string),
+                method: r.method,
+                path: r.path,
+            })
+            .collect()
     }
 }
 
@@ -196,7 +269,7 @@ impl Rig {
             Arc::new(move || now.load(Ordering::SeqCst))
         };
         Self {
-            sync: CloudSync::new(url, sessions, clock),
+            sync: CloudSync::new(url, url, sessions, clock),
             worker,
             now,
             vault,

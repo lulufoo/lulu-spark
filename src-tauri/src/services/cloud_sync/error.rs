@@ -14,15 +14,29 @@ pub enum CloudSyncError {
     Unauthorized,
     /// The Worker could not be reached, or did not answer in time.
     Network(String),
-    /// The Worker, or Supabase or Google behind it, is unavailable (5xx). `code` is the `error`
-    /// field of the body, `unknown` when there is none.
+    /// The Worker, or Supabase or Google behind it, is unavailable (5xx, or Google's 429). `code`
+    /// is the error name in the body, `unknown` when there is none.
     Unavailable { status: u16, code: String },
-    /// The Worker refused the request (4xx other than 401).
+    /// The Worker or Google refused the request (4xx not named below).
     Rejected { status: u16, code: String },
     /// The answer does not follow the Worker contract.
     BadResponse(String),
     /// The vault could not be read.
     Vault(String),
+    /// The caller gave something that cannot be a request, such as a document id that is not one.
+    InvalidInput(String),
+    /// The package is over the limit for one object (the Worker's 413 `object_too_large`).
+    ObjectTooLarge { limit_bytes: u64 },
+    /// The upload would take the user's cloud total over the limit (the Worker's 413 `quota_exceeded`).
+    QuotaExceeded { limit_bytes: u64, used_bytes: u64 },
+    /// Google refused the upload link as expired, and then refused the fresh one too.
+    UploadLinkExpired,
+    /// The object changed in the cloud after the upload link was signed (Google's 412).
+    ObjectChanged,
+    /// The cloud has no object for the document (Google's 404 on a read).
+    ObjectNotFound,
+    /// Google refused the storage token (401), and refused the new one too.
+    StorageTokenRejected,
 }
 
 impl fmt::Display for CloudSyncError {
@@ -40,6 +54,17 @@ impl fmt::Display for CloudSyncError {
             }
             Self::BadResponse(e) => write!(f, "cloud sync sent an unexpected answer: {e}"),
             Self::Vault(e) => write!(f, "could not read the sign-in session: {e}"),
+            Self::InvalidInput(e) => write!(f, "invalid cloud request: {e}"),
+            Self::ObjectTooLarge { limit_bytes } => {
+                write!(f, "the document is over the cloud limit for one document ({limit_bytes} bytes)")
+            }
+            Self::QuotaExceeded { limit_bytes, used_bytes } => {
+                write!(f, "the cloud storage limit is reached ({used_bytes} of {limit_bytes} bytes used)")
+            }
+            Self::UploadLinkExpired => write!(f, "the upload link expired before the upload finished"),
+            Self::ObjectChanged => write!(f, "the document changed in the cloud during the upload"),
+            Self::ObjectNotFound => write!(f, "the document is not in the cloud"),
+            Self::StorageTokenRejected => write!(f, "cloud storage refused the storage token (401)"),
         }
     }
 }
