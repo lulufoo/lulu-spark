@@ -58,6 +58,25 @@ describe("createAccessTokenProvider", () => {
     expect(requests).toHaveLength(2);
   });
 
+  it("hands out a fresh token when the caller needs more life than the cached one has left", async () => {
+    let issued = 0;
+    const { clock, provider, requests } = await makeProvider(() => {
+      issued += 1;
+      return jsonReply(200, { access_token: `tok-${issued}`, expires_in: 3600 });
+    });
+    await provider.getAccessToken();
+
+    clock.now = START_MS + 35 * MINUTE_MS; // 25 minutes left
+    expect(await provider.getAccessToken()).toBe("tok-1");
+    expect(await provider.getAccessToken(30 * MINUTE_MS)).toBe("tok-2");
+    expect(requests).toHaveLength(2);
+
+    // The new token has an hour left, so both kinds of caller now share it.
+    expect(await provider.getAccessToken(30 * MINUTE_MS)).toBe("tok-2");
+    expect(await provider.getAccessToken()).toBe("tok-2");
+    expect(requests).toHaveLength(2);
+  });
+
   it("shares one request between callers that arrive together", async () => {
     const { provider, requests } = await makeProvider();
     const tokens = await Promise.all([provider.getAccessToken(), provider.getAccessToken()]);

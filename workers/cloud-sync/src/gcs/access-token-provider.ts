@@ -2,18 +2,22 @@ import { SignJWT, importPKCS8 } from "jose";
 import { AccessTokenError } from "./errors";
 import type { ServiceAccountKey } from "./service-account-key";
 
-// Cloud Storage accepts narrower scopes, but this token is also the starting point for narrower
-// tokens later (see the issue on short-lived client tokens), and the service account's own role
-// is already the minimum.
+// Cloud Storage accepts narrower scopes, but this token is also the starting point for the narrower
+// client tokens (see client-token-issuer.ts), and the service account's own role is already the minimum.
 const SCOPE = "https://www.googleapis.com/auth/cloud-platform";
 const GRANT_TYPE = "urn:ietf:params:oauth:grant-type:jwt-bearer";
 const ASSERTION_LIFETIME_SECONDS = 3600;
-const REFRESH_MARGIN_MS = 5 * 60 * 1000;
+const DEFAULT_MIN_VALIDITY_MS = 5 * 60 * 1000;
 
 type SigningKey = Awaited<ReturnType<typeof importPKCS8>>;
 
 export type AccessTokenProvider = {
-  getAccessToken(): Promise<string>;
+  /**
+   * A token that is still valid for at least `minValidityMs` (default five minutes). A token cut down
+   * from this one by the Credential Access Boundary expires when this one does, so callers that hand
+   * the result to someone else ask for as long as they want that someone to have.
+   */
+  getAccessToken(minValidityMs?: number): Promise<string>;
 };
 
 export type AccessTokenProviderOptions = {
@@ -26,7 +30,7 @@ export type AccessTokenProviderOptions = {
 
 /**
  * Exchanges the long-lived key for short OAuth access tokens (JWT bearer grant).
- * A token is reused until five minutes before it expires, and concurrent callers share one request.
+ * A token is reused while it has enough life left for the caller, and concurrent callers share one request.
  */
 export function createAccessTokenProvider(options: AccessTokenProviderOptions): AccessTokenProvider {
   const { key } = options;
@@ -34,7 +38,7 @@ export function createAccessTokenProvider(options: AccessTokenProviderOptions): 
   const now = options.now ?? Date.now;
 
   let signingKey: Promise<SigningKey> | undefined;
-  let cached: { token: string; refreshAt: number } | undefined;
+  let cached: { token: string; expiresAt: number } | undefined;
   let inFlight: Promise<string> | undefined;
 
   function loadSigningKey(): Promise<SigningKey> {
@@ -72,13 +76,13 @@ export function createAccessTokenProvider(options: AccessTokenProviderOptions): 
     if (typeof body.access_token !== "string" || typeof body.expires_in !== "number") {
       throw new AccessTokenError("token endpoint answered without a usable access token");
     }
-    cached = { token: body.access_token, refreshAt: now() + body.expires_in * 1000 - REFRESH_MARGIN_MS };
+    cached = { token: body.access_token, expiresAt: now() + body.expires_in * 1000 };
     return body.access_token;
   }
 
   return {
-    async getAccessToken() {
-      if (cached && now() < cached.refreshAt) return cached.token;
+    async getAccessToken(minValidityMs = DEFAULT_MIN_VALIDITY_MS) {
+      if (cached && cached.expiresAt - now() >= minValidityMs) return cached.token;
       inFlight ??= requestToken().finally(() => {
         inFlight = undefined;
       });

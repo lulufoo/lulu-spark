@@ -1,10 +1,10 @@
 import { readBearerToken, verifyAccessToken, type TokenVerifier } from "./access-token";
-import type { BucketService } from "./gcs/bucket-service";
+import type { CredentialsService } from "./gcs/credentials-service";
 import { BucketNameTakenError } from "./gcs/errors";
 
 export type Services = {
   verifier: TokenVerifier;
-  buckets: BucketService;
+  credentials: CredentialsService;
 };
 
 function makeJsonResponse(body: unknown, status: number, headers: HeadersInit = {}): Response {
@@ -25,11 +25,12 @@ function logFailure(message: string, error: unknown): void {
   );
 }
 
-async function handleEnsureBucket(userId: string, buckets: BucketService): Promise<Response> {
+async function handleIssueCredentials(userId: string, credentials: CredentialsService): Promise<Response> {
   try {
-    return makeJsonResponse(await buckets.ensureUserBucket(userId), 200);
+    // A token response must never be stored by a cache (RFC 6749, section 5.1).
+    return makeJsonResponse(await credentials.issueUserCredentials(userId), 200, { "Cache-Control": "no-store" });
   } catch (error) {
-    logFailure("bucket check failed", error);
+    logFailure("issuing credentials failed", error);
     if (error instanceof BucketNameTakenError) {
       return makeJsonResponse({ error: "bucket_name_taken" }, 409);
     }
@@ -56,8 +57,8 @@ export async function handleRequest(request: Request, services: Services): Promi
   if (request.method === "GET" && pathname === "/whoami") {
     return makeJsonResponse({ userId: user.userId }, 200);
   }
-  if (request.method === "POST" && pathname === "/bucket") {
-    return handleEnsureBucket(user.userId, services.buckets);
+  if (request.method === "POST" && pathname === "/credentials") {
+    return handleIssueCredentials(user.userId, services.credentials);
   }
   return makeJsonResponse({ error: "not_found" }, 404);
 }

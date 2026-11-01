@@ -15,6 +15,11 @@ export class AccessTokenError extends Error {
   override name = "AccessTokenError";
 }
 
+/** Google's token exchange refused to narrow an access token, or answered something unusable. */
+export class TokenExchangeError extends Error {
+  override name = "TokenExchangeError";
+}
+
 /** A Cloud Storage call answered something the caller did not expect. */
 export class GcsRequestError extends Error {
   override name = "GcsRequestError";
