@@ -107,7 +107,8 @@ function callbackTokens(parsed: URL): { access_token: string; refresh_token: str
   return { access_token: access, refresh_token: refresh };
 }
 
-async function persistVaultSession(raw: unknown): Promise<boolean> {
+/** Writes a session into the vault (where Rust reads it) and shows its user. `false` if it cannot. */
+export async function persistVaultSession(raw: unknown): Promise<boolean> {
   const session = toVaultSession(raw);
   if (!session) return false;
   const invoke = getTauriInvoke();
@@ -147,10 +148,14 @@ export async function signOutAuth(): Promise<void> {
   authUserStore.set(null);
 }
 
-export async function getAuthUser(): Promise<AuthUserView | null> {
+/** The session in the vault, as Rust will read it; `null` when signed out. */
+export async function readVaultSession(): Promise<VaultAuthSession | null> {
   const invoke = getTauriInvoke();
   if (!invoke) return null;
-  const raw = await invoke('get_auth_session');
-  const session = toVaultSession(raw);
+  return toVaultSession(await invoke('get_auth_session'));
+}
+
+export async function getAuthUser(): Promise<AuthUserView | null> {
+  const session = await readVaultSession();
   return session ? toUserView(session) : null;
 }

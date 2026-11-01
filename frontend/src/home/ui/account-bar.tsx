@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import type { CloudSyncView } from '../state/cloud-sync.ts';
+import { cloudSyncLine } from './cloud-sync-text.ts';
 
 export type AccountBarUser = {
   user_id: string;
@@ -12,16 +14,24 @@ export function AccountBar({
   user,
   onLogin,
   onLogout,
+  onSync,
+  sync = { phase: 'idle' },
   isDebug = false,
 }: {
   user: AccountBarUser | null;
   onLogin: (provider: 'google' | 'github') => void;
   onLogout: () => void;
+  /** Asks for a sync. The entry is shown only when this is given. */
+  onSync?: () => void;
+  /** What the last sync did, shown under the sync entry. */
+  sync?: CloudSyncView;
   isDebug?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const signedIn = Boolean(user?.user_id);
   const label = signedInLabel(user);
+  const syncing = sync.phase === 'syncing';
+  const syncLine = cloudSyncLine(sync);
 
   useEffect(() => {
     setOpen(false);
@@ -69,9 +79,33 @@ export function AccountBar({
             onClick={close}
           />
           <div className="home-account-bar-menu" role="menu">
+            {signedIn ? <div className="home-account-bar-menu-name">{label}</div> : null}
+            {onSync ? (
+              <>
+                <button
+                  type="button"
+                  role="menuitem"
+                  data-role="account-sync"
+                  disabled={syncing}
+                  aria-busy={syncing ? 'true' : 'false'}
+                  onClick={() => callSafely(onSync)}
+                >
+                  {syncing ? 'Syncing…' : 'Sync now'}
+                </button>
+                {syncLine && !syncing ? (
+                  <div
+                    className="home-account-bar-sync-status"
+                    data-role="account-sync-status"
+                    data-tone={syncLine.tone}
+                    role="status"
+                  >
+                    {syncLine.text}
+                  </div>
+                ) : null}
+              </>
+            ) : null}
             {signedIn ? (
               <>
-                <div className="home-account-bar-menu-name">{label}</div>
                 <button
                   type="button"
                   role="menuitem"

@@ -4,6 +4,8 @@ import { createRoot, type Root } from 'react-dom/client';
 import { flushSync } from 'react-dom';
 import { getAuthUser, signOutAuth, startAuthLogin } from '../auth/oauth.ts';
 import { authUserStore } from '../auth/state/user.ts';
+import { resetCloudSync, runCloudSync } from './commands/cloud-sync.ts';
+import { cloudSyncStore } from './state/cloud-sync.ts';
 import { state, useHostState } from '../host/state.ts';
 import { openProject, openWorkspace, refreshWorkspaceProjects } from './commands/workspace-nav.ts';
 import { HomeWorkspaceNav, type HomeWorkspaceRow } from './ui/workspace-nav.tsx';
@@ -165,6 +167,7 @@ export function HomePage({
   const host = useHostState();
   const workspaceIds = host.workspaces.list.map((w) => w.workspace_id).join(',');
   const authUser = useSyncExternalStore(authUserStore.subscribe, authUserStore.getSnapshot);
+  const cloudSync = useSyncExternalStore(cloudSyncStore.subscribe, cloudSyncStore.getSnapshot);
   const isDebug = useSyncExternalStore(
     packageDebugStore.subscribe,
     packageDebugStore.getSnapshot,
@@ -335,7 +338,13 @@ export function HomePage({
   }
 
   function onAccountLogout() {
-    void signOutAuth().catch(() => {});
+    void signOutAuth()
+      .then(resetCloudSync)
+      .catch(() => {});
+  }
+
+  function onAccountSync() {
+    void runCloudSync();
   }
 
   function onComposerInput() {
@@ -421,6 +430,8 @@ export function HomePage({
             isDebug={isDebug}
             onLogin={onAccountLogin}
             onLogout={onAccountLogout}
+            onSync={onAccountSync}
+            sync={cloudSync}
           />
           <HelpMenu
             onAbout={() => {
