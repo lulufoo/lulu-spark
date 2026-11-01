@@ -88,12 +88,40 @@ fn a_run_stopped_in_the_pulls_names_the_document_and_the_reason() {
 }
 
 #[test]
+fn a_run_the_user_cancelled_says_so_and_is_not_an_error_stop() {
+    let cancelled = |doc: &str| Some((doc.to_string(), DocSyncError::Cloud(CloudSyncError::Cancelled)));
+    let mut in_uploads = full_report();
+    in_uploads.push.stopped = cancelled("u9");
+    let mut in_pulls = full_report();
+    in_pulls.pull.stopped = cancelled("p9");
+
+    for (name, report, not_tried) in [("uploads", in_uploads, 3 + 1), ("pulls", in_pulls, 3 + 1)] {
+        let answer = summary(&report);
+        assert_eq!(answer["cancelled"], json!(true), "{name}");
+        assert_eq!(answer["stopped"], json!(null), "{name}: the cancel is not reported as a stop");
+        assert_eq!(answer["not_tried"], json!(not_tried), "{name}: the document it stopped on counts");
+        assert_eq!(answer["uploaded"], json!(2), "{name}: what was done is kept in the counts");
+        assert_eq!(answer["pulled"], json!(3), "{name}");
+    }
+}
+
+#[test]
+fn a_run_that_was_not_cancelled_says_so_whatever_stopped_it() {
+    let mut stopped = full_report();
+    stopped.push.stopped = Some(("u9".into(), DocSyncError::Cloud(CloudSyncError::Network("down".into()))));
+
+    assert_eq!(summary(&full_report())["cancelled"], json!(false));
+    assert_eq!(summary(&stopped)["cancelled"], json!(false));
+    assert_eq!(summary(&stopped)["not_tried"], json!(3), "an error stop does not count its own document");
+}
+
+#[test]
 fn an_empty_run_is_all_zero_and_ok() {
     assert_eq!(
         summary(&SyncReport::default()),
         json!({
             "ok": true, "uploaded": 0, "pulled": 0, "skipped": 0, "kept": 0, "gone": 0,
-            "not_tried": 0, "failed": [], "stopped": null,
+            "not_tried": 0, "failed": [], "stopped": null, "cancelled": false,
         })
     );
 }

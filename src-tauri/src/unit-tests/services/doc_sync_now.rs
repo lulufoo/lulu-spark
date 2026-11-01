@@ -275,3 +275,179 @@ fn a_run_that_stopped_says_where_in_the_answer_and_in_the_log() {
     assert_eq!(answer["not_tried"], json!(1), "the pull of the other document was left for the next run");
     assert_eq!(events(&lines), ["sync.stopped", "sync.finished"]);
 }
+
+/// A cloud that asks the gate to cancel right after the `n`th transfer (upload or read) went
+/// through, as the user would while that transfer is going on.
+struct CancelAfter<'a> {
+    inner: FakeCloud,
+    gate: &'a SyncGate,
+    transfers_left: Mutex<usize>,
+    asked: Mutex<Vec<bool>>,
+}
+
+impl<'a> CancelAfter<'a> {
+    fn new(inner: FakeCloud, gate: &'a SyncGate, transfers: usize) -> Self {
+        Self { inner, gate, transfers_left: Mutex::new(transfers), asked: Mutex::new(Vec::new()) }
+    }
+
+    fn one_transfer_done(&self) {
+        let mut left = self.transfers_left.lock().expect("left");
+        *left = left.saturating_sub(1);
+        if *left == 0 {
+            self.asked.lock().expect("asked").push(self.gate.cancel());
+        }
+    }
+}
+
+impl CloudDocs for CancelAfter<'_> {
+    fn list_documents(&self) -> Result<Vec<CloudDoc>, CloudSyncError> {
+        self.inner.list_documents()
+    }
+
+    fn upload(&self, document_id: &str, package: &[u8], version: i64) -> Result<(), CloudSyncError> {
+        let result = self.inner.upload(document_id, package, version);
+        self.one_transfer_done();
+        result
+    }
+
+    fn read(&self, document_id: &str) -> Result<Vec<u8>, CloudSyncError> {
+        let result = self.inner.read(document_id);
+        self.one_transfer_done();
+        result
+    }
+
+    fn delete(&self, document_id: &str) -> Result<(), CloudSyncError> {
+        self.inner.delete(document_id)
+    }
+}
+
+#[test]
+fn a_cancel_asked_during_an_upload_lets_that_upload_finish_and_stops_before_the_next() {
+    let _sandbox = TestSandbox::new();
+    let docs: Vec<String> = (0..3).map(|n| new_doc(&format!("Doc {n}"), "这是一段足够长的正文。")).collect();
+    let gate = SyncGate::new();
+    let cloud = CancelAfter::new(FakeCloud::new(), &gate, 1);
+
+    let (answer, lines) = sync_and_journal(&gate, &cloud);
+
+    assert_eq!(answer["ok"], json!(true), "a cancelled run was made: {answer}");
+    assert_eq!(answer["cancelled"], json!(true));
+    assert_eq!(answer["uploaded"], json!(1), "the document in flight was finished, not cut");
+    assert_eq!(answer["not_tried"], json!(2), "the other two were left for the next run");
+    assert_eq!(answer["stopped"], json!(null));
+    assert_eq!(answer["failed"], json!([]));
+    assert_eq!(*cloud.asked.lock().expect("asked"), [true], "the gate knew a run was going on");
+    let stored = docs.iter().filter(|doc| cloud.inner.stored(doc).is_some()).count();
+    assert_eq!(stored, 1, "exactly one document reached the cloud");
+    assert_eq!(events(&lines), ["sync.cancelled", "sync.finished"]);
+    assert_eq!(lines[0].level, Level::Info);
+    assert_eq!(lines[1].params["cancelled"], json!(true));
+}
+
+#[test]
+fn a_cancelled_run_is_finished_by_the_next_one() {
+    let _sandbox = TestSandbox::new();
+    let docs: Vec<String> = (0..3).map(|n| new_doc(&format!("Doc {n}"), "这是一段足够长的正文。")).collect();
+    let gate = SyncGate::new();
+    let cancelling = CancelAfter::new(FakeCloud::new(), &gate, 1);
+    let first = sync_with(&gate, &cancelling);
+    assert_eq!(first["cancelled"], json!(true));
+
+    let second = sync_with(&gate, &cancelling.inner);
+
+    assert_eq!(second["ok"], json!(true));
+    assert_eq!(second["cancelled"], json!(false), "the cancel did not outlive its run");
+    assert_eq!(second["uploaded"], json!(2), "the two documents the first run did not get to");
+    assert_eq!(second["skipped"], json!(1), "the one it sent");
+    assert!(docs.iter().all(|doc| cancelling.inner.stored(doc).is_some()));
+}
+
+#[test]
+fn a_cancel_asked_during_a_pull_stops_the_pulls_and_brings_no_half_document() {
+    let _sandbox = TestSandbox::new();
+    let docs: Vec<String> = (0..2).map(|n| new_doc(&format!("Doc {n}"), "这是一段足够长的正文。")).collect();
+    let fake = FakeCloud::new();
+    assert_eq!(sync(&fake)["uploaded"], json!(2));
+    for doc in &docs {
+        assert_eq!(delete_doc(&json!({ "id": doc }))["ok"], json!(true));
+    }
+    let gate = SyncGate::new();
+    let cloud = CancelAfter::new(fake, &gate, 1);
+
+    let answer = sync_with(&gate, &cloud);
+
+    assert_eq!(answer["cancelled"], json!(true), "{answer}");
+    assert_eq!(answer["pulled"], json!(1), "the document being read was finished");
+    assert_eq!(answer["not_tried"], json!(1), "the second one was never started");
+    assert_eq!(answer["stopped"], json!(null));
+    let conn = spark_data::open().expect("db");
+    let here = docs.iter().filter(|doc| spark_data::find_doc(&conn, doc).expect("query").is_some()).count();
+    assert_eq!(here, 1, "one document came back, the other did not");
+}
+
+#[test]
+fn cancelling_with_no_sync_going_on_answers_so_and_does_not_hold_the_next_sync_back() {
+    let _sandbox = TestSandbox::new();
+    new_doc("First", "这是一段足够长的正文。");
+    let gate = SyncGate::new();
+
+    let answer = cancel_now(&gate);
+
+    assert_eq!(answer, json!({ "ok": true, "cancelling": false }));
+    let next = sync_with(&gate, &FakeCloud::new());
+    assert_eq!(next["cancelled"], json!(false));
+    assert_eq!(next["uploaded"], json!(1));
+}
+
+#[test]
+fn cancelling_while_a_sync_goes_on_says_it_is_cancelling() {
+    let _sandbox = TestSandbox::new();
+    new_doc("First", "这是一段足够长的正文。");
+    new_doc("Second", "另一段足够长的正文。");
+    let gate = SyncGate::new();
+    let cloud = CancelAfter::new(FakeCloud::new(), &gate, usize::MAX);
+    let seen = Mutex::new(Vec::new());
+    struct AskInTheList<'a> {
+        inner: &'a CancelAfter<'a>,
+        gate: &'a SyncGate,
+        seen: &'a Mutex<Vec<Value>>,
+    }
+    impl CloudDocs for AskInTheList<'_> {
+        fn list_documents(&self) -> Result<Vec<CloudDoc>, CloudSyncError> {
+            self.seen.lock().expect("seen").push(cancel_now(self.gate));
+            self.inner.list_documents()
+        }
+        fn upload(&self, document_id: &str, package: &[u8], version: i64) -> Result<(), CloudSyncError> {
+            self.inner.upload(document_id, package, version)
+        }
+        fn read(&self, document_id: &str) -> Result<Vec<u8>, CloudSyncError> {
+            self.inner.read(document_id)
+        }
+        fn delete(&self, document_id: &str) -> Result<(), CloudSyncError> {
+            self.inner.delete(document_id)
+        }
+    }
+    let asking = AskInTheList { inner: &cloud, gate: &gate, seen: &seen };
+
+    let answer = sync_with(&gate, &asking);
+
+    assert_eq!(*seen.lock().expect("seen"), [json!({ "ok": true, "cancelling": true })]);
+    assert_eq!(answer["cancelled"], json!(true), "asked in the list, stopped at the first transfer: {answer}");
+    assert_eq!(answer["uploaded"], json!(0));
+    assert_eq!(answer["not_tried"], json!(2));
+    assert_eq!(cloud.inner.calls(), [Call::List], "nothing was sent");
+}
+
+#[test]
+fn a_cancel_that_comes_after_the_last_transfer_leaves_a_finished_run_finished() {
+    let _sandbox = TestSandbox::new();
+    new_doc("Only", "这是一段足够长的正文。");
+    let gate = SyncGate::new();
+    let cloud = CancelAfter::new(FakeCloud::new(), &gate, 1);
+
+    let answer = sync_with(&gate, &cloud);
+
+    assert_eq!(answer["uploaded"], json!(1));
+    assert_eq!(answer["cancelled"], json!(false), "nothing was left to cancel");
+    assert_eq!(answer["not_tried"], json!(0));
+}

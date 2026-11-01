@@ -11,7 +11,7 @@ import {
   setConfig,
   saveFile,
   updateComments, updateLinks, setImportance, setDone,
-  deleteEntry, syncDocuments,
+  deleteEntry, syncDocuments, cancelSyncDocuments,
   fetchWorkspaces, createWorkspace, renameWorkspace, setWorkspaceViewMode, setWorkspaceIcon, setWorkspaceDescription, disableWorkspace, enableWorkspace, fetchDisabledWorkspaces,
   fetchProjects, createProject, updateProject, deleteProject, deleteWorkspace, moveToProject,
   reorderWorkspaces, reorderProjects,
@@ -222,6 +222,17 @@ test('syncDocuments 没有同步成（{error,_status}）时抛出带 status 的�
       message: 'Cannot sync: not signed in',
       status,
     })
+  }
+})
+
+test('cancelSyncDocuments 发 POST /api/cloud-sync-cancel（无参数）并原样返回', async () => {
+  for (const cancelling of [true, false]) {
+    mockFetch({ ok: true, cancelling })
+    const result = await cancelSyncDocuments()
+    expect(fetch.mock.calls[0][0]).toBe(`${DEFAULT_DEV_BASE}/api/cloud-sync-cancel`)
+    expect(fetch.mock.calls[0][1].method).toBe('POST')
+    expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({})
+    expect(result).toEqual({ ok: true, cancelling })
   }
 })
 

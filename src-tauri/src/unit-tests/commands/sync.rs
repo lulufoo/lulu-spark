@@ -35,6 +35,10 @@ fn the_command_is_registered_and_its_gate_is_managed_state() {
 
     assert!(lib.contains("commands::sync::sync_documents,"), "generate_handler must register sync_documents");
     assert!(
+        lib.contains("commands::sync::cancel_sync_documents,"),
+        "generate_handler must register cancel_sync_documents"
+    );
+    assert!(
         lib.contains("app.manage(services::doc_sync::SyncGate::new())"),
         "the command asks Tauri for the gate, which must be managed"
     );
@@ -45,10 +49,12 @@ fn the_command_may_be_called_from_the_ui_and_the_manifest_is_in_step() {
     let allow = toml_allow("sync-api");
 
     assert!(allow.contains("sync_documents"), "sync-api.toml must allow sync_documents");
+    assert!(allow.contains("cancel_sync_documents"), "sync-api.toml must allow cancel_sync_documents");
     assert_eq!(allow, manifest_allow("sync-api"), "sync-api.toml vs gen/schemas/acl-manifests.json");
     for other in ["read-api", "write-api", "search-api"] {
         let text = source(&format!("permissions/{other}.toml"));
         assert!(!text.contains("sync_documents"), "{other}.toml must not allow sync_documents");
+        assert!(!text.contains("cancel_sync_documents"), "{other}.toml must not allow cancel_sync_documents");
     }
 }
 
@@ -70,8 +76,23 @@ fn the_command_is_a_thin_shell_over_the_service() {
 }
 
 #[test]
+fn the_cancel_command_is_a_thin_shell_that_does_not_wait_for_the_sync() {
+    let text = source("src/commands/sync.rs");
+    let command = text
+        .split("pub fn cancel_sync_documents")
+        .nth(1)
+        .and_then(|rest| rest.split("\n}\n").next())
+        .expect("cancel_sync_documents body");
+
+    assert!(command.starts_with("(gate: State<'_, SyncGate>)"), "{command}");
+    assert!(command.contains("doc_sync::cancel_now(&gate)"), "{command}");
+    assert!(!command.contains("spawn_blocking"), "a cancel must answer at once, while the sync still blocks");
+    assert!(!command.contains("await"), "{command}");
+}
+
+#[test]
 fn the_service_files_hold_no_test_code() {
-    for file in ["run", "gate", "summary", "journal", "now"] {
+    for file in ["run", "gate", "summary", "journal", "now", "cancel"] {
         let rel = format!("src/services/doc_sync/{file}.rs");
         let text = source(&rel);
         assert!(!text.contains("#[test]"), "{rel} must not hold tests");

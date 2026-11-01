@@ -13,11 +13,12 @@ const P4_PATHS = [
 
 describe('syncApiInvokeMap', () => {
   it('covers all P4 POST paths with command names', () => {
-    expect(Object.keys(SYNC_API_INVOKE_MAP)).toHaveLength(4);
+    expect(Object.keys(SYNC_API_INVOKE_MAP)).toHaveLength(5);
     for (const [path, cmd] of P4_PATHS) {
       expect(SYNC_API_INVOKE_MAP[path]?.cmd, path).toBe(cmd);
     }
     expect(SYNC_API_INVOKE_MAP['/api/cloud-sync']?.cmd).toBe('sync_documents');
+    expect(SYNC_API_INVOKE_MAP['/api/cloud-sync-cancel']?.cmd).toBe('cancel_sync_documents');
   });
 
   it('every path wraps Tauri invoke args in payload (Rust sync commands)', () => {
@@ -69,12 +70,12 @@ describe('syncApiInvokeMap', () => {
     });
   });
 
-  it('cloud-sync maps to sync_documents with no arguments, whatever the body holds', () => {
+  it.each([
+    ['/api/cloud-sync', 'sync_documents'],
+    ['/api/cloud-sync-cancel', 'cancel_sync_documents'],
+  ])('%s maps to %s with no arguments, whatever the body holds', (path, cmd) => {
     for (const body of [{}, null, undefined, { id: 'x', payload: { id: 'y' } }]) {
-      expect(resolveSyncInvoke('/api/cloud-sync', body)).toEqual({
-        cmd: 'sync_documents',
-        args: {},
-      });
+      expect(resolveSyncInvoke(path, body)).toEqual({ cmd, args: {} });
     }
   });
 

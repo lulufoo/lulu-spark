@@ -11,7 +11,7 @@ fn failure(doc_id: &str, op: &str, error: &DocSyncError) -> Value {
 }
 
 /// The answer of a run that was made: `{ ok, uploaded, pulled, skipped, kept, gone, not_tried,
-/// failed, stopped }`.
+/// failed, stopped, cancelled }`.
 ///
 /// - `uploaded`, `pulled`: documents that went up, documents that came down.
 /// - `skipped`: documents both sides hold at the same version.
@@ -21,8 +21,11 @@ fn failure(doc_id: &str, op: &str, error: &DocSyncError) -> Value {
 ///   reason of its own; `op` is `upload` or `pull`. The run went on without them.
 /// - `stopped`: `null`, or `{ id, op, error }` for the error that ended the run early (the cloud
 ///   cannot be reached, the session is refused). `not_tried` documents were left for the next run.
+/// - `cancelled`: the user ended the run. It is not a `stopped` error; `not_tried` documents were
+///   left for the next run, as after one.
 pub fn summary(report: &SyncReport) -> Value {
     let SyncReport { skipped, push, pull } = report;
+    let cancelled = report.was_cancelled();
     let failed: Vec<Value> = push
         .failed
         .iter()
@@ -30,6 +33,7 @@ pub fn summary(report: &SyncReport) -> Value {
         .chain(pull.failed.iter().map(|(id, e)| failure(id, "pull", e)))
         .collect();
     let stopped = match (&push.stopped, &pull.stopped) {
+        _ if cancelled => Value::Null,
         (Some((id, e)), _) => failure(id, "upload", e),
         (None, Some((id, e))) => failure(id, "pull", e),
         (None, None) => Value::Null,
@@ -41,9 +45,10 @@ pub fn summary(report: &SyncReport) -> Value {
         "skipped": skipped.len(),
         "kept": pull.kept.len(),
         "gone": push.gone.len(),
-        "not_tried": push.not_tried.len() + pull.not_tried.len(),
+        "not_tried": report.not_tried(),
         "failed": failed,
         "stopped": stopped,
+        "cancelled": cancelled,
     })
 }
 

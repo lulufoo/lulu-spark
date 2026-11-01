@@ -27,7 +27,8 @@ fn doc_line(event: &'static str, doc_id: &str, op: &str, error: &DocSyncError) -
 }
 
 /// The lines of a run that was made: each failed document (`sync.doc_failed`), the error that
-/// ended the run early (`sync.stopped`), and how it ended (`sync.finished`) with the counts.
+/// ended the run early (`sync.stopped`) or the user's cancel (`sync.cancelled`, not a trouble),
+/// and how it ended (`sync.finished`) with the counts.
 pub fn lines_of(report: &SyncReport) -> Vec<Line> {
     let SyncReport { skipped, push, pull } = report;
     let mut lines: Vec<Line> = push
@@ -36,13 +37,21 @@ pub fn lines_of(report: &SyncReport) -> Vec<Line> {
         .map(|(id, e)| doc_line("sync.doc_failed", id, "upload", e))
         .chain(pull.failed.iter().map(|(id, e)| doc_line("sync.doc_failed", id, "pull", e)))
         .collect();
+    let cancelled = report.was_cancelled();
+    let stop_line = |id: &str, op: &str, e: &DocSyncError| {
+        if cancelled {
+            Line { level: Level::Info, ..doc_line("sync.cancelled", id, op, e) }
+        } else {
+            doc_line("sync.stopped", id, op, e)
+        }
+    };
     if let Some((id, e)) = &push.stopped {
-        lines.push(doc_line("sync.stopped", id, "upload", e));
+        lines.push(stop_line(id, "upload", e));
     }
     if let Some((id, e)) = &pull.stopped {
-        lines.push(doc_line("sync.stopped", id, "pull", e));
+        lines.push(stop_line(id, "pull", e));
     }
-    let troubled = !lines.is_empty();
+    let troubled = lines.iter().any(|line| line.event != "sync.cancelled");
     lines.push(Line {
         level: if troubled { Level::Warn } else { Level::Info },
         event: "sync.finished",
@@ -53,8 +62,9 @@ pub fn lines_of(report: &SyncReport) -> Vec<Line> {
             "kept": pull.kept.len(),
             "gone": push.gone.len(),
             "failed": push.failed.len() + pull.failed.len(),
-            "not_tried": push.not_tried.len() + pull.not_tried.len(),
-            "stopped": push.stopped.is_some() || pull.stopped.is_some(),
+            "not_tried": report.not_tried(),
+            "stopped": !cancelled && (push.stopped.is_some() || pull.stopped.is_some()),
+            "cancelled": cancelled,
         }),
     });
     lines

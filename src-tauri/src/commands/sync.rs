@@ -57,6 +57,13 @@ pub async fn sync_documents(gate: State<'_, SyncGate>) -> Result<Value, String> 
         .map_err(|e| e.to_string())
 }
 
+/// Asks the sync that is going on to stop (see [`doc_sync::cancel_now`]). It answers at once; the
+/// sync's own answer, the one of `sync_documents`, comes when the transfer in progress is done.
+#[tauri::command]
+pub fn cancel_sync_documents(gate: State<'_, SyncGate>) -> Result<Value, String> {
+    Ok(doc_sync::cancel_now(&gate))
+}
+
 /// Forwards `project_id` and optional `target_workspace_id` to [`docs::move_doc`].
 #[tauri::command]
 pub async fn move_entry_project(_app: AppHandle, payload: Value) -> Result<Value, String> {

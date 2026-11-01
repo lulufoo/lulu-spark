@@ -29,7 +29,7 @@ fn a_clean_run_writes_one_info_line_with_the_counts() {
             event: "sync.finished",
             params: json!({
                 "uploaded": 3, "pulled": 2, "skipped": 5, "kept": 4, "gone": 1,
-                "failed": 0, "not_tried": 0, "stopped": false,
+                "failed": 0, "not_tried": 0, "stopped": false, "cancelled": false,
             }),
         }]
     );
@@ -93,6 +93,49 @@ fn a_run_that_stopped_in_the_pulls_logs_the_pull() {
     assert_eq!(lines[1].params["stopped"], json!(true));
 }
 
+fn cancelled(doc: &str) -> Option<(String, DocSyncError)> {
+    Some((doc.to_string(), DocSyncError::Cloud(CloudSyncError::Cancelled)))
+}
+
+#[test]
+fn a_run_the_user_cancelled_is_logged_as_that_and_is_no_trouble() {
+    let mut report = SyncReport::default();
+    report.push.uploaded = vec![UploadedDoc { doc_id: "u1".into(), version: 1, bytes: 3 }];
+    report.push.stopped = cancelled("u2");
+    report.push.not_tried = vec!["u3".into()];
+    report.pull.not_tried = vec!["p1".into(), "p2".into()];
+
+    let lines = lines_of(&report);
+
+    assert_eq!(events(&lines), ["sync.cancelled", "sync.finished"]);
+    assert_eq!(
+        lines[0],
+        Line {
+            level: Level::Info,
+            event: "sync.cancelled",
+            params: json!({ "doc_id": "u2", "op": "upload", "error": "the sync was cancelled" }),
+        }
+    );
+    assert_eq!(lines[1].level, Level::Info, "a cancel is the user's choice, not a warning");
+    assert_eq!(lines[1].params["cancelled"], json!(true));
+    assert_eq!(lines[1].params["stopped"], json!(false), "a cancel is not an error stop");
+    assert_eq!(lines[1].params["not_tried"], json!(4), "the document it stopped on was never started");
+    assert_eq!(lines[1].params["uploaded"], json!(1));
+}
+
+#[test]
+fn a_cancelled_run_still_warns_about_the_documents_that_failed_before_the_cancel() {
+    let mut report = SyncReport::default();
+    report.push.failed = vec![("d1".into(), DocSyncError::Cloud(CloudSyncError::ObjectNotFound))];
+    report.pull.stopped = cancelled("p1");
+
+    let lines = lines_of(&report);
+
+    assert_eq!(events(&lines), ["sync.doc_failed", "sync.cancelled", "sync.finished"]);
+    assert_eq!(lines[1].params["op"], json!("pull"));
+    assert_eq!(lines[2].level, Level::Warn);
+}
+
 #[test]
 fn a_run_that_could_not_be_made_writes_a_warning() {
     let line = line_not_made(&DocSyncError::Cloud(CloudSyncError::NotSignedIn));
@@ -109,6 +152,8 @@ fn every_event_name_is_one_the_app_log_accepts() {
     report.push.failed = vec![("d".into(), DocSyncError::Database("x".into()))];
     report.push.stopped = Some(("d".into(), DocSyncError::Database("x".into())));
     let mut lines = lines_of(&report);
+    report.push.stopped = cancelled("d");
+    lines.extend(lines_of(&report));
     lines.push(line_not_made(&DocSyncError::Database("x".into())));
 
     assert!(app_log::token_ok(BUSINESS));

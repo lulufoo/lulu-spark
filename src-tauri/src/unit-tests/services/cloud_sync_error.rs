@@ -54,6 +54,7 @@ fn every_error_says_what_went_wrong() {
             CloudSyncError::StorageTokenRejected,
             "cloud storage refused the storage token (401)",
         ),
+        (CloudSyncError::Cancelled, "the sync was cancelled"),
     ];
     for (error, text) in cases {
         assert_eq!(error.to_string(), text);

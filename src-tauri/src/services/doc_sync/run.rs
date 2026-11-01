@@ -9,7 +9,7 @@ use super::plan::SyncAction;
 use super::pull::{pull_downloads, PullReport};
 use super::push::{push_uploads, PushReport};
 use super::compare;
-use crate::services::cloud_sync::CloudDocs;
+use crate::services::cloud_sync::{CloudDocs, CloudSyncError};
 
 /// What one run did. Every document of the plan is in exactly one place: skipped, one of the
 /// lists of the push report, or one of the lists of the pull report.
@@ -19,6 +19,24 @@ pub struct SyncReport {
     pub skipped: Vec<String>,
     pub push: PushReport,
     pub pull: PullReport,
+}
+
+impl SyncReport {
+    /// The error that ended the run early, with the document it happened on, uploads first.
+    pub fn stop(&self) -> Option<&(String, DocSyncError)> {
+        self.push.stopped.as_ref().or(self.pull.stopped.as_ref())
+    }
+
+    /// Whether the user ended the run (see `SyncGate::cancel`) before it had done everything.
+    pub fn was_cancelled(&self) -> bool {
+        matches!(self.stop(), Some((_, DocSyncError::Cloud(CloudSyncError::Cancelled))))
+    }
+
+    /// The documents the run did not get to. A run stopped by an error counts the documents after
+    /// the one that failed; a cancelled run counts that one as well, because it was never started.
+    pub fn not_tried(&self) -> usize {
+        self.push.not_tried.len() + self.pull.not_tried.len() + usize::from(self.was_cancelled())
+    }
 }
 
 /// Compares this machine with the cloud, runs the uploads, then the pulls.

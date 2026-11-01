@@ -8,10 +8,12 @@
 //! - [`run_sync`]: one run, the three above in turn; [`SyncReport`] tells what it did.
 //! - [`sync_now`], [`sync_with`]: the run the app makes when the user asks for one, with the
 //!   gate ([`SyncGate`]), the search index, the log, and the answer for the UI ([`summary`]).
+//! - [`cancel_now`]: the user's wish to stop that run. It stops before its next transfer.
 //!
 //! Below `sync_now` the database connection and the folder of workspace folders come from the
 //! caller, and so does the cloud ([`CloudDocs`]).
 
+mod cancel;
 mod error;
 mod gate;
 mod journal;
@@ -27,7 +29,7 @@ use rusqlite::Connection;
 
 pub use error::DocSyncError;
 pub use gate::{SyncGate, SyncRun};
-pub use now::{sync_now, sync_with};
+pub use now::{cancel_now, sync_now, sync_with};
 pub use plan::{plan, LocalDoc, SyncAction};
 pub use pull::{pull_doc, pull_downloads, PullOutcome, PullReport, PulledDoc};
 pub use push::{push_uploads, upload_doc, PushReport, UploadOutcome, UploadedDoc};

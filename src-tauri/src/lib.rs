@@ -59,6 +59,7 @@ pub fn run() {
             commands::sync::clear_doc_draft,
             commands::sync::delete_entry,
             commands::sync::sync_documents,
+            commands::sync::cancel_sync_documents,
             commands::sync::move_entry_project,
             commands::read::fetch_link_title,
             commands::read::get_docs_index,

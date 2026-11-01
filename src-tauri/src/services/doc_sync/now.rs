@@ -3,8 +3,9 @@
 
 use std::collections::BTreeMap;
 
-use serde_json::Value;
+use serde_json::{json, Value};
 
+use super::cancel::Cancellable;
 use super::gate::SyncGate;
 use super::journal;
 use super::pull::PulledDoc;
@@ -40,12 +41,21 @@ pub fn sync_now(gate: &SyncGate) -> Value {
     sync_with(gate, cloud_sync::shared())
 }
 
+/// Asks the sync that is going on to stop, and answers `{ ok: true, cancelling }`: `cancelling` is
+/// false when no sync is going on, and then nothing is remembered. The sync stops before its next
+/// transfer; the document it is transferring is finished (see [`sync_with`] for the answer it
+/// gives).
+pub fn cancel_now(gate: &SyncGate) -> Value {
+    json!({ "ok": true, "cancelling": gate.cancel() })
+}
+
 /// One sync against `cloud`, on this machine's database and workspace folders.
 ///
 /// The answer is `{ ok, uploaded, pulled, skipped, ... }` when a run was made (see
 /// [`summary`]), even when part of it went wrong; or `{ error, _status }` when none was: nobody
 /// is signed in (401), the session is not accepted (401), the cloud cannot be used (502), a run
-/// is already going on (409), or this machine's database cannot be read (500).
+/// is already going on (409), or this machine's database cannot be read (500). A sync the user
+/// cancelled (see [`cancel_now`]) is a run that was made, with `cancelled: true`.
 pub fn sync_with(gate: &SyncGate, cloud: &dyn CloudDocs) -> Value {
     let (answer, lines) = sync_and_journal(gate, cloud);
     journal::write(&lines);
@@ -55,15 +65,16 @@ pub fn sync_with(gate: &SyncGate, cloud: &dyn CloudDocs) -> Value {
 /// The sync of [`sync_with`], with the log lines it earns handed back instead of written, so that
 /// the lines can be read.
 pub(super) fn sync_and_journal(gate: &SyncGate, cloud: &dyn CloudDocs) -> (Value, Vec<journal::Line>) {
-    let Some(_run) = gate.try_begin() else {
+    let Some(run) = gate.try_begin() else {
         return (busy(), Vec::new());
     };
+    let cloud = Cancellable::new(cloud, &run);
     let outcome = spark_data::open()
         .map_err(super::DocSyncError::Database)
         .and_then(|conn| {
             let root = paths::workspaces_root()
                 .map_err(|e| super::DocSyncError::Database(format!("workspaces folder: {e:?}")))?;
-            run_sync(&conn, &root, cloud)
+            run_sync(&conn, &root, &cloud)
         });
     match outcome {
         Ok(report) => {

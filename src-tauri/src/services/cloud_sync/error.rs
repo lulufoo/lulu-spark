@@ -37,6 +37,9 @@ pub enum CloudSyncError {
     ObjectNotFound,
     /// Google refused the storage token (401), and refused the new one too.
     StorageTokenRejected,
+    /// The user cancelled the sync, so the call was not made. Only a run that can be cancelled
+    /// (see `doc_sync::SyncGate::cancel`) ever answers with this.
+    Cancelled,
 }
 
 impl fmt::Display for CloudSyncError {
@@ -65,6 +68,7 @@ impl fmt::Display for CloudSyncError {
             Self::ObjectChanged => write!(f, "the document changed in the cloud during the upload"),
             Self::ObjectNotFound => write!(f, "the document is not in the cloud"),
             Self::StorageTokenRejected => write!(f, "cloud storage refused the storage token (401)"),
+            Self::Cancelled => write!(f, "the sync was cancelled"),
         }
     }
 }

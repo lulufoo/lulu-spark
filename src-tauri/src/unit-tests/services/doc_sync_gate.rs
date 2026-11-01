@@ -61,3 +61,73 @@ fn a_run_that_panics_opens_the_gate() {
     assert!(outcome.is_err());
     assert!(gate.try_begin().is_some(), "the gate is not stuck shut");
 }
+
+#[test]
+fn a_cancel_reaches_the_run_that_holds_the_gate() {
+    let gate = SyncGate::new();
+    let run = gate.try_begin().expect("run");
+    assert!(!run.is_cancelled(), "a run starts uncancelled");
+
+    assert!(gate.cancel(), "there is a run to cancel");
+
+    assert!(run.is_cancelled());
+    assert!(gate.cancel(), "asking again is the same as asking once");
+    assert!(run.is_cancelled());
+}
+
+#[test]
+fn a_cancel_asked_through_a_clone_reaches_the_run() {
+    let gate = SyncGate::new();
+    let run = gate.try_begin().expect("run");
+
+    assert!(gate.clone().cancel());
+
+    assert!(run.is_cancelled());
+}
+
+#[test]
+fn a_cancel_with_no_run_is_refused_and_not_remembered() {
+    let gate = SyncGate::new();
+
+    assert!(!gate.cancel(), "nothing to cancel");
+
+    let run = gate.try_begin().expect("run");
+    assert!(!run.is_cancelled(), "the cancel did not wait for the next run");
+}
+
+#[test]
+fn a_cancel_does_not_outlive_its_run() {
+    let gate = SyncGate::new();
+    let first = gate.try_begin().expect("first run");
+    assert!(gate.cancel());
+    drop(first);
+
+    let second = gate.try_begin().expect("second run");
+
+    assert!(!second.is_cancelled(), "the next run starts uncancelled");
+    assert!(gate.try_begin().is_none(), "a cancelled run still holds the gate until it ends");
+}
+
+#[test]
+fn a_cancel_does_not_open_the_gate() {
+    let gate = SyncGate::new();
+    let run = gate.try_begin().expect("run");
+
+    gate.cancel();
+
+    assert!(gate.try_begin().is_none(), "the run holds the gate until it has stopped");
+    drop(run);
+    assert!(gate.try_begin().is_some());
+}
+
+#[test]
+fn separate_gates_do_not_cancel_each_other() {
+    let (a, b) = (SyncGate::new(), SyncGate::new());
+    let run_a = a.try_begin().expect("run on a");
+    let run_b = b.try_begin().expect("run on b");
+
+    assert!(a.cancel());
+
+    assert!(run_a.is_cancelled());
+    assert!(!run_b.is_cancelled());
+}

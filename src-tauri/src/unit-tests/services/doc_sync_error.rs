@@ -59,6 +59,7 @@ fn the_errors_that_hit_every_document_stop_the_run() {
         cloud(CloudSyncError::BadResponse("x".into())),
         cloud(CloudSyncError::Vault("x".into())),
         cloud(CloudSyncError::StorageTokenRejected),
+        cloud(CloudSyncError::Cancelled),
     ];
     for error in every_document {
         assert!(error.stops_the_run(), "{error:?}");

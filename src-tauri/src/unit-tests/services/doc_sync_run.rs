@@ -180,3 +180,49 @@ fn a_run_with_nothing_on_either_side_reports_nothing() {
 
     assert_eq!(report, SyncReport::default());
 }
+
+fn stop_with(error: CloudSyncError) -> Option<(String, DocSyncError)> {
+    Some(("d".to_string(), DocSyncError::Cloud(error)))
+}
+
+#[test]
+fn a_report_tells_a_cancel_from_an_error_that_stopped_the_run() {
+    let net = || CloudSyncError::Network("down".into());
+    // (name, push stop, pull stop, cancelled?)
+    let cases = [
+        ("no stop", None, None, false),
+        ("uploads cancelled", stop_with(CloudSyncError::Cancelled), None, true),
+        ("pulls cancelled", None, stop_with(CloudSyncError::Cancelled), true),
+        ("uploads stopped by the network", stop_with(net()), None, false),
+        ("pulls stopped by the network", None, stop_with(net()), false),
+    ];
+    for (name, push, pull, cancelled) in cases {
+        let mut report = SyncReport::default();
+        report.push.stopped = push;
+        report.pull.stopped = pull;
+
+        assert_eq!(report.was_cancelled(), cancelled, "{name}");
+        assert_eq!(report.stop().is_some(), name != "no stop", "{name}");
+    }
+}
+
+#[test]
+fn a_cancelled_run_counts_the_document_it_stopped_on_as_not_tried_and_a_failed_one_does_not() {
+    // (name, push stop, push not tried, pull stop, pull not tried, documents not tried)
+    let cases = [
+        ("done", None, 0, None, 0, 0),
+        ("cancelled in the uploads", stop_with(CloudSyncError::Cancelled), 2, None, 3, 2 + 3 + 1),
+        ("cancelled in the pulls", None, 0, stop_with(CloudSyncError::Cancelled), 4, 4 + 1),
+        ("network stop in the uploads", stop_with(CloudSyncError::Network("x".into())), 2, None, 3, 2 + 3),
+        ("network stop in the pulls", None, 0, stop_with(CloudSyncError::Network("x".into())), 4, 4),
+    ];
+    for (name, push_stop, push_not_tried, pull_stop, pull_not_tried, expected) in cases {
+        let mut report = SyncReport::default();
+        report.push.stopped = push_stop;
+        report.push.not_tried = (0..push_not_tried).map(|n| format!("u{n}")).collect();
+        report.pull.stopped = pull_stop;
+        report.pull.not_tried = (0..pull_not_tried).map(|n| format!("p{n}")).collect();
+
+        assert_eq!(report.not_tried(), expected, "{name}");
+    }
+}
