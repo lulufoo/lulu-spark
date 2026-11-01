@@ -10,7 +10,7 @@ use crate::services::docs::attached::log_orphan_attachments;
 use crate::services::docs::workspace_root;
 use crate::services::docs::doc_file_path;
 use crate::services::search_index;
-use crate::services::spark_data::{self, find_doc};
+use crate::services::spark_data::{self, bump_doc_version, find_doc};
 
 const EDITABLE_LAYERS: &[&str] = &["raw", "digest"];
 
@@ -76,7 +76,13 @@ pub fn save_entry(
     }
     log_orphan_attachments(&root, &note.project_id, &note);
     search_index::sync_workspace_docs_best_effort(&workspace.id, &[id]);
-    json!({ "ok": true })
+    // The file changed. If this step fails the new text stays on disk and the caller is told, so
+    // the next save adds the 1.
+    match bump_doc_version(&conn, id) {
+        Ok(true) => json!({ "ok": true }),
+        Ok(false) => json!({ "error": "document missing", "_status": 404 }),
+        Err(e) => json!({ "error": e, "_status": 500 }),
+    }
 }
 
 #[cfg(test)]

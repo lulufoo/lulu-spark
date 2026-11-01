@@ -15,7 +15,7 @@ use crate::services::docs::store::{
     write_markdown_atomic,
 };
 use crate::services::search_index;
-use crate::services::spark_data::{update_doc as update_doc_row, DocRow};
+use crate::services::spark_data::{bump_doc_version, update_doc as update_doc_row, DocRow};
 use crate::services::translation_gate;
 
 use super::resolve::{
@@ -151,6 +151,12 @@ fn update_from_body(payload: &Value, source: &str) -> Value {
         if let Err(e) = update_doc_row(&conn, &updated) {
             return restore_raw(&raw_path, &prev_raw, internal(e));
         }
+    }
+    // The files changed: the version goes up by one for the whole call, however many files it wrote.
+    let bumped = bump_doc_version(&conn, &doc.doc_id)
+        .and_then(|found| if found { Ok(()) } else { Err("document missing".to_string()) });
+    if let Err(e) = bumped {
+        return restore_raw(&raw_path, &prev_raw, internal(e));
     }
 
     log_orphan_attachments(&root, &project.id, &doc);

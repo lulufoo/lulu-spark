@@ -25,7 +25,9 @@ pub struct DocRow {
     pub title: Option<String>,
     pub project_id: String,
     /// The document's local version number for cloud sync: 0 for a new document, never negative.
-    /// This module only stores it; whoever writes the document's files decides when it changes.
+    /// A new row takes the value it is inserted with. After that only [`bump_doc_version`] and
+    /// [`set_doc_version`] change it: [`update_doc`] leaves it alone, so a row read earlier can
+    /// never write an old number back.
     pub version: i64,
 }
 
@@ -99,14 +101,15 @@ pub fn insert_doc(conn: &Connection, doc: &DocRow) -> Result<(), String> {
     Ok(())
 }
 
-/// Replace every column of the row with this `doc_id`. `false` when it does not exist.
+/// Replace every column of the row with this `doc_id` except `version`. `false` when it does not
+/// exist.
 pub fn update_doc(conn: &Connection, doc: &DocRow) -> Result<bool, String> {
     let changed = conn
         .execute(
             &format!(
                 "UPDATE document SET raw_path = ?2, digest_path = ?3, source_type = ?4, created_at = ?5,
                         importance = ?6, done = ?7, links = ?8, comments = ?9, tags = ?10,
-                        highlights = ?11, translations = ?12, title = ?13, project_id = ?14, version = ?15
+                        highlights = ?11, translations = ?12, title = ?13, project_id = ?14
                  WHERE doc_id = ?1"
             ),
             params![
@@ -124,9 +127,26 @@ pub fn update_doc(conn: &Connection, doc: &DocRow) -> Result<bool, String> {
                 write_array(&doc.translations)?,
                 doc.title,
                 doc.project_id,
-                doc.version,
             ],
         )
+        .map_err(|e| e.to_string())?;
+    Ok(changed > 0)
+}
+
+/// Add 1 to the document's version. The addition happens in the database, so it always starts
+/// from the stored number. `false` when the row does not exist.
+pub fn bump_doc_version(conn: &Connection, doc_id: &str) -> Result<bool, String> {
+    let changed = conn
+        .execute("UPDATE document SET version = version + 1 WHERE doc_id = ?1", params![doc_id])
+        .map_err(|e| e.to_string())?;
+    Ok(changed > 0)
+}
+
+/// Set the version to `version`, for a document that was just pulled from the cloud and takes the
+/// cloud's number. Negative numbers are refused. `false` when the row does not exist.
+pub fn set_doc_version(conn: &Connection, doc_id: &str, version: i64) -> Result<bool, String> {
+    let changed = conn
+        .execute("UPDATE document SET version = ?2 WHERE doc_id = ?1", params![doc_id, version])
         .map_err(|e| e.to_string())?;
     Ok(changed > 0)
 }

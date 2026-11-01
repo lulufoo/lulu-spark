@@ -74,3 +74,7 @@ mod delete_project_tests;
 #[cfg(test)]
 #[path = "../../unit-tests/services/docs_project_count.rs"]
 mod project_count_tests;
+
+#[cfg(test)]
+#[path = "../../unit-tests/services/docs_version.rs"]
+mod version_tests;
