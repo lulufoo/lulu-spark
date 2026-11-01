@@ -26,7 +26,7 @@ fn validate_doc_id(doc_id: &str) -> Result<&str, Value> {
     Ok(doc_id)
 }
 
-fn validate_basename(basename: &str) -> Result<&str, Value> {
+pub(crate) fn validate_basename(basename: &str) -> Result<&str, Value> {
     let name = basename.trim();
     if name.is_empty()
         || name == "."

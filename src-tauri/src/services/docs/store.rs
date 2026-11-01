@@ -91,7 +91,7 @@ pub(crate) fn reject_legacy_translation_fields(payload: &Value) -> Option<Value>
     None
 }
 
-fn is_valid_lang(lang: &str) -> bool {
+pub(crate) fn is_valid_lang(lang: &str) -> bool {
     lang.len() == 2 && lang.chars().all(|c| c.is_ascii_lowercase())
 }
 
