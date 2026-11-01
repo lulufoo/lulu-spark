@@ -374,3 +374,84 @@ fn an_unreachable_worker_is_a_network_error_that_does_not_leak_the_token() {
         assert!(!format!("{err:?} {err}").contains(JWT));
     }
 }
+
+// --- one connection for all the calls ---
+
+/// The service builds its HTTP client once, so a run of calls goes over one TCP connection per
+/// host, not one new connection per call. Each case is the answers the mock gives, in order, and
+/// the calls that use them: a call that fails is followed by one that must still reuse.
+#[test]
+fn the_calls_of_the_service_go_over_one_connection() {
+    type Calls = fn(&CloudSync);
+    let put_ok = || Reply::raw(200, "");
+    let cases: Vec<(&str, Vec<Reply>, Calls)> = vec![
+        (
+            "lists",
+            vec![list_reply(&[]), list_reply(&[]), list_reply(&[])],
+            |sync| {
+                for _ in 0..3 {
+                    sync.list_documents().expect("list");
+                }
+            },
+        ),
+        (
+            "uploads",
+            vec![link_reply("/put/a"), put_ok(), link_reply("/put/b"), put_ok(), link_reply("/put/c"), put_ok()],
+            |sync| {
+                for _ in 0..3 {
+                    sync.upload(DOC_A, &[1, 2, 3], 1).expect("upload");
+                }
+            },
+        ),
+        (
+            "reads",
+            vec![creds_reply("gcs-1", NOW + 1800), Reply::raw(200, "a"), Reply::raw(200, "b"), Reply::raw(200, "c")],
+            |sync| {
+                for _ in 0..3 {
+                    sync.read(DOC_A).expect("read");
+                }
+            },
+        ),
+        (
+            "every kind of call, one after the other",
+            vec![
+                creds_reply("gcs-1", NOW + 1800),
+                list_reply(&[(DOC_A, 1)]),
+                link_reply("/put/a"),
+                put_ok(),
+                Reply::raw(200, "the bytes"),
+                Reply::bytes(204, b""),
+            ],
+            |sync| {
+                sync.credentials().expect("credentials");
+                sync.list_documents().expect("list");
+                sync.upload(DOC_A, &[1, 2, 3], 1).expect("upload");
+                sync.read(DOC_A).expect("read");
+                sync.delete(DOC_A).expect("delete");
+            },
+        ),
+        (
+            "a failed call, then a good one",
+            vec![
+                Reply::json(500, json!({ "error": "boom" })),
+                Reply::json(403, json!({ "error": "forbidden" })),
+                list_reply(&[]),
+            ],
+            |sync| {
+                assert!(sync.list_documents().is_err());
+                assert!(sync.list_documents().is_err());
+                sync.list_documents().expect("list");
+            },
+        ),
+    ];
+
+    for (name, replies, calls) in cases {
+        let answers = replies.len();
+        let rig = Rig::new(replies);
+
+        calls(&rig.sync);
+
+        assert_eq!(rig.worker.recorded().len(), answers, "{name}: every answer was used");
+        assert_eq!(rig.worker.connections(), 1, "{name}: one connection for all of them");
+    }
+}

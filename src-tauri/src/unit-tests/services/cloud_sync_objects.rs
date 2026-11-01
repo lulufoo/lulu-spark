@@ -4,7 +4,8 @@ use serde_json::json;
 
 use super::*;
 use crate::services::cloud_sync::tests::{
-    creds_reply, dead_url, expired_reply, link_reply, xml_error, Reply, Rig, DOC_A, JWT, NOW,
+    creds_reply, dead_url, expired_reply, link_reply, list_reply, xml_error, Reply, Rig, DOC_A, JWT,
+    NOW,
 };
 
 /// Every byte value, so a package that is not text cannot pass by luck.
@@ -365,4 +366,76 @@ fn an_answer_is_read_up_to_the_cap_and_no_further() {
 #[test]
 fn the_download_cap_is_as_big_as_what_doc_zip_unpacks() {
     assert_eq!(MAX_DOWNLOAD_BYTES, crate::services::doc_zip::MAX_UNPACKED_BYTES);
+}
+
+// --- the connection after a transfer ---
+
+/// A transfer, good or refused, with a body or without, and the call after it go over the same
+/// connection: the transfers use the service's client like the other calls do. Each case is a
+/// transfer and the answers the mock gives it, and then a list.
+#[test]
+fn a_transfer_and_the_call_after_it_go_over_one_connection() {
+    type Transfer = fn(&CloudSync);
+    let upload: Transfer = |sync| drop(sync.upload(DOC_A, &package(), 3));
+    let read: Transfer = |sync| drop(sync.read(DOC_A));
+    let cases: Vec<(&str, Transfer, Vec<Reply>)> = vec![
+        ("an upload that went through", upload, vec![link_reply("/put/a"), Reply::raw(200, "")]),
+        (
+            "an upload answered with a body",
+            upload,
+            vec![link_reply("/put/a"), Reply::raw(200, "stored")],
+        ),
+        (
+            "an upload refused for the signature",
+            upload,
+            vec![link_reply("/put/a"), xml_error(403, "SignatureDoesNotMatch")],
+        ),
+        (
+            "an upload over an object that changed",
+            upload,
+            vec![link_reply("/put/a"), xml_error(412, "PreconditionFailed")],
+        ),
+        (
+            "an upload with an expired link, tried again",
+            upload,
+            vec![link_reply("/put/a"), expired_reply(), link_reply("/put/b"), Reply::raw(200, "")],
+        ),
+        (
+            "a read",
+            read,
+            vec![creds_reply("gcs-1", NOW + 1800), Reply::bytes(200, &package())],
+        ),
+        (
+            "a read of an object that is not there",
+            read,
+            vec![creds_reply("gcs-1", NOW + 1800), Reply::raw(404, "No such object")],
+        ),
+        (
+            "a read with a token Google refused",
+            read,
+            vec![
+                creds_reply("gcs-1", NOW + 1800),
+                Reply::raw(401, "Invalid Credentials"),
+                creds_reply("gcs-2", NOW + 1800),
+                Reply::raw(200, "the bytes"),
+            ],
+        ),
+        (
+            "a read that Google could not answer",
+            read,
+            vec![creds_reply("gcs-1", NOW + 1800), Reply::raw(503, "Try again later")],
+        ),
+    ];
+
+    for (name, transfer, mut replies) in cases {
+        replies.push(list_reply(&[]));
+        let answers = replies.len();
+        let rig = Rig::new(replies);
+
+        transfer(&rig.sync);
+        rig.sync.list_documents().expect("the list after the transfer");
+
+        assert_eq!(rig.worker.recorded().len(), answers, "{name}: every answer was used");
+        assert_eq!(rig.worker.connections(), 1, "{name}: the next call used the same connection");
+    }
 }

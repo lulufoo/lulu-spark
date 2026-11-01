@@ -1,7 +1,7 @@
 //! The calls to the Worker: exchange the session for a storage token, list the cloud documents,
 //! ask for an upload link, delete a document.
 
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use reqwest::blocking::Client;
@@ -41,6 +41,11 @@ pub struct CloudSync {
     sessions: SessionSource,
     clock: Clock,
     cache: Mutex<Option<Cached>>,
+    /// The one HTTP client of the service, built by the first call. Its connections are kept for
+    /// the next call: a call that opens a new connection to Google or the Worker costs a TCP and
+    /// a TLS handshake, and on a network that cuts some new connections, every handshake is a
+    /// chance to stop the sync.
+    http: OnceLock<Client>,
 }
 
 fn unix_now() -> i64 {
@@ -67,12 +72,13 @@ pub(super) fn network(e: reqwest::Error) -> CloudSyncError {
     CloudSyncError::Network(text)
 }
 
-/// A client for one call. It follows no redirects: neither the Worker nor Google redirects, and
-/// the session token must not follow one.
-pub(super) fn http(timeout: Duration) -> Result<Client, CloudSyncError> {
+/// The client every call goes through. It follows no redirects: neither the Worker nor Google
+/// redirects, and the session token must not follow one. `REQUEST_TIMEOUT` is for a call that
+/// sets none of its own; a transfer sets a longer one on its request.
+fn build_http() -> Result<Client, CloudSyncError> {
     Client::builder()
         .connect_timeout(CONNECT_TIMEOUT)
-        .timeout(timeout)
+        .timeout(REQUEST_TIMEOUT)
         .redirect(Policy::none())
         .build()
         .map_err(network)
@@ -115,7 +121,20 @@ impl CloudSync {
             sessions,
             clock,
             cache: Mutex::new(None),
+            http: OnceLock::new(),
         }
+    }
+
+    /// The client of the service, built on first use. Every request goes through it, so the
+    /// connections it opened are used again. A request waits at most `REQUEST_TIMEOUT`, unless it
+    /// sets its own.
+    pub(super) fn http(&self) -> Result<&Client, CloudSyncError> {
+        if let Some(client) = self.http.get() {
+            return Ok(client);
+        }
+        // Two calls that start together may both build one: the first stored is kept.
+        let built = build_http()?;
+        Ok(self.http.get_or_init(|| built))
     }
 
     /// The deployed Worker, Google Cloud Storage, the session in the vault, the system clock.
@@ -146,7 +165,8 @@ impl CloudSync {
         session: &AuthSession,
         body: Option<&Value>,
     ) -> Result<Vec<u8>, CloudSyncError> {
-        let mut request = http(REQUEST_TIMEOUT)?
+        let mut request = self
+            .http()?
             .request(method, format!("{}{path}", self.base_url))
             .bearer_auth(&session.access_token);
         if let Some(body) = body {

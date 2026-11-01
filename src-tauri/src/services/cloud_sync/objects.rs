@@ -7,7 +7,7 @@ use std::time::Duration;
 use reqwest::header::CONTENT_TYPE;
 use serde_json::Value;
 
-use super::client::{http, network, CloudSync};
+use super::client::{network, CloudSync};
 use super::error::CloudSyncError;
 use super::types::check_document_id;
 
@@ -89,8 +89,10 @@ impl CloudSync {
         if !link.url.starts_with(&format!("{}/", self.storage_url)) {
             return Err(CloudSyncError::BadResponse("the upload link points outside Google Cloud Storage".into()));
         }
-        let response = http(TRANSFER_TIMEOUT)?
+        let response = self
+            .http()?
             .put(&link.url)
+            .timeout(TRANSFER_TIMEOUT)
             .headers(link.headers)
             .header(CONTENT_TYPE, "application/zip")
             .body(package.to_vec())
@@ -127,8 +129,10 @@ impl CloudSync {
             "{}/storage/v1/b/{}/o/{document_id}?alt=media",
             self.storage_url, credentials.bucket
         );
-        let response = http(TRANSFER_TIMEOUT)?
+        let response = self
+            .http()?
             .get(url)
+            .timeout(TRANSFER_TIMEOUT)
             .bearer_auth(&credentials.access_token)
             .send()
             .map_err(network)?;

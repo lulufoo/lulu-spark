@@ -33,9 +33,12 @@ pub(super) fn seen(method: &str, path: &str, token: &str) -> Seen {
     }
 }
 
-/// Everything the Worker saw of one request: header names are lower case.
+/// Everything the Worker saw of one request: header names are lower case. `peer` is the address
+/// the request came from: the port is new for every TCP connection, so requests that share a
+/// connection share a `peer`.
 #[derive(Debug, Clone)]
 pub(super) struct Recorded {
+    pub(super) peer: String,
     pub(super) method: String,
     pub(super) path: String,
     pub(super) headers: Vec<(String, String)>,
@@ -151,6 +154,7 @@ impl MockWorker {
                     let mut body = Vec::new();
                     let _ = request.as_reader().read_to_end(&mut body);
                     recorded.lock().unwrap().push(Recorded {
+                        peer: request.remote_addr().map(|a| a.to_string()).unwrap_or_default(),
                         method: request.method().as_str().to_string(),
                         path: request.url().to_string(),
                         headers: request
@@ -189,6 +193,13 @@ impl MockWorker {
 
     pub(super) fn recorded(&self) -> Vec<Recorded> {
         self.recorded.lock().unwrap().clone()
+    }
+
+    /// How many TCP connections the requests so far came over.
+    pub(super) fn connections(&self) -> usize {
+        let peers: std::collections::HashSet<String> =
+            self.recorded().into_iter().map(|r| r.peer).collect();
+        peers.len()
     }
 
     /// Method, path and `Authorization` of each request.
