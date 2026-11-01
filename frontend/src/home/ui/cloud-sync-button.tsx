@@ -23,6 +23,11 @@ export function CloudSyncButton({
 }) {
   const [open, setOpen] = useState(false);
   const syncing = sync.phase === 'syncing';
+  // The icon turns in half turns that each come to rest (the two arrows are point-symmetric, so
+  // a half turn looks like the icon at rest). When the sync ends it finishes the turn it is in
+  // instead of snapping back, so it never stops in mid-air.
+  const [turning, setTurning] = useState(false);
+  if (syncing && !turning) setTurning(true);
   const cancelling = sync.phase === 'syncing' && sync.cancelling;
   const status = cloudSyncStatus(sync);
   const label = syncing ? 'Syncing…' : 'Sync';
@@ -39,6 +44,7 @@ export function CloudSyncButton({
         className="home-sync-button-trigger"
         data-role="sync-trigger"
         data-state={syncing ? 'syncing' : 'idle'}
+        data-turning={turning ? 'true' : 'false'}
         data-tone={!syncing && status ? status.tone : undefined}
         aria-haspopup="dialog"
         aria-expanded={open ? 'true' : 'false'}
@@ -46,6 +52,9 @@ export function CloudSyncButton({
         aria-label={label}
         data-tip={label}
         onClick={press}
+        onAnimationIteration={() => {
+          if (!syncing) setTurning(false);
+        }}
       >
         <HomeNavIcon name="sync" />
       </button>

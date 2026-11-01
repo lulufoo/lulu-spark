@@ -90,9 +90,16 @@ describe('sync button · source', () => {
     const css = readRel('frontend/app.css');
     expect(css).toMatch(/\.home-sync-button-trigger\b/);
     expect(css).toMatch(
-      /\.home-sync-button-trigger\[data-state="syncing"\] \.home-desktop-shortcut-icon\s*\{[^}]*animation:\s*home-sync-spin 1s linear infinite/,
+      /\.home-sync-button-trigger\[data-turning="true"\] \.home-desktop-shortcut-icon\s*\{[^}]*animation:\s*home-sync-turn 1\.1s cubic-bezier\([^)]*\) infinite/,
     );
-    expect(css).toMatch(/@keyframes home-sync-spin\s*\{[^}]*rotate\(360deg\)/);
+    expect(css).toMatch(/\.home-sync-button-trigger\[data-turning="true"\]\s*\{[^}]*color:\s*var\(--fg-accent\)/);
+    expect(css).toMatch(/\.home-sync-button-trigger\s*\{[^}]*transition:\s*color/);
+    expect(css).toMatch(
+      /@keyframes home-sync-turn\s*\{[^}]*rotate\(180deg\)/,
+    );
+    expect(css).toMatch(
+      /@media \(prefers-reduced-motion: reduce\)\s*\{[^@]*\[data-turning="true"\] \.home-desktop-shortcut-icon\s*\{[^}]*animation:\s*home-sync-breathe/,
+    );
     expect(css).toMatch(
       /\.home-sync-button-trigger\[data-tone="warn"\]::after\s*\{[^}]*background:\s*var\(--fg-danger\)/,
     );
@@ -182,6 +189,78 @@ describe('CloudSyncButton', () => {
     expect(trigger().getAttribute('aria-label')).toBe('Syncing…');
     render({ sync: cancelling });
     expect(trigger().getAttribute('data-state')).toBe('syncing');
+  });
+
+  describe('the turn', () => {
+    const turning = () => trigger().getAttribute('data-turning');
+    // jsdom has no CSS animations, so React listens there for the prefixed name; a browser sends one.
+    const endOfATurn = () => {
+      act(() => {
+        const icon = trigger().querySelector('[data-home-icon="sync"]');
+        for (const name of ['animationiteration', 'webkitAnimationIteration']) {
+          icon.dispatchEvent(new Event(name, { bubbles: true }));
+        }
+      });
+    };
+    const done = { phase: 'done', result: doneResult({ uploaded: 1 }) };
+
+    it('does not turn before a sync, and starts with it', () => {
+      render();
+      expect(turning()).toBe('false');
+
+      render({ sync: syncing });
+
+      expect(turning()).toBe('true');
+    });
+
+    it('keeps turning through the end of every turn for as long as the sync goes on', () => {
+      render({ sync: syncing });
+
+      endOfATurn();
+      endOfATurn();
+
+      expect(turning()).toBe('true');
+    });
+
+    it.each([
+      ['finished', done],
+      ['cancelled', { phase: 'cancelled' }],
+      ['refused', { phase: 'refused', reason: 'signed_out' }],
+      ['failed', { phase: 'failed', status: null, message: 'x' }],
+    ])('finishes the turn it is in when the sync %s, then rests', (_name, ended) => {
+      render({ sync: syncing });
+
+      render({ sync: ended });
+
+      expect(trigger().getAttribute('data-state')).toBe('idle');
+      expect(turning()).toBe('true');
+      endOfATurn();
+      expect(turning()).toBe('false');
+    });
+
+    it('keeps turning, without a break, when a new sync starts before the turn is finished', () => {
+      render({ sync: syncing });
+      render({ sync: done });
+
+      render({ sync: syncing });
+      endOfATurn();
+
+      expect(turning()).toBe('true');
+      render({ sync: done });
+      endOfATurn();
+      expect(turning()).toBe('false');
+    });
+
+    it('can turn again after it rested', () => {
+      render({ sync: syncing });
+      render({ sync: done });
+      endOfATurn();
+      expect(turning()).toBe('false');
+
+      render({ sync: syncing });
+
+      expect(turning()).toBe('true');
+    });
   });
 
   it('shows the status, not a second sync, when pressed during a sync', () => {
