@@ -73,10 +73,11 @@ fn snapshot(dir: &std::path::Path) -> Vec<(String, Vec<u8>)> {
 }
 
 #[test]
-fn the_baseline_is_version_18_and_one_migration_adds_workspace_description() {
+fn the_baseline_is_version_18_and_two_migrations_add_workspace_description_and_document_version() {
     assert_eq!(BASELINE_VERSION, 18);
-    assert_eq!(MIGRATIONS.len(), 1);
+    assert_eq!(MIGRATIONS.len(), 2);
     assert!(MIGRATIONS[0].contains("workspace") && MIGRATIONS[0].contains("description"));
+    assert!(MIGRATIONS[1].contains("document") && MIGRATIONS[1].contains("version"));
 }
 
 #[test]

@@ -28,8 +28,9 @@ pub(crate) const BASELINE_VERSION: usize = 18;
 
 /// Steps after the baseline. Append a step to change the schema; never edit an
 /// existing one. Empty while the baseline is the latest version.
-pub(crate) const MIGRATIONS: [&str; 1] = [
+pub(crate) const MIGRATIONS: [&str; 2] = [
     "ALTER TABLE workspace ADD COLUMN description TEXT NOT NULL DEFAULT '';",
+    "ALTER TABLE document ADD COLUMN version INTEGER NOT NULL DEFAULT 0 CHECK (version >= 0);",
 ];
 
 /// Whole schema at [`BASELINE_VERSION`]. The `Default` workspace and its inbox project are

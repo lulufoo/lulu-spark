@@ -44,3 +44,7 @@ mod tests;
 #[cfg(test)]
 #[path = "../../unit-tests/services/spark_data_workspace.rs"]
 mod workspace_tests;
+
+#[cfg(test)]
+#[path = "../../unit-tests/services/spark_data_doc_row.rs"]
+mod doc_row_tests;
