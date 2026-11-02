@@ -184,6 +184,18 @@ export async function cancelSyncDocuments(): Promise<CancelSyncResult> {
   return writePost('/api/cloud-sync-cancel', {});
 }
 
+/** What a sync would do now, counted without doing it. */
+export type CheckSyncResult = { ok: true; uploads: number; pulls: number };
+
+/**
+ * Counts the documents a sync would send and bring back, without syncing. Throws (with `status`)
+ * when the count could not be made: 401 not signed in or session not accepted, 502 cloud
+ * unavailable, 500 local database. It may be asked while a sync is going on.
+ */
+export async function checkSyncDocuments(): Promise<CheckSyncResult> {
+  return writePost('/api/cloud-sync-check', {});
+}
+
 export async function updateHighlight(
   id: string,
   layer: string,

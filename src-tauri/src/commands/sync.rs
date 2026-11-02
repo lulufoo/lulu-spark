@@ -64,6 +64,15 @@ pub fn cancel_sync_documents(gate: State<'_, SyncGate>) -> Result<Value, String>
     Ok(doc_sync::cancel_now(&gate))
 }
 
+/// Counts what a sync would send and bring back, without doing it (see [`doc_sync::check_now`]).
+/// No arguments, and no gate: it only reads, so it may be asked while a sync is going on.
+#[tauri::command]
+pub async fn check_sync_documents() -> Result<Value, String> {
+    tauri::async_runtime::spawn_blocking(doc_sync::check_now)
+        .await
+        .map_err(|e| e.to_string())
+}
+
 /// Forwards `project_id` and optional `target_workspace_id` to [`docs::move_doc`].
 #[tauri::command]
 pub async fn move_entry_project(_app: AppHandle, payload: Value) -> Result<Value, String> {

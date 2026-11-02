@@ -11,7 +11,7 @@ import {
   setConfig,
   saveFile,
   updateComments, updateLinks, setImportance, setDone,
-  deleteEntry, syncDocuments, cancelSyncDocuments,
+  deleteEntry, syncDocuments, cancelSyncDocuments, checkSyncDocuments,
   fetchWorkspaces, createWorkspace, renameWorkspace, setWorkspaceViewMode, setWorkspaceIcon, setWorkspaceDescription, disableWorkspace, enableWorkspace, fetchDisabledWorkspaces,
   fetchProjects, createProject, updateProject, deleteProject, deleteWorkspace, moveProject, moveToProject,
   reorderWorkspaces, reorderProjects,
@@ -233,6 +233,25 @@ test('cancelSyncDocuments 发 POST /api/cloud-sync-cancel（无参数）并原�
     expect(fetch.mock.calls[0][1].method).toBe('POST')
     expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({})
     expect(result).toEqual({ ok: true, cancelling })
+  }
+})
+
+test('checkSyncDocuments 发 POST /api/cloud-sync-check（无参数）并原样返回个数', async () => {
+  mockFetch({ ok: true, uploads: 2, pulls: 1 })
+  const result = await checkSyncDocuments()
+  expect(fetch.mock.calls[0][0]).toBe(`${DEFAULT_DEV_BASE}/api/cloud-sync-check`)
+  expect(fetch.mock.calls[0][1].method).toBe('POST')
+  expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({})
+  expect(result).toEqual({ ok: true, uploads: 2, pulls: 1 })
+})
+
+test('checkSyncDocuments 没有查成（{error,_status}）时抛出带 status 的错误', async () => {
+  for (const status of [401, 502, 500]) {
+    mockFetch({ error: 'Cannot sync: not signed in', _status: status })
+    await expect(checkSyncDocuments()).rejects.toMatchObject({
+      message: 'Cannot sync: not signed in',
+      status,
+    })
   }
 })
 

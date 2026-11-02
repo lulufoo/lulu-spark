@@ -73,6 +73,7 @@ export {
   setImportance,
   syncDocuments,
   cancelSyncDocuments,
+  checkSyncDocuments,
   tagAttach,
   tagDetach,
   tagUpdateValue,
@@ -81,7 +82,12 @@ export {
   updateHighlight,
   updateLinks,
 } from './api/spark.ts';
-export type { CancelSyncResult, SyncDocumentIssue, SyncDocumentsResult } from './api/spark.ts';
+export type {
+  CancelSyncResult,
+  CheckSyncResult,
+  SyncDocumentIssue,
+  SyncDocumentsResult,
+} from './api/spark.ts';
 
 export { getReindexAllStatus, reindexAll, searchChats, searchSpark } from './api/search.ts';
 export type { ChatSearchHit } from './api/search.ts';
