@@ -106,6 +106,33 @@ export async function deleteProject(workspaceId: string, projectId: string) {
   return writePost('/api/project-delete', { workspace_id: workspaceId, project_id: projectId }) as Promise<DeleteProjectResult>;
 }
 
+export type MoveProjectResult = {
+  ok?: boolean;
+  error?: string;
+  project_id?: string;
+  moved?: number;
+  target_workspace_id?: string;
+  target_project_id?: string;
+  target_project_name?: string;
+  total?: number;
+  failed_id?: string;
+};
+
+/** Move a project's documents into an existing project, then delete the source project. */
+export async function moveProject(
+  workspaceId: string,
+  projectId: string,
+  targetWorkspaceId: string,
+  targetProjectId: string,
+) {
+  return writePost('/api/project-move', {
+    workspace_id: workspaceId,
+    project_id: projectId,
+    target_workspace_id: targetWorkspaceId,
+    target_project_id: targetProjectId,
+  }) as Promise<MoveProjectResult>;
+}
+
 export type DeleteWorkspaceResult = {
   ok?: boolean;
   error?: string;

@@ -13,7 +13,7 @@ import {
   updateComments, updateLinks, setImportance, setDone,
   deleteEntry, syncDocuments, cancelSyncDocuments,
   fetchWorkspaces, createWorkspace, renameWorkspace, setWorkspaceViewMode, setWorkspaceIcon, setWorkspaceDescription, disableWorkspace, enableWorkspace, fetchDisabledWorkspaces,
-  fetchProjects, createProject, updateProject, deleteProject, deleteWorkspace, moveToProject,
+  fetchProjects, createProject, updateProject, deleteProject, deleteWorkspace, moveProject, moveToProject,
   reorderWorkspaces, reorderProjects,
   fetchHidePatterns, addHidePattern, updateHidePattern, removeHidePattern, fetchViewerState, saveViewerState,
 } from '../../frontend/src/host/api.ts'
@@ -368,6 +368,20 @@ test('deleteProject posts workspace_id and project_id and returns the merge resu
   expect(fetch.mock.calls[0][0]).toBe(`${DEFAULT_DEV_BASE}/api/project-delete`)
   expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({ workspace_id: 'ws1', project_id: 'ops' })
   expect(result).toEqual(merged)
+})
+
+test('moveProject posts the source project and the chosen target', async () => {
+  const moved = { ok: true, project_id: 'ops', moved: 2, target_workspace_id: 'ws2', target_project_id: 'shelf', target_project_name: 'Shelf' }
+  mockFetch(moved)
+  const result = await moveProject('ws1', 'ops', 'ws2', 'shelf')
+  expect(fetch.mock.calls[0][0]).toBe(`${DEFAULT_DEV_BASE}/api/project-move`)
+  expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({
+    workspace_id: 'ws1',
+    project_id: 'ops',
+    target_workspace_id: 'ws2',
+    target_project_id: 'shelf',
+  })
+  expect(result).toEqual(moved)
 })
 
 test('deleteWorkspace posts workspace_id and returns the delete result', async () => {

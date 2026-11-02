@@ -28,6 +28,15 @@ export type NotesCategoriesSnap = {
   deleteId: string;
   /** Why the last delete failed; shown in the confirm dialog, not in the list. */
   deleteError: string;
+  /** Project the move dialog is about; empty = closed. */
+  moveId: string;
+  moveError: string;
+  moveLoading: boolean;
+  moveWorkspaces: Array<{ id: string; name: string }>;
+  moveWorkspaceId: string;
+  moveProjects: NotesCategoryRow[];
+  /** Chosen target. Empty until the user picks a project; then the dialog asks to confirm. */
+  moveTargetId: string;
 };
 
 export function emptyNotesCategoriesSnap(): NotesCategoriesSnap {
@@ -43,6 +52,13 @@ export function emptyNotesCategoriesSnap(): NotesCategoriesSnap {
     editorOpen: false,
     deleteId: '',
     deleteError: '',
+    moveId: '',
+    moveError: '',
+    moveLoading: false,
+    moveWorkspaces: [],
+    moveWorkspaceId: '',
+    moveProjects: [],
+    moveTargetId: '',
   };
 }
 

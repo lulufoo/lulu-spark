@@ -75,7 +75,7 @@ describe('Deleting a project', () => {
     expect(rowOf('inbox').querySelector('.notes-cat-row-delete')).toBeNull();
     for (const id of ['work', 'empty', 'one']) {
       const actions = [...rowOf(id).querySelectorAll('.notes-cat-row-actions button')].map((b) => b.textContent);
-      expect(actions).toEqual(['Delete', 'Edit']);
+      expect(actions).toEqual(['Move', 'Delete', 'Edit']);
     }
     expect(deleteButtons(host)).toHaveLength(3);
     act(() => root.unmount());
