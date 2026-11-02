@@ -131,6 +131,11 @@ fn run_loop_marks_successful_note_mcp_mutation_as_wrote() {
     )
     .expect("register spark MCP");
 
+    let create_args = json!({
+        "workspace_id": crate::test_support::default_workspace().id,
+        "project_name": "MCP 分类",
+    })
+    .to_string();
     let mock = spawn_scripted_llm(vec![
         assistant_tools(
             json!([{
@@ -138,7 +143,7 @@ fn run_loop_marks_successful_note_mcp_mutation_as_wrote() {
                 "type": "function",
                 "function": {
                     "name": "create_project",
-                    "arguments": "{\"project_name\":\"MCP 分类\"}"
+                    "arguments": create_args
                 }
             }]),
             None,
