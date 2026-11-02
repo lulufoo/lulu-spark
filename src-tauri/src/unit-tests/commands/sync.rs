@@ -39,6 +39,7 @@ fn the_command_is_registered_and_its_gate_is_managed_state() {
         "generate_handler must register cancel_sync_documents"
     );
     assert!(lib.contains("commands::sync::check_sync_documents,"), "generate_handler must register check_sync_documents");
+    assert!(lib.contains("commands::sync::get_sync_progress,"), "generate_handler must register get_sync_progress");
     assert!(
         lib.contains("app.manage(services::doc_sync::SyncGate::new())"),
         "the command asks Tauri for the gate, which must be managed"
@@ -52,12 +53,14 @@ fn the_command_may_be_called_from_the_ui_and_the_manifest_is_in_step() {
     assert!(allow.contains("sync_documents"), "sync-api.toml must allow sync_documents");
     assert!(allow.contains("cancel_sync_documents"), "sync-api.toml must allow cancel_sync_documents");
     assert!(allow.contains("check_sync_documents"), "sync-api.toml must allow check_sync_documents");
+    assert!(allow.contains("get_sync_progress"), "sync-api.toml must allow get_sync_progress");
     assert_eq!(allow, manifest_allow("sync-api"), "sync-api.toml vs gen/schemas/acl-manifests.json");
     for other in ["read-api", "write-api", "search-api"] {
         let text = source(&format!("permissions/{other}.toml"));
         assert!(!text.contains("sync_documents"), "{other}.toml must not allow sync_documents");
         assert!(!text.contains("cancel_sync_documents"), "{other}.toml must not allow cancel_sync_documents");
         assert!(!text.contains("check_sync_documents"), "{other}.toml must not allow check_sync_documents");
+        assert!(!text.contains("get_sync_progress"), "{other}.toml must not allow get_sync_progress");
     }
 }
 
@@ -109,8 +112,22 @@ fn the_check_command_is_a_thin_read_only_shell_that_leaves_the_gate_alone() {
 }
 
 #[test]
+fn the_progress_command_reads_through_the_gate_and_never_waits_for_a_sync() {
+    let text = source("src/commands/sync.rs");
+    let command = text
+        .split("pub fn get_sync_progress")
+        .nth(1)
+        .and_then(|rest| rest.split("\n}\n").next())
+        .expect("get_sync_progress body");
+
+    assert!(command.starts_with("(gate: State<'_, SyncGate>)"), "it asks Tauri for the managed gate: {command}");
+    assert!(command.contains("doc_sync::progress_now(&gate)"), "{command}");
+    assert!(!command.contains("spawn_blocking"), "it only reads memory, so it answers at once: {command}");
+}
+
+#[test]
 fn the_service_files_hold_no_test_code() {
-    for file in ["run", "gate", "summary", "journal", "now", "cancel", "check"] {
+    for file in ["run", "gate", "summary", "journal", "now", "cancel", "check", "progress"] {
         let rel = format!("src/services/doc_sync/{file}.rs");
         let text = source(&rel);
         assert!(!text.contains("#[test]"), "{rel} must not hold tests");

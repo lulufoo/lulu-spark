@@ -10,6 +10,7 @@ use serde_json::{json, Value};
 use super::error::DocSyncError;
 use super::landing::plan_landing;
 use super::plan::SyncAction;
+use super::progress::SyncProgress;
 use crate::services::cloud_sync::CloudDocs;
 use crate::services::doc_zip::{peek_package, unpack_doc_to, Unpacked};
 use crate::services::docs::attached::remove_attached_dir;
@@ -178,11 +179,15 @@ pub struct PullReport {
 /// Runs the `Pull` actions of `actions` in order; other actions are not its business. As with
 /// uploads, a failure of one document is recorded and the run goes on, and an error that would
 /// hit every document stops it.
+///
+/// `progress` is told when each document begins and how it ended; a document it does not know is
+/// of no interest to it.
 pub fn pull_downloads(
     conn: &Connection,
     workspaces_root: &Path,
     cloud: &dyn CloudDocs,
     actions: &[SyncAction],
+    progress: &SyncProgress,
 ) -> PullReport {
     let mut report = PullReport::default();
     for action in actions {
@@ -191,13 +196,24 @@ pub fn pull_downloads(
             report.not_tried.push(doc_id.clone());
             continue;
         }
+        progress.start(doc_id);
         match pull_doc(conn, workspaces_root, cloud, doc_id, *version) {
             Ok(PullOutcome::Pulled { version, bytes, created, workspace_id }) => {
+                progress.landed(conn, doc_id);
                 report.pulled.push(PulledDoc { doc_id: doc_id.clone(), version, bytes, created, workspace_id })
             }
-            Ok(PullOutcome::Kept) => report.kept.push(doc_id.clone()),
-            Err(e) if e.stops_the_run() => report.stopped = Some((doc_id.clone(), e)),
-            Err(e) => report.failed.push((doc_id.clone(), e)),
+            Ok(PullOutcome::Kept) => {
+                progress.forget(doc_id);
+                report.kept.push(doc_id.clone())
+            }
+            Err(e) if e.stops_the_run() => {
+                progress.stopped_on(doc_id, &e);
+                report.stopped = Some((doc_id.clone(), e))
+            }
+            Err(e) => {
+                progress.fail(doc_id, &e);
+                report.failed.push((doc_id.clone(), e))
+            }
         }
     }
     report

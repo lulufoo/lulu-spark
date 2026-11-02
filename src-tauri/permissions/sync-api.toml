@@ -6,6 +6,7 @@ commands.allow = [
   "sync_documents",
   "cancel_sync_documents",
   "check_sync_documents",
+  "get_sync_progress",
   "move_entry_project",
   "save_comment_draft",
   "save_doc_draft",

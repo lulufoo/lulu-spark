@@ -74,6 +74,7 @@ export {
   syncDocuments,
   cancelSyncDocuments,
   checkSyncDocuments,
+  getSyncProgress,
   tagAttach,
   tagDetach,
   tagUpdateValue,
@@ -85,6 +86,8 @@ export {
 export type {
   CancelSyncResult,
   CheckSyncResult,
+  SyncProgressEntry,
+  SyncProgressResult,
   SyncDocumentIssue,
   SyncDocumentsResult,
 } from './api/spark.ts';

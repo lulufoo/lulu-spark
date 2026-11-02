@@ -522,3 +522,64 @@ fn a_cancel_that_comes_after_the_last_transfer_leaves_a_finished_run_finished() 
     assert_eq!(answer["cancelled"], json!(false), "nothing was left to cancel");
     assert_eq!(answer["not_tried"], json!(0));
 }
+
+/// A cloud that reads the record of the run, through the same call the screen makes, before each
+/// upload, and tries to begin a second run while the first is going on.
+struct ScreenProbe<'a> {
+    inner: FakeCloud,
+    gate: &'a SyncGate,
+    seen: Mutex<Vec<(Value, Value)>>,
+}
+
+impl CloudDocs for ScreenProbe<'_> {
+    fn list_documents(&self) -> Result<Vec<CloudDoc>, CloudSyncError> {
+        self.inner.list_documents()
+    }
+
+    fn upload(&self, document_id: &str, package: &[u8], version: i64) -> Result<(), CloudSyncError> {
+        let second_run = sync_with(self.gate, &FakeCloud::new());
+        self.seen.lock().expect("seen").push((progress_now(self.gate), second_run));
+        self.inner.upload(document_id, package, version)
+    }
+
+    fn read(&self, document_id: &str) -> Result<Vec<u8>, CloudSyncError> {
+        self.inner.read(document_id)
+    }
+
+    fn delete(&self, document_id: &str) -> Result<(), CloudSyncError> {
+        self.inner.delete(document_id)
+    }
+}
+
+#[test]
+fn the_screen_can_read_the_record_before_during_and_after_a_run() {
+    let _sandbox = TestSandbox::new();
+    new_doc("First", "这是一段足够长的正文。");
+    new_doc("Second", "这是一段足够长的正文。");
+    let gate = SyncGate::new();
+    assert_eq!(progress_now(&gate), json!({ "ok": true, "running": false, "entries": [] }));
+    let probe = ScreenProbe { inner: FakeCloud::new(), gate: &gate, seen: Mutex::new(Vec::new()) };
+
+    let answer = sync_with(&gate, &probe);
+
+    assert_eq!(answer["uploaded"], json!(2), "{answer}");
+    let seen = probe.seen.lock().expect("seen").clone();
+    assert_eq!(seen.len(), 2);
+    let states = |record: &Value| -> Vec<String> {
+        record["entries"].as_array().expect("entries").iter().map(|e| e["state"].as_str().expect("state").to_string()).collect()
+    };
+    assert_eq!(seen[0].0["running"], json!(true));
+    assert_eq!(states(&seen[0].0), ["running", "not_started"]);
+    assert_eq!(states(&seen[1].0), ["done", "running"]);
+    for (_, second_run) in &seen {
+        assert_eq!(second_run["_status"], json!(409), "a second run is turned away: {second_run}");
+    }
+
+    let after = progress_now(&gate);
+    assert_eq!(after["running"], json!(false));
+    assert_eq!(states(&after), ["done", "done"], "the end of the run can still be read");
+    let mut names: Vec<&str> = after["entries"].as_array().expect("entries").iter().map(|e| e["name"].as_str().expect("name")).collect();
+    names.sort_unstable();
+    assert_eq!(names, ["First", "Second"], "named by the title");
+    assert!(after["entries"].as_array().expect("entries").iter().all(|e| e["op"] == "upload" && e["local"] == true));
+}

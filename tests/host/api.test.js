@@ -11,7 +11,7 @@ import {
   setConfig,
   saveFile,
   updateComments, updateLinks, setImportance, setDone,
-  deleteEntry, syncDocuments, cancelSyncDocuments, checkSyncDocuments,
+  deleteEntry, syncDocuments, cancelSyncDocuments, checkSyncDocuments, getSyncProgress,
   fetchWorkspaces, createWorkspace, renameWorkspace, setWorkspaceViewMode, setWorkspaceIcon, setWorkspaceDescription, disableWorkspace, enableWorkspace, fetchDisabledWorkspaces,
   fetchProjects, createProject, updateProject, deleteProject, deleteWorkspace, moveProject, moveToProject,
   reorderWorkspaces, reorderProjects,
@@ -253,6 +253,24 @@ test('checkSyncDocuments 没有查成（{error,_status}）时抛出带 status �
       status,
     })
   }
+})
+
+test('getSyncProgress 发 POST /api/cloud-sync-progress（无参数）并原样返回整份名单', async () => {
+  const answer = {
+    ok: true,
+    running: true,
+    entries: [
+      { id: 'd1', name: 'plan.md', op: 'upload', state: 'done', reason: null, local: true },
+      { id: 'd2', name: 'notes.md', op: 'upload', state: 'failed', reason: 'could not pack document d2: a file is missing', local: true },
+      { id: 'd9', name: 'd9aa00bb', op: 'pull', state: 'not_started', reason: null, local: false },
+    ],
+  }
+  mockFetch(answer)
+  const result = await getSyncProgress()
+  expect(fetch.mock.calls[0][0]).toBe(`${DEFAULT_DEV_BASE}/api/cloud-sync-progress`)
+  expect(fetch.mock.calls[0][1].method).toBe('POST')
+  expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({})
+  expect(result).toEqual(answer)
 })
 
 // ── moveToProject ──────────────────────────────────────────────────────────

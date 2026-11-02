@@ -64,6 +64,14 @@ pub fn cancel_sync_documents(gate: State<'_, SyncGate>) -> Result<Value, String>
     Ok(doc_sync::cancel_now(&gate))
 }
 
+/// Reads the record of the sync that is going on, or of the last one: every document it plans to
+/// send or bring back and how far each got, all at once (see [`doc_sync::progress_now`]). It
+/// answers at once and never waits for the sync.
+#[tauri::command]
+pub fn get_sync_progress(gate: State<'_, SyncGate>) -> Result<Value, String> {
+    Ok(doc_sync::progress_now(&gate))
+}
+
 /// Counts what a sync would send and bring back, without doing it (see [`doc_sync::check_now`]).
 /// No arguments, and no gate: it only reads, so it may be asked while a sync is going on.
 #[tauri::command]
