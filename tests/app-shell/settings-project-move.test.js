@@ -4,20 +4,27 @@ import { createRoot } from 'react-dom/client';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const calls = [];
+const cancelCalls = [];
 const projects = { default: [], other: [] };
 const workspaces = [
   { workspace_id: 'default', workspace_name: 'Agent' },
   { workspace_id: 'other', workspace_name: 'Other' },
 ];
 let moveResult = { ok: true };
+let holdMove = null;
 
 vi.mock('../../frontend/src/host/api.ts', () => ({
   fetchWorkspaces: async () => ({ workspaces }),
   fetchProjects: async (ws) => ({ projects: projects[ws] || [] }),
   moveProject: async (...args) => {
     calls.push(args);
+    if (holdMove) await holdMove;
     if (moveResult.throws) throw new Error(moveResult.throws);
     return moveResult;
+  },
+  cancelMoveProject: async () => {
+    cancelCalls.push(true);
+    return { ok: true };
   },
 }));
 vi.mock('../../frontend/src/notes/commands/restore.ts', () => ({
@@ -53,8 +60,10 @@ function mountPanel() {
 describe('Moving a project', () => {
   beforeEach(async () => {
     calls.length = 0;
+    cancelCalls.length = 0;
     document.body.innerHTML = '';
     moveResult = { ok: true };
+    holdMove = null;
     projects.default = [
       row('inbox', 'Inbox', { doc_count: 1 }),
       row('work', 'Work', { doc_count: 3 }),
@@ -106,6 +115,33 @@ describe('Moving a project', () => {
     await act(async () => host.querySelector('#btn-notes-cat-move-confirm').click());
     expect(host.querySelector('#notes-cat-move-dialog').classList.contains('open')).toBe(true);
     expect(host.querySelector('#notes-cat-move-error').textContent).toContain('stopped at doc-2');
+  });
+
+  it('stays open and loading until cancel stops the move, and a blank click does not close it', async () => {
+    let release;
+    holdMove = new Promise((resolve) => {
+      release = resolve;
+    });
+    moveResult = { ok: true, cancelled: true, moved: 1, total: 4 };
+    const { host } = mountPanel();
+    await act(async () => host.querySelector('.notes-cat-row-move').click());
+    await act(async () => host.querySelector('#notes-cat-move-list button').click());
+    await act(async () => {
+      host.querySelector('#btn-notes-cat-move-confirm').click();
+    });
+    expect(host.querySelector('#notes-cat-move-dialog').classList.contains('open')).toBe(true);
+    expect(host.textContent).toContain('Moving…');
+    await act(async () => host.querySelector('#notes-cat-move-dialog').click());
+    expect(host.querySelector('#notes-cat-move-dialog').classList.contains('open')).toBe(true);
+    expect(cancelCalls).toEqual([]);
+    await act(async () => host.querySelector('#notes-cat-move-dialog .btn-settings-ghost').click());
+    expect(cancelCalls).toEqual([true]);
+    release();
+    await act(async () => {
+      await holdMove;
+    });
+    expect(host.querySelector('#notes-cat-move-dialog').classList.contains('open')).toBe(true);
+    expect(host.querySelector('#notes-cat-move-error').textContent).toContain('Stopped after moving 1 of 4');
   });
 });
 

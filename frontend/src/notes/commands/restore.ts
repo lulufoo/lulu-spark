@@ -2,6 +2,7 @@ import type * as api from '../../host/api.ts';
 import { parseHash } from '../../router/index.ts';
 import { state } from '../state/host.ts';
 import { buildDirTree, dirKeyOf, findDirNode, projectOfNode, sortedProjectFolders } from '../state/dir-tree.ts';
+import { reloadProjectListIfStale } from './project-list.ts';
 import { selectDate, selectDefaultProject, selectProject, selectTopic } from './sidebar.ts';
 import { rememberProject, remembered, whileRestoring } from './viewer-state.ts';
 import { isDirectoryView } from './workspace.ts';
@@ -42,6 +43,7 @@ function enterTimelineProject(folder: string | null, entry: api.ViewerProjectSta
 
 /** Enter a project of the shown workspace (`null` = All in the timeline) and restore its record. */
 export function enterProject(folder: string | null) {
+  if (folder) void reloadProjectListIfStale(folder);
   const entry = folder ? remembered().projects[folder] : undefined;
   let doc = '';
   whileRestoring(() => {

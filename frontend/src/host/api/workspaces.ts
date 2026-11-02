@@ -111,10 +111,11 @@ export type MoveProjectResult = {
   error?: string;
   project_id?: string;
   moved?: number;
+  total?: number;
+  cancelled?: boolean;
   target_workspace_id?: string;
   target_project_id?: string;
   target_project_name?: string;
-  total?: number;
   failed_id?: string;
 };
 
@@ -131,6 +132,11 @@ export async function moveProject(
     target_workspace_id: targetWorkspaceId,
     target_project_id: targetProjectId,
   }) as Promise<MoveProjectResult>;
+}
+
+/** Ask the move that is going on to stop before its next document. */
+export async function cancelMoveProject() {
+  return writePost('/api/project-move-cancel') as Promise<{ ok?: boolean; error?: string }>;
 }
 
 export type DeleteWorkspaceResult = {

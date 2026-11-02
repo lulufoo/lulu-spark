@@ -1,7 +1,10 @@
 //! `move_project`: move every document of a project into another project, then drop the source.
 //!
-//! One `move_doc` per document (stop at the first failure). The source row goes only after it
-//! is empty. The same workspace and another workspace use this one path.
+//! One `move_doc` per document (stop at the first failure, or when the user cancels). The
+//! document already being copied finishes. The source row goes only after every document has
+//! moved. The same workspace and another workspace use this one path.
+
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use serde_json::{json, Value};
 
@@ -16,13 +19,30 @@ use super::resolve::{
 
 const LAYERS: &[&str] = &["raw", "digest"];
 
-/// `{ workspace_id?, project_id, target_workspace_id, target_project_id }` →
-/// `{ ok, project_id, moved, target_workspace_id, target_project_id, target_project_name }`.
-pub fn move_project(payload: &Value) -> Value {
-    move_named(payload).unwrap_or_else(|v| v)
+/// The run that is going on. `0` means none.
+static RUN: AtomicU64 = AtomicU64::new(0);
+/// Set to [`RUN`] when the user asks the run to stop before the next document.
+static CANCELLED_RUN: AtomicU64 = AtomicU64::new(0);
+
+/// Ask the move that is going on to stop before its next document. The one being copied finishes.
+pub fn cancel_move_project() -> Value {
+    CANCELLED_RUN.store(RUN.load(Ordering::SeqCst), Ordering::SeqCst);
+    json!({ "ok": true })
 }
 
-fn move_named(payload: &Value) -> Result<Value, Value> {
+fn run_is_cancelled(run: u64) -> bool {
+    run != 0 && CANCELLED_RUN.load(Ordering::SeqCst) == run
+}
+
+/// `{ workspace_id?, project_id, target_workspace_id, target_project_id }` →
+/// `{ ok, project_id, moved, target_workspace_id, target_project_id, target_project_name }`
+/// or the same with `cancelled: true` when the user stopped it. The source project stays.
+pub fn move_project(payload: &Value) -> Value {
+    let run = RUN.fetch_add(1, Ordering::SeqCst) + 1;
+    move_named(payload, run).unwrap_or_else(|v| v)
+}
+
+fn move_named(payload: &Value, run: u64) -> Result<Value, Value> {
     let Some(project_id) = text_field(payload, "project_id") else {
         return Err(bad_request("Missing project_id"));
     };
@@ -57,6 +77,9 @@ fn move_named(payload: &Value) -> Result<Value, Value> {
     let total = docs.len();
     let mut moved = 0usize;
     for doc in &docs {
+        if run_is_cancelled(run) {
+            return Ok(cancelled(moved, total, &source.id, &target_ws.id, &target.id, &target.name));
+        }
         let result = move_doc(&json!({
             "id": doc.doc_id,
             "project_id": target.id,
@@ -67,6 +90,9 @@ fn move_named(payload: &Value) -> Result<Value, Value> {
             return Err(stopped(moved, total, &doc.doc_id, result));
         }
         moved += 1;
+    }
+    if run_is_cancelled(run) {
+        return Ok(cancelled(moved, total, &source.id, &target_ws.id, &target.id, &target.name));
     }
 
     let conn = open_data()?;
@@ -90,6 +116,19 @@ fn move_named(payload: &Value) -> Result<Value, Value> {
         "target_project_id": target.id,
         "target_project_name": target.name,
     }))
+}
+
+fn cancelled(moved: usize, total: usize, project_id: &str, workspace_id: &str, target_id: &str, target_name: &str) -> Value {
+    json!({
+        "ok": true,
+        "cancelled": true,
+        "moved": moved,
+        "total": total,
+        "project_id": project_id,
+        "target_workspace_id": workspace_id,
+        "target_project_id": target_id,
+        "target_project_name": target_name,
+    })
 }
 
 fn leftover_docs(moved: usize, total: usize, message: String) -> Value {

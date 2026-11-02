@@ -31,6 +31,8 @@ export type NotesCategoriesSnap = {
   /** Project the move dialog is about; empty = closed. */
   moveId: string;
   moveError: string;
+  /** The user asked the move that is going on to stop. */
+  cancelling: boolean;
   moveLoading: boolean;
   moveWorkspaces: Array<{ id: string; name: string }>;
   moveWorkspaceId: string;
@@ -54,6 +56,7 @@ export function emptyNotesCategoriesSnap(): NotesCategoriesSnap {
     deleteError: '',
     moveId: '',
     moveError: '',
+    cancelling: false,
     moveLoading: false,
     moveWorkspaces: [],
     moveWorkspaceId: '',

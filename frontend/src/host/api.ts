@@ -25,6 +25,7 @@ export {
   createWorkspace,
   deleteProject,
   deleteWorkspace,
+  cancelMoveProject,
   moveProject,
   disableWorkspace,
   enableWorkspace,
