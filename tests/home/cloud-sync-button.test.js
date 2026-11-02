@@ -321,7 +321,7 @@ describe('CloudSyncButton', () => {
   });
 
   it('opens the card from View, with what the round is doing, and says the result was opened', () => {
-    render({ run: running });
+    render({ run: running, entries: [entryOf({ id: idOf(1), name: 'Roadmap', state: 'running' })] });
 
     openView();
 
@@ -331,6 +331,36 @@ describe('CloudSyncButton', () => {
     expect(detail()).toMatch(/^Cancel stops before the next document/);
     expect(q('sync-status').getAttribute('role')).toBe('status');
     expect(q('sync-status').getAttribute('data-tone')).toBe('neutral');
+  });
+
+  it('does not talk of a document while the host has none listed: it is comparing with the cloud', () => {
+    render({ run: running });
+
+    openView();
+
+    expect(title()).toBe('Comparing with the cloud…');
+    expect(detail()).toBe('Nothing is being transferred yet. Cancel stops the sync before the first document.');
+    expect(q('sync-roster')).toBeNull();
+    expect(cancel().disabled).toBe(false);
+
+    // The list arrives: the card is the one of a sync that moves documents.
+    render({ run: running, entries: [entryOf({ id: idOf(1), name: 'Roadmap', state: 'not_started' })] });
+    expect(title()).toBe('Syncing…');
+    expect(detail()).toMatch(/^Cancel stops before the next document/);
+    expect(q('sync-roster')).not.toBeNull();
+  });
+
+  it('says what a cancel does in each stage: nothing is sent before the list, the document in hand after it', () => {
+    render({ run: running });
+    openView();
+
+    render({ run: cancelling });
+    expect(title()).toBe('Cancelling…');
+    expect(detail()).toBe('Waiting for the cloud to answer; nothing will be sent or changed.');
+
+    render({ run: cancelling, entries: [entryOf({ id: idOf(1), name: 'Roadmap', state: 'running' })] });
+    expect(title()).toBe('Cancelling…');
+    expect(detail()).toBe('Finishing the document being transferred.');
   });
 
   it('has nothing to open while View is not enabled', () => {
@@ -653,7 +683,7 @@ describe('CloudSyncButton', () => {
     click(cancel());
 
     expect(container.querySelectorAll('[data-role="sync-button"]').length).toBe(1);
-    expect(title()).toBe('Syncing…');
+    expect(q('sync-status')).not.toBeNull();
   });
 });
 
@@ -926,7 +956,19 @@ describe('sync button · from the home rail', () => {
     });
 
     choose('sync-view');
-    expect(title()).toBe('Syncing…');
+    // The host has no list yet: it makes one after it has the cloud's list and has compared it.
+    expect(title()).toBe('Comparing with the cloud…');
+    expect(q('sync-cancel')).not.toBeNull();
+
+    getSyncProgress.mockResolvedValue({
+      ok: true,
+      running: true,
+      entries: [{ id: 'd'.repeat(32), name: 'Roadmap', op: 'upload', state: 'running', reason: null, local: true }],
+    });
+    await vi.waitFor(() => {
+      expect(title()).toBe('Syncing…');
+    }, { timeout: 3000 });
+    expect(detail()).toMatch(/^Cancel stops before the next document/);
     expect(q('sync-cancel')).not.toBeNull();
 
     await act(async () => {

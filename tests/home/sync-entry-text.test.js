@@ -48,6 +48,60 @@ describe('syncCardText · a round that is going on, or ended without a sync bein
   });
 });
 
+// The host lists the documents only after it has the cloud's list and has compared it with this
+// machine's. Until then nothing is being transferred, and the card must not talk of a document.
+describe('syncCardText · before the host has a list of documents', () => {
+  const cases = [
+    [
+      'a sync going on says it is comparing, and that Cancel stops it before the first document',
+      { phase: 'running' },
+      {
+        tone: 'neutral',
+        title: 'Comparing with the cloud…',
+        detail: 'Nothing is being transferred yet. Cancel stops the sync before the first document.',
+      },
+    ],
+    [
+      'a sync being cancelled waits for the cloud, and nothing is sent',
+      { phase: 'cancelling' },
+      {
+        tone: 'neutral',
+        title: 'Cancelling…',
+        detail: 'Waiting for the cloud to answer; nothing will be sent or changed.',
+      },
+    ],
+  ];
+
+  it.each(cases)('%s', (_name, run, expected) => {
+    expect(syncCardText(run, false, false)).toEqual(expected);
+  });
+
+  it('is the same card as before once the documents are listed', () => {
+    expect(syncCardText({ phase: 'running' }, false, true)).toEqual({
+      tone: 'neutral',
+      title: 'Syncing…',
+      detail: CANCEL_HINT,
+    });
+    expect(syncCardText({ phase: 'cancelling' }, false, true)).toEqual({
+      tone: 'neutral',
+      title: 'Cancelling…',
+      detail: 'Finishing the document being transferred.',
+    });
+  });
+
+  it('does not touch the other states: they never depended on the list', () => {
+    for (const run of [
+      { phase: 'idle' },
+      { phase: 'starting' },
+      ended(result({ uploaded: 1 })),
+      { phase: 'ended', result: { kind: 'cancelled_before_start' } },
+      { phase: 'ended', result: { kind: 'could_not_start', reason: 'Sign in first to sync.' } },
+    ]) {
+      expect(syncCardText(run, false, false)).toEqual(syncCardText(run, false, true));
+    }
+  });
+});
+
 describe('syncCardText · a sync that was made', () => {
   const cases = [
     ['nothing to do', result(), 'neutral', 'Sync finished', 'Uploaded 0 · Pulled 0 · Unchanged 0'],

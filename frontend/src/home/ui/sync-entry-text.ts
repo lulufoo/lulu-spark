@@ -16,21 +16,41 @@ export type SyncCardText = {
  *
  * `failuresListed` is true when the panel names the documents that failed, with their reasons. The
  * summary then says how many failed and leaves the first reason to the list.
+ *
+ * `documentsListed` is false while the host has no list of documents yet: it makes one only after
+ * it has the cloud's list and has compared it with this machine's. Until then no document is being
+ * transferred, so the card must not talk of one.
  */
-export function syncCardText(run: SyncRun, failuresListed = false): SyncCardText | null {
+export function syncCardText(
+  run: SyncRun,
+  failuresListed = false,
+  documentsListed = true,
+): SyncCardText | null {
   switch (run.phase) {
     case 'idle':
       return null;
     case 'starting':
       return { tone: 'neutral', title: 'Starting…', detail: 'Checking your sign-in.' };
     case 'running':
-      return {
-        tone: 'neutral',
-        title: 'Syncing…',
-        detail: 'Cancel stops before the next document; the one being transferred is finished.',
-      };
+      return documentsListed
+        ? {
+            tone: 'neutral',
+            title: 'Syncing…',
+            detail: 'Cancel stops before the next document; the one being transferred is finished.',
+          }
+        : {
+            tone: 'neutral',
+            title: 'Comparing with the cloud…',
+            detail: 'Nothing is being transferred yet. Cancel stops the sync before the first document.',
+          };
     case 'cancelling':
-      return { tone: 'neutral', title: 'Cancelling…', detail: 'Finishing the document being transferred.' };
+      return documentsListed
+        ? { tone: 'neutral', title: 'Cancelling…', detail: 'Finishing the document being transferred.' }
+        : {
+            tone: 'neutral',
+            title: 'Cancelling…',
+            detail: 'Waiting for the cloud to answer; nothing will be sent or changed.',
+          };
     case 'ended':
       switch (run.result.kind) {
         case 'cancelled_before_start':

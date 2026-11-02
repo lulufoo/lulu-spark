@@ -46,7 +46,12 @@ export function CloudSyncButton({
   const [open, setOpen] = useState<Open>('closed');
   // There is nothing to view any more (the user signed out): the card is closed, not just hidden.
   if (open === 'view' && !entry.view.enabled) setOpen('closed');
-  const card = open === 'view' && entry.view.enabled ? syncCardText(run, hasFailedDocs(roster.entries)) : null;
+  // The host lists the documents only after it has compared the cloud's list with this machine's.
+  const documentsListed = roster.entries.length > 0;
+  const card =
+    open === 'view' && entry.view.enabled
+      ? syncCardText(run, hasFailedDocs(roster.entries), documentsListed)
+      : null;
   const busy = entry.start.spinning;
   const cancelling = run.phase === 'cancelling';
 
