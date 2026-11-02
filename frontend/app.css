@@ -6811,6 +6811,7 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   padding: var(--home-chat-list-pad) var(--home-chat-row-inset);
 }
 .home-account-row {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 4px;
@@ -6889,6 +6890,129 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
 }
 .home-help-menu-panel button:hover {
   background: var(--bg-hover);
+}
+/* The sync icon beside the `?`. Its panel opens over the whole row, like the account menu. */
+.home-sync-button {
+  flex: 0 0 auto;
+}
+.home-sync-button-trigger {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--fg-subtle);
+  cursor: pointer;
+  transition: color 0.3s ease, background-color 0.15s ease;
+}
+.home-sync-button-trigger .home-desktop-shortcut-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+}
+.home-sync-button-trigger .home-desktop-shortcut-icon svg {
+  width: 14px;
+  height: 14px;
+  display: block;
+}
+.home-sync-button-trigger:hover,
+.home-sync-button-trigger:focus-visible {
+  background: var(--bg-hover);
+  color: var(--fg-muted);
+}
+/* While a sync goes on the icon turns, half a turn at a time: the two arrows are point-symmetric, so
+   a half turn ends looking like it began, and each one eases in and out. The button lets the turn
+   in progress finish when the sync ends, so the icon starts and stops without a jolt. */
+.home-sync-button-trigger[data-turning="true"] {
+  color: var(--fg-accent);
+}
+.home-sync-button-trigger[data-turning="true"] .home-desktop-shortcut-icon {
+  animation: home-sync-turn 1.1s cubic-bezier(0.45, 0, 0.25, 1) infinite;
+}
+@keyframes home-sync-turn {
+  to { transform: rotate(180deg); }
+}
+/* No motion for those who ask for none: the icon breathes instead of turning. */
+@media (prefers-reduced-motion: reduce) {
+  .home-sync-button-trigger[data-turning="true"] .home-desktop-shortcut-icon {
+    animation: home-sync-breathe 1.6s ease-in-out infinite;
+  }
+  @keyframes home-sync-breathe {
+    50% { opacity: 0.4; }
+  }
+}
+.home-sync-button-trigger[data-tone="warn"]::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--fg-danger);
+}
+.home-sync-button-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+}
+.home-sync-button-panel {
+  position: absolute;
+  left: var(--home-chat-row-inset);
+  right: var(--home-chat-row-inset);
+  bottom: calc(100% + 4px);
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--bg-surface);
+  box-shadow: 0 8px 24px var(--shadow-rgba-1f2328-12);
+}
+.home-sync-button-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fg-default);
+}
+.home-sync-button-detail {
+  margin-top: 2px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--fg-subtle);
+  overflow-wrap: anywhere;
+}
+.home-sync-button-status[data-tone="warn"] .home-sync-button-title,
+.home-sync-button-status[data-tone="warn"] .home-sync-button-detail {
+  color: var(--fg-danger);
+}
+.home-sync-button-cancel {
+  align-self: flex-end;
+  padding: 4px 10px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  background: transparent;
+  font-size: 12px;
+  color: var(--fg-default);
+  cursor: pointer;
+}
+.home-sync-button-cancel:hover {
+  background: var(--bg-hover);
+}
+.home-sync-button-cancel:disabled {
+  color: var(--fg-subtle);
+  cursor: default;
+}
+.home-sync-button-cancel:disabled:hover {
+  background: transparent;
 }
 #about-dialog {
   position: fixed;

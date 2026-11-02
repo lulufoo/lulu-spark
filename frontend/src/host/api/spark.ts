@@ -139,6 +139,51 @@ export async function deleteEntry(id: PathArg) {
   return writePost('/api/delete', { id });
 }
 
+/** What one document did in a sync that did not go as far as it should. */
+export type SyncDocumentIssue = {
+  id: string;
+  op: 'upload' | 'pull';
+  error: string;
+};
+
+/** The answer of a sync that was made, even when part of it went wrong (see `failed`, `stopped`). */
+export type SyncDocumentsResult = {
+  ok: true;
+  uploaded: number;
+  pulled: number;
+  skipped: number;
+  kept: number;
+  gone: number;
+  /** Documents the run did not get to because it stopped. */
+  not_tried: number;
+  failed: SyncDocumentIssue[];
+  /** Set when an error that would hit every document ended the run early. */
+  stopped: SyncDocumentIssue | null;
+  /** True when the user cancelled the run; `not_tried` is what it left for the next one. */
+  cancelled: boolean;
+};
+
+/**
+ * Syncs this machine's documents with the signed-in user's cloud. Throws (with `status`) when no
+ * sync was made: 401 not signed in or session not accepted, 409 already running, 502 cloud
+ * unavailable, 500 local database.
+ */
+export async function syncDocuments(): Promise<SyncDocumentsResult> {
+  return writePost('/api/cloud-sync', {});
+}
+
+/** The answer of a cancel: whether a sync was going on to be cancelled. */
+export type CancelSyncResult = { ok: true; cancelling: boolean };
+
+/**
+ * Asks the sync that is going on to stop. It answers at once; `syncDocuments` answers, with
+ * `cancelled: true`, when the document being transferred is done. `cancelling: false` means no
+ * sync was going on, and nothing is remembered for the next one.
+ */
+export async function cancelSyncDocuments(): Promise<CancelSyncResult> {
+  return writePost('/api/cloud-sync-cancel', {});
+}
+
 export async function updateHighlight(
   id: string,
   layer: string,

@@ -11,7 +11,7 @@ import {
   setConfig,
   saveFile,
   updateComments, updateLinks, setImportance, setDone,
-  deleteEntry,
+  deleteEntry, syncDocuments, cancelSyncDocuments,
   fetchWorkspaces, createWorkspace, renameWorkspace, setWorkspaceViewMode, setWorkspaceIcon, setWorkspaceDescription, disableWorkspace, enableWorkspace, fetchDisabledWorkspaces,
   fetchProjects, createProject, updateProject, deleteProject, deleteWorkspace, moveToProject,
   reorderWorkspaces, reorderProjects,
@@ -198,6 +198,42 @@ test('deleteEntry 发送 id', async () => {
   await deleteEntry('abc123')
   const body = JSON.parse(fetch.mock.calls[0][1].body)
   expect(body.id).toBe('abc123')
+})
+
+// ── syncDocuments ──────────────────────────────────────────────────────────
+
+test('syncDocuments 发 POST /api/cloud-sync（无参数）并原样返回计数', async () => {
+  const answer = {
+    ok: true, uploaded: 2, pulled: 1, skipped: 5, kept: 0, gone: 0, not_tried: 0,
+    failed: [{ id: 'd1', op: 'upload', error: 'the cloud storage limit is reached' }], stopped: null,
+  }
+  mockFetch(answer)
+  const result = await syncDocuments()
+  expect(fetch.mock.calls[0][0]).toBe(`${DEFAULT_DEV_BASE}/api/cloud-sync`)
+  expect(fetch.mock.calls[0][1].method).toBe('POST')
+  expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({})
+  expect(result).toEqual(answer)
+})
+
+test('syncDocuments 没有同步成（{error,_status}）时抛出带 status 的错误', async () => {
+  for (const status of [401, 409, 502, 500]) {
+    mockFetch({ error: 'Cannot sync: not signed in', _status: status })
+    await expect(syncDocuments()).rejects.toMatchObject({
+      message: 'Cannot sync: not signed in',
+      status,
+    })
+  }
+})
+
+test('cancelSyncDocuments 发 POST /api/cloud-sync-cancel（无参数）并原样返回', async () => {
+  for (const cancelling of [true, false]) {
+    mockFetch({ ok: true, cancelling })
+    const result = await cancelSyncDocuments()
+    expect(fetch.mock.calls[0][0]).toBe(`${DEFAULT_DEV_BASE}/api/cloud-sync-cancel`)
+    expect(fetch.mock.calls[0][1].method).toBe('POST')
+    expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({})
+    expect(result).toEqual({ ok: true, cancelling })
+  }
 })
 
 // ── moveToProject ──────────────────────────────────────────────────────────

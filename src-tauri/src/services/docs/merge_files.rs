@@ -40,7 +40,7 @@ fn list_rel_files(dir: &Path) -> HashSet<String> {
 
 /// The relative paths the target project already uses: `(raw layer, digest layer)`. Files on
 /// disk count, and so do the paths its rows name, whether or not the file is there.
-pub(super) fn collect_taken_paths(
+pub(crate) fn collect_taken_paths(
     root: &Path,
     target_id: &str,
     target_docs: &[DocRow],

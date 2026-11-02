@@ -69,9 +69,9 @@ export function AccountBar({
             onClick={close}
           />
           <div className="home-account-bar-menu" role="menu">
+            {signedIn ? <div className="home-account-bar-menu-name">{label}</div> : null}
             {signedIn ? (
               <>
-                <div className="home-account-bar-menu-name">{label}</div>
                 <button
                   type="button"
                   role="menuitem"

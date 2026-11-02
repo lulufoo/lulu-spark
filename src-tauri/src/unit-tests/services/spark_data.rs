@@ -73,10 +73,9 @@ fn snapshot(dir: &std::path::Path) -> Vec<(String, Vec<u8>)> {
 }
 
 #[test]
-fn the_baseline_is_version_18_and_one_migration_adds_workspace_description() {
-    assert_eq!(BASELINE_VERSION, 18);
-    assert_eq!(MIGRATIONS.len(), 1);
-    assert!(MIGRATIONS[0].contains("workspace") && MIGRATIONS[0].contains("description"));
+fn the_baseline_is_version_20_and_no_step_follows_it() {
+    assert_eq!(BASELINE_VERSION, 20);
+    assert!(MIGRATIONS.is_empty());
 }
 
 #[test]
@@ -85,6 +84,7 @@ fn an_empty_file_is_created_at_the_baseline_with_the_whole_schema() {
     let conn = open_at(&path).expect("first open");
     assert_eq!(user_version(&conn), latest_version());
     assert!(has_column(&conn, "workspace", "description"));
+    assert!(has_column(&conn, "document", "version"));
 
     assert_eq!(table_names(&conn), ["document", "project", "tag", "workspace"]);
     assert_eq!(names(&conn, "index"), ["document_project_id", "project_one_default", "workspace_one_default"]);
@@ -135,26 +135,8 @@ fn reopening_changes_nothing_and_keeps_rows() {
 }
 
 #[test]
-fn a_baseline_file_gains_workspace_description() {
-    let (_dir, path) = temp_db();
-    drop(open_with_steps(&path, &[]).expect("baseline"));
-    let before = Connection::open(&path).expect("raw");
-    assert_eq!(user_version(&before), BASELINE_VERSION as i64);
-    assert!(!has_column(&before, "workspace", "description"));
-    drop(before);
-
-    let after = open_at(&path).expect("upgrade");
-    assert_eq!(user_version(&after), latest_version());
-    assert!(has_column(&after, "workspace", "description"));
-    let desc: String = after
-        .query_row("SELECT description FROM workspace WHERE is_default = 1", [], |r| r.get(0))
-        .expect("description");
-    assert_eq!(desc, "");
-}
-
-#[test]
 fn a_file_below_the_baseline_is_refused_and_left_untouched() {
-    for version in [1, 16, 17] {
+    for version in [1, 16, 17, 18, 19] {
         let (dir, path) = temp_db();
         file_at_version(&path, version);
         let before = snapshot(dir.path().join("data").as_path());
@@ -295,8 +277,8 @@ fn each_user_version_runs_only_the_remaining_steps() {
     // baseline file → both steps; one step done → only the second
     let (_dir2, path2) = temp_db();
     drop(open_with_steps(&path2, &[]).expect("baseline"));
-    drop(open_with_steps(&path2, &[STEP_A]).expect("18 → 19"));
-    let upgraded = open_with_steps(&path2, &[STEP_A, STEP_B]).expect("19 → 20");
+    drop(open_with_steps(&path2, &[STEP_A]).expect("baseline → +1"));
+    let upgraded = open_with_steps(&path2, &[STEP_A, STEP_B]).expect("+1 → +2");
     assert_eq!(user_version(&upgraded), base + 2);
     assert_eq!(a_rows(&upgraded), 2, "step A must not run twice");
     assert!(table_names(&upgraded).contains(&"b".to_string()));

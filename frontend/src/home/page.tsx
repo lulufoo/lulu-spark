@@ -4,6 +4,8 @@ import { createRoot, type Root } from 'react-dom/client';
 import { flushSync } from 'react-dom';
 import { getAuthUser, signOutAuth, startAuthLogin } from '../auth/oauth.ts';
 import { authUserStore } from '../auth/state/user.ts';
+import { cancelCloudSync, resetCloudSync, runCloudSync } from './commands/cloud-sync.ts';
+import { cloudSyncStore } from './state/cloud-sync.ts';
 import { state, useHostState } from '../host/state.ts';
 import { openProject, openWorkspace, refreshWorkspaceProjects } from './commands/workspace-nav.ts';
 import { HomeWorkspaceNav, type HomeWorkspaceRow } from './ui/workspace-nav.tsx';
@@ -15,6 +17,7 @@ import { ChatTurn } from './ui/chat-turn.tsx';
 import { AboutDialog } from './ui/about-dialog.tsx';
 import { ApprovalDialog } from './ui/approval-dialog.tsx';
 import { AccountBar } from './ui/account-bar.tsx';
+import { CloudSyncButton } from './ui/cloud-sync-button.tsx';
 import { HelpMenu } from './ui/help-menu.tsx';
 import { SidebarTabs, type SidebarPane } from './ui/sidebar-tabs.tsx';
 import { attachHomeShortcuts, detachHomeShortcuts } from './ui/home-shortcuts.ts';
@@ -165,6 +168,7 @@ export function HomePage({
   const host = useHostState();
   const workspaceIds = host.workspaces.list.map((w) => w.workspace_id).join(',');
   const authUser = useSyncExternalStore(authUserStore.subscribe, authUserStore.getSnapshot);
+  const cloudSync = useSyncExternalStore(cloudSyncStore.subscribe, cloudSyncStore.getSnapshot);
   const isDebug = useSyncExternalStore(
     packageDebugStore.subscribe,
     packageDebugStore.getSnapshot,
@@ -335,7 +339,17 @@ export function HomePage({
   }
 
   function onAccountLogout() {
-    void signOutAuth().catch(() => {});
+    void signOutAuth()
+      .then(resetCloudSync)
+      .catch(() => {});
+  }
+
+  function onSyncStart() {
+    void runCloudSync();
+  }
+
+  function onSyncCancel() {
+    void cancelCloudSync();
   }
 
   function onComposerInput() {
@@ -422,6 +436,7 @@ export function HomePage({
             onLogin={onAccountLogin}
             onLogout={onAccountLogout}
           />
+          <CloudSyncButton sync={cloudSync} onSync={onSyncStart} onCancel={onSyncCancel} />
           <HelpMenu
             onAbout={() => {
               void openAbout();

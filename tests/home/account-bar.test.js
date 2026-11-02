@@ -12,11 +12,15 @@ const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const getAuthUserMock = vi.hoisted(() => vi.fn());
 const startAuthLoginMock = vi.hoisted(() => vi.fn());
 const signOutAuthMock = vi.hoisted(() => vi.fn());
+const readVaultSessionMock = vi.hoisted(() => vi.fn());
+const persistVaultSessionMock = vi.hoisted(() => vi.fn());
 
 vi.mock('../../frontend/src/auth/oauth.ts', () => ({
   getAuthUser: (...args) => getAuthUserMock(...args),
   startAuthLogin: (...args) => startAuthLoginMock(...args),
   signOutAuth: (...args) => signOutAuthMock(...args),
+  readVaultSession: (...args) => readVaultSessionMock(...args),
+  persistVaultSession: (...args) => persistVaultSessionMock(...args),
 }));
 
 function readRel(rel) {
@@ -71,6 +75,14 @@ describe('account bar · source', () => {
     expect(src).toMatch(/isDebug/);
     expect(src).toMatch(/data-debug/);
     expect(src).not.toMatch(/getPackageSnapshot/);
+  });
+
+  it('has no sync entry: syncing lives in the sync button beside the ?', () => {
+    const bar = readRel('frontend/src/home/ui/account-bar.tsx');
+    expect(bar).not.toMatch(/sync/i);
+
+    const css = readRel('frontend/app.css');
+    expect(css).not.toMatch(/home-account-bar-sync/);
   });
 
   it('styles a single bottom account slot, not two side-by-side provider buttons', () => {

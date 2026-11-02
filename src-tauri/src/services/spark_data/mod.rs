@@ -15,7 +15,8 @@ mod workspace_row;
 pub use backup::{backup_daily, backup_dir, backup_for_day, BACKUP_DIR};
 pub use db::{db_path, open, open_at, DB_FILE};
 pub use doc_row::{
-    count_docs_by_project, count_docs_in_project, delete_doc, get_doc, insert_doc, list_docs, update_doc, DocRow,
+    apply_pulled_package, bump_doc_version, count_docs_by_project, count_docs_in_project, delete_doc, get_doc,
+    insert_doc, list_doc_versions, list_docs, set_doc_version, update_doc, DocRow,
 };
 pub use doc_annotation::annotation_object;
 pub use doc_id::{is_valid_doc_id, new_doc_id};
@@ -44,3 +45,7 @@ mod tests;
 #[cfg(test)]
 #[path = "../../unit-tests/services/spark_data_workspace.rs"]
 mod workspace_tests;
+
+#[cfg(test)]
+#[path = "../../unit-tests/services/spark_data_doc_row.rs"]
+mod doc_row_tests;
