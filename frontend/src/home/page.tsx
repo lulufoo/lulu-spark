@@ -4,8 +4,10 @@ import { createRoot, type Root } from 'react-dom/client';
 import { flushSync } from 'react-dom';
 import { getAuthUser, signOutAuth, startAuthLogin } from '../auth/oauth.ts';
 import { authUserStore } from '../auth/state/user.ts';
-import { cancelCloudSync, resetCloudSync, runCloudSync } from './commands/cloud-sync.ts';
-import { cloudSyncStore } from './state/cloud-sync.ts';
+import { checkSyncPending } from './commands/sync-check.ts';
+import { cancelSync, markSyncResultSeen, resetSyncEntry, startSync } from './commands/sync-run.ts';
+import { deriveSyncEntry } from './state/sync-entry-view.ts';
+import { syncCheckStore, syncRunStore, syncSeenStore } from './state/sync-entry.ts';
 import { state, useHostState } from '../host/state.ts';
 import { openProject, openWorkspace, refreshWorkspaceProjects } from './commands/workspace-nav.ts';
 import { HomeWorkspaceNav, type HomeWorkspaceRow } from './ui/workspace-nav.tsx';
@@ -168,7 +170,10 @@ export function HomePage({
   const host = useHostState();
   const workspaceIds = host.workspaces.list.map((w) => w.workspace_id).join(',');
   const authUser = useSyncExternalStore(authUserStore.subscribe, authUserStore.getSnapshot);
-  const cloudSync = useSyncExternalStore(cloudSyncStore.subscribe, cloudSyncStore.getSnapshot);
+  const syncRun = useSyncExternalStore(syncRunStore.subscribe, syncRunStore.getSnapshot);
+  const syncCheck = useSyncExternalStore(syncCheckStore.subscribe, syncCheckStore.getSnapshot);
+  const syncSeen = useSyncExternalStore(syncSeenStore.subscribe, syncSeenStore.getSnapshot);
+  const syncEntry = deriveSyncEntry(syncRun, syncCheck, syncSeen);
   const isDebug = useSyncExternalStore(
     packageDebugStore.subscribe,
     packageDebugStore.getSnapshot,
@@ -215,6 +220,13 @@ export function HomePage({
   useEffect(() => {
     void loadPackageDebug();
   }, []);
+
+  // Is there anything to sync? Asked once the app has started and the user is signed in, and again
+  // when the user signs in (or is another user). Nobody signed in: nothing is asked.
+  const signedInUserId = authUser?.user_id ?? null;
+  useEffect(() => {
+    if (signedInUserId) void checkSyncPending();
+  }, [signedInUserId]);
 
   // Leaving #/home unmounts this page; put back what was typed. Runs before the draft effect below.
   useLayoutEffect(() => {
@@ -340,16 +352,16 @@ export function HomePage({
 
   function onAccountLogout() {
     void signOutAuth()
-      .then(resetCloudSync)
+      .then(resetSyncEntry)
       .catch(() => {});
   }
 
   function onSyncStart() {
-    void runCloudSync();
+    void startSync();
   }
 
   function onSyncCancel() {
-    void cancelCloudSync();
+    void cancelSync();
   }
 
   function onComposerInput() {
@@ -436,7 +448,13 @@ export function HomePage({
             onLogin={onAccountLogin}
             onLogout={onAccountLogout}
           />
-          <CloudSyncButton sync={cloudSync} onSync={onSyncStart} onCancel={onSyncCancel} />
+          <CloudSyncButton
+            entry={syncEntry}
+            run={syncRun}
+            onStart={onSyncStart}
+            onCancel={onSyncCancel}
+            onViewOpen={markSyncResultSeen}
+          />
           <HelpMenu
             onAbout={() => {
               void openAbout();
