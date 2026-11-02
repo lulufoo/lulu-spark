@@ -643,14 +643,10 @@ fn mcp_tools_list_publishes_descriptions_schemas_and_mutation_hints() {
         .iter()
         .find(|tool| tool.name == "list_projects")
         .expect("list_projects");
-    assert!(
-        catalog
-            .input_schema
-            .get("required")
-            .and_then(|v| v.as_array())
-            .map(|required| required.is_empty())
-            .unwrap_or(true),
-        "catalog list must not require mode"
+    assert_eq!(
+        catalog.input_schema.get("required"),
+        Some(&serde_json::json!(["workspace_id"])),
+        "list_projects must require exactly workspace_id"
     );
     assert!(
         notes_tools.iter().any(|tool| tool.name == "get_doc_file"),
@@ -836,7 +832,7 @@ fn representative_tools_call_per_registered_slot_hits_services() {
             SPARK_SLOT,
             SPARK_SLOT,
             "list_projects",
-            serde_json::json!({}),
+            serde_json::json!({ "workspace_id": crate::test_support::default_workspace().id }),
         ))
         .expect("proxy")
         .expect("notes catalogs succeed");
@@ -853,7 +849,7 @@ fn representative_tools_call_per_registered_slot_hits_services() {
             CURSOR_IDE_SLOT,
             CURSOR_IDE_SLOT,
             "list_projects",
-            serde_json::json!({}),
+            serde_json::json!({ "workspace_id": crate::test_support::default_workspace().id }),
         ))
         .expect("proxy")
         .expect("notes catalogs succeed");
@@ -1229,7 +1225,7 @@ fn p3_t10_host_dual_slot_list_call_and_unknown_hard_fail_smoke() {
             SPARK_SLOT,
             &spark_ticket,
             "list_projects",
-            serde_json::json!({}),
+            serde_json::json!({ "workspace_id": crate::test_support::default_workspace().id }),
         ))
         .expect("spark list_projects");
     assert!(
@@ -1243,7 +1239,7 @@ fn p3_t10_host_dual_slot_list_call_and_unknown_hard_fail_smoke() {
             "cursor_ide",
             &ide_ticket,
             "list_projects",
-            serde_json::json!({}),
+            serde_json::json!({ "workspace_id": crate::test_support::default_workspace().id }),
         ))
         .expect("cursor_ide list_projects");
     assert!(
@@ -2193,7 +2189,8 @@ fn t3_live_device_ticket_can_call_full_spark_tools_on_mobile() {
             .build()
             .expect("tokio");
 
-        let cases = [("list_projects", serde_json::json!({}))];
+        let default_workspace = crate::test_support::default_workspace().id;
+        let cases = [("list_projects", serde_json::json!({ "workspace_id": default_workspace }))];
         for (tool, args) in cases {
             let (names, is_error, text) = rt
                 .block_on(list_and_call_mobile(port, &token, tool, args))
