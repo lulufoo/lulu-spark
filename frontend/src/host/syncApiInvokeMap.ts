@@ -1,8 +1,9 @@
 /**
  * P4 sync API: HTTP POST path ↔ Tauri command (tauriDriver postJson).
- * Rust sync commands take a single `payload: Value` argument, except `sync_documents` and
- * `cancel_sync_documents`, which take none: the Rust side reads the session from the vault, and a
- * cancel has nothing to say but "stop".
+ * Rust sync commands take a single `payload: Value` argument, except `sync_documents`,
+ * `cancel_sync_documents`, `check_sync_documents` and `get_sync_progress`, which take none: the
+ * Rust side reads the session from the vault, a cancel has nothing to say but "stop", and a check
+ * and a read of the progress have nothing to ask.
  */
 
 type Body = Record<string, unknown>;
@@ -38,6 +39,14 @@ export const SYNC_API_INVOKE_MAP: Record<string, SyncInvokeEntry> = {
   },
   '/api/cloud-sync-cancel': {
     cmd: 'cancel_sync_documents',
+    args: () => ({}),
+  },
+  '/api/cloud-sync-check': {
+    cmd: 'check_sync_documents',
+    args: () => ({}),
+  },
+  '/api/cloud-sync-progress': {
+    cmd: 'get_sync_progress',
     args: () => ({}),
   },
   '/api/draft': {

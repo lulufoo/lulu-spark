@@ -11,7 +11,7 @@ import {
   setConfig,
   saveFile,
   updateComments, updateLinks, setImportance, setDone,
-  deleteEntry, syncDocuments, cancelSyncDocuments,
+  deleteEntry, syncDocuments, cancelSyncDocuments, checkSyncDocuments, getSyncProgress,
   fetchWorkspaces, createWorkspace, renameWorkspace, setWorkspaceViewMode, setWorkspaceIcon, setWorkspaceDescription, disableWorkspace, enableWorkspace, fetchDisabledWorkspaces,
   fetchProjects, createProject, updateProject, deleteProject, deleteWorkspace, moveProject, moveToProject,
   reorderWorkspaces, reorderProjects,
@@ -234,6 +234,43 @@ test('cancelSyncDocuments 发 POST /api/cloud-sync-cancel（无参数）并原�
     expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({})
     expect(result).toEqual({ ok: true, cancelling })
   }
+})
+
+test('checkSyncDocuments 发 POST /api/cloud-sync-check（无参数）并原样返回个数', async () => {
+  mockFetch({ ok: true, uploads: 2, pulls: 1 })
+  const result = await checkSyncDocuments()
+  expect(fetch.mock.calls[0][0]).toBe(`${DEFAULT_DEV_BASE}/api/cloud-sync-check`)
+  expect(fetch.mock.calls[0][1].method).toBe('POST')
+  expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({})
+  expect(result).toEqual({ ok: true, uploads: 2, pulls: 1 })
+})
+
+test('checkSyncDocuments 没有查成（{error,_status}）时抛出带 status 的错误', async () => {
+  for (const status of [401, 502, 500]) {
+    mockFetch({ error: 'Cannot sync: not signed in', _status: status })
+    await expect(checkSyncDocuments()).rejects.toMatchObject({
+      message: 'Cannot sync: not signed in',
+      status,
+    })
+  }
+})
+
+test('getSyncProgress 发 POST /api/cloud-sync-progress（无参数）并原样返回整份名单', async () => {
+  const answer = {
+    ok: true,
+    running: true,
+    entries: [
+      { id: 'd1', name: 'plan.md', op: 'upload', state: 'done', reason: null, local: true },
+      { id: 'd2', name: 'notes.md', op: 'upload', state: 'failed', reason: 'could not pack document d2: a file is missing', local: true },
+      { id: 'd9', name: 'd9aa00bb', op: 'pull', state: 'not_started', reason: null, local: false },
+    ],
+  }
+  mockFetch(answer)
+  const result = await getSyncProgress()
+  expect(fetch.mock.calls[0][0]).toBe(`${DEFAULT_DEV_BASE}/api/cloud-sync-progress`)
+  expect(fetch.mock.calls[0][1].method).toBe('POST')
+  expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({})
+  expect(result).toEqual(answer)
 })
 
 // ── moveToProject ──────────────────────────────────────────────────────────

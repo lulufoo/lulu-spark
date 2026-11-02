@@ -165,7 +165,7 @@ fn only_the_upload_actions_are_run_in_order() {
         upload_action(3, 0),
     ];
 
-    let report = push_uploads(&world.conn, &world.workspaces_root, &cloud, &actions);
+    let report = push_uploads(&world.conn, &world.workspaces_root, &cloud, &actions, &SyncProgress::new());
 
     let (first_bytes, third_bytes) = (packed(&world, &first).len(), packed(&world, &third).len());
     assert_eq!(
@@ -188,8 +188,8 @@ fn a_plan_without_uploads_does_nothing() {
     let cloud = FakeCloud::new();
     let actions = [SyncAction::Skip { doc_id: id(1) }, SyncAction::Pull { doc_id: id(2), version: 1 }];
 
-    assert_eq!(push_uploads(&world.conn, &world.workspaces_root, &cloud, &actions), PushReport::default());
-    assert_eq!(push_uploads(&world.conn, &world.workspaces_root, &cloud, &[]), PushReport::default());
+    assert_eq!(push_uploads(&world.conn, &world.workspaces_root, &cloud, &actions, &SyncProgress::new()), PushReport::default());
+    assert_eq!(push_uploads(&world.conn, &world.workspaces_root, &cloud, &[], &SyncProgress::new()), PushReport::default());
     assert_eq!(cloud.calls(), []);
 }
 
@@ -202,7 +202,7 @@ fn a_broken_document_is_set_aside_and_the_others_go_up() {
     let cloud = FakeCloud::new();
     let actions = [upload_action(1, 1), upload_action(2, 1), upload_action(3, 1)];
 
-    let report = push_uploads(&world.conn, &world.workspaces_root, &cloud, &actions);
+    let report = push_uploads(&world.conn, &world.workspaces_root, &cloud, &actions, &SyncProgress::new());
 
     let uploaded: Vec<&str> = report.uploaded.iter().map(|d| d.doc_id.as_str()).collect();
     assert_eq!(uploaded, [id(1), id(3)]);
@@ -223,7 +223,7 @@ fn a_document_the_cloud_refuses_for_its_own_reason_does_not_stop_the_run() {
     let cloud = FakeCloud::new().failing_upload(&id(2), too_big.clone());
     let actions = [upload_action(1, 1), upload_action(2, 1), upload_action(3, 1)];
 
-    let report = push_uploads(&world.conn, &world.workspaces_root, &cloud, &actions);
+    let report = push_uploads(&world.conn, &world.workspaces_root, &cloud, &actions, &SyncProgress::new());
 
     assert_eq!(report.uploaded.len(), 2);
     assert_eq!(report.failed, [(id(2), DocSyncError::Cloud(too_big))]);
@@ -248,7 +248,7 @@ fn an_error_that_would_hit_every_document_stops_the_run_and_names_what_was_left(
         upload_action(4, 1),
     ];
 
-    let report = push_uploads(&world.conn, &world.workspaces_root, &cloud, &actions);
+    let report = push_uploads(&world.conn, &world.workspaces_root, &cloud, &actions, &SyncProgress::new());
 
     assert_eq!(report.uploaded.len(), 1);
     assert_eq!(report.uploaded[0].doc_id, id(1));
@@ -267,7 +267,7 @@ fn a_session_that_ran_out_stops_the_run_at_the_first_document() {
         .failing_upload(&id(1), CloudSyncError::SessionExpired)
         .failing_upload(&id(2), CloudSyncError::SessionExpired);
 
-    let report = push_uploads(&world.conn, &world.workspaces_root, &cloud, &[upload_action(1, 1), upload_action(2, 1)]);
+    let report = push_uploads(&world.conn, &world.workspaces_root, &cloud, &[upload_action(1, 1), upload_action(2, 1)], &SyncProgress::new());
 
     assert_eq!(report.stopped, Some((id(1), DocSyncError::Cloud(CloudSyncError::SessionExpired))));
     assert_eq!(report.not_tried, [id(2)]);
@@ -282,7 +282,7 @@ fn a_document_deleted_after_the_plan_is_noted_and_the_run_goes_on() {
     world.remove_row(1);
     let cloud = FakeCloud::new();
 
-    let report = push_uploads(&world.conn, &world.workspaces_root, &cloud, &[upload_action(1, 1), upload_action(2, 1)]);
+    let report = push_uploads(&world.conn, &world.workspaces_root, &cloud, &[upload_action(1, 1), upload_action(2, 1)], &SyncProgress::new());
 
     assert_eq!(report.gone, [id(1)]);
     assert_eq!(report.uploaded.len(), 1);
@@ -296,7 +296,7 @@ fn the_body_that_goes_up_is_the_one_on_disk() {
     world.add(1, 1);
     let cloud = FakeCloud::new();
 
-    push_uploads(&world.conn, &world.workspaces_root, &cloud, &[upload_action(1, 1)]);
+    push_uploads(&world.conn, &world.workspaces_root, &cloud, &[upload_action(1, 1)], &SyncProgress::new());
 
     let (_, package) = cloud.stored(&id(1)).expect("stored");
     let mut zip = ZipArchive::new(Cursor::new(package)).expect("a zip");

@@ -422,7 +422,7 @@ fn compare_after_an_upload_says_skip() {
     let first = compare(&world.conn, &cloud).expect("first");
     assert_eq!(first, [upload(id(1), 4)]);
 
-    let report = push_uploads(&world.conn, &world.workspaces_root, &cloud, &first);
+    let report = push_uploads(&world.conn, &world.workspaces_root, &cloud, &first, &SyncProgress::new());
     assert_eq!(report.uploaded.len(), 1);
 
     assert_eq!(compare(&world.conn, &cloud).expect("second"), [SyncAction::Skip { doc_id: id(1) }]);

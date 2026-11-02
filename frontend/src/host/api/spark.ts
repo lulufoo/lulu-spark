@@ -184,6 +184,49 @@ export async function cancelSyncDocuments(): Promise<CancelSyncResult> {
   return writePost('/api/cloud-sync-cancel', {});
 }
 
+/** What a sync would do now, counted without doing it. */
+export type CheckSyncResult = { ok: true; uploads: number; pulls: number };
+
+/**
+ * Counts the documents a sync would send and bring back, without syncing. Throws (with `status`)
+ * when the count could not be made: 401 not signed in or session not accepted, 502 cloud
+ * unavailable, 500 local database. It may be asked while a sync is going on.
+ */
+export async function checkSyncDocuments(): Promise<CheckSyncResult> {
+  return writePost('/api/cloud-sync-check', {});
+}
+
+/** One document of a sync run, as the host's record has it. */
+export type SyncProgressEntry = {
+  id: string;
+  /** Title, else file name, else the first characters of the id. */
+  name: string;
+  op: 'upload' | 'pull';
+  state: 'not_started' | 'running' | 'done' | 'failed';
+  /** Why it failed, in the words of the log; null unless `state` is `failed`. */
+  reason: string | null;
+  /** Whether this machine has the document: always for an upload, and for a download once it is here. */
+  local: boolean;
+};
+
+/** All of the host's record of a sync run, at one moment. */
+export type SyncProgressResult = {
+  ok: true;
+  /** True while a sync is going on; false when `entries` is what the last sync left. */
+  running: boolean;
+  /** Every upload, then every download, each in order of document id. */
+  entries: SyncProgressEntry[];
+};
+
+/**
+ * Reads the whole record of the sync that is going on, or of the last one, in one call. The host
+ * keeps it in memory, clears it when a sync begins and keeps it after the sync ends, so the
+ * screen asks again once the sync is over. Replace the list you had with the one you get.
+ */
+export async function getSyncProgress(): Promise<SyncProgressResult> {
+  return writePost('/api/cloud-sync-progress', {});
+}
+
 export async function updateHighlight(
   id: string,
   layer: string,

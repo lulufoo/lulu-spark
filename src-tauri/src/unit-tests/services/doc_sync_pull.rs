@@ -459,7 +459,7 @@ fn only_the_pull_actions_are_run_and_in_order() {
         pull_action(1, 2),
     ];
 
-    let report = pull_downloads(&world.conn, &world.workspaces_root, &cloud, &actions);
+    let report = pull_downloads(&world.conn, &world.workspaces_root, &cloud, &actions, &SyncProgress::new());
 
     assert_eq!(cloud.calls(), [read_call(2), read_call(1)]);
     let pulled: Vec<(&str, i64, bool)> = report.pulled.iter().map(|d| (d.doc_id.as_str(), d.version, d.created)).collect();
@@ -474,7 +474,7 @@ fn no_pull_actions_make_an_empty_report() {
     let cloud = FakeCloud::new();
     let actions = [SyncAction::Upload { doc_id: id(1), version: 1 }, SyncAction::Skip { doc_id: id(2) }];
 
-    assert_eq!(pull_downloads(&world.conn, &world.workspaces_root, &cloud, &actions), PullReport::default());
+    assert_eq!(pull_downloads(&world.conn, &world.workspaces_root, &cloud, &actions, &SyncProgress::new()), PullReport::default());
     assert_eq!(cloud.calls(), []);
 }
 
@@ -493,7 +493,7 @@ fn a_document_that_fails_is_recorded_and_the_run_goes_on() {
     // The package under document 2 is the package of document 1, and says so: refused.
     let actions = [pull_action(1, 2), pull_action(2, 2), pull_action(3, 2)];
 
-    let report = pull_downloads(&world.conn, &world.workspaces_root, &cloud, &actions);
+    let report = pull_downloads(&world.conn, &world.workspaces_root, &cloud, &actions, &SyncProgress::new());
 
     let failed: Vec<&str> = report.failed.iter().map(|(doc_id, _)| doc_id.as_str()).collect();
     assert_eq!(failed, [id(1).as_str(), id(2).as_str()]);
@@ -510,7 +510,7 @@ fn a_document_that_was_deleted_in_the_cloud_meanwhile_does_not_stop_the_run() {
     let world = World::new();
     let cloud = FakeCloud::new().with_package(&id(1), 2, package); // document 2 is not there any more
 
-    let report = pull_downloads(&world.conn, &world.workspaces_root, &cloud, &[pull_action(2, 4), pull_action(1, 2)]);
+    let report = pull_downloads(&world.conn, &world.workspaces_root, &cloud, &[pull_action(2, 4), pull_action(1, 2)], &SyncProgress::new());
 
     assert_eq!(report.failed, [(id(2), DocSyncError::Cloud(CloudSyncError::ObjectNotFound))]);
     assert_eq!(report.pulled.len(), 1);
@@ -526,7 +526,7 @@ fn an_error_that_would_hit_every_document_stops_the_run() {
         .failing_read(&id(2), CloudSyncError::Unauthorized);
     let actions = [pull_action(1, 2), pull_action(2, 2), pull_action(3, 2), SyncAction::Skip { doc_id: id(4) }, pull_action(5, 2)];
 
-    let report = pull_downloads(&world.conn, &world.workspaces_root, &cloud, &actions);
+    let report = pull_downloads(&world.conn, &world.workspaces_root, &cloud, &actions, &SyncProgress::new());
 
     assert_eq!(report.pulled.len(), 1);
     assert_eq!(report.stopped, Some((id(2), DocSyncError::Cloud(CloudSyncError::Unauthorized))));
@@ -541,7 +541,7 @@ fn a_document_that_caught_up_is_listed_as_kept() {
     world.add_full(1, 3);
     let cloud = FakeCloud::new().with_package(&id(1), 3, package);
 
-    let report = pull_downloads(&world.conn, &world.workspaces_root, &cloud, &[pull_action(1, 3)]);
+    let report = pull_downloads(&world.conn, &world.workspaces_root, &cloud, &[pull_action(1, 3)], &SyncProgress::new());
 
     assert_eq!(report.kept, [id(1)]);
     assert!(report.pulled.is_empty() && report.failed.is_empty());
@@ -563,7 +563,7 @@ fn every_pull_action_ends_in_exactly_one_place() {
         .with_package(&id(5), 4, elsewhere.package_of(1)); // not tried
     let actions: Vec<SyncAction> = (1..=5).map(|n| pull_action(n, 4)).collect();
 
-    let report = pull_downloads(&world.conn, &world.workspaces_root, &cloud, &actions);
+    let report = pull_downloads(&world.conn, &world.workspaces_root, &cloud, &actions, &SyncProgress::new());
 
     let placed = report.pulled.len() + report.kept.len() + report.failed.len() + report.not_tried.len()
         + usize::from(report.stopped.is_some());
@@ -581,13 +581,13 @@ fn a_database_with_nothing_in_it_receives_every_document_of_the_cloud_and_then_s
     elsewhere.add_full(3, 9);
     let cloud = FakeCloud::new();
     let first = compare(&elsewhere.conn, &cloud).expect("compare");
-    let report = push_uploads(&elsewhere.conn, &elsewhere.workspaces_root, &cloud, &first);
+    let report = push_uploads(&elsewhere.conn, &elsewhere.workspaces_root, &cloud, &first, &SyncProgress::new());
     assert_eq!(report.uploaded.len(), 3);
 
     let world = World::new();
     let plan = compare(&world.conn, &cloud).expect("compare");
     assert_eq!(plan, [pull_action(1, 4), pull_action(2, 0), pull_action(3, 9)]);
-    let report = pull_downloads(&world.conn, &world.workspaces_root, &cloud, &plan);
+    let report = pull_downloads(&world.conn, &world.workspaces_root, &cloud, &plan, &SyncProgress::new());
 
     assert_eq!(report.pulled.len(), 3, "{report:?}");
     assert_eq!(world.inbox_files(), elsewhere.inbox_files());
@@ -600,7 +600,7 @@ fn a_database_with_nothing_in_it_receives_every_document_of_the_cloud_and_then_s
     let again = compare(&world.conn, &cloud).expect("compare");
     assert!(again.iter().all(|a| matches!(a, SyncAction::Skip { .. })) && again.len() == 3, "{again:?}");
     // …and what was pulled does not go back up.
-    assert!(push_uploads(&world.conn, &world.workspaces_root, &cloud, &again).uploaded.is_empty());
+    assert!(push_uploads(&world.conn, &world.workspaces_root, &cloud, &again, &SyncProgress::new()).uploaded.is_empty());
 }
 
 #[test]
@@ -608,12 +608,12 @@ fn a_document_that_is_behind_catches_up_and_then_skips() {
     let elsewhere = World::new();
     elsewhere.add_full(1, 6);
     let cloud = FakeCloud::new();
-    push_uploads(&elsewhere.conn, &elsewhere.workspaces_root, &cloud, &[SyncAction::Upload { doc_id: id(1), version: 6 }]);
+    push_uploads(&elsewhere.conn, &elsewhere.workspaces_root, &cloud, &[SyncAction::Upload { doc_id: id(1), version: 6 }], &SyncProgress::new());
     let world = World::new();
     world.add_full(1, 2);
     assert_eq!(compare(&world.conn, &cloud).expect("compare"), [pull_action(1, 6)]);
 
-    let report = pull_downloads(&world.conn, &world.workspaces_root, &cloud, &[pull_action(1, 6)]);
+    let report = pull_downloads(&world.conn, &world.workspaces_root, &cloud, &[pull_action(1, 6)], &SyncProgress::new());
 
     assert_eq!(report.pulled.len(), 1);
     assert_eq!(compare(&world.conn, &cloud).expect("compare"), [SyncAction::Skip { doc_id: id(1) }]);

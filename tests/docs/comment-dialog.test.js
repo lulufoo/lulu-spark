@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { flushSync } from 'react-dom';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { state } from '../../frontend/src/host/state.ts';
 
 vi.mock('../../frontend/src/host/api.ts', () => ({
@@ -139,5 +139,66 @@ describe('NoteCommentDialog', () => {
     expect(css).not.toMatch(
       /\.md-body-delete-zone button\s*\{[^}]*border:\s*1px solid var\(--border-hex-ffb8b8\)/,
     );
+  });
+});
+
+// A document whose file is gone opens to "Could not load file". Its record is still there, and the
+// delete needs only the id, so the delete button stays: it may be the user's only way out.
+describe('NotesDeleteZone · the file of the document could not be read', () => {
+  function mountDeleteZone() {
+    document.body.innerHTML = '<div id="delete-zone-host"></div>';
+    const root = createRoot(document.getElementById('delete-zone-host'));
+    flushSync(() => root.render(createElement(NotesDeleteZone)));
+  }
+  const deleteButton = () => document.getElementById('btn-delete');
+
+  beforeEach(() => {
+    state.viewer.entry = { common_path: 'inbox/test-topic/202606191430-test-slug.md' };
+    state.viewer.loading = false;
+    state.viewer.loadError = '';
+    state.viewer.editing = false;
+    state.viewer.createSession = null;
+  });
+
+  afterEach(() => {
+    state.viewer.entry = null;
+    state.viewer.loadError = '';
+  });
+
+  it('keeps Delete this entry when the file could not be loaded', () => {
+    state.viewer.loadError = 'File not found';
+
+    mountDeleteZone();
+
+    expect(deleteButton()).toBeTruthy();
+    expect(deleteButton().textContent).toContain('Delete this entry');
+  });
+
+  it('shows it the same way when the file loaded', () => {
+    mountDeleteZone();
+
+    expect(deleteButton()).toBeTruthy();
+  });
+
+  it.each([
+    ['while the file is loading', { loading: true }],
+    ['while the document is being edited', { editing: true }],
+    ['while a new document is being made', { createSession: { kind: 'new' } }],
+    ['while the file could not be loaded and the document is being edited', { loadError: 'File not found', editing: true }],
+  ])('does not show it %s', (_name, patch) => {
+    Object.assign(state.viewer, patch);
+
+    mountDeleteZone();
+
+    expect(deleteButton()).toBeNull();
+  });
+
+  it('has nothing to delete when no document is open, even after a failed load', () => {
+    state.viewer.entry = null;
+    state.viewer.loadError = 'File not found';
+
+    mountDeleteZone();
+
+    expect(deleteButton()).toBeNull();
   });
 });

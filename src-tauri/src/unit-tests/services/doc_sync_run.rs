@@ -29,7 +29,7 @@ fn five_documents() -> (World, FakeCloud) {
 }
 
 fn run(world: &World, cloud: &FakeCloud) -> Result<SyncReport, DocSyncError> {
-    run_sync(&world.conn, &world.workspaces_root, cloud)
+    run_sync(&world.conn, &world.workspaces_root, cloud, &SyncProgress::new())
 }
 
 fn ids(report: &SyncReport) -> (Vec<String>, Vec<String>, Vec<String>) {

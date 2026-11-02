@@ -1,8 +1,11 @@
 //! One sync at a time. Two runs at once would send and write the same documents twice. The gate
-//! also carries the user's wish to cancel the run that holds it.
+//! also carries the user's wish to cancel the run that holds it, and the record of that run (see
+//! [`SyncProgress`]), which it clears when a run begins and closes when the run ends.
 
 use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::Arc;
+
+use super::progress::SyncProgress;
 
 const IDLE: u8 = 0;
 const RUNNING: u8 = 1;
@@ -17,12 +20,14 @@ const CANCELLING: u8 = 2;
 #[derive(Debug, Clone, Default)]
 pub struct SyncGate {
     state: Arc<AtomicU8>,
+    progress: SyncProgress,
 }
 
 /// Held for as long as a run goes on. Dropping it, also when the run panics, opens the gate.
 #[derive(Debug)]
 pub struct SyncRun {
     state: Arc<AtomicU8>,
+    progress: SyncProgress,
 }
 
 impl SyncGate {
@@ -30,12 +35,17 @@ impl SyncGate {
         Self::default()
     }
 
-    /// `None` when a run is going on.
+    /// `None` when a run is going on, and then the record of that run is left as it is.
     pub fn try_begin(&self) -> Option<SyncRun> {
-        self.state
-            .compare_exchange(IDLE, RUNNING, Ordering::AcqRel, Ordering::Acquire)
-            .ok()
-            .map(|_| SyncRun { state: Arc::clone(&self.state) })
+        self.state.compare_exchange(IDLE, RUNNING, Ordering::AcqRel, Ordering::Acquire).ok().map(|_| {
+            self.progress.begin();
+            SyncRun { state: Arc::clone(&self.state), progress: self.progress.clone() }
+        })
+    }
+
+    /// The record of the run that is going on, or of the last one.
+    pub fn progress(&self) -> &SyncProgress {
+        &self.progress
     }
 
     /// Asks the run that holds the gate to stop. Answers whether there is one: with no run going
@@ -56,7 +66,10 @@ impl SyncRun {
 }
 
 impl Drop for SyncRun {
+    /// The record is closed before the gate opens: once it is open another run may begin, and
+    /// closing then would close that run's record.
     fn drop(&mut self) {
+        self.progress.end();
         self.state.store(IDLE, Ordering::Release);
     }
 }

@@ -6,10 +6,11 @@ use rusqlite::Connection;
 
 use super::error::DocSyncError;
 use super::plan::SyncAction;
+use super::progress::SyncProgress;
 use super::pull::{pull_downloads, PullReport};
 use super::push::{push_uploads, PushReport};
 use super::compare;
-use crate::services::cloud_sync::{CloudDocs, CloudSyncError};
+use crate::services::cloud_sync::CloudDocs;
 
 /// What one run did. Every document of the plan is in exactly one place: skipped, one of the
 /// lists of the push report, or one of the lists of the pull report.
@@ -29,7 +30,7 @@ impl SyncReport {
 
     /// Whether the user ended the run (see `SyncGate::cancel`) before it had done everything.
     pub fn was_cancelled(&self) -> bool {
-        matches!(self.stop(), Some((_, DocSyncError::Cloud(CloudSyncError::Cancelled))))
+        self.stop().is_some_and(|(_, error)| error.is_cancelled())
     }
 
     /// The documents the run did not get to. A run stopped by an error counts the documents after
@@ -49,19 +50,24 @@ impl SyncReport {
 /// versions as they are by then, so everything that went through is skipped and the run goes on
 /// with the rest.
 ///
+/// `progress` is told the plan as soon as it is made, and then how each document fares (see
+/// [`SyncProgress`]); it is not the report, which says what the run did once it is over.
+///
 /// `Err` only when the comparison could not be made, and then nothing was sent or written.
 pub fn run_sync(
     conn: &Connection,
     workspaces_root: &Path,
     cloud: &dyn CloudDocs,
+    progress: &SyncProgress,
 ) -> Result<SyncReport, DocSyncError> {
     let actions = compare(conn, cloud)?;
+    progress.plan(conn, &actions);
     let skipped = actions
         .iter()
         .filter(|a| matches!(a, SyncAction::Skip { .. }))
         .map(|a| a.doc_id().to_string())
         .collect();
-    let push = push_uploads(conn, workspaces_root, cloud, &actions);
+    let push = push_uploads(conn, workspaces_root, cloud, &actions, progress);
     let pull = if push.stopped.is_some() {
         PullReport {
             not_tried: actions
@@ -72,7 +78,7 @@ pub fn run_sync(
             ..PullReport::default()
         }
     } else {
-        pull_downloads(conn, workspaces_root, cloud, &actions)
+        pull_downloads(conn, workspaces_root, cloud, &actions, progress)
     };
     Ok(SyncReport { skipped, push, pull })
 }

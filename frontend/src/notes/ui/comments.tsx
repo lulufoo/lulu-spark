@@ -553,7 +553,9 @@ export function NotesDeleteZone() {
   const entry = host.viewer.entry;
   const creating = Boolean(host.viewer.createSession);
   const editing = Boolean(host.viewer.editing);
-  if (!entry || creating || editing || host.viewer.loading || host.viewer.loadError) return null;
+  // A document whose file could not be read keeps its zone: the record is still there, and the
+  // delete does not need the file (the host skips one that is gone). It may be the only way out.
+  if (!entry || creating || editing || host.viewer.loading) return null;
   return (
     <div className="md-body-delete-zone">
       <button

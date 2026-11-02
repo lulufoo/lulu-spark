@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cloudSyncStatus } from '../../frontend/src/home/ui/cloud-sync-text.ts';
+import { syncCardText } from '../../frontend/src/home/ui/sync-entry-text.ts';
 
 function result(overrides = {}) {
   return {
@@ -17,73 +17,92 @@ function result(overrides = {}) {
   };
 }
 
+const ended = (answer) => ({ phase: 'ended', result: { kind: 'finished', summary: answer } });
+
 const CANCEL_HINT = 'Cancel stops before the next document; the one being transferred is finished.';
 
-describe('cloudSyncStatus · what the user is told while no sync was made, or one is going on', () => {
+describe('syncCardText · a round that is going on, or ended without a sync being made', () => {
   const cases = [
     ['nothing yet', { phase: 'idle' }, null],
-    [
-      'a sync going on',
-      { phase: 'syncing', cancelling: false },
-      { tone: 'neutral', title: 'Syncing…', detail: CANCEL_HINT },
-    ],
+    ['the sign-in being refreshed', { phase: 'starting' }, { tone: 'neutral', title: 'Starting…', detail: 'Checking your sign-in.' }],
+    ['a sync going on', { phase: 'running' }, { tone: 'neutral', title: 'Syncing…', detail: CANCEL_HINT }],
     [
       'a sync that is being cancelled',
-      { phase: 'syncing', cancelling: true },
+      { phase: 'cancelling' },
       { tone: 'neutral', title: 'Cancelling…', detail: 'Finishing the document being transferred.' },
     ],
     [
       'a cancel before the host was asked',
-      { phase: 'cancelled' },
+      { phase: 'ended', result: { kind: 'cancelled_before_start' } },
       { tone: 'neutral', title: 'Sync cancelled', detail: 'Nothing was sent or changed.' },
     ],
     [
-      'signed out',
-      { phase: 'refused', reason: 'signed_out' },
+      'a round that could not start: the one line of the reason, nothing else',
+      { phase: 'ended', result: { kind: 'could_not_start', reason: 'Sign in first to sync.' } },
       { tone: 'warn', title: 'Cannot sync', detail: 'Sign in first to sync.' },
-    ],
-    [
-      'the sign-in service out of reach',
-      { phase: 'refused', reason: 'session_network' },
-      {
-        tone: 'warn',
-        title: 'Cannot sync',
-        detail: 'Could not reach the sign-in service. Check your connection and try again.',
-      },
-    ],
-    [
-      'the sign-in no longer valid',
-      { phase: 'refused', reason: 'session_invalid' },
-      { tone: 'warn', title: 'Cannot sync', detail: 'Your sign-in is no longer valid. Sign in again to sync.' },
-    ],
-    [
-      'the host refusing the session',
-      { phase: 'failed', status: 401, message: 'Cannot sync: not signed in' },
-      { tone: 'warn', title: 'Cannot sync', detail: 'Your sign-in was not accepted. Sign in again to sync.' },
-    ],
-    [
-      'a sync already running in the host',
-      { phase: 'failed', status: 409, message: 'x' },
-      { tone: 'warn', title: 'Cannot sync', detail: 'A sync is already running.' },
-    ],
-    [
-      'the host giving a reason',
-      { phase: 'failed', status: 502, message: 'Cannot sync: cloud sync not reachable' },
-      { tone: 'warn', title: 'Cannot sync', detail: 'Cannot sync: cloud sync not reachable' },
-    ],
-    [
-      'a failure with no status',
-      { phase: 'failed', status: null, message: 'Sync failed' },
-      { tone: 'warn', title: 'Cannot sync', detail: 'Sync failed' },
     ],
   ];
 
-  it.each(cases)('%s', (_name, view, expected) => {
-    expect(cloudSyncStatus(view)).toEqual(expected);
+  it.each(cases)('%s', (_name, run, expected) => {
+    expect(syncCardText(run)).toEqual(expected);
   });
 });
 
-describe('cloudSyncStatus · a sync that was made', () => {
+// The host lists the documents only after it has the cloud's list and has compared it with this
+// machine's. Until then nothing is being transferred, and the card must not talk of a document.
+describe('syncCardText · before the host has a list of documents', () => {
+  const cases = [
+    [
+      'a sync going on says it is comparing, and that Cancel stops it before the first document',
+      { phase: 'running' },
+      {
+        tone: 'neutral',
+        title: 'Comparing with the cloud…',
+        detail: 'Nothing is being transferred yet. Cancel stops the sync before the first document.',
+      },
+    ],
+    [
+      'a sync being cancelled waits for the cloud, and nothing is sent',
+      { phase: 'cancelling' },
+      {
+        tone: 'neutral',
+        title: 'Cancelling…',
+        detail: 'Waiting for the cloud to answer; nothing will be sent or changed.',
+      },
+    ],
+  ];
+
+  it.each(cases)('%s', (_name, run, expected) => {
+    expect(syncCardText(run, false, false)).toEqual(expected);
+  });
+
+  it('is the same card as before once the documents are listed', () => {
+    expect(syncCardText({ phase: 'running' }, false, true)).toEqual({
+      tone: 'neutral',
+      title: 'Syncing…',
+      detail: CANCEL_HINT,
+    });
+    expect(syncCardText({ phase: 'cancelling' }, false, true)).toEqual({
+      tone: 'neutral',
+      title: 'Cancelling…',
+      detail: 'Finishing the document being transferred.',
+    });
+  });
+
+  it('does not touch the other states: they never depended on the list', () => {
+    for (const run of [
+      { phase: 'idle' },
+      { phase: 'starting' },
+      ended(result({ uploaded: 1 })),
+      { phase: 'ended', result: { kind: 'cancelled_before_start' } },
+      { phase: 'ended', result: { kind: 'could_not_start', reason: 'Sign in first to sync.' } },
+    ]) {
+      expect(syncCardText(run, false, false)).toEqual(syncCardText(run, false, true));
+    }
+  });
+});
+
+describe('syncCardText · a sync that was made', () => {
   const cases = [
     ['nothing to do', result(), 'neutral', 'Sync finished', 'Uploaded 0 · Pulled 0 · Unchanged 0'],
     [
@@ -158,11 +177,35 @@ describe('cloudSyncStatus · a sync that was made', () => {
   ];
 
   it.each(cases)('%s', (_name, answer, tone, title, detail) => {
-    expect(cloudSyncStatus({ phase: 'done', result: answer })).toEqual({ tone, title, detail });
+    expect(syncCardText(ended(answer))).toEqual({ tone, title, detail });
   });
 });
 
-describe('cloudSyncStatus · a sync the user cancelled', () => {
+describe('syncCardText · when the panel lists the documents that failed', () => {
+  it('counts the failures and leaves the first reason to the list', () => {
+    const answer = result({ uploaded: 1, failed: [{ id: 'd1', op: 'upload', error: 'too big' }] });
+
+    expect(syncCardText(ended(answer), true)).toEqual({
+      tone: 'warn',
+      title: 'Synced, with problems',
+      detail: 'Uploaded 1 · Pulled 0 · Unchanged 0 · 1 failed',
+    });
+  });
+
+  it('still tells why a run stopped early, and what was not tried', () => {
+    const answer = result({
+      failed: [{ id: 'd1', op: 'upload', error: 'too big' }],
+      not_tried: 2,
+      stopped: { id: 'd2', op: 'pull', error: 'offline' },
+    });
+
+    expect(syncCardText(ended(answer), true).detail).toBe(
+      'Uploaded 0 · Pulled 0 · Unchanged 0 · 1 failed · stopped early: offline · 2 not tried, sync again to continue',
+    );
+  });
+});
+
+describe('syncCardText · a sync the user cancelled', () => {
   const cases = [
     [
       'before anything went through',
@@ -190,10 +233,6 @@ describe('cloudSyncStatus · a sync the user cancelled', () => {
   ];
 
   it.each(cases)('%s', (_name, answer, tone, detail) => {
-    expect(cloudSyncStatus({ phase: 'done', result: answer })).toEqual({
-      tone,
-      title: 'Sync cancelled',
-      detail,
-    });
+    expect(syncCardText(ended(answer))).toEqual({ tone, title: 'Sync cancelled', detail });
   });
 });

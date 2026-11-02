@@ -243,6 +243,32 @@ fn a_user_who_is_not_signed_in_deletes_on_this_machine_only() {
     assert_eq!(files_under(&theme_dir()), Vec::<PathBuf>::new());
 }
 
+/// The file of a document can be gone while its record stays (a clean-up on the disk, a sync that
+/// never brought it). The page then cannot open it, and the delete is the way out: it must not need
+/// the file.
+#[test]
+fn a_document_whose_files_are_gone_is_still_deleted() {
+    let sandbox = setup_notes();
+    let id = new_note(&sandbox);
+    for file in files_under(&theme_dir()) {
+        fs::remove_file(&file).expect("remove a file of the document");
+    }
+    assert_eq!(files_under(&theme_dir()), Vec::<PathBuf>::new());
+    assert!(row_exists(&id), "the record is still there");
+    let cloud = DeleteSpy::answering(Ok(()));
+
+    let deleted = delete_doc_with(&json!({ "id": id }), &cloud);
+
+    assert_eq!(deleted.get("ok"), Some(&json!(true)), "{deleted}");
+    assert_eq!(deleted["removed"], json!(0), "there was no file to remove: {deleted}");
+    assert!(!row_exists(&id));
+    assert_eq!(
+        cloud.asked(),
+        [AskedWhen { doc_id: id.clone(), row_there: true, files_there: 0 }],
+        "the cloud is still asked first, once"
+    );
+}
+
 #[test]
 fn an_id_the_cloud_cannot_hold_is_deleted_on_this_machine() {
     let sandbox = setup_notes();

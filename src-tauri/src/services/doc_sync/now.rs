@@ -50,6 +50,12 @@ pub fn cancel_now(gate: &SyncGate) -> Value {
     json!({ "ok": true, "cancelling": gate.cancel() })
 }
 
+/// The record of the sync that is going on, or of the last one, all of it at once: `{ ok, running,
+/// entries }` (see [`super::progress::Snapshot::to_json`]). It reads, and never waits for a run.
+pub fn progress_now(gate: &SyncGate) -> Value {
+    gate.progress().snapshot().to_json()
+}
+
 /// One sync against `cloud`, on this machine's database and workspace folders.
 ///
 /// The answer is `{ ok, uploaded, pulled, skipped, ... }` when a run was made (see
@@ -82,7 +88,7 @@ pub(super) fn sync_and_journal(
         .and_then(|conn| {
             let root = paths::workspaces_root()
                 .map_err(|e| super::DocSyncError::Database(format!("workspaces folder: {e:?}")))?;
-            run_sync(&conn, &root, &cloud)
+            run_sync(&conn, &root, &cloud, gate.progress())
         });
     match outcome {
         Ok(report) => {

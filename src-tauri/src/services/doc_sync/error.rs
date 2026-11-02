@@ -37,6 +37,11 @@ impl DocSyncError {
             ),
         }
     }
+
+    /// Whether the user ended the run (see `SyncGate::cancel`): the next transfer was refused.
+    pub fn is_cancelled(&self) -> bool {
+        matches!(self, Self::Cloud(CloudSyncError::Cancelled))
+    }
 }
 
 impl fmt::Display for DocSyncError {

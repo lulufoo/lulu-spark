@@ -6,6 +6,7 @@ use rusqlite::Connection;
 
 use super::error::DocSyncError;
 use super::plan::SyncAction;
+use super::progress::SyncProgress;
 use crate::services::cloud_sync::CloudDocs;
 use crate::services::doc_zip::pack_doc;
 use crate::services::docs::workspace_dir;
@@ -68,11 +69,15 @@ pub struct PushReport {
 /// Runs the `Upload` actions of `actions` in order; other actions are not its business. A
 /// failure of one document is recorded and the run goes on; an error that would hit every
 /// document stops it, so a lost connection costs one timeout, not one per document.
+///
+/// `progress` is told when each document begins and how it ended; a document it does not know is
+/// of no interest to it.
 pub fn push_uploads(
     conn: &Connection,
     workspaces_root: &Path,
     cloud: &dyn CloudDocs,
     actions: &[SyncAction],
+    progress: &SyncProgress,
 ) -> PushReport {
     let mut report = PushReport::default();
     for action in actions {
@@ -81,13 +86,24 @@ pub fn push_uploads(
             report.not_tried.push(doc_id.clone());
             continue;
         }
+        progress.start(doc_id);
         match upload_doc(conn, workspaces_root, cloud, doc_id) {
             Ok(UploadOutcome::Uploaded { version, bytes }) => {
+                progress.done(doc_id);
                 report.uploaded.push(UploadedDoc { doc_id: doc_id.clone(), version, bytes })
             }
-            Ok(UploadOutcome::Gone) => report.gone.push(doc_id.clone()),
-            Err(e) if e.stops_the_run() => report.stopped = Some((doc_id.clone(), e)),
-            Err(e) => report.failed.push((doc_id.clone(), e)),
+            Ok(UploadOutcome::Gone) => {
+                progress.forget(doc_id);
+                report.gone.push(doc_id.clone())
+            }
+            Err(e) if e.stops_the_run() => {
+                progress.stopped_on(doc_id, &e);
+                report.stopped = Some((doc_id.clone(), e))
+            }
+            Err(e) => {
+                progress.fail(doc_id, &e);
+                report.failed.push((doc_id.clone(), e))
+            }
         }
     }
     report
