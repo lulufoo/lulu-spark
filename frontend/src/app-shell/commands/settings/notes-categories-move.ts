@@ -121,18 +121,35 @@ export function backMoveTarget() {
   patchNotesCategories({ moveTargetId: '', moveError: '' });
 }
 
-export function cancelMoveProject() {
-  const snap = notesCategoriesStore.getSnapshot();
-  if (snap.busy || !snap.moveId) return;
+function closeMoveDialog() {
   patchNotesCategories({
     moveId: '',
     moveError: '',
+    cancelling: false,
     moveLoading: false,
     moveWorkspaces: [],
     moveWorkspaceId: '',
     moveProjects: [],
     moveTargetId: '',
+    busy: false,
   });
+}
+
+/** Close the dialog, or stop the move that is going on before its next document. */
+export async function cancelMoveProject() {
+  const snap = notesCategoriesStore.getSnapshot();
+  if (!snap.moveId) return;
+  if (snap.busy) {
+    if (snap.cancelling) return;
+    patchNotesCategories({ cancelling: true });
+    try {
+      await api.cancelMoveProject();
+    } catch (e) {
+      patchNotesCategories({ cancelling: false, moveError: (e as Error).message || String(e) });
+    }
+    return;
+  }
+  closeMoveDialog();
 }
 
 async function refreshPage(
@@ -165,22 +182,26 @@ export async function confirmMoveProject(workspaceId: string): Promise<boolean> 
   patchNotesCategories({ busy: true, moveError: '' });
   try {
     const result = await api.moveProject(workspaceId, sourceId, targetWorkspaceId, targetId);
+    if (result?.cancelled) {
+      const moved = result.moved ?? 0;
+      const total = result.total ?? moved;
+      patchNotesCategories({
+        busy: false,
+        cancelling: false,
+        moveError: `Stopped after moving ${moved} of ${total} documents. The project was not deleted.`,
+      });
+      await loadNotesCategories(workspaceId);
+      patchNotesCategories({ busy: false, cancelling: false });
+      return false;
+    }
     if (result?.error) throw new Error(result.error);
   } catch (e) {
-    patchNotesCategories({ busy: false, moveError: (e as Error).message || String(e) });
+    patchNotesCategories({ busy: false, cancelling: false, moveError: (e as Error).message || String(e) });
     await loadNotesCategories(workspaceId);
+    patchNotesCategories({ busy: false, cancelling: false });
     return false;
   }
-  patchNotesCategories({
-    moveId: '',
-    moveError: '',
-    moveLoading: false,
-    moveWorkspaces: [],
-    moveWorkspaceId: '',
-    moveProjects: [],
-    moveTargetId: '',
-    busy: false,
-  });
+  closeMoveDialog();
   await loadNotesCategories(workspaceId);
   announceRegistryChange();
   void refreshPage(workspaceId, sourceId, targetWorkspaceId, targetId, inboxId).catch(() => {});

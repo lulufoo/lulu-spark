@@ -27,30 +27,28 @@ export function NotesCategoriesMoveDialog() {
   const source = snap.rows.find((row) => row.id === snap.moveId);
   const target = snap.moveProjects.find((row) => row.id === snap.moveTargetId);
   const targetWorkspace = snap.moveWorkspaces.find((row) => row.id === snap.moveWorkspaceId);
-  const open = Boolean(source);
+  const open = Boolean(snap.moveId);
   const confirming = Boolean(target && targetWorkspace);
+  const sourceTitle = source?.title || source?.id || 'this project';
 
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape' || snap.busy) return;
+      if (e.key !== 'Escape') return;
       e.preventDefault();
-      cancelMoveProject();
+      void cancelMoveProject();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [open, snap.busy]);
+  }, [open]);
 
   return (
     <div
       id="notes-cat-move-dialog"
       className={open ? 'open' : undefined}
       role="presentation"
-      onClick={(e) => {
-        if (e.target === e.currentTarget && !snap.busy) cancelMoveProject();
-      }}
     >
-      {source ? (
+      {open ? (
         <div id="notes-cat-move-dialog-box" role="dialog" aria-modal="true" aria-labelledby="notes-cat-move-dialog-title">
           <div id="notes-cat-move-dialog-header">
             <h3 id="notes-cat-move-dialog-title">Move project</h3>
@@ -64,7 +62,7 @@ export function NotesCategoriesMoveDialog() {
           <div id="notes-cat-move-dialog-body">
             {confirming && target && targetWorkspace ? (
               <p id="notes-cat-move-copy" className="notes-cat-confirm-copy">
-                {describeProjectMove(source.title || source.id, source.doc_count, target.title || target.id, targetWorkspace.name)}
+                {describeProjectMove(sourceTitle, source?.doc_count ?? 0, target.title || target.id, targetWorkspace.name)}
               </p>
             ) : (
               <>
@@ -104,13 +102,18 @@ export function NotesCategoriesMoveDialog() {
             <div id="notes-cat-move-error" className="settings-result notes-cat-error">
               {snap.moveError}
             </div>
+            {snap.busy ? <p className="notes-cat-confirm-copy">Moving…</p> : null}
             <div className="notes-cat-edit-actions">
-              {confirming ? (
-                <button type="button" className="btn-settings-ghost" disabled={snap.busy} onClick={() => backMoveTarget()}>
+              {snap.busy ? (
+                <button type="button" className="btn-settings-ghost" disabled={snap.cancelling} onClick={() => void cancelMoveProject()}>
+                  {snap.cancelling ? 'Stopping…' : 'Cancel'}
+                </button>
+              ) : confirming ? (
+                <button type="button" className="btn-settings-ghost" onClick={() => backMoveTarget()}>
                   Back
                 </button>
               ) : (
-                <button type="button" className="btn-settings-ghost" disabled={snap.busy} onClick={() => cancelMoveProject()}>
+                <button type="button" className="btn-settings-ghost" onClick={() => void cancelMoveProject()}>
                   Cancel
                 </button>
               )}

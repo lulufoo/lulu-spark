@@ -234,3 +234,14 @@ fn the_index_follows_the_document() {
         .expect("count");
     assert_eq!(leftover, 0);
 }
+
+#[test]
+fn cancel_applies_to_the_run_that_is_going_on_and_not_the_next_one() {
+    use std::sync::atomic::Ordering;
+    let run = super::RUN.fetch_add(1, Ordering::SeqCst) + 1;
+    assert!(!super::run_is_cancelled(run));
+    super::cancel_move_project();
+    assert!(super::run_is_cancelled(run));
+    let next = super::RUN.fetch_add(1, Ordering::SeqCst) + 1;
+    assert!(!super::run_is_cancelled(next));
+}

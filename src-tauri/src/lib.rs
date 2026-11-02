@@ -83,6 +83,7 @@ pub fn run() {
             commands::workspaces::reorder_projects,
             commands::workspaces::delete_project,
             commands::workspaces::move_project,
+            commands::workspaces::cancel_move_project,
             commands::workspaces::delete_workspace,
             commands::workspaces::list_hide_patterns,
             commands::workspaces::add_hide_pattern,

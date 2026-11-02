@@ -33,6 +33,7 @@ const P2_PATHS = [
   ['/api/projects-reorder', 'reorder_projects', ['payload']],
   ['/api/project-delete', 'delete_project', ['payload']],
   ['/api/project-move', 'move_project', ['payload']],
+  ['/api/project-move-cancel', 'cancel_move_project', []],
   ['/api/hide-pattern-add', 'add_hide_pattern', ['payload']],
   ['/api/hide-pattern-update', 'update_hide_pattern', ['payload']],
   ['/api/hide-pattern-remove', 'remove_hide_pattern', ['payload']],

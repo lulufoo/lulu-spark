@@ -105,6 +105,11 @@ pub async fn move_project(_app: AppHandle, payload: Value) -> Result<Value, Stri
 }
 
 #[tauri::command]
+pub async fn cancel_move_project(_app: AppHandle) -> Result<Value, String> {
+    run(docs::cancel_move_project).await
+}
+
+#[tauri::command]
 pub async fn delete_workspace(_app: AppHandle, payload: Value) -> Result<Value, String> {
     run(move || docs::delete_workspace(&payload)).await
 }
