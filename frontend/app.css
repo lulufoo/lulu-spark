@@ -7072,10 +7072,10 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
 }
 .home-sync-button-panel {
   position: absolute;
+  /* As wide as the row. The sidebar clips what leaves it (overflow: hidden), so the panel cannot be
+     wider than the sidebar; a long name ends in "…" and the whole of it is in the hover. */
   left: var(--home-chat-row-inset);
   right: var(--home-chat-row-inset);
-  /* About 320px: wider than the row when the row is narrow, so names and reasons have room. */
-  min-width: min(320px, calc(100vw - 2 * var(--home-chat-row-inset)));
   bottom: calc(100% + 4px);
   z-index: 3;
   display: flex;

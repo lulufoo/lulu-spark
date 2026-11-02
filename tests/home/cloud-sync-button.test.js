@@ -136,9 +136,13 @@ describe('sync button · source', () => {
     expect(css).toMatch(/\.home-sync-menu\s*\{[^}]*position:\s*absolute/);
   });
 
-  it('is about 320px wide, and its list scrolls inside it so Cancel stays in view', () => {
+  it('is as wide as the row, for the sidebar clips what leaves it; its list scrolls so Cancel stays in view', () => {
     const css = readRel('frontend/app.css');
-    expect(css).toMatch(/\.home-sync-button-panel\s*\{[^}]*min-width:\s*min\(320px,/);
+    expect(css).toMatch(/\.home-chat-sidebar\s*\{[^}]*overflow:\s*hidden/);
+    const panel = css.match(/\.home-sync-button-panel\s*\{[^}]*\}/)[0];
+    expect(panel).toMatch(/left:\s*var\(--home-chat-row-inset\)/);
+    expect(panel).toMatch(/right:\s*var\(--home-chat-row-inset\)/);
+    expect(panel).not.toMatch(/min-width|[^-]width:/);
     expect(css).toMatch(/\.home-sync-roster\s*\{[^}]*max-height:\s*\d+px[^}]*overflow-y:\s*auto/);
     expect(css).toMatch(/\.home-sync-group\[data-group="failed"\] \.home-sync-group-title\s*\{[^}]*color:\s*var\(--fg-danger\)/);
     expect(css).toMatch(/\.home-sync-row-name\[data-disabled="true"\]\s*\{[^}]*color:\s*var\(--fg-subtle\)/);
