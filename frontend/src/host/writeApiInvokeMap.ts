@@ -174,6 +174,10 @@ export const WRITE_API_INVOKE_MAP: Record<string, WriteInvokeEntry> = {
     cmd: 'delete_project',
     args: (body) => ({ payload: body ?? {} }),
   },
+  '/api/project-move': {
+    cmd: 'move_project',
+    args: (body) => ({ payload: body ?? {} }),
+  },
   '/api/projects-reorder': {
     cmd: 'reorder_projects',
     args: (body) => ({ payload: body ?? {} }),

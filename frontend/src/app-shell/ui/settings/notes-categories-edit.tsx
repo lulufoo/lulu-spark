@@ -4,6 +4,7 @@ import { OverlayDismissButton } from '../../../shared/overlay-dismiss-button.tsx
 import {
   askDeleteProject,
 } from '../../commands/settings/notes-categories-delete.ts';
+import { askMoveProject } from '../../commands/settings/notes-categories-move.ts';
 import {
   closeNotesCategoryEditor,
   openNotesCategoryEditor,
@@ -16,6 +17,7 @@ import { Icon } from '../../../shared/icons/icon.tsx';
 import { DEFAULT_PROJECT_ICON_ID } from '../../../shared/icons/index.ts';
 import { notesCategoriesStore } from '../../state/settings/notes-categories.ts';
 import { NotesCategoriesDeleteDialog } from './notes-categories-delete-dialog.tsx';
+import { NotesCategoriesMoveDialog } from './notes-categories-move-dialog.tsx';
 import { IconPicker } from './icon-picker.tsx';
 
 /** Project list of the selected workspace (the row's title area and Edit open the dialog; Delete asks first) and the edit dialog. */
@@ -47,7 +49,7 @@ export function NotesCategoriesEditHost() {
   return (
     <>
       <p className="notes-cat-lead">
-        Click a project to change its title or description; drag the handle to change the order. Delete moves a project's documents to the Built-in project.
+        Click a project to change its title or description; drag the handle to change the order. Move sends a project's documents to a project you choose, then deletes it. Delete moves a project's documents to the Built-in project.
       </p>
       {snap.error && !snap.editorOpen ? (
         <div id="notes-cat-list-error" className="settings-result notes-cat-error">
@@ -84,6 +86,16 @@ export function NotesCategoriesEditHost() {
                     {row.is_default ? null : (
                       <button
                         type="button"
+                        className="notes-cat-row-move"
+                        disabled={snap.busy}
+                        onClick={() => void askMoveProject(row.id)}
+                      >
+                        Move
+                      </button>
+                    )}
+                    {row.is_default ? null : (
+                      <button
+                        type="button"
                         className="notes-cat-row-delete"
                         disabled={snap.busy}
                         onClick={() => askDeleteProject(row.id)}
@@ -107,6 +119,7 @@ export function NotesCategoriesEditHost() {
         />
       </div>
       <NotesCategoriesDeleteDialog />
+      <NotesCategoriesMoveDialog />
       <div
         id="notes-cat-edit-dialog"
         className={snap.editorOpen ? 'open' : undefined}

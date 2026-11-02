@@ -34,6 +34,7 @@ const P2_WRITE_PATHS = [
   '/api/project-update',
   '/api/projects-reorder',
   '/api/project-delete',
+  '/api/project-move',
   '/api/hide-pattern-add',
   '/api/hide-pattern-update',
   '/api/hide-pattern-remove',
@@ -56,7 +57,7 @@ describe('writeApiInvokeMap', () => {
     for (const p of P2_WRITE_PATHS) {
       expect(WRITE_API_INVOKE_MAP[p]?.cmd, p).toBeTruthy();
     }
-    expect(Object.keys(WRITE_API_INVOKE_MAP)).toHaveLength(36);
+    expect(Object.keys(WRITE_API_INVOKE_MAP)).toHaveLength(38);
   });
 
   it('maps /api/file absolute-path write to write_abs_file', () => {

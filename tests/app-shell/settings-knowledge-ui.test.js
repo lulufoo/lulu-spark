@@ -49,7 +49,7 @@ describe('Settings workspace UI', () => {
     expect(indexHtml).toContain('Disabled (');
   });
 
-  it('a workspace page uses Tabs: Directory, Add project, Edit & Delete project, Hidden files', () => {
+  it('a workspace page uses Tabs: Directory, Add project, Edit, Move & Delete project, Hidden files', () => {
     const panel = readFileSync(
       join(repoRoot, 'frontend/src/app-shell/ui/settings/workspace-projects-panel.tsx'),
       'utf8',
@@ -60,7 +60,7 @@ describe('Settings workspace UI', () => {
       expect(panel).toContain(`data-tab="${tab}"`);
       expect(panel).toContain(`id="settings-tab-workspace-${tab}"`);
     }
-    expect(panel).toContain('Edit &amp; Delete project');
+    expect(panel).toContain('Edit, Move &amp; Delete project');
     expect(panel).toContain('data-tab="hidden"');
     expect(panel).toContain('<HiddenFilesTab />');
     expect(indexHtml).toContain('id="settings-tab-workspace-hidden"');
