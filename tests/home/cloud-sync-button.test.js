@@ -55,6 +55,16 @@ function signedUser(overrides = {}) {
   };
 }
 
+const entryOf = (overrides = {}) => ({
+  id: 'a'.repeat(32),
+  name: 'Notes',
+  op: 'upload',
+  state: 'not_started',
+  reason: null,
+  local: true,
+  ...overrides,
+});
+const idOf = (n) => n.toString(16).padStart(32, '0');
 const finished = (overrides) => ({ phase: 'ended', result: { kind: 'finished', summary: doneResult(overrides) } });
 const none = { phase: 'none' };
 const pending = { phase: 'pending', uploads: 2, pulls: 1 };
@@ -70,7 +80,9 @@ describe('sync button · source', () => {
     expect(rowStart).toBeGreaterThan(-1);
     expect(sync).toBeGreaterThan(account);
     expect(help).toBeGreaterThan(sync);
-    expect(page).toMatch(/<CloudSyncButton\s+entry=\{syncEntry\}\s+run=\{syncRun\}\s+onStart=\{onSyncStart\}\s+onCancel=\{onSyncCancel\}\s+onViewOpen=\{markSyncResultSeen\}/);
+    expect(page).toMatch(
+      /<CloudSyncButton\s+entry=\{syncEntry\}\s+run=\{syncRun\}\s+roster=\{syncRoster\}\s+onStart=\{onSyncStart\}\s+onCancel=\{onSyncCancel\}\s+onViewOpen=\{markSyncResultSeen\}\s+onOpenDoc=\{\(id\) => void openDocById\(id\)\}/,
+    );
   });
 
   it('is pure paint: the page composes, the button only shows and calls back', () => {
@@ -123,6 +135,14 @@ describe('sync button · source', () => {
     expect(css).toMatch(/\.home-sync-button-panel\s*\{[^}]*position:\s*absolute/);
     expect(css).toMatch(/\.home-sync-menu\s*\{[^}]*position:\s*absolute/);
   });
+
+  it('is about 320px wide, and its list scrolls inside it so Cancel stays in view', () => {
+    const css = readRel('frontend/app.css');
+    expect(css).toMatch(/\.home-sync-button-panel\s*\{[^}]*min-width:\s*min\(320px,/);
+    expect(css).toMatch(/\.home-sync-roster\s*\{[^}]*max-height:\s*\d+px[^}]*overflow-y:\s*auto/);
+    expect(css).toMatch(/\.home-sync-group\[data-group="failed"\] \.home-sync-group-title\s*\{[^}]*color:\s*var\(--fg-danger\)/);
+    expect(css).toMatch(/\.home-sync-row-name\[data-disabled="true"\]\s*\{[^}]*color:\s*var\(--fg-subtle\)/);
+  });
 });
 
 describe('CloudSyncButton', () => {
@@ -132,6 +152,7 @@ describe('CloudSyncButton', () => {
   let onStart;
   let onCancel;
   let onViewOpen;
+  let onOpenDoc;
 
   beforeEach(async () => {
     ({ CloudSyncButton } = await import('../../frontend/src/home/ui/cloud-sync-button.tsx'));
@@ -141,6 +162,7 @@ describe('CloudSyncButton', () => {
     onStart = vi.fn();
     onCancel = vi.fn();
     onViewOpen = vi.fn();
+    onOpenDoc = vi.fn();
   });
 
   afterEach(() => {
@@ -151,15 +173,17 @@ describe('CloudSyncButton', () => {
   });
 
   /** Renders the button for a state of the three stores, the way the page derives it. */
-  function render({ run = { phase: 'idle' }, check = none, seen = 'seen' } = {}) {
+  function render({ run = { phase: 'idle' }, check = none, seen = 'seen', entries = [] } = {}) {
     act(() => {
       root.render(
         createElement(CloudSyncButton, {
           entry: deriveSyncEntry(run, check, seen),
           run,
+          roster: { entries },
           onStart,
           onCancel,
           onViewOpen,
+          onOpenDoc,
         }),
       );
     });
@@ -421,6 +445,189 @@ describe('CloudSyncButton', () => {
     // A new result does not bring the old card back by itself.
     render({ run: finished({ uploaded: 2 }), seen: 'unseen' });
     expect(q('sync-status')).toBeNull();
+  });
+
+  describe('the documents of the round', () => {
+    const rows = () => [...container.querySelectorAll('[data-role="sync-row"]')];
+    const groups = () => [...container.querySelectorAll('[data-role="sync-group"]')];
+    const groupTitles = () => groups().map((g) => g.querySelector('[data-role="sync-group-title"]').textContent);
+    const namesIn = (group) => [...group.querySelectorAll('[data-role="sync-row-name"]')].map((n) => n.textContent);
+
+    const mixed = [
+      entryOf({ id: idOf(1), name: 'Roadmap', op: 'upload', state: 'done' }),
+      entryOf({ id: idOf(2), name: 'Ideas', op: 'upload', state: 'running' }),
+      entryOf({ id: idOf(3), name: 'Broken', op: 'upload', state: 'failed', reason: 'could not pack document' }),
+      entryOf({ id: idOf(4), name: 'Plan', op: 'pull', state: 'not_started', local: true }),
+      entryOf({ id: idOf(5), name: '0badf00d', op: 'pull', state: 'not_started', local: false }),
+    ];
+
+    it('groups them as Failed, In progress, Done, Not started, and leaves out a group with nothing in it', () => {
+      render({ run: running, entries: mixed });
+      openView();
+
+      expect(groupTitles()).toEqual(['Failed · 1', 'In progress · 1', 'Done · 1', 'Not started · 2']);
+      expect(namesIn(groups()[0])).toEqual(['Broken']);
+      expect(namesIn(groups()[3])).toEqual(['Plan', '0badf00d']);
+
+      render({ run: running, entries: [entryOf({ id: idOf(9), name: 'Only', state: 'not_started' })] });
+      expect(groupTitles()).toEqual(['Not started · 1']);
+    });
+
+    it('marks each row with an arrow: up for what is sent, down for what is brought here', () => {
+      render({ run: running, entries: mixed });
+      openView();
+
+      const arrows = Object.fromEntries(
+        rows().map((row) => [
+          row.querySelector('[data-role="sync-row-name"]').textContent,
+          row.querySelector('.home-sync-row-arrow'),
+        ]),
+      );
+      expect(arrows.Ideas.textContent).toBe('↑');
+      expect(arrows.Ideas.getAttribute('aria-label')).toBe('Upload');
+      expect(arrows.Plan.textContent).toBe('↓');
+      expect(arrows.Plan.getAttribute('aria-label')).toBe('Download');
+    });
+
+    it('moves a document between groups as the host\'s list changes, replacing the list as a whole', () => {
+      const queued = entryOf({ id: idOf(7), name: 'Draft', state: 'not_started' });
+      render({ run: running, entries: [queued] });
+      openView();
+      expect(groupTitles()).toEqual(['Not started · 1']);
+
+      render({ run: running, entries: [{ ...queued, state: 'running' }] });
+      expect(groupTitles()).toEqual(['In progress · 1']);
+
+      render({ run: running, entries: [{ ...queued, state: 'done' }] });
+      expect(groupTitles()).toEqual(['Done · 1']);
+
+      render({ run: running, entries: [{ ...queued, state: 'failed', reason: 'too big' }] });
+      expect(groupTitles()).toEqual(['Failed · 1']);
+    });
+
+    it('puts what the pointer rests on in a hover: the whole name, the id, and for a failure the reason', () => {
+      render({ run: running, entries: mixed });
+      openView();
+
+      const byName = Object.fromEntries(
+        rows().map((row) => [row.querySelector('[data-role="sync-row-name"]').textContent, row.getAttribute('data-tip')]),
+      );
+      expect(byName.Broken).toBe(`Broken\n${idOf(3)}\ncould not pack document`);
+      expect(byName.Ideas).toBe(`Ideas\n${idOf(2)}`);
+      expect(byName.Roadmap).toBe(`Roadmap\n${idOf(1)}`);
+    });
+
+    it('opens a document this machine has when its name is pressed: the panel closes first, the round goes on', () => {
+      render({ run: running, entries: mixed });
+      openView();
+      const plan = rows().find((row) => row.textContent.includes('Plan')).querySelector('button');
+
+      click(plan);
+
+      expect(onOpenDoc).toHaveBeenCalledTimes(1);
+      expect(onOpenDoc).toHaveBeenCalledWith(idOf(4));
+      expect(q('sync-panel')).toBeNull();
+      expect(onCancel).not.toHaveBeenCalled();
+      expect(onStart).not.toHaveBeenCalled();
+      expect(trigger().getAttribute('data-dot')).toBe('pulse');
+    });
+
+    it('does not open a document this machine has not: its name is grey, and is no button', () => {
+      render({ run: running, entries: mixed });
+      openView();
+      const cloudOnly = rows().find((row) => row.textContent.includes('0badf00d'));
+      const name = cloudOnly.querySelector('[data-role="sync-row-name"]');
+
+      expect(name.tagName).not.toBe('BUTTON');
+      expect(name.getAttribute('data-disabled')).toBe('true');
+      click(name);
+
+      expect(onOpenDoc).not.toHaveBeenCalled();
+      expect(q('sync-panel')).not.toBeNull();
+    });
+
+    it('folds a long group into "N more", and opens it with a press', () => {
+      const many = Array.from({ length: 8 }, (_, n) => entryOf({ id: idOf(n + 1), name: `Doc ${n + 1}`, state: 'done' }));
+      render({ run: finished({ uploaded: 8 }), seen: 'unseen', entries: many });
+      openView();
+      const doneGroup = () => groups()[0];
+
+      expect(namesIn(doneGroup())).toEqual(['Doc 1', 'Doc 2', 'Doc 3', 'Doc 4', 'Doc 5']);
+      expect(doneGroup().querySelector('[data-role="sync-more"]').textContent).toBe('3 more');
+      expect(groupTitles()).toEqual(['Done · 8']);
+
+      click(doneGroup().querySelector('[data-role="sync-more"]'));
+
+      expect(namesIn(doneGroup()).length).toBe(8);
+      expect(doneGroup().querySelector('[data-role="sync-more"]')).toBeNull();
+    });
+
+    it('does not fold a group of five or fewer', () => {
+      const five = Array.from({ length: 5 }, (_, n) => entryOf({ id: idOf(n + 1), name: `Doc ${n + 1}`, state: 'done' }));
+      render({ run: finished({ uploaded: 5 }), seen: 'unseen', entries: five });
+      openView();
+
+      expect(namesIn(groups()[0]).length).toBe(5);
+      expect(q('sync-more')).toBeNull();
+    });
+
+    it('keeps Cancel below the list while the round goes on, and takes it away when the round ends', () => {
+      render({ run: running, entries: mixed });
+      openView();
+      const panel = q('sync-panel');
+
+      expect(panel.lastElementChild).toBe(cancel());
+      expect(q('sync-roster').compareDocumentPosition(cancel()) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+      render({ run: finished({ uploaded: 1 }), seen: 'unseen', entries: mixed });
+      expect(cancel()).toBeNull();
+      expect(q('sync-roster')).not.toBeNull();
+    });
+
+    it('shows no list for a round that could not start: one line of the reason, nothing else', () => {
+      render({
+        run: { phase: 'ended', result: { kind: 'could_not_start', reason: 'Sign in first to sync.' } },
+        seen: 'unseen',
+      });
+      openView();
+
+      expect(title()).toBe('Cannot sync');
+      expect(detail()).toBe('Sign in first to sync.');
+      expect(q('sync-roster')).toBeNull();
+      expect(cancel()).toBeNull();
+    });
+
+    it('names the failed documents in the list, so the summary only counts them', () => {
+      const failed = { id: idOf(3), op: 'upload', error: 'could not pack document' };
+      render({
+        run: finished({ uploaded: 1, failed: [failed] }),
+        seen: 'unseen',
+        entries: mixed,
+      });
+      openView();
+
+      expect(title()).toBe('Synced, with problems');
+      expect(detail()).toBe('Uploaded 1 · Pulled 0 · Unchanged 0 · 1 failed');
+
+      // Without the list (the read failed) the summary keeps the first reason.
+      render({ run: finished({ uploaded: 1, failed: [failed] }), seen: 'unseen', entries: [] });
+      expect(detail()).toBe('Uploaded 1 · Pulled 0 · Unchanged 0 · 1 failed · first: could not pack document');
+    });
+
+    it('stays usable when opening a document throws', () => {
+      onOpenDoc.mockImplementation(() => {
+        throw new Error('cannot open');
+      });
+      render({ run: running, entries: mixed });
+      openView();
+
+      click(rows().find((row) => row.textContent.includes('Plan')).querySelector('button'));
+
+      expect(container.querySelectorAll('[data-role="sync-button"]').length).toBe(1);
+      expect(q('sync-panel')).toBeNull();
+      press();
+      expect(q('sync-menu')).not.toBeNull();
+    });
   });
 
   it('stays usable when a callback throws', () => {
@@ -915,6 +1122,60 @@ describe('sync button · from the home rail', () => {
     openMenu();
     expect(q('sync-start-dot')).not.toBeNull();
     expect(q('sync-view-dot')).toBeNull();
+  });
+
+  it('lists the documents as the host\'s record moves them along, and a name this machine has opens its document', async () => {
+    readVaultSessionMock.mockResolvedValue(vaultSession(3600));
+    let finish;
+    syncDocuments.mockReturnValue(new Promise((resolve) => { finish = resolve; }));
+    const resolveDocForOpen = vi.spyOn(api, 'resolveDocForOpen').mockRejectedValue(new Error('not here'));
+    const ideas = { id: 'b'.repeat(32), name: 'Ideas', op: 'upload', state: 'not_started', reason: null, local: true };
+    const cloudOnly = { id: 'c'.repeat(32), name: 'c'.repeat(8), op: 'pull', state: 'not_started', reason: null, local: false };
+    getSyncProgress.mockResolvedValue({ ok: true, running: true, entries: [ideas, cloudOnly] });
+    await mountHome({ signedIn: true });
+    choose('sync-start');
+    await vi.waitFor(() => {
+      expect(syncDocuments).toHaveBeenCalledTimes(1);
+    });
+    choose('sync-view');
+    const titles = () => [...container.querySelectorAll('[data-role="sync-group-title"]')].map((n) => n.textContent);
+
+    // The panel is read once per poll: what the host lists is what the panel shows.
+    await vi.waitFor(() => {
+      expect(titles()).toEqual(['Not started · 2']);
+    }, { timeout: 3000 });
+    getSyncProgress.mockResolvedValue({ ok: true, running: true, entries: [{ ...ideas, state: 'running' }, cloudOnly] });
+    await vi.waitFor(() => {
+      expect(titles()).toEqual(['In progress · 1', 'Not started · 1']);
+    }, { timeout: 3000 });
+
+    // A name this machine has opens the document and takes the panel away; the round is not touched.
+    click(container.querySelector('[data-group="running"] button[data-role="sync-row-name"]'));
+    await vi.waitFor(() => {
+      expect(resolveDocForOpen).toHaveBeenCalledWith(ideas.id);
+    });
+    expect(q('sync-panel')).toBeNull();
+    expect(dot()).toBe('pulse');
+    expect(cancelSyncDocuments).not.toHaveBeenCalled();
+
+    // The round ends: the last read of the record is what the panel shows.
+    getSyncProgress.mockResolvedValue({
+      ok: true,
+      running: false,
+      entries: [{ ...ideas, state: 'done' }, { ...cloudOnly, state: 'failed', reason: 'cloud sync not reachable', local: false }],
+    });
+    await act(async () => {
+      finish(doneResult({ uploaded: 1, failed: [{ id: cloudOnly.id, op: 'pull', error: 'cloud sync not reachable' }] }));
+    });
+    await vi.waitFor(() => {
+      expect(dot()).toBe('dot');
+    });
+    choose('sync-view');
+    expect(titles()).toEqual(['Failed · 1', 'Done · 1']);
+    expect(detail()).toBe('Uploaded 1 · Pulled 0 · Unchanged 0 · 1 failed');
+    const failedRow = container.querySelector('[data-group="failed"] [data-role="sync-row"]');
+    expect(failedRow.getAttribute('data-tip')).toBe(`${'c'.repeat(8)}\n${cloudOnly.id}\ncloud sync not reachable`);
+    expect(failedRow.querySelector('button')).toBeNull();
   });
 
   it('forgets the last round when the user signs out', async () => {

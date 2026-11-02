@@ -11,8 +11,13 @@ export type SyncCardText = {
   detail: string | null;
 };
 
-/** What the status card says about the round that is going on, or the last one; `null` before any. */
-export function syncCardText(run: SyncRun): SyncCardText | null {
+/**
+ * What the status card says about the round that is going on, or the last one; `null` before any.
+ *
+ * `failuresListed` is true when the panel names the documents that failed, with their reasons. The
+ * summary then says how many failed and leaves the first reason to the list.
+ */
+export function syncCardText(run: SyncRun, failuresListed = false): SyncCardText | null {
   switch (run.phase) {
     case 'idle':
       return null;
@@ -33,18 +38,18 @@ export function syncCardText(run: SyncRun): SyncCardText | null {
         case 'could_not_start':
           return { tone: 'warn', title: 'Cannot sync', detail: run.result.reason };
         case 'finished':
-          return finished(run.result.summary);
+          return finished(run.result.summary, failuresListed);
       }
   }
 }
 
-function finished(result: SyncDocumentsResult): SyncCardText {
+function finished(result: SyncDocumentsResult, failuresListed: boolean): SyncCardText {
   const trouble = result.failed.length > 0 || result.stopped !== null || result.not_tried > 0;
   const parts = [counts(result)];
   if (result.failed.length > 0) parts.push(`${result.failed.length} failed`);
   if (result.stopped) {
     parts.push(`stopped early: ${result.stopped.error}`);
-  } else if (result.failed.length > 0) {
+  } else if (result.failed.length > 0 && !failuresListed) {
     parts.push(`first: ${result.failed[0].error}`);
   }
   if (result.not_tried > 0) parts.push(`${result.not_tried} not tried, sync again to continue`);

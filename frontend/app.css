@@ -7074,6 +7074,8 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   position: absolute;
   left: var(--home-chat-row-inset);
   right: var(--home-chat-row-inset);
+  /* About 320px: wider than the row when the row is narrow, so names and reasons have room. */
+  min-width: min(320px, calc(100vw - 2 * var(--home-chat-row-inset)));
   bottom: calc(100% + 4px);
   z-index: 3;
   display: flex;
@@ -7120,6 +7122,84 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
 }
 .home-sync-button-cancel:disabled:hover {
   background: transparent;
+}
+/* The documents of the round, in groups. A long list scrolls inside the panel; Cancel stays below it. */
+.home-sync-roster {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+.home-sync-group-title {
+  margin: 0 0 2px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--fg-subtle);
+}
+.home-sync-group[data-group="failed"] .home-sync-group-title {
+  color: var(--fg-danger);
+}
+.home-sync-rows {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.home-sync-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 2px 0;
+  font-size: 12px;
+}
+.home-sync-row-arrow {
+  flex: 0 0 auto;
+  width: 12px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--fg-subtle);
+}
+.home-sync-row-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0;
+  border: none;
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  color: var(--fg-default);
+}
+button.home-sync-row-name {
+  cursor: pointer;
+}
+button.home-sync-row-name:hover,
+button.home-sync-row-name:focus-visible {
+  color: var(--fg-accent);
+  text-decoration: underline;
+}
+/* A document this machine does not have yet: its name is shown, and pressing it does nothing. */
+.home-sync-row-name[data-disabled="true"] {
+  color: var(--fg-subtle);
+  cursor: default;
+}
+.home-sync-more {
+  align-self: flex-start;
+  padding: 2px 0 0 18px;
+  border: none;
+  background: transparent;
+  font-size: 11px;
+  color: var(--fg-accent);
+  cursor: pointer;
+}
+.home-sync-more:hover {
+  text-decoration: underline;
 }
 #about-dialog {
   position: fixed;

@@ -7,7 +7,7 @@ import { authUserStore } from '../auth/state/user.ts';
 import { checkSyncPending } from './commands/sync-check.ts';
 import { cancelSync, markSyncResultSeen, resetSyncEntry, startSync } from './commands/sync-run.ts';
 import { deriveSyncEntry } from './state/sync-entry-view.ts';
-import { syncCheckStore, syncRunStore, syncSeenStore } from './state/sync-entry.ts';
+import { syncCheckStore, syncRosterStore, syncRunStore, syncSeenStore } from './state/sync-entry.ts';
 import { state, useHostState } from '../host/state.ts';
 import { openProject, openWorkspace, refreshWorkspaceProjects } from './commands/workspace-nav.ts';
 import { HomeWorkspaceNav, type HomeWorkspaceRow } from './ui/workspace-nav.tsx';
@@ -173,6 +173,7 @@ export function HomePage({
   const syncRun = useSyncExternalStore(syncRunStore.subscribe, syncRunStore.getSnapshot);
   const syncCheck = useSyncExternalStore(syncCheckStore.subscribe, syncCheckStore.getSnapshot);
   const syncSeen = useSyncExternalStore(syncSeenStore.subscribe, syncSeenStore.getSnapshot);
+  const syncRoster = useSyncExternalStore(syncRosterStore.subscribe, syncRosterStore.getSnapshot);
   const syncEntry = deriveSyncEntry(syncRun, syncCheck, syncSeen);
   const isDebug = useSyncExternalStore(
     packageDebugStore.subscribe,
@@ -451,9 +452,11 @@ export function HomePage({
           <CloudSyncButton
             entry={syncEntry}
             run={syncRun}
+            roster={syncRoster}
             onStart={onSyncStart}
             onCancel={onSyncCancel}
             onViewOpen={markSyncResultSeen}
+            onOpenDoc={(id) => void openDocById(id)}
           />
           <HelpMenu
             onAbout={() => {

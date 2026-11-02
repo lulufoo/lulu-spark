@@ -127,6 +127,30 @@ describe('syncCardText · a sync that was made', () => {
   });
 });
 
+describe('syncCardText · when the panel lists the documents that failed', () => {
+  it('counts the failures and leaves the first reason to the list', () => {
+    const answer = result({ uploaded: 1, failed: [{ id: 'd1', op: 'upload', error: 'too big' }] });
+
+    expect(syncCardText(ended(answer), true)).toEqual({
+      tone: 'warn',
+      title: 'Synced, with problems',
+      detail: 'Uploaded 1 · Pulled 0 · Unchanged 0 · 1 failed',
+    });
+  });
+
+  it('still tells why a run stopped early, and what was not tried', () => {
+    const answer = result({
+      failed: [{ id: 'd1', op: 'upload', error: 'too big' }],
+      not_tried: 2,
+      stopped: { id: 'd2', op: 'pull', error: 'offline' },
+    });
+
+    expect(syncCardText(ended(answer), true).detail).toBe(
+      'Uploaded 0 · Pulled 0 · Unchanged 0 · 1 failed · stopped early: offline · 2 not tried, sync again to continue',
+    );
+  });
+});
+
 describe('syncCardText · a sync the user cancelled', () => {
   const cases = [
     [
