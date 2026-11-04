@@ -3697,8 +3697,10 @@
     background: var(--bg-surface);
     overflow-x: auto;
   }
+  /* Same box as .notes-page-toolbar (20+36+16) so the title does not jump. */
   #md-header.viewer-header {
     padding: 20px 24px 16px;
+    min-height: 72px;
   }
   .viewer-header-actions {
     display: flex;
@@ -3738,25 +3740,36 @@
     padding-right: 14px;
     border-right: 1px solid var(--border-neutral);
   }
+  /* Notes document header follows the list heading, not the file-popup extras. */
+  #md-header .viewer-panel-title {
+    margin: 0;
+    padding: 0;
+    border: none;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0;
+    color: var(--fg-default);
+  }
   .viewer-panel-crumb-link {
     padding: 0;
     border: 0;
     background: none;
     font: inherit;
+    line-height: inherit;
     letter-spacing: inherit;
-    color: var(--fg-muted);
+    color: inherit;
     cursor: pointer;
   }
   .viewer-panel-crumb-link:hover {
-    color: var(--fg-default);
+    color: inherit;
     text-decoration: underline;
   }
   .viewer-panel-crumb:last-child .viewer-panel-crumb-link {
-    color: var(--fg-default);
+    color: inherit;
   }
   .viewer-panel-crumb-sep {
-    color: var(--fg-subtle);
-    font-weight: 400;
+    color: inherit;
+    font-weight: inherit;
   }
   #md-lang-bar {
     margin-right: 10px;
