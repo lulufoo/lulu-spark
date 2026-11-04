@@ -13,6 +13,7 @@ fn reset_slots() {
     revoke_for_slot(Slot::CursorIde).expect("revoke cursor");
     revoke_for_slot(Slot::Codex).expect("revoke codex");
     revoke_for_slot(Slot::Claude).expect("revoke claude");
+    revoke_for_slot(Slot::Zcode).expect("revoke zcode");
     revoke_for_slot(Slot::Spark).expect("revoke spark");
 }
 
@@ -335,14 +336,18 @@ fn issue_and_rotate_take_channel_and_keep_slots_independent() {
         let cursor = super::issue_cursor_ide_ticket("cursor".into()).expect("cursor");
         let codex = super::issue_cursor_ide_ticket("codex".into()).expect("codex");
         let claude = super::issue_cursor_ide_ticket("claude".into()).expect("claude");
+        let zcode = super::issue_cursor_ide_ticket("zcode".into()).expect("zcode");
         let cursor_h = assert_ticket_body(&cursor);
         let codex_h = assert_ticket_body(&codex);
         let claude_h = assert_ticket_body(&claude);
+        let zcode_h = assert_ticket_body(&zcode);
         assert_ne!(cursor_h, codex_h);
         assert_ne!(cursor_h, claude_h);
+        assert_ne!(cursor_h, zcode_h);
         verify_for_slot(Slot::CursorIde, TicketHandle::from_secret(cursor_h)).expect("cursor");
         verify_for_slot(Slot::Codex, TicketHandle::from_secret(codex_h)).expect("codex");
         verify_for_slot(Slot::Claude, TicketHandle::from_secret(claude_h)).expect("claude");
+        verify_for_slot(Slot::Zcode, TicketHandle::from_secret(zcode_h)).expect("zcode");
 
         assert_eq!(
             super::issue_cursor_ide_ticket("spark".into()).expect_err("spark"),

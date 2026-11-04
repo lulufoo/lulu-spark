@@ -5,6 +5,7 @@ fn reset_slots() {
     revoke_for_slot(Slot::CursorIde).expect("revoke cursor");
     revoke_for_slot(Slot::Codex).expect("revoke codex");
     revoke_for_slot(Slot::Claude).expect("revoke claude");
+    revoke_for_slot(Slot::Zcode).expect("revoke zcode");
     revoke_for_slot(Slot::Spark).expect("revoke spark");
 }
 
@@ -207,9 +208,11 @@ fn unknown_slot_name_is_slot_unknown() {
     assert_eq!(Slot::parse("cursor"), Ok(Slot::CursorIde));
     assert_eq!(Slot::parse("codex"), Ok(Slot::Codex));
     assert_eq!(Slot::parse("claude"), Ok(Slot::Claude));
+    assert_eq!(Slot::parse("zcode"), Ok(Slot::Zcode));
     assert_eq!(Slot::CursorIde.as_str(), "cursor");
     assert_eq!(Slot::Codex.as_str(), "codex");
     assert_eq!(Slot::Claude.as_str(), "claude");
+    assert_eq!(Slot::Zcode.as_str(), "zcode");
 }
 
 #[test]
@@ -388,17 +391,24 @@ fn ticket_view_masks_spark_and_lists_mobile_without_secrets() {
 }
 
 #[test]
-fn three_ide_slots_hold_independent_tickets() {
+fn ide_slots_hold_independent_tickets() {
     reset_slots();
     let cursor = issue_for_slot(Slot::CursorIde).expect("cursor");
     let codex = issue_for_slot(Slot::Codex).expect("codex");
     let claude = issue_for_slot(Slot::Claude).expect("claude");
+    let zcode = issue_for_slot(Slot::Zcode).expect("zcode");
     assert_ne!(cursor, codex);
     assert_ne!(cursor, claude);
+    assert_ne!(cursor, zcode);
     assert_ne!(codex, claude);
+    assert_ne!(claude, zcode);
     verify_for_slot(Slot::CursorIde, cursor.clone()).expect("cursor");
     verify_for_slot(Slot::Codex, codex.clone()).expect("codex");
     verify_for_slot(Slot::Claude, claude.clone()).expect("claude");
+    verify_for_slot(Slot::Zcode, zcode.clone()).expect("zcode");
+    let view = ticket_view("zcode").expect("zcode view");
+    assert_eq!(view["channel"], "zcode");
+    assert_eq!(view["handle"], zcode.as_str());
     assert_eq!(
         verify_for_slot(Slot::Codex, cursor.clone()).expect_err("cross"),
         OAuthError::rejected
@@ -408,7 +418,11 @@ fn three_ide_slots_hold_independent_tickets() {
         OAuthError::rejected
     );
     assert_eq!(
-        verify_for_slot(Slot::CursorIde, claude).expect_err("cross"),
+        verify_for_slot(Slot::Zcode, claude).expect_err("cross"),
+        OAuthError::rejected
+    );
+    assert_eq!(
+        verify_for_slot(Slot::CursorIde, zcode).expect_err("cross"),
         OAuthError::rejected
     );
 }

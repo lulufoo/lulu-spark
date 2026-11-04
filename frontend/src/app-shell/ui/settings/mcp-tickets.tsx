@@ -7,6 +7,7 @@ export function McpTicketsHost() {
           <option value="cursor">Cursor</option>
           <option value="codex">Codex</option>
           <option value="claude">Claude</option>
+          <option value="zcode">ZCode</option>
           <option value="spark">Spark</option>
           <option value="mobile">Mobile</option>
         </select>

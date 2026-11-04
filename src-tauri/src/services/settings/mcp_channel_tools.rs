@@ -1,5 +1,5 @@
 //! Per-channel MCP tool allowlist (`/mcp/spark`, `/mcp/cursor`, `/mcp/codex`,
-//! `/mcp/claude`, `/mcp/mobile`). `cursor_ide` is a legacy alias of `cursor`.
+//! `/mcp/claude`, `/mcp/zcode`, `/mcp/mobile`). `cursor_ide` is a legacy alias of `cursor`.
 //!
 //! Persists nested `{ channel: { global: [], workspace: [], project: [], document: [], read_later: [] } }`.
 //! Legacy flat arrays and the older `docs` group (workspace, project and document tools in one
@@ -24,7 +24,7 @@ use super::mcp_channel_classify::{
     sort_enabled_groups,
 };
 
-pub const MCP_CHANNELS: &[&str] = &["spark", "cursor", "codex", "claude", "mobile"];
+pub const MCP_CHANNELS: &[&str] = &["spark", "cursor", "codex", "claude", "zcode", "mobile"];
 
 fn canonical_channel(name: &str) -> Option<&'static str> {
     match name {
@@ -32,6 +32,7 @@ fn canonical_channel(name: &str) -> Option<&'static str> {
         "cursor" | "cursor_ide" => Some("cursor"),
         "codex" => Some("codex"),
         "claude" => Some("claude"),
+        "zcode" => Some("zcode"),
         "mobile" => Some("mobile"),
         _ => None,
     }

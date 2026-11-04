@@ -7,6 +7,7 @@ const SLOT_CURSOR: &str = "cursor";
 const SLOT_CURSOR_IDE: &str = "cursor_ide";
 const SLOT_CODEX: &str = "codex";
 const SLOT_CLAUDE: &str = "claude";
+const SLOT_ZCODE: &str = "zcode";
 
 #[derive(Debug)]
 pub enum SecretError {
@@ -58,6 +59,8 @@ pub struct McpOauthSecrets {
     pub codex: Option<SlotTicket>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub claude: Option<SlotTicket>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub zcode: Option<SlotTicket>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -111,6 +114,7 @@ impl Vault {
             && self.mcp_slot(SLOT_CURSOR).is_none()
             && self.mcp_slot(SLOT_CODEX).is_none()
             && self.mcp_slot(SLOT_CLAUDE).is_none()
+            && self.mcp_slot(SLOT_ZCODE).is_none()
             && self.devices().is_empty()
             && self.auth_session().is_none()
     }
@@ -159,6 +163,7 @@ impl Vault {
             SLOT_CURSOR | SLOT_CURSOR_IDE => mcp.cursor.as_ref().or(mcp.cursor_ide.as_ref()),
             SLOT_CODEX => mcp.codex.as_ref(),
             SLOT_CLAUDE => mcp.claude.as_ref(),
+            SLOT_ZCODE => mcp.zcode.as_ref(),
             _ => None,
         }
     }
@@ -173,6 +178,7 @@ impl Vault {
             }
             SLOT_CODEX => mcp.codex = ticket,
             SLOT_CLAUDE => mcp.claude = ticket,
+            SLOT_ZCODE => mcp.zcode = ticket,
             _ => {}
         }
         if mcp_oauth_empty(mcp) {
@@ -225,4 +231,5 @@ fn mcp_oauth_empty(mcp: &McpOauthSecrets) -> bool {
         && mcp.cursor_ide.is_none()
         && mcp.codex.is_none()
         && mcp.claude.is_none()
+        && mcp.zcode.is_none()
 }

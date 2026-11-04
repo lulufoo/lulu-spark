@@ -104,7 +104,7 @@ pub struct ToolDescriptor {
 }
 
 pub(crate) const REGISTERED_SCENE_SLOTS: &[&str] =
-    &["spark", "cursor", "cursor_ide", "codex", "claude"];
+    &["spark", "cursor", "cursor_ide", "codex", "claude", "zcode"];
 
 pub struct McpRuntimeConfig {
     pub bind_addr: SocketAddr,
