@@ -41,7 +41,7 @@ Lulu Spark App **MUST** be running, with its Host MCP server reachable.
 
 Channel exposure (the live tool list wins):
 
-- `get_doc_file` is for the Spark, Cursor, Codex and Claude channels; `get_doc_content` is its **mobile-only** counterpart.
+- `get_doc_file` is for the Spark, Cursor, Codex, Claude and ZCode channels; `get_doc_content` is its **mobile-only** counterpart.
 - `delete_doc` and `get_read_later` are offered on `/mcp/spark` only.
 - There is no tool to delete, disable or enable a workspace or project: a person does that in Settings.
 
@@ -59,7 +59,7 @@ Map the user request, then call **only** the tools that match. Do not run a fixe
 | Create / save / archive a document | Confirm the target with `list_workspaces` and `list_projects`. When the user names no workspace, `list_workspaces` and pick by `description` (else name); pass that `workspace_id`. If none fit, ask. When the user names a project, pass that row's `project_id`. When the user names none, omit `project_id` (inbox). Infer document-internal `folder` and `title` when the user did not give them — [path-or-paste.md](references/path-or-paste.md) for a lone path or paste. Load [chinese-companion.md](references/chinese-companion.md). Call `list_doc_categories`, then `create_doc` with the live schema parameters including `workspace_id`. | Do not invent a workspace or project id; do not omit `workspace_id`; do not pass `project_id: "inbox"` |
 | Search documents | `search`, optionally limited to one workspace | Do not list a catalog's full id set |
 | Read one digest | `get_doc_digest` with the document `id` only; do not send `workspace_id` | — |
-| Read one document body | Spark / Cursor / Codex / Claude: `get_doc_file` with a `dest_dir` and the document `id` only, then read the returned copy. Mobile: `get_doc_content` with the `id` only. Do not send `workspace_id`. | Do not read the data directory directly |
+| Read one document body | Spark / Cursor / Codex / Claude / ZCode: `get_doc_file` with a `dest_dir` and the document `id` only, then read the returned copy. Mobile: `get_doc_content` with the `id` only. Do not send `workspace_id`. | Do not read the data directory directly |
 | Edit an existing document | `get_doc_file`, edit the copy, then `update_doc` with `source_path` set to the copy. Do not pass `workspace_id`; the document id names the workspace. | Do not edit the data directory directly |
 | Delete a document | Only when the user explicitly asks, and only when `delete_doc` is in the tool list: confirm the document, then `delete_doc` with the `id` only — do not send `workspace_id` | Irreversible — never delete as a side step of another task |
 | Open a Read Later link `[title](read-later:<id>)` | `get_read_later` with the 32-hex id | Do not look the entry up by title |

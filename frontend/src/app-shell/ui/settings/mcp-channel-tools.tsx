@@ -8,13 +8,14 @@ export function McpChannelToolsHost() {
           <option value="cursor">/mcp/cursor</option>
           <option value="codex">/mcp/codex</option>
           <option value="claude">/mcp/claude</option>
+          <option value="zcode">/mcp/zcode</option>
           <option value="mobile">/mcp/mobile</option>
         </select>
         <span className="settings-field-hint">
           Only checked tools appear in tools/list and are allowed on call_tool for that door.
           Changes apply immediately. create_doc and update_doc on /mcp/spark, /mcp/cursor,
-          /mcp/codex, and /mcp/claude take a Host file path; on /mcp/mobile they take Markdown
-          content.
+          /mcp/codex, /mcp/claude, and /mcp/zcode take a Host file path; on /mcp/mobile they take
+          Markdown content.
         </span>
       </div>
       <div id="settings-mcp-tool-groups" />

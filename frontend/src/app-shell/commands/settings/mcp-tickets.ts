@@ -19,11 +19,12 @@ type TicketView = {
   }>;
 };
 
-const IDE_CHANNELS = ['cursor', 'codex', 'claude'] as const;
+const IDE_CHANNELS = ['cursor', 'codex', 'claude', 'zcode'] as const;
 const IDE_LABELS: Record<string, string> = {
   cursor: 'Cursor',
   codex: 'Codex',
   claude: 'Claude',
+  zcode: 'ZCode',
 };
 
 function isIdeChannel(channel: string) {

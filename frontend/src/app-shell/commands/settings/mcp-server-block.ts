@@ -1,6 +1,6 @@
 import { store } from '../../state/settings/store.ts';
 
-const IDE_CHANNELS = ['cursor', 'codex', 'claude'] as const;
+const IDE_CHANNELS = ['cursor', 'codex', 'claude', 'zcode'] as const;
 
 export function ideServerUrl(channel: string) {
   const path = IDE_CHANNELS.includes(channel as (typeof IDE_CHANNELS)[number])
@@ -21,6 +21,22 @@ export function formatIdeServerBlock(channel: string) {
           'lulu-spark': {
             type: 'http',
             url,
+          },
+        },
+      },
+      null,
+      2,
+    );
+  }
+  if (channel === 'zcode') {
+    return JSON.stringify(
+      {
+        mcp: {
+          servers: {
+            'lulu-spark': {
+              type: 'http',
+              url,
+            },
           },
         },
       },

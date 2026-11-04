@@ -222,6 +222,8 @@ describe('Settings MCP panel markup', () => {
     expect(indexHtml).not.toMatch(/>Cursor IDE</);
     expect(indexHtml).toMatch(/value="codex">Codex</);
     expect(indexHtml).toMatch(/value="claude">Claude</);
+    expect(indexHtml).toMatch(/value="zcode">ZCode</);
+    expect(indexHtml).toMatch(/value="zcode">\/mcp\/zcode</);
     expect(indexHtml).toMatch(/value="cursor">\/mcp\/cursor</);
     expect(indexHtml).not.toMatch(/\/mcp\/cursor_ide/);
   });
@@ -254,6 +256,7 @@ describe('Settings MCP panel markup', () => {
     expect(indexHtml).not.toMatch(/>Cursor server block</);
     expect(indexHtml).not.toMatch(/>Codex server block</);
     expect(indexHtml).not.toMatch(/>Claude server block</);
+    expect(indexHtml).not.toMatch(/>ZCode server block</);
     expect(indexHtml).not.toMatch(/id="btn-settings-mcp-generate"/);
     expect(indexHtml).not.toMatch(/id="btn-settings-mcp-rotate"/);
     expect(indexHtml).not.toMatch(/id="btn-settings-mcp-spark-expire"/);
@@ -391,7 +394,7 @@ describe('Settings MCP panel actions', () => {
     expect(parseServerBlock(writeText.mock.calls[0][0])).toEqual(displayed);
   });
 
-  it('formats Codex as config.toml and Claude as mcp.json', async () => {
+  it('formats Codex as config.toml, Claude as mcp.json, and ZCode as mcp.servers', async () => {
     await openMcpPanel();
     const select = document.getElementById('settings-mcp-ticket-channel');
     select.value = 'codex';
@@ -421,6 +424,26 @@ describe('Settings MCP panel actions', () => {
       },
     });
     expect(serverBlockText()).not.toContain(LIVE_HANDLE);
+
+    select.value = 'zcode';
+    select.dispatchEvent(new Event('change'));
+    await vi.waitFor(() =>
+      expect(api.invoke).toHaveBeenCalledWith('get_mcp_ticket_view', { channel: 'zcode' }),
+    );
+    const zcode = JSON.parse(serverBlockText());
+    expect(zcode).toEqual({
+      mcp: {
+        servers: {
+          'lulu-spark': {
+            type: 'http',
+            url: `http://127.0.0.1:${MCP_PORT}/mcp/zcode`,
+          },
+        },
+      },
+    });
+    expectNoAuthHeaders(serverBlockText());
+    expect(serverBlockText()).not.toContain(LIVE_HANDLE);
+    expect(invokedNames()).not.toContain('issue_cursor_ide_ticket');
   });
 
   it('spark ticket is in the channel list and never expire the built-in ticket', async () => {

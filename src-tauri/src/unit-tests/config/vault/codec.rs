@@ -148,14 +148,16 @@ fn cursor_slot_reads_legacy_cursor_ide_and_write_clears_it() {
 }
 
 #[test]
-fn three_ide_slots_round_trip_independently() {
+fn ide_slots_round_trip_independently() {
     let mut vault = Vault::default();
     vault.set_mcp_slot("cursor", Some(live_ticket("c")));
     vault.set_mcp_slot("codex", Some(live_ticket("x")));
     vault.set_mcp_slot("claude", Some(live_ticket("l")));
+    vault.set_mcp_slot("zcode", Some(live_ticket("z")));
     assert_eq!(vault.mcp_slot("cursor").map(|t| t.handle.as_str()), Some("c"));
     assert_eq!(vault.mcp_slot("codex").map(|t| t.handle.as_str()), Some("x"));
     assert_eq!(vault.mcp_slot("claude").map(|t| t.handle.as_str()), Some("l"));
+    assert_eq!(vault.mcp_slot("zcode").map(|t| t.handle.as_str()), Some("z"));
     let json = vault_to_json(&vault).expect("json");
     let parsed = vault_from_json(&json).expect("from json");
     assert_eq!(parsed, vault);

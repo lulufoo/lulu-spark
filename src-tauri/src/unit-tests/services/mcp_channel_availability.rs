@@ -41,9 +41,9 @@ fn load_migrates_content_tools_to_file_tools_on_desktop_channels_only() {
         "docs": ["list_projects", "get_doc_content"]
     });
     write_channels(serde_json::json!({
-        "spark": saved, "cursor": saved, "codex": saved, "claude": saved, "mobile": saved
+        "spark": saved, "cursor": saved, "codex": saved, "claude": saved, "zcode": saved, "mobile": saved
     }));
-    for channel in ["spark", "cursor", "codex", "claude"] {
+    for channel in ["spark", "cursor", "codex", "claude", "zcode"] {
         assert!(is_enabled(channel, "get_doc_file"), "{channel} get_doc_file");
         assert!(!is_enabled(channel, "get_doc_content"), "{channel} get_doc_content");
     }

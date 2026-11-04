@@ -747,7 +747,7 @@ fn registered_scene_slots_accept_initialize_http() {
     let local = handle.local_addr();
 
     let init = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"t3-registered","version":"0.0.1"}}}"#;
-    for slot in [SPARK_SLOT, CURSOR_IDE_SLOT] {
+    for slot in [SPARK_SLOT, CURSOR_IDE_SLOT, "zcode"] {
         let ticket = issue_live_ticket(slot);
         let auth = bearer(&ticket);
         let (status, body, _) = http_post_json_auth(
@@ -1320,12 +1320,14 @@ fn registered_scene_slots_are_only_spark_and_cursor_ide() {
     assert!(super::REGISTERED_SCENE_SLOTS.contains(&CURSOR_IDE_SLOT));
     assert!(super::REGISTERED_SCENE_SLOTS.contains(&"codex"));
     assert!(super::REGISTERED_SCENE_SLOTS.contains(&"claude"));
+    assert!(super::REGISTERED_SCENE_SLOTS.contains(&"zcode"));
     assert!(!super::REGISTERED_SCENE_SLOTS.contains(&"notes"));
     assert!(!super::REGISTERED_SCENE_SLOTS.contains(&"todo_task"));
     assert!(!super::REGISTERED_SCENE_SLOTS.contains(&"mobile"));
     assert!(super::is_registered_scene_slot(SPARK_SLOT));
     assert!(super::is_registered_scene_slot("cursor"));
     assert!(super::is_registered_scene_slot(CURSOR_IDE_SLOT));
+    assert!(super::is_registered_scene_slot("zcode"));
 }
 
 /// Boundary: get_notes_selection is not hung on spark.

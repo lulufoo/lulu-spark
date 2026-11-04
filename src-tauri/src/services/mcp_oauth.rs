@@ -13,6 +13,7 @@ pub enum Slot {
     CursorIde,
     Codex,
     Claude,
+    Zcode,
 }
 
 impl Slot {
@@ -22,6 +23,7 @@ impl Slot {
             Slot::CursorIde => "cursor",
             Slot::Codex => "codex",
             Slot::Claude => "claude",
+            Slot::Zcode => "zcode",
         }
     }
 
@@ -31,12 +33,16 @@ impl Slot {
             "cursor" | "cursor_ide" => Ok(Slot::CursorIde),
             "codex" => Ok(Slot::Codex),
             "claude" => Ok(Slot::Claude),
+            "zcode" => Ok(Slot::Zcode),
             _ => Err(OAuthError::slot_unknown),
         }
     }
 
     pub fn is_ide(self) -> bool {
-        matches!(self, Slot::CursorIde | Slot::Codex | Slot::Claude)
+        matches!(
+            self,
+            Slot::CursorIde | Slot::Codex | Slot::Claude | Slot::Zcode
+        )
     }
 }
 
@@ -244,7 +250,7 @@ pub fn token_hint(secret: &str) -> String {
 pub fn ticket_view(channel: &str) -> Result<Value, OAuthError> {
     match channel {
         "spark" => slot_ticket_view(Slot::Spark, false),
-        "cursor" | "cursor_ide" | "codex" | "claude" => {
+        "cursor" | "cursor_ide" | "codex" | "claude" | "zcode" => {
             let slot = Slot::parse(channel)?;
             let mut value = slot_ticket_view(slot, true)?;
             value["channel"] = json!(channel);

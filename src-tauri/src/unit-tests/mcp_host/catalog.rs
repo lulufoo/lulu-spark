@@ -297,7 +297,7 @@ fn create_and_update_doc_descriptions_omit_internal_paths() {
 
 #[test]
 fn get_doc_content_is_mobile_only() {
-    for channel in ["spark", "cursor", "cursor_ide", "codex", "claude"] {
+    for channel in ["spark", "cursor", "cursor_ide", "codex", "claude", "zcode"] {
         assert!(build("document", "get_doc_content", channel).is_none(), "{channel}");
     }
     let mobile = build("document", "get_doc_content", "mobile").expect("mobile");
@@ -309,7 +309,7 @@ fn get_doc_content_is_mobile_only() {
 
 #[test]
 fn get_doc_file_is_desktop_only_and_requires_dest_dir() {
-    for channel in ["spark", "cursor", "cursor_ide", "codex", "claude"] {
+    for channel in ["spark", "cursor", "cursor_ide", "codex", "claude", "zcode"] {
         let route = build("document", "get_doc_file", channel).expect(channel);
         assert!(invoke_eq(route.invoke, docs_service::export_file), "{channel}");
         assert_eq!(route.input_schema["required"], serde_json::json!(["id", "dest_dir"]));
@@ -347,7 +347,7 @@ fn factory_unknown_group_returns_none() {
 #[test]
 fn get_read_later_is_spark_only() {
     assert!(build("read_later", "get_read_later", "spark").is_some());
-    for channel in ["cursor", "cursor_ide", "codex", "claude", "mobile"] {
+    for channel in ["cursor", "cursor_ide", "codex", "claude", "zcode", "mobile"] {
         assert!(
             build("read_later", "get_read_later", channel).is_none(),
             "{channel}"
@@ -357,7 +357,7 @@ fn get_read_later_is_spark_only() {
 
 #[test]
 fn search_points_each_channel_at_its_own_follow_up_tools() {
-    for channel in ["spark", "cursor", "cursor_ide", "codex", "claude"] {
+    for channel in ["spark", "cursor", "cursor_ide", "codex", "claude", "zcode"] {
         let route = build("global", "search", channel).expect(channel);
         assert!(route.description.contains("own library"), "{channel}");
         assert!(route.description.contains("workspace_id"), "{channel}");
@@ -376,7 +376,7 @@ fn search_points_each_channel_at_its_own_follow_up_tools() {
 
 #[test]
 fn list_doc_categories_is_on_every_channel_and_read_only() {
-    for channel in ["spark", "cursor", "cursor_ide", "codex", "claude", "mobile"] {
+    for channel in ["spark", "cursor", "cursor_ide", "codex", "claude", "zcode", "mobile"] {
         let route = build("document", "list_doc_categories", channel).expect(channel);
         assert!(route.read_only, "{channel}");
         assert!(!route.destructive, "{channel}");
