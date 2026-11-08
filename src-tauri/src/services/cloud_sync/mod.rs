@@ -28,7 +28,7 @@ pub use error::CloudSyncError;
 pub use types::{CloudDoc, Credentials};
 
 /// The deployed cloud-sync Worker (`workers/cloud-sync`). A public address, not a secret.
-pub const WORKER_URL: &str = "https://lulu-spark-cloud-sync.namdamlmm.workers.dev";
+pub const WORKER_URL: &str = "https://cloud-sync.luluspark.app";
 
 /// Google Cloud Storage. Reads go here, and an upload link must point here.
 pub const STORAGE_URL: &str = "https://storage.googleapis.com";
