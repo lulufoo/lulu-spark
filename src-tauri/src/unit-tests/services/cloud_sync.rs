@@ -324,8 +324,7 @@ impl Rig {
 
 #[test]
 fn the_worker_address_is_https_without_a_trailing_slash() {
-    assert!(WORKER_URL.starts_with("https://"));
-    assert!(!WORKER_URL.ends_with('/'));
+    assert_eq!(WORKER_URL, "https://cloud-sync.luluspark.app");
 }
 
 #[test]

@@ -3,6 +3,12 @@
   "name": "lulu-spark-cloud-sync",
   "main": "src/index.ts",
   "compatibility_date": "2026-10-23",
+  // Production hostname used by the Spark client (`WORKER_URL`). The workers.dev
+  // address stays up so an install that has not been rebuilt can still reach it.
+  "workers_dev": true,
+  "routes": [
+    { "pattern": "cloud-sync.luluspark.app", "custom_domain": true }
+  ],
   // Public values, not secrets.
   // - SUPABASE_URL: the token check reads the signing keys from
   //   `${SUPABASE_URL}/auth/v1/.well-known/jwks.json`.
