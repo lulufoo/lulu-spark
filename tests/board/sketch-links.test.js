@@ -78,7 +78,7 @@ describe('markdown board sketches', () => {
     expect(boxes.nextElementSibling.className).toBe('board-sketch-note');
     expect(boxes.nextElementSibling.textContent).toBe('Other Board formats stay as links');
     expect(link.nextElementSibling.className).toBe('board-sketch-slot');
-    expect(host.querySelector('.board-sketch-title').textContent).toContain('Spark ↔ Board · architecture');
+    expect(host.querySelector('header.board-sketch-title').textContent).toContain('Spark ↔ Board · architecture');
     expect(host.querySelector('.board-sketch-open').textContent).toBe('Open in Board ↗');
     const posted = await ready(host.querySelector('iframe'));
     expect(posted[0]).toEqual({ type: 'lulu-sandbox:render', html: '<p>Hello</p>', appearance: 'light' });

@@ -8640,18 +8640,14 @@ p:has(> a[hidden] + .board-sketch-slot) {
 .board-sketch-preview {
   box-sizing: border-box;
   width: 100%;
-  margin: 10px 0;
-  padding: 12px 15px;
-  border: 1px solid var(--border-default);
-  border-radius: 9px;
-  background: var(--bg-surface);
+  margin: 12px 0 4px;
 }
 .board-sketch-title {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 12px;
+  margin: 0 0 8px;
   color: var(--fg-default);
   font-size: 13px;
   font-weight: 700;

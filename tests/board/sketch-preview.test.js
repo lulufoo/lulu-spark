@@ -44,6 +44,10 @@ describe('sketch preview', () => {
     expect(frame.getAttribute('sandbox')).not.toContain('allow-same-origin');
     expect(frame.style.colorScheme).toBe('light');
     const css = readFileSync(join(repoRoot, 'frontend/app.css'), 'utf8');
+    const previewRule = css.match(/\.board-sketch-preview\s*\{[^}]*\}/)[0];
+    expect(previewRule).not.toMatch(/\bborder\s*:/);
+    expect(previewRule).not.toMatch(/border-radius/);
+    expect(host.querySelector('header.board-sketch-title')).not.toBeNull();
     expect(css).toMatch(/p:has\(>\s*a\[hidden\] \+ \.board-sketch-slot\)/);
     expect(css).toMatch(/\.board-sketch-frame\s*\{[^}]*color-scheme:\s*light/);
     expect(css).not.toMatch(/\[data-theme="dark"\] \.board-sketch-frame\s*\{[^}]*color-scheme:\s*dark/);

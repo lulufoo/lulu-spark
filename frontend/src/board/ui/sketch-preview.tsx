@@ -100,14 +100,14 @@ export function SketchPreview({ html, pageUrl, appearance, title = '' }: Props) 
 
   return (
     <div className="board-sketch-preview">
-      <div className="board-sketch-title">
+      <header className="board-sketch-title">
         <span>{title}</span>
         {canOpen ? (
           <button type="button" className="board-sketch-open" onClick={() => void openBoardPage(pageUrl)}>
             Open in Board ↗
           </button>
         ) : null}
-      </div>
+      </header>
       {failed ? (
         <p className="board-sketch-error" role="status">The sketch preview failed to load.</p>
       ) : null}
