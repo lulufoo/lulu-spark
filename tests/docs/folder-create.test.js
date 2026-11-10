@@ -3,13 +3,15 @@ import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { createFolder, refreshNotesIndex } = vi.hoisted(() => ({
+const { createFolder, deleteFolder, refreshNotesIndex } = vi.hoisted(() => ({
   createFolder: vi.fn(),
+  deleteFolder: vi.fn(),
   refreshNotesIndex: vi.fn(async () => true),
 }));
 vi.mock('../../frontend/src/host/api.ts', async (importOriginal) => ({
   ...(await importOriginal()),
   createFolder,
+  deleteFolder,
 }));
 vi.mock('../../frontend/src/notes/commands/reload-index.ts', () => ({ refreshNotesIndex }));
 vi.mock('../../frontend/src/notes/commands/cards.ts', () => ({ loadTitles: vi.fn() }));
@@ -25,6 +27,7 @@ function seed() {
     current: 'default',
     list: [{ workspace_id: 'default', workspace_name: 'Default', view_mode: 'directory', is_default: true }],
   };
+  state.index.folders = [];
   state.index.topicTitles = { ideas: 'Ideas' };
   state.index.topicOrder = ['ideas'];
   state.index.data = {
@@ -54,6 +57,8 @@ function Tree() {
 beforeEach(() => {
   createFolder.mockReset();
   createFolder.mockResolvedValue({ ok: true, path: 'plans/design' });
+  deleteFolder.mockReset();
+  deleteFolder.mockResolvedValue({ ok: true });
   refreshNotesIndex.mockClear();
   vi.spyOn(window, 'alert').mockImplementation(() => {});
   cancelFolderCreate();
@@ -164,6 +169,43 @@ describe('directory new folder', () => {
       button.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 3, clientY: 3 }));
     });
     expect(document.querySelector('[data-role="folder-menu"]')).toBeNull();
+    await act(async () => root.unmount());
+  });
+
+  it('right-click on an empty folder deletes that folder and can still do so at the depth limit', async () => {
+    state.index.folders = [
+      { project_id: 'ideas', path: 'saved' },
+      { project_id: 'ideas', path: 'x/y/z' },
+    ];
+    state.ui.activeDate = dirKeyOf('ideas/saved');
+    dirTreeStore.set({ expanded: pathKeys('ideas/x/y/z') });
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    await act(async () => root.render(createElement(Tree)));
+    const saved = host.querySelector('[data-node="ideas/saved"] button');
+    await act(async () => {
+      saved.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 6, clientY: 6 }));
+    });
+    const labels = () => [...document.querySelectorAll('[data-role="folder-menu"] button')].map((b) => b.textContent);
+    expect(labels()).toEqual(['New folder', 'Delete folder']);
+    await act(async () => {
+      [...document.querySelectorAll('[data-role="folder-menu"] button')].find((b) => b.textContent === 'Delete folder').dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    });
+    expect(deleteFolder).toHaveBeenCalledTimes(1);
+    expect(deleteFolder).toHaveBeenCalledWith({
+      workspace_id: 'default',
+      project_id: 'ideas',
+      path: 'saved',
+    });
+    expect(refreshNotesIndex).toHaveBeenCalledTimes(1);
+    expect(state.ui.activeDate).toBeNull();
+    expect(state.ui.activeTopic).toBe('ideas');
+    const deep = host.querySelector('[data-node="ideas/x/y/z"] button');
+    await act(async () => {
+      deep.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 9, clientY: 9 }));
+    });
+    expect(labels()).toEqual(['Delete folder']);
     await act(async () => root.unmount());
   });
 });

@@ -1,6 +1,12 @@
 import { createModuleStore } from '../../shared/module-store.ts';
 
-export type FolderMenu = { parent: string; x: number; y: number };
+export type FolderMenu = {
+  parent: string;
+  x: number;
+  y: number;
+  canCreate: boolean;
+  canDelete: boolean;
+};
 
 /** The folder-name row, plus the right-click menu that opens it. */
 export type FolderCreateSnap = {

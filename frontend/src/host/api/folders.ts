@@ -9,3 +9,12 @@ export async function createFolder(payload: {
 }) {
   return writePost('/api/create-folder', payload);
 }
+
+/** Delete one empty folder. `path` is relative to the project, such as `plans/q1`. */
+export async function deleteFolder(payload: {
+  workspace_id: string;
+  project_id: string;
+  path: string;
+}) {
+  return writePost('/api/delete-folder', payload);
+}

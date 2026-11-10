@@ -1,6 +1,6 @@
 import * as api from '../../host/api.ts';
 import { notifyState, state } from '../state/host.ts';
-import { expandDirNodes, pathKeys } from '../state/dir-tree.ts';
+import { expandDirNodes, isDirKey, nodeKeyOf, pathKeys } from '../state/dir-tree.ts';
 import { folderCreateStore } from '../state/folder-create.ts';
 import { refreshNotesIndex } from './reload-index.ts';
 import { applyListFilters } from './sidebar.ts';
@@ -18,10 +18,12 @@ export function folderPathOf(nodeKey: string): string {
   return slash === -1 ? '/' : nodeKey.slice(slash + 1);
 }
 
-export function openFolderMenu(parent: string, x: number, y: number) {
+export function openFolderMenu(parent: string, x: number, y: number, canDelete = false) {
   const project = state.ui.activeTopic;
-  if (!project || !folderCanHaveChild(parent)) return;
-  folderCreateStore.set((prev) => ({ ...prev, menu: { parent, x, y } }));
+  if (!project) return;
+  const canCreate = folderCanHaveChild(parent);
+  if (!canCreate && !canDelete) return;
+  folderCreateStore.set((prev) => ({ ...prev, menu: { parent, x, y, canCreate, canDelete } }));
 }
 
 export function closeFolderMenu() {
@@ -42,7 +44,7 @@ export function deselectFolder() {
 export function beginFolderCreate() {
   const prev = folderCreateStore.getSnapshot();
   const project = state.ui.activeTopic;
-  if (!project || !prev.menu || prev.saving) return;
+  if (!project || !prev.menu?.canCreate || prev.saving) return;
   const parent = prev.menu.parent;
   const node = parent === '/' ? project : `${project}/${parent}`;
   expandDirNodes(pathKeys(node));
@@ -97,4 +99,31 @@ export async function commitFolderCreate() {
     const message = err instanceof Error ? err.message : String(err);
     alert(`Could not create the folder: ${message}`);
   }
+}
+
+/** Delete the empty folder named by the open menu, and only that folder. */
+export async function deleteEmptyFolder() {
+  const snap = folderCreateStore.getSnapshot();
+  const project = state.ui.activeTopic;
+  const menu = snap.menu;
+  if (!project || !menu?.canDelete || menu.parent === '/' || snap.saving) return;
+  const path = menu.parent;
+  const workspaceId = state.workspaces.current;
+  folderCreateStore.set((prev) => ({ ...prev, menu: null }));
+  try {
+    await api.deleteFolder({ workspace_id: workspaceId, project_id: project, path });
+    if (workspaceId === state.workspaces.current) await refreshNotesIndex();
+    clearDeletedSelection(project, path);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    alert(`Could not delete the folder: ${message}`);
+  }
+}
+
+function clearDeletedSelection(project: string, path: string) {
+  const active = state.ui.activeDate;
+  if (!isDirKey(active)) return;
+  const key = nodeKeyOf(active);
+  const node = `${project}/${path}`;
+  if (key === node || key.startsWith(`${node}/`)) deselectFolder();
 }

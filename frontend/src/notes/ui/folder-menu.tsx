@@ -1,19 +1,26 @@
 import { useEffect, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
-import { beginFolderCreate, closeFolderMenu, deselectFolder, folderPathOf, openFolderMenu } from '../commands/folder-create.ts';
+import {
+  beginFolderCreate,
+  closeFolderMenu,
+  deleteEmptyFolder,
+  deselectFolder,
+  folderPathOf,
+  openFolderMenu,
+} from '../commands/folder-create.ts';
 import { folderCreateStore } from '../state/folder-create.ts';
 
 function targetElement(target: EventTarget | null): HTMLElement | null {
   return target instanceof HTMLElement ? target : null;
 }
 
-/** Right-click on a folder: menu for a child. The browser must not select the name. */
-export function onFolderContextMenu(nodeKey: string) {
+/** Right-click on a folder. The browser must not select the name. */
+export function onFolderContextMenu(nodeKey: string, empty: boolean) {
   return (event: { preventDefault: () => void; stopPropagation: () => void; clientX: number; clientY: number }) => {
     event.preventDefault();
     event.stopPropagation();
     window.getSelection()?.removeAllRanges();
-    openFolderMenu(folderPathOf(nodeKey), event.clientX, event.clientY);
+    openFolderMenu(folderPathOf(nodeKey), event.clientX, event.clientY, empty);
   };
 }
 
@@ -69,16 +76,30 @@ export function FolderMenu() {
       role="menu"
       style={{ top: menu.y, left: menu.x }}
     >
-      <button
-        type="button"
-        role="menuitem"
-        onMouseDown={(event) => {
-          event.preventDefault();
-          beginFolderCreate();
-        }}
-      >
-        New folder
-      </button>
+      {menu.canCreate ? (
+        <button
+          type="button"
+          role="menuitem"
+          onMouseDown={(event) => {
+            event.preventDefault();
+            beginFolderCreate();
+          }}
+        >
+          New folder
+        </button>
+      ) : null}
+      {menu.canDelete ? (
+        <button
+          type="button"
+          role="menuitem"
+          onMouseDown={(event) => {
+            event.preventDefault();
+            void deleteEmptyFolder();
+          }}
+        >
+          Delete folder
+        </button>
+      ) : null}
     </div>,
     document.body,
   );

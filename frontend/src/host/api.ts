@@ -49,7 +49,7 @@ export {
 } from './api/workspaces.ts';
 export type { DeleteProjectResult, DeleteWorkspaceResult, HidePatternRow, MoveProjectResult, ViewMode, ViewerProjectState, ViewerState } from './api/workspaces.ts';
 
-export { createFolder } from './api/folders.ts';
+export { createFolder, deleteFolder } from './api/folders.ts';
 
 export {
   createNote,

@@ -135,6 +135,7 @@ pub fn run() {
             commands::write::tag_update_value,
             commands::write::create_note,
             commands::write::create_folder,
+            commands::write::delete_folder,
             commands::write::mark_message_channel_read,
             commands::os_notification::show_os_notification,
             commands::app_log::log_app_event,

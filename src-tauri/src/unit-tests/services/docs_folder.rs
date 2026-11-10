@@ -2,7 +2,7 @@ use std::fs;
 
 use serde_json::json;
 
-use super::create_folder;
+use super::{create_folder, delete_folder};
 use crate::services::docs::{create_titled_doc, delete_doc};
 use crate::services::spark_read::get_docs_index;
 use crate::test_support::{default_inbox_id, default_workspace, default_workspace_dir, TestSandbox};
@@ -180,4 +180,84 @@ fn deleting_the_last_document_keeps_the_parent_folder_visible() {
     assert!(listed("scope-functions"));
     let index = get_docs_index(Some(&ws()));
     assert!(index["entries"].get(&id).is_none(), "{index}");
+}
+
+fn delete_body(path: &str) -> serde_json::Value {
+    json!({ "workspace_id": ws(), "project_id": inbox(), "path": path })
+}
+
+#[test]
+fn delete_folder_removes_one_empty_folder_and_leaves_its_parent() {
+    let _sandbox = setup();
+    assert_eq!(create_folder(&payload(json!({ "name": "scope-functions" })))["ok"], json!(true));
+    assert_eq!(
+        create_folder(&payload(json!({ "parent": "scope-functions", "name": "design-notes" })))["ok"],
+        json!(true)
+    );
+    assert_eq!(create_folder(&payload(json!({ "name": "specialized-tech" })))["ok"], json!(true));
+
+    let removed = delete_folder(&delete_body("scope-functions/design-notes"));
+    assert_eq!(removed["ok"], json!(true), "{removed}");
+    assert!(!folder_dir("scope-functions/design-notes").exists());
+    assert!(!listed("scope-functions/design-notes"));
+    assert!(folder_dir("scope-functions").is_dir());
+    assert!(listed("scope-functions"));
+    assert!(folder_dir("specialized-tech").is_dir());
+    assert!(listed("specialized-tech"));
+}
+
+#[test]
+fn delete_folder_refuses_a_folder_that_still_holds_something() {
+    let _sandbox = setup();
+    let made = create_titled_doc(&json!({
+        "workspace_id": ws(),
+        "project_id": inbox(),
+        "title": "笔记",
+        "source_type": "jot",
+        "content": "正文",
+        "folder": "scope-functions",
+        "filename": "architecture-notes.md",
+        "created_at": "202611101201",
+    }));
+    assert_eq!(made["ok"], json!(true), "{made}");
+    let refused = delete_folder(&delete_body("scope-functions"));
+    assert_eq!(refused["_status"], json!(409), "{refused}");
+    assert!(folder_dir("scope-functions/architecture-notes.md").is_file());
+
+    assert_eq!(create_folder(&payload(json!({ "name": "design-notes" })))["ok"], json!(true));
+    assert_eq!(
+        create_folder(&payload(json!({ "parent": "design-notes", "name": "inner" })))["ok"],
+        json!(true)
+    );
+    let blocked = delete_folder(&delete_body("design-notes"));
+    assert_eq!(blocked["_status"], json!(409), "{blocked}");
+    assert!(listed("design-notes/inner"));
+    assert!(folder_dir("design-notes/inner").is_dir());
+
+    fs::write(folder_dir("design-notes/inner").join("notes.txt"), "保留").expect("file");
+    let file_blocked = delete_folder(&delete_body("design-notes/inner"));
+    assert_eq!(file_blocked["_status"], json!(409), "{file_blocked}");
+    assert!(folder_dir("design-notes/inner/notes.txt").is_file());
+    assert!(listed("design-notes/inner"));
+}
+
+#[test]
+fn delete_folder_drops_a_row_when_the_directory_is_already_gone() {
+    let _sandbox = setup();
+    assert_eq!(create_folder(&payload(json!({ "name": "design-notes" })))["ok"], json!(true));
+    fs::remove_dir(folder_dir("design-notes")).expect("remove");
+    let removed = delete_folder(&delete_body("design-notes"));
+    assert_eq!(removed["ok"], json!(true), "{removed}");
+    assert!(!listed("design-notes"));
+    assert!(!folder_dir("design-notes").exists());
+}
+
+#[test]
+fn delete_folder_reports_an_unknown_folder_without_writing() {
+    let _sandbox = setup();
+    let missing = delete_folder(&delete_body("missing-folder"));
+    assert_eq!(missing["_status"], json!(404), "{missing}");
+    assert!(!folder_dir("missing-folder").exists());
+    let root = delete_folder(&delete_body("/"));
+    assert_eq!(root["_status"], json!(400), "{root}");
 }

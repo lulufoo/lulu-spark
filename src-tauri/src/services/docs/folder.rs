@@ -1,7 +1,8 @@
 //! An empty directory that stays in the tree when it holds no document.
 //!
 //! The row and the directory are one create: the new directory is removed if the row
-//! cannot be stored. A name that already exists is refused and nothing already there is changed.
+//! cannot be stored. Deleting an empty folder removes that one row and that one directory.
+//! A folder that still holds anything is left as it is.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -13,7 +14,7 @@ use crate::services::archive_parse::is_valid_common_path;
 use crate::services::spark_data::WorkspaceRow;
 
 use super::resolve::{
-    bad_request, conflict, ensure_workspace_enabled, internal, open_data, resolve_project,
+    bad_request, conflict, ensure_workspace_enabled, internal, not_found, open_data, resolve_project,
     resolve_workspace, text_field, workspace_root,
 };
 
@@ -102,6 +103,73 @@ pub fn create_folder(payload: &Value) -> Value {
     json!({ "ok": true, "workspace_id": workspace.id, "project_id": project.id, "path": path })
 }
 
+/// `{ workspace_id, project_id, path }` → `{ ok, project_id, path }`.
+/// Removes one empty folder. A document, a child folder, or any other file keeps it.
+pub fn delete_folder(payload: &Value) -> Value {
+    let Some(workspace_id) = text_field(payload, "workspace_id") else {
+        return bad_request("Missing workspace_id");
+    };
+    let Some(project_id) = text_field(payload, "project_id") else {
+        return bad_request("Missing project_id");
+    };
+    let Some(path) = text_field(payload, "path") else {
+        return bad_request("Missing folder");
+    };
+    if !folder_path_ok(path) {
+        return bad_request("Invalid folder");
+    }
+    let conn = match open_data() {
+        Ok(conn) => conn,
+        Err(err) => return err,
+    };
+    let workspace = match resolve_workspace(&conn, Some(workspace_id)) {
+        Ok(workspace) => workspace,
+        Err(err) => return err,
+    };
+    let project = match resolve_project(&conn, &workspace, Some(project_id)) {
+        Ok(project) => project,
+        Err(err) => return err,
+    };
+    if let Err(err) = ensure_workspace_enabled(&workspace) {
+        return err;
+    }
+    match folder_busy(&conn, &project.id, path) {
+        Ok(true) => return conflict("Folder is not empty"),
+        Ok(false) => {}
+        Err(err) => return internal(err),
+    }
+    let root = match workspace_root(&workspace) {
+        Ok(root) => root,
+        Err(err) => return err,
+    };
+    let raw = match project_raw(&root, &project.id) {
+        Ok(raw) => raw,
+        Err(err) => return err,
+    };
+    let dir = raw.join(path);
+    if dir_occupied(&dir) {
+        return conflict("Folder is not empty");
+    }
+    let had_row = match delete_folder_row(&conn, &project.id, path) {
+        Ok(had) => had,
+        Err(err) => return internal(err),
+    };
+    if !dir.exists() {
+        return if had_row { ok_folder(&workspace.id, &project.id, path) } else { not_found("Unknown folder") };
+    }
+    if let Err(err) = fs::remove_dir(&dir) {
+        if had_row {
+            let _ = insert_folder(&conn, &project.id, path);
+        }
+        return internal(err.to_string());
+    }
+    ok_folder(&workspace.id, &project.id, path)
+}
+
+fn ok_folder(workspace_id: &str, project_id: &str, path: &str) -> Value {
+    json!({ "ok": true, "workspace_id": workspace_id, "project_id": project_id, "path": path })
+}
+
 /// After a document is deleted, remember its parent when no document remains inside it.
 /// The directory itself is left on disk.
 pub(crate) fn keep_parent_folder(conn: &Connection, project_id: &str, raw_path: &str) -> Result<(), String> {
@@ -161,6 +229,35 @@ fn folder_row(conn: &Connection, project_id: &str, path: &str) -> Result<bool, S
         |row| row.get(0),
     )
     .map_err(|e| e.to_string())
+}
+
+fn folder_busy(conn: &Connection, project_id: &str, path: &str) -> Result<bool, String> {
+    Ok(docs_inside(conn, project_id, path)? || child_folder(conn, project_id, path)?)
+}
+
+fn child_folder(conn: &Connection, project_id: &str, path: &str) -> Result<bool, String> {
+    let like = format!("{}/%", escape_like(path));
+    conn.query_row(
+        "SELECT EXISTS(SELECT 1 FROM folder WHERE project_id = ?1 AND path LIKE ?2 ESCAPE '\\')",
+        params![project_id, like],
+        |row| row.get(0),
+    )
+    .map_err(|e| e.to_string())
+}
+
+fn delete_folder_row(conn: &Connection, project_id: &str, path: &str) -> Result<bool, String> {
+    let removed = conn
+        .execute("DELETE FROM folder WHERE project_id = ?1 AND path = ?2", params![project_id, path])
+        .map_err(|e| e.to_string())?;
+    Ok(removed > 0)
+}
+
+/// A missing directory is free. A file, a child entry, or an unreadable directory is occupied.
+fn dir_occupied(dir: &Path) -> bool {
+    let Ok(mut entries) = fs::read_dir(dir) else {
+        return dir.exists();
+    };
+    entries.next().is_some()
 }
 
 fn docs_inside(conn: &Connection, project_id: &str, path: &str) -> Result<bool, String> {

@@ -106,7 +106,7 @@ function FolderBlock({ node, depth, expanded, openDocId, selectedNode }: TreePro
           data-tip={node.name}
           aria-expanded={open}
           onClick={() => onFolderClick(node, open, selected)}
-          onContextMenu={onFolderContextMenu(node.key)}
+          onContextMenu={onFolderContextMenu(node.key, node.children.length === 0 && node.docs.length === 0)}
         >
           <Chrome isDir expanded={open} />
           <TreeNodeName name={node.name} isDir />
