@@ -6,15 +6,13 @@
 use std::time::{Duration, Instant};
 
 use base64::Engine;
-use reqwest::blocking::Client;
-use reqwest::redirect::Policy;
 use serde::Serialize;
 use serde_json::Value;
 
 use crate::config::vault;
+use crate::services::board_api;
 
 const BOARD_ORIGIN: &str = "luluboard.app";
-const BOARD_GRAPH_API: &str = "https://api.luluboard.app/graphs";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct BoardSketchReply {
@@ -97,7 +95,7 @@ pub fn board_graph_request_url(diagram_id: &str) -> Option<String> {
     if !is_graph_id(diagram_id) {
         return None;
     }
-    Some(format!("{BOARD_GRAPH_API}?diagram_id={diagram_id}"))
+    Some(format!("{}?diagram_id={diagram_id}", board_api::GRAPH_URL))
 }
 
 fn diagram_id(raw: &str) -> Result<String, &'static str> {
@@ -268,11 +266,7 @@ fn fetch_graph(pat: &str, diagram_id: &str) -> FetchOutcome {
     let Some(url) = board_graph_request_url(diagram_id) else {
         return FetchOutcome::Network;
     };
-    let Ok(client) = Client::builder()
-        .timeout(Duration::from_secs(10))
-        .redirect(Policy::none())
-        .build()
-    else {
+    let Some(client) = board_api::client() else {
         return FetchOutcome::Network;
     };
     let response = client

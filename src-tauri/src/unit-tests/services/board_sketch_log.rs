@@ -7,6 +7,7 @@ fn business_id_is_a_token_app_log_accepts() {
     assert_eq!(BUSINESS, "board_sketch");
     assert!(token_ok(BUSINESS));
     assert!(token_ok(EVENT_READ));
+    assert!(token_ok(EVENT_WARM));
 }
 
 #[test]
@@ -23,8 +24,11 @@ fn production_files_log_under_this_business_and_never_log_secrets() {
     assert!(helper.contains("app_log::log(BUSINESS"));
 
     let prod = include_str!("../../services/board_sketch.rs");
+    let api = include_str!("../../services/board_api.rs");
     assert!(prod.contains("board_sketch_log::read"));
+    assert!(api.contains("board_sketch_log::warmup"));
     assert!(!prod.contains("app_log::log"));
+    assert!(!api.contains("app_log::log"));
     for key in ["lbp_", "AUTHORIZATION", "Bearer", "content_b64"] {
         assert!(!helper.contains(key), "log helper must not mention {key}");
     }
