@@ -119,6 +119,29 @@ describe('markdown board sketches', () => {
     expect(host.querySelector('iframe')).toBeNull();
   });
 
+  it('forgets a closed document, then registers it again when reopened', async () => {
+    const host = page(`<a href="${SKETCH}">Sketch</a>`);
+    host.hidden = true;
+    let reads = 0;
+    const read = async () => {
+      reads += 1;
+      return { status: 'sketch', content_b64: b64('<p>Hi</p>') };
+    };
+    await act(async () => { await mountBoardSketches(host, read); });
+    expect(host.querySelector('iframe')).not.toBeNull();
+    releaseBoardSketches(host);
+    expect(host.querySelector('iframe')).toBeNull();
+    await act(async () => {
+      invalidateBoardSketches();
+      await Promise.resolve();
+    });
+    expect(reads).toBe(1);
+    expect(host.querySelector('a').textContent).toBe('Sketch');
+    await act(async () => { await mountBoardSketches(host, read); });
+    expect(reads).toBe(2);
+    expect(host.querySelector('iframe')).not.toBeNull();
+  });
+
   it('drops a mounted sketch and an in-flight read when the token changes', async () => {
     const host = page(`<a href="${SKETCH}">Sketch</a>`);
     const first = deferred();

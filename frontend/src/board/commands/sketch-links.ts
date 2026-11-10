@@ -48,6 +48,8 @@ export function releaseBoardSketches(container: Element | null | undefined) {
   if (!session) return;
   session.gen += 1;
   clearSlots(session);
+  sessions.delete(container);
+  live.delete(session);
 }
 
 export function invalidateBoardSketches() {
