@@ -23,7 +23,7 @@ export function SettingsDialogChrome() {
           <button type="button" className="settings-nav-item" data-panel="llm">Agent</button>
           <button type="button" className="settings-nav-item" data-panel="mcp">MCP</button>
           <button type="button" className="settings-nav-item" data-panel="devices">Devices</button>
-          <button type="button" className="settings-nav-item" data-panel="board">Board</button>
+          <button type="button" className="settings-nav-item" data-panel="board">Board Connect</button>
           <button type="button" className="settings-nav-item" data-panel="theme">Theme</button>
         </nav>
         <div id="settings-panels">

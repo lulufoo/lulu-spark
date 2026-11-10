@@ -50,14 +50,14 @@ describe('Board token settings', () => {
     status = true;
     const { host, root } = render();
     const board = host.querySelector('[data-panel="board"]');
-    expect(board.textContent).toBe('Board');
+    expect(board.textContent).toBe('Board Connect');
     expect(board.previousElementSibling.dataset.panel).toBe('devices');
     expect(board.nextElementSibling.dataset.panel).toBe('theme');
     await act(async () => {
       settingsOpenStore.set(true);
     });
     const panel = host.querySelector('#settings-panel-board');
-    expect(panel.querySelector('h3').textContent).toBe('Board');
+    expect(panel.querySelector('h3').textContent).toBe('Board Connect');
     expect(panel.textContent).toContain('Connect your Board account to preview Sketch links.');
     expect(panel.querySelector('.board-pat-status').textContent).toBe('Board PAT configured');
     expect(panel.querySelector('.board-pat-status').classList.contains('is-set')).toBe(true);

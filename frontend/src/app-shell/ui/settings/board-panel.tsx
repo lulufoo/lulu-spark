@@ -26,7 +26,7 @@ export function BoardSettingsPanel() {
 
   return (
     <div id="settings-panel-board" className="settings-panel">
-      <h3>Board</h3>
+      <h3>Board Connect</h3>
       <p className="settings-field-hint board-pat-lead">Connect your Board account to preview Sketch links.</p>
       {snap.configured === null ? null : (
         <p className={snap.configured ? 'board-pat-status is-set' : 'board-pat-status'}>
