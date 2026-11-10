@@ -42,6 +42,8 @@ const P2_WRITE_PATHS = [
   '/api/viewer-state',
   '/api/mark-message-channel-read',
   '/api/show-os-notification',
+  '/api/board-pat',
+  '/api/board-pat/delete',
 ];
 
 const ANNOTATION_WRITE_CMDS = new Set([
@@ -58,7 +60,7 @@ describe('writeApiInvokeMap', () => {
     for (const p of P2_WRITE_PATHS) {
       expect(WRITE_API_INVOKE_MAP[p]?.cmd, p).toBeTruthy();
     }
-    expect(Object.keys(WRITE_API_INVOKE_MAP)).toHaveLength(39);
+    expect(Object.keys(WRITE_API_INVOKE_MAP)).toHaveLength(41);
   });
 
   it('maps /api/file absolute-path write to write_abs_file', () => {

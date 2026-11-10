@@ -67,6 +67,7 @@ export function applyTheme(id: ThemeId): ThemeId {
     sheet.dataset.themeId = applied;
   }
   document.documentElement.dataset.theme = applied;
+  document.dispatchEvent(new CustomEvent('spark-theme', { detail: applied }));
   void syncWindowTheme(id);
   return applied;
 }

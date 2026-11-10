@@ -181,6 +181,26 @@ pub fn delete_auth_session() -> Result<(), SecretError> {
     update_vault(|vault| vault.set_auth_session(None))
 }
 
+pub fn board_pat_configured() -> Result<bool, SecretError> {
+    Ok(read_vault()?.board_pat().is_some())
+}
+
+pub fn get_board_pat() -> Result<Option<String>, SecretError> {
+    Ok(read_vault()?.board_pat().map(str::to_string))
+}
+
+pub fn set_board_pat(value: &str) -> Result<(), SecretError> {
+    let pat = value.trim();
+    if pat.is_empty() {
+        return Err(SecretError::InvalidBoardPat);
+    }
+    update_vault(|vault| vault.set_board_pat(Some(pat.to_string())))
+}
+
+pub fn delete_board_pat() -> Result<(), SecretError> {
+    update_vault(|vault| vault.set_board_pat(None))
+}
+
 #[cfg(test)]
 #[path = "../../unit-tests/config/vault/store.rs"]
 mod tests;

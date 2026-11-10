@@ -46,11 +46,16 @@ describe('theme loader', () => {
   });
 
   it('applyTheme loads Dark without changing structure sheets', () => {
+    const seen = [];
+    document.addEventListener('spark-theme', (event) => {
+      seen.push(event.detail);
+    });
     expect(applyTheme('dark')).toBe('dark');
     const sheet = document.getElementById(THEME_SHEET_ID);
     expect(sheet?.getAttribute('href')).toBe('theme-dark.css');
     expect(sheet?.dataset.themeId).toBe('dark');
     expect(document.documentElement.dataset.theme).toBe('dark');
+    expect(seen).toEqual(['dark']);
   });
 
   it('bootTheme applies Light when no theme query is present', () => {

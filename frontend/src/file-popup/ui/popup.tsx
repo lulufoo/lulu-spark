@@ -11,6 +11,7 @@ import {
   saveFilePopup,
 } from '../commands/popup.ts';
 import { viewStore } from '../state/store.ts';
+import { releaseBoardSketches } from '../../board/commands/sketch-links.ts';
 import { paintFilePopupDoc } from './paint.ts';
 
 let hostRoot: Root | null = null;
@@ -34,12 +35,14 @@ export function FilePopup() {
   const view = useSyncExternalStore(viewStore.subscribe, viewStore.getSnapshot);
 
   useLayoutEffect(() => {
-    if (!view.open) return;
+    if (!view.open) return undefined;
+    const body = document.getElementById('file-popup-body');
     void paintFilePopupDoc({
       editing: view.editing,
       content: view.content,
       identityKey: view.identityKey,
     });
+    return () => releaseBoardSketches(body);
   }, [view.open, view.editing, view.content, view.loading, view.path, view.identityKey]);
 
   useLayoutEffect(() => {

@@ -141,6 +141,10 @@ pub fn run() {
             commands::package::get_package_snapshot,
             commands::auth_session::set_auth_session,
             commands::auth_session::delete_auth_session,
+            commands::board_pat::get_board_pat_status,
+            commands::board_pat::set_board_pat,
+            commands::board_pat::delete_board_pat,
+            commands::board_sketch::read_board_sketch,
         ])
         .setup(|app| {
             let notify_handle = app.handle().clone();

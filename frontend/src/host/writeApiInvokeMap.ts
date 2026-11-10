@@ -234,6 +234,16 @@ export const WRITE_API_INVOKE_MAP: Record<string, WriteInvokeEntry> = {
       scheme: body.scheme,
     }),
   },
+  '/api/board-pat': {
+    cmd: 'set_board_pat',
+    args: (body) => ({
+      pat: body.pat,
+    }),
+  },
+  '/api/board-pat/delete': {
+    cmd: 'delete_board_pat',
+    args: () => ({}),
+  },
 };
 
 /**

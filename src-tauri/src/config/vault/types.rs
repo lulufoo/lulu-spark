@@ -14,6 +14,7 @@ pub enum SecretError {
     Store(String),
     Parse(String),
     InvalidEngine(String),
+    InvalidBoardPat,
 }
 
 impl std::fmt::Display for SecretError {
@@ -22,6 +23,7 @@ impl std::fmt::Display for SecretError {
             SecretError::Store(e) => write!(f, "store: {e}"),
             SecretError::Parse(e) => write!(f, "parse: {e}"),
             SecretError::InvalidEngine(e) => write!(f, "invalid llm engine: {e}"),
+            SecretError::InvalidBoardPat => write!(f, "invalid board pat"),
         }
     }
 }
@@ -38,6 +40,14 @@ pub struct Vault {
     pub bind: Option<BindSecrets>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "supabase-auth")]
     pub supabase_auth: Option<AuthSession>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub board: Option<BoardSecrets>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BoardSecrets {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pat: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -117,6 +127,40 @@ impl Vault {
             && self.mcp_slot(SLOT_ZCODE).is_none()
             && self.devices().is_empty()
             && self.auth_session().is_none()
+            && self.board_pat().is_none()
+    }
+
+    pub fn board_pat(&self) -> Option<&str> {
+        self.board
+            .as_ref()
+            .and_then(|board| board.pat.as_deref())
+            .map(str::trim)
+            .filter(|pat| !pat.is_empty())
+    }
+
+    pub fn set_board_pat(&mut self, value: Option<String>) {
+        match value
+            .map(|pat| pat.trim().to_string())
+            .filter(|pat| !pat.is_empty())
+        {
+            Some(pat) => {
+                self.board
+                    .get_or_insert_with(BoardSecrets::default)
+                    .pat = Some(pat);
+            }
+            None => {
+                if let Some(board) = self.board.as_mut() {
+                    board.pat = None;
+                }
+            }
+        }
+        self.prune_board();
+    }
+
+    fn prune_board(&mut self) {
+        if self.board_pat().is_none() {
+            self.board = None;
+        }
     }
 
     pub fn llm_api_key(&self, engine: &str) -> Option<&str> {
@@ -222,6 +266,7 @@ impl Vault {
         if self.auth_session().is_none() {
             self.supabase_auth = None;
         }
+        self.prune_board();
     }
 }
 

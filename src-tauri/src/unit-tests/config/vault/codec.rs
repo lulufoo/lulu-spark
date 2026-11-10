@@ -176,3 +176,27 @@ fn slot_ticket_ignores_legacy_env_suffix() {
     let json = vault_to_json(&legacy).expect("json");
     assert!(!json.contains("env_suffix"), "{json}");
 }
+
+#[test]
+fn board_pat_round_trips_and_empty_vault_omits_it() {
+    let mut vault = Vault::default();
+    assert!(!vault_to_json(&vault).expect("json").contains("board"));
+    assert_eq!(vault_to_toml(&vault).expect("toml"), "");
+    vault.set_board_pat(Some("  lin_pat_codec  ".into()));
+    assert_eq!(vault.board_pat(), Some("lin_pat_codec"));
+    let json = vault_to_json(&vault).expect("json");
+    let toml = vault_to_toml(&vault).expect("toml");
+    assert!(json.contains("\"board\""));
+    assert!(toml.contains("[board]"));
+    assert_eq!(
+        vault_from_json(&json).expect("json").board_pat(),
+        Some("lin_pat_codec")
+    );
+    assert_eq!(
+        vault_from_toml(&toml).expect("toml").board_pat(),
+        Some("lin_pat_codec")
+    );
+    vault.set_board_pat(None);
+    assert!(vault.is_empty());
+    assert_eq!(vault_to_json(&vault).expect("cleared"), "{}");
+}

@@ -1,3 +1,4 @@
+import { mountBoardSketches, releaseBoardSketches } from '../../board/commands/sketch-links.ts';
 import { applyCachedHighlights } from '../../doc-editor/highlights.ts';
 import { renderDocMarkdown, setDocEditMode } from '../../doc-editor/view.tsx';
 import { renderMermaidBlocks } from '../../shared/mermaid-render.ts';
@@ -29,10 +30,12 @@ export async function paintFilePopupDoc({
 }) {
   const bodyEl = document.getElementById('file-popup-body');
   const editAreaEl = asTextArea(document.getElementById('file-popup-edit-area'));
+  releaseBoardSketches(bodyEl);
   setDocEditMode({ bodyEl, editAreaEl, text: content, editing });
   if (editing || !bodyEl) return;
   renderDocMarkdown(bodyEl, content);
   markExternalLinks(bodyEl);
+  void mountBoardSketches(bodyEl);
   await renderMermaidBlocks(bodyEl);
   const key = String(identityKey || '').trim();
   if (!key) return;

@@ -34,4 +34,6 @@ commands.allow = [
   "get_message_channel_unread",
   "get_auth_session",
   "get_package_snapshot",
+  "get_board_pat_status",
+  "read_board_sketch",
 ]

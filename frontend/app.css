@@ -5355,6 +5355,33 @@ details.notes-disabled > button.notes-cat-item { margin-top: 6px; }
 }
 .btn-settings-ghost:hover:not(:disabled) { background: var(--bg-hover); }
 .btn-settings-ghost:disabled { opacity: .6; cursor: default; }
+#settings-panel-board.active { padding: 16px 20px 18px; }
+#settings-panel-board .settings-panel-actions { margin-top: 14px; }
+#settings-panel-board h3 {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 650;
+  color: var(--fg-default);
+}
+.board-pat-lead { margin: 0; }
+.board-pat-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 12px 0;
+  padding: 3px 8px;
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  color: var(--fg-subtle);
+  font-size: 12px;
+}
+.board-pat-status.is-set::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #3d9c69;
+}
 
 .notes-cat-lead {
   margin: 0;
@@ -8606,4 +8633,110 @@ button.home-sync-row-name:focus-visible {
   font-size: 12px;
   line-height: 1.5;
   box-shadow: 0 8px 24px var(--shadow-rgba-1b1f24-14);
+}
+p:has(> a[hidden] + .board-sketch-slot) {
+  display: contents;
+}
+.board-sketch-preview {
+  box-sizing: border-box;
+  width: 100%;
+  margin: 12px 0 4px;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--border-default);
+  border-radius: 9px;
+  background: var(--bg-canvas);
+}
+.board-sketch-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin: 0;
+  padding: 10px 13px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-default);
+  color: var(--fg-default);
+  font-size: 13px;
+  font-weight: 700;
+}
+.board-sketch-name {
+  min-width: 0;
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.board-sketch-note {
+  margin-left: 8px;
+  color: var(--fg-subtle);
+  font-size: 12px;
+}
+.board-sketch-open {
+  flex-shrink: 0;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--fg-accent);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.35;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.board-sketch-frame-box {
+  position: relative;
+  width: 100%;
+  min-height: 240px;
+  overflow: hidden;
+  background: var(--bg-canvas);
+}
+.board-sketch-frame-box.is-ready,
+.board-sketch-frame-box.is-failed {
+  min-height: 0;
+}
+.board-sketch-frame-box.is-failed {
+  display: none;
+}
+.board-sketch-frame-box:not(.is-ready):not(.is-failed) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.board-sketch-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--fg-muted);
+}
+.board-sketch-loading svg {
+  display: block;
+  width: 76px;
+  height: 76px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .board-sketch-loading animate {
+    display: none;
+  }
+}
+.board-sketch-frame {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border: 0;
+  transform-origin: top left;
+  background: var(--bg-canvas);
+  /* Hidden until the runner reports a size and the frame is scaled to the column. */
+  visibility: hidden;
+  /* Live sandbox is a light page. A dark frame paints an opaque white canvas over --bg-canvas. */
+  color-scheme: light;
+}
+.board-sketch-frame.is-ready {
+  visibility: visible;
+}
+.board-sketch-error {
+  margin: 0;
+  padding: 0 13px 8px;
+  color: var(--fg-subtle);
+  font-size: 12px;
 }
