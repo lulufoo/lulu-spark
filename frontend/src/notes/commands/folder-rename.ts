@@ -3,6 +3,7 @@ import { parseHash } from '../../router/index.ts';
 import { notifyState, state } from '../state/host.ts';
 import { dirKeyOf, dirTreeStore, isDirKey, nodeKeyOf, pathKeys } from '../state/dir-tree.ts';
 import { dirCreateStore } from '../state/dir-create.ts';
+import { fileRenameStore } from '../state/file-rename.ts';
 import { folderCreateStore } from '../state/folder-create.ts';
 import { folderRenameStore } from '../state/folder-rename.ts';
 import { refreshNotesIndex } from './reload-index.ts';
@@ -39,8 +40,9 @@ export function beginFolderRename() {
 export function renameSelectedFolder(target: EventTarget | null): boolean {
   const renaming = folderRenameStore.getSnapshot();
   const creating = folderCreateStore.getSnapshot();
+  const file = fileRenameStore.getSnapshot();
   if (renaming.project || renaming.saving || creating.project || creating.menu || creating.saving) return false;
-  if (dirCreateStore.getSnapshot().project) return false;
+  if (file.id || file.saving || dirCreateStore.getSnapshot().project) return false;
   if (!isDirectoryView() || parseHash().name !== 'spark') return false;
   const outlet = state.viewer?.outletMode;
   if (outlet === 'open' || outlet === 'create' || outlet === 'safe-empty' || state.viewer?.createSession) return false;
@@ -60,21 +62,6 @@ function enterCanStartRename(target: EventTarget | null): boolean {
   if (el.closest('input, textarea, select, [contenteditable="true"]')) return false;
   if (el.closest('[data-role="folder-menu"], [role="dialog"]')) return false;
   return true;
-}
-
-function onFolderRenameEnter(event: KeyboardEvent) {
-  if (event.defaultPrevented) return;
-  if (event.key !== 'Enter' || event.repeat) return;
-  if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
-  if (event.isComposing) return;
-  if (!renameSelectedFolder(event.target)) return;
-  event.preventDefault();
-}
-
-/** While the directory tree is up: Enter edits the listed folder, wherever focus is. */
-export function attachFolderRenameEnter() {
-  document.addEventListener('keydown', onFolderRenameEnter, true);
-  return () => document.removeEventListener('keydown', onFolderRenameEnter, true);
 }
 
 export function setFolderRenameName(name: string) {

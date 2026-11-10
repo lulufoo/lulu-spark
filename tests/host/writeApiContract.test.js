@@ -22,6 +22,7 @@ const P2_PATHS = [
   ['/api/create-folder', 'create_folder', ['payload']],
   ['/api/delete-folder', 'delete_folder', ['payload']],
   ['/api/rename-folder', 'rename_folder', ['payload']],
+  ['/api/rename-doc', 'rename_doc', ['payload']],
   ['/api/workspace-create', 'create_workspace', ['payload']],
   ['/api/workspace-rename', 'rename_workspace', ['payload']],
   ['/api/workspace-view-mode', 'set_workspace_view_mode', ['payload']],

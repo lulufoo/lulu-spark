@@ -28,3 +28,13 @@ export async function renameFolder(payload: {
 }) {
   return writePost('/api/rename-folder', payload);
 }
+
+/** Rename one document's markdown file in its folder. `name` is the new basename. */
+export async function renameDoc(payload: {
+  workspace_id: string;
+  project_id: string;
+  id: string;
+  name: string;
+}) {
+  return writePost('/api/rename-doc', payload);
+}

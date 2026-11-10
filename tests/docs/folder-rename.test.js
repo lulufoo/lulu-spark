@@ -15,6 +15,7 @@ vi.mock('../../frontend/src/notes/commands/reload-index.ts', () => ({ refreshNot
 vi.mock('../../frontend/src/notes/commands/cards.ts', () => ({ loadTitles: vi.fn() }));
 
 import { state } from '../../frontend/src/host/state.ts';
+import { cancelFileRename } from '../../frontend/src/notes/commands/file-rename.ts';
 import { cancelFolderRename } from '../../frontend/src/notes/commands/folder-rename.ts';
 import { closeFolderMenu } from '../../frontend/src/notes/commands/folder-create.ts';
 import { dirKeyOf, dirTreeStore } from '../../frontend/src/notes/state/dir-tree.ts';
@@ -34,6 +35,10 @@ function seed() {
   };
   state.ui.activeTopic = 'ideas';
   state.ui.activeDate = dirKeyOf('ideas/plans');
+  state.viewer.outletMode = '';
+  state.viewer.entry = null;
+  state.viewer.editing = false;
+  state.viewer.createSession = null;
   dirTreeStore.set({ expanded: ['ideas/plans', 'ideas/plans/q1'] });
   window.location.hash = '#/spark';
 }
@@ -59,6 +64,7 @@ beforeEach(() => {
   refreshNotesIndex.mockClear();
   vi.spyOn(window, 'alert').mockImplementation(() => {});
   cancelFolderRename();
+  cancelFileRename();
   closeFolderMenu();
   seed();
 });

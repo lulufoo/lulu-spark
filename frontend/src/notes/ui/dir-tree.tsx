@@ -4,6 +4,7 @@ import { folderCreateStore } from '../state/folder-create.ts';
 import { DirCreateRow } from './dir-create-row.tsx';
 import { FolderCreateRow } from './folder-create-row.tsx';
 import { onFileContextMenu, onFolderContextMenu } from './folder-menu.tsx';
+import { FileRenameLabel, useRenamingFileId } from './file-rename-label.tsx';
 import { FolderRenameLabel, useRenamingFolderKey } from './folder-rename-label.tsx';
 import { getEntryId } from '../../host/state.ts';
 import { useHostState } from '../state/host.ts';
@@ -15,10 +16,11 @@ import {
   isDirKey,
   nodeKeyOf,
   toggleDirNodeOpen,
+  type DirDoc,
   type DirNode,
 } from '../state/dir-tree.ts';
 import { selectDate } from '../commands/sidebar.ts';
-import { attachFolderRenameEnter } from '../commands/folder-rename.ts';
+import { attachDirectoryRenameEnter } from '../commands/dir-rename-enter.ts';
 import type { NoteEntry } from '../state/types.ts';
 import { FileGlyph, FolderGlyph, TreeChevron, TreeNodeName } from './dir-tree-glyphs.tsx';
 
@@ -59,24 +61,7 @@ function NodeContents({ node, depth, expanded, openDocId, selectedNode }: TreePr
       ))}
       <DirCreateRow nodeKey={node.key} depth={depth} />
       {node.docs.map((doc) => (
-        <div
-          key={doc.id}
-          className="knowledge-doc-tree-node is-file"
-          data-id={doc.id}
-          data-kind="file"
-          style={{ paddingLeft: depth * 16 }}
-        >
-          <button
-            type="button"
-            className={`knowledge-doc-tree-label${openDocId === doc.id ? ' selected' : ''}`}
-            data-tip={doc.entry.raw_path || doc.name}
-            onClick={() => openDoc(doc.id, doc.entry)}
-            onContextMenu={onFileContextMenu}
-          >
-            <Chrome isDir={false} expanded={false} />
-            <TreeNodeName name={doc.name} isDir={false} />
-          </button>
-        </div>
+        <FileBlock key={doc.id} doc={doc} depth={depth} openDocId={openDocId} />
       ))}
     </>
   );
@@ -86,6 +71,33 @@ function NodeContents({ node, depth, expanded, openDocId, selectedNode }: TreePr
  * Clicking a folder lists it on the right (and opens it). Clicking the folder that is already
  * listed and open closes it, so the tree can still be collapsed.
  */
+function FileBlock({ doc, depth, openDocId }: { doc: DirDoc; depth: number; openDocId: string }) {
+  const renaming = useRenamingFileId() === doc.id;
+  return (
+    <div
+      className="knowledge-doc-tree-node is-file"
+      data-id={doc.id}
+      data-kind="file"
+      style={{ paddingLeft: depth * 16 }}
+    >
+      {renaming ? (
+        <FileRenameLabel docId={doc.id} />
+      ) : (
+        <button
+          type="button"
+          className={`knowledge-doc-tree-label${openDocId === doc.id ? ' selected' : ''}`}
+          data-tip={doc.entry.raw_path || doc.name}
+          onClick={() => openDoc(doc.id, doc.entry)}
+          onContextMenu={onFileContextMenu}
+        >
+          <Chrome isDir={false} expanded={false} />
+          <TreeNodeName name={doc.name} isDir={false} />
+        </button>
+      )}
+    </div>
+  );
+}
+
 function onFolderClick(node: DirNode, open: boolean, selected: boolean) {
   if (selected && open) toggleDirNodeOpen(node.key);
   else selectDate(dirKeyOf(node.key));
@@ -146,7 +158,7 @@ export function DirTree() {
   const { expanded } = useSyncExternalStore(dirTreeStore.subscribe, dirTreeStore.getSnapshot);
   const creating = useSyncExternalStore(dirCreateStore.subscribe, dirCreateStore.getSnapshot);
   const folderCreating = useSyncExternalStore(folderCreateStore.subscribe, folderCreateStore.getSnapshot);
-  useEffect(() => attachFolderRenameEnter(), []);
+  useEffect(() => attachDirectoryRenameEnter(), []);
   const project = host.ui.activeTopic;
   const root = useMemo(
     () =>
