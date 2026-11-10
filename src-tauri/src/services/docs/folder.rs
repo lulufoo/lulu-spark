@@ -210,15 +210,15 @@ fn parent_path(payload: &Value) -> Result<String, Value> {
     }
 }
 
-fn one_segment(name: &str) -> bool {
+pub(super) fn one_segment(name: &str) -> bool {
     !name.contains('/') && !name.contains('\\') && folder_path_ok(name)
 }
 
-fn folder_path_ok(path: &str) -> bool {
+pub(super) fn folder_path_ok(path: &str) -> bool {
     !path.is_empty() && !path.starts_with('/') && !path.ends_with('/') && is_valid_common_path(&format!("{path}/kept.md"))
 }
 
-fn folder_known(conn: &Connection, project_id: &str, path: &str) -> Result<bool, String> {
+pub(super) fn folder_known(conn: &Connection, project_id: &str, path: &str) -> Result<bool, String> {
     Ok(folder_row(conn, project_id, path)? || docs_inside(conn, project_id, path)?)
 }
 
@@ -273,7 +273,7 @@ fn docs_inside(conn: &Connection, project_id: &str, path: &str) -> Result<bool, 
     .map_err(|e| e.to_string())
 }
 
-fn escape_like(path: &str) -> String {
+pub(super) fn escape_like(path: &str) -> String {
     path.replace('\\', "\\\\").replace('%', "\\%").replace('_', "\\_")
 }
 
@@ -286,7 +286,7 @@ fn insert_folder(conn: &Connection, project_id: &str, path: &str) -> Result<(), 
     .map_err(|e| e.to_string())
 }
 
-fn project_raw(root: &Path, project_id: &str) -> Result<PathBuf, Value> {
+pub(super) fn project_raw(root: &Path, project_id: &str) -> Result<PathBuf, Value> {
     if project_id.is_empty() || project_id.contains("..") || project_id.contains('/') || project_id.contains('\\') {
         return Err(bad_request("Invalid project id"));
     }

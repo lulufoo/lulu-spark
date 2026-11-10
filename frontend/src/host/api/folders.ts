@@ -18,3 +18,13 @@ export async function deleteFolder(payload: {
 }) {
   return writePost('/api/delete-folder', payload);
 }
+
+/** Rename one folder. `name` is the new single segment under the same parent. */
+export async function renameFolder(payload: {
+  workspace_id: string;
+  project_id: string;
+  path: string;
+  name: string;
+}) {
+  return writePost('/api/rename-folder', payload);
+}

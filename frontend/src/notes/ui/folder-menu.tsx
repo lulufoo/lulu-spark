@@ -8,6 +8,7 @@ import {
   folderPathOf,
   openFolderMenu,
 } from '../commands/folder-create.ts';
+import { beginFolderRename } from '../commands/folder-rename.ts';
 import { folderCreateStore } from '../state/folder-create.ts';
 
 function targetElement(target: EventTarget | null): HTMLElement | null {
@@ -85,7 +86,19 @@ export function FolderMenu() {
             beginFolderCreate();
           }}
         >
-          New folder
+        New folder
+      </button>
+      ) : null}
+      {menu.canRename ? (
+        <button
+          type="button"
+          role="menuitem"
+          onMouseDown={(event) => {
+            event.preventDefault();
+            beginFolderRename();
+          }}
+        >
+          Rename
         </button>
       ) : null}
       {menu.canDelete ? (

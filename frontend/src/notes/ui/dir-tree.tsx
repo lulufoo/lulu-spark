@@ -4,6 +4,7 @@ import { folderCreateStore } from '../state/folder-create.ts';
 import { DirCreateRow } from './dir-create-row.tsx';
 import { FolderCreateRow } from './folder-create-row.tsx';
 import { onFileContextMenu, onFolderContextMenu } from './folder-menu.tsx';
+import { FolderRenameLabel, useRenamingFolderKey } from './folder-rename-label.tsx';
 import { getEntryId } from '../../host/state.ts';
 import { useHostState } from '../state/host.ts';
 import {
@@ -92,6 +93,7 @@ function onFolderClick(node: DirNode, open: boolean, selected: boolean) {
 function FolderBlock({ node, depth, expanded, openDocId, selectedNode }: TreeProps & { node: DirNode }) {
   const open = expanded.includes(node.key);
   const selected = selectedNode === node.key;
+  const renaming = useRenamingFolderKey() === node.key;
   return (
     <>
       <div
@@ -100,17 +102,21 @@ function FolderBlock({ node, depth, expanded, openDocId, selectedNode }: TreePro
         data-kind="dir"
         style={{ paddingLeft: depth * 16 }}
       >
-        <button
-          type="button"
-          className={`knowledge-doc-tree-label${selected ? ' selected' : ''}`}
-          data-tip={node.name}
-          aria-expanded={open}
-          onClick={() => onFolderClick(node, open, selected)}
-          onContextMenu={onFolderContextMenu(node.key, node.children.length === 0 && node.docs.length === 0)}
-        >
-          <Chrome isDir expanded={open} />
-          <TreeNodeName name={node.name} isDir />
-        </button>
+        {renaming ? (
+          <FolderRenameLabel nodeKey={node.key} open={open} />
+        ) : (
+          <button
+            type="button"
+            className={`knowledge-doc-tree-label${selected ? ' selected' : ''}`}
+            data-tip={node.name}
+            aria-expanded={open}
+            onClick={() => onFolderClick(node, open, selected)}
+            onContextMenu={onFolderContextMenu(node.key, node.children.length === 0 && node.docs.length === 0)}
+          >
+            <Chrome isDir expanded={open} />
+            <TreeNodeName name={node.name} isDir />
+          </button>
+        )}
       </div>
       {open ? (
         <div

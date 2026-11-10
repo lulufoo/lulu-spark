@@ -21,6 +21,7 @@ const P2_PATHS = [
   ['/api/create-note', 'create_note', ['payload']],
   ['/api/create-folder', 'create_folder', ['payload']],
   ['/api/delete-folder', 'delete_folder', ['payload']],
+  ['/api/rename-folder', 'rename_folder', ['payload']],
   ['/api/workspace-create', 'create_workspace', ['payload']],
   ['/api/workspace-rename', 'rename_workspace', ['payload']],
   ['/api/workspace-view-mode', 'set_workspace_view_mode', ['payload']],

@@ -6,6 +6,7 @@ export type FolderMenu = {
   y: number;
   canCreate: boolean;
   canDelete: boolean;
+  canRename: boolean;
 };
 
 /** The folder-name row, plus the right-click menu that opens it. */

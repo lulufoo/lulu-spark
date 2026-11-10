@@ -22,8 +22,12 @@ export function openFolderMenu(parent: string, x: number, y: number, canDelete =
   const project = state.ui.activeTopic;
   if (!project) return;
   const canCreate = folderCanHaveChild(parent);
-  if (!canCreate && !canDelete) return;
-  folderCreateStore.set((prev) => ({ ...prev, menu: { parent, x, y, canCreate, canDelete } }));
+  const canRename = parent !== '/';
+  if (!canCreate && !canDelete && !canRename) return;
+  folderCreateStore.set((prev) => ({
+    ...prev,
+    menu: { parent, x, y, canCreate, canDelete, canRename },
+  }));
 }
 
 export function closeFolderMenu() {

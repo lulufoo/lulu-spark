@@ -134,6 +134,10 @@ export const WRITE_API_INVOKE_MAP: Record<string, WriteInvokeEntry> = {
     cmd: 'delete_folder',
     args: (body) => ({ payload: body ?? {} }),
   },
+  '/api/rename-folder': {
+    cmd: 'rename_folder',
+    args: (body) => ({ payload: body ?? {} }),
+  },
   '/api/workspace-create': {
     cmd: 'create_workspace',
     args: (body) => ({ payload: body ?? {} }),

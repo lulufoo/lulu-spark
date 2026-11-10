@@ -168,7 +168,8 @@ describe('directory new folder', () => {
     await act(async () => {
       button.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 3, clientY: 3 }));
     });
-    expect(document.querySelector('[data-role="folder-menu"]')).toBeNull();
+    const labels = [...document.querySelectorAll('[data-role="folder-menu"] button')].map((b) => b.textContent);
+    expect(labels).toEqual(['Rename']);
     await act(async () => root.unmount());
   });
 
@@ -188,7 +189,7 @@ describe('directory new folder', () => {
       saved.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 6, clientY: 6 }));
     });
     const labels = () => [...document.querySelectorAll('[data-role="folder-menu"] button')].map((b) => b.textContent);
-    expect(labels()).toEqual(['New folder', 'Delete folder']);
+    expect(labels()).toEqual(['New folder', 'Rename', 'Delete folder']);
     await act(async () => {
       [...document.querySelectorAll('[data-role="folder-menu"] button')].find((b) => b.textContent === 'Delete folder').dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
     });
@@ -205,7 +206,7 @@ describe('directory new folder', () => {
     await act(async () => {
       deep.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 9, clientY: 9 }));
     });
-    expect(labels()).toEqual(['Delete folder']);
+    expect(labels()).toEqual(['Rename', 'Delete folder']);
     await act(async () => root.unmount());
   });
 });

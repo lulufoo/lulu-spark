@@ -235,6 +235,11 @@ pub fn delete_folder(_app: AppHandle, payload: Value) -> Result<Value, String> {
     Ok(docs::delete_folder(&payload))
 }
 
+#[tauri::command]
+pub fn rename_folder(_app: AppHandle, payload: Value) -> Result<Value, String> {
+    Ok(docs::rename_folder(&payload))
+}
+
 pub fn mark_message_channel_read_json(channel: &str) -> Result<(), String> {
     crate::services::message_center::mark_channel_read(channel)
 }
