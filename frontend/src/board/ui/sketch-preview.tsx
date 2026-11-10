@@ -124,7 +124,9 @@ export function SketchPreview({ html, pageUrl, appearance, title = '' }: Props) 
           src={SANDBOX_SRC}
           sandbox={SANDBOX_ALLOW}
           referrerPolicy="no-referrer"
-          style={size ? { width: size.width, height: size.height, transform: `scale(${fit})` } : undefined}
+          style={size
+            ? { width: size.width, height: size.height, transform: `scale(${fit})`, colorScheme: 'light' }
+            : { colorScheme: 'light' }}
         />
         {canOpen ? (
           <button

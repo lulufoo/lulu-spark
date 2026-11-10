@@ -42,6 +42,11 @@ describe('sketch preview', () => {
     expect(frame.getAttribute('src')).toBe('https://sandbox.luluboard.app/');
     expect(frame.getAttribute('sandbox')).toBe('allow-scripts');
     expect(frame.getAttribute('sandbox')).not.toContain('allow-same-origin');
+    expect(frame.style.colorScheme).toBe('light');
+    const css = readFileSync(join(repoRoot, 'frontend/app.css'), 'utf8');
+    expect(css).toMatch(/p:has\(>\s*a\[hidden\] \+ \.board-sketch-slot\)/);
+    expect(css).toMatch(/\.board-sketch-frame\s*\{[^}]*color-scheme:\s*light/);
+    expect(css).not.toMatch(/\[data-theme="dark"\] \.board-sketch-frame\s*\{[^}]*color-scheme:\s*dark/);
     const csp = JSON.parse(readFileSync(join(repoRoot, 'src-tauri/tauri.conf.json'), 'utf8')).app.security.csp;
     expect(csp).toContain('frame-src https://sandbox.luluboard.app');
     expect(csp).not.toContain('frame-src *');
@@ -54,6 +59,7 @@ describe('sketch preview', () => {
     window.__TAURI__ = { opener: { openUrl: async (url) => { opened.push(url); } } };
     const { host, root } = render({ html: HTML, pageUrl: PAGE, appearance: 'dark' });
     const frame = host.querySelector('iframe');
+    expect(frame.style.colorScheme).toBe('light');
     const posted = [];
     frame.contentWindow.postMessage = (data) => posted.push(data);
     act(() => {
@@ -105,6 +111,7 @@ describe('sketch preview', () => {
     posted.length = 0;
     act(() => root.render(createElement(SketchPreview, { html: HTML, pageUrl: PAGE, appearance: 'dark' })));
     expect(posted).toEqual([appearanceMessage('dark')]);
+    expect(host.querySelector('iframe').style.colorScheme).toBe('light');
     expect(isBoardPage(PAGE)).toBe(true);
     expect(isBoardPage('https://evil.test/#b:b_0123abcd')).toBe(false);
     expect(readSandboxMessage({ type: 'lulu-sandbox:size', width: 10, height: 20 })?.width).toBe(10);

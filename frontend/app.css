@@ -8634,6 +8634,9 @@ button.home-sync-row-name:focus-visible {
   line-height: 1.5;
   box-shadow: 0 8px 24px var(--shadow-rgba-1b1f24-14);
 }
+p:has(> a[hidden] + .board-sketch-slot) {
+  display: contents;
+}
 .board-sketch-preview {
   box-sizing: border-box;
   width: 100%;
@@ -8672,6 +8675,7 @@ button.home-sync-row-name:focus-visible {
   position: relative;
   width: 100%;
   overflow: hidden;
+  background: var(--bg-canvas);
 }
 .board-sketch-frame {
   position: absolute;
@@ -8680,6 +8684,8 @@ button.home-sync-row-name:focus-visible {
   border: 0;
   transform-origin: top left;
   background: var(--bg-canvas);
+  /* Live sandbox is a light page. A dark frame paints an opaque white canvas over --bg-canvas. */
+  color-scheme: light;
 }
 .board-sketch-hit {
   position: absolute;

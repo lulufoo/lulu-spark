@@ -24,7 +24,16 @@ const live = new Set<Session>();
 let watchingTheme = false;
 
 function currentAppearance(): SketchAppearance {
-  return document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
+  const sheet = document.getElementById('theme-sheet');
+  if (sheet instanceof HTMLLinkElement) {
+    const href = sheet.getAttribute('href') || sheet.href || '';
+    const id = sheet.dataset.themeId;
+    if (id === 'dark' || href.includes('theme-dark')) return 'dark';
+    if (id === 'light' || href.includes('theme-light')) return 'light';
+  }
+  const theme = document.documentElement.dataset.theme;
+  if (theme === 'dark' || theme === 'light') return theme;
+  return 'light';
 }
 
 function ensure(container: Element): Session {
@@ -64,19 +73,27 @@ export function invalidateBoardSketches() {
   }
 }
 
+function paintLive() {
+  const appearance = currentAppearance();
+  for (const session of live) {
+    for (const slot of session.slots) slot.paint(appearance);
+  }
+}
+
 function watchTheme() {
-  if (watchingTheme || typeof MutationObserver !== 'function') return;
+  if (watchingTheme) return;
   watchingTheme = true;
-  const observer = new MutationObserver(() => {
-    const appearance = currentAppearance();
-    for (const session of live) {
-      for (const slot of session.slots) slot.paint(appearance);
-    }
-  });
+  document.addEventListener('spark-theme', paintLive);
+  if (typeof MutationObserver !== 'function') return;
+  const observer = new MutationObserver(paintLive);
   observer.observe(document.documentElement, {
     attributes: true,
     attributeFilter: ['data-theme'],
   });
+  const sheet = document.getElementById('theme-sheet');
+  if (sheet) {
+    observer.observe(sheet, { attributes: true, attributeFilter: ['href', 'data-theme-id'] });
+  }
 }
 
 function sketchView(reply: unknown): { html: string; title: string } | null {
@@ -123,11 +140,13 @@ function mountSlot(
       root.render(createElement(SketchPreview, { html, pageUrl, appearance, title }));
     });
   };
+  if (anchor instanceof HTMLElement) anchor.hidden = true;
   const slot: Slot = {
     paint,
     unmount: () => {
       flushSync(() => root.unmount());
       slotEl.remove();
+      if (anchor instanceof HTMLElement) anchor.hidden = false;
     },
   };
   session.slots.push(slot);

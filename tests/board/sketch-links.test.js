@@ -49,7 +49,7 @@ beforeEach(() => {
 });
 
 describe('markdown board sketches', () => {
-  it('previews only a successful sketch and keeps every link', async () => {
+  it('previews only a successful sketch and hides the replaced link', async () => {
     const source = `See ${SKETCH} and ${OTHER} and ${PLAIN}`;
     const host = page(
       `<p>${source}</p><a href="${SKETCH}">Sketch</a><a href="${OTHER}">Boxes</a><a href="${PLAIN}">Web</a>`,
@@ -71,8 +71,10 @@ describe('markdown board sketches', () => {
     expect(host.querySelector('a[href="' + OTHER + '"]')).not.toBeNull();
     const link = host.querySelector('a[href="' + SKETCH + '"]');
     expect(link.textContent).toBe('Sketch');
+    expect(link.hidden).toBe(true);
     const boxes = host.querySelector('a[href="' + OTHER + '"]');
     expect(boxes.textContent).toBe('Boxes');
+    expect(boxes.hidden).toBe(false);
     expect(boxes.nextElementSibling.className).toBe('board-sketch-note');
     expect(boxes.nextElementSibling.textContent).toBe('Other Board formats stay as links');
     expect(link.nextElementSibling.className).toBe('board-sketch-slot');
@@ -95,6 +97,7 @@ describe('markdown board sketches', () => {
       });
     });
     const posted = await ready(host.querySelector('iframe'));
+    expect(host.querySelector('iframe').style.colorScheme).toBe('light');
     await act(async () => {
       document.documentElement.dataset.theme = 'light';
       await Promise.resolve();
@@ -102,7 +105,27 @@ describe('markdown board sketches', () => {
     expect(posted.map((item) => item.type)).toEqual(['lulu-sandbox:render', 'lulu-sandbox:appearance']);
     expect(posted[0].appearance).toBe('dark');
     expect(posted[1].appearance).toBe('light');
+    expect(host.querySelector('iframe').style.colorScheme).toBe('light');
     expect(reads).toBe(1);
+  });
+
+  it('sends the painted stylesheet when data-theme is stale', async () => {
+    document.documentElement.dataset.theme = 'light';
+    const sheet = document.createElement('link');
+    sheet.id = 'theme-sheet';
+    sheet.setAttribute('href', './theme-dark.css');
+    sheet.dataset.themeId = 'dark';
+    document.head.appendChild(sheet);
+    const host = page(`<a href="${SKETCH}">Sketch</a>`);
+    await act(async () => {
+      await mountBoardSketches(host, async () => ({
+        status: 'sketch',
+        content_b64: b64('<p>Hello</p>'),
+      }));
+    });
+    const posted = await ready(host.querySelector('iframe'));
+    expect(posted[0]).toEqual({ type: 'lulu-sandbox:render', html: '<p>Hello</p>', appearance: 'dark' });
+    sheet.remove();
   });
 
   it('drops a sketch that belongs to the previous document', async () => {
@@ -139,12 +162,14 @@ describe('markdown board sketches', () => {
     expect(host.querySelector('iframe')).not.toBeNull();
     releaseBoardSketches(host);
     expect(host.querySelector('iframe')).toBeNull();
+    expect(host.querySelector('a').hidden).toBe(false);
     await act(async () => {
       invalidateBoardSketches();
       await Promise.resolve();
     });
     expect(reads).toBe(1);
     expect(host.querySelector('a').textContent).toBe('Sketch');
+    expect(host.querySelector('a').hidden).toBe(false);
     await act(async () => { await mountBoardSketches(host, read); });
     expect(reads).toBe(2);
     expect(host.querySelector('iframe')).not.toBeNull();
@@ -176,5 +201,6 @@ describe('markdown board sketches', () => {
     });
     expect(host.querySelector('iframe')).toBeNull();
     expect(host.querySelector('a').textContent).toBe('Sketch');
+    expect(host.querySelector('a').hidden).toBe(false);
   });
 });
