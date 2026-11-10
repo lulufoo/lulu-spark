@@ -8607,3 +8607,19 @@ button.home-sync-row-name:focus-visible {
   line-height: 1.5;
   box-shadow: 0 8px 24px var(--shadow-rgba-1b1f24-14);
 }
+.board-sketch-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+.board-sketch-frame {
+  border: 0;
+  max-width: 100%;
+  background: var(--bg-canvas);
+}
+.board-sketch-error {
+  margin: 0;
+  color: var(--fg-subtle);
+  font-size: 12px;
+}
