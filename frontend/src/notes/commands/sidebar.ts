@@ -2,6 +2,7 @@ import { notifyState, state } from '../state/host.ts';
 import { loadTitles } from './cards.ts';
 import { isDirectoryView } from './workspace.ts';
 import { parseHash, navigateToDateList } from '../../router/index.ts';
+import { hideNoteOutlet } from './viewer/outlet.ts';
 import { dateKeyOf, UNDATED_KEY } from '../../shared/utils.ts';
 import {
   byName,
@@ -17,7 +18,7 @@ import {
   sortedProjectFolders,
 } from '../state/dir-tree.ts';
 import type { NoteEntry } from '../state/types.ts';
-import { rememberDate, rememberNode, rememberProject } from './viewer-state.ts';
+import { forgetOpenDoc, rememberDate, rememberNode, rememberProject } from './viewer-state.ts';
 
 /**
  * Group documents by day, newest day first. Documents without a usable `created_at` are not
@@ -85,15 +86,22 @@ function fitsCurrentView(date: string): boolean {
 export function selectDate(date: string) {
   if (!fitsCurrentView(date)) return;
   const route = parseHash(typeof window !== 'undefined' ? window.location.hash : '');
-  if (route.name === 'spark') {
-    const params = route.params as { note?: string };
-    const hasNote = Boolean(params.note);
-    const creating = Boolean(state.viewer?.createSession);
-    if (hasNote || creating) {
-      if (creating) state.viewer.createSession = null;
-      navigateToDateList(date);
-      return;
-    }
+  const params = route.params as { date?: string; note?: string };
+  const creating = Boolean(state.viewer?.createSession);
+  const hasNote = route.name === 'spark' && Boolean(params.note);
+  const outletOpen = state.viewer.outletMode === 'create'
+    || state.viewer.outletMode === 'open'
+    || state.viewer.outletMode === 'safe-empty';
+  // A date pick always leaves the open note or the create outlet. The hash may already be this
+  // date (re-clicking today while creating), so the list has to come back without a hash change.
+  if (creating) state.viewer.createSession = null;
+  if (route.name === 'spark' && (hasNote || creating || params.date !== date)) {
+    navigateToDateList(date);
+  }
+  if (creating || hasNote || outletOpen) {
+    state.viewer.editing = false;
+    forgetOpenDoc();
+    hideNoteOutlet();
   }
 
   state.ui.activeDate = date;

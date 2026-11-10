@@ -1,5 +1,5 @@
 import { releaseBoardSketches } from '../../../board/commands/sketch-links.ts';
-import { notifyState, state } from '../../state/host.ts';
+import { state } from '../../state/host.ts';
 import { resetEditAreaScroll } from '../../../shared/utils.ts';
 import * as api from '../../../host/api.ts';
 import { navigateToNote, navigateBackToList, parseHash } from '../../../router/index.ts';
@@ -7,60 +7,9 @@ import { exitEditMode } from './doc.ts';
 import { forgetOpenDoc } from '../viewer-state.ts';
 import { refreshNotesIndex } from '../reload-index.ts';
 import { landOnNewDocument } from '../land-on-document.ts';
-import { hideNoteOutlet, setNotePanelTitle, showNoteOutlet } from './outlet.ts';
+import { applyCreateChrome, clearCreateChrome, hideNoteOutlet, showNoteOutlet } from './outlet.ts';
 
-const CREATE_CHROME_HIDDEN_IDS = [
-  'btn-edit',
-  'btn-add-comment',
-  'btn-save',
-  'btn-cancel-edit',
-  'md-lang-bar',
-  'md-file-size',
-  'md-links-bar',
-  'md-tags-bar',
-  'btn-copy-path',
-  'btn-open-in-chat',
-  'md-source-type',
-  'btn-goto-kb',
-  'comment-float-nav',
-];
-
-let createChromePrevDisplay: Record<string, string> | null = null;
-
-export function applyCreateChrome() {
-  const outlet = document.getElementById('note-outlet');
-  if (outlet) outlet.classList.add('is-create');
-  createChromePrevDisplay = {};
-  for (const id of CREATE_CHROME_HIDDEN_IDS) {
-    const el = document.getElementById(id);
-    if (!el) continue;
-    createChromePrevDisplay[id] = el.style.display;
-    el.style.display = 'none';
-  }
-  setNotePanelTitle(state.ui.activeDate || '');
-  const body = document.getElementById('md-body');
-  if (body) body.style.display = 'none';
-  const editArea = document.getElementById('md-edit-area');
-  if (editArea) editArea.style.display = '';
-  state.viewer.outletMode = 'create';
-  notifyState();
-}
-
-export function clearCreateChrome() {
-  const outlet = document.getElementById('note-outlet');
-  if (outlet) outlet.classList.remove('is-create');
-  if (createChromePrevDisplay) {
-    for (const [id, display] of Object.entries(createChromePrevDisplay)) {
-      const el = document.getElementById(id);
-      if (el) el.style.display = display;
-    }
-    createChromePrevDisplay = null;
-  }
-  if (state.viewer.outletMode === 'create' && !state.viewer.createSession) {
-    state.viewer.outletMode = '';
-  }
-  notifyState();
-}
+export { applyCreateChrome, clearCreateChrome };
 
 export function locationDate() {
   const route = parseHash(typeof window !== 'undefined' ? window.location.hash : '');
