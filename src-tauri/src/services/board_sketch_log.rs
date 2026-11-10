@@ -1,7 +1,7 @@
-//! Process-log lines for Board Sketch reads (`app_log`, business `board_sketch`).
+//! Process-log lines for Board Sketch (`app_log`, business `board_sketch`).
 //!
-//! Log timings a person needs to see why a preview was slow. Never log the PAT,
-//! the Sketch HTML, or the page URL.
+//! Log startup API warmup and the timings a person needs to see why a preview
+//! was slow. Never log the PAT, the Sketch HTML, or the page URL.
 
 use std::time::Duration;
 
@@ -11,6 +11,7 @@ use crate::services::app_log::{self, Level, Side};
 
 pub const BUSINESS: &str = "board_sketch";
 pub const EVENT_READ: &str = "sketch.read";
+pub const EVENT_WARM: &str = "api.warmup";
 
 pub fn read(
     status: &str,
@@ -40,6 +41,23 @@ pub fn read(
         _ => Level::Warn,
     };
     app_log::log(BUSINESS, EVENT_READ, None, Some(Value::Object(params)), Side::Host, level);
+}
+
+pub fn warmup(status: &str, total: Duration, http: Option<u16>, bytes: Option<usize>) {
+    let mut params = Map::new();
+    params.insert("status".into(), json!(status));
+    params.insert("ms".into(), json!(as_ms(total)));
+    if let Some(n) = http {
+        params.insert("http".into(), json!(n));
+    }
+    if let Some(n) = bytes {
+        params.insert("bytes".into(), json!(n));
+    }
+    let level = match status {
+        "http" => Level::Info,
+        _ => Level::Warn,
+    };
+    app_log::log(BUSINESS, EVENT_WARM, None, Some(Value::Object(params)), Side::Host, level);
 }
 
 fn as_ms(d: Duration) -> u64 {

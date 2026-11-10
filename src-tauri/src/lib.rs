@@ -172,6 +172,9 @@ pub fn run() {
                 eprintln!("[chat-list] cutoff not set, listing every chat: {err}");
             }
             crate::services::app_log::init();
+            // Board graph TLS: warm in the background so the first Sketch read
+            // can reuse the connection. Do not wait; the window must still open.
+            crate::services::board_api::spawn_warm();
             crate::commands::approval::install_emitter(app.handle().clone());
             let (http_port, mcp_port) = (boot.http_port, boot.mcp_port);
             if let Ok(repo_root) = crate::config::paths::repo_root() {
