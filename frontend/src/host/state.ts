@@ -59,6 +59,7 @@ export const state: HostState = {
     topicOrder: [],
     topicDefault: {},
     topicRepos: {},
+    folders: [],
   },
   ui: {
     activeDate: null,

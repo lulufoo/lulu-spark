@@ -88,6 +88,7 @@ fn delete_doc_with(payload: &Value, cloud: &dyn CloudDocs) -> Value {
     }
     if let Err(e) = delete_doc_row(&conn, &id)
         .and_then(|_| delete_unused_tags(&conn).map(|_| ()))
+        .and_then(|_| super::folder::keep_parent_folder(&conn, &project.id, rel))
     {
         return internal(e);
     }

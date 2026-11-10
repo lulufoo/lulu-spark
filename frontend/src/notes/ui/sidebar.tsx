@@ -10,6 +10,7 @@ import { isTimelineView } from '../commands/workspace.ts';
 import { PageBackHome } from '../../shared/home-mark.tsx';
 import { WindowDragStrip } from '../../shared/window-drag-strip.tsx';
 import { DirTree } from './dir-tree.tsx';
+import { FolderMenu, onDirectoryBackgroundClick, onDirectoryBackgroundMenu } from './folder-menu.tsx';
 import { ProjectPicker } from './project-picker.tsx';
 import { attachNotesSidebarResize } from './sidebar-resize.ts';
 
@@ -157,8 +158,14 @@ export function NotesSidebar() {
           })}
         </div>
         ) : (
-          <div id="sidebar-tree-zone" className="knowledge-doc-sidebar-tree">
+          <div
+            id="sidebar-tree-zone"
+            className="knowledge-doc-sidebar-tree"
+            onClick={onDirectoryBackgroundClick}
+            onContextMenu={onDirectoryBackgroundMenu}
+          >
             <DirTree />
+            <FolderMenu />
           </div>
         )}
       </div>

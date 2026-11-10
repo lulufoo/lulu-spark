@@ -73,9 +73,9 @@ fn snapshot(dir: &std::path::Path) -> Vec<(String, Vec<u8>)> {
 }
 
 #[test]
-fn the_baseline_is_version_20_and_no_step_follows_it() {
+fn the_baseline_is_version_20_and_one_folder_step_follows_it() {
     assert_eq!(BASELINE_VERSION, 20);
-    assert!(MIGRATIONS.is_empty());
+    assert_eq!(MIGRATIONS.len(), 1);
 }
 
 #[test]
@@ -86,7 +86,7 @@ fn an_empty_file_is_created_at_the_baseline_with_the_whole_schema() {
     assert!(has_column(&conn, "workspace", "description"));
     assert!(has_column(&conn, "document", "version"));
 
-    assert_eq!(table_names(&conn), ["document", "project", "tag", "workspace"]);
+    assert_eq!(table_names(&conn), ["document", "folder", "project", "tag", "workspace"]);
     assert_eq!(names(&conn, "index"), ["document_project_id", "project_one_default", "workspace_one_default"]);
     assert_eq!(
         names(&conn, "trigger"),

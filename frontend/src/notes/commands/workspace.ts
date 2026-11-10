@@ -27,7 +27,7 @@ export function getCurrentWorkspace(): HostWorkspace | undefined {
   return list.find((w) => w.workspace_id === current);
 }
 
-/** Timeline view: documents grouped by day, with a project picker. */
+/** Timeline view: documents grouped by day. A new document starts as a title card. */
 export function isTimelineView(): boolean {
   return !isDirectoryView();
 }

@@ -10,7 +10,7 @@ use serde_json::{json, Value};
 
 use crate::services::docs::assets::{copy_assets, reject_unsupported_asset_paths, resolve_create_assets};
 use crate::services::docs::attached::remove_attached_dir;
-use crate::services::docs::create_meta::parse_create_meta_unchecked;
+use crate::services::docs::create_meta::{normalize_markdown_filename, parse_create_meta_unchecked};
 use crate::services::docs::digest::{
     digest_body_from_payload, digest_body_rejects_relative_images, digest_should_write,
     parse_digest_mode, write_digest_file,
@@ -69,8 +69,64 @@ pub fn create_doc_content(payload: &Value) -> Value {
     write_doc(content, payload, None)
 }
 
+/// A timeline or directory note. `title` is stored on the row and is not copied into the file
+/// name. `filename`, when set, is that file's basename; when omitted, the file is
+/// `{created_at}-{rand}.md`. `content` may be empty. `workspace_id` and `project_id` are
+/// required. No digest is written, because the note has no summary yet.
+pub fn create_titled_doc(payload: &Value) -> Value {
+    if text_field(payload, "workspace_id").is_none() {
+        return bad_request("Missing workspace_id");
+    }
+    if text_field(payload, "project_id").is_none() {
+        return bad_request("Missing project_id");
+    }
+    if payload
+        .get("title")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|title| !title.is_empty())
+        .is_none()
+    {
+        return bad_request("Missing title");
+    }
+    let content = match payload.get("content") {
+        None | Some(Value::Null) => "",
+        Some(Value::String(text)) => text.as_str(),
+        Some(_) => return bad_request("Invalid content"),
+    };
+    let filename = match payload.get("filename") {
+        None | Some(Value::Null) => None,
+        Some(Value::String(name)) => match normalize_markdown_filename(name) {
+            Ok(name) => Some(name),
+            Err(err) => return err,
+        },
+        Some(_) => return bad_request("Invalid filename"),
+    };
+    let mut owned = payload.clone();
+    if !owned.is_object() {
+        return bad_request("Invalid payload");
+    }
+    if text_field(&owned, "source_type").is_none() {
+        owned["source_type"] = json!("jot");
+    }
+    owned["digest"] = json!("never");
+    if let Some(obj) = owned.as_object_mut() {
+        obj.remove("filename");
+    }
+    write_doc_named(content, &owned, None, filename.as_deref())
+}
+
 fn write_doc(source: &str, payload: &Value, source_basename: Option<&str>) -> Value {
-    let meta = match parse_create_meta_unchecked(payload, source_basename) {
+    write_doc_named(source, payload, source_basename, None)
+}
+
+fn write_doc_named(
+    source: &str,
+    payload: &Value,
+    source_basename: Option<&str>,
+    explicit_filename: Option<&str>,
+) -> Value {
+    let meta = match parse_create_meta_unchecked(payload, source_basename, explicit_filename) {
         Ok(m) => m,
         Err(v) => return v,
     };

@@ -61,6 +61,8 @@ export type HostIndex = {
   /** Which project ids are the workspace default project. */
   topicDefault: Record<string, boolean>;
   topicRepos: Record<string, string>;
+  /** Empty directories kept for the directory tree: `{ project_id, path }`. */
+  folders: { project_id: string; path: string }[];
 };
 
 export type HostUi = {

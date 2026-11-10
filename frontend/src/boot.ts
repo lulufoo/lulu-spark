@@ -1,19 +1,19 @@
 import { state, mergeAnnotations, notifyState } from './host/state.ts';
-import { LAYERS } from './host/constants.ts';
 import * as api from './host/api.ts';
 import type { HostIndexAnnotation, HostNoteEntry } from './host/snapshot-types.ts';
 import { loadViewerMemory } from './notes/commands/viewer-state.ts';
-import { enterDocProject, enterWorkspace } from './notes/commands/restore.ts';
-import { buildGroups, selectDate, applyListFilters } from './notes/commands/sidebar.ts';
-import { entryGroupKey, loadProjects, loadWorkspaces } from './notes/commands/workspace.ts';
+import { enterWorkspace } from './notes/commands/restore.ts';
+import { openIndexEntry } from './notes/commands/open-entry.ts';
+import { buildGroups, applyListFilters } from './notes/commands/sidebar.ts';
+import { loadProjects, loadWorkspaces } from './notes/commands/workspace.ts';
 import { resetDirTree } from './notes/state/dir-tree.ts';
 import { showWorkspaceOf } from './notes/commands/workspace-switch.ts';
 import './notes/ui/comments.tsx';
-import { navigate, navigateToNote } from './router/index.ts';
+import { navigate } from './router/index.ts';
 import { setRouteHandlers } from './route-handlers.ts';
 import { setSparkBinding } from './app-shell/commands/spark-binding.ts';
 import { loadDocCategoryCatalog } from './host/doc-categories-catalog.ts';
-import { normalizeDocIndex } from './notes/state/doc-index.ts';
+import { folderRefs, normalizeDocIndex } from './notes/state/doc-index.ts';
 import { initTooltip } from './shared/tooltip/tooltip.ts';
 import {
   getHomeEntryShell,
@@ -44,6 +44,7 @@ async function loadIndex({ managedBtn = false }: { managedBtn?: boolean } = {}) 
     await loadProjects();
     const data = await api.fetchIndex(state.workspaces.current);
     state.index.data = normalizeDocIndex(data) as Record<string, HostNoteEntry>;
+    state.index.folders = folderRefs(data);
     state.index.groupedByDate = buildGroups(state.index.data);
     state.ui.activeTopic = null;
     state.ui.activeDate = null;
@@ -254,18 +255,8 @@ document.addEventListener('cta:open-entry', (event) => {
   closeNoteAssistantPanel();
   const id = detail?.id;
   if (!id) return;
-  const data = state.index.data || {};
-  const entry = data[id] ?? Object.values(data).find((e) => e._id === id || e.id === id);
-  if (!entry) {
-    void showWorkspaceOf(id).then((switched) => {
-      if (switched) document.dispatchEvent(new CustomEvent('cta:open-entry', { detail }));
-    });
-    return;
-  }
-  enterDocProject(entry);
-  const date = entryGroupKey(entry);
-  selectDate(date);
-  const params: { date: string; note: string; layer?: string } = { date, note: id };
-  params.layer = detail.layer || (LAYERS.find((l) => entry.layers?.includes(l)) ?? 'raw');
-  navigateToNote(params);
+  if (openIndexEntry(id, detail.layer)) return;
+  void showWorkspaceOf(id).then((switched) => {
+    if (switched) document.dispatchEvent(new CustomEvent('cta:open-entry', { detail }));
+  });
 });

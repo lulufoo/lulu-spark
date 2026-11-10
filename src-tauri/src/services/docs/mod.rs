@@ -14,6 +14,10 @@ mod delete_project;
 mod delete_workspace;
 pub(crate) mod digest;
 pub mod edit;
+mod file_rename;
+mod folder;
+mod folder_rename;
+mod folder_rename_disk;
 pub(crate) mod hide_patterns;
 pub(crate) mod image_refs;
 mod jot;
@@ -34,11 +38,15 @@ mod workspace;
 pub use categories::{
     is_exposed, is_legal, load as load_doc_categories, save as save_doc_categories, DocCategory,
 };
-pub use create::{create_doc, create_doc_content};
+pub use create::{create_doc, create_doc_content, create_titled_doc};
 pub use delete::delete_doc;
 pub use delete_project::delete_project;
 pub use delete_workspace::delete_workspace;
 pub use edit::set_source_type;
+pub use file_rename::rename_doc;
+pub use folder::{create_folder, delete_folder};
+pub use folder_rename::rename_folder;
+pub(crate) use folder::list_folders;
 pub use hide_patterns::{
     add_hide_pattern, list_hide_patterns, remove_hide_pattern, update_hide_pattern,
 };

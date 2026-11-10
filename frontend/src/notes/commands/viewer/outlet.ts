@@ -68,6 +68,61 @@ export function setNotePanelTitle(entryOrDate?: string | NoteEntry | null) {
   notifyState();
 }
 
+const CREATE_CHROME_HIDDEN_IDS = [
+  'btn-edit',
+  'btn-add-comment',
+  'btn-save',
+  'btn-cancel-edit',
+  'md-lang-bar',
+  'md-file-size',
+  'md-links-bar',
+  'md-tags-bar',
+  'btn-copy-path',
+  'btn-open-in-chat',
+  'md-source-type',
+  'btn-goto-kb',
+  'comment-float-nav',
+];
+
+let createChromePrevDisplay: Record<string, string> | null = null;
+
+/** Hide the note toolbar while the create outlet is up, and remember how to put it back. */
+export function applyCreateChrome() {
+  const outlet = document.getElementById('note-outlet');
+  if (outlet) outlet.classList.add('is-create');
+  createChromePrevDisplay = {};
+  for (const id of CREATE_CHROME_HIDDEN_IDS) {
+    const el = document.getElementById(id);
+    if (!el) continue;
+    createChromePrevDisplay[id] = el.style.display;
+    el.style.display = 'none';
+  }
+  setNotePanelTitle(state.ui.activeDate || '');
+  const body = document.getElementById('md-body');
+  if (body) body.style.display = 'none';
+  const editArea = document.getElementById('md-edit-area');
+  if (editArea) editArea.style.display = '';
+  state.viewer.outletMode = 'create';
+  notifyState();
+}
+
+/** Put the note toolbar back. A create outlet with no session closes. */
+export function clearCreateChrome() {
+  const outlet = document.getElementById('note-outlet');
+  if (outlet) outlet.classList.remove('is-create');
+  if (createChromePrevDisplay) {
+    for (const [id, display] of Object.entries(createChromePrevDisplay)) {
+      const el = document.getElementById(id);
+      if (el) el.style.display = display;
+    }
+    createChromePrevDisplay = null;
+  }
+  if (state.viewer.outletMode === 'create' && !state.viewer.createSession) {
+    state.viewer.outletMode = '';
+  }
+  notifyState();
+}
+
 /** Reveal note outlet chrome. React also reads outletMode; keep id writes for leftover tests. */
 export function showNoteOutlet(mode?: HostOutletMode) {
   state.viewer.outletMode = mode || 'open';
@@ -92,6 +147,7 @@ export function showNoteOutlet(mode?: HostOutletMode) {
 }
 
 export function hideNoteOutlet() {
+  clearCreateChrome();
   state.viewer.outletMode = '';
   state.viewer.outletMessage = '';
   const outlet = document.getElementById('note-outlet');

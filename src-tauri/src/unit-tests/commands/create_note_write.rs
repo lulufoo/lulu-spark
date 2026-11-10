@@ -134,3 +134,38 @@ fn create_note_json_jot_takes_an_optional_project() {
         .expect("jot with missing project");
     assert_eq!(missing["_status"], json!(400), "{missing}");
 }
+
+#[test]
+fn create_note_json_titled_jot_accepts_an_empty_body() {
+    let _sandbox = TestSandbox::new();
+    let v = create_note_json(json!({
+        "workspace_id": default_ws(),
+        "project_id": crate::test_support::default_inbox_id(),
+        "title": "New design notes",
+        "source_type": "jot",
+        "content": "",
+        "filename": "architecture-notes.md.md",
+        "created_at": "202611101200",
+    }))
+    .expect("command");
+    assert_eq!(v["ok"], json!(true), "{v}");
+    let id = v["id"].as_str().expect("id");
+    let row = crate::services::spark_data::find_doc(
+        &crate::services::spark_data::open().expect("db"),
+        id,
+    )
+    .expect("get")
+    .expect("row")
+    .doc;
+    assert_eq!(row.title.as_deref(), Some("New design notes"));
+    assert_eq!(row.raw_path, "notes/architecture-notes.md");
+    let bad = create_note_json(json!({
+        "workspace_id": default_ws(),
+        "project_id": crate::test_support::default_inbox_id(),
+        "title": "New design notes",
+        "source_type": "jot",
+        "filename": "../secret.md",
+    }))
+    .expect("business error stays in the value");
+    assert_eq!(bad["_status"], json!(400), "{bad}");
+}

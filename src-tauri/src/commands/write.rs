@@ -170,6 +170,8 @@ pub fn tag_update_value(
 /// App jot-create may pass `{ body, source_type: "jot" }` (no `source_path`) → Host synthesis;
 /// an optional `folder` puts it in that folder of the project (`/` is the project root).
 /// Path create uses `source_path` + `title`; `document` is rejected.
+/// A jot with `title` and no `body` is a titled note: `content` may be empty, and `filename`
+/// is an optional markdown basename stored apart from `title`.
 pub fn create_note_json(payload: Value) -> Result<Value, String> {
     if payload.get("document").is_some() {
         return Ok(serde_json::json!({
@@ -204,6 +206,13 @@ pub fn create_note_json(payload: Value) -> Result<Value, String> {
             };
         }
     }
+    if payload.get("source_path").is_none()
+        && payload.get("body").is_none()
+        && payload.get("source_type").and_then(|v| v.as_str()) == Some("jot")
+        && payload.get("title").and_then(|v| v.as_str()).is_some()
+    {
+        return Ok(docs::create_titled_doc(&payload));
+    }
     Ok(if payload.get("source_path").is_some() {
         docs::create_doc(&payload)
     } else {
@@ -214,6 +223,26 @@ pub fn create_note_json(payload: Value) -> Result<Value, String> {
 #[tauri::command]
 pub fn create_note(_app: AppHandle, payload: Value) -> Result<Value, String> {
     create_note_json(payload)
+}
+
+#[tauri::command]
+pub fn create_folder(_app: AppHandle, payload: Value) -> Result<Value, String> {
+    Ok(docs::create_folder(&payload))
+}
+
+#[tauri::command]
+pub fn delete_folder(_app: AppHandle, payload: Value) -> Result<Value, String> {
+    Ok(docs::delete_folder(&payload))
+}
+
+#[tauri::command]
+pub fn rename_folder(_app: AppHandle, payload: Value) -> Result<Value, String> {
+    Ok(docs::rename_folder(&payload))
+}
+
+#[tauri::command]
+pub fn rename_doc(_app: AppHandle, payload: Value) -> Result<Value, String> {
+    Ok(docs::rename_doc(&payload))
 }
 
 pub fn mark_message_channel_read_json(channel: &str) -> Result<(), String> {

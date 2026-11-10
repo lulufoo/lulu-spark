@@ -39,7 +39,10 @@ fn is_valid_common_path_accepts_ts_rand_filename() {
     assert!(is_valid_common_path(
         "notes/202608301000-a3f9k2-source.md"
     ));
-    assert!(!is_valid_common_path("notes/notimestamp.md"));
+    assert!(is_valid_common_path("notes/notimestamp.md"));
+    assert!(is_valid_common_path("notes/架构笔记.md"));
+    assert!(!is_valid_common_path("notes/has:colon.md"));
+    assert!(!is_valid_common_path("notes/foo..bar.md"));
 }
 
 #[test]
@@ -55,7 +58,8 @@ fn is_valid_common_path_allows_one_to_three_folder_levels() {
 fn is_valid_common_path_allows_a_file_in_the_project_root() {
     assert!(is_valid_common_path("202608301000-a3f9k2.md"));
     assert!(is_valid_common_path("202608301000-a3f9k2-source.md"));
-    assert!(!is_valid_common_path("notimestamp.md"));
+    assert!(is_valid_common_path("notimestamp.md"));
+    assert!(!is_valid_common_path(".md"));
     assert!(!is_valid_common_path("202608301000-a3f9k2.txt"));
     assert!(!is_valid_common_path("/202608301000-a3f9k2.md"));
     assert!(!is_valid_common_path(""));

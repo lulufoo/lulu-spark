@@ -91,7 +91,7 @@ fn get_docs_index_is_built_from_the_document_table_in_the_entry_shape() {
                         "id": "n2", "workspace_id": ws, "project_id": "seed-ai",
                         "raw_path": "topic/20260102-b.md", "layers": ["raw"]
                     },
-                }})
+                }, "folders": [] })
             );
         },
     );
@@ -103,7 +103,10 @@ fn get_docs_index_of_an_empty_table_has_no_entries() {
         |_, _| {},
         |_| {
             let ws = crate::test_support::default_workspace().id;
-            assert_eq!(get_docs_index(None), json!({ "workspace_id": ws, "entries": {} }));
+            assert_eq!(
+                get_docs_index(None),
+                json!({ "workspace_id": ws, "entries": {}, "folders": [] })
+            );
         },
     );
 }
