@@ -2,6 +2,7 @@ import { getEntryId, state } from '../../state/host.ts';
 import * as api from '../../../host/api.ts';
 import { docKey } from '../../../doc-editor/identity.ts';
 import { applyCachedHighlights, initDocHighlightOverlay } from '../../../doc-editor/highlights.ts';
+import { mountBoardSketches, releaseBoardSketches } from '../../../board/commands/sketch-links.ts';
 import { renderDocMarkdown } from '../../../doc-editor/view.tsx';
 import { renderMermaidBlocks } from '../../../shared/mermaid-render.ts';
 
@@ -75,8 +76,10 @@ export function initHighlightUI() {
 export async function renderDocBody(text: string, layer: string, id: string) {
   const body = document.getElementById('md-body');
   if (!body) return;
+  releaseBoardSketches(body);
   renderDocMarkdown(body, text);
   postProcessLinks(body);
+  void mountBoardSketches(body);
   revokeNotesBlobUrls();
   await postProcessImages(body, layer, id);
   await renderMermaidBlocks(body);
