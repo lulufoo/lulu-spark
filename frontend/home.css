@@ -31,8 +31,7 @@
   text-transform: uppercase;
   color: var(--fg-subtle);
 }
-.home-chat-nav .home-desktop-shortcut:hover,
-.home-chat-nav-item:hover { background: var(--bg-hover); }
+.home-chat-nav-item:not(.home-desktop-shortcut):hover { background: var(--bg-hover); }
 .home-chat-nav .home-desktop-shortcut-label {
   font-size: 14px;
   font-weight: 600;
