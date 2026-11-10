@@ -3,7 +3,8 @@ import { flushSync } from 'react-dom';
 import { createRoot, type Root } from 'react-dom/client';
 import { fetchBoardSketch } from '../../host/api/board-sketch.ts';
 import { SketchPreview } from '../ui/sketch-preview.tsx';
-import { isBoardPage, warmSandbox, type SketchAppearance } from './sketch-preview.ts';
+import { elapsedMs, logSketch } from './sketch-log.ts';
+import { boardDiagramId, isBoardPage, warmSandbox, type SketchAppearance } from './sketch-preview.ts';
 
 type Reader = (url: string) => Promise<unknown>;
 
@@ -170,13 +171,25 @@ async function attach(anchor: Element, session: Session, gen: number, read: Read
   if (!isBoardPage(pageUrl)) return;
   const slot = openSlot(anchor, pageUrl, session, gen);
   if (!slot) return;
+  const diagramId = boardDiagramId(pageUrl);
+  const started = performance.now();
+  logSketch('sketch.mount', { diagram_id: diagramId });
   let reply: unknown;
   try {
     reply = await read(pageUrl);
   } catch {
+    logSketch('sketch.failed', { diagram_id: diagramId, ms: elapsedMs(started), stage: 'host' }, 'error');
     slot.unmount();
     return;
   }
+  const status = isRecord(reply) && typeof reply.status === 'string' ? reply.status : 'invalid';
+  const bytes = isRecord(reply) && typeof reply.content_b64 === 'string' ? reply.content_b64.length : undefined;
+  logSketch('sketch.host_reply', {
+    diagram_id: diagramId,
+    status,
+    ms: elapsedMs(started),
+    ...(bytes != null ? { bytes } : {}),
+  });
   if (session.gen !== gen || !anchor.isConnected) {
     slot.unmount();
     return;
@@ -188,6 +201,7 @@ async function attach(anchor: Element, session: Session, gen: number, read: Read
   }
   const view = sketchView(reply);
   if (!view) {
+    logSketch('sketch.failed', { diagram_id: diagramId, ms: elapsedMs(started), stage: 'decode' }, 'warn');
     slot.unmount();
     return;
   }

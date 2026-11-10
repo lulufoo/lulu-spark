@@ -6,8 +6,10 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SketchPreview } from '../../frontend/src/board/ui/sketch-preview.tsx';
+import * as sketchLog from '../../frontend/src/board/commands/sketch-log.ts';
 import {
   appearanceMessage,
+  boardDiagramId,
   isBoardPage,
   readSandboxMessage,
   renderMessage,
@@ -136,6 +138,8 @@ describe('sketch preview', () => {
     expect(host.querySelector('iframe').style.colorScheme).toBe('light');
     expect(isBoardPage(PAGE)).toBe(true);
     expect(isBoardPage('https://evil.test/#b:b_0123abcd')).toBe(false);
+    expect(boardDiagramId(PAGE)).toBe('b_0123abcd');
+    expect(boardDiagramId('https://evil.test/#b:b_0123abcd')).toBe('');
     expect(readSandboxMessage({ type: 'lulu-sandbox:size', width: 10, height: 20 })?.width).toBe(10);
     expect(readSandboxMessage({ type: 'lulu-sandbox:size', width: 0, height: 20 })).toBeNull();
     const box = host.querySelector('.board-sketch-frame-box');
@@ -233,5 +237,41 @@ describe('sketch preview', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('logs sandbox ready, render, and size without a token', () => {
+    const logged = [];
+    const spy = vi.spyOn(sketchLog, 'logSketch').mockImplementation((event, params) => {
+      logged.push({ event, params });
+    });
+    const { host, root } = render({ html: HTML, pageUrl: PAGE, appearance: 'light' });
+    const frame = host.querySelector('iframe');
+    frame.contentWindow.postMessage = () => {};
+    const box = host.querySelector('.board-sketch-frame-box');
+    Object.defineProperty(box, 'clientWidth', { configurable: true, get: () => 100 });
+    act(() => {
+      window.dispatchEvent(new MessageEvent('message', {
+        data: { type: 'lulu-sandbox:ready' },
+        source: frame.contentWindow,
+      }));
+    });
+    act(() => {
+      window.dispatchEvent(new MessageEvent('message', {
+        data: { type: 'lulu-sandbox:size', width: 400, height: 200 },
+        source: frame.contentWindow,
+      }));
+    });
+    expect(logged.map((row) => row.event)).toEqual(
+      expect.arrayContaining(['sandbox.ready', 'sandbox.render', 'sandbox.size']),
+    );
+    expect(logged.find((row) => row.event === 'sandbox.size').params).toMatchObject({
+      diagram_id: 'b_0123abcd',
+      width: 400,
+      height: 200,
+    });
+    expect(typeof logged.find((row) => row.event === 'sandbox.size').params.ms).toBe('number');
+    expect(JSON.stringify(logged)).not.toContain('lbp_');
+    spy.mockRestore();
+    act(() => root.unmount());
   });
 });

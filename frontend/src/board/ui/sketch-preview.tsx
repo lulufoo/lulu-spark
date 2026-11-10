@@ -1,8 +1,10 @@
 import { useEffect, useId, useRef, useState } from 'react';
+import { elapsedMs, logSketch } from '../commands/sketch-log.ts';
 import {
   SANDBOX_ALLOW,
   SANDBOX_SRC,
   appearanceMessage,
+  boardDiagramId,
   isBoardPage,
   openBoardPage,
   readSandboxMessage,
@@ -33,6 +35,8 @@ export function SketchPreview({ html, pageUrl, appearance, title = '' }: Props) 
   const [size, setSize] = useState<{ width: number; height: number } | null>(null);
   const [fit, setFit] = useState(1);
   const canOpen = isBoardPage(pageUrl);
+  const diagramId = boardDiagramId(pageUrl);
+  const startedAtRef = useRef(performance.now());
   const shineId = `sketch-shine-${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
   const shineMid = appearance === 'dark' ? 0.78 : 0.34;
 
@@ -49,7 +53,14 @@ export function SketchPreview({ html, pageUrl, appearance, title = '' }: Props) 
     const arm = () => {
       if (timer || !htmlRef.current) return;
       timer = window.setTimeout(() => {
-        if (!painted.current) setFailed(true);
+        if (!painted.current) {
+          setFailed(true);
+          logSketch('sketch.failed', {
+            diagram_id: diagramId,
+            ms: elapsedMs(startedAtRef.current),
+            stage: 'timeout',
+          }, 'warn');
+        }
       }, LOAD_TIMEOUT_MS);
     };
     const finish = () => {
@@ -62,6 +73,11 @@ export function SketchPreview({ html, pageUrl, appearance, title = '' }: Props) 
       if (!fragment || !readyRef.current || sentRef.current || !runner) return;
       sentRef.current = true;
       runner.postMessage(renderMessage(fragment, appearanceRef.current), '*');
+      logSketch('sandbox.render', {
+        diagram_id: diagramId,
+        ms: elapsedMs(startedAtRef.current),
+        html_bytes: fragment.length,
+      });
       arm();
     };
     function onMessage(event: MessageEvent) {
@@ -70,7 +86,11 @@ export function SketchPreview({ html, pageUrl, appearance, title = '' }: Props) 
       const message = readSandboxMessage(event.data);
       if (!message) return;
       if (message.kind === 'ready') {
+        const first = !readyRef.current;
         readyRef.current = true;
+        if (first) {
+          logSketch('sandbox.ready', { diagram_id: diagramId, ms: elapsedMs(startedAtRef.current) });
+        }
         send();
         return;
       }
@@ -81,11 +101,22 @@ export function SketchPreview({ html, pageUrl, appearance, title = '' }: Props) 
         setFit(available > 0 ? Math.min(1, available / message.width) : 1);
         setShown(available > 0);
         setSize({ width: message.width, height: message.height });
+        logSketch('sandbox.size', {
+          diagram_id: diagramId,
+          ms: elapsedMs(startedAtRef.current),
+          width: message.width,
+          height: message.height,
+        });
         return;
       }
       if (message.kind === 'error') {
         finish();
         setFailed(true);
+        logSketch('sketch.failed', {
+          diagram_id: diagramId,
+          ms: elapsedMs(startedAtRef.current),
+          stage: 'sandbox',
+        }, 'warn');
       }
     }
     window.addEventListener('message', onMessage);
