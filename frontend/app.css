@@ -6786,8 +6786,7 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   cursor: pointer;
   text-align: left;
 }
-.home-chat-nav .home-desktop-shortcut:hover,
-.home-chat-nav-item:hover {
+.home-chat-nav-item:not(.home-desktop-shortcut):hover {
   background: var(--bg-hover);
 }
 .home-nav-workspace {
