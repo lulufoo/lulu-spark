@@ -8,6 +8,13 @@
 }
 
 /* ── Sidebar ── */
+.home-chat-sidebar-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
 .home-chat-sidebar {
   --home-chat-row-h: 36px;
   --home-chat-list-rows: 3;

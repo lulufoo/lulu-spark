@@ -51,8 +51,8 @@ describe('Home sidebar tabs', () => {
     delete window.__TAURI__;
   });
 
-  async function mountReady() {
-    cleanup = mountHomeHub(container, { navigate: vi.fn() });
+  async function mountReady(chrome = {}) {
+    cleanup = mountHomeHub(container, { navigate: vi.fn(), ...chrome });
     await vi.waitFor(() => {
       expect(container.querySelectorAll('.home-chat-session').length).toBe(2);
     });
@@ -135,6 +135,20 @@ describe('Home sidebar tabs', () => {
   it('keeps the sidebar resize handle', async () => {
     await mountReady();
     expect(container.querySelector('.home-chat-sidebar > .home-chat-sidebar-resizer.sidebar-resizer')).not.toBeNull();
+  });
+
+  it('keeps the original toolbar usable when the lower sidebar is hidden', async () => {
+    const openReadLater = vi.fn();
+    await mountReady({ openReadLater });
+    const lower = container.querySelector('[data-sidebar-content]');
+    lower.hidden = true;
+    expect(lower.contains(tab('home'))).toBe(true);
+    expect(lower.contains(container.querySelector('[data-role="account-row"]'))).toBe(true);
+    const readLater = container.querySelector('[data-home-entry="read-later"]');
+    expect(readLater.closest('[hidden]')).toBeNull();
+    expect(container.querySelector('[aria-label="Settings"]').closest('[hidden]')).toBeNull();
+    readLater.click();
+    expect(openReadLater).toHaveBeenCalledOnce();
   });
 });
 

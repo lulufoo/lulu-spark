@@ -541,6 +541,10 @@
     display: flex;
     flex-direction: column;
   }
+  .sidebar-inner[hidden],
+  .home-chat-sidebar-content[hidden] {
+    display: none;
+  }
   .sidebar-channel-zone {
     flex-shrink: 0;
     max-height: 140px;

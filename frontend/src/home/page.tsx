@@ -396,73 +396,75 @@ export function HomePage({
             }}
           />
         </WindowDragStrip>
-        <SidebarTabs pane={sidebarPane} onChange={setSidebarPane} onSearch={() => setSearchOpen(true)} />
-        <nav className="home-chat-nav" aria-label="Lulu Spark" hidden={sidebarPane !== 'home'}>
-          <div className="home-chat-nav-group" data-home-nav-group="workspace">
-            <div className="home-chat-nav-label">Workspace</div>
-            <HomeWorkspaceNav
-              workspaces={navWorkspaces()}
-              projects={state.workspaceProjects}
-              unreadDocs={state.channelUnread.docs}
-              onOpenWorkspace={(id) => {
-                if (navWorkspaces().find((w) => w.id === id)?.isDefault) void markHomeEntryRead('spark');
-                openWorkspace(id, navigateFn);
-              }}
-              onOpenProject={(id, projectId) => {
-                if (navWorkspaces().find((w) => w.id === id)?.isDefault) void markHomeEntryRead('spark');
-                void openProject(id, projectId, navigateFn);
-              }}
-            />
+        <div className="home-chat-sidebar-content" data-sidebar-content>
+          <SidebarTabs pane={sidebarPane} onChange={setSidebarPane} onSearch={() => setSearchOpen(true)} />
+          <nav className="home-chat-nav" aria-label="Lulu Spark" hidden={sidebarPane !== 'home'}>
+            <div className="home-chat-nav-group" data-home-nav-group="workspace">
+              <div className="home-chat-nav-label">Workspace</div>
+              <HomeWorkspaceNav
+                workspaces={navWorkspaces()}
+                projects={state.workspaceProjects}
+                unreadDocs={state.channelUnread.docs}
+                onOpenWorkspace={(id) => {
+                  if (navWorkspaces().find((w) => w.id === id)?.isDefault) void markHomeEntryRead('spark');
+                  openWorkspace(id, navigateFn);
+                }}
+                onOpenProject={(id, projectId) => {
+                  if (navWorkspaces().find((w) => w.id === id)?.isDefault) void markHomeEntryRead('spark');
+                  void openProject(id, projectId, navigateFn);
+                }}
+              />
+            </div>
+          </nav>
+          <div className="home-chat-pane" hidden={sidebarPane !== 'chat'}>
+            <div
+              className="home-chat-sessions"
+              data-role="session-list"
+              role="list"
+              ref={sessionListRef}
+            >
+              <SessionList
+                sessions={state.sessions}
+                currentSessionId={state.currentSessionId}
+                progressByChat={state.progressByChat}
+                inFlightIds={state.inFlightIds}
+                onSelect={pickSession}
+                onDelete={removeSession}
+              />
+            </div>
           </div>
-        </nav>
-        <div className="home-chat-pane" hidden={sidebarPane !== 'chat'}>
-          <div
-            className="home-chat-sessions"
-            data-role="session-list"
-            role="list"
-            ref={sessionListRef}
+          <button
+            type="button"
+            className="home-chat-new-dock"
+            data-role="new-session"
+            aria-keyshortcuts="Meta+O"
+            onClick={newChat}
           >
-            <SessionList
-              sessions={state.sessions}
-              currentSessionId={state.currentSessionId}
-              progressByChat={state.progressByChat}
-              inFlightIds={state.inFlightIds}
-              onSelect={pickSession}
-              onDelete={removeSession}
+            <span className="home-chat-new-dock-label">New chat</span>
+            <kbd className="home-chat-new-dock-key">⌘O</kbd>
+          </button>
+          <div className="home-account-row" data-role="account-row">
+            <AccountBar
+              user={authUser}
+              isDebug={isDebug}
+              onLogin={onAccountLogin}
+              onLogout={onAccountLogout}
+            />
+            <CloudSyncButton
+              entry={syncEntry}
+              run={syncRun}
+              roster={syncRoster}
+              onStart={onSyncStart}
+              onCancel={onSyncCancel}
+              onViewOpen={markSyncResultSeen}
+              onOpenDoc={(id) => void openDocById(id)}
+            />
+            <HelpMenu
+              onAbout={() => {
+                void openAbout();
+              }}
             />
           </div>
-        </div>
-        <button
-          type="button"
-          className="home-chat-new-dock"
-          data-role="new-session"
-          aria-keyshortcuts="Meta+O"
-          onClick={newChat}
-        >
-          <span className="home-chat-new-dock-label">New chat</span>
-          <kbd className="home-chat-new-dock-key">⌘O</kbd>
-        </button>
-        <div className="home-account-row" data-role="account-row">
-          <AccountBar
-            user={authUser}
-            isDebug={isDebug}
-            onLogin={onAccountLogin}
-            onLogout={onAccountLogout}
-          />
-          <CloudSyncButton
-            entry={syncEntry}
-            run={syncRun}
-            roster={syncRoster}
-            onStart={onSyncStart}
-            onCancel={onSyncCancel}
-            onViewOpen={markSyncResultSeen}
-            onOpenDoc={(id) => void openDocById(id)}
-          />
-          <HelpMenu
-            onAbout={() => {
-              void openAbout();
-            }}
-          />
         </div>
         <div
           className="home-chat-sidebar-resizer sidebar-resizer"
