@@ -8687,8 +8687,16 @@ p:has(> a[hidden] + .board-sketch-slot) {
 .board-sketch-frame-box {
   position: relative;
   width: 100%;
+  min-height: 240px;
   overflow: hidden;
   background: var(--bg-canvas);
+}
+.board-sketch-frame-box.is-ready,
+.board-sketch-frame-box.is-failed {
+  min-height: 0;
+}
+.board-sketch-frame-box.is-failed {
+  display: none;
 }
 .board-sketch-frame {
   position: absolute;
@@ -8697,8 +8705,13 @@ p:has(> a[hidden] + .board-sketch-slot) {
   border: 0;
   transform-origin: top left;
   background: var(--bg-canvas);
+  /* Hidden until the runner reports a size and the frame is scaled to the column. */
+  visibility: hidden;
   /* Live sandbox is a light page. A dark frame paints an opaque white canvas over --bg-canvas. */
   color-scheme: light;
+}
+.board-sketch-frame.is-ready {
+  visibility: visible;
 }
 .board-sketch-error {
   margin: 0;

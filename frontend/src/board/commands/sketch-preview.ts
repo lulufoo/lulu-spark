@@ -1,5 +1,16 @@
 export const SANDBOX_SRC = 'https://sandbox.luluboard.app/';
+export const SANDBOX_ORIGIN = 'https://sandbox.luluboard.app';
 export const SANDBOX_ALLOW = 'allow-scripts';
+
+export function warmSandbox() {
+  if (typeof document === 'undefined' || !document.head) return;
+  const selector = `link[rel="preconnect"][href="${SANDBOX_ORIGIN}"]`;
+  if (document.head.querySelector(selector)) return;
+  const link = document.createElement('link');
+  link.rel = 'preconnect';
+  link.href = SANDBOX_ORIGIN;
+  document.head.appendChild(link);
+}
 
 const GRAPH_ID = /^b_[0-9a-f]{8}$/;
 const MAX_EDGE = 32768;

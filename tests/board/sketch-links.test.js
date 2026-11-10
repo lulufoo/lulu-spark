@@ -194,6 +194,39 @@ describe('markdown board sketches', () => {
     expect(reads).toBe(2);
   });
 
+  it('reserves a hidden sandbox while the sketch is still loading', async () => {
+    const host = page(`<a href="${SKETCH}">Sketch</a>`);
+    const gate = deferred();
+    let pending;
+    act(() => {
+      pending = mountBoardSketches(host, () => gate.promise);
+    });
+    const frame = host.querySelector('iframe');
+    expect(frame.getAttribute('src')).toBe('https://sandbox.luluboard.app/');
+    expect(frame.classList.contains('is-ready')).toBe(false);
+    expect(host.querySelector('a').hidden).toBe(true);
+    expect(host.querySelector('.board-sketch-name').textContent).toBe('Sketch');
+    expect(document.head.querySelector('link[rel="preconnect"][href="https://sandbox.luluboard.app"]')).not.toBeNull();
+    await act(async () => {
+      gate.resolve({ status: 'sketch', content_b64: b64('<p>Hello</p>'), title: 'Real title' });
+      await pending;
+    });
+    expect(host.querySelector('.board-sketch-name').textContent).toBe('Real title');
+    expect(host.querySelector('iframe').classList.contains('is-ready')).toBe(false);
+  });
+
+  it('keeps the link when the read fails', async () => {
+    const host = page(`<a href="${SKETCH}">Sketch</a>`);
+    await act(async () => {
+      await mountBoardSketches(host, async () => {
+        throw new Error('network');
+      });
+    });
+    expect(host.querySelector('iframe')).toBeNull();
+    expect(host.querySelector('a').hidden).toBe(false);
+    expect(host.querySelector('.board-sketch-slot')).toBeNull();
+  });
+
   it('keeps the link when the sketch payload cannot be decoded', async () => {
     const host = page(`<a href="${SKETCH}">Sketch</a>`);
     await act(async () => {

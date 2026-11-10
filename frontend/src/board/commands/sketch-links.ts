@@ -3,13 +3,14 @@ import { flushSync } from 'react-dom';
 import { createRoot, type Root } from 'react-dom/client';
 import { fetchBoardSketch } from '../../host/api/board-sketch.ts';
 import { SketchPreview } from '../ui/sketch-preview.tsx';
-import { isBoardPage, type SketchAppearance } from './sketch-preview.ts';
+import { isBoardPage, warmSandbox, type SketchAppearance } from './sketch-preview.ts';
 
 type Reader = (url: string) => Promise<unknown>;
 
 type Slot = {
   unmount: () => void;
   paint: (appearance: SketchAppearance) => void;
+  show: (html: string, title: string) => void;
 };
 
 type Session = {
@@ -118,62 +119,79 @@ function decodeBase64(raw: string): string {
   }
 }
 
-function mountSlot(
-  anchor: Element,
-  html: string,
-  title: string,
-  pageUrl: string,
-  session: Session,
-  gen: number,
-) {
-  if (session.gen !== gen || !anchor.isConnected) return;
+function openSlot(anchor: Element, pageUrl: string, session: Session, gen: number): Slot | null {
+  if (session.gen !== gen || !anchor.isConnected) return null;
   const slotEl = document.createElement('div');
   slotEl.className = 'board-sketch-slot';
   anchor.insertAdjacentElement('afterend', slotEl);
   if (session.gen !== gen) {
     slotEl.remove();
-    return;
+    return null;
   }
   const root: Root = createRoot(slotEl);
+  let html = '';
+  let title = (anchor.textContent || '').replace(/\s+/g, ' ').trim();
+  let gone = false;
   const paint = (appearance: SketchAppearance) => {
+    if (gone) return;
     flushSync(() => {
       root.render(createElement(SketchPreview, { html, pageUrl, appearance, title }));
     });
   };
-  if (anchor instanceof HTMLElement) anchor.hidden = true;
   const slot: Slot = {
     paint,
-    unmount: () => {
+    show(nextHtml: string, nextTitle: string) {
+      if (gone || session.gen !== gen) return;
+      html = nextHtml;
+      title = nextTitle;
+      paint(currentAppearance());
+    },
+    unmount() {
+      if (gone) return;
+      gone = true;
       flushSync(() => root.unmount());
       slotEl.remove();
       if (anchor instanceof HTMLElement) anchor.hidden = false;
     },
   };
+  if (anchor instanceof HTMLElement) anchor.hidden = true;
   session.slots.push(slot);
   if (session.gen !== gen) {
     slot.unmount();
     session.slots = session.slots.filter((item) => item !== slot);
-    return;
+    return null;
   }
   paint(currentAppearance());
+  return slot;
 }
 
 async function attach(anchor: Element, session: Session, gen: number, read: Reader) {
   const pageUrl = anchor.getAttribute('href') || '';
   if (!isBoardPage(pageUrl)) return;
+  const slot = openSlot(anchor, pageUrl, session, gen);
+  if (!slot) return;
   let reply: unknown;
   try {
     reply = await read(pageUrl);
   } catch {
+    slot.unmount();
+    return;
+  }
+  if (session.gen !== gen || !anchor.isConnected) {
+    slot.unmount();
     return;
   }
   if (isRecord(reply) && reply.status === 'not_sketch') {
+    slot.unmount();
     markOtherFormat(anchor, session, gen);
     return;
   }
   const view = sketchView(reply);
-  if (!view) return;
-  mountSlot(anchor, view.html, view.title, pageUrl, session, gen);
+  if (!view) {
+    slot.unmount();
+    return;
+  }
+  slot.show(view.html, view.title);
 }
 
 function isRecord(reply: unknown): reply is { status?: unknown } {
@@ -193,6 +211,7 @@ export async function mountBoardSketches(
   read: Reader = fetchBoardSketch,
 ) {
   if (!container) return;
+  warmSandbox();
   const session = ensure(container);
   session.read = read;
   session.gen += 1;
