@@ -208,7 +208,7 @@ async function attach(anchor: Element, session: Session, gen: number, read: Read
   slot.show(view.html, view.title);
 }
 
-function isRecord(reply: unknown): reply is { status?: unknown } {
+function isRecord(reply: unknown): reply is { status?: unknown; content_b64?: unknown } {
   return !!reply && typeof reply === 'object';
 }
 
