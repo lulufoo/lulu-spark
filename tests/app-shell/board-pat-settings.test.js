@@ -49,12 +49,26 @@ describe('Board token settings', () => {
   it('adds a Board nav item and shows saved state without the token', async () => {
     status = true;
     const { host, root } = render();
-    expect(host.querySelector('[data-panel="board"]').textContent).toBe('Board');
+    const board = host.querySelector('[data-panel="board"]');
+    expect(board.textContent).toBe('Board');
+    expect(board.previousElementSibling.dataset.panel).toBe('devices');
+    expect(board.nextElementSibling.dataset.panel).toBe('theme');
     await act(async () => {
       settingsOpenStore.set(true);
     });
-    expect(host.querySelector('#settings-board-pat-hint').textContent).toMatch(/token is saved/);
-    expect(host.querySelector('#settings-board-pat').value).toBe('••••••');
+    const panel = host.querySelector('#settings-panel-board');
+    expect(panel.querySelector('h3').textContent).toBe('Board');
+    expect(panel.textContent).toContain('Connect your Board account to preview Sketch links.');
+    expect(panel.querySelector('.board-pat-status').textContent).toBe('Board PAT configured');
+    expect(panel.querySelector('.board-pat-status').classList.contains('is-set')).toBe(true);
+    expect(panel.querySelector('label').textContent).toBe('Board PAT');
+    expect(host.querySelector('#settings-board-pat').placeholder).toBe('Paste a new personal access token');
+    expect(host.querySelector('#settings-board-pat').value).toBe('');
+    expect(host.querySelector('#settings-board-pat-hint').textContent).toBe(
+      'Your saved token stays hidden and is stored securely.',
+    );
+    const actions = [...panel.querySelectorAll('.settings-panel-actions button')].map((button) => button.textContent);
+    expect(actions).toEqual(['Remove', 'Save']);
     expect(host.textContent).not.toContain(TOKEN);
     act(() => root.unmount());
   });
@@ -72,7 +86,8 @@ describe('Board token settings', () => {
     });
     expect(calls).toEqual([['set', TOKEN]]);
     expect(host.querySelector('#settings-result-board').textContent).toBe('Board token saved.');
-    expect(input.value).toBe('••••••');
+    expect(host.querySelector('.board-pat-status').textContent).toBe('Board PAT configured');
+    expect(input.value).toBe('');
     expect(JSON.stringify(boardPatStore.getSnapshot())).not.toContain(TOKEN);
     expect(host.textContent).not.toContain(TOKEN);
     act(() => root.unmount());
