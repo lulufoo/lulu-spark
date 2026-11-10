@@ -6702,7 +6702,7 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   --home-nav-label-h: 28px;
   /* Every row of the Workspace area (workspace, project, ...) and Read Later has this height. */
   --home-nav-row-h: 32px;
-  /* Space above every workspace but the first; the row allocation takes it off the list height. */
+  /* Space above every workspace but the first. */
   --home-nav-group-gap: 8px;
   --home-chat-list-rows: 5;
   --home-chat-list-pad: 2px;
@@ -6737,13 +6737,10 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
 .home-chat-nav-group > .home-desktop-shortcut {
   flex: 0 0 auto;
 }
-/* The Workspace list is measured: rows are fixed-height with no gaps inside a workspace, and the gap between workspaces is known, so whole rows add up. */
+/* Expanded workspaces show every project; the navigation area scrolls as one list. */
 .home-nav-workspaces {
   flex: 1 1 0;
   min-height: 0;
-  overflow: hidden;
-}
-.home-nav-workspaces[data-home-nav-overflow="true"] {
   overflow-y: auto;
 }
 .home-chat-nav-label {

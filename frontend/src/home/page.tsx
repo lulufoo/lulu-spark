@@ -405,6 +405,7 @@ export function HomePage({
                 workspaces={navWorkspaces()}
                 projects={state.workspaceProjects}
                 unreadDocs={state.channelUnread.docs}
+                expandedWorkspaceIds={state.expandedWorkspaceIds}
                 onOpenWorkspace={(id) => {
                   if (navWorkspaces().find((w) => w.id === id)?.isDefault) void markHomeEntryRead('spark');
                   openWorkspace(id, navigateFn);

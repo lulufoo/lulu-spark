@@ -83,6 +83,7 @@ describe('HomeWorkspaceNav icons', () => {
         createElement(HomeWorkspaceNav, {
           workspaces,
           projects,
+          expandedWorkspaceIds: workspaces.map((row) => row.id),
           unreadDocs: false,
           onOpenWorkspace() {},
           onOpenProject() {},
@@ -132,8 +133,8 @@ describe('HomeWorkspaceNav icons', () => {
     }
   });
 
-  it('icons do not change which rows are shown, and the … badge carries no icon', () => {
-    // 7 whole rows plus the two 8px gaps between the three workspaces.
+  it('keeps every expanded project and its configured icon even when space is short', () => {
+    // A short list must scroll rather than remove project rows.
     listHeight = 7 * 32 + 2 * 8;
     const host = render(rows(), {
       default: [
@@ -143,16 +144,13 @@ describe('HomeWorkspaceNav icons', () => {
       knowledge: ['a', 'b', 'c', 'd'].map((id) => ({ id, title: id, icon: ICON_P })),
       wiki: [],
     });
-    const badge = host.querySelector('[data-home-hidden="knowledge"]');
-    expect(badge.textContent).toBe('…');
-    expect(badge.querySelector('svg')).toBeNull();
     const shown = [...host.querySelectorAll('.home-nav-project')].map((b) => b.dataset.homeProject);
-    expect(shown).toEqual(['inbox', 'work', 'a', 'b']);
+    expect(shown).toEqual(['inbox', 'work', 'a', 'b', 'c', 'd']);
     for (const button of host.querySelectorAll('.home-nav-project')) {
       expect(button.querySelector('.home-nav-project-icon svg')).not.toBeNull();
     }
     const rowCount = host.querySelectorAll('.home-chat-nav-notes, .home-nav-project').length;
-    expect(rowCount).toBeLessThanOrEqual(7);
+    expect(rowCount).toBe(9);
   });
 
   it('keeps every row at the fixed row height and aligns projects with the workspace', () => {
