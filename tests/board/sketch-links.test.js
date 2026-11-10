@@ -78,7 +78,8 @@ describe('markdown board sketches', () => {
     expect(boxes.nextElementSibling.className).toBe('board-sketch-note');
     expect(boxes.nextElementSibling.textContent).toBe('Other Board formats stay as links');
     expect(link.nextElementSibling.className).toBe('board-sketch-slot');
-    expect(host.querySelector('header.board-sketch-title').textContent).toContain('Spark ↔ Board · architecture');
+    expect(host.querySelector('header.board-sketch-title')).toBeNull();
+    expect(host.querySelector('iframe').getAttribute('title')).toBe('Spark ↔ Board · architecture');
     expect(host.querySelector('.board-sketch-open').textContent).toBe('Open in Board ↗');
     const posted = await ready(host.querySelector('iframe'));
     expect(posted[0]).toEqual({ type: 'lulu-sandbox:render', html: '<p>Hello</p>', appearance: 'light' });
@@ -205,13 +206,13 @@ describe('markdown board sketches', () => {
     expect(frame.getAttribute('src')).toBe('https://sandbox.luluboard.app/');
     expect(frame.classList.contains('is-ready')).toBe(false);
     expect(host.querySelector('a').hidden).toBe(true);
-    expect(host.querySelector('.board-sketch-name').textContent).toBe('Sketch');
+    expect(host.querySelector('iframe').getAttribute('title')).toBe('Sketch');
     expect(document.head.querySelector('link[rel="preconnect"][href="https://sandbox.luluboard.app"]')).not.toBeNull();
     await act(async () => {
       gate.resolve({ status: 'sketch', content_b64: b64('<p>Hello</p>'), title: 'Real title' });
       await pending;
     });
-    expect(host.querySelector('.board-sketch-name').textContent).toBe('Real title');
+    expect(host.querySelector('iframe').getAttribute('title')).toBe('Real title');
     expect(host.querySelector('iframe').classList.contains('is-ready')).toBe(false);
   });
 

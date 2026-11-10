@@ -8678,34 +8678,15 @@ p:has(> a[hidden] + .board-sketch-slot) {
   display: contents;
 }
 .board-sketch-preview {
+  position: relative;
   box-sizing: border-box;
   width: 100%;
   margin: 12px 0 4px;
   padding: 0;
   overflow: hidden;
-  border: 1px solid var(--border-default);
+  border: 0;
   border-radius: 9px;
   background: var(--bg-canvas);
-}
-.board-sketch-title {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 18px;
-  margin: 0;
-  padding: 10px 13px;
-  background: var(--bg-surface);
-  border-bottom: 1px solid var(--border-default);
-  color: var(--fg-default);
-  font-size: 13px;
-  font-weight: 700;
-}
-.board-sketch-name {
-  min-width: 0;
-  line-height: 1.35;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 .board-sketch-note {
   margin-left: 8px;
@@ -8713,16 +8694,25 @@ p:has(> a[hidden] + .board-sketch-slot) {
   font-size: 12px;
 }
 .board-sketch-open {
-  flex-shrink: 0;
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 1;
+  opacity: 0;
   border: 0;
-  padding: 0;
-  background: transparent;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: var(--bg-surface);
   color: var(--fg-accent);
   font-size: 12px;
   font-weight: 700;
   line-height: 1.35;
   white-space: nowrap;
   cursor: pointer;
+}
+.board-sketch-open:hover,
+.board-sketch-open:focus-visible {
+  opacity: 1;
 }
 .board-sketch-frame-box {
   position: relative;
@@ -8776,7 +8766,7 @@ p:has(> a[hidden] + .board-sketch-slot) {
 }
 .board-sketch-error {
   margin: 0;
-  padding: 0 13px 8px;
+  padding: 10px 13px;
   color: var(--fg-subtle);
   font-size: 12px;
 }

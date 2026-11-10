@@ -128,14 +128,6 @@ export function SketchPreview({ html, pageUrl, appearance, title = '' }: Props) 
 
   return (
     <div className="board-sketch-preview" aria-busy={pending ? true : undefined}>
-      <header className="board-sketch-title">
-        <div className="board-sketch-name">{title}</div>
-        {canOpen ? (
-          <button type="button" className="board-sketch-open" onClick={() => void openBoardPage(pageUrl)}>
-            Open in Board ↗
-          </button>
-        ) : null}
-      </header>
       {failed ? (
         <p className="board-sketch-error" role="status">The sketch preview failed to load.</p>
       ) : null}
@@ -167,7 +159,7 @@ export function SketchPreview({ html, pageUrl, appearance, title = '' }: Props) 
         <iframe
           ref={frameRef}
           className={shown ? 'board-sketch-frame is-ready' : 'board-sketch-frame'}
-          title="Board sketch preview"
+          title={title || 'Board sketch preview'}
           src={SANDBOX_SRC}
           sandbox={SANDBOX_ALLOW}
           referrerPolicy="no-referrer"
@@ -176,6 +168,11 @@ export function SketchPreview({ html, pageUrl, appearance, title = '' }: Props) 
             : { colorScheme: 'light' }}
         />
       </div>
+      {canOpen ? (
+        <button type="button" className="board-sketch-open" onClick={() => void openBoardPage(pageUrl)}>
+          Open in Board ↗
+        </button>
+      ) : null}
     </div>
   );
 }
