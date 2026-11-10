@@ -3457,6 +3457,9 @@
     width: 100%;
   }
   .doc-title-btn:hover { text-decoration: underline; }
+  .timeline-create-title { font: inherit; font-weight: 600; cursor: text; }
+  .timeline-create-title:hover,
+  .timeline-create-title:focus { text-decoration: none; outline: none; }
 
   .doc-card.done .doc-title-btn {
     color: var(--fg-subtle);

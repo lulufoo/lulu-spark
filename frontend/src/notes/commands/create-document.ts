@@ -1,6 +1,7 @@
 import { state } from '../state/host.ts';
 import { isDirKey, nodeKeyOf, projectOfNode, sortedProjectFolders } from '../state/dir-tree.ts';
 import { createTargetStore } from '../state/create-target.ts';
+import { beginTimelineCreate } from './timeline-create.ts';
 import { openCreateNote } from './viewer/create.ts';
 import { isDirectoryView } from './workspace.ts';
 
@@ -32,6 +33,10 @@ function createFolder(project: string): string | undefined {
   return folders.length ? folders.join('/') : PROJECT_ROOT_FOLDER;
 }
 
+function defaultProject(targets: string[]): string {
+  return targets.find((id) => state.index.topicDefault?.[id] === true) || targets[0] || '';
+}
+
 function beginCreate(project: string) {
   void openCreateNote({
     temp_id: newTempId(),
@@ -42,16 +47,24 @@ function beginCreate(project: string) {
 }
 
 /**
- * The "+" of the document page. A document always goes to an explicit workspace and Project: the
- * selected Project when there is one, otherwise (timeline All) the person picks one first.
+ * The "+" of the document page. Timeline adds a title card in the list: the selected Project,
+ * or the workspace default Project when none is selected. Directory view still opens the body
+ * editor in the listed folder, and asks which Project when none is selected.
  * Returns false when there is no Project to put a document in.
  */
 export function startCreateDocument(): boolean {
   const targets = createTargets();
   if (!targets.length) return false;
   const selected = state.ui.activeTopic;
-  if (selected && targets.includes(selected)) {
-    beginCreate(selected);
+  const chosen = selected && targets.includes(selected) ? selected : '';
+  if (!isDirectoryView()) {
+    const project = chosen || defaultProject(targets);
+    if (!project) return false;
+    beginTimelineCreate(project);
+    return true;
+  }
+  if (chosen) {
+    beginCreate(chosen);
     return true;
   }
   createTargetStore.set({ open: true, project: targets[0] });

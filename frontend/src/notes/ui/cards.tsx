@@ -10,6 +10,7 @@ import { cycleImportance, loadTitles, openSourceTypePicker, toggleDone } from '.
 import { openNoteInChat } from '../commands/open-in-chat.ts';
 import { ViewerHeaderIcon } from '../../shared/viewer-header-icons.tsx';
 import type { NoteEntry, NoteTag } from '../state/types.ts';
+import { TimelineCreateCard } from './timeline-create-card.tsx';
 
 export { cycleImportance, loadTitles, toggleDone };
 
@@ -417,6 +418,7 @@ export function NotesDocList({
 
   return (
     <>
+      <TimelineCreateCard />
       {entries.map(({ id, entry }) => {
         const cached = date ? state.index.titleCache.get(date)?.get(id) : undefined;
         const initialTitle = cached ?? (entry.title || 'Untitled note');

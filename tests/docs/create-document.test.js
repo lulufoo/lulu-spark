@@ -21,7 +21,9 @@ import {
 } from '../../frontend/src/notes/commands/create-document.ts';
 import { landOnNewDocument } from '../../frontend/src/notes/commands/land-on-document.ts';
 import { selectDate, selectTopic } from '../../frontend/src/notes/commands/sidebar.ts';
+import { cancelTimelineCreate } from '../../frontend/src/notes/commands/timeline-create.ts';
 import { createTargetStore } from '../../frontend/src/notes/state/create-target.ts';
+import { timelineCreateStore } from '../../frontend/src/notes/state/timeline-create.ts';
 import { CreateTargetDialog } from '../../frontend/src/notes/ui/create-target-dialog.tsx';
 
 function seed({
@@ -37,6 +39,7 @@ function seed({
   };
   state.index.topicTitles = titles;
   state.index.topicOrder = order;
+  state.index.topicDefault = { inbox: true };
   state.ui.activeTopic = active;
   state.ui.activeDate = listed;
 }
@@ -46,24 +49,25 @@ beforeEach(() => {
   vi.mocked(selectDate).mockClear();
   vi.mocked(selectTopic).mockClear();
   cancelCreateProject();
+  cancelTimelineCreate();
   seed();
 });
 
 describe('startCreateDocument (the document page "+")', () => {
-  it('uses the selected Project: no question, explicit workspace and project', () => {
-    seed({ active: 'ideas' });
+  it('timeline: the selected Project opens a title card and does not open the body editor', () => {
+    seed({ active: 'ideas', listed: '20260710' });
     expect(startCreateDocument()).toBe(true);
     expect(createTargetStore.getSnapshot().open).toBe(false);
-    expect(openCreateNote).toHaveBeenCalledTimes(1);
-    expect(openCreateNote).toHaveBeenCalledWith(
-      expect.objectContaining({ workspace_id: 'default', project_id: 'ideas', temp_id: expect.any(String) }),
-    );
+    expect(openCreateNote).not.toHaveBeenCalled();
+    expect(timelineCreateStore.getSnapshot().project).toBe('ideas');
   });
 
-  it('timeline: no folder is sent, whatever is listed', () => {
-    seed({ active: 'ideas', listed: '20260710' });
-    startCreateDocument();
-    expect(openCreateNote.mock.calls[0][0].folder).toBeUndefined();
+  it('timeline All: the card uses the workspace default Project, not a chooser', () => {
+    seed({ order: ['ideas', 'inbox'] });
+    expect(startCreateDocument()).toBe(true);
+    expect(openCreateNote).not.toHaveBeenCalled();
+    expect(createTargetStore.getSnapshot().open).toBe(false);
+    expect(timelineCreateStore.getSnapshot().project).toBe('inbox');
   });
 
   it('directory view: creates in the folder that is listed', () => {
@@ -84,13 +88,16 @@ describe('startCreateDocument (the document page "+")', () => {
     expect(openCreateNote.mock.calls.map(([arg]) => arg.folder)).toEqual(['/', '/', '/']);
   });
 
-  it('timeline All: asks for a Project first, pre-selecting the first one in Settings order', () => {
+  it('directory view with nothing selected: asks for a Project first, pre-selecting the first one', () => {
+    seed({ view: 'directory', order: ['inbox', 'ideas'] });
     expect(startCreateDocument()).toBe(true);
     expect(openCreateNote).not.toHaveBeenCalled();
+    expect(timelineCreateStore.getSnapshot().project).toBe('');
     expect(createTargetStore.getSnapshot()).toEqual({ open: true, project: 'inbox' });
   });
 
   it('confirming the chooser creates in the picked Project', () => {
+    seed({ view: 'directory' });
     startCreateDocument();
     createTargetStore.set((p) => ({ ...p, project: 'ideas' }));
     confirmCreateProject();
@@ -99,6 +106,7 @@ describe('startCreateDocument (the document page "+")', () => {
   });
 
   it('cancelling the chooser creates nothing', () => {
+    seed({ view: 'directory' });
     startCreateDocument();
     cancelCreateProject();
     expect(createTargetStore.getSnapshot().open).toBe(false);
@@ -112,8 +120,8 @@ describe('startCreateDocument (the document page "+")', () => {
     expect(openCreateNote).not.toHaveBeenCalled();
   });
 
-  it('a selected Project that is not enabled falls back to asking', () => {
-    seed({ active: 'gone' });
+  it('a selected Project that is not enabled falls back to asking in the directory view', () => {
+    seed({ active: 'gone', view: 'directory' });
     startCreateDocument();
     expect(openCreateNote).not.toHaveBeenCalled();
     expect(createTargetStore.getSnapshot().open).toBe(true);
@@ -129,6 +137,7 @@ describe('chooser dialog', () => {
     expect(host.querySelector('#create-target-dialog')).toBeNull();
 
     await act(async () => {
+      seed({ view: 'directory' });
       startCreateDocument();
     });
     expect(host.querySelector('#create-target-dialog')).not.toBeNull();
