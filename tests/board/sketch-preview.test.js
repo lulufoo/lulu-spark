@@ -57,6 +57,8 @@ describe('sketch preview', () => {
     expect(css).not.toMatch(/\[data-theme="dark"\] \.board-sketch-frame\s*\{[^}]*color-scheme:\s*dark/);
     expect(css).toMatch(/\.board-sketch-frame-box\s*\{[^}]*min-height:\s*240px/);
     expect(css).toMatch(/\.board-sketch-frame\s*\{[^}]*visibility:\s*hidden/);
+    expect(css).toMatch(/\.board-sketch-loading svg\s*\{[^}]*width:\s*76px/);
+    expect(css).toMatch(/prefers-reduced-motion:\s*reduce/);
     expect(frame.classList.contains('is-ready')).toBe(false);
     const index = readFileSync(join(repoRoot, 'frontend/index.html'), 'utf8');
     expect(index).toContain('<link rel="preconnect" href="https://sandbox.luluboard.app">');
@@ -152,6 +154,23 @@ describe('sketch preview', () => {
     frame.contentWindow.postMessage = (data) => posted.push(data);
     expect(frame.classList.contains('is-ready')).toBe(false);
     expect(host.querySelector('.board-sketch-frame-box').className).toBe('board-sketch-frame-box');
+    const loading = host.querySelector('.board-sketch-loading');
+    expect(loading.getAttribute('aria-label')).toBe('Loading preview');
+    expect(loading.textContent).toBe('');
+    expect(loading.querySelectorAll('stop')[1].getAttribute('stop-opacity')).toBe('0.34');
+    act(() => root.render(createElement(SketchPreview, {
+      html: '',
+      pageUrl: PAGE,
+      appearance: 'dark',
+      title: 'Sketch',
+    })));
+    expect(host.querySelectorAll('.board-sketch-loading stop')[1].getAttribute('stop-opacity')).toBe('0.78');
+    act(() => root.render(createElement(SketchPreview, {
+      html: '',
+      pageUrl: PAGE,
+      appearance: 'light',
+      title: 'Sketch',
+    })));
     act(() => {
       window.dispatchEvent(new MessageEvent('message', {
         data: { type: 'lulu-sandbox:ready' },
@@ -175,6 +194,7 @@ describe('sketch preview', () => {
     expect(shown.style.transform).toBe('scale(0.25)');
     expect(host.querySelector('.board-sketch-frame-box').style.height).toBe('50px');
     expect(host.querySelector('.board-sketch-name').textContent).toBe('Real');
+    expect(host.querySelector('.board-sketch-loading')).toBeNull();
     act(() => root.unmount());
   });
 
@@ -201,6 +221,7 @@ describe('sketch preview', () => {
       expect(host.querySelector('.board-sketch-error')).toBeNull();
       await act(async () => { await vi.advanceTimersByTimeAsync(8000); });
       expect(host.querySelector('.board-sketch-error').textContent).toBe('The sketch preview failed to load.');
+      expect(host.querySelector('.board-sketch-loading')).toBeNull();
       expect(host.querySelector('a').textContent).toBe('Sketch');
       act(() => root.unmount());
     } finally {

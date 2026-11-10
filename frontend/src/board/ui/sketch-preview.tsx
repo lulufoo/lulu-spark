@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import {
   SANDBOX_ALLOW,
   SANDBOX_SRC,
@@ -33,6 +33,8 @@ export function SketchPreview({ html, pageUrl, appearance, title = '' }: Props) 
   const [size, setSize] = useState<{ width: number; height: number } | null>(null);
   const [fit, setFit] = useState(1);
   const canOpen = isBoardPage(pageUrl);
+  const shineId = `sketch-shine-${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
+  const shineMid = appearance === 'dark' ? 0.78 : 0.34;
 
   useEffect(() => {
     sentRef.current = false;
@@ -142,6 +144,26 @@ export function SketchPreview({ html, pageUrl, appearance, title = '' }: Props) 
         className={boxClass}
         style={shown && size ? { height: Math.ceil(size.height * fit) } : undefined}
       >
+        {pending ? (
+          <div className="board-sketch-loading" role="status" aria-label="Loading preview">
+            <svg viewBox="0 0 32 32" aria-hidden="true">
+              <defs>
+                <linearGradient id={shineId} gradientUnits="userSpaceOnUse" x1="-20" y1="0" x2="-8" y2="0">
+                  <stop offset="0" stopColor="currentColor" stopOpacity="0.55" />
+                  <stop offset="0.5" stopColor="currentColor" stopOpacity={shineMid} />
+                  <stop offset="1" stopColor="currentColor" stopOpacity="0.55" />
+                  <animate attributeName="x1" from="-20" to="40" dur="1.9s" repeatCount="indefinite" />
+                  <animate attributeName="x2" from="-8" to="52" dur="1.9s" repeatCount="indefinite" />
+                </linearGradient>
+              </defs>
+              <path
+                d="M9.5 8h4A1.5 1.5 0 0 1 15 9.5v6A1.5 1.5 0 0 0 16.5 17h6a1.5 1.5 0 0 1 1.5 1.5v4a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 8 22.5v-13A1.5 1.5 0 0 1 9.5 8z"
+                fill={`url(#${shineId})`}
+              />
+              <rect x="18" y="8" width="6" height="6" rx="1.5" fill={`url(#${shineId})`} />
+            </svg>
+          </div>
+        ) : null}
         <iframe
           ref={frameRef}
           className={shown ? 'board-sketch-frame is-ready' : 'board-sketch-frame'}

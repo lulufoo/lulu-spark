@@ -8698,6 +8698,27 @@ p:has(> a[hidden] + .board-sketch-slot) {
 .board-sketch-frame-box.is-failed {
   display: none;
 }
+.board-sketch-frame-box:not(.is-ready):not(.is-failed) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.board-sketch-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--fg-muted);
+}
+.board-sketch-loading svg {
+  display: block;
+  width: 76px;
+  height: 76px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .board-sketch-loading animate {
+    display: none;
+  }
+}
 .board-sketch-frame {
   position: absolute;
   top: 0;
