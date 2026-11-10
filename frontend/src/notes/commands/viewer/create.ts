@@ -1,3 +1,4 @@
+import { releaseBoardSketches } from '../../../board/commands/sketch-links.ts';
 import { notifyState, state } from '../../state/host.ts';
 import { resetEditAreaScroll } from '../../../shared/utils.ts';
 import * as api from '../../../host/api.ts';
@@ -68,6 +69,7 @@ export function locationDate() {
 }
 
 export function dismissViewerModal() {
+  releaseBoardSketches(document.getElementById('md-body'));
   forgetOpenDoc();
   clearCreateChrome();
   hideNoteOutlet();

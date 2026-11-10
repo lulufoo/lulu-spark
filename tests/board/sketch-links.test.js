@@ -2,6 +2,7 @@
 import { act } from 'react';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
+  invalidateBoardSketches,
   mountBoardSketches,
   releaseBoardSketches,
 } from '../../frontend/src/board/commands/sketch-links.ts';
@@ -116,6 +117,25 @@ describe('markdown board sketches', () => {
     expect(posted[0].html).toBe('<p>Second</p>');
     releaseBoardSketches(host);
     expect(host.querySelector('iframe')).toBeNull();
+  });
+
+  it('drops a mounted sketch and an in-flight read when the token changes', async () => {
+    const host = page(`<a href="${SKETCH}">Sketch</a>`);
+    const first = deferred();
+    let reads = 0;
+    const pending = mountBoardSketches(host, () => {
+      reads += 1;
+      if (reads === 1) return first.promise;
+      return Promise.resolve({ status: 'unconfigured' });
+    });
+    await act(async () => {
+      invalidateBoardSketches();
+      first.resolve({ status: 'sketch', content_b64: b64('<p>Old</p>') });
+      await pending;
+      await Promise.resolve();
+    });
+    expect(host.querySelector('iframe')).toBeNull();
+    expect(reads).toBe(2);
   });
 
   it('keeps the link when the sketch payload cannot be decoded', async () => {

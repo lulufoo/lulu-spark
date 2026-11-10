@@ -1,3 +1,4 @@
+import { invalidateBoardSketches } from '../../../board/commands/sketch-links.ts';
 import { deleteBoardPat, fetchBoardPatStatus, setBoardPat } from '../../../host/api.ts';
 import { SAVED_KEY_PLACEHOLDER } from '../../state/settings/store.ts';
 import { patchBoardPat } from '../../state/settings/board-pat.ts';
@@ -29,6 +30,7 @@ export async function saveBoardPat(pat: string): Promise<boolean> {
   try {
     await setBoardPat(value);
     patchBoardPat({ configured: true, busy: false, message: SAVE_OK });
+    invalidateBoardSketches();
     return true;
   } catch {
     patchBoardPat({ busy: false, message: SAVE_FAIL });
@@ -41,6 +43,7 @@ export async function removeBoardPat(): Promise<boolean> {
   try {
     await deleteBoardPat();
     patchBoardPat({ configured: false, busy: false, message: REMOVE_OK });
+    invalidateBoardSketches();
     return true;
   } catch {
     patchBoardPat({ busy: false, message: REMOVE_FAIL });

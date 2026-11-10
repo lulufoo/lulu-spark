@@ -21,6 +21,7 @@ import {
   notesDateHeadingText,
   resolveNotesListDate,
 } from './commands/viewer/outlet.ts';
+import { releaseBoardSketches } from '../board/commands/sketch-links.ts';
 import { renderDocBody } from './ui/viewer/body.tsx';
 import { NotesSearchButton, NotesSearchModal, useNotesSearch } from './ui/search.tsx';
 import { startCreateDocument } from './commands/create-document.ts';
@@ -112,26 +113,34 @@ function NotesReaderBody() {
 
   useLayoutEffect(() => {
     const body = bodyRef.current;
-    if (!body || creating || editing) return;
+    if (!body) return undefined;
+    if (creating || editing) {
+      releaseBoardSketches(body);
+      return undefined;
+    }
     if (loading) {
+      releaseBoardSketches(body);
       body.innerHTML = '<div style="color:#8c959f;padding:20px;font-size:13px">Loading…</div>';
-      return;
+      return undefined;
     }
     if (loadError) {
+      releaseBoardSketches(body);
       body.textContent = '';
       const wrap = document.createElement('div');
       wrap.style.color = '#7d4e00';
       wrap.style.padding = '20px';
       wrap.textContent = `Could not load file: ${loadError}`;
       body.appendChild(wrap);
-      return;
+      return undefined;
     }
     if (!entry || !rawText) {
+      releaseBoardSketches(body);
       body.innerHTML = '';
-      return;
+      return undefined;
     }
     const id = getEntryId(entry) || '';
     void renderDocBody(rawText, layer, id);
+    return () => releaseBoardSketches(body);
   }, [paintKey, rawText, layer, entry, loading, loadError, creating, editing, viewer.lang]);
 
   return (

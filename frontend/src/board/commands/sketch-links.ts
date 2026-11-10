@@ -15,6 +15,8 @@ type Slot = {
 type Session = {
   gen: number;
   slots: Slot[];
+  container: Element;
+  read: Reader;
 };
 
 const sessions = new WeakMap<Element, Session>();
@@ -28,7 +30,7 @@ function currentAppearance(): SketchAppearance {
 function ensure(container: Element): Session {
   let session = sessions.get(container);
   if (!session) {
-    session = { gen: 0, slots: [] };
+    session = { gen: 0, slots: [], container, read: fetchBoardSketch };
     sessions.set(container, session);
     live.add(session);
   }
@@ -46,6 +48,17 @@ export function releaseBoardSketches(container: Element | null | undefined) {
   if (!session) return;
   session.gen += 1;
   clearSlots(session);
+}
+
+export function invalidateBoardSketches() {
+  for (const session of [...live]) {
+    if (!session.container.isConnected) {
+      releaseBoardSketches(session.container);
+      live.delete(session);
+      continue;
+    }
+    void mountBoardSketches(session.container, session.read);
+  }
 }
 
 function watchTheme() {
@@ -133,6 +146,7 @@ export async function mountBoardSketches(
 ) {
   if (!container) return;
   const session = ensure(container);
+  session.read = read;
   session.gen += 1;
   clearSlots(session);
   const gen = session.gen;

@@ -1,3 +1,4 @@
+import { releaseBoardSketches } from '../../board/commands/sketch-links.ts';
 import { asRecord } from '../../host/api-types.ts';
 import { readGet, writePost } from '../../host/api/transport.ts';
 import {
@@ -19,6 +20,7 @@ function asTextArea(el: HTMLElement | null) {
 }
 
 export function closeFilePopup() {
+  releaseBoardSketches(document.getElementById('file-popup-body'));
   viewStore.set(emptyFilePopupView());
 }
 
