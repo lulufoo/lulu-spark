@@ -8641,16 +8641,31 @@ p:has(> a[hidden] + .board-sketch-slot) {
   box-sizing: border-box;
   width: 100%;
   margin: 12px 0 4px;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--border-default);
+  border-radius: 9px;
+  background: var(--bg-canvas);
 }
 .board-sketch-title {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin: 0 0 8px;
+  gap: 18px;
+  margin: 0;
+  padding: 10px 13px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-default);
   color: var(--fg-default);
   font-size: 13px;
   font-weight: 700;
+}
+.board-sketch-name {
+  min-width: 0;
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .board-sketch-note {
   margin-left: 8px;
@@ -8664,7 +8679,9 @@ p:has(> a[hidden] + .board-sketch-slot) {
   background: transparent;
   color: var(--fg-accent);
   font-size: 12px;
-  font-weight: 650;
+  font-weight: 700;
+  line-height: 1.35;
+  white-space: nowrap;
   cursor: pointer;
 }
 .board-sketch-frame-box {
@@ -8693,6 +8710,7 @@ p:has(> a[hidden] + .board-sketch-slot) {
 }
 .board-sketch-error {
   margin: 0;
+  padding: 0 13px 8px;
   color: var(--fg-subtle);
   font-size: 12px;
 }

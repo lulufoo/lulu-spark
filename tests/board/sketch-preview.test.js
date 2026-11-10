@@ -45,9 +45,13 @@ describe('sketch preview', () => {
     expect(frame.style.colorScheme).toBe('light');
     const css = readFileSync(join(repoRoot, 'frontend/app.css'), 'utf8');
     const previewRule = css.match(/\.board-sketch-preview\s*\{[^}]*\}/)[0];
-    expect(previewRule).not.toMatch(/\bborder\s*:/);
-    expect(previewRule).not.toMatch(/border-radius/);
-    expect(host.querySelector('header.board-sketch-title')).not.toBeNull();
+    expect(previewRule).toMatch(/border:\s*1px solid var\(--border-default\)/);
+    expect(previewRule).toMatch(/border-radius:\s*9px/);
+    expect(previewRule).toMatch(/padding:\s*0/);
+    const titleRule = css.match(/\.board-sketch-title\s*\{[^}]*\}/)[0];
+    expect(titleRule).toMatch(/border-bottom:\s*1px solid var\(--border-default\)/);
+    expect(titleRule).toMatch(/background:\s*var\(--bg-surface\)/);
+    expect(host.querySelector('header.board-sketch-title .board-sketch-name')).not.toBeNull();
     expect(css).toMatch(/p:has\(>\s*a\[hidden\] \+ \.board-sketch-slot\)/);
     expect(css).toMatch(/\.board-sketch-frame\s*\{[^}]*color-scheme:\s*light/);
     expect(css).not.toMatch(/\[data-theme="dark"\] \.board-sketch-frame\s*\{[^}]*color-scheme:\s*dark/);

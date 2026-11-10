@@ -101,7 +101,7 @@ export function SketchPreview({ html, pageUrl, appearance, title = '' }: Props) 
   return (
     <div className="board-sketch-preview">
       <header className="board-sketch-title">
-        <span>{title}</span>
+        <div className="board-sketch-name">{title}</div>
         {canOpen ? (
           <button type="button" className="board-sketch-open" onClick={() => void openBoardPage(pageUrl)}>
             Open in Board ↗
