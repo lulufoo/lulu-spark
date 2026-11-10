@@ -85,6 +85,7 @@ describe('HomeWorkspaceNav icons', () => {
           projects,
           expandedWorkspaceIds: workspaces.map((row) => row.id),
           unreadDocs: false,
+          onToggleWorkspace() {},
           onOpenWorkspace() {},
           onOpenProject() {},
         }),
@@ -163,11 +164,10 @@ describe('HomeWorkspaceNav icons', () => {
     expect(homeCss).not.toMatch(/\.home-chat-nav \.home-nav-project \{[^}]*padding-left:/);
     expect(projectRule).not.toMatch(/\bheight:/);
     expect(css).not.toMatch(/home-nav-more/);
-    expect(css).toMatch(/\.home-nav-hidden-count \{[^}]*margin-left: auto;/);
+    expect(css).toMatch(/\.home-nav-enter \{[^}]*margin-left: auto;/);
     // the hover target is a 28px square at the row's right edge, not just the glyph
-    expect(css).toMatch(/\.home-nav-hidden-count \{[^}]*width: 28px;[^}]*height: 28px;/);
-    expect(css).toMatch(/\.home-nav-hidden-count \{[^}]*margin-right: -8px;/);
-    expect(css).toMatch(/\.home-nav-hidden-count \{[^}]*display: inline-flex;[^}]*justify-content: center;/);
+    expect(css).toMatch(/\.home-nav-enter \{[^}]*width: 28px;[^}]*height: 28px;/);
+    expect(css).toMatch(/\.home-nav-enter \{[^}]*display: inline-flex;[^}]*justify-content: center;/);
     expect(css).toMatch(/\.home-nav-project-icon \{[^}]*width: 16px;/);
   });
 

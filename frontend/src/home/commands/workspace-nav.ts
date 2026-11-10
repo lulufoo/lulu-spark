@@ -39,10 +39,6 @@ function asProjects(data: unknown): HomeProject[] {
 export async function refreshWorkspaceProjects() {
   const generation = ++refreshGeneration;
   const ids = state.workspaces.list.map((w) => w.workspace_id);
-  setHomeState((prev) => ({
-    ...prev,
-    expandedWorkspaceIds: retainWorkspaceExpansion(prev.expandedWorkspaceIds, ids),
-  }));
   const loaded = await Promise.all(
     ids.map(async (id): Promise<[string, HomeProject[]]> => {
       try {

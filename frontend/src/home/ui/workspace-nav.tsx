@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import { defaultWorkspaceIconName, HomeNavIcon } from './nav-icons.tsx';
 import { Icon } from '../../shared/icons/icon.tsx';
 import { DEFAULT_PROJECT_ICON_ID, getIcon } from '../../shared/icons/index.ts';
@@ -17,6 +18,7 @@ type Props = {
   /** Unread dot of the documents channel; shown on the built-in workspace. */
   unreadDocs: boolean;
   expandedWorkspaceIds?: string[];
+  onToggleWorkspace: (id: string) => void;
   onOpenWorkspace: (id: string) => void;
   onOpenProject: (id: string, projectId: string) => void;
 };
@@ -46,14 +48,18 @@ export function HomeWorkspaceNav({
   projects,
   unreadDocs,
   expandedWorkspaceIds = [],
+  onToggleWorkspace,
   onOpenWorkspace,
   onOpenProject,
 }: Props) {
+  const navId = useId();
   return (
     <div className="home-nav-workspaces" data-home-nav-list="workspace">
       {workspaces.map((row) => {
         const list = projects[row.id] ?? [];
-        const shown = expandedWorkspaceIds.includes(row.id) ? list : [];
+        const expanded = expandedWorkspaceIds.includes(row.id);
+        const shown = expanded ? list : [];
+        const projectsId = `${navId}-${encodeURIComponent(row.id)}-projects`;
         return (
           <div key={row.id} className="home-nav-workspace" data-home-workspace={row.id}>
             <div className="home-chat-nav-notes">
@@ -62,26 +68,41 @@ export function HomeWorkspaceNav({
                 className="home-chat-nav-item home-desktop-shortcut"
                 data-home-entry={entryKey(row)}
                 {...(row.isDefault && unreadDocs ? { 'data-home-unread': 'true' } : {})}
-                onClick={() => onOpenWorkspace(row.id)}
+                aria-label={`${expanded ? 'Collapse' : 'Expand'} ${row.name}`}
+                aria-expanded={expanded}
+                aria-controls={projectsId}
+                onClick={() => onToggleWorkspace(row.id)}
               >
                 <WorkspaceIcon row={row} />
                 <span className="home-desktop-shortcut-label">{row.name}</span>
               </button>
-            </div>
-            {shown.map((project) => (
               <button
-                key={project.id}
                 type="button"
-                className="home-chat-nav-item home-nav-project"
-                data-home-project={project.id}
-                onClick={() => onOpenProject(row.id, project.id)}
+                className="home-nav-enter"
+                data-home-open-workspace={row.id}
+                aria-label={`Open ${row.name}`}
+                data-tip={`Open ${row.name}`}
+                onClick={() => onOpenWorkspace(row.id)}
               >
-                <span className="home-nav-project-icon" aria-hidden="true">
-                  <Icon id={project.icon && getIcon(project.icon) ? project.icon : DEFAULT_PROJECT_ICON_ID} size={16} />
-                </span>
-                <span className="home-nav-project-label">{project.title}</span>
+                …
               </button>
-            ))}
+            </div>
+            <div id={projectsId} className="home-nav-projects">
+              {shown.map((project) => (
+                <button
+                  key={project.id}
+                  type="button"
+                  className="home-chat-nav-item home-nav-project"
+                  data-home-project={project.id}
+                  onClick={() => onOpenProject(row.id, project.id)}
+                >
+                  <span className="home-nav-project-icon" aria-hidden="true">
+                    <Icon id={project.icon && getIcon(project.icon) ? project.icon : DEFAULT_PROJECT_ICON_ID} size={16} />
+                  </span>
+                  <span className="home-nav-project-label">{project.title}</span>
+                </button>
+              ))}
+            </div>
           </div>
         );
       })}

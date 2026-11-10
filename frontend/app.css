@@ -6806,9 +6806,8 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* Cut-off projects: a grey `…` at the right of the workspace row (the count is in its hover text); it never squeezes the title.
-   The glyph is tiny, so its box is a 28px square (hover target) that reaches the row's right edge; the glyph keeps its place. */
-.home-nav-hidden-count {
+/* Keep the existing lightweight ellipsis, with its own keyboard/click target. */
+.home-nav-enter {
   flex: none;
   display: inline-flex;
   align-items: center;
@@ -6816,22 +6815,32 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   width: 28px;
   height: 28px;
   margin-left: auto;
-  margin-right: -8px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  font: inherit;
   font-size: 12px;
   line-height: 1;
   color: var(--fg-subtle);
+  cursor: pointer;
+}
+.home-chat-nav-notes:hover {
+  background: var(--bg-hover);
 }
 .home-chat-nav-notes {
   display: flex;
   align-items: center;
-  gap: 4px;
+  border-radius: 8px;
+  gap: 0;
   height: var(--home-nav-row-h);
 }
 .home-chat-nav-notes .home-desktop-shortcut {
   flex: 1;
   width: auto;
 }
-.home-chat-nav .home-desktop-shortcut:focus-visible {
+.home-chat-nav .home-desktop-shortcut:focus-visible,
+.home-nav-enter:focus-visible {
   outline: 2px solid var(--border-accent);
   outline-offset: 1px;
 }

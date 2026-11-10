@@ -43,7 +43,7 @@ vi.mock('../../frontend/src/notes/commands/workspace-switch.ts', () => ({
 
 const { state } = await import('../../frontend/src/host/state.ts');
 const commands = await import('../../frontend/src/home/commands/workspace-nav.ts');
-const { getHomeState, resetHomeState, setHomeState } = await import('../../frontend/src/home/state/store.ts');
+const { getHomeState, resetHomeState, setHomeState, useHomeState } = await import('../../frontend/src/home/state/store.ts');
 const { HomeWorkspaceNav } = await import('../../frontend/src/home/ui/workspace-nav.tsx');
 
 const rows = [
@@ -117,6 +117,10 @@ describe('Home workspace nav commands', () => {
 
 describe('HomeWorkspaceNav', () => {
   const hosts = [];
+  beforeEach(() => {
+    resetHomeState();
+    state.workspaces.list = rows.map((row) => ({ workspace_id: row.id }));
+  });
   afterEach(() => {
     for (const { root, host } of hosts.splice(0)) {
       act(() => root.unmount());
@@ -129,14 +133,20 @@ describe('HomeWorkspaceNav', () => {
     document.body.appendChild(host);
     const root = createRoot(host);
     hosts.push({ root, host });
-    const paint = (next = {}) => act(() => root.render(createElement(HomeWorkspaceNav, {
+    function Harness({ next }) {
+      const home = useHomeState();
+      return createElement(HomeWorkspaceNav, {
       workspaces: rows,
       projects: projectsByWorkspace,
       unreadDocs: true,
+      expandedWorkspaceIds: home.expandedWorkspaceIds,
+      onToggleWorkspace: commands.toggleWorkspaceProjects,
       onOpenWorkspace: vi.fn(),
       onOpenProject: vi.fn(),
       ...props, ...next,
-    })));
+      });
+    }
+    const paint = (next = {}) => act(() => root.render(createElement(Harness, { next })));
     paint();
     return { host, paint };
   }
@@ -163,6 +173,38 @@ describe('HomeWorkspaceNav', () => {
     expect(host.querySelector('[data-home-entry="knowledge"]').textContent).toContain('Renamed Knowledge');
     expect(host.querySelector('[data-home-project="new"]')).not.toBeNull();
     expect(host.querySelector('[data-home-project="a"]')).toBeNull();
+  });
+
+  it('toggles the name region without navigation and keeps the ellipsis separate', () => {
+    const onOpenWorkspace = vi.fn();
+    const { host } = render({ onOpenWorkspace });
+    const name = host.querySelector('[data-home-entry="knowledge"]');
+    const enter = host.querySelector('[data-home-open-workspace="knowledge"]');
+    expect(enter.textContent.trim()).toBe('…');
+    expect(enter.closest('button button')).toBeNull();
+    expect(name.getAttribute('aria-expanded')).toBe('false');
+    act(() => name.click());
+    expect(name.getAttribute('aria-expanded')).toBe('true');
+    expect(host.querySelector('[id="' + name.getAttribute('aria-controls') + '"]').querySelectorAll('button')).toHaveLength(4);
+    expect(onOpenWorkspace).not.toHaveBeenCalled();
+    act(() => enter.click());
+    expect(onOpenWorkspace).toHaveBeenCalledExactlyOnceWith('knowledge');
+    expect(name.getAttribute('aria-expanded')).toBe('true');
+    act(() => name.click());
+    expect(name.getAttribute('aria-expanded')).toBe('false');
+    expect(host.querySelector('[data-home-project="a"]')).toBeNull();
+    act(() => enter.click());
+    expect(onOpenWorkspace).toHaveBeenCalledTimes(2);
+    expect(name.getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it('can expand multiple workspaces and keeps the plain ellipsis visible on every row', () => {
+    const { host } = render();
+    expect(host.querySelectorAll('[data-home-open-workspace]')).toHaveLength(rows.length);
+    act(() => host.querySelector('[data-home-entry="spark"]').click());
+    act(() => host.querySelector('[data-home-entry="knowledge"]').click());
+    expect(host.querySelectorAll('.home-nav-project')).toHaveLength(6);
+    expect(host.querySelector('[data-home-open-workspace="empty"]')).not.toBeNull();
   });
 
   it('routes an expanded project through the existing command callback', () => {

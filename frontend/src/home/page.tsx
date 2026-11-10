@@ -9,7 +9,7 @@ import { cancelSync, markSyncResultSeen, resetSyncEntry, startSync } from './com
 import { deriveSyncEntry } from './state/sync-entry-view.ts';
 import { syncCheckStore, syncRosterStore, syncRunStore, syncSeenStore } from './state/sync-entry.ts';
 import { state, useHostState } from '../host/state.ts';
-import { openProject, openWorkspace, refreshWorkspaceProjects } from './commands/workspace-nav.ts';
+import { openProject, openWorkspace, refreshWorkspaceProjects, toggleWorkspaceProjects } from './commands/workspace-nav.ts';
 import { HomeWorkspaceNav, type HomeWorkspaceRow } from './ui/workspace-nav.tsx';
 import { openAbout } from './commands/about.ts';
 import { loadPackageDebug } from './commands/package-debug.ts';
@@ -406,6 +406,7 @@ export function HomePage({
                 projects={state.workspaceProjects}
                 unreadDocs={state.channelUnread.docs}
                 expandedWorkspaceIds={state.expandedWorkspaceIds}
+                onToggleWorkspace={toggleWorkspaceProjects}
                 onOpenWorkspace={(id) => {
                   if (navWorkspaces().find((w) => w.id === id)?.isDefault) void markHomeEntryRead('spark');
                   openWorkspace(id, navigateFn);
