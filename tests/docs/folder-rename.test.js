@@ -35,6 +35,7 @@ function seed() {
   state.ui.activeTopic = 'ideas';
   state.ui.activeDate = dirKeyOf('ideas/plans');
   dirTreeStore.set({ expanded: ['ideas/plans', 'ideas/plans/q1'] });
+  window.location.hash = '#/spark';
 }
 
 function setInput(input, value) {
@@ -127,14 +128,13 @@ describe('directory rename folder', () => {
     await act(async () => root.unmount());
   });
 
-  it('Enter on the selected folder opens the name editor and does not rename a file row', async () => {
+  it('Enter with a listed folder opens the name editor, including when focus is not on the row', async () => {
     const host = document.createElement('div');
     document.body.appendChild(host);
     const root = createRoot(host);
     await act(async () => root.render(createElement(Tree)));
-    const button = host.querySelector('[data-node="ideas/plans"] button');
     await act(async () => {
-      button.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
     });
     const input = host.querySelector('[aria-label="Folder name"]');
     expect(input).not.toBeNull();
@@ -143,11 +143,14 @@ describe('directory rename folder', () => {
     await act(async () => {
       input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     });
-    const file = host.querySelector('[data-kind="file"] button');
+    const field = document.createElement('input');
+    document.body.appendChild(field);
+    field.focus();
     await act(async () => {
-      file.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      field.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
     });
     expect(host.querySelector('[aria-label="Folder name"]')).toBeNull();
+    field.remove();
     await act(async () => root.unmount());
   });
 });
