@@ -1,3 +1,5 @@
+  :root { --app-header-height: 56px; }
+
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
   /* ── Global overscroll disable ── */
@@ -56,7 +58,7 @@
     overflow: hidden;
   }
   .window-drag-strip {
-    height: 36px;
+    height: var(--app-header-height);
     flex-shrink: 0;
   }
   .window-drag-strip.is-chrome {
@@ -169,7 +171,10 @@
     display: none !important;
   }
   .notes-page-toolbar {
-    padding: 20px 24px 16px;
+    height: var(--app-header-height);
+    min-height: var(--app-header-height);
+    padding: 0 24px;
+    background: var(--bg-surface);
     gap: 16px;
     box-sizing: border-box;
   }
@@ -181,8 +186,16 @@
     font-size: 14px;
     font-weight: 600;
     white-space: nowrap;
-    flex-shrink: 0;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
     color: var(--fg-default);
+  }
+  .notes-page-toolbar .notes-search-btn {
+    flex: 0 1 373px;
+    min-width: 0;
+    max-width: 50%;
   }
   /* Nothing selected: a quiet hint where the heading goes, on the search box's row. */
   .notes-page-toolbar #date-heading.date-heading-hint {
@@ -3741,10 +3754,11 @@
     background: var(--bg-surface);
     overflow-x: auto;
   }
-  /* Same box as .notes-page-toolbar (20+36+16) so the title does not jump. */
+  /* List and article share the same compact toolbar box. */
   #md-header.viewer-header {
-    padding: 20px 24px 16px;
-    min-height: 72px;
+    height: var(--app-header-height);
+    min-height: var(--app-header-height);
+    padding: 0 24px;
   }
   .viewer-header-actions {
     display: flex;
@@ -7636,12 +7650,12 @@ button.home-sync-row-name:focus-visible {
 }
 .home-chat-main-drag {
   position: relative;
-  height: 36px;
+  height: var(--app-header-height);
   flex-shrink: 0;
 }
 .home-chat-session-menu {
   position: absolute;
-  top: 4px;
+  top: calc((var(--app-header-height) - 28px) / 2);
   right: 8px;
   z-index: 3;
 }

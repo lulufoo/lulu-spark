@@ -189,7 +189,7 @@
 .home-chat-main-drag {
   display: flex;
   align-items: center;
-  height: 48px;
+  height: var(--app-header-height);
   padding: 0 52px 0 var(--home-chat-rail);
   border-bottom: 1px solid var(--border-muted);
 }
@@ -205,7 +205,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.home-chat-session-menu { top: 10px; right: 14px; }
+.home-chat-session-menu { top: calc((var(--app-header-height) - 28px) / 2); right: 14px; }
 
 /* ── Messages ── */
 .home-chat-messages { padding: 28px var(--home-chat-rail) 120px; }
