@@ -8700,14 +8700,6 @@ p:has(> a[hidden] + .board-sketch-slot) {
   /* Live sandbox is a light page. A dark frame paints an opaque white canvas over --bg-canvas. */
   color-scheme: light;
 }
-.board-sketch-hit {
-  position: absolute;
-  inset: 0;
-  border: 0;
-  padding: 0;
-  background: transparent;
-  cursor: pointer;
-}
 .board-sketch-error {
   margin: 0;
   padding: 0 13px 8px;

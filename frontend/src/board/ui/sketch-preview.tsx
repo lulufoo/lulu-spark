@@ -128,14 +128,6 @@ export function SketchPreview({ html, pageUrl, appearance, title = '' }: Props) 
             ? { width: size.width, height: size.height, transform: `scale(${fit})`, colorScheme: 'light' }
             : { colorScheme: 'light' }}
         />
-        {canOpen ? (
-          <button
-            type="button"
-            className="board-sketch-hit"
-            aria-label="Open in Board"
-            onClick={() => void openBoardPage(pageUrl)}
-          />
-        ) : null}
       </div>
     </div>
   );

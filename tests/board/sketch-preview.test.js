@@ -86,12 +86,13 @@ describe('sketch preview', () => {
     });
     expect(posted).toHaveLength(1);
     expect(host.querySelector('.board-sketch-open').textContent).toBe('Open in Board ↗');
-    host.querySelector('.board-sketch-hit').click();
+    expect(host.querySelector('.board-sketch-hit')).toBeNull();
+    host.querySelector('.board-sketch-frame-box').click();
     await act(async () => { await Promise.resolve(); });
-    expect(opened).toEqual([PAGE]);
+    expect(opened).toEqual([]);
     host.querySelector('.board-sketch-open').click();
     await act(async () => { await Promise.resolve(); });
-    expect(opened).toEqual([PAGE, PAGE]);
+    expect(opened).toEqual([PAGE]);
     act(() => root.render(createElement(SketchPreview, { html: HTML, pageUrl: 'https://evil.test', appearance: 'dark' })));
     expect(host.querySelector('button')).toBeNull();
     act(() => root.unmount());
