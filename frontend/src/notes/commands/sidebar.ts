@@ -83,6 +83,26 @@ function fitsCurrentView(date: string): boolean {
   return isDirectoryView() ? isDirKey(date) : !isDirKey(date);
 }
 
+/**
+ * Point the sidebar at this group. Opening a document uses this so the parent folder (or day)
+ * is listed without closing the note.
+ */
+export function revealGroup(date: string) {
+  if (!fitsCurrentView(date)) return;
+  state.ui.activeDate = date;
+  if (isDirKey(date)) {
+    const nodeKey = nodeKeyOf(date);
+    expandDirNodes(pathKeys(nodeKey));
+    state.ui.activeTopic = projectOfNode(nodeKey);
+    applyListFilters();
+    rememberNode(state.ui.activeTopic, nodeKey);
+  } else {
+    rememberDate(state.ui.activeTopic ?? '', date);
+  }
+  notifyState();
+  loadGroupTitles(date);
+}
+
 export function selectDate(date: string) {
   if (!fitsCurrentView(date)) return;
   const route = parseHash(typeof window !== 'undefined' ? window.location.hash : '');
@@ -103,19 +123,7 @@ export function selectDate(date: string) {
     forgetOpenDoc();
     hideNoteOutlet();
   }
-
-  state.ui.activeDate = date;
-  if (isDirKey(date)) {
-    const nodeKey = nodeKeyOf(date);
-    expandDirNodes(pathKeys(nodeKey));
-    state.ui.activeTopic = projectOfNode(nodeKey);
-    applyListFilters();
-    rememberNode(state.ui.activeTopic, nodeKey);
-  } else {
-    rememberDate(state.ui.activeTopic ?? '', date);
-  }
-  notifyState();
-  loadGroupTitles(date);
+  revealGroup(date);
 }
 
 function loadGroupTitles(date: string) {
