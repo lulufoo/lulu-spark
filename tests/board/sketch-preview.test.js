@@ -71,10 +71,11 @@ describe('sketch preview', () => {
       }));
     });
     expect(posted).toHaveLength(1);
+    expect(host.querySelector('.board-sketch-open').textContent).toBe('Open in Board ↗');
     host.querySelector('.board-sketch-hit').click();
     await act(async () => { await Promise.resolve(); });
     expect(opened).toEqual([PAGE]);
-    host.querySelector('.btn-settings-ghost').click();
+    host.querySelector('.board-sketch-open').click();
     await act(async () => { await Promise.resolve(); });
     expect(opened).toEqual([PAGE, PAGE]);
     act(() => root.render(createElement(SketchPreview, { html: HTML, pageUrl: 'https://evil.test', appearance: 'dark' })));

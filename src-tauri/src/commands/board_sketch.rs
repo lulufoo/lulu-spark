@@ -11,6 +11,7 @@ pub async fn load_board_sketch(url: String) -> BoardSketchReply {
         Err(_) => BoardSketchReply {
             status: "network",
             content_b64: None,
+            title: None,
         },
     }
 }

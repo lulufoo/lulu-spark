@@ -37,6 +37,7 @@ fn query_on_a_board_link_returns_only_the_content_token() {
     let reply = read_with(&page(""), 200, sketch_body(TOKEN));
     assert_eq!(reply.status, "sketch");
     assert_eq!(reply.content_b64.as_deref(), Some(TOKEN));
+    assert_eq!(reply.title.as_deref(), Some("Hi"));
     let json = serde_json::to_string(&reply).expect("json");
     assert!(!json.contains(PAT), "{json}");
     assert!(!json.contains("style abc123"), "{json}");

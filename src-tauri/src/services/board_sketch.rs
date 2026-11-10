@@ -21,6 +21,8 @@ pub struct BoardSketchReply {
     pub status: &'static str,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub content_b64: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
 }
 
 enum FetchOutcome {
@@ -55,6 +57,7 @@ fn reply(status: &'static str) -> BoardSketchReply {
     BoardSketchReply {
         status,
         content_b64: None,
+        title: None,
     }
 }
 
@@ -153,7 +156,13 @@ fn sketch_from_document(body: &str) -> BoardSketchReply {
     BoardSketchReply {
         status: "sketch",
         content_b64: Some(token.to_string()),
+        title: diagram_title(&value),
     }
+}
+
+fn diagram_title(value: &Value) -> Option<String> {
+    let title = value.get("title")?.as_str()?.trim();
+    if title.is_empty() { None } else { Some(title.to_string()) }
 }
 
 fn body_is_sketch(body: &str) -> bool {

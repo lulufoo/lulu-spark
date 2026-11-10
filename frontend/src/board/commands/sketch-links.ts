@@ -40,6 +40,7 @@ function ensure(container: Element): Session {
 function clearSlots(session: Session) {
   for (const slot of session.slots) slot.unmount();
   session.slots = [];
+  for (const note of session.container.querySelectorAll('.board-sketch-note')) note.remove();
 }
 
 export function releaseBoardSketches(container: Element | null | undefined) {
@@ -78,11 +79,14 @@ function watchTheme() {
   });
 }
 
-function sketchHtml(reply: unknown): string {
-  if (!reply || typeof reply !== 'object') return '';
-  const rec = reply as { status?: unknown; content_b64?: unknown };
-  if (rec.status !== 'sketch' || typeof rec.content_b64 !== 'string' || !rec.content_b64) return '';
-  return decodeBase64(rec.content_b64);
+function sketchView(reply: unknown): { html: string; title: string } | null {
+  if (!reply || typeof reply !== 'object') return null;
+  const rec = reply as { status?: unknown; content_b64?: unknown; title?: unknown };
+  if (rec.status !== 'sketch' || typeof rec.content_b64 !== 'string' || !rec.content_b64) return null;
+  const html = decodeBase64(rec.content_b64);
+  if (!html) return null;
+  const title = typeof rec.title === 'string' ? rec.title.trim() : '';
+  return { html, title };
 }
 
 function decodeBase64(raw: string): string {
@@ -97,7 +101,14 @@ function decodeBase64(raw: string): string {
   }
 }
 
-function mountSlot(anchor: Element, html: string, pageUrl: string, session: Session, gen: number) {
+function mountSlot(
+  anchor: Element,
+  html: string,
+  title: string,
+  pageUrl: string,
+  session: Session,
+  gen: number,
+) {
   if (session.gen !== gen || !anchor.isConnected) return;
   const slotEl = document.createElement('div');
   slotEl.className = 'board-sketch-slot';
@@ -109,7 +120,7 @@ function mountSlot(anchor: Element, html: string, pageUrl: string, session: Sess
   const root: Root = createRoot(slotEl);
   const paint = (appearance: SketchAppearance) => {
     flushSync(() => {
-      root.render(createElement(SketchPreview, { html, pageUrl, appearance }));
+      root.render(createElement(SketchPreview, { html, pageUrl, appearance, title }));
     });
   };
   const slot: Slot = {
@@ -137,9 +148,25 @@ async function attach(anchor: Element, session: Session, gen: number, read: Read
   } catch {
     return;
   }
-  const html = sketchHtml(reply);
-  if (!html) return;
-  mountSlot(anchor, html, pageUrl, session, gen);
+  if (isRecord(reply) && reply.status === 'not_sketch') {
+    markOtherFormat(anchor, session, gen);
+    return;
+  }
+  const view = sketchView(reply);
+  if (!view) return;
+  mountSlot(anchor, view.html, view.title, pageUrl, session, gen);
+}
+
+function isRecord(reply: unknown): reply is { status?: unknown } {
+  return !!reply && typeof reply === 'object';
+}
+
+function markOtherFormat(anchor: Element, session: Session, gen: number) {
+  if (session.gen !== gen || !anchor.isConnected) return;
+  const note = document.createElement('span');
+  note.className = 'board-sketch-note';
+  note.textContent = 'Other Board formats stay as links';
+  anchor.insertAdjacentElement('afterend', note);
 }
 
 export async function mountBoardSketches(

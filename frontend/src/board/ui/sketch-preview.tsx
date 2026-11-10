@@ -16,9 +16,10 @@ type Props = {
   html: string;
   pageUrl: string;
   appearance: SketchAppearance;
+  title?: string;
 };
 
-export function SketchPreview({ html, pageUrl, appearance }: Props) {
+export function SketchPreview({ html, pageUrl, appearance, title = '' }: Props) {
   const frameRef = useRef<HTMLIFrameElement>(null);
   const sentRender = useRef(false);
   const appearanceRef = useRef(appearance);
@@ -99,6 +100,14 @@ export function SketchPreview({ html, pageUrl, appearance }: Props) {
 
   return (
     <div className="board-sketch-preview">
+      <div className="board-sketch-title">
+        <span>{title}</span>
+        {canOpen ? (
+          <button type="button" className="board-sketch-open" onClick={() => void openBoardPage(pageUrl)}>
+            Open in Board ↗
+          </button>
+        ) : null}
+      </div>
       {failed ? (
         <p className="board-sketch-error" role="status">The sketch preview failed to load.</p>
       ) : null}
@@ -126,11 +135,6 @@ export function SketchPreview({ html, pageUrl, appearance }: Props) {
           />
         ) : null}
       </div>
-      {canOpen ? (
-        <button type="button" className="btn-settings-ghost" onClick={() => void openBoardPage(pageUrl)}>
-          Open in Board
-        </button>
-      ) : null}
     </div>
   );
 }
