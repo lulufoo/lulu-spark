@@ -16,6 +16,7 @@ vi.mock('../../frontend/src/notes/commands/cards.ts', () => ({ loadTitles: vi.fn
 
 import { state } from '../../frontend/src/host/state.ts';
 import { cancelFolderRename } from '../../frontend/src/notes/commands/folder-rename.ts';
+import { closeFolderMenu } from '../../frontend/src/notes/commands/folder-create.ts';
 import { dirKeyOf, dirTreeStore } from '../../frontend/src/notes/state/dir-tree.ts';
 import { DirTree } from '../../frontend/src/notes/ui/dir-tree.tsx';
 import { FolderMenu, onDirectoryBackgroundMenu } from '../../frontend/src/notes/ui/folder-menu.tsx';
@@ -57,6 +58,7 @@ beforeEach(() => {
   refreshNotesIndex.mockClear();
   vi.spyOn(window, 'alert').mockImplementation(() => {});
   cancelFolderRename();
+  closeFolderMenu();
   seed();
 });
 
@@ -122,6 +124,30 @@ describe('directory rename folder', () => {
     });
     const labels = [...document.querySelectorAll('[data-role="folder-menu"] button')].map((item) => item.textContent);
     expect(labels).toEqual(['New folder']);
+    await act(async () => root.unmount());
+  });
+
+  it('Enter on the selected folder opens the name editor and does not rename a file row', async () => {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    await act(async () => root.render(createElement(Tree)));
+    const button = host.querySelector('[data-node="ideas/plans"] button');
+    await act(async () => {
+      button.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    });
+    const input = host.querySelector('[aria-label="Folder name"]');
+    expect(input).not.toBeNull();
+    expect(input.value).toBe('plans');
+    expect(renameFolder).not.toHaveBeenCalled();
+    await act(async () => {
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    });
+    const file = host.querySelector('[data-kind="file"] button');
+    await act(async () => {
+      file.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    });
+    expect(host.querySelector('[aria-label="Folder name"]')).toBeNull();
     await act(async () => root.unmount());
   });
 });

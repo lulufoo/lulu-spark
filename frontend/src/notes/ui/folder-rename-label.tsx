@@ -49,6 +49,7 @@ export function FolderRenameLabel({ nodeKey, open }: { nodeKey: string; open: bo
           }
           if (event.key === 'Enter') {
             event.preventDefault();
+            event.stopPropagation();
             void commitFolderRename();
           }
         }}

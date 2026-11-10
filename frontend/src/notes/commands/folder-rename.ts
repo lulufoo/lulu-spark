@@ -1,21 +1,17 @@
 import * as api from '../../host/api.ts';
 import { notifyState, state } from '../state/host.ts';
 import { dirKeyOf, dirTreeStore, isDirKey, nodeKeyOf, pathKeys } from '../state/dir-tree.ts';
+import { dirCreateStore } from '../state/dir-create.ts';
 import { folderCreateStore } from '../state/folder-create.ts';
 import { folderRenameStore } from '../state/folder-rename.ts';
 import { refreshNotesIndex } from './reload-index.ts';
 import { applyListFilters } from './sidebar.ts';
 import { rememberNode } from './viewer-state.ts';
+import { isDirectoryView } from './workspace.ts';
 
-/** The menu's Rename: edit that folder's own name in the tree. */
-export function beginFolderRename() {
-  const prev = folderCreateStore.getSnapshot();
-  const project = state.ui.activeTopic;
-  const menu = prev.menu;
-  if (!project || !menu?.canRename || prev.saving || folderRenameStore.getSnapshot().saving) return;
-  const path = menu.parent;
+function startFolderRename(project: string, path: string) {
   const name = path.split('/').pop() ?? '';
-  folderCreateStore.set({ ...prev, project: '', parent: '/', name: '', menu: null });
+  if (!name) return;
   folderRenameStore.set((current) => ({
     project,
     path,
@@ -23,6 +19,49 @@ export function beginFolderRename() {
     saving: false,
     tick: current.tick + 1,
   }));
+}
+
+/** The menu's Rename: edit that folder's own name in the tree. */
+export function beginFolderRename() {
+  const prev = folderCreateStore.getSnapshot();
+  const project = state.ui.activeTopic;
+  const menu = prev.menu;
+  if (!project || !menu?.canRename || prev.saving || folderRenameStore.getSnapshot().saving) return;
+  folderCreateStore.set({ ...prev, project: '', parent: '/', name: '', menu: null });
+  startFolderRename(project, menu.parent);
+}
+
+/**
+ * Enter on the selected folder opens the same name editor as Rename.
+ * A text field, a file row, or another button keeps its own Enter.
+ */
+export function renameSelectedFolder(target: EventTarget | null): boolean {
+  const renaming = folderRenameStore.getSnapshot();
+  const creating = folderCreateStore.getSnapshot();
+  if (renaming.project || renaming.saving || creating.project || creating.menu || creating.saving) return false;
+  if (dirCreateStore.getSnapshot().project) return false;
+  if (!isDirectoryView()) return false;
+  const outlet = state.viewer?.outletMode;
+  if (outlet === 'open' || outlet === 'create' || outlet === 'safe-empty' || state.viewer?.createSession) return false;
+  const project = state.ui.activeTopic;
+  const active = state.ui.activeDate;
+  if (!project || !isDirKey(active)) return false;
+  const node = nodeKeyOf(active);
+  if (!node.startsWith(`${project}/`)) return false;
+  if (!enterHitsSelectedFolder(target, node)) return false;
+  startFolderRename(project, node.slice(project.length + 1));
+  return folderRenameStore.getSnapshot().project === project;
+}
+
+function enterHitsSelectedFolder(target: EventTarget | null, nodeKey: string): boolean {
+  const el = target instanceof Element ? target : null;
+  if (!el) return false;
+  if (el.closest('input, textarea, select, [contenteditable="true"]')) return false;
+  if (el.closest('[data-role="folder-menu"], [role="dialog"]')) return false;
+  if (el.closest('.knowledge-doc-tree-node.is-file')) return false;
+  const button = el.closest('button');
+  if (button && button.closest('[data-node]')?.getAttribute('data-node') !== nodeKey) return false;
+  return true;
 }
 
 export function setFolderRenameName(name: string) {

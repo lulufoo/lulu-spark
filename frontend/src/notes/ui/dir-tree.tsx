@@ -1,4 +1,4 @@
-import { useMemo, useSyncExternalStore } from 'react';
+import { useMemo, useSyncExternalStore, type KeyboardEvent } from 'react';
 import { dirCreateStore } from '../state/dir-create.ts';
 import { folderCreateStore } from '../state/folder-create.ts';
 import { DirCreateRow } from './dir-create-row.tsx';
@@ -18,6 +18,7 @@ import {
   type DirNode,
 } from '../state/dir-tree.ts';
 import { selectDate } from '../commands/sidebar.ts';
+import { renameSelectedFolder } from '../commands/folder-rename.ts';
 import type { NoteEntry } from '../state/types.ts';
 import { FileGlyph, FolderGlyph, TreeChevron, TreeNodeName } from './dir-tree-glyphs.tsx';
 
@@ -85,6 +86,15 @@ function NodeContents({ node, depth, expanded, openDocId, selectedNode }: TreePr
  * Clicking a folder lists it on the right (and opens it). Clicking the folder that is already
  * listed and open closes it, so the tree can still be collapsed.
  */
+/** Enter on the selected folder edits its name. The button must not also toggle the folder. */
+function onTreeKeyDown(event: KeyboardEvent<HTMLElement>) {
+  if (event.key !== 'Enter' || event.repeat) return;
+  if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
+  if (event.nativeEvent.isComposing) return;
+  if (!renameSelectedFolder(event.target)) return;
+  event.preventDefault();
+}
+
 function onFolderClick(node: DirNode, open: boolean, selected: boolean) {
   if (selected && open) toggleDirNodeOpen(node.key);
   else selectDate(dirKeyOf(node.key));
@@ -110,6 +120,7 @@ function FolderBlock({ node, depth, expanded, openDocId, selectedNode }: TreePro
             className={`knowledge-doc-tree-label${selected ? ' selected' : ''}`}
             data-tip={node.name}
             aria-expanded={open}
+            onKeyDown={onTreeKeyDown}
             onClick={() => onFolderClick(node, open, selected)}
             onContextMenu={onFolderContextMenu(node.key, node.children.length === 0 && node.docs.length === 0)}
           >
@@ -165,7 +176,7 @@ export function DirTree() {
     return <div className="knowledge-doc-empty">This project has no documents yet.</div>;
   }
   return (
-    <div id="sidebar-dir-tree" role="tree">
+    <div id="sidebar-dir-tree" role="tree" onKeyDown={onTreeKeyDown}>
       <NodeContents node={root} depth={0} expanded={expanded} openDocId={openDocId} selectedNode={selectedNode} />
     </div>
   );
