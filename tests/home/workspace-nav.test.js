@@ -43,6 +43,7 @@ vi.mock('../../frontend/src/notes/commands/workspace-switch.ts', () => ({
 
 const { state } = await import('../../frontend/src/host/state.ts');
 const commands = await import('../../frontend/src/home/commands/workspace-nav.ts');
+const api = await import('../../frontend/src/host/api.ts');
 const { getHomeState, resetHomeState, setHomeState, useHomeState } = await import('../../frontend/src/home/state/store.ts');
 const { HomeWorkspaceNav } = await import('../../frontend/src/home/ui/workspace-nav.tsx');
 
@@ -87,6 +88,21 @@ describe('Home workspace nav commands', () => {
     await commands.refreshWorkspaceProjects();
     expect(getHomeState().expandedWorkspaceIds).toEqual(['default']);
     expect(getHomeState().workspaceProjects.knowledge).toBeUndefined();
+  });
+
+  it('ignores a slow refresh that completes after a newer registry refresh', async () => {
+    state.workspaces.list = [{ workspace_id: 'knowledge' }];
+    let release;
+    const fetch = vi.spyOn(api, 'fetchProjects').mockImplementationOnce(() => new Promise((resolve) => { release = resolve; }));
+    const stale = commands.refreshWorkspaceProjects();
+    state.workspaces.list = [{ workspace_id: 'default' }];
+    await commands.refreshWorkspaceProjects();
+    commands.toggleWorkspaceProjects('default');
+    release({ projects: [{ project_id: 'stale', project_name: 'Stale project' }] });
+    await stale;
+    expect(Object.keys(getHomeState().workspaceProjects)).toEqual(['default']);
+    expect(getHomeState().expandedWorkspaceIds).toEqual(['default']);
+    fetch.mockRestore();
   });
 
   it('opening another workspace switches and selects nothing, then navigates', () => {

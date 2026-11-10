@@ -6851,6 +6851,7 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
 }
 .home-chat-nav-notes .home-desktop-shortcut {
   flex: 1;
+  min-width: 0;
   width: auto;
 }
 .home-chat-nav .home-desktop-shortcut:focus-visible,
