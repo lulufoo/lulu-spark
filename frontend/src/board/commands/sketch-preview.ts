@@ -52,20 +52,24 @@ export function readSandboxMessage(data: unknown): SandboxEvent | null {
   return null;
 }
 
-export function isBoardPage(raw: string): boolean {
+export function boardDiagramId(raw: string): string {
   let url: URL;
   try {
     url = new URL(raw);
   } catch {
-    return false;
+    return '';
   }
-  if (url.protocol !== 'https:' || url.hostname !== 'luluboard.app') return false;
-  if (url.username || url.password || (url.port !== '' && url.port !== '443')) return false;
+  if (url.protocol !== 'https:' || url.hostname !== 'luluboard.app') return '';
+  if (url.username || url.password || (url.port !== '' && url.port !== '443')) return '';
   const hash = url.hash.startsWith('#') ? url.hash.slice(1) : url.hash;
-  if (!hash.startsWith('b:')) return false;
+  if (!hash.startsWith('b:')) return '';
   const rest = hash.slice(2);
   const token = rest.split(/[&/?\s]/)[0] ?? '';
-  return GRAPH_ID.test(token);
+  return GRAPH_ID.test(token) ? token : '';
+}
+
+export function isBoardPage(raw: string): boolean {
+  return boardDiagramId(raw) !== '';
 }
 
 export async function openBoardPage(url: string) {

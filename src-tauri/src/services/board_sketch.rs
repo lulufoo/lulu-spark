@@ -3,7 +3,7 @@
 //! The request always goes to the Board graph API. The page URL is never the
 //! request target, and the PAT is never copied into the result.
 
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use base64::Engine;
 use reqwest::blocking::Client;
@@ -38,19 +38,51 @@ fn read_board_sketch_with<F>(url: &str, fetch: F) -> BoardSketchReply
 where
     F: FnOnce(&str, &str) -> FetchOutcome,
 {
+    let started = Instant::now();
     let diagram_id = match diagram_id(url) {
         Ok(id) => id,
-        Err(status) => return reply(status),
+        Err(status) => return logged(reply(status), "", started, None, None, None),
     };
+    let vault_at = Instant::now();
     let pat = match vault::get_board_pat() {
         Ok(Some(pat)) => pat,
-        Ok(None) => return reply("unconfigured"),
-        Err(_) => return reply("unavailable"),
+        Ok(None) => {
+            return logged(reply("unconfigured"), &diagram_id, started, Some(vault_at.elapsed()), None, None);
+        }
+        Err(_) => {
+            return logged(reply("unavailable"), &diagram_id, started, Some(vault_at.elapsed()), None, None);
+        }
     };
+    let vault_ms = Some(vault_at.elapsed());
+    let fetch_at = Instant::now();
     match fetch(&pat, &diagram_id) {
-        FetchOutcome::Network => reply("network"),
-        FetchOutcome::Http { status, body } => interpret(status, &body),
+        FetchOutcome::Network => {
+            logged(reply("network"), &diagram_id, started, vault_ms, Some(fetch_at.elapsed()), None)
+        }
+        FetchOutcome::Http { status, body } => {
+            let bytes = body.len();
+            logged(
+                interpret(status, &body),
+                &diagram_id,
+                started,
+                vault_ms,
+                Some(fetch_at.elapsed()),
+                Some(bytes),
+            )
+        }
     }
+}
+
+fn logged(
+    reply: BoardSketchReply,
+    diagram_id: &str,
+    started: Instant,
+    vault_ms: Option<Duration>,
+    fetch_ms: Option<Duration>,
+    bytes: Option<usize>,
+) -> BoardSketchReply {
+    crate::services::board_sketch_log::read(reply.status, diagram_id, started.elapsed(), vault_ms, fetch_ms, bytes);
+    reply
 }
 
 fn reply(status: &'static str) -> BoardSketchReply {

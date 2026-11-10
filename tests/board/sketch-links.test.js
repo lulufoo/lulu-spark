@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { act } from 'react';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import * as sketchLog from '../../frontend/src/board/commands/sketch-log.ts';
 import {
   invalidateBoardSketches,
   mountBoardSketches,
@@ -236,5 +237,29 @@ describe('markdown board sketches', () => {
     expect(host.querySelector('iframe')).toBeNull();
     expect(host.querySelector('a').textContent).toBe('Sketch');
     expect(host.querySelector('a').hidden).toBe(false);
+  });
+
+  it('logs mount and host reply timings without a token', async () => {
+    const logged = [];
+    const spy = vi.spyOn(sketchLog, 'logSketch').mockImplementation((event, params) => {
+      logged.push({ event, params });
+    });
+    const host = page(`<a href="${SKETCH}">Sketch</a>`);
+    await act(async () => {
+      await mountBoardSketches(host, async () => ({
+        status: 'sketch',
+        content_b64: b64('<p>Hello</p>'),
+      }));
+    });
+    expect(logged.map((row) => row.event)).toEqual(
+      expect.arrayContaining(['sketch.mount', 'sketch.host_reply']),
+    );
+    expect(logged.find((row) => row.event === 'sketch.host_reply').params).toMatchObject({
+      diagram_id: 'b_0123abcd',
+      status: 'sketch',
+    });
+    expect(typeof logged.find((row) => row.event === 'sketch.host_reply').params.ms).toBe('number');
+    expect(JSON.stringify(logged)).not.toContain('lbp_');
+    spy.mockRestore();
   });
 });
