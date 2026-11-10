@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use serde_json::json;
 
-use crate::services::docs::{create_doc, create_doc_content, update_doc, update_doc_content};
+use crate::services::docs::{create_doc, create_doc_content, create_titled_doc, update_doc, update_doc_content};
 use crate::services::docs::{create_jot, synthesize_jot_document, JotCreateOpts};
 use crate::test_support::{block_note_writes, read_note_entries, TestSandbox};
 
@@ -1141,4 +1141,137 @@ fn create_jot_refuses_a_project_of_another_workspace() {
         .expect_err("another workspace's project");
     assert!(err.starts_with("400:") || err.starts_with("404:"), "{err}");
     assert_eq!(jot_dirs(&default_workspace_dir()), before);
+}
+
+fn titled_note(extra: serde_json::Value) -> serde_json::Value {
+    let mut payload = json!({
+        "workspace_id": default_ws(),
+        "project_id": inbox_id(),
+        "title": "New design notes",
+        "source_type": "jot",
+        "content": "",
+        "created_at": "202611101200",
+    });
+    if let Some(fields) = extra.as_object() {
+        for (key, value) in fields {
+            payload[key] = value.clone();
+        }
+    }
+    payload
+}
+
+#[test]
+fn create_titled_doc_writes_an_empty_body_without_putting_the_title_in_the_filename() {
+    let _sandbox = setup_notes();
+    let v = create_titled_doc(&titled_note(json!({})));
+    assert_eq!(v["ok"], json!(true), "{v}");
+    let id = v["id"].as_str().expect("id");
+    let row = note_row(id);
+    assert_eq!(row.title.as_deref(), Some("New design notes"));
+    assert_eq!(row.created_at.as_deref(), Some("202611101200"));
+    assert_eq!(row.source_type.as_deref(), Some("jot"));
+    assert_eq!(row.project_id, inbox_id());
+    assert!(row.digest_path.is_none(), "{row:?}");
+    assert!(filename_has_ts_rand(&row.raw_path), "{}", row.raw_path);
+    assert!(!row.raw_path.to_ascii_lowercase().contains("design"), "{}", row.raw_path);
+    let file = note_disk(&default_workspace_dir(), "raw", id);
+    assert_eq!(fs::read_to_string(&file).expect("read"), "");
+    let entry = &read_note_entries()["entries"][id];
+    assert_eq!(entry["title"], json!("New design notes"));
+    assert_eq!(entry["raw_path"], json!(row.raw_path));
+}
+
+#[test]
+fn create_titled_doc_stores_the_filename_apart_from_the_title() {
+    let _sandbox = setup_notes();
+    let v = create_titled_doc(&titled_note(json!({
+        "title": "Design notes",
+        "content": "正文",
+        "folder": "scope-functions",
+        "filename": "architecture-notes",
+    })));
+    assert_eq!(v["ok"], json!(true), "{v}");
+    let id = v["id"].as_str().expect("id");
+    let row = note_row(id);
+    assert_eq!(row.title.as_deref(), Some("Design notes"));
+    assert_eq!(row.raw_path, "scope-functions/architecture-notes.md");
+    let file = note_disk(&default_workspace_dir(), "raw", id);
+    assert_eq!(fs::read_to_string(&file).expect("read"), "正文");
+}
+
+#[test]
+fn create_titled_doc_keeps_a_single_md_suffix() {
+    let _sandbox = setup_notes();
+    let repeated = create_titled_doc(&titled_note(json!({
+        "folder": "repeated",
+        "filename": "architecture-notes.md.md",
+    })));
+    assert_eq!(note_row(repeated["id"].as_str().expect("id")).raw_path, "repeated/architecture-notes.md");
+    let cased = create_titled_doc(&titled_note(json!({
+        "folder": "cased",
+        "filename": "Architecture-Notes.MD",
+    })));
+    assert_eq!(note_row(cased["id"].as_str().expect("id")).raw_path, "cased/Architecture-Notes.md");
+}
+
+#[test]
+fn create_titled_doc_rejects_an_illegal_filename_without_writing() {
+    let _sandbox = setup_notes();
+    let before = read_note_entries();
+    for name in ["../secret.md", "a/b.md", "..", ".md", "foo..bar.md", "has:colon", ""] {
+        let v = create_titled_doc(&titled_note(json!({ "filename": name })));
+        assert_eq!(v["_status"], json!(400), "{name}: {v}");
+        assert!(
+            v["error"].as_str().unwrap_or("").contains("filename"),
+            "{name}: {v}"
+        );
+    }
+    let deep = create_titled_doc(&titled_note(json!({ "folder": "a/b/c/d", "filename": "note" })));
+    assert_eq!(deep["_status"], json!(400), "{deep}");
+    assert_eq!(read_note_entries(), before);
+    assert!(jot_dirs(&default_workspace_dir()).is_empty());
+}
+
+#[test]
+fn create_titled_doc_rejects_a_duplicate_filename_without_overwriting() {
+    let _sandbox = setup_notes();
+    let first = create_titled_doc(&titled_note(json!({
+        "filename": "architecture-notes.md",
+        "content": "保留",
+    })));
+    assert_eq!(first["ok"], json!(true), "{first}");
+    let id = first["id"].as_str().expect("id");
+    let again = create_titled_doc(&titled_note(json!({
+        "title": "另一篇",
+        "filename": "architecture-notes",
+        "content": "替换",
+    })));
+    assert_eq!(again["_status"], json!(409), "{again}");
+    assert!(again["error"].as_str().unwrap_or("").contains("exists"), "{again}");
+    let file = note_disk(&default_workspace_dir(), "raw", id);
+    assert_eq!(fs::read_to_string(&file).expect("read"), "保留");
+    assert_eq!(note_row(id).title.as_deref(), Some("New design notes"));
+}
+
+#[test]
+fn create_titled_doc_rejects_a_missing_title_or_project() {
+    let _sandbox = setup_notes();
+    let before = read_note_entries();
+    let mut no_title = titled_note(json!({}));
+    no_title.as_object_mut().expect("object").remove("title");
+    let missing_title = create_titled_doc(&no_title);
+    assert_eq!(missing_title["_status"], json!(400), "{missing_title}");
+    let blank = create_titled_doc(&titled_note(json!({ "title": "   " })));
+    assert_eq!(blank["_status"], json!(400), "{blank}");
+    let mut no_project = titled_note(json!({}));
+    no_project.as_object_mut().expect("object").remove("project_id");
+    let missing_project = create_titled_doc(&no_project);
+    assert_eq!(missing_project["_status"], json!(400), "{missing_project}");
+    let unknown = create_titled_doc(&titled_note(json!({ "project_id": "ghost" })));
+    assert_eq!(unknown["_status"], json!(400), "{unknown}");
+    assert!(unknown["error"].as_str().unwrap_or("").contains("Unknown project"), "{unknown}");
+    let english = create_titled_doc(&titled_note(json!({ "content": "Only English body." })));
+    assert_eq!(english["_status"], json!(400), "{english}");
+    assert!(english["error"].as_str().unwrap_or("").contains("translations.zh"), "{english}");
+    assert_eq!(read_note_entries(), before);
 }

@@ -14,30 +14,34 @@ pub fn expected_zh_common_path(primary_common_path: &str) -> Option<String> {
 
 pub fn is_valid_common_path(common_path: &str) -> bool {
     // `{folder}/{filename}` where `folder` has 0..=3 segments (none: the file is in the project root).
+    // Generated notes use `{ts}-{rand}.md`. A caller-chosen name such as `architecture-notes.md`
+    // is the same kind of path, so a later rename can still land on a valid one.
     let parts: Vec<&str> = common_path.split('/').collect();
-    if parts.len() > 4 {
+    if parts.is_empty() || parts.len() > 4 {
         return false;
     }
-    if parts[..parts.len() - 1]
-        .iter()
-        .any(|s| s.is_empty() || *s == "." || s.contains("..") || s.contains('\\'))
-    {
+    if parts[..parts.len() - 1].iter().any(|segment| !is_path_segment(segment)) {
         return false;
     }
-    let filename = parts[parts.len() - 1];
-    if !filename.ends_with(".md") {
-        return false;
-    }
-    let stem = &filename[..filename.len() - 3];
-    let Some((ts, slug)) = stem.split_once('-') else {
+    is_markdown_filename(parts[parts.len() - 1])
+}
+
+fn is_path_segment(segment: &str) -> bool {
+    !segment.is_empty()
+        && segment != "."
+        && segment != ".."
+        && !segment.contains('\\')
+        && !segment.contains("..")
+        && segment
+            .chars()
+            .all(|c| !c.is_control() && !matches!(c, '/' | ':' | '*' | '?' | '"' | '<' | '>' | '|'))
+}
+
+fn is_markdown_filename(filename: &str) -> bool {
+    let Some(stem) = filename.strip_suffix(".md") else {
         return false;
     };
-    ts.len() == 12
-        && ts.chars().all(|c| c.is_ascii_digit())
-        && !slug.is_empty()
-        && slug
-            .chars()
-            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
+    is_path_segment(stem) && !stem.ends_with(' ') && !stem.ends_with('.')
 }
 
 pub fn ts_from_common_path(common_path: &str) -> Option<String> {

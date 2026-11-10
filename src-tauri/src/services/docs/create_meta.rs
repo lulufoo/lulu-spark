@@ -6,6 +6,39 @@ use serde_json::{json, Value};
 use crate::services::archive_parse::is_valid_common_path;
 use crate::services::id::random_alnum6;
 
+/// One markdown basename. Extra `.md` suffixes collapse, so the stored name has the suffix once.
+/// The stem is kept as written: it is not derived from the document title.
+pub(crate) fn normalize_markdown_filename(raw: &str) -> Result<String, Value> {
+    let name = raw.trim();
+    if name.is_empty()
+        || name.contains('/')
+        || name.contains('\\')
+        || name.chars().any(|c| c.is_control())
+    {
+        return Err(json!({ "error": "Invalid filename", "_status": 400 }));
+    }
+    let mut stem = name;
+    while let Some(next) = strip_md_suffix(stem) {
+        stem = next;
+    }
+    let stem = stem.trim();
+    let filename = format!("{stem}.md");
+    if !is_valid_common_path(&filename) {
+        return Err(json!({ "error": "Invalid filename", "_status": 400 }));
+    }
+    Ok(filename)
+}
+
+fn strip_md_suffix(name: &str) -> Option<&str> {
+    let bytes = name.as_bytes();
+    let cut = bytes.len().checked_sub(3)?;
+    if name.is_char_boundary(cut) && bytes[cut..].eq_ignore_ascii_case(b".md") {
+        Some(&name[..cut])
+    } else {
+        None
+    }
+}
+
 pub(crate) struct CreateMeta {
     pub title: String,
     pub created_at: String,
@@ -21,6 +54,7 @@ pub(crate) struct CreateMeta {
 pub(crate) fn parse_create_meta_unchecked(
     payload: &Value,
     source_basename: Option<&str>,
+    explicit_filename: Option<&str>,
 ) -> Result<CreateMeta, Value> {
     let title = payload
         .get("title")
@@ -37,10 +71,15 @@ pub(crate) fn parse_create_meta_unchecked(
     let folder = folder_path(payload)?;
     let created_at = parse_created_at(payload)?;
     let source_type = parse_source_type(payload)?;
-    let rand = random_alnum6();
-    let filename = match source_basename {
-        Some(name) => format!("{created_at}-{rand}-{}", sanitize_basename(name)?),
-        None => format!("{created_at}-{rand}.md"),
+    let filename = match explicit_filename {
+        Some(name) => name.to_string(),
+        None => {
+            let rand = random_alnum6();
+            match source_basename {
+                Some(name) => format!("{created_at}-{rand}-{}", sanitize_basename(name)?),
+                None => format!("{created_at}-{rand}.md"),
+            }
+        }
     };
     let common_path = if folder.is_empty() { filename } else { format!("{folder}/{filename}") };
     if !is_valid_common_path(&common_path) {

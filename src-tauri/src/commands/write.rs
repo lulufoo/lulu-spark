@@ -170,6 +170,8 @@ pub fn tag_update_value(
 /// App jot-create may pass `{ body, source_type: "jot" }` (no `source_path`) → Host synthesis;
 /// an optional `folder` puts it in that folder of the project (`/` is the project root).
 /// Path create uses `source_path` + `title`; `document` is rejected.
+/// A jot with `title` and no `body` is a titled note: `content` may be empty, and `filename`
+/// is an optional markdown basename stored apart from `title`.
 pub fn create_note_json(payload: Value) -> Result<Value, String> {
     if payload.get("document").is_some() {
         return Ok(serde_json::json!({
@@ -203,6 +205,13 @@ pub fn create_note_json(payload: Value) -> Result<Value, String> {
                 }
             };
         }
+    }
+    if payload.get("source_path").is_none()
+        && payload.get("body").is_none()
+        && payload.get("source_type").and_then(|v| v.as_str()) == Some("jot")
+        && payload.get("title").and_then(|v| v.as_str()).is_some()
+    {
+        return Ok(docs::create_titled_doc(&payload));
     }
     Ok(if payload.get("source_path").is_some() {
         docs::create_doc(&payload)

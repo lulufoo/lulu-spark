@@ -275,6 +275,9 @@ export async function moveToProject(id: string, projectId: string, targetWorkspa
 /** Create a note via HTTP/MCP `create_note` parity.
  * Jot create: `{ body, source_type: 'jot', workspace_id?, project_id? }` (Host synthesize; digest=never);
  * `project_id` is a project id of that workspace; omit it for the default project.
+ * Titled jot: `{ title, source_type: 'jot', workspace_id, project_id, content?, folder?, filename? }`.
+ * `content` may be empty. `title` stays on the row. `filename` is the markdown basename; omit it
+ * and the file is `{created_at}-{rand}.md`.
  * Path create: `{ source_path, title, digest, asset_paths? }` — no `document` body. */
 export async function createNote(payload?: unknown) {
   return writePost('/api/create-note', payload || {});

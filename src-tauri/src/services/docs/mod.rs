@@ -34,7 +34,7 @@ mod workspace;
 pub use categories::{
     is_exposed, is_legal, load as load_doc_categories, save as save_doc_categories, DocCategory,
 };
-pub use create::{create_doc, create_doc_content};
+pub use create::{create_doc, create_doc_content, create_titled_doc};
 pub use delete::delete_doc;
 pub use delete_project::delete_project;
 pub use delete_workspace::delete_workspace;
