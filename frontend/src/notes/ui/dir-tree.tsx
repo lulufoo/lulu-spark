@@ -1,6 +1,9 @@
 import { useMemo, useSyncExternalStore } from 'react';
 import { dirCreateStore } from '../state/dir-create.ts';
+import { folderCreateStore } from '../state/folder-create.ts';
 import { DirCreateRow } from './dir-create-row.tsx';
+import { FolderCreateRow } from './folder-create-row.tsx';
+import { onFileContextMenu, onFolderContextMenu } from './folder-menu.tsx';
 import { getEntryId } from '../../host/state.ts';
 import { useHostState } from '../state/host.ts';
 import {
@@ -41,6 +44,7 @@ type TreeProps = { depth: number; expanded: string[]; openDocId: string; selecte
 function NodeContents({ node, depth, expanded, openDocId, selectedNode }: TreeProps & { node: DirNode }) {
   return (
     <>
+      <FolderCreateRow nodeKey={node.key} depth={depth} />
       {node.children.map((child) => (
         <FolderBlock
           key={child.key}
@@ -65,6 +69,7 @@ function NodeContents({ node, depth, expanded, openDocId, selectedNode }: TreePr
             className={`knowledge-doc-tree-label${openDocId === doc.id ? ' selected' : ''}`}
             data-tip={doc.entry.raw_path || doc.name}
             onClick={() => openDoc(doc.id, doc.entry)}
+            onContextMenu={onFileContextMenu}
           >
             <Chrome isDir={false} expanded={false} />
             <TreeNodeName name={doc.name} isDir={false} />
@@ -101,6 +106,7 @@ function FolderBlock({ node, depth, expanded, openDocId, selectedNode }: TreePro
           data-tip={node.name}
           aria-expanded={open}
           onClick={() => onFolderClick(node, open, selected)}
+          onContextMenu={onFolderContextMenu(node.key)}
         >
           <Chrome isDir expanded={open} />
           <TreeNodeName name={node.name} isDir />
@@ -132,6 +138,7 @@ export function DirTree() {
   const host = useHostState();
   const { expanded } = useSyncExternalStore(dirTreeStore.subscribe, dirTreeStore.getSnapshot);
   const creating = useSyncExternalStore(dirCreateStore.subscribe, dirCreateStore.getSnapshot);
+  const folderCreating = useSyncExternalStore(folderCreateStore.subscribe, folderCreateStore.getSnapshot);
   const project = host.ui.activeTopic;
   const root = useMemo(
     () =>
@@ -147,7 +154,7 @@ export function DirTree() {
   const selectedNode = !openDocId && isDirKey(activeDate) ? nodeKeyOf(activeDate) : '';
 
   if (!project) return <div className="knowledge-doc-empty">This workspace has no projects yet.</div>;
-  const creatingHere = creating.project === project;
+  const creatingHere = creating.project === project || folderCreating.project === project;
   if (!root || (root.children.length === 0 && root.docs.length === 0 && !creatingHere)) {
     return <div className="knowledge-doc-empty">This project has no documents yet.</div>;
   }
