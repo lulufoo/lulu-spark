@@ -1,16 +1,18 @@
 #[cfg(not(test))]
 use tauri::webview::{NewWindowResponse, WebviewWindowBuilder};
 #[cfg(not(test))]
-use tauri::{Url, WindowEvent};
+use tauri::WindowEvent;
 #[cfg(not(test))]
 use tauri_plugin_opener::OpenerExt;
 
-#[cfg(not(test))]
+use tauri::Url;
+
+const SKETCH_SANDBOX_HOST: &str = "sandbox.luluboard.app";
+
 fn is_in_app_navigation(url: &Url) -> bool {
     matches!(url.scheme(), "tauri" | "asset" | "file")
 }
 
-#[cfg(not(test))]
 fn is_localhost_http_url(url: &Url) -> bool {
     if !matches!(url.scheme(), "http" | "https") {
         return false;
@@ -19,6 +21,26 @@ fn is_localhost_http_url(url: &Url) -> bool {
         url.host_str(),
         Some("localhost") | Some("127.0.0.1") | Some("::1")
     )
+}
+
+fn is_sketch_sandbox(url: &Url) -> bool {
+    url.scheme() == "https"
+        && url
+            .host_str()
+            .is_some_and(|host| host.eq_ignore_ascii_case(SKETCH_SANDBOX_HOST))
+        && url.port().is_none()
+        && url.username().is_empty()
+        && url.password().is_none()
+}
+
+/// Keep the sketch runner inside its iframe. Every other web page still leaves
+/// the webview. A new window, including a normal link to this host, is decided
+/// separately and still opens in the system browser.
+fn allow_webview_navigation(url: &Url) -> bool {
+    if is_in_app_navigation(url) || is_localhost_http_url(url) || is_sketch_sandbox(url) {
+        return true;
+    }
+    !matches!(url.scheme(), "http" | "https")
 }
 
 #[cfg(not(test))]
@@ -44,14 +66,11 @@ pub(crate) fn create_main_window(app: &tauri::App) -> Result<(), Box<dyn std::er
         .on_navigation({
             let app_handle = app_handle.clone();
             move |url| {
-                if is_in_app_navigation(url) || is_localhost_http_url(url) {
+                if allow_webview_navigation(url) {
                     return true;
                 }
-                if url.scheme() == "http" || url.scheme() == "https" {
-                    open_external_url(&app_handle, url);
-                    return false;
-                }
-                true
+                open_external_url(&app_handle, url);
+                false
             }
         })
         .on_new_window({
