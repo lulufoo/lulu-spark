@@ -104,6 +104,7 @@ export const READ_API_INVOKE_MAP: Record<string, ReadInvokeEntry> = {
       channel: url.searchParams.get('channel') ?? '',
     }),
   },
+  '/api/board-pat': { cmd: 'get_board_pat_status' },
 };
 
 /**

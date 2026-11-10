@@ -92,4 +92,6 @@ commands.allow = [
   "log_app_event",
   "set_auth_session",
   "delete_auth_session",
+  "set_board_pat",
+  "delete_board_pat",
 ]

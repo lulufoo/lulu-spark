@@ -17,6 +17,7 @@ export type { ResolvedNote } from './api/doc-open.ts';
 
 
 export { getPackageSnapshot } from './api/package-snapshot.ts';
+export { deleteBoardPat, fetchBoardPatStatus, setBoardPat } from './api/board-pat.ts';
 export type { PackageSnapshot } from './api/package-snapshot.ts';
 
 export {
