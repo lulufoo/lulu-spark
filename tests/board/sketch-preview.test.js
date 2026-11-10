@@ -4,7 +4,7 @@ import { createRoot } from 'react-dom/client';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SketchPreview } from '../../frontend/src/board/ui/sketch-preview.tsx';
 import {
   appearanceMessage,
@@ -119,6 +119,37 @@ describe('sketch preview', () => {
     const scaled = host.querySelector('iframe');
     expect(scaled.style.transform).toBe('scale(0.25)');
     expect(box.style.height).toBe('50px');
+    expect(host.querySelector('.board-sketch-error')).toBeNull();
     act(() => root.unmount());
+  });
+
+  it('reports a failure when the runner stays blank after it is ready', async () => {
+    vi.useFakeTimers();
+    try {
+      const host = document.createElement('div');
+      const link = document.createElement('a');
+      link.href = PAGE;
+      link.textContent = 'Sketch';
+      const slot = document.createElement('div');
+      host.append(link, slot);
+      document.body.appendChild(host);
+      const root = createRoot(slot);
+      act(() => root.render(createElement(SketchPreview, { html: HTML, pageUrl: PAGE, appearance: 'light' })));
+      const frame = host.querySelector('iframe');
+      frame.contentWindow.postMessage = () => {};
+      act(() => {
+        window.dispatchEvent(new MessageEvent('message', {
+          data: { type: 'lulu-sandbox:ready' },
+          source: frame.contentWindow,
+        }));
+      });
+      expect(host.querySelector('.board-sketch-error')).toBeNull();
+      await act(async () => { await vi.advanceTimersByTimeAsync(8000); });
+      expect(host.querySelector('.board-sketch-error').textContent).toBe('The sketch preview failed to load.');
+      expect(host.querySelector('a').textContent).toBe('Sketch');
+      act(() => root.unmount());
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

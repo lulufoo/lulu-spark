@@ -36,9 +36,14 @@ export function SketchPreview({ html, pageUrl, appearance }: Props) {
     const frame = frameRef.current;
     if (!frame) return undefined;
     const liveFrame: HTMLIFrameElement = frame;
+    const painted = { current: false };
     const timer = window.setTimeout(() => {
-      if (!sentRender.current) setFailed(true);
+      if (!painted.current) setFailed(true);
     }, LOAD_TIMEOUT_MS);
+    const finish = () => {
+      painted.current = true;
+      window.clearTimeout(timer);
+    };
 
     function onMessage(event: MessageEvent) {
       const runner = liveFrame.contentWindow;
@@ -47,12 +52,18 @@ export function SketchPreview({ html, pageUrl, appearance }: Props) {
       if (!message) return;
       if (message.kind === 'ready' && !sentRender.current) {
         sentRender.current = true;
-        window.clearTimeout(timer);
         runner.postMessage(renderMessage(html, appearanceRef.current), '*');
         return;
       }
-      if (message.kind === 'size') setSize({ width: message.width, height: message.height });
-      if (message.kind === 'error') setFailed(true);
+      if (message.kind === 'size') {
+        finish();
+        setFailed(false);
+        setSize({ width: message.width, height: message.height });
+      }
+      if (message.kind === 'error') {
+        finish();
+        setFailed(true);
+      }
     }
 
     window.addEventListener('message', onMessage);
