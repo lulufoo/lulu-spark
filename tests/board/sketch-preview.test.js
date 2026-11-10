@@ -71,9 +71,12 @@ describe('sketch preview', () => {
       }));
     });
     expect(posted).toHaveLength(1);
-    host.querySelector('button').click();
+    host.querySelector('.board-sketch-hit').click();
     await act(async () => { await Promise.resolve(); });
     expect(opened).toEqual([PAGE]);
+    host.querySelector('.btn-settings-ghost').click();
+    await act(async () => { await Promise.resolve(); });
+    expect(opened).toEqual([PAGE, PAGE]);
     act(() => root.render(createElement(SketchPreview, { html: HTML, pageUrl: 'https://evil.test', appearance: 'dark' })));
     expect(host.querySelector('button')).toBeNull();
     act(() => root.unmount());
@@ -105,6 +108,17 @@ describe('sketch preview', () => {
     expect(isBoardPage('https://evil.test/#b:b_0123abcd')).toBe(false);
     expect(readSandboxMessage({ type: 'lulu-sandbox:size', width: 10, height: 20 })?.width).toBe(10);
     expect(readSandboxMessage({ type: 'lulu-sandbox:size', width: 0, height: 20 })).toBeNull();
+    const box = host.querySelector('.board-sketch-frame-box');
+    Object.defineProperty(box, 'clientWidth', { configurable: true, get: () => 120 });
+    act(() => {
+      window.dispatchEvent(new MessageEvent('message', {
+        data: { type: 'lulu-sandbox:size', width: 480, height: 200 },
+        source: frame.contentWindow,
+      }));
+    });
+    const scaled = host.querySelector('iframe');
+    expect(scaled.style.transform).toBe('scale(0.25)');
+    expect(box.style.height).toBe('50px');
     act(() => root.unmount());
   });
 });

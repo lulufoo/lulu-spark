@@ -23,8 +23,10 @@ export function SketchPreview({ html, pageUrl, appearance }: Props) {
   const sentRender = useRef(false);
   const appearanceRef = useRef(appearance);
   appearanceRef.current = appearance;
+  const boxRef = useRef<HTMLDivElement>(null);
   const [failed, setFailed] = useState(false);
   const [size, setSize] = useState<{ width: number; height: number } | null>(null);
+  const [fit, setFit] = useState(1);
   const canOpen = isBoardPage(pageUrl);
 
   useEffect(() => {
@@ -33,18 +35,20 @@ export function SketchPreview({ html, pageUrl, appearance }: Props) {
     setSize(null);
     const frame = frameRef.current;
     if (!frame) return undefined;
+    const liveFrame: HTMLIFrameElement = frame;
     const timer = window.setTimeout(() => {
       if (!sentRender.current) setFailed(true);
     }, LOAD_TIMEOUT_MS);
 
     function onMessage(event: MessageEvent) {
-      if (!frame.contentWindow || event.source !== frame.contentWindow) return;
+      const runner = liveFrame.contentWindow;
+      if (!runner || event.source !== runner) return;
       const message = readSandboxMessage(event.data);
       if (!message) return;
       if (message.kind === 'ready' && !sentRender.current) {
         sentRender.current = true;
         window.clearTimeout(timer);
-        frame.contentWindow.postMessage(renderMessage(html, appearanceRef.current), '*');
+        runner.postMessage(renderMessage(html, appearanceRef.current), '*');
         return;
       }
       if (message.kind === 'size') setSize({ width: message.width, height: message.height });
@@ -60,9 +64,25 @@ export function SketchPreview({ html, pageUrl, appearance }: Props) {
 
   useEffect(() => {
     const frame = frameRef.current;
-    if (!sentRender.current || !frame?.contentWindow) return;
-    frame.contentWindow.postMessage(appearanceMessage(appearance), '*');
+    const runner = frame?.contentWindow;
+    if (!sentRender.current || !runner) return;
+    runner.postMessage(appearanceMessage(appearance), '*');
   }, [appearance]);
+
+  useEffect(() => {
+    const box = boxRef.current;
+    if (!box || !size) return undefined;
+    const measure = () => {
+      const available = box.clientWidth;
+      if (!available || !size.width) return;
+      setFit(Math.min(1, available / size.width));
+    };
+    measure();
+    if (typeof ResizeObserver !== 'function') return undefined;
+    const observer = new ResizeObserver(measure);
+    observer.observe(box);
+    return () => observer.disconnect();
+  }, [size]);
 
   if (!html) return null;
 
@@ -71,16 +91,30 @@ export function SketchPreview({ html, pageUrl, appearance }: Props) {
       {failed ? (
         <p className="board-sketch-error" role="status">The sketch preview failed to load.</p>
       ) : null}
-      <iframe
-        key={html}
-        ref={frameRef}
-        className="board-sketch-frame"
-        title="Board sketch preview"
-        src={SANDBOX_SRC}
-        sandbox={SANDBOX_ALLOW}
-        referrerPolicy="no-referrer"
-        style={size ? { width: size.width, height: size.height } : undefined}
-      />
+      <div
+        ref={boxRef}
+        className="board-sketch-frame-box"
+        style={size ? { height: Math.ceil(size.height * fit) } : undefined}
+      >
+        <iframe
+          key={html}
+          ref={frameRef}
+          className="board-sketch-frame"
+          title="Board sketch preview"
+          src={SANDBOX_SRC}
+          sandbox={SANDBOX_ALLOW}
+          referrerPolicy="no-referrer"
+          style={size ? { width: size.width, height: size.height, transform: `scale(${fit})` } : undefined}
+        />
+        {canOpen ? (
+          <button
+            type="button"
+            className="board-sketch-hit"
+            aria-label="Open in Board"
+            onClick={() => void openBoardPage(pageUrl)}
+          />
+        ) : null}
+      </div>
       {canOpen ? (
         <button type="button" className="btn-settings-ghost" onClick={() => void openBoardPage(pageUrl)}>
           Open in Board

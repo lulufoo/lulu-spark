@@ -8613,10 +8613,26 @@ button.home-sync-row-name:focus-visible {
   align-items: flex-start;
   gap: 8px;
 }
+.board-sketch-frame-box {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+}
 .board-sketch-frame {
+  position: absolute;
+  top: 0;
+  left: 0;
   border: 0;
-  max-width: 100%;
+  transform-origin: top left;
   background: var(--bg-canvas);
+}
+.board-sketch-hit {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
 }
 .board-sketch-error {
   margin: 0;
