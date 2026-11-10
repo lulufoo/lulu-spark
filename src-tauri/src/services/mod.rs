@@ -31,4 +31,5 @@ pub mod auth;
 pub mod mcp_oauth;
 pub mod mcp_oauth_log;
 pub mod bind;
+pub mod board_sketch;
 pub mod spark_read;

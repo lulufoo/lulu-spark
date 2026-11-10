@@ -144,6 +144,7 @@ pub fn run() {
             commands::board_pat::get_board_pat_status,
             commands::board_pat::set_board_pat,
             commands::board_pat::delete_board_pat,
+            commands::board_sketch::read_board_sketch,
         ])
         .setup(|app| {
             let notify_handle = app.handle().clone();

@@ -3,6 +3,7 @@ pub mod approval;
 pub mod app_log;
 pub mod auth_session;
 pub mod board_pat;
+pub mod board_sketch;
 pub mod bind;
 pub mod config_cmd;
 pub mod mcp_oauth;
