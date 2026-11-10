@@ -14,9 +14,10 @@ function body(selector) {
 
 describe('notes list and document titles share one chrome', () => {
   it('keeps the document header the same height and padding as the list toolbar', () => {
-    expect(body('.notes-page-toolbar')).toMatch(/padding:\s*20px 24px 16px/);
-    expect(body('#md-header.viewer-header')).toMatch(/padding:\s*20px 24px 16px/);
-    expect(body('#md-header.viewer-header')).toMatch(/min-height:\s*72px/);
+    expect(body('.notes-page-toolbar')).toMatch(/padding:\s*0 24px/);
+    expect(body('#md-header.viewer-header')).toMatch(/padding:\s*0 24px/);
+    expect(body('.notes-page-toolbar')).toMatch(/height:\s*var\(--app-header-height\)/);
+    expect(body('#md-header.viewer-header')).toMatch(/height:\s*var\(--app-header-height\)/);
     expect(body('.notes-search-btn')).toMatch(/min-height:\s*36px/);
   });
 

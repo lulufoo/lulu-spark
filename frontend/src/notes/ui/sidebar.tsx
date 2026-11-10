@@ -125,10 +125,10 @@ export function NotesSidebar() {
 
   return (
     <>
-      <div className="sidebar-inner">
-        <WindowDragStrip>
-          <PageBackHome />
-        </WindowDragStrip>
+      <WindowDragStrip>
+        <PageBackHome />
+      </WindowDragStrip>
+      <div className="sidebar-inner" data-sidebar-content>
         <div className="sidebar-workspace-row">
           <div id="sidebar-workspace-title" className="sidebar-workspace-title" data-tip={workspaceName} data-tip-truncated>
             {workspaceName}

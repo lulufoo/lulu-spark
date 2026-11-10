@@ -75,6 +75,8 @@ export type HomeState = {
   channelUnread: ChannelUnread;
   /** Enabled projects per workspace id, in title order. */
   workspaceProjects: Record<string, HomeProject[]>;
+  /** Home groups opened explicitly by the user; start collapsed. */
+  expandedWorkspaceIds: string[];
 };
 
 function emptyUnread(): ChannelUnread {
@@ -96,6 +98,7 @@ function emptyState(): HomeState {
     inFlightIds: [],
     channelUnread: emptyUnread(),
     workspaceProjects: {},
+    expandedWorkspaceIds: [],
   };
 }
 

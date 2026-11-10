@@ -101,17 +101,20 @@ describe('mountHomeHub', () => {
     expect(navigate).toHaveBeenCalledWith('#/read-later');
   });
 
-  it('navigates to #/spark when spark entry is clicked', () => {
+  it('enters Notes from the workspace ellipsis, while its name only expands', () => {
     cleanup = mountHomeHub(container, { navigate });
 
-    container.querySelector('[data-home-entry="spark"]').click();
+    const name = container.querySelector('[data-home-entry="spark"]');
+    name.click();
+    expect(navigate).not.toHaveBeenCalled();
+    name.closest('.home-nav-workspace').querySelector('[data-home-open-workspace]').click();
     expect(navigate).toHaveBeenCalledWith('#/spark');
   });
 
-  it('opens the Notes page when knowledge entry is clicked', () => {
+  it('opens Knowledge from its separate ellipsis button', () => {
     cleanup = mountHomeHub(container, { navigate });
 
-    container.querySelector('[data-home-entry="knowledge"]').click();
+    container.querySelector('[data-home-open-workspace="knowledge"]').click();
     expect(navigate).toHaveBeenCalledWith('#/spark');
   });
 

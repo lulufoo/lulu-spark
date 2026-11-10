@@ -125,6 +125,18 @@ describe('selectTopic', () => {
 });
 
 describe('sidebar header', () => {
+  it.each(['timeline', 'directory'])('%s view: lower content can hide independently of the back toolbar', (mode) => {
+    seedWorkspaces(mode);
+    act(() => renderSidebar());
+    const lower = sidebarEl().querySelector('[data-sidebar-content]');
+    lower.hidden = true;
+    expect(lower.querySelector('#sidebar-workspace-title')).not.toBeNull();
+    const toolbar = sidebarEl().querySelector('.window-drag-strip');
+    expect(toolbar.parentElement).toBe(sidebarEl());
+    expect(toolbar.closest('[hidden]')).toBeNull();
+    expect(toolbar.querySelector('a[href="#/home"]')).not.toBeNull();
+  });
+
   it.each(['timeline', 'directory'])('%s view: the workspace row has no "+"; New document lives on the page', (mode) => {
     seedWorkspaces(mode);
     act(() => renderSidebar());
@@ -380,14 +392,21 @@ describe('selectDate while note/create active → list via location', () => {
     expect(renderDocList).not.toHaveBeenCalled();
   });
 
-  it('list mode (no note, not creating): updates list without navigateToDateList', () => {
+  it('list mode: changing date keeps the route in sync', () => {
     vi.mocked(parseHash).mockReturnValue({
       name: 'spark',
       params: { date: '20260719' },
     });
     selectDate('20260718');
-    expect(navigateToDateList).not.toHaveBeenCalled();
+    expect(navigateToDateList).toHaveBeenCalledWith('20260718');
     expect(renderDocList).not.toHaveBeenCalled();
     expect(state.ui.activeDate).toBe('20260718');
   });
+  it('list mode: picking the current date does not navigate again', () => {
+    vi.mocked(parseHash).mockReturnValue({ name: 'spark', params: { date: '20260719' } });
+    selectDate('20260719');
+    expect(navigateToDateList).not.toHaveBeenCalled();
+    expect(state.ui.activeDate).toBe('20260719');
+  });
+
 });

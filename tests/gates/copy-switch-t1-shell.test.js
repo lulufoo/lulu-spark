@@ -99,7 +99,7 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
     expect(css).toMatch(/\.notes-search-btn \{[\s\S]*?min-height: 36px;/);
     expect(css).not.toMatch(/\.notes-search-btn \{[^}]*background: #525960;/);
     expect(css).toMatch(/\.viewer-header \{[\s\S]*?padding: 12px 20px;/);
-    expect(css).toMatch(/#md-header\.viewer-header \{[\s\S]*?padding: 20px 24px 16px;/);
+    expect(css).toMatch(/#md-header\.viewer-header \{[\s\S]*?padding: 0 24px;/);
     expect(css).not.toMatch(/\.viewer-panel-title \{\s*display:\s*none/);
     const notesSidebar = readFileSync(join(repoRoot, 'frontend/src/notes/ui/sidebar.tsx'), 'utf8');
     expect(notesSidebar).toMatch(/<WindowDragStrip>\s*<PageBackHome \/>\s*<\/WindowDragStrip>/);

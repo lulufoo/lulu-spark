@@ -1,3 +1,5 @@
+  :root { --app-header-height: 56px; }
+
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
   /* ── Global overscroll disable ── */
@@ -56,7 +58,7 @@
     overflow: hidden;
   }
   .window-drag-strip {
-    height: 36px;
+    height: var(--app-header-height);
     flex-shrink: 0;
   }
   .window-drag-strip.is-chrome {
@@ -169,7 +171,10 @@
     display: none !important;
   }
   .notes-page-toolbar {
-    padding: 20px 24px 16px;
+    height: var(--app-header-height);
+    min-height: var(--app-header-height);
+    padding: 0 24px;
+    background: var(--bg-surface);
     gap: 16px;
     box-sizing: border-box;
   }
@@ -181,8 +186,16 @@
     font-size: 14px;
     font-weight: 600;
     white-space: nowrap;
-    flex-shrink: 0;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
     color: var(--fg-default);
+  }
+  .notes-page-toolbar .notes-search-btn {
+    flex: 0 1 373px;
+    min-width: 0;
+    max-width: 50%;
   }
   /* Nothing selected: a quiet hint where the heading goes, on the search box's row. */
   .notes-page-toolbar #date-heading.date-heading-hint {
@@ -540,6 +553,10 @@
     min-height: 0;
     display: flex;
     flex-direction: column;
+  }
+  .sidebar-inner[hidden],
+  .home-chat-sidebar-content[hidden] {
+    display: none;
   }
   .sidebar-channel-zone {
     flex-shrink: 0;
@@ -3737,10 +3754,11 @@
     background: var(--bg-surface);
     overflow-x: auto;
   }
-  /* Same box as .notes-page-toolbar (20+36+16) so the title does not jump. */
+  /* List and article share the same compact toolbar box. */
   #md-header.viewer-header {
-    padding: 20px 24px 16px;
-    min-height: 72px;
+    height: var(--app-header-height);
+    min-height: var(--app-header-height);
+    padding: 0 24px;
   }
   .viewer-header-actions {
     display: flex;
@@ -6698,7 +6716,7 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   --home-nav-label-h: 28px;
   /* Every row of the Workspace area (workspace, project, ...) and Read Later has this height. */
   --home-nav-row-h: 32px;
-  /* Space above every workspace but the first; the row allocation takes it off the list height. */
+  /* Space above every workspace but the first. */
   --home-nav-group-gap: 8px;
   --home-chat-list-rows: 5;
   --home-chat-list-pad: 2px;
@@ -6733,13 +6751,10 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
 .home-chat-nav-group > .home-desktop-shortcut {
   flex: 0 0 auto;
 }
-/* The Workspace list is measured: rows are fixed-height with no gaps inside a workspace, and the gap between workspaces is known, so whole rows add up. */
+/* Expanded workspaces show every project; the navigation area scrolls as one list. */
 .home-nav-workspaces {
   flex: 1 1 0;
   min-height: 0;
-  overflow: hidden;
-}
-.home-nav-workspaces[data-home-nav-overflow="true"] {
   overflow-y: auto;
 }
 .home-chat-nav-label {
@@ -6805,9 +6820,8 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* Cut-off projects: a grey `…` at the right of the workspace row (the count is in its hover text); it never squeezes the title.
-   The glyph is tiny, so its box is a 28px square (hover target) that reaches the row's right edge; the glyph keeps its place. */
-.home-nav-hidden-count {
+/* Keep the existing lightweight ellipsis, with its own keyboard/click target. */
+.home-nav-enter {
   flex: none;
   display: inline-flex;
   align-items: center;
@@ -6815,22 +6829,33 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   width: 28px;
   height: 28px;
   margin-left: auto;
-  margin-right: -8px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  font: inherit;
   font-size: 12px;
   line-height: 1;
   color: var(--fg-subtle);
+  cursor: pointer;
+}
+.home-chat-nav-notes:hover {
+  background: var(--bg-hover);
 }
 .home-chat-nav-notes {
   display: flex;
   align-items: center;
-  gap: 4px;
+  border-radius: 8px;
+  gap: 0;
   height: var(--home-nav-row-h);
 }
 .home-chat-nav-notes .home-desktop-shortcut {
   flex: 1;
+  min-width: 0;
   width: auto;
 }
-.home-chat-nav .home-desktop-shortcut:focus-visible {
+.home-chat-nav .home-desktop-shortcut:focus-visible,
+.home-nav-enter:focus-visible {
   outline: 2px solid var(--border-accent);
   outline-offset: 1px;
 }
@@ -7626,12 +7651,12 @@ button.home-sync-row-name:focus-visible {
 }
 .home-chat-main-drag {
   position: relative;
-  height: 36px;
+  height: var(--app-header-height);
   flex-shrink: 0;
 }
 .home-chat-session-menu {
   position: absolute;
-  top: 4px;
+  top: calc((var(--app-header-height) - 28px) / 2);
   right: 8px;
   z-index: 3;
 }

@@ -118,6 +118,9 @@ describe('home three-entry boolean unread', () => {
   it('clicking a dotted entry navigates and marks that channel read', async () => {
     await mountReady();
     container.querySelector('[data-home-entry="spark"]').click();
+    expect(navigate).not.toHaveBeenCalled();
+    expect(markSpy).not.toHaveBeenCalled();
+    container.querySelector('[data-home-entry="spark"]').closest('.home-nav-workspace').querySelector('[data-home-open-workspace]').click();
     expect(navigate).toHaveBeenCalledWith('#/spark');
     await vi.waitFor(() => {
       expect(markSpy).toHaveBeenCalledWith('docs');
@@ -156,6 +159,8 @@ describe('home three-entry boolean unread', () => {
     expect(knowledge).not.toBeNull();
     expect(knowledge.getAttribute('data-home-unread')).not.toBe('true');
     knowledge.click();
+    expect(navigate).not.toHaveBeenCalled();
+    container.querySelector('[data-home-open-workspace="knowledge"]').click();
     expect(navigate).toHaveBeenCalledWith('#/spark');
     expect(markSpy).not.toHaveBeenCalled();
   });
