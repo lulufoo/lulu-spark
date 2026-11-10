@@ -3457,6 +3457,16 @@
     width: 100%;
   }
   .doc-title-btn:hover { text-decoration: underline; }
+  .dir-create-name {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    background: none;
+    font: inherit;
+    color: var(--fg-default);
+    padding: 0;
+    outline: none;
+  }
   .timeline-create-title { font: inherit; font-weight: 600; cursor: text; }
   .timeline-create-title:hover,
   .timeline-create-title:focus { text-decoration: none; outline: none; }

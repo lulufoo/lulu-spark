@@ -1,8 +1,8 @@
 import { state } from '../state/host.ts';
 import { isDirKey, nodeKeyOf, projectOfNode, sortedProjectFolders } from '../state/dir-tree.ts';
 import { createTargetStore } from '../state/create-target.ts';
+import { beginDirCreate } from './dir-create.ts';
 import { beginTimelineCreate } from './timeline-create.ts';
-import { openCreateNote } from './viewer/create.ts';
 import { isDirectoryView } from './workspace.ts';
 
 /** The `folder` value the backend reads as "directly in the Project root". */
@@ -13,19 +13,8 @@ export function createTargets(): string[] {
   return sortedProjectFolders(state.index.topicTitles, state.index.topicOrder);
 }
 
-function newTempId(): string {
-  return typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-    ? crypto.randomUUID()
-    : `note-${Date.now()}`;
-}
-
-/**
- * The folder of `project` a document created now goes into. The directory view lists one folder at
- * a time, so that is the one (the Project root when the root is listed or nothing else is).
- * The timeline view has no folder: nothing is sent and the backend picks its default.
- */
-function createFolder(project: string): string | undefined {
-  if (!isDirectoryView()) return undefined;
+/** The folder the directory view is listing for `project`. The project root when it is not one of its folders. */
+function listedFolder(project: string): string {
   const listed = state.ui.activeDate;
   const node = isDirKey(listed) ? nodeKeyOf(listed) : project;
   if (projectOfNode(node) !== project) return PROJECT_ROOT_FOLDER;
@@ -37,19 +26,10 @@ function defaultProject(targets: string[]): string {
   return targets.find((id) => state.index.topicDefault?.[id] === true) || targets[0] || '';
 }
 
-function beginCreate(project: string) {
-  void openCreateNote({
-    temp_id: newTempId(),
-    workspace_id: state.workspaces.current,
-    project_id: project,
-    folder: createFolder(project),
-  });
-}
-
 /**
  * The "+" of the document page. Timeline adds a title card in the list: the selected Project,
- * or the workspace default Project when none is selected. Directory view still opens the body
- * editor in the listed folder, and asks which Project when none is selected.
+ * or the workspace default Project when none is selected. Directory view adds a file-name row
+ * under the listed folder, and asks which Project when none is selected.
  * Returns false when there is no Project to put a document in.
  */
 export function startCreateDocument(): boolean {
@@ -64,7 +44,7 @@ export function startCreateDocument(): boolean {
     return true;
   }
   if (chosen) {
-    beginCreate(chosen);
+    beginDirCreate(chosen, listedFolder(chosen));
     return true;
   }
   createTargetStore.set({ open: true, project: targets[0] });
@@ -79,7 +59,9 @@ export function chooseCreateProject(project: string) {
 export function confirmCreateProject() {
   const { project } = createTargetStore.getSnapshot();
   createTargetStore.set({ open: false, project: '' });
-  if (project && createTargets().includes(project)) beginCreate(project);
+  if (!project || !createTargets().includes(project)) return;
+  if (isDirectoryView()) beginDirCreate(project, PROJECT_ROOT_FOLDER);
+  else beginTimelineCreate(project);
 }
 
 /** Chooser cancelled: nothing is created. */

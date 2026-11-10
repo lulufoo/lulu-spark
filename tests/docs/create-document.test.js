@@ -21,8 +21,10 @@ import {
 } from '../../frontend/src/notes/commands/create-document.ts';
 import { landOnNewDocument } from '../../frontend/src/notes/commands/land-on-document.ts';
 import { selectDate, selectTopic } from '../../frontend/src/notes/commands/sidebar.ts';
+import { cancelDirCreate } from '../../frontend/src/notes/commands/dir-create.ts';
 import { cancelTimelineCreate } from '../../frontend/src/notes/commands/timeline-create.ts';
 import { createTargetStore } from '../../frontend/src/notes/state/create-target.ts';
+import { dirCreateStore } from '../../frontend/src/notes/state/dir-create.ts';
 import { timelineCreateStore } from '../../frontend/src/notes/state/timeline-create.ts';
 import { CreateTargetDialog } from '../../frontend/src/notes/ui/create-target-dialog.tsx';
 
@@ -50,6 +52,7 @@ beforeEach(() => {
   vi.mocked(selectTopic).mockClear();
   cancelCreateProject();
   cancelTimelineCreate();
+  cancelDirCreate();
   seed();
 });
 
@@ -70,22 +73,26 @@ describe('startCreateDocument (the document page "+")', () => {
     expect(timelineCreateStore.getSnapshot().project).toBe('inbox');
   });
 
-  it('directory view: creates in the folder that is listed', () => {
+  it('directory view: a file-name row opens in the folder that is listed', () => {
     seed({ active: 'ideas', view: 'directory', listed: dirKeyOf('ideas/plans/q1') });
     startCreateDocument();
-    expect(openCreateNote).toHaveBeenCalledWith(
-      expect.objectContaining({ project_id: 'ideas', folder: 'plans/q1' }),
-    );
+    expect(openCreateNote).not.toHaveBeenCalled();
+    expect(dirCreateStore.getSnapshot()).toEqual(expect.objectContaining({ project: 'ideas', folder: 'plans/q1' }));
   });
 
   it('directory view: the Project root is `/`, also when nothing or another Project is listed', () => {
+    const folders = [];
     seed({ active: 'ideas', view: 'directory', listed: dirKeyOf('ideas') });
     startCreateDocument();
+    folders.push(dirCreateStore.getSnapshot().folder);
     seed({ active: 'ideas', view: 'directory', listed: null });
     startCreateDocument();
+    folders.push(dirCreateStore.getSnapshot().folder);
     seed({ active: 'ideas', view: 'directory', listed: dirKeyOf('inbox/plans') });
     startCreateDocument();
-    expect(openCreateNote.mock.calls.map(([arg]) => arg.folder)).toEqual(['/', '/', '/']);
+    folders.push(dirCreateStore.getSnapshot().folder);
+    expect(folders).toEqual(['/', '/', '/']);
+    expect(openCreateNote).not.toHaveBeenCalled();
   });
 
   it('directory view with nothing selected: asks for a Project first, pre-selecting the first one', () => {
@@ -102,7 +109,8 @@ describe('startCreateDocument (the document page "+")', () => {
     createTargetStore.set((p) => ({ ...p, project: 'ideas' }));
     confirmCreateProject();
     expect(createTargetStore.getSnapshot().open).toBe(false);
-    expect(openCreateNote).toHaveBeenCalledWith(expect.objectContaining({ workspace_id: 'default', project_id: 'ideas' }));
+    expect(openCreateNote).not.toHaveBeenCalled();
+    expect(dirCreateStore.getSnapshot()).toEqual(expect.objectContaining({ project: 'ideas', folder: '/' }));
   });
 
   it('cancelling the chooser creates nothing', () => {
@@ -145,7 +153,8 @@ describe('chooser dialog', () => {
       host.querySelector('#btn-create-target-confirm').click();
     });
     expect(host.querySelector('#create-target-dialog')).toBeNull();
-    expect(openCreateNote).toHaveBeenCalledWith(expect.objectContaining({ project_id: 'inbox' }));
+    expect(openCreateNote).not.toHaveBeenCalled();
+    expect(dirCreateStore.getSnapshot()).toEqual(expect.objectContaining({ project: 'inbox', folder: '/' }));
     await act(async () => root.unmount());
   });
 });

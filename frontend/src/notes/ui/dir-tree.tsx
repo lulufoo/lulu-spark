@@ -1,4 +1,6 @@
 import { useMemo, useSyncExternalStore } from 'react';
+import { dirCreateStore } from '../state/dir-create.ts';
+import { DirCreateRow } from './dir-create-row.tsx';
 import { getEntryId } from '../../host/state.ts';
 import { useHostState } from '../state/host.ts';
 import {
@@ -49,6 +51,7 @@ function NodeContents({ node, depth, expanded, openDocId, selectedNode }: TreePr
           selectedNode={selectedNode}
         />
       ))}
+      <DirCreateRow nodeKey={node.key} depth={depth} />
       {node.docs.map((doc) => (
         <div
           key={doc.id}
@@ -123,11 +126,12 @@ function FolderBlock({ node, depth, expanded, openDocId, selectedNode }: TreePro
 
 /**
  * Directory view of the sidebar: the folders and documents of the project picked in the dropdown,
- * built from `raw_path`. The project itself is not a node. Read-only.
+ * built from `raw_path`. The project itself is not a node. A new document is a file-name row.
  */
 export function DirTree() {
   const host = useHostState();
   const { expanded } = useSyncExternalStore(dirTreeStore.subscribe, dirTreeStore.getSnapshot);
+  const creating = useSyncExternalStore(dirCreateStore.subscribe, dirCreateStore.getSnapshot);
   const project = host.ui.activeTopic;
   const root = useMemo(
     () =>
@@ -143,7 +147,8 @@ export function DirTree() {
   const selectedNode = !openDocId && isDirKey(activeDate) ? nodeKeyOf(activeDate) : '';
 
   if (!project) return <div className="knowledge-doc-empty">This workspace has no projects yet.</div>;
-  if (!root || (root.children.length === 0 && root.docs.length === 0)) {
+  const creatingHere = creating.project === project;
+  if (!root || (root.children.length === 0 && root.docs.length === 0 && !creatingHere)) {
     return <div className="knowledge-doc-empty">This project has no documents yet.</div>;
   }
   return (
