@@ -105,14 +105,17 @@ function sortNode(node: DirNode) {
   node.children.forEach(sortNode);
 }
 
+export type EmptyFolder = { project_id: string; path: string };
+
 /**
  * Index entries → projects → sub-folders → documents, built in memory from `raw_path`
- * (no file system access). Projects without documents still appear, so the tree shows
+ * plus persisted empty folders. Projects without documents still appear, so the tree shows
  * every project; `projectTitles` lists them by id.
  */
 export function buildDirTree(
   data: Record<string, NoteEntry> | null,
   projectTitles: Record<string, string>,
+  emptyFolders?: EmptyFolder[],
 ): DirNode[] {
   const projects = new Map<string, DirNode>();
   const folders = new Map<string, DirNode>();
@@ -126,13 +129,9 @@ export function buildDirTree(
     return node;
   };
 
-  for (const id of Object.keys(projectTitles)) project(id);
-
-  for (const [id, entry] of Object.entries(data || {})) {
-    if (!entry) continue;
-    const { dirs, file } = splitRawPath(entry.raw_path);
-    let node = project(projectKeyOf(entry));
-    for (const dir of dirs) {
+  const descend = (start: DirNode, parts: string[]): DirNode => {
+    let node = start;
+    for (const dir of parts) {
       const key = `${node.key}/${dir}`;
       let child = folders.get(key);
       if (!child) {
@@ -142,7 +141,21 @@ export function buildDirTree(
       }
       node = child;
     }
+    return node;
+  };
+
+  for (const id of Object.keys(projectTitles)) project(id);
+
+  for (const [id, entry] of Object.entries(data || {})) {
+    if (!entry) continue;
+    const { dirs, file } = splitRawPath(entry.raw_path);
+    const node = descend(project(projectKeyOf(entry)), dirs);
     node.docs.push({ id, entry, name: docName(entry, file) });
+  }
+
+  for (const folder of emptyFolders || []) {
+    if (!folder?.project_id || !folder.path) continue;
+    descend(project(folder.project_id), folder.path.split('/').filter(Boolean));
   }
 
   const roots = [...projects.values()].sort(byName);

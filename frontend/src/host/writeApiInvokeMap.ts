@@ -126,6 +126,10 @@ export const WRITE_API_INVOKE_MAP: Record<string, WriteInvokeEntry> = {
     cmd: 'create_note',
     args: (body) => ({ payload: body ?? {} }),
   },
+  '/api/create-folder': {
+    cmd: 'create_folder',
+    args: (body) => ({ payload: body ?? {} }),
+  },
   '/api/workspace-create': {
     cmd: 'create_workspace',
     args: (body) => ({ payload: body ?? {} }),

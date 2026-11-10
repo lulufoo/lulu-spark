@@ -14,6 +14,7 @@ mod delete_project;
 mod delete_workspace;
 pub(crate) mod digest;
 pub mod edit;
+mod folder;
 pub(crate) mod hide_patterns;
 pub(crate) mod image_refs;
 mod jot;
@@ -39,6 +40,8 @@ pub use delete::delete_doc;
 pub use delete_project::delete_project;
 pub use delete_workspace::delete_workspace;
 pub use edit::set_source_type;
+pub use folder::create_folder;
+pub(crate) use folder::list_folders;
 pub use hide_patterns::{
     add_hide_pattern, list_hide_patterns, remove_hide_pattern, update_hide_pattern,
 };

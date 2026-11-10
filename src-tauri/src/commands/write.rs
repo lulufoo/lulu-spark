@@ -225,6 +225,11 @@ pub fn create_note(_app: AppHandle, payload: Value) -> Result<Value, String> {
     create_note_json(payload)
 }
 
+#[tauri::command]
+pub fn create_folder(_app: AppHandle, payload: Value) -> Result<Value, String> {
+    Ok(docs::create_folder(&payload))
+}
+
 pub fn mark_message_channel_read_json(channel: &str) -> Result<(), String> {
     crate::services::message_center::mark_channel_read(channel)
 }

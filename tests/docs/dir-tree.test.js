@@ -91,6 +91,20 @@ describe('buildDirTree', () => {
     expect(empty.docs).toEqual([]);
   });
 
+  it('shows a persisted empty folder beside document paths', () => {
+    const roots = buildDirTree(data, titles, [
+      { project_id: 'empty', path: 'saved' },
+      { project_id: 'ai', path: 'topic-x/empty-notes' },
+    ]);
+    const saved = findDirNode(roots, 'empty/saved');
+    expect(saved.kind).toBe('folder');
+    expect(saved.docs).toEqual([]);
+    const nested = findDirNode(roots, 'ai/topic-x/empty-notes');
+    expect(nested.kind).toBe('folder');
+    expect(nested.docs).toEqual([]);
+    expect(findDirNode(roots, 'ai/topic-x').docs).toHaveLength(2);
+  });
+
   it('names a node key and its path', () => {
     expect(nodeKeyOfEntry(data.a)).toBe('android/arch/build/builder');
     expect(pathKeys('a/b/c')).toEqual(['a', 'a/b', 'a/b/c']);

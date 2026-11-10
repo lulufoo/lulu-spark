@@ -66,7 +66,7 @@ fn the_schema_has_one_document_table_and_no_per_workspace_tables() {
         .collect::<Result<_, _>>()
         .expect("rows");
     tables.retain(|t| !t.starts_with("sqlite_"));
-    assert_eq!(tables, ["document", "project", "tag", "workspace"]);
+    assert_eq!(tables, ["document", "folder", "project", "tag", "workspace"]);
     let names: Vec<String> = columns(&conn, "document").into_iter().map(|c| c.0).collect();
     assert_eq!(names[..2], ["doc_id", "project_id"]);
     assert!(!names.contains(&"workspace_id".to_string()), "the workspace comes from the project");

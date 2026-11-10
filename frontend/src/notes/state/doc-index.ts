@@ -24,3 +24,17 @@ export function normalizeDocIndex(data: unknown): Record<string, object> {
   }
   return normalized;
 }
+
+/** Empty directories carried beside `entries` on the notes index. */
+export function folderRefs(data: unknown): { project_id: string; path: string }[] {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return [];
+  const raw = (data as { folders?: unknown }).folders;
+  if (!Array.isArray(raw)) return [];
+  return raw.flatMap((item) => {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) return [];
+    const row = item as { project_id?: unknown; path?: unknown };
+    if (typeof row.project_id !== 'string' || typeof row.path !== 'string') return [];
+    if (!row.project_id || !row.path) return [];
+    return [{ project_id: row.project_id, path: row.path }];
+  });
+}

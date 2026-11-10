@@ -30,7 +30,7 @@ function enterDirectoryProject(folder: string, entry: api.ViewerProjectState | u
   selectProject(folder);
   const node = entry?.node ?? '';
   if (!node || projectOfNode(node) !== folder) return '';
-  if (!findDirNode(buildDirTree(state.index.data, state.index.topicTitles), node)) return '';
+  if (!findDirNode(buildDirTree(state.index.data, state.index.topicTitles, state.index.folders), node)) return '';
   selectDate(dirKeyOf(node));
   return entry?.doc ?? '';
 }

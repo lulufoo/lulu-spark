@@ -130,8 +130,11 @@ export function DirTree() {
   const { expanded } = useSyncExternalStore(dirTreeStore.subscribe, dirTreeStore.getSnapshot);
   const project = host.ui.activeTopic;
   const root = useMemo(
-    () => (project ? findDirNode(buildDirTree(host.index.data, host.index.topicTitles), project) : null),
-    [host.index.data, host.index.topicTitles, project],
+    () =>
+      project
+        ? findDirNode(buildDirTree(host.index.data, host.index.topicTitles, host.index.folders), project)
+        : null,
+    [host.index.data, host.index.folders, host.index.topicTitles, project],
   );
   const openDocId =
     host.viewer.entry && host.viewer.outletMode === 'open' ? getEntryId(host.viewer.entry) || '' : '';

@@ -27,8 +27,14 @@ const BUSY_TIMEOUT: Duration = Duration::from_secs(5);
 pub(crate) const BASELINE_VERSION: usize = 20;
 
 /// Steps after the baseline. Append a step to change the schema; never edit an
-/// existing one. Empty while the baseline is the latest version.
-pub(crate) const MIGRATIONS: [&str; 0] = [];
+/// existing one. `folder` keeps an empty directory after its last document is gone.
+pub(crate) const MIGRATIONS: [&str; 1] = [
+    "CREATE TABLE folder (
+       project_id TEXT NOT NULL REFERENCES project(id) ON DELETE CASCADE,
+       path TEXT NOT NULL CHECK (path <> ''),
+       PRIMARY KEY (project_id, path)
+     );",
+];
 
 /// Whole schema at [`BASELINE_VERSION`]. The `Default` workspace and its inbox project are
 /// added by [`ensure_default_workspace`] because their ids are random.

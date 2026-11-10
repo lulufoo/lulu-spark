@@ -6,7 +6,7 @@ use serde_json::{json, Value};
 
 use crate::services::archive_parse::expected_lang_common_path;
 use crate::services::docs::hide_patterns::{compiled_hide_regexes, path_is_hidden};
-use crate::services::docs::workspace_root;
+use crate::services::docs::{list_folders, workspace_root};
 use crate::services::docs::doc_file_path;
 use crate::services::spark_data::{
     self, find_doc, get_workspace, list_doc_entries, DocRow, FoundDoc,
@@ -24,7 +24,8 @@ fn is_under_root(root: &Path, target: &Path) -> bool {
     target.to_string_lossy().starts_with(&prefix)
 }
 
-/// Sidebar index of one workspace: `{ "workspace_id": id, "entries": { doc_id: entry } }`.
+/// Sidebar index of one workspace: `{ workspace_id, entries, folders }`.
+/// `folders` are empty directories kept after their last document is gone.
 /// `workspace` is an id; the default workspace when absent.
 pub fn get_docs_index(workspace: Option<&str>) -> Value {
     let result = spark_data::open().and_then(|conn| {
@@ -44,7 +45,15 @@ pub fn get_docs_index(workspace: Option<&str>) -> Value {
                 !path_is_hidden(raw_path, &hide)
             });
         }
-        Ok(json!({ "workspace_id": row.id, "entries": entries }))
+        let mut folders = list_folders(&conn, &row)?;
+        if !hide.is_empty() {
+            folders.retain(|(_, path)| !path_is_hidden(path, &hide));
+        }
+        let folders = folders
+            .into_iter()
+            .map(|(project_id, path)| json!({ "project_id": project_id, "path": path }))
+            .collect::<Vec<_>>();
+        Ok(json!({ "workspace_id": row.id, "entries": entries, "folders": folders }))
     });
     result.unwrap_or_else(|e| json!({ "error": format!("notes index: {e}"), "_status": 500 }))
 }
