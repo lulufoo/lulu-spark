@@ -205,7 +205,8 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
     const listSelect = readFileSync(join(repoRoot, 'frontend/src/shared/floating-list-select.ts'), 'utf8');
     expect(listSelect).toMatch(/list-select-chevron-icon/);
     expect(listSelect).toMatch(/m6 9 6 6 6-6/);
-    expect(css).toMatch(/\.date-tab \{[\s\S]*?padding: 8px 16px 8px var\(--notes-rail\)/);
+    expect(css).toMatch(/\.sidebar-date-zone \{[^}]*padding: 8px 8px;/);
+    expect(css).toMatch(/\.date-tab \{[^}]*padding: 8px;[^}]*border-radius: 6px;/);
   });
 
   it('home workspace rail uses table B labels', () => {
