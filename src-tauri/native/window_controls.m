@@ -1,5 +1,6 @@
 #import <AppKit/AppKit.h>
 #import <objc/runtime.h>
+#include <stdbool.h>
 
 // Must match --app-header-height in frontend/app.css, in logical points.
 static const CGFloat SparkHeaderHeight = 56.0;
@@ -10,9 +11,17 @@ static const void *SparkWindowControlsKey = &SparkWindowControlsKey;
 @property(nonatomic, weak) NSView *observedTitlebar;
 @property(nonatomic, weak) NSView *observedButtonParent;
 @property(nonatomic) BOOL scheduled;
+@property(nonatomic) void (*fullscreenChanged)(bool);
 @end
 
 @implementation SparkWindowControls
+
+- (void)fullscreenDidChange:(NSNotification *)notification {
+    if (self.fullscreenChanged) {
+        self.fullscreenChanged([notification.name isEqualToString:NSWindowDidEnterFullScreenNotification]);
+    }
+    [self scheduleAlignment:notification];
+}
 
 - (void)scheduleAlignment:(NSNotification *)notification {
     (void)notification;
@@ -69,7 +78,7 @@ static const void *SparkWindowControlsKey = &SparkWindowControlsKey;
 
 @end
 
-void spark_center_window_controls(void *rawWindow) {
+void spark_center_window_controls(void *rawWindow, void (*fullscreenChanged)(bool)) {
     NSWindow *window = (__bridge NSWindow *)rawWindow;
     if (!window) return;
     dispatch_async(dispatch_get_main_queue(), ^{
@@ -77,10 +86,12 @@ void spark_center_window_controls(void *rawWindow) {
         if (!controls) {
             controls = [SparkWindowControls new];
             controls.window = window;
+            controls.fullscreenChanged = fullscreenChanged;
             objc_setAssociatedObject(window, SparkWindowControlsKey, controls, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
             NSNotificationCenter *center = NSNotificationCenter.defaultCenter;
-            for (NSNotificationName name in @[NSWindowDidResizeNotification, NSWindowDidEnterFullScreenNotification, NSWindowDidExitFullScreenNotification]) {
-                [center addObserver:controls selector:@selector(scheduleAlignment:) name:name object:window];
+            [center addObserver:controls selector:@selector(scheduleAlignment:) name:NSWindowDidResizeNotification object:window];
+            for (NSNotificationName name in @[NSWindowDidEnterFullScreenNotification, NSWindowDidExitFullScreenNotification]) {
+                [center addObserver:controls selector:@selector(fullscreenDidChange:) name:name object:window];
             }
         }
         [controls align];

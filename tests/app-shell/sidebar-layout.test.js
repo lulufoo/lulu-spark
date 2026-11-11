@@ -214,6 +214,16 @@ describe('SidebarLayout', () => {
     expect(css).toMatch(/\.sidebar-layout\[data-collapsed="true"\] > \.sidebar-resizer \{[\s\S]*?display:\s*none;/);
   });
 
+  it('removes the window-controls inset only while collapsed in native fullscreen', () => {
+    const view = render();
+    collapse();
+    expect(getComputedStyle(view.header).paddingLeft).toBe('84px');
+    view.layout.dataset.nativeFullscreen = 'true';
+    expect(getComputedStyle(view.header).paddingLeft).toBe('16px');
+    view.layout.dataset.nativeFullscreen = 'false';
+    expect(getComputedStyle(view.header).paddingLeft).toBe('84px');
+  });
+
   it('uses a 56px top row, no motion, and does not store or import commands', () => {
     const css = layoutCss();
     expect(appCss).toMatch(/--app-header-height:\s*56px/);

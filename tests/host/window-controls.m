@@ -1,6 +1,10 @@
 #import <AppKit/AppKit.h>
 #include <math.h>
-extern void spark_center_window_controls(void *);
+#include <stdbool.h>
+extern void spark_center_window_controls(void *, void (*)(bool));
+static int fullscreenChanges = 0;
+static bool lastFullscreen = false;
+static void fullscreenChanged(bool fullscreen) { fullscreenChanges++; lastFullscreen = fullscreen; }
 int main(void) {
   @autoreleasepool {
     NSApplication *app = [NSApplication sharedApplication];
@@ -8,9 +12,13 @@ int main(void) {
     NSWindow *window = [[NSWindow alloc] initWithContentRect:NSMakeRect(0,0,800,600) styleMask:(NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskMiniaturizable | NSWindowStyleMaskResizable | NSWindowStyleMaskFullSizeContentView) backing:NSBackingStoreBuffered defer:NO];
     window.titlebarAppearsTransparent = YES;
     window.titleVisibility = NSWindowTitleHidden;
-    spark_center_window_controls((__bridge void *)window);
+    spark_center_window_controls((__bridge void *)window, fullscreenChanged);
     NSDate *end = [NSDate dateWithTimeIntervalSinceNow:0.4];
     while (end.timeIntervalSinceNow > 0) [[NSRunLoop currentRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.02]];
+    [NSNotificationCenter.defaultCenter postNotificationName:NSWindowDidEnterFullScreenNotification object:window];
+    if (fullscreenChanges != 1 || !lastFullscreen) return 1;
+    [NSNotificationCenter.defaultCenter postNotificationName:NSWindowDidExitFullScreenNotification object:window];
+    if (fullscreenChanges != 2 || lastFullscreen) return 1;
     NSButton *close = [window standardWindowButton:NSWindowCloseButton];
     NSView *titlebar = close.superview.superview;
     NSRect barFrame = titlebar.frame;
