@@ -5736,7 +5736,7 @@ details.notes-disabled > button.notes-cat-item { margin-top: 6px; }
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #3d9c69;
+  background: var(--bg-success);
 }
 
 .notes-cat-lead {

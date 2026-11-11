@@ -34,6 +34,7 @@ export function SketchPreview({ html, pageUrl, appearance, title = '' }: Props) 
   const [shown, setShown] = useState(false);
   const [size, setSize] = useState<{ width: number; height: number } | null>(null);
   const [fit, setFit] = useState(1);
+  const [offsetX, setOffsetX] = useState(0);
   const canOpen = isBoardPage(pageUrl);
   const diagramId = boardDiagramId(pageUrl);
   const startedAtRef = useRef(performance.now());
@@ -98,7 +99,11 @@ export function SketchPreview({ html, pageUrl, appearance, title = '' }: Props) 
         finish();
         const available = boxRef.current?.clientWidth ?? 0;
         setFailed(false);
-        setFit(available > 0 ? Math.min(1, available / message.width) : 1);
+        const nextFit = available > 0 ? Math.min(1, available / message.width) : 1;
+        setFit(nextFit);
+        // Center the scaled sketch in the leftover width; a wide sketch fills the
+        // container, so the offset stays non-negative without a branch.
+        setOffsetX(available > 0 ? Math.max(0, (available - message.width * nextFit) / 2) : 0);
         setShown(available > 0);
         setSize({ width: message.width, height: message.height });
         logSketch('sandbox.size', {
@@ -140,7 +145,9 @@ export function SketchPreview({ html, pageUrl, appearance, title = '' }: Props) 
     const measure = () => {
       const available = box.clientWidth;
       if (!available || !size.width) return;
-      setFit(Math.min(1, available / size.width));
+      const nextFit = Math.min(1, available / size.width);
+      setFit(nextFit);
+      setOffsetX(Math.max(0, (available - size.width * nextFit) / 2));
       setShown(true);
     };
     measure();
@@ -195,7 +202,7 @@ export function SketchPreview({ html, pageUrl, appearance, title = '' }: Props) 
           sandbox={SANDBOX_ALLOW}
           referrerPolicy="no-referrer"
           style={size
-            ? { width: size.width, height: size.height, transform: `scale(${fit})`, colorScheme: 'light' }
+            ? { width: size.width, height: size.height, transform: `translateX(${offsetX}px) scale(${fit})`, colorScheme: 'light' }
             : { colorScheme: 'light' }}
         />
       </div>

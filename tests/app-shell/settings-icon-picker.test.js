@@ -245,19 +245,19 @@ describe('workspace icon in the Edit dialog', () => {
 
   it('shows the picker left of the name, with Default for a workspace without an icon', () => {
     mount(NotesWorkspacesEditHost);
-    act(() => host.querySelector('button.notes-cat-item[data-workspace="default"]').click());
+    act(() => host.querySelector('.notes-cat-row[data-workspace="default"] button.notes-cat-row-open').click());
     const row = host.querySelector('#notes-ws-edit-dialog .icon-name-row');
     expect(row.firstElementChild.classList.contains('icon-picker')).toBe(true);
     expect(row.querySelector('#notes-ws-edit-name')).not.toBeNull();
     expect(row.querySelector('[data-home-icon="notes"]')).not.toBeNull();
     act(() => wsCommands.closeWorkspaceEditor());
-    act(() => host.querySelector('button.notes-cat-item[data-workspace="ws2"]').click());
+    act(() => host.querySelector('.notes-cat-row[data-workspace="ws2"] button.notes-cat-row-open').click());
     expect(host.querySelector(`#notes-ws-edit-dialog svg[data-icon-id="${ICON_A}"]`)).not.toBeNull();
   });
 
   it('Esc in the open grid leaves the dialog open, a second Esc closes the dialog', () => {
     mount(NotesWorkspacesEditHost);
-    act(() => host.querySelector('button.notes-cat-item[data-workspace="ws2"]').click());
+    act(() => host.querySelector('.notes-cat-row[data-workspace="ws2"] button.notes-cat-row-open').click());
     act(() => host.querySelector('#notes-ws-edit-dialog .icon-picker-button').click());
     const esc = () =>
       act(() => {

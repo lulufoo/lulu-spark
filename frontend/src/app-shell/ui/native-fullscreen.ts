@@ -1,6 +1,4 @@
 import { useEffect, useState } from 'react';
-import { isTauri } from '@tauri-apps/api/core';
-import { getCurrentWindow } from '@tauri-apps/api/window';
 
 type WindowState = {
   isFullscreen: () => Promise<boolean>;
@@ -46,8 +44,19 @@ export function watchNativeFullscreen(windowState: WindowState, update: (value: 
 export function useNativeMacFullscreen(): boolean {
   const [fullscreen, setFullscreen] = useState(false);
   useEffect(() => {
-    if (!isTauri() || !/Mac/i.test(navigator.platform)) return;
-    return watchNativeFullscreen(getCurrentWindow(), setFullscreen);
+    // Static @tauri-apps imports are reserved for apiClient; load the window
+    // handle dynamically like theme.ts does.
+    if (!(window.__TAURI__ || window.__TAURI_INTERNALS__) || !/Mac/i.test(navigator.platform)) return;
+    let disposed = false;
+    let stop: (() => void) | undefined;
+    void import('@tauri-apps/api/window').then(({ getCurrentWindow }) => {
+      if (disposed) return;
+      stop = watchNativeFullscreen(getCurrentWindow(), setFullscreen);
+    });
+    return () => {
+      disposed = true;
+      stop?.();
+    };
   }, []);
   return fullscreen;
 }

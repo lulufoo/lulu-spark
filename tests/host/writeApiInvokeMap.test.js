@@ -60,7 +60,56 @@ describe('writeApiInvokeMap', () => {
     for (const p of P2_WRITE_PATHS) {
       expect(WRITE_API_INVOKE_MAP[p]?.cmd, p).toBeTruthy();
     }
-    expect(Object.keys(WRITE_API_INVOKE_MAP)).toHaveLength(41);
+  });
+
+  it('maps exactly the known write endpoints, so additions show up here', () => {
+    expect(Object.keys(WRITE_API_INVOKE_MAP).sort()).toEqual([
+      '/api/board-pat',
+      '/api/board-pat/delete',
+      '/api/config',
+      '/api/create-folder',
+      '/api/create-note',
+      '/api/delete-folder',
+      '/api/doc-draft',
+      '/api/doc-draft/clear',
+      '/api/doc-highlights',
+      '/api/file',
+      '/api/hide-pattern-add',
+      '/api/hide-pattern-remove',
+      '/api/hide-pattern-update',
+      '/api/mark-message-channel-read',
+      '/api/project-create',
+      '/api/project-delete',
+      '/api/project-move',
+      '/api/project-move-cancel',
+      '/api/project-update',
+      '/api/projects-reorder',
+      '/api/read-later',
+      '/api/rename-doc',
+      '/api/rename-folder',
+      '/api/reorder-comments',
+      '/api/save',
+      '/api/set-doc-source-type',
+      '/api/set-done',
+      '/api/set-importance',
+      '/api/show-os-notification',
+      '/api/tag/attach',
+      '/api/tag/detach',
+      '/api/tag/update-value',
+      '/api/update-comments',
+      '/api/update-highlights',
+      '/api/update-links',
+      '/api/viewer-state',
+      '/api/workspace-create',
+      '/api/workspace-delete',
+      '/api/workspace-description',
+      '/api/workspace-disable',
+      '/api/workspace-enable',
+      '/api/workspace-icon',
+      '/api/workspace-rename',
+      '/api/workspace-view-mode',
+      '/api/workspaces-reorder',
+    ]);
   });
 
   it('maps /api/file absolute-path write to write_abs_file', () => {
