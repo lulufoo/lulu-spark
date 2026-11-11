@@ -4992,11 +4992,6 @@
     font-weight: 600;
     margin-bottom: 4px;
   }
-  [data-theme="dark"] .tags-popover .md-tag-chip {
-    border-color: #ddb94a;
-    background: #29251a;
-    color: #e7c258;
-  }
   .md-tag-chip {
     font-size: 12px;
     padding: 2px 8px;
@@ -5007,7 +5002,7 @@
     cursor: pointer;
   }
   .md-tag-chip:hover {
-    background: color-mix(in srgb, #d5a700 16%, var(--bg-hex-fff8e6));
+    background: color-mix(in srgb, var(--border-hex-e8c547) 16%, var(--bg-hex-fff8e6));
   }
   /* Pill-shaped inline editor: the chip keeps its shape, no Save/Cancel buttons. */
   .md-tag-pill-editor {
@@ -5031,11 +5026,6 @@
     background: transparent;
     color: inherit;
     font: inherit;
-  }
-  [data-theme="dark"] .tags-popover .md-tag-pill-editor {
-    border-color: #ddb94a;
-    background: #29251a;
-    color: #e7c258;
   }
   .md-tag-chip-del {
     display: inline-grid;
@@ -5074,21 +5064,21 @@
     outline: none;
   }
   .md-tag-entry-row input:focus {
-    border-color: #8191f0;
-    box-shadow: 0 0 0 2px #576ae04d;
+    border-color: var(--border-hex-8191f0);
+    box-shadow: 0 0 0 2px var(--shadow-rgba-accent-30);
   }
   .md-tag-entry-add {
     height: 34px;
     padding: 0 11px;
     border: 0;
     border-radius: 6px;
-    background: #576ae0;
-    color: #fff;
+    background: var(--bg-accent);
+    color: var(--fg-on-emphasis);
     font-size: 12px;
     cursor: pointer;
   }
   .md-tag-entry-add:hover {
-    background: #687be8;
+    background: var(--bg-accent-emphasis);
   }
   .md-tag-entry-cancel {
     height: 34px;

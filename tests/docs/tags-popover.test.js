@@ -280,3 +280,73 @@ describe('tags popover interactions', () => {
     expect(document.activeElement).toBe(button());
   });
 });
+
+describe('tags popover edge cases', () => {
+  const proto = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value');
+
+  function typeInto(input, text) {
+    proto.set.call(input, text);
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
+  it('renders a very long tag next to normal ones and stays open', async () => {
+    await act(async () => {
+      seedEntry('doc1', [
+        { key: 't1', value: 'J'.repeat(64) },
+        { key: 't2', value: 'Auth' },
+      ]);
+      notifyState();
+    });
+    await openPopover();
+    const chips = [...popover().querySelectorAll('.md-tag-chip')];
+    expect(chips).toHaveLength(2);
+    expect(popover()).not.toBeNull();
+  });
+
+  it('Enter with a blank input attaches nothing', async () => {
+    await openPopover();
+    const input = popover().querySelector('.md-tag-entry-row input');
+    await act(async () => {
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    });
+    expect(tagAttach).not.toHaveBeenCalled();
+    expect(popover()).not.toBeNull();
+  });
+
+  it('adds twice in a row: the input clears and refocuses between adds', async () => {
+    await openPopover();
+    const input = () => popover().querySelector('.md-tag-entry-row input');
+    await act(async () => {
+      typeInto(input(), 'One');
+    });
+    await act(async () => {
+      input().dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    });
+    await act(async () => {
+      typeInto(input(), 'Two');
+    });
+    await act(async () => {
+      input().dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    });
+    expect(tagAttach).toHaveBeenCalledTimes(2);
+    expect(tagAttach).toHaveBeenNthCalledWith(1, 'doc1', { value: 'One' });
+    expect(tagAttach).toHaveBeenNthCalledWith(2, 'doc1', { value: 'Two' });
+    expect(popover()).not.toBeNull();
+  });
+
+  it('reopens cleanly after closing: state resets and chips render again', async () => {
+    await openPopover();
+    await act(async () => {
+      popover().querySelector('.md-tag-chip').click();
+    });
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    });
+    expect(popover()).toBeNull();
+    await openPopover();
+    expect(popover().querySelector('.md-tag-pill-editor')).toBeNull();
+    const chips = [...popover().querySelectorAll('.md-tag-chip')].map((c) => c.textContent);
+    expect(chips).toEqual(['🏷 JWT', '🏷 Auth']);
+    expect(popover().querySelector('.md-tag-entry-row input').value).toBe('');
+  });
+});

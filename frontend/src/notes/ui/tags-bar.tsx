@@ -100,6 +100,16 @@ export function NotesTagsBar() {
     closeTagsPopover();
   }, [entry?._id || entry?.id]);
 
+  // A closed popover reopens clean: no half-finished edit or draft left behind.
+  useEffect(() => {
+    if (open) return;
+    setEditingIndex(null);
+    setAddValue('');
+    setAddPreview('');
+    setEditValue('');
+    setEditError('');
+  }, [open]);
+
   useEffect(() => {
     if (!open) return undefined;
     const onKey = (event: KeyboardEvent) => {
