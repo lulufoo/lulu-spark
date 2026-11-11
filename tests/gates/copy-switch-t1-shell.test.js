@@ -16,6 +16,7 @@ const indexHtml = [
   helpMenuSrc,
   readFileSync(join(repoRoot, 'frontend/src/shared/home-mark.tsx'), 'utf8'),
   readFileSync(join(repoRoot, 'frontend/src/notes/page.tsx'), 'utf8'),
+  readFileSync(join(repoRoot, 'frontend/src/notes/ui/notes-frame.tsx'), 'utf8'),
   readFileSync(join(repoRoot, 'frontend/src/notes/ui/sidebar.tsx'), 'utf8'),
   readFileSync(join(repoRoot, 'frontend/src/notes/ui/search.tsx'), 'utf8'),
 ].join('\n');
@@ -80,7 +81,9 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
       /className="page-toolbar notes-page-toolbar"[\s\S]*hidden=\{showOutlet\}[\s\S]*<NotesDateHeading text=\{headingText\} hint=\{headingIsHint\} \/>[\s\S]*<NotesSearchButton onOpen=\{search\.openSearch\} \/>/,
     );
     expect(notesPage).toMatch(/className="page-toolbar notes-page-toolbar"/);
-    expect(notesPage).toMatch(/id="md-header" className="viewer-header" data-tauri-drag-region="deep"/);
+    expect(notesPage).toMatch(
+      /id="md-header"[\s\S]*?className=\{creating \? 'viewer-header is-create' : 'viewer-header'\}[\s\S]*?data-tauri-drag-region="deep"/,
+    );
     expect(notesPage).not.toMatch(/KnowledgeSearchHost/);
     expect(css).not.toMatch(/#knowledge-panel/);
     expect(css).toMatch(/\.notes-page-toolbar,[\s\S]*?#md-header\.viewer-header,[\s\S]*?-webkit-app-region: drag;/);
@@ -102,7 +105,8 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
     expect(css).toMatch(/#md-header\.viewer-header \{[\s\S]*?padding: 0 24px;/);
     expect(css).not.toMatch(/\.viewer-panel-title \{\s*display:\s*none/);
     const notesSidebar = readFileSync(join(repoRoot, 'frontend/src/notes/ui/sidebar.tsx'), 'utf8');
-    expect(notesSidebar).toMatch(/<WindowDragStrip>\s*<PageBackHome \/>\s*<\/WindowDragStrip>/);
+    const notesFrame = readFileSync(join(repoRoot, 'frontend/src/notes/ui/notes-frame.tsx'), 'utf8');
+    expect(notesFrame).toMatch(/<WindowDragStrip>[\s\S]*<PageBackHome \/>[\s\S]*<\/WindowDragStrip>/);
     expect(css).toMatch(/\.kb-reader-header\.viewer-header \{[\s\S]*?padding-left: 24px;/);
     expect(css).toMatch(/\.kb-reader-header\.viewer-header \{[\s\S]*?overflow: visible;/);
     expect(css).toMatch(/\.kb-reader \{[\s\S]*?overflow: visible;/);

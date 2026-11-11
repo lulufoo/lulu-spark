@@ -98,6 +98,20 @@
   padding-right: 0;
   padding-left: 0;
 }
+.sidebar-layout-tool .window-drag-strip.is-chrome {
+  padding-right: var(--notes-rail);
+}
+.sidebar-layout-tool .window-drag-strip .page-back-home {
+  padding-right: 0;
+  padding-left: 0;
+}
+.sidebar-tool-pair {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
 
   /* ── Header ── */
   header {
@@ -608,6 +622,49 @@
     max-width: 100%;
     flex: 1 1 auto !important;
     flex-basis: auto !important;
+  }
+  .notes-view {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+  }
+  .notes-view[hidden] {
+    display: none !important;
+  }
+  .sidebar-layout-header {
+    display: flex;
+  }
+  .notes-header-slot {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+  }
+  .notes-header-slot > .notes-page-toolbar,
+  .notes-header-slot > #md-header {
+    flex: 1;
+    min-width: 0;
+    width: 100%;
+  }
+  #md-header[hidden] {
+    display: none !important;
+  }
+  .sidebar-layout-content > #main {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    min-width: 0;
+    padding: 0;
+    overflow: hidden;
+  }
+  .sidebar-layout-content > #main .doc-list {
+    padding: 0 24px 20px;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
   }
   .sidebar-layout-content {
     grid-column: 2;
@@ -3769,6 +3826,7 @@
   /* create chrome: hide persisted entry chrome; keep close + body editor */
   /* .viewer-modal.is-create kept as alias until T10 retires Dialog AC-gate */
   #note-outlet.is-create .viewer-chrome-persisted,
+  #md-header.is-create .viewer-chrome-persisted,
   .viewer-modal.is-create .viewer-chrome-persisted {
     display: none !important;
   }
@@ -3890,7 +3948,8 @@
   #md-lang-bar {
     margin-right: 10px;
   }
-  #note-outlet #md-file-size {
+  #note-outlet #md-file-size,
+  .notes-header-slot #md-file-size {
     font-size: 11px !important;
     color: var(--fg-subtle) !important;
     letter-spacing: 0.01em;

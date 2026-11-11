@@ -1,7 +1,17 @@
-const STORAGE_KEY = 'cta_sidebar_width';
-const DEFAULT_WIDTH = 221;
-const MIN_WIDTH = 180;
-const MAX_WIDTH = 400;
+import {
+  NOTES_SIDEBAR_DEFAULT_WIDTH,
+  NOTES_SIDEBAR_MAX_WIDTH,
+  NOTES_SIDEBAR_MIN_WIDTH,
+  NOTES_SIDEBAR_WIDTH_KEY,
+  notesSidebarWidthStore,
+  readNotesSidebarWidth,
+  rememberNotesSidebarWidth,
+} from '../state/sidebar-width.ts';
+
+const STORAGE_KEY = NOTES_SIDEBAR_WIDTH_KEY;
+const DEFAULT_WIDTH = NOTES_SIDEBAR_DEFAULT_WIDTH;
+const MIN_WIDTH = NOTES_SIDEBAR_MIN_WIDTH;
+const MAX_WIDTH = NOTES_SIDEBAR_MAX_WIDTH;
 
 type DragState = {
   aside: HTMLElement;
@@ -14,21 +24,29 @@ type DragState = {
 let _cleanup: (() => void) | null = null;
 let _dragState: DragState | null = null;
 
-function setSidebarWidth(aside: HTMLElement, px: number) {
+function paintSidebarWidth(aside: HTMLElement, px: number) {
   const w = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, px));
   aside.style.setProperty('--sidebar-width', `${w}px`);
   aside.style.width = `${w}px`;
   aside.style.flexBasis = `${w}px`;
+  const root = aside.closest('.sidebar-layout');
+  if (root instanceof HTMLElement) root.style.setProperty('--sidebar-layout-width', `${w}px`);
+  return w;
+}
+
+function setSidebarWidth(aside: HTMLElement, px: number) {
+  const w = paintSidebarWidth(aside, px);
+  notesSidebarWidthStore.set(w);
   return w;
 }
 
 function persistSidebarWidth(px: number) {
-  globalThis.localStorage?.setItem?.(STORAGE_KEY, String(px));
+  rememberNotesSidebarWidth(px);
 }
 
 function onPointerMove(e: PointerEvent) {
   if (!_dragState) return;
-  const next = setSidebarWidth(_dragState.aside, _dragState.startWidth + (e.clientX - _dragState.startX));
+  const next = paintSidebarWidth(_dragState.aside, _dragState.startWidth + (e.clientX - _dragState.startX));
   _dragState.lastWidth = next;
 }
 
@@ -65,11 +83,11 @@ export function attachNotesSidebarResize(aside: HTMLElement | null = document.ge
     aside.appendChild(resizer);
   }
 
-  const saved = parseInt(globalThis.localStorage?.getItem?.(STORAGE_KEY) ?? '', 10);
-  setSidebarWidth(aside, Number.isFinite(saved) ? saved : DEFAULT_WIDTH);
+  setSidebarWidth(aside, readNotesSidebarWidth());
 
   const onPointerDown = (e: PointerEvent) => {
     if (e.button !== 0) return;
+    if (aside.closest('.sidebar-layout')?.getAttribute('data-collapsed') === 'true') return;
     e.preventDefault();
     e.stopPropagation();
     const startWidth = aside.getBoundingClientRect().width;

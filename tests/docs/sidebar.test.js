@@ -125,16 +125,12 @@ describe('selectTopic', () => {
 });
 
 describe('sidebar header', () => {
-  it.each(['timeline', 'directory'])('%s view: lower content can hide independently of the back toolbar', (mode) => {
+  it.each(['timeline', 'directory'])('%s view: the nav block is separate from the back toolbar', (mode) => {
     seedWorkspaces(mode);
     act(() => renderSidebar());
     const lower = sidebarEl().querySelector('[data-sidebar-content]');
-    lower.hidden = true;
     expect(lower.querySelector('#sidebar-workspace-title')).not.toBeNull();
-    const toolbar = sidebarEl().querySelector('.window-drag-strip');
-    expect(toolbar.parentElement).toBe(sidebarEl());
-    expect(toolbar.closest('[hidden]')).toBeNull();
-    expect(toolbar.querySelector('a[href="#/home"]')).not.toBeNull();
+    expect(sidebarEl().querySelector('.window-drag-strip')).toBeNull();
   });
 
   it.each(['timeline', 'directory'])('%s view: the workspace row has no "+"; New document lives on the page', (mode) => {

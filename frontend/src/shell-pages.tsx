@@ -1,7 +1,8 @@
 import type { CSSProperties } from 'react';
 import { useHostState } from './host/state.ts';
 import { HomePage } from './home/page.tsx';
-import { NotesMain, NotesSidebar } from './notes/page.tsx';
+import { NotesFrame } from './notes/ui/notes-frame.tsx';
+import { NotesMain } from './notes/page.tsx';
 import { openReadLaterDialog } from './read-later/commands/dialog.ts';
 import { navigate } from './router/index.ts';
 
@@ -33,21 +34,10 @@ export function ShellPages({
       >
         {homeOn ? <HomePage navigate={navigate} openReadLater={openReadLaterDialog} /> : null}
       </div>
-      <div
-        className="layout"
-        data-active-date={host.ui.activeDate || ''}
-        style={notesOn ? undefined : { display: 'none' }}
-      >
-        <aside id="sidebar">
-          <NotesSidebar />
-        </aside>
-        <main id="main">
+      <div className="notes-view" hidden={!notesOn}>
+        <NotesFrame activeDate={host.ui.activeDate || ''}>
           <NotesMain routeParams={routeParams} active={notesOn} />
-          <div
-            id="feed-view"
-            style={{ display: 'none', padding: '20px', overflowY: 'auto', height: '100%', boxSizing: 'border-box' }}
-          />
-        </main>
+        </NotesFrame>
       </div>
     </div>
   );
