@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, type ReactNode } from 'react';
 import { SidebarToggle } from './sidebar-toggle.tsx';
+import { useNativeMacFullscreen } from './native-fullscreen.ts';
 
 type SidebarLayoutProps = {
   collapsed: boolean;
@@ -39,6 +40,7 @@ export function SidebarLayout({
   resizer,
 }: SidebarLayoutProps) {
   const rootRef = useRef<HTMLDivElement>(null);
+  const nativeFullscreen = useNativeMacFullscreen();
   const navRef = useRef<HTMLDivElement>(null);
   const wasCollapsedRef = useRef(collapsed);
   const moveFocusRef = useRef(false);
@@ -63,6 +65,7 @@ export function SidebarLayout({
       ref={rootRef}
       className="sidebar-layout"
       data-collapsed={collapsed ? 'true' : 'false'}
+      data-native-fullscreen={nativeFullscreen ? 'true' : 'false'}
       style={{ ['--sidebar-layout-width' as string]: width }}
     >
       <div className="sidebar-layout-tool" hidden={collapsed}>{tool}</div>
