@@ -158,6 +158,27 @@ describe('directory new folder', () => {
     await act(async () => root.unmount());
   });
 
+  it('a press on the menu keeps it open, and a press on another row closes it', async () => {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    await act(async () => root.render(createElement(Tree)));
+    const button = host.querySelector('[data-node="ideas/plans"] button');
+    await act(async () => {
+      button.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 12, clientY: 24 }));
+    });
+    expect(document.querySelector('[data-role="folder-menu"]')).not.toBeNull();
+    await act(async () => {
+      document.querySelector('[data-role="folder-menu"]').dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }));
+    });
+    expect(document.querySelector('[data-role="folder-menu"]')).not.toBeNull();
+    await act(async () => {
+      host.querySelector('[data-node="ideas/a"] button').dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }));
+    });
+    expect(document.querySelector('[data-role="folder-menu"]')).toBeNull();
+    await act(async () => root.unmount());
+  });
+
   it('a folder at the depth limit has no New folder menu', async () => {
     const host = document.createElement('div');
     document.body.appendChild(host);

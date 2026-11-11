@@ -65,8 +65,16 @@ export function FolderMenu() {
       event.preventDefault();
       closeFolderMenu();
     };
+    const onPointerDown = (event: PointerEvent) => {
+      if (targetElement(event.target)?.closest('[data-role="folder-menu"]')) return;
+      closeFolderMenu();
+    };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.removeEventListener('pointerdown', onPointerDown);
+    };
   }, [menu]);
 
   if (!menu) return null;
