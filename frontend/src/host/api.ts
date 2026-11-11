@@ -74,6 +74,7 @@ export {
   setConfig,
   setDone,
   setDocSourceType,
+  setDocTitle,
   setImportance,
   syncDocuments,
   cancelSyncDocuments,

@@ -7,6 +7,11 @@ import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { notifyState, state } from '../../frontend/src/host/state.ts';
 
+const { setDocTitle } = vi.hoisted(() => ({ setDocTitle: vi.fn() }));
+vi.mock('../../frontend/src/host/api.ts', async (importOriginal) => ({
+  ...(await importOriginal()), setDocTitle,
+}));
+
 vi.mock('../../frontend/src/notes/viewer.ts', () => ({
   closeModal: vi.fn(),
   enterEditMode: vi.fn(),
@@ -103,6 +108,8 @@ function installStorage() {
 
 beforeEach(() => {
   globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+  setDocTitle.mockReset().mockResolvedValue({ ok: true });
+  renderDocBody.mockReset();
   originalStorage = globalThis.localStorage;
   installStorage();
   sidebarCollapsedStore.set(false);
@@ -122,6 +129,70 @@ afterEach(() => {
 });
 
 describe('list and article sidebar collapse', () => {
+  it('scrolls the title and creation time with the article body while keeping the toolbar outside', () => {
+    state.viewer.outletMode = 'open';
+    state.viewer.entry = { id: 'n1', title: 'A title', created_at: '20250101120000', project_id: 'p', translations: {} };
+    state.viewer.rawText = 'A document';
+    mount({ note: 'n1' });
+
+    const reader = container.querySelector('.viewer-body');
+    const header = container.querySelector('#md-header');
+    const css = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '../../frontend/app.css'), 'utf8');
+    expect(css).toMatch(/\.viewer-body\s*\{[^}]*overflow-y:\s*auto;/);
+    expect(header).not.toBeNull();
+    expect(reader.contains(container.querySelector('[aria-label="Document title"]'))).toBe(true);
+    expect(reader.contains(container.querySelector('.notes-document-created'))).toBe(true);
+    expect(reader.contains(container.querySelector('#md-body'))).toBe(true);
+    expect(reader.contains(header)).toBe(false);
+  });
+
+  it('keeps the independent title available while editing the body', () => {
+    state.viewer.outletMode = 'open';
+    state.viewer.entry = { id: 'n1', title: 'A title', created_at: '20250101120000', project_id: 'p', translations: {} };
+    state.viewer.rawText = 'A document';
+    state.viewer.editing = true;
+    mount({ note: 'n1' });
+
+    const title = container.querySelector('[aria-label="Document title"]');
+    expect(title).not.toBeNull();
+    expect(title.closest('[hidden], [style*="display: none"]')).toBeNull();
+    expect(container.querySelector('#md-edit-area').style.display).not.toBe('none');
+  });
+
+  it('keeps the existing Sketch iframe mounted when a document title is saved', async () => {
+    const entry = { id: 'n1', title: 'Original', created_at: '20250101120000', project_id: 'p', translations: {} };
+    state.viewer.outletMode = 'open';
+    state.viewer.entry = entry;
+    state.viewer.rawText = 'hello sketch';
+    state.index.data = { n1: entry };
+    state.index.titleCache = new Map();
+    renderDocBody.mockImplementation(() => {
+      const frame = document.createElement('iframe');
+      frame.title = 'Embedded Sketch';
+      document.getElementById('md-body').appendChild(frame);
+    });
+    mount({ note: 'n1' });
+
+    const body = container.querySelector('#md-body');
+    const frame = body.querySelector('iframe');
+    const paints = renderDocBody.mock.calls.length;
+    const title = container.querySelector('[aria-label="Document title"]');
+    expect(frame).not.toBeNull();
+
+    act(() => {
+      title.focus();
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set.call(title, 'Edited title');
+      title.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await act(async () => title.blur());
+
+    expect(setDocTitle).toHaveBeenCalledWith('n1', 'Edited title');
+    expect(entry.title).toBe('Edited title');
+    expect(container.querySelector('#md-body')).toBe(body);
+    expect(body.querySelector('iframe')).toBe(frame);
+    expect(renderDocBody).toHaveBeenCalledTimes(paints);
+  });
+
   it('keeps the open article body and the saved width when the nav hides', () => {
     state.viewer.outletMode = 'open';
     state.viewer.entry = { id: 'n1', created_at: '20250101120000', project_id: 'p', translations: {} };

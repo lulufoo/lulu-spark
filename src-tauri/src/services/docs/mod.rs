@@ -42,7 +42,7 @@ pub use create::{create_doc, create_doc_content, create_titled_doc};
 pub use delete::delete_doc;
 pub use delete_project::delete_project;
 pub use delete_workspace::delete_workspace;
-pub use edit::set_source_type;
+pub use edit::{set_doc_title, set_source_type};
 pub use file_rename::rename_doc;
 pub use folder::{create_folder, delete_folder};
 pub use folder_rename::rename_folder;

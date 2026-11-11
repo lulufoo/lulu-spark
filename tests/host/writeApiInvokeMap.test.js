@@ -15,6 +15,7 @@ const P2_WRITE_PATHS = [
   '/api/set-done',
   '/api/set-importance',
   '/api/set-doc-source-type',
+  '/api/set-doc-title',
   '/api/read-later',
   '/api/tag/attach',
   '/api/tag/detach',
@@ -90,6 +91,7 @@ describe('writeApiInvokeMap', () => {
       '/api/reorder-comments',
       '/api/save',
       '/api/set-doc-source-type',
+      '/api/set-doc-title',
       '/api/set-done',
       '/api/set-importance',
       '/api/show-os-notification',
@@ -135,6 +137,11 @@ describe('writeApiInvokeMap', () => {
       cmd: 'set_doc_source_type',
       args: { id: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', sourceType: 'article' },
     });
+  });
+
+  it('passes the document id and title to the title command', () => {
+    expect(resolveWriteInvoke('/api/set-doc-title', { id: 'doc-id', title: 'New title' }))
+      .toEqual({ cmd: 'set_doc_title', args: { id: 'doc-id', title: 'New title' } });
   });
 
   it('resolveWriteInvoke maps set-done body to set_done command', () => {

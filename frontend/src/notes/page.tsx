@@ -16,6 +16,7 @@ import { NotesSidebar } from './ui/sidebar.tsx';
 import { useNotesHeaderSlot } from './ui/header-slot.tsx';
 import { NotesFrame } from './ui/notes-frame.tsx';
 import { NotesTagsBar, TagsToolbarButton } from './ui/tags-bar.tsx';
+import { NotesDocumentTitle } from './ui/document-title.tsx';
 import { copyNoteReference, openNoteInChat } from './commands/open-in-chat.ts';
 import type { HostNoteEntry } from '../host/state.ts';
 import { closeModal, enterEditMode, exitEditMode, saveDoc, switchLang } from './viewer.ts';
@@ -152,6 +153,7 @@ function NotesReaderBody() {
 
   return (
     <div className="viewer-body" style={creating || editing ? { display: 'none' } : undefined}>
+      {entry && !editing ? <NotesDocumentTitle key={getEntryId(entry) || ''} entry={entry} /> : null}
       <NotesCommentsBar key="comments" />
       <div id="md-body" key="md-body" ref={bodyRef} />
       <NotesDeleteZone key="delete" />
@@ -359,6 +361,7 @@ function NotesOutletChrome({ routeParams }: { routeParams: Record<string, string
         {mode === 'safe-empty' ? viewer.outletMessage : ''}
       </div>
       <div id="md-panel" className="viewer-panel" hidden={mode === 'safe-empty'}>
+        {entry && !creating && editing ? <NotesDocumentTitle key={getEntryId(entry) || ''} entry={entry} /> : null}
         <NotesLinksBar />
         <NotesTagsBar />
         <div id="md-content-row" className="viewer-content-row">

@@ -74,6 +74,7 @@ const TODO_TASK_CATEGORY_COMMANDS: &[&str] = &[
 
 const NOTE_WRITE_COMMANDS: &[&str] = &[
     "create_note",
+    "set_doc_title",
     "create_folder",
     "delete_folder",
     "rename_folder",
