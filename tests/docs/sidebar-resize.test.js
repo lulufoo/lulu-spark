@@ -92,6 +92,36 @@ describe('notes-sidebar-resize', () => {
     expect(localStorage.getItem(STORAGE_KEY)).toBe(String(221 + 40));
   });
 
+  it('paints the shared layout width from the same stored value', () => {
+    const root = document.createElement('div');
+    root.className = 'sidebar-layout';
+    root.appendChild(aside);
+    document.body.appendChild(root);
+    localStorage.setItem(STORAGE_KEY, '180');
+    attachNotesSidebarResize(aside);
+    expect(root.style.getPropertyValue('--sidebar-layout-width')).toBe('180px');
+    expect(aside.style.width).toBe('180px');
+    root.remove();
+  });
+
+  it('ignores a drag while the shared layout is collapsed', () => {
+    const root = document.createElement('div');
+    root.className = 'sidebar-layout';
+    root.setAttribute('data-collapsed', 'true');
+    root.appendChild(aside);
+    document.body.appendChild(root);
+    aside.getBoundingClientRect = () => ({ width: 180 });
+    localStorage.setItem(STORAGE_KEY, '180');
+    attachNotesSidebarResize(aside);
+    const resizer = root.querySelector('#sidebar-resizer');
+    resizer.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, clientX: 100, pointerId: 1 }));
+    document.dispatchEvent(new PointerEvent('pointermove', { clientX: 160, pointerId: 1 }));
+    document.dispatchEvent(new PointerEvent('pointerup', { clientX: 160, pointerId: 1 }));
+    expect(localStorage.getItem(STORAGE_KEY)).toBe('180');
+    expect(aside.style.width).toBe('180px');
+    root.remove();
+  });
+
   it('initSidebarResize rebinds after a first attach', () => {
     document.body.appendChild(aside);
     attachNotesSidebarResize(aside);

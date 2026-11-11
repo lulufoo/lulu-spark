@@ -64,6 +64,25 @@ describe('home-sidebar-resize', () => {
     expect(setHomeSidebarWidth(aside, MAX_WIDTH + 100)).toBe(MAX_WIDTH);
   });
 
+  it('paints the shared layout width and ignores a drag while collapsed', () => {
+    const root = document.createElement('div');
+    root.className = 'sidebar-layout';
+    root.setAttribute('data-collapsed', 'true');
+    root.appendChild(aside);
+    document.body.appendChild(root);
+    localStorage.setItem(STORAGE_KEY, '180');
+    aside.getBoundingClientRect = () => ({ width: 180 });
+    attachHomeSidebarResize(aside);
+    expect(root.style.getPropertyValue('--sidebar-layout-width')).toBe('180px');
+    const resizer = root.querySelector('.home-chat-sidebar-resizer');
+    resizer.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, clientX: 40, pointerId: 1 }));
+    document.dispatchEvent(new PointerEvent('pointermove', { clientX: 120, pointerId: 1 }));
+    document.dispatchEvent(new PointerEvent('pointerup', { clientX: 120, pointerId: 1 }));
+    expect(localStorage.getItem(STORAGE_KEY)).toBe('180');
+    expect(aside.style.width).toBe('180px');
+    root.remove();
+  });
+
   it('persists width after drag ends', () => {
     aside.getBoundingClientRect = () => ({ width: 248 });
     attachHomeSidebarResize(aside);

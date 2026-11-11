@@ -134,7 +134,7 @@ describe('Home sidebar tabs', () => {
 
   it('keeps the sidebar resize handle', async () => {
     await mountReady();
-    expect(container.querySelector('.home-chat-sidebar > .home-chat-sidebar-resizer.sidebar-resizer')).not.toBeNull();
+    expect(container.querySelector('.sidebar-layout > .home-chat-sidebar-resizer.sidebar-resizer')).not.toBeNull();
   });
 
   it('keeps the original toolbar usable when the lower sidebar is hidden', async () => {

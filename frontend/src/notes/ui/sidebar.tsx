@@ -7,12 +7,10 @@ import { closeFloatingListSelect, createFloatingListSelect } from '../../shared/
 import { applyListFilters, buildGroups, selectDate, selectTopic } from '../commands/sidebar.ts';
 import { enterProject } from '../commands/restore.ts';
 import { isTimelineView } from '../commands/workspace.ts';
-import { PageBackHome } from '../../shared/home-mark.tsx';
-import { WindowDragStrip } from '../../shared/window-drag-strip.tsx';
+import { attachNotesSidebarResize } from './sidebar-resize.ts';
 import { DirTree } from './dir-tree.tsx';
 import { FolderMenu, onDirectoryBackgroundClick, onDirectoryBackgroundMenu } from './folder-menu.tsx';
 import { ProjectPicker } from './project-picker.tsx';
-import { attachNotesSidebarResize } from './sidebar-resize.ts';
 
 export { applyListFilters, buildGroups, selectDate, selectTopic };
 
@@ -92,7 +90,7 @@ function DateTabInner({
   );
 }
 
-export function NotesSidebar() {
+export function NotesSidebar({ collapsed = false }: { collapsed?: boolean }) {
   const host = useHostState();
   const channelRef = useRef<HTMLDivElement | null>(null);
   const data = host.index.data;
@@ -125,9 +123,6 @@ export function NotesSidebar() {
 
   return (
     <>
-      <WindowDragStrip>
-        <PageBackHome />
-      </WindowDragStrip>
       <div className="sidebar-inner" data-sidebar-content>
         <div className="sidebar-workspace-row">
           <div id="sidebar-workspace-title" className="sidebar-workspace-title" data-tip={workspaceName} data-tip-truncated>
@@ -169,14 +164,6 @@ export function NotesSidebar() {
           </div>
         )}
       </div>
-      <div
-        id="sidebar-resizer"
-        className="sidebar-resizer"
-        role="separator"
-        aria-orientation="vertical"
-        aria-label="Resize sidebar"
-        tabIndex={0}
-      />
     </>
   );
 }

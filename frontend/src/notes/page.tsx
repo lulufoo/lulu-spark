@@ -1,4 +1,5 @@
-import { useEffect, useLayoutEffect, useRef, useSyncExternalStore } from 'react';
+import { useEffect, useLayoutEffect, useRef, useSyncExternalStore, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { createRoot, type Root } from 'react-dom/client';
 import { flushSync } from 'react-dom';
 import { getEntryId } from '../host/state.ts';
@@ -12,6 +13,8 @@ import { categoryLabel, docCategoryCatalogStore } from '../host/doc-categories-c
 import { openSourceTypePicker } from './commands/cards.ts';
 import { NotesLinksBar } from './ui/links-bar.tsx';
 import { NotesSidebar } from './ui/sidebar.tsx';
+import { useNotesHeaderSlot } from './ui/header-slot.tsx';
+import { NotesFrame } from './ui/notes-frame.tsx';
 import { NotesTagsBar } from './ui/tags-bar.tsx';
 import { copyNoteReference, openNoteInChat } from './commands/open-in-chat.ts';
 import type { HostNoteEntry } from '../host/state.ts';
@@ -31,6 +34,10 @@ import { selectDate } from './commands/sidebar.ts';
 import { entryGroupKey, isDirectoryView } from './commands/workspace.ts';
 
 export { NotesSidebar };
+
+function inHeaderSlot(slot: HTMLElement | null, node: ReactNode): ReactNode {
+  return slot ? createPortal(node, slot) : node;
+}
 
 function formatBytes(text: string) {
   const bytes = new Blob([text]).size;
@@ -180,17 +187,19 @@ function NotesOutletChrome({ routeParams }: { routeParams: Record<string, string
       ? dirKeyCrumbs(dateStr, host.index.topicTitles)
       : null;
 
+  const headerSlot = useNotesHeaderSlot();
+  const showHeader = mode === 'open' || mode === 'create';
+
   return (
     <>
-      <div
-        id="note-outlet-message"
-        className="note-outlet-message"
-        hidden={mode !== 'safe-empty'}
-      >
-        {mode === 'safe-empty' ? viewer.outletMessage : ''}
-      </div>
-      <div id="md-panel" className="viewer-panel" hidden={mode === 'safe-empty'}>
-        <div id="md-header" className="viewer-header" data-tauri-drag-region="deep">
+      {inHeaderSlot(
+        headerSlot,
+        <div
+          id="md-header"
+          className={creating ? 'viewer-header is-create' : 'viewer-header'}
+          hidden={!showHeader}
+          data-tauri-drag-region="deep"
+        >
           {crumbs ? (
             <nav className="viewer-panel-title viewer-panel-crumbs" aria-label="Folder">
               {crumbs.map((crumb, at) => (
@@ -339,7 +348,16 @@ function NotesOutletChrome({ routeParams }: { routeParams: Record<string, string
           </button>
           <OverlayDismissButton id="md-close" label="Close" onClick={() => void closeModal()} />
           </div>
-        </div>
+        </div>,
+      )}
+      <div
+        id="note-outlet-message"
+        className="note-outlet-message"
+        hidden={mode !== 'safe-empty'}
+      >
+        {mode === 'safe-empty' ? viewer.outletMessage : ''}
+      </div>
+      <div id="md-panel" className="viewer-panel" hidden={mode === 'safe-empty'}>
         <NotesLinksBar />
         <NotesTagsBar />
         <div id="md-content-row" className="viewer-content-row">
@@ -404,17 +422,21 @@ export function NotesMain({
     : notesDateHeadingText(date, group);
   const headingIsHint = !selectedHeading;
   const headingText = selectedHeading || emptySelectionHint();
+  const headerSlot = useNotesHeaderSlot();
 
   return (
     <>
-      <div
-        className="page-toolbar notes-page-toolbar"
-        hidden={showOutlet}
-        data-tauri-drag-region="deep"
-      >
-        <NotesDateHeading text={headingText} hint={headingIsHint} />
-        <NotesSearchButton onOpen={search.openSearch} />
-      </div>
+      {inHeaderSlot(
+        headerSlot,
+        <div
+          className="page-toolbar notes-page-toolbar"
+          hidden={showOutlet}
+          data-tauri-drag-region="deep"
+        >
+          <NotesDateHeading text={headingText} hint={headingIsHint} />
+          <NotesSearchButton onOpen={search.openSearch} />
+        </div>,
+      )}
       <button
         type="button"
         className="notes-new-fab"
@@ -463,13 +485,10 @@ export function NotesMain({
 
 export function NotesPage({ routeParams }: { routeParams: Record<string, string> }) {
   return (
-    <>
-      <NotesSidebar />
-      <main id="main">
-        <NotesMain routeParams={routeParams} />
-      </main>
+    <NotesFrame>
+      <NotesMain routeParams={routeParams} />
       <CreateTargetDialog />
-    </>
+    </NotesFrame>
   );
 }
 
