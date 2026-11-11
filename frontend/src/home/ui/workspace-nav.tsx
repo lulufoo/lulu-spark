@@ -1,7 +1,8 @@
-import { useId } from 'react';
+import { useEffect, useId, useRef } from 'react';
 import { defaultWorkspaceIconName, HomeNavIcon } from './nav-icons.tsx';
 import { Icon } from '../../shared/icons/icon.tsx';
 import { DEFAULT_PROJECT_ICON_ID, getIcon } from '../../shared/icons/index.ts';
+import { attachOverlayScrollbar } from '../../shared/overlay-scrollbar.ts';
 import type { HomeProject } from '../state/store.ts';
 
 export type HomeWorkspaceRow = {
@@ -53,8 +54,14 @@ export function HomeWorkspaceNav({
   onOpenProject,
 }: Props) {
   const navId = useId();
+  const listRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el) return undefined;
+    return attachOverlayScrollbar(el);
+  }, []);
   return (
-    <div className="home-nav-workspaces" data-home-nav-list="workspace">
+    <div ref={listRef} className="home-nav-workspaces" data-home-nav-list="workspace">
       {workspaces.map((row) => {
         const list = projects[row.id] ?? [];
         const expanded = expandedWorkspaceIds.includes(row.id);
