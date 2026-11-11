@@ -994,6 +994,13 @@
   .topic-filter {
     padding: 8px var(--notes-rail) 6px;
   }
+  .topic-select .list-select-trigger {
+    min-height: 36px;
+  }
+  .topic-select .list-select-label {
+    font-size: 14px;
+    font-weight: 300;
+  }
   .topic-count {
     font-size: 11px;
     color: var(--fg-muted);
@@ -1011,9 +1018,10 @@
   .sidebar-workspace-title {
     flex: 1;
     min-width: 0;
-    padding: 10px var(--notes-rail) 2px;
+    padding: 0 var(--notes-rail) 2px;
     font-size: 13px;
     font-weight: 600;
+    line-height: 1;
     color: var(--fg-emphasis);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -6807,10 +6815,9 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   flex-shrink: 0;
   position: relative;
   z-index: 2;
-  padding: 8px 16px 16px;
+  padding: 8px var(--notes-rail) 6px;
   font-size: 14px;
   font-weight: 300;
-  border-bottom: 1px solid var(--border-muted);
   color: var(--fg-default);
   background: var(--bg-surface);
 }
