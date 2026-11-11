@@ -45,18 +45,28 @@ describe('T6 source: open/create entries → navigate-to-note (no modal.display 
   const modalJs = read('frontend/src/shared/search-modal/search-modal.tsx');
   const cardsJs = read('frontend/src/notes/ui/cards.tsx');
   const assistantJs = read('frontend/src/notes/ui/assistant.tsx');
+  const openEntryJs = read('frontend/src/notes/commands/open-entry.ts');
 
-  it('imports navigateToNote and uses it from cta:open-entry listener', () => {
-    expect(mainJs).toMatch(/navigateToNote/);
+  it('opens entries through openIndexEntry: enterDocProject + navigateToNote, no openDoc path', () => {
+    // The listener delegates to the command module; the navigation itself lives there.
+    expect(mainJs).toMatch(/openIndexEntry/);
     expect(mainJs).toMatch(
-      /import\s*\{[^}]*navigateToNote[^}]*\}\s*from\s*['"]\.\/router\/index\.(js|ts)['"]/,
+      /import\s*\{[^}]*openIndexEntry[^}]*\}\s*from\s*['"]\.\/notes\/commands\/open-entry\.(js|ts)['"]/,
     );
     const listenerStart = mainJs.indexOf("addEventListener('cta:open-entry'");
     expect(listenerStart).toBeGreaterThan(-1);
     const listenerSlice = mainJs.slice(listenerStart, listenerStart + 1600);
-    expect(listenerSlice).toMatch(/enterDocProject\s*\(/);
-    expect(listenerSlice).toMatch(/navigateToNote\s*\(/);
+    expect(listenerSlice).toMatch(/openIndexEntry\s*\(/);
     expect(listenerSlice).not.toMatch(/openDoc\s*\(/);
+    // The command module carries the T6 contract: pick the entry, reveal its group,
+    // navigate the router to the note. No modal.display, no openDoc half-switch.
+    expect(openEntryJs).toMatch(
+      /import\s*\{[^}]*navigateToNote[^}]*\}\s*from\s*['"]\.\.\/\.\.\/router\/index\.(js|ts)['"]/,
+    );
+    expect(openEntryJs).toMatch(/enterDocProject\s*\(/);
+    expect(openEntryJs).toMatch(/navigateToNote\s*\(/);
+    expect(openEntryJs).not.toMatch(/openDoc\s*\(/);
+    expect(openEntryJs).not.toMatch(/modal\.display|display\s*=\s*['"]flex['"]/);
   });
 
   it('cta:open-entry path does not imply modal.display / half-switch openDoc-then-hash', () => {
