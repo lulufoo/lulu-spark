@@ -47,7 +47,10 @@ export async function refreshTagDisplayGlobally() {
       state.index.annotations = summary as Record<string, HostIndexAnnotation>;
       mergeAnnotations(state.index.data, summary);
       applyListFilters();
-      if (state.index.filteredGroups.length > 0 && state.ui.activeDate) {
+      // An open document stays open: re-picking the date here would throw the
+      // reader back to the list. The in-memory list is already refreshed above.
+      const reading = state.viewer.entry && state.viewer.outletMode === 'open';
+      if (!reading && state.index.filteredGroups.length > 0 && state.ui.activeDate) {
         const still = state.index.filteredGroups.some((g) => g.date === state.ui.activeDate);
         if (still) selectDate(state.ui.activeDate);
         else selectDate(state.index.filteredGroups[0].date);

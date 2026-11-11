@@ -26,6 +26,8 @@ vi.mock('../../frontend/src/router/index.ts', () => ({
 }));
 
 const { notifyState, state } = await import('../../frontend/src/host/state.ts');
+const { applyListFilters } = await import('../../frontend/src/notes/commands/sidebar.ts');
+const { buildGroups } = await import('../../frontend/src/notes/commands/sidebar.ts');
 const { closeTagsPopover, NotesTagsBar, TagsToolbarButton } = await import('../../frontend/src/notes/ui/tags-bar.tsx');
 
 const popover = () => document.querySelector('[data-role="tags-popover"]');
@@ -348,5 +350,37 @@ describe('tags popover edge cases', () => {
     const chips = [...popover().querySelectorAll('.md-tag-chip')].map((c) => c.textContent);
     expect(chips).toEqual(['🏷 JWT', '🏷 Auth']);
     expect(popover().querySelector('.md-tag-entry-row input').value).toBe('');
+  });
+
+  it('adding a tag while reading keeps the document open instead of jumping to the list', async () => {
+    state.viewer.outletMode = 'open';
+    state.ui.activeDate = '20260710';
+    state.workspaces = {
+      current: 'default',
+      list: [{ workspace_id: 'default', workspace_name: 'Default', view_mode: 'timeline', is_default: true }],
+    };
+    state.index.data = {
+      a: { id: 'a', _id: 'a', project_id: 'kotlin', raw_path: 'a.md', created_at: '202607101200' },
+    };
+    state.ui.activeTopic = 'kotlin';
+    state.index.groupedByDate = buildGroups(state.index.data);
+    await act(async () => {
+      applyListFilters();
+    });
+    const summary = { a: { tags: [{ key: 't1', value: 'JWT' }] } };
+    fetchAnnotationsSummary.mockResolvedValue(summary);
+    await openPopover();
+    const input = popover().querySelector('.md-tag-entry-row input');
+    const proto = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value');
+    await act(async () => {
+      proto.set.call(input, 'JWT');
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await act(async () => {
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    });
+    expect(state.viewer.entry).not.toBeNull();
+    expect(state.viewer.entry.id).toBe('doc1');
+    expect(state.viewer.outletMode).toBe('open');
   });
 });
