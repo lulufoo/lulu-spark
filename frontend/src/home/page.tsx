@@ -68,6 +68,11 @@ import { ThinkingFold } from './ui/thinking.tsx';
 import { ChatWelcome } from './ui/welcome.tsx';
 import { openSettingsDialog } from '../app-shell/ui/settings/dialog.tsx';
 import { WindowDragStrip } from '../shared/window-drag-strip.tsx';
+import { restoreSidebarCollapsed, toggleSidebarCollapsed } from '../app-shell/commands/sidebar-collapsed.ts';
+import { sidebarCollapsedStore } from '../app-shell/state/sidebar-collapsed.ts';
+import { SidebarLayout } from '../app-shell/ui/sidebar-layout.tsx';
+import { SidebarToggle } from '../app-shell/ui/sidebar-toggle.tsx';
+import { homeSidebarWidthStore, readHomeSidebarWidth } from './state/sidebar-width.ts';
 import { TopActions } from './ui/top-actions.tsx';
 
 export type HomePageChrome = {
@@ -192,6 +197,14 @@ export function HomePage({
   const [searchOpen, setSearchOpen] = useState(false);
   const imeEnterRef = useRef(createImeEnterGuard());
   const sidebarRef = useRef<HTMLElement | null>(null);
+  const collapsed = useSyncExternalStore(
+    sidebarCollapsedStore.subscribe,
+    sidebarCollapsedStore.getSnapshot,
+  );
+  const sidebarWidth = useSyncExternalStore(
+    homeSidebarWidthStore.subscribe,
+    homeSidebarWidthStore.getSnapshot,
+  );
   const sessionListRef = useRef<HTMLDivElement | null>(null);
   const lastPaintKeyRef = useRef('');
   const mdPaintGenRef = useRef(0);
@@ -245,6 +258,11 @@ export function HomePage({
   useEffect(() => {
     const guard = imeEnterRef.current;
     return () => guard.dispose();
+  }, []);
+
+  useLayoutEffect(() => {
+    homeSidebarWidthStore.set(readHomeSidebarWidth());
+    restoreSidebarCollapsed();
   }, []);
 
   useEffect(() => {
@@ -383,21 +401,45 @@ export function HomePage({
 
   return (
     <div className="home-chat">
-      <aside ref={sidebarRef} className="home-chat-sidebar">
-        <WindowDragStrip>
-          <TopActions
-            readLaterUnread={state.channelUnread.read_later}
-            onReadLater={() => {
-              void markHomeEntryRead('read-later');
-              goReadLater(navigateFn, openReadLater);
-            }}
-            onSettings={() => {
-              void openSettingsDialog();
-            }}
-          />
-        </WindowDragStrip>
-        <div className="home-chat-sidebar-content" data-sidebar-content>
-          <SidebarTabs pane={sidebarPane} onChange={setSidebarPane} onSearch={() => setSearchOpen(true)} />
+      <SidebarLayout
+        collapsed={collapsed}
+        width={`${sidebarWidth}px`}
+        navId="home-sidebar-nav"
+        tool={(
+          <div className="home-sidebar-tool">
+            <WindowDragStrip>
+              <span className="sidebar-tool-pair">
+                <SidebarToggle
+                  collapsed={collapsed}
+                  controlsId="home-sidebar-nav"
+                  onToggle={toggleSidebarCollapsed}
+                />
+                <TopActions
+                  readLaterUnread={state.channelUnread.read_later}
+                  onReadLater={() => {
+                    void markHomeEntryRead('read-later');
+                    goReadLater(navigateFn, openReadLater);
+                  }}
+                  onSettings={() => {
+                    void openSettingsDialog();
+                  }}
+                />
+              </span>
+            </WindowDragStrip>
+          </div>
+        )}
+        header={(
+          <div className="home-chat-main-drag" data-tauri-drag-region="deep">
+            {currentSession ? (
+              <h1 className="home-chat-title">{sessionListLabel(currentSession)}</h1>
+            ) : null}
+            <SessionMenu sessionId={state.currentSessionId} onCopy={copyCurrentSessionId} />
+          </div>
+        )}
+        nav={(
+          <aside ref={sidebarRef} className="home-chat-sidebar">
+            <div className="home-chat-sidebar-content" data-sidebar-content>
+              <SidebarTabs pane={sidebarPane} onChange={setSidebarPane} onSearch={() => setSearchOpen(true)} />
           <nav className="home-chat-nav" aria-label="Lulu Spark" hidden={sidebarPane !== 'home'}>
             <div className="home-chat-nav-group" data-home-nav-group="workspace">
               <div className="home-chat-nav-label">Workspace</div>
@@ -473,16 +515,14 @@ export function HomePage({
           role="separator"
           aria-orientation="vertical"
           aria-label="Resize sidebar"
-          tabIndex={0}
+          aria-disabled={collapsed ? true : undefined}
+          tabIndex={collapsed ? -1 : 0}
+          hidden={collapsed}
         />
-      </aside>
+          </aside>
+        )}
+      >
       <section className="home-chat-main">
-        <div className="home-chat-main-drag" data-tauri-drag-region="deep">
-          {currentSession ? (
-            <h1 className="home-chat-title">{sessionListLabel(currentSession)}</h1>
-          ) : null}
-          <SessionMenu sessionId={state.currentSessionId} onCopy={copyCurrentSessionId} />
-        </div>
         <div ref={messagesRef} className="home-chat-messages" data-role="messages" aria-live="polite">
           <MessageThread
             hostBound={state.hostBound}
@@ -545,6 +585,7 @@ export function HomePage({
           </div>
         </form>
       </section>
+      </SidebarLayout>
       <AboutDialog />
       <ApprovalDialog />
       <SearchModal

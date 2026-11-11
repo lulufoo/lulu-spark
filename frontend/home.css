@@ -23,6 +23,23 @@
   background: var(--bg-canvas);
   border-right-color: var(--border-muted);
 }
+.home-sidebar-tool {
+  display: flex;
+  height: 100%;
+  min-width: 0;
+  background: var(--bg-canvas);
+  border-right: 1px solid var(--border-muted);
+}
+.home-sidebar-tool > .window-drag-strip {
+  flex: 1;
+  min-width: 0;
+}
+.sidebar-layout-header > .home-chat-main-drag {
+  width: 100%;
+}
+.sidebar-layout-content > .home-chat-main {
+  height: 100%;
+}
 .home-chat-nav { border-bottom: none; padding-top: 4px; }
 .home-chat-nav-label {
   font-size: 11px;
