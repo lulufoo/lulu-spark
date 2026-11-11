@@ -77,6 +77,7 @@ const CREATE_CHROME_HIDDEN_IDS = [
   'md-file-size',
   'md-links-bar',
   'md-tags-bar',
+  'btn-doc-tags',
   'btn-copy-path',
   'btn-open-in-chat',
   'md-source-type',

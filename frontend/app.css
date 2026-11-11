@@ -4970,12 +4970,32 @@
     font-size: 13px;
   }
 
-  #md-tags-bar {
-    padding: 8px 20px;
-    border-bottom: 1px solid var(--border-default);
+  /* Tags popover: fixed under the toolbar tag button, right-aligned with it. */
+  .tags-popover {
+    position: fixed;
+    z-index: 40;
+    display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 4px 0;
+    gap: 8px;
+    width: 358px;
+    max-width: calc(100vw - 16px);
+    padding: 16px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-default);
+    border-radius: 10px;
+    box-shadow: 0 8px 24px var(--shadow-rgba-000000-08);
+  }
+  .tags-popover-title {
+    width: 100%;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  [data-theme="dark"] .tags-popover .md-tag-chip {
+    border-color: #ddb94a;
+    background: #29251a;
+    color: #e7c258;
   }
   .md-tag-chip {
     font-size: 12px;

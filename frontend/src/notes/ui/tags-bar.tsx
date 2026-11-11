@@ -1,4 +1,5 @@
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
+import { createPortal } from 'react-dom';
 import { notifyState, useHostState } from '../state/host.ts';
 import { TAG_VALUE_MAX_LEN } from '../../host/constants.ts';
 import { suggestTags } from '../commands/tag-suggest.ts';
@@ -9,27 +10,79 @@ import {
   refreshTagDisplayGlobally,
   updateNoteTagValue,
 } from '../commands/tags-bar.ts';
+import { tagsPopoverStore } from '../state/tags-popover.ts';
+import { ViewerHeaderIcon } from '../../shared/viewer-header-icons.tsx';
 
 export { refreshTagDisplayGlobally };
-
-const barStyle: CSSProperties = {
-  padding: '8px 20px',
-  borderBottom: '1px solid #d0d7de',
-  flexWrap: 'wrap',
-  alignItems: 'center',
-  gap: '4px 0',
-};
 
 /** Tests / leftover callers: refresh the React bar. Production reads useHostState. */
 export function renderTagsBar() {
   notifyState();
 }
 
-export function NotesTagsBar() {
+let popoverAnchor: HTMLElement | null = null;
+
+/** The popover is fixed and right-aligned with the toolbar button that opened it. */
+export function openTagsPopover(anchor: HTMLElement) {
+  popoverAnchor = anchor;
+  const rect = anchor.getBoundingClientRect();
+  tagsPopoverStore.set({
+    open: true,
+    top: rect.bottom + 6,
+    right: Math.max(8, Math.round(window.innerWidth - rect.right)),
+  });
+}
+
+export function closeTagsPopover(refocusEntry = false) {
+  if (!tagsPopoverStore.getSnapshot().open) return;
+  tagsPopoverStore.set({ open: false, top: 0, right: 0 });
+  popoverAnchor = null;
+  if (refocusEntry) document.getElementById('btn-doc-tags')?.focus();
+}
+
+function repositionTagsPopover() {
+  if (!popoverAnchor) return;
+  const rect = popoverAnchor.getBoundingClientRect();
+  tagsPopoverStore.set({
+    open: true,
+    top: rect.bottom + 6,
+    right: Math.max(8, Math.round(window.innerWidth - rect.right)),
+  });
+}
+
+/** Toolbar entry: the outlined tag icon. It replaces the tags bar row under the header. */
+export function TagsToolbarButton() {
   const host = useHostState();
   const entry = host.viewer.entry;
   const creating = Boolean(host.viewer.createSession);
-  const tags = entry?.tags || [];
+  const snap = useSyncExternalStore(tagsPopoverStore.subscribe, tagsPopoverStore.getSnapshot);
+  const visible = Boolean(entry) && !creating;
+  return (
+    <button
+      className="md-header-btn viewer-chrome-persisted"
+      id="btn-doc-tags"
+      type="button"
+      aria-label="Tags"
+      aria-haspopup="dialog"
+      aria-expanded={snap.open ? 'true' : 'false'}
+      data-tip="Tags"
+      style={{ display: visible ? undefined : 'none' }}
+      onClick={(event) => {
+        if (snap.open) closeTagsPopover();
+        else openTagsPopover(event.currentTarget);
+      }}
+    >
+      <ViewerHeaderIcon name="tag" />
+    </button>
+  );
+}
+
+export function NotesTagsBar() {
+  const host = useHostState();
+  const snap = useSyncExternalStore(tagsPopoverStore.subscribe, tagsPopoverStore.getSnapshot);
+  const entry = host.viewer.entry;
+  const creating = Boolean(host.viewer.createSession);
+  const open = snap.open && Boolean(entry) && !creating;
   const [adding, setAdding] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [addValue, setAddValue] = useState('');
@@ -46,12 +99,47 @@ export function NotesTagsBar() {
     setAddPreview('');
     setEditValue('');
     setEditError('');
+    closeTagsPopover();
   }, [entry?._id || entry?.id]);
 
-  if (!entry || creating) {
-    return <div id="md-tags-bar" className="viewer-chrome-persisted" style={{ display: 'none', ...barStyle }} />;
-  }
+  useEffect(() => {
+    if (!open) return undefined;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      closeTagsPopover(true);
+    };
+    const onPointerDown = (event: PointerEvent) => {
+      const el = event.target instanceof HTMLElement ? event.target : null;
+      if (!el || el.closest('[data-role="tags-popover"], #btn-doc-tags')) return;
+      closeTagsPopover();
+    };
+    // Cross-origin iframes (embedded Sketch) swallow pointer events, but stealing
+    // focus from the window still fires blur; close without touching the iframe.
+    const onBlur = () => closeTagsPopover();
+    const onResize = () => repositionTagsPopover();
+    window.addEventListener('keydown', onKey);
+    document.addEventListener('pointerdown', onPointerDown);
+    window.addEventListener('blur', onBlur);
+    window.addEventListener('resize', onResize);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.removeEventListener('pointerdown', onPointerDown);
+      window.removeEventListener('blur', onBlur);
+      window.removeEventListener('resize', onResize);
+    };
+  }, [open]);
 
+  useEffect(() => {
+    if (!open) return;
+    const popover = document.querySelector('[data-role="tags-popover"]');
+    const first = popover?.querySelector<HTMLElement>('button, input');
+    first?.focus();
+  }, [open]);
+
+  if (!open) return null;
+
+  const tags = entry?.tags || [];
   const suggestions = adding ? suggestTags(addValue, host.index.tagsRegistry) : [];
 
   async function onDetach(key?: string) {
@@ -100,17 +188,25 @@ export function NotesTagsBar() {
     void onAttach(existingKey ? { key: existingKey } : { value: trimmed });
   }
 
-  return (
-    <div id="md-tags-bar" className="viewer-chrome-persisted" style={{ display: 'flex', ...barStyle }}>
+  return createPortal(
+    <div
+      id="md-tags-bar"
+      data-role="tags-popover"
+      role="dialog"
+      aria-label="Tags"
+      className="tags-popover viewer-chrome-persisted"
+      style={{ top: snap.top, right: snap.right }}
+    >
+      <div className="tags-popover-title">Tags</div>
       {tags.map((tag, i) => (
         <span
           key={`${tag.key || tag.value || 'u'}-${i}`}
           className="md-tag-chip-wrap"
           data-tag-index={i}
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginRight: 10, flexShrink: 0 }}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginRight: 8, flexShrink: 0 }}
         >
           {editingIndex === i ? (
-            <span className="md-tag-edit-row" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginRight: 10, flexShrink: 0 }}>
+            <span className="md-tag-edit-row" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginRight: 8, flexShrink: 0 }}>
               <input
                 type="text"
                 value={editValue}
@@ -123,6 +219,7 @@ export function NotesTagsBar() {
                   }
                   if (e.key === 'Escape') {
                     e.preventDefault();
+                    e.stopPropagation();
                     setEditingIndex(null);
                   }
                 }}
@@ -252,6 +349,7 @@ export function NotesTagsBar() {
           ＋ Add tag
         </button>
       )}
-    </div>
+    </div>,
+    document.body,
   );
 }

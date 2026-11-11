@@ -15,7 +15,7 @@ import { NotesLinksBar } from './ui/links-bar.tsx';
 import { NotesSidebar } from './ui/sidebar.tsx';
 import { useNotesHeaderSlot } from './ui/header-slot.tsx';
 import { NotesFrame } from './ui/notes-frame.tsx';
-import { NotesTagsBar } from './ui/tags-bar.tsx';
+import { NotesTagsBar, TagsToolbarButton } from './ui/tags-bar.tsx';
 import { copyNoteReference, openNoteInChat } from './commands/open-in-chat.ts';
 import type { HostNoteEntry } from '../host/state.ts';
 import { closeModal, enterEditMode, exitEditMode, saveDoc, switchLang } from './viewer.ts';
@@ -299,6 +299,7 @@ function NotesOutletChrome({ routeParams }: { routeParams: Record<string, string
           >
             <ViewerHeaderIcon name="edit" />
           </button>
+          <TagsToolbarButton />
           <button
             className="md-header-btn viewer-chrome-persisted"
             id="btn-add-comment"
