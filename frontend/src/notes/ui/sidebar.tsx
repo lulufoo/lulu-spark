@@ -90,7 +90,7 @@ function DateTabInner({
   );
 }
 
-export function NotesSidebar({ collapsed = false }: { collapsed?: boolean }) {
+export function NotesSidebar(_props: { collapsed?: boolean }) {
   const host = useHostState();
   const channelRef = useRef<HTMLDivElement | null>(null);
   const data = host.index.data;
