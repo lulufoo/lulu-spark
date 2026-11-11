@@ -4970,12 +4970,27 @@
     font-size: 13px;
   }
 
-  #md-tags-bar {
-    padding: 8px 20px;
-    border-bottom: 1px solid var(--border-default);
+  /* Tags popover: fixed under the toolbar tag button, right-aligned with it. */
+  .tags-popover {
+    position: fixed;
+    z-index: 40;
+    display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 4px 0;
+    gap: 8px;
+    width: 358px;
+    max-width: calc(100vw - 16px);
+    padding: 16px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-default);
+    border-radius: 10px;
+    box-shadow: 0 8px 24px var(--shadow-rgba-000000-08);
+  }
+  .tags-popover-title {
+    width: 100%;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 4px;
   }
   .md-tag-chip {
     font-size: 12px;
@@ -4986,15 +5001,98 @@
     color: var(--fg-hex-6a4c00);
     cursor: pointer;
   }
+  .md-tag-chip:hover {
+    background: color-mix(in srgb, var(--border-hex-e8c547) 16%, var(--bg-hex-fff8e6));
+  }
+  /* Pill-shaped inline editor: the chip keeps its shape, no Save/Cancel buttons. */
+  .md-tag-pill-editor {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 24px;
+    padding: 0 9px;
+    border: 1px solid var(--border-hex-e8c547);
+    border-radius: 13px;
+    background: var(--bg-hex-fff8e6);
+    color: var(--fg-hex-6a4c00);
+    font-size: 12px;
+  }
+  .md-tag-pill-editor input {
+    min-width: 4ch;
+    max-width: 22ch;
+    padding: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+  }
   .md-tag-chip-del {
-    font-size: 10px;
+    display: inline-grid;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    font-size: 14px;
     line-height: 1;
-    padding: 1px 4px;
     border: 1px solid var(--border-default);
-    border-radius: 3px;
-    background: var(--bg-surface);
+    border-radius: 4px;
+    background: transparent;
     color: var(--fg-subtle);
     cursor: pointer;
+  }
+  .md-tag-chip-del:hover {
+    background: var(--bg-hover);
+    color: var(--fg-default);
+  }
+  /* Persistent add row at the bottom of the popover. */
+  .md-tag-entry-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    margin-top: 4px;
+  }
+  .md-tag-entry-row input {
+    height: 34px;
+    padding: 0 10px;
+    border: 1px solid var(--border-default);
+    border-radius: 6px;
+    background: var(--bg-surface);
+    color: var(--fg-default);
+    font-size: 13px;
+    outline: none;
+  }
+  .md-tag-entry-row input:focus {
+    border-color: var(--border-hex-8191f0);
+    box-shadow: 0 0 0 2px var(--shadow-rgba-accent-30);
+  }
+  .md-tag-entry-add {
+    height: 34px;
+    padding: 0 11px;
+    border: 0;
+    border-radius: 6px;
+    background: var(--bg-accent);
+    color: var(--fg-on-emphasis);
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .md-tag-entry-add:hover {
+    background: var(--bg-accent-emphasis);
+  }
+  .md-tag-entry-cancel {
+    height: 34px;
+    padding: 0 11px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--fg-subtle);
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .md-tag-entry-cancel:hover {
+    background: var(--bg-hover);
+    color: var(--fg-default);
   }
   .md-tag-suggest-item {
     display: block;
