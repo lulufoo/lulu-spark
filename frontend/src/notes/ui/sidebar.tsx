@@ -1,9 +1,10 @@
-import { useLayoutEffect, useRef } from 'react';
+import { useCallback, useLayoutEffect, useRef } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { flushSync } from 'react-dom';
 import { state, useHostState } from '../state/host.ts';
 import { formatDate } from '../../shared/utils.ts';
 import { closeFloatingListSelect, createFloatingListSelect } from '../../shared/floating-list-select.ts';
+import { attachOverlayScrollbar } from '../../shared/overlay-scrollbar.ts';
 import { applyListFilters, buildGroups, selectDate, selectTopic } from '../commands/sidebar.ts';
 import { enterProject } from '../commands/restore.ts';
 import { isTimelineView } from '../commands/workspace.ts';
@@ -100,6 +101,12 @@ export function NotesSidebar(_props: { collapsed?: boolean }) {
     workspaces.list.find((w) => w.workspace_id === workspaces.current)?.workspace_name ?? '';
   const groups = host.index.filteredGroups || [];
   const activeDate = host.ui.activeDate;
+  // The tree and the date zone remount on the directory/timeline toggle, so their
+  // scrollbars track the elements through ref callbacks instead of mount effects.
+  const attachListScrollbar = useCallback((el: HTMLDivElement | null) => {
+    if (!el) return undefined;
+    return attachOverlayScrollbar(el);
+  }, []);
 
   useLayoutEffect(() => {
     const parent = channelRef.current;
@@ -137,7 +144,7 @@ export function NotesSidebar(_props: { collapsed?: boolean }) {
           </div>
         )}
         {isTimelineView() ? (
-        <div id="sidebar-date-zone" className="sidebar-date-zone">
+        <div id="sidebar-date-zone" className="sidebar-date-zone" ref={attachListScrollbar}>
           {groups.map(({ date, entries }) => {
             const d = formatDate(date);
             return (
@@ -156,6 +163,7 @@ export function NotesSidebar(_props: { collapsed?: boolean }) {
           <div
             id="sidebar-tree-zone"
             className="knowledge-doc-sidebar-tree"
+            ref={attachListScrollbar}
             onClick={onDirectoryBackgroundClick}
             onContextMenu={onDirectoryBackgroundMenu}
           >

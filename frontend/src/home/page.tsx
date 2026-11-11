@@ -24,6 +24,7 @@ import { HelpMenu } from './ui/help-menu.tsx';
 import { SidebarTabs, type SidebarPane } from './ui/sidebar-tabs.tsx';
 import { attachHomeShortcuts, detachHomeShortcuts } from './ui/home-shortcuts.ts';
 import { SearchModal } from '../shared/search-modal/search-modal.tsx';
+import { attachOverlayScrollbar } from '../shared/overlay-scrollbar.ts';
 import { homeSearchNames } from './state/search-names.ts';
 import { openDocById } from './commands/open-doc-link.ts';
 import { SessionList } from './ui/session-list.tsx';
@@ -270,6 +271,12 @@ export function HomePage({
     if (!aside) return undefined;
     attachHomeSidebarResize(aside);
     return () => detachHomeSidebarResize();
+  }, []);
+
+  useEffect(() => {
+    const el = sessionListRef.current;
+    if (!el) return undefined;
+    return attachOverlayScrollbar(el);
   }, []);
 
   // New chat: button and ⌘O share this. `newChatBusyRef` drops a second
