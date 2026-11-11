@@ -77,6 +77,7 @@
   }
   .window-drag-strip .page-back-home,
   .window-drag-strip .home-top-actions,
+  .window-drag-strip .sidebar-toggle,
   .home-chat-main-drag button,
   .notes-page-toolbar .notes-search-btn,
   #md-header .viewer-header-actions,
@@ -6919,9 +6920,39 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   background: var(--bg-hover);
   color: var(--fg-default);
 }
-.home-top-action:focus-visible {
+.home-top-action:focus-visible,
+.sidebar-toggle:focus-visible {
   outline: 2px solid var(--border-accent);
   outline-offset: 1px;
+}
+.sidebar-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--fg-muted);
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+.sidebar-toggle:hover {
+  background: var(--bg-hover);
+  color: var(--fg-default);
+}
+.sidebar-toggle-icon {
+  width: 18px;
+  height: 18px;
+  display: block;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 .home-top-action .home-desktop-shortcut-icon {
   position: relative;
