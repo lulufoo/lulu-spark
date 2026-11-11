@@ -86,10 +86,17 @@ describe('home sidebar collapse', () => {
 
     const lower = container.querySelector('#home-sidebar-nav');
     const readLater = container.querySelector('[data-home-entry="read-later"]');
+    const restore = container.querySelector('.sidebar-header-restore [data-sidebar-toggle]');
     expect(lower.hidden).toBe(true);
     expect(lower.contains(readLater)).toBe(false);
-    expect(readLater.closest('[hidden]')).toBeNull();
-    expect(container.querySelector('[aria-label="Settings"]').closest('[hidden]')).toBeNull();
+    expect(readLater.closest('.sidebar-layout-tool')?.hasAttribute('hidden')).toBe(true);
+    expect(container.querySelector('[aria-label="Settings"]').closest('.sidebar-layout-tool')?.hasAttribute('hidden')).toBe(true);
+    expect(restore.closest('[hidden]')).toBeNull();
+    expect(restore.getAttribute('data-tip')).toBe('Show sidebar');
+    expect(
+      restore.compareDocumentPosition(container.querySelector('.home-chat-main-drag'))
+      & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
     expect(container.querySelector('[data-role="input"]')).toBe(input);
     expect(input.textContent).toBe('keep this draft');
     expect(container.querySelector('[data-role="session-list"]')).toBe(sessions);
@@ -101,13 +108,12 @@ describe('home sidebar collapse', () => {
     expect(container.querySelector('.sidebar-layout').style.getPropertyValue('--sidebar-layout-width')).toBe('180px');
     expect(container.querySelector('.home-chat-sidebar-resizer').hidden).toBe(true);
 
-    readLater.click();
-    expect(openReadLater).toHaveBeenCalledOnce();
-
     act(() => {
-      container.querySelector('[data-sidebar-toggle]').click();
+      restore.click();
     });
     expect(container.querySelector('#home-sidebar-nav').hidden).toBe(false);
+    readLater.click();
+    expect(openReadLater).toHaveBeenCalledOnce();
     expect(container.querySelector('[data-role="input"]')).toBe(input);
     expect(input.textContent).toBe('keep this draft');
   });

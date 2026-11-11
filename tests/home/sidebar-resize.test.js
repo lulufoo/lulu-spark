@@ -74,7 +74,7 @@ describe('home-sidebar-resize', () => {
     aside.getBoundingClientRect = () => ({ width: 180 });
     attachHomeSidebarResize(aside);
     expect(root.style.getPropertyValue('--sidebar-layout-width')).toBe('180px');
-    const resizer = aside.querySelector('.home-chat-sidebar-resizer');
+    const resizer = root.querySelector('.home-chat-sidebar-resizer');
     resizer.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, clientX: 40, pointerId: 1 }));
     document.dispatchEvent(new PointerEvent('pointermove', { clientX: 120, pointerId: 1 }));
     document.dispatchEvent(new PointerEvent('pointerup', { clientX: 120, pointerId: 1 }));

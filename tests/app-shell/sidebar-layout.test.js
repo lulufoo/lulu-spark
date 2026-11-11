@@ -52,6 +52,7 @@ function Fixture({ width, frameWidth }) {
       collapsed,
       width,
       navId: 'fixture-nav',
+      onToggle: () => setCollapsed((value) => !value),
       tool: createElement('button', { type: 'button', 'data-sidebar-toggle': '' }, 'Sidebar'),
       header: createElement('h1', { 'data-fixture-header': '' }, 'Title'),
       nav: createElement(
@@ -139,8 +140,15 @@ describe('SidebarLayout', () => {
     collapse();
 
     expect(trackBox(view.content, view.frameWidth)).toEqual({ row: '2', left: 0, width: 1000 });
-    expect(trackBox(view.header, view.frameWidth)).toEqual(openHeader);
-    expect(trackBox(view.tool, view.frameWidth)).toEqual(openTool);
+    expect(trackBox(view.header, view.frameWidth)).toEqual({ row: '1', left: 0, width: 1000 });
+    expect(view.tool.hasAttribute('hidden')).toBe(true);
+    expect(getComputedStyle(view.tool).display).toBe('none');
+    expect(getComputedStyle(view.header).paddingLeft).toBe('84px');
+    expect(getComputedStyle(view.header).alignItems).toBe('center');
+    const restore = container.querySelector('.sidebar-header-restore');
+    const title = container.querySelector('[data-fixture-header]');
+    expect(restore.hasAttribute('hidden')).toBe(false);
+    expect(restore.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(view.layout.style.getPropertyValue('--sidebar-layout-width')).toBe('280px');
 
     collapse();
@@ -179,7 +187,9 @@ describe('SidebarLayout', () => {
 
     collapse();
 
-    expect(document.activeElement).toBe(container.querySelector('[data-sidebar-toggle]'));
+    expect(document.activeElement).toBe(
+      container.querySelector('.sidebar-header-restore [data-sidebar-toggle]'),
+    );
     expect(view.nav.hidden).toBe(true);
     expect(view.layout.style.getPropertyValue('--sidebar-layout-width')).toBe('180px');
     expect(getComputedStyle(view.layout).gridTemplateColumns).not.toContain('400');
@@ -193,6 +203,15 @@ describe('SidebarLayout', () => {
     collapse();
 
     expect(document.activeElement).toBe(contentButton);
+  });
+
+  it('places the resize handle across both rows of the shared layout', () => {
+    const css = layoutCss();
+    expect(css).toMatch(/\.sidebar-layout \{[\s\S]*?position:\s*relative;/);
+    expect(css).toMatch(/\.sidebar-layout > \.sidebar-resizer \{[\s\S]*?grid-row:\s*1 \/ -1;/);
+    expect(css).toMatch(/\.sidebar-layout > \.sidebar-resizer \{[\s\S]*?justify-self:\s*end;/);
+    expect(css).toMatch(/\.sidebar-layout > \.sidebar-resizer \{[\s\S]*?margin-right:\s*-6px;/);
+    expect(css).toMatch(/\.sidebar-layout\[data-collapsed="true"\] > \.sidebar-resizer \{[\s\S]*?display:\s*none;/);
   });
 
   it('uses a 56px top row, no motion, and does not store or import commands', () => {

@@ -405,6 +405,7 @@ export function HomePage({
         collapsed={collapsed}
         width={`${sidebarWidth}px`}
         navId="home-sidebar-nav"
+        onToggle={toggleSidebarCollapsed}
         tool={(
           <div className="home-sidebar-tool">
             <WindowDragStrip>
@@ -435,6 +436,17 @@ export function HomePage({
             ) : null}
             <SessionMenu sessionId={state.currentSessionId} onCopy={copyCurrentSessionId} />
           </div>
+        )}
+        resizer={(
+          <div
+            className="home-chat-sidebar-resizer sidebar-resizer"
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Resize sidebar"
+            aria-disabled={collapsed ? true : undefined}
+            tabIndex={collapsed ? -1 : 0}
+            hidden={collapsed}
+          />
         )}
         nav={(
           <aside ref={sidebarRef} className="home-chat-sidebar">
@@ -509,16 +521,7 @@ export function HomePage({
               }}
             />
           </div>
-        </div>
-        <div
-          className="home-chat-sidebar-resizer sidebar-resizer"
-          role="separator"
-          aria-orientation="vertical"
-          aria-label="Resize sidebar"
-          aria-disabled={collapsed ? true : undefined}
-          tabIndex={collapsed ? -1 : 0}
-          hidden={collapsed}
-        />
+            </div>
           </aside>
         )}
       >

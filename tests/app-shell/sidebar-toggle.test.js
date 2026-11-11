@@ -84,6 +84,7 @@ describe('SidebarToggle', () => {
     expect(css).toMatch(/\.sidebar-toggle-icon\s*\{[^}]*width:\s*18px;/);
     expect(css).toMatch(/\.sidebar-toggle-icon\s*\{[^}]*height:\s*18px;/);
     expect(css).toMatch(/\.sidebar-toggle\s*\{[^}]*app-region:\s*no-drag;/);
+    expect(css).toMatch(/\.sidebar-layout-header \.sidebar-toggle,/);
     expect(css).toMatch(/\.home-top-action:focus-visible,\s*\.sidebar-toggle:focus-visible\s*\{[^}]*outline:\s*2px solid var\(--border-accent\)/);
     const hoverRules = css.match(/\.sidebar-toggle:hover\s*\{/g) ?? [];
     expect(hoverRules).toHaveLength(1);

@@ -164,16 +164,6 @@ export function NotesSidebar({ collapsed = false }: { collapsed?: boolean }) {
           </div>
         )}
       </div>
-      <div
-        id="sidebar-resizer"
-        className="sidebar-resizer"
-        role="separator"
-        aria-orientation="vertical"
-        aria-label="Resize sidebar"
-        aria-disabled={collapsed ? true : undefined}
-        tabIndex={collapsed ? -1 : 0}
-        hidden={collapsed}
-      />
     </>
   );
 }

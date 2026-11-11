@@ -1,4 +1,7 @@
 // @vitest-environment jsdom
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -132,6 +135,17 @@ describe('list and article sidebar collapse', () => {
     const paints = renderDocBody.mock.calls.length;
 
     expect(container.querySelector('#notes-sidebar-nav').hidden).toBe(false);
+    const pair = container.querySelector('.sidebar-tool-pair');
+    const toolToggle = pair.querySelector('[data-sidebar-toggle]');
+    const backBefore = pair.querySelector('a.page-back-home');
+    expect(toolToggle.compareDocumentPosition(backBefore) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const css = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '../../frontend/app.css'), 'utf8');
+    expect(css).toMatch(/\.sidebar-layout-tool \.window-drag-strip\.is-chrome \{[\s\S]*?padding-right:\s*10px;/);
+    expect(css).toMatch(/\.sidebar-layout-tool \.page-back-home \{[\s\S]*?width:\s*28px;/);
+    expect(css).toMatch(/\.sidebar-layout-tool \.page-back-home \{[\s\S]*?padding:\s*0 4px 0 0;/);
+    expect(css).toMatch(/\.sidebar-layout-tool \.page-back-home \{[\s\S]*?justify-content:\s*flex-end;/);
+    expect(css).toMatch(/\.sidebar-layout-tool \.page-back-home-icon \{[\s\S]*?width:\s*16px;/);
+    expect(css).toMatch(/\.sidebar-layout-tool \.page-back-home:hover \{[\s\S]*?background:\s*var\(--bg-hover\);/);
     expect(container.querySelector('#md-header').parentElement.classList.contains('notes-header-slot')).toBe(true);
 
     toggle();
@@ -140,7 +154,12 @@ describe('list and article sidebar collapse', () => {
     const back = container.querySelector('a.page-back-home');
     expect(nav.hidden).toBe(true);
     expect(nav.contains(back)).toBe(false);
-    expect(back.closest('[hidden]')).toBeNull();
+    expect(back.closest('.sidebar-layout-tool')?.hasAttribute('hidden')).toBe(true);
+    const restore = container.querySelector('.sidebar-header-restore [data-sidebar-toggle]');
+    const title = container.querySelector('#md-panel-title');
+    expect(restore.closest('[hidden]')).toBeNull();
+    expect(restore.getAttribute('data-tip')).toBe('Show sidebar');
+    expect(restore.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(localStorage.getItem(WIDTH_KEY)).toBe('180');
     expect(localStorage.getItem('sidebar_collapsed')).toBe('true');
     expect(container.querySelector('#md-body')).toBe(body);

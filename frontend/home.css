@@ -35,7 +35,14 @@
   min-width: 0;
 }
 .sidebar-layout-header > .home-chat-main-drag {
-  width: 100%;
+  flex: 1;
+  min-width: 0;
+}
+.sidebar-layout[data-collapsed="true"] .home-chat-main-drag {
+  height: auto;
+  min-height: 0;
+  padding-left: 0;
+  border-bottom: none;
 }
 .sidebar-layout-content > .home-chat-main {
   height: 100%;

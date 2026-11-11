@@ -113,7 +113,7 @@ describe('notes-sidebar-resize', () => {
     aside.getBoundingClientRect = () => ({ width: 180 });
     localStorage.setItem(STORAGE_KEY, '180');
     attachNotesSidebarResize(aside);
-    const resizer = aside.querySelector('#sidebar-resizer');
+    const resizer = root.querySelector('#sidebar-resizer');
     resizer.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, clientX: 100, pointerId: 1 }));
     document.dispatchEvent(new PointerEvent('pointermove', { clientX: 160, pointerId: 1 }));
     document.dispatchEvent(new PointerEvent('pointerup', { clientX: 160, pointerId: 1 }));

@@ -78,6 +78,7 @@
   .window-drag-strip .page-back-home,
   .window-drag-strip .home-top-actions,
   .window-drag-strip .sidebar-toggle,
+  .sidebar-layout-header .sidebar-toggle,
   .home-chat-main-drag button,
   .notes-page-toolbar .notes-search-btn,
   #md-header .viewer-header-actions,
@@ -99,11 +100,13 @@
   padding-left: 0;
 }
 .sidebar-layout-tool .window-drag-strip.is-chrome {
-  padding-right: var(--notes-rail);
+  padding-right: 10px;
 }
-.sidebar-layout-tool .window-drag-strip .page-back-home {
-  padding-right: 0;
-  padding-left: 0;
+.sidebar-layout-header .sidebar-toggle,
+.sidebar-layout-tool .sidebar-toggle,
+.sidebar-layout-tool .page-back-home {
+  position: relative;
+  z-index: 1;
 }
 .sidebar-tool-pair {
   display: inline-flex;
@@ -311,11 +314,27 @@
     background: transparent;
     color: var(--fg-default);
   }
+  .sidebar-layout-tool .page-back-home {
+    width: 28px;
+    height: 28px;
+    margin: 0;
+    padding: 0 4px 0 0;
+    gap: 0;
+    justify-content: flex-end;
+    border-radius: 8px;
+  }
+  .sidebar-layout-tool .page-back-home:hover {
+    background: var(--bg-hover);
+  }
   .page-back-home-icon {
     width: 14px;
     height: 14px;
     display: block;
     color: var(--fg-muted);
+  }
+  .sidebar-layout-tool .page-back-home-icon {
+    width: 16px;
+    height: 16px;
   }
   .page-back-home:hover .page-back-home-icon {
     color: var(--fg-default);
@@ -587,6 +606,7 @@
   /* Shared Home / list / article shell. The root owns the width; the nav only fills that column. */
   .sidebar-layout {
     --sidebar-layout-width: 248px;
+    position: relative;
     display: grid;
     flex: 1 1 auto;
     width: 100%;
@@ -645,12 +665,30 @@
   }
   .sidebar-layout-header {
     display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--bg-surface);
+    -webkit-app-region: drag;
+    app-region: drag;
+  }
+  .sidebar-layout-header > .sidebar-header-restore {
+    display: flex;
+    flex: none;
+    align-items: center;
+    align-self: stretch;
+    -webkit-app-region: no-drag;
+    app-region: no-drag;
+  }
+  .sidebar-layout-tool[hidden],
+  .sidebar-layout-header > .sidebar-header-restore[hidden] {
+    display: none !important;
   }
   .notes-header-slot {
     display: flex;
     flex: 1;
     min-width: 0;
     height: 100%;
+    align-items: center;
   }
   .notes-header-slot > .notes-page-toolbar,
   .notes-header-slot > #md-header {
@@ -672,7 +710,7 @@
     overflow: hidden;
   }
   .sidebar-layout-content > #main .doc-list {
-    padding: 0 24px 20px;
+    padding: 20px 24px;
     flex: 1;
     min-height: 0;
     overflow-y: auto;
@@ -681,8 +719,39 @@
     grid-column: 2;
     grid-row: 2;
   }
+  .sidebar-layout[data-collapsed="true"] {
+    grid-template-columns: 0 minmax(0, 1fr);
+  }
+  .sidebar-layout[data-collapsed="true"] .sidebar-layout-header,
   .sidebar-layout[data-collapsed="true"] .sidebar-layout-content {
     grid-column: 1 / -1;
+  }
+  /* Sketch: 16px inset, 52px lights, 4px margin, 12px gap. */
+  .sidebar-layout[data-collapsed="true"] .sidebar-layout-header {
+    padding-left: 84px;
+    border-bottom: 1px solid var(--border-muted);
+  }
+  .sidebar-layout[data-collapsed="true"] .notes-page-toolbar,
+  .sidebar-layout[data-collapsed="true"] #md-header.viewer-header {
+    height: auto;
+    min-height: 0;
+    padding-left: 0;
+    border-bottom: none;
+  }
+  .sidebar-layout > .sidebar-resizer {
+    position: relative;
+    top: auto;
+    right: auto;
+    left: auto;
+    width: 6px;
+    height: auto;
+    margin-right: -6px;
+    grid-column: 1;
+    grid-row: 1 / -1;
+    justify-self: end;
+  }
+  .sidebar-layout[data-collapsed="true"] > .sidebar-resizer {
+    display: none;
   }
   .sidebar-channel-zone {
     flex-shrink: 0;
@@ -1054,7 +1123,7 @@
     overflow: hidden;
   }
   .layout > main:has(.notes-page-toolbar) .doc-list {
-    padding: 0 24px 20px;
+    padding: 20px 24px;
     flex: 1;
     min-height: 0;
     overflow-y: auto;
@@ -7056,6 +7125,7 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex: none;
   width: 28px;
   height: 28px;
   padding: 0;

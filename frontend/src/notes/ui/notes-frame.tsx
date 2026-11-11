@@ -40,16 +40,17 @@ export function NotesFrame({
         collapsed={collapsed}
         width={`${width}px`}
         navId="notes-sidebar-nav"
+        onToggle={toggleSidebarCollapsed}
         tool={(
           <div className="notes-sidebar-tool">
             <WindowDragStrip>
               <span className="sidebar-tool-pair">
-                <PageBackHome />
                 <SidebarToggle
                   collapsed={collapsed}
                   controlsId="notes-sidebar-nav"
                   onToggle={toggleSidebarCollapsed}
                 />
+                <PageBackHome />
               </span>
             </WindowDragStrip>
           </div>
@@ -59,6 +60,18 @@ export function NotesFrame({
           <aside id="sidebar">
             <NotesSidebar collapsed={collapsed} />
           </aside>
+        )}
+        resizer={(
+          <div
+            id="sidebar-resizer"
+            className="sidebar-resizer"
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Resize sidebar"
+            aria-disabled={collapsed ? true : undefined}
+            tabIndex={collapsed ? -1 : 0}
+            hidden={collapsed}
+          />
         )}
       >
         <main id="main" data-active-date={activeDate}>

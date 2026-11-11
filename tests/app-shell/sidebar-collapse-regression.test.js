@@ -148,14 +148,17 @@ describe('sidebar collapse regression', () => {
     expect(nav.hasAttribute('inert')).toBe(true);
     expect(container.querySelector('#sidebar-resizer').hidden).toBe(true);
     expect(container.querySelector('#sidebar-resizer').tabIndex).toBe(-1);
-    expect(container.querySelector('[data-sidebar-toggle]').getAttribute('data-tip')).toBe('Show sidebar');
-    expect(container.querySelector('[data-sidebar-toggle]').getAttribute('aria-expanded')).toBe('false');
+    const restore = container.querySelector('.sidebar-header-restore [data-sidebar-toggle]');
+    expect(restore.getAttribute('data-tip')).toBe('Show sidebar');
+    expect(restore.getAttribute('aria-expanded')).toBe('false');
+    expect(restore.compareDocumentPosition(container.querySelector('#md-panel-title')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(container.querySelector('a.page-back-home').closest('.sidebar-layout-tool')?.hasAttribute('hidden')).toBe(true);
     expect(container.querySelector('#md-edit-area')).toBe(editor);
     expect(editor.value).toBe('unsaved sentence');
     expect(container.querySelector('#md-body')).toBe(body);
     expect(dirTreeStore.getSnapshot().expanded).toEqual(['proj/a']);
     expect(localStorage.getItem(NOTES_WIDTH)).toBe('180');
-    expect(container.querySelector('a.page-back-home').closest('[hidden]')).toBeNull();
+    expect(container.querySelector('.sidebar-layout-tool').hasAttribute('hidden')).toBe(true);
   });
 
   it('keeps list scroll and restores the shared preference on the home page', async () => {

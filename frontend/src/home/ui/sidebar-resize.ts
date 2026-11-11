@@ -1,4 +1,8 @@
 import {
+  readSidebarLayoutStartWidth,
+  sidebarResizeHost,
+} from '../../app-shell/ui/sidebar-resize-host.ts';
+import {
   HOME_SIDEBAR_DEFAULT_WIDTH,
   HOME_SIDEBAR_MAX_WIDTH,
   HOME_SIDEBAR_MIN_WIDTH,
@@ -74,7 +78,8 @@ export function attachHomeSidebarResize(aside: HTMLElement) {
   detachHomeSidebarResize();
   if (!aside) return () => {};
 
-  let resizer = aside.querySelector('.home-chat-sidebar-resizer') as HTMLElement | null;
+  const host = sidebarResizeHost(aside);
+  let resizer = host.querySelector('.home-chat-sidebar-resizer') as HTMLElement | null;
   if (!resizer) {
     resizer = document.createElement('div');
     resizer.className = 'home-chat-sidebar-resizer sidebar-resizer';
@@ -82,7 +87,7 @@ export function attachHomeSidebarResize(aside: HTMLElement) {
     resizer.setAttribute('aria-orientation', 'vertical');
     resizer.setAttribute('aria-label', 'Resize sidebar');
     resizer.tabIndex = 0;
-    aside.appendChild(resizer);
+    host.appendChild(resizer);
   }
 
   setHomeSidebarWidth(aside, readHomeSidebarWidth());
@@ -91,7 +96,7 @@ export function attachHomeSidebarResize(aside: HTMLElement) {
     if (e.button !== 0) return;
     if (aside.closest('.sidebar-layout')?.getAttribute('data-collapsed') === 'true') return;
     e.preventDefault();
-    const startWidth = aside.getBoundingClientRect().width;
+    const startWidth = readSidebarLayoutStartWidth(aside);
     _dragState = { aside, resizer, startX: e.clientX, startWidth, lastWidth: startWidth };
     if (typeof resizer.setPointerCapture === 'function') {
       resizer.setPointerCapture(e.pointerId);

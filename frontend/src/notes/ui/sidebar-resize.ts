@@ -1,4 +1,8 @@
 import {
+  readSidebarLayoutStartWidth,
+  sidebarResizeHost,
+} from '../../app-shell/ui/sidebar-resize-host.ts';
+import {
   NOTES_SIDEBAR_DEFAULT_WIDTH,
   NOTES_SIDEBAR_MAX_WIDTH,
   NOTES_SIDEBAR_MIN_WIDTH,
@@ -71,7 +75,8 @@ export function attachNotesSidebarResize(aside: HTMLElement | null = document.ge
   detachNotesSidebarResize();
   if (!aside) return () => {};
 
-  let resizer = aside.querySelector('#sidebar-resizer') as HTMLElement | null;
+  const host = sidebarResizeHost(aside);
+  let resizer = host.querySelector('#sidebar-resizer') as HTMLElement | null;
   if (!resizer) {
     resizer = document.createElement('div');
     resizer.id = 'sidebar-resizer';
@@ -80,7 +85,7 @@ export function attachNotesSidebarResize(aside: HTMLElement | null = document.ge
     resizer.setAttribute('aria-orientation', 'vertical');
     resizer.setAttribute('aria-label', 'Resize sidebar');
     resizer.tabIndex = 0;
-    aside.appendChild(resizer);
+    host.appendChild(resizer);
   }
 
   setSidebarWidth(aside, readNotesSidebarWidth());
@@ -90,7 +95,7 @@ export function attachNotesSidebarResize(aside: HTMLElement | null = document.ge
     if (aside.closest('.sidebar-layout')?.getAttribute('data-collapsed') === 'true') return;
     e.preventDefault();
     e.stopPropagation();
-    const startWidth = aside.getBoundingClientRect().width;
+    const startWidth = readSidebarLayoutStartWidth(aside);
     _dragState = { aside, resizer, startX: e.clientX, startWidth, lastWidth: startWidth };
     if (typeof resizer.setPointerCapture === 'function') {
       resizer.setPointerCapture(e.pointerId);
