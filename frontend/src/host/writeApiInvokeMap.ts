@@ -16,6 +16,10 @@ type WriteInvokeEntry = {
 };
 
 export const WRITE_API_INVOKE_MAP: Record<string, WriteInvokeEntry> = {
+  '/api/set-doc-title': {
+    cmd: 'set_doc_title',
+    args: (body) => ({ id: body.id, title: body.title }),
+  },
   '/api/config': {
     cmd: 'set_config',
     args: (body) => ({

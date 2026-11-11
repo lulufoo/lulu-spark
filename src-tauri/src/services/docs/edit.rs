@@ -69,6 +69,23 @@ pub fn set_source_type(id: &str, source_type: &str) -> Value {
     })
 }
 
+/// App UI only. Change the document title without changing its body or filename.
+pub fn set_doc_title(id: &str, title: &str) -> Value {
+    let title = title.trim();
+    if title.is_empty() {
+        return json!({ "error": "Missing title", "_status": 400 });
+    }
+
+    edit_doc(id, |_, note| {
+        note.title = Some(title.to_string());
+        Ok(json!({ "ok": true, "id": note.doc_id, "title": title }))
+    })
+}
+
 #[cfg(test)]
 #[path = "../../unit-tests/services/docs_set_source_type.rs"]
 mod set_source_type_tests;
+
+#[cfg(test)]
+#[path = "../../unit-tests/services/docs_set_title.rs"]
+mod set_title_tests;

@@ -15,6 +15,7 @@ const P2_PATHS = [
   ['/api/set-done', 'set_done', ['id', 'done']],
   ['/api/set-importance', 'set_importance', ['id', 'importance']],
   ['/api/set-doc-source-type', 'set_doc_source_type', ['id', 'sourceType']],
+  ['/api/set-doc-title', 'set_doc_title', ['id', 'title']],
   ['/api/tag/attach', 'tag_attach', ['id', 'key', 'value']],
   ['/api/tag/detach', 'tag_detach', ['id', 'key']],
   ['/api/tag/update-value', 'tag_update_value', ['key', 'value']],

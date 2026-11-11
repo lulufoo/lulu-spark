@@ -5,6 +5,7 @@ commands.allow = [
   "set_done",
   "set_importance",
   "set_doc_source_type",
+  "set_doc_title",
   "update_links",
   "update_comments",
   "reorder_comments",

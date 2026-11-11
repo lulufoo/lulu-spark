@@ -135,6 +135,11 @@ export async function setDocSourceType(id: string, sourceType: string) {
   return writePost('/api/set-doc-source-type', { id, source_type: sourceType });
 }
 
+/** Rename the independent document title, without changing its file or body. */
+export async function setDocTitle(id: string, title: string) {
+  return writePost('/api/set-doc-title', { id, title });
+}
+
 export async function deleteEntry(id: PathArg) {
   return writePost('/api/delete', { id });
 }

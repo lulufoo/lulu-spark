@@ -123,6 +123,7 @@ pub fn run() {
             commands::write::set_done,
             commands::write::set_importance,
             commands::write::set_doc_source_type,
+            commands::write::set_doc_title,
             commands::write::update_links,
             commands::write::update_comments,
             commands::write::reorder_comments,

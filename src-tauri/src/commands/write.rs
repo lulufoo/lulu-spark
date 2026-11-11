@@ -36,6 +36,11 @@ pub fn set_doc_source_type(
 }
 
 #[tauri::command]
+pub fn set_doc_title(_app: AppHandle, id: String, title: String) -> Result<Value, String> {
+    Ok(docs::set_doc_title(&id, &title))
+}
+
+#[tauri::command]
 pub fn update_links(
     _app: AppHandle,
     id: String,
