@@ -144,6 +144,10 @@ describe('one tooltip, no per-place copies (gate)', () => {
       lines.forEach((line, i) => {
         if (/<DocCard\b/.test(line)) return; // DocCard has a `title` prop, not an attribute
         if (/\btitle=/.test(line) || /\.title\s*=\s*['"`]/.test(line) || /setAttribute\(\s*['"]title['"]/.test(line)) {
+          // An iframe title names the frame for screen readers; it is not a hover hint.
+          const before = lines.slice(Math.max(0, i - 12), i);
+          const openIdx = before.findLastIndex((l) => /<iframe\b/.test(l));
+          if (openIdx !== -1 && !before.slice(openIdx).some((l) => /\/>/.test(l))) return;
           offenders.push(`${file.replace(repoRoot + '/', '')}:${i + 1}`);
         }
       });

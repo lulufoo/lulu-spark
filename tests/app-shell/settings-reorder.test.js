@@ -186,7 +186,8 @@ describe('the workspace list', () => {
     const root = createRoot(host);
     act(() => root.render(createElement(NotesWorkspacesEditHost)));
     expect(host.querySelectorAll('.reorder-handle')).toHaveLength(3);
-    expect(host.querySelectorAll('button.notes-cat-item[data-workspace]')).toHaveLength(3);
+    expect(host.querySelectorAll('.notes-cat-row[data-workspace]')).toHaveLength(3);
+    expect(host.querySelectorAll('.notes-cat-row[data-workspace] button.notes-cat-row-edit')).toHaveLength(3);
     act(() => root.unmount());
   });
 
