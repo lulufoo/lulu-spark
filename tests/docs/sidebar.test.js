@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { act } from 'react';
+import { readFileSync } from 'node:fs';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 vi.mock('../../frontend/src/shared/utils.ts', async (importOriginal) => ({
@@ -229,6 +230,46 @@ describe('renderSidebar workspace title', () => {
     act(() => selectDefaultProject());
     expect(findSelect('.ui-select')._listSelectValue).toBe('ai');
     expect(sidebarEl()?.querySelector('#sidebar-tree-zone #sidebar-dir-tree')).not.toBeNull();
+  });
+
+  it('aligns both project pickers and removes the divider below the directory picker', () => {
+    const css = readFileSync('frontend/app.css', 'utf8');
+    const selectors = ['.sidebar-workspace-title', '.topic-filter', '.topic-select .list-select-trigger', '.topic-select .list-select-label',
+      '.knowledge-doc-sidebar-header', '.ui-select .list-select-trigger'];
+    const style = document.createElement('style');
+    style.textContent = selectors.map((selector) => {
+      const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const match = css.match(new RegExp(`${escaped}\\s*\\{[^}]*\\}`));
+      if (!match) throw new Error(`Missing CSS for ${selector}`);
+      return match[0];
+    }).join('\n') + '\n' + css.match(/\.ui-select \.list-select-label,\s*\.ui-select-menu \.list-select-option\s*\{[^}]*\}/)[0];
+    document.head.append(style);
+    try {
+      applyListFilters();
+      renderSidebar();
+      const timelineTitle = getComputedStyle(sidebarEl().querySelector('.sidebar-workspace-title'));
+      const timelineHeader = getComputedStyle(sidebarEl().querySelector('.topic-filter'));
+      const timelinePicker = getComputedStyle(sidebarEl().querySelector('.topic-select .list-select-trigger'));
+      const timelineLabel = getComputedStyle(sidebarEl().querySelector('.topic-select .list-select-label'));
+      expect(parseFloat(timelineTitle.paddingTop)).toBe(0);
+      expect(timelineTitle.lineHeight).toBe('1');
+
+      state.index.topicTitles = { ai: 'AI' };
+      seedWorkspaces('directory');
+      renderSidebar();
+      const directoryHeader = getComputedStyle(sidebarEl().querySelector('.knowledge-doc-sidebar-header'));
+      const directoryPicker = getComputedStyle(sidebarEl().querySelector('.ui-select .list-select-trigger'));
+      const directoryLabel = getComputedStyle(sidebarEl().querySelector('.ui-select .list-select-label'));
+      expect(directoryHeader.paddingTop).toBe(timelineHeader.paddingTop);
+      expect(directoryHeader.paddingLeft).toBe(timelineHeader.paddingLeft);
+      expect(directoryHeader.paddingRight).toBe(timelineHeader.paddingRight);
+      expect(directoryHeader.borderBottomStyle).toBe('none');
+      expect(directoryPicker.minHeight).toBe(timelinePicker.minHeight);
+      expect(directoryLabel.fontSize).toBe(timelineLabel.fontSize);
+      expect(directoryLabel.fontWeight).toBe(timelineLabel.fontWeight);
+    } finally {
+      style.remove();
+    }
   });
 
   it('directory view: the dropdown is painted even when the registry and projects arrive after the first paint', () => {
