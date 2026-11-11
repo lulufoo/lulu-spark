@@ -32,7 +32,7 @@ describe('P0 Vite + React + TypeScript pipeline', () => {
     const win = conf.app.windows[0];
     expect(win.titleBarStyle).toBe('Overlay');
     expect(win.hiddenTitle).toBe(true);
-    expect(win.trafficLightPosition).toEqual({ x: 16, y: 18 });
+    expect(win.trafficLightPosition).toEqual({ x: 16, y: 22 });
   });
 
   it('index.html enters through src/main.tsx', () => {

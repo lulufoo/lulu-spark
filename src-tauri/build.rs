@@ -9,7 +9,13 @@ fn main() {
             .file("native/os_notification.m")
             .flag("-fobjc-arc")
             .compile("spark_os_notification");
+        println!("cargo:rerun-if-changed=native/window_controls.m");
+        cc::Build::new()
+            .file("native/window_controls.m")
+            .flag("-fobjc-arc")
+            .compile("spark_window_controls");
         println!("cargo:rustc-link-lib=framework=Foundation");
+        println!("cargo:rustc-link-lib=framework=AppKit");
         println!("cargo:rustc-link-lib=framework=UserNotifications");
     }
     tauri_build::build();

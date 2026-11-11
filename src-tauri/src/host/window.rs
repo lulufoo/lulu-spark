@@ -7,6 +7,11 @@ use tauri_plugin_opener::OpenerExt;
 
 use tauri::Url;
 
+#[cfg(all(target_os = "macos", not(test)))]
+extern "C" {
+    fn spark_center_window_controls(window: *mut std::ffi::c_void);
+}
+
 const SKETCH_SANDBOX_HOST: &str = "sandbox.luluboard.app";
 
 fn is_in_app_navigation(url: &Url) -> bool {
@@ -84,6 +89,11 @@ pub(crate) fn create_main_window(app: &tauri::App) -> Result<(), Box<dyn std::er
             }
         })
         .build()?;
+    #[cfg(target_os = "macos")]
+    if let Ok(native_window) = window.ns_window() {
+        // AppKit work is dispatched to the main queue by the native helper.
+        unsafe { spark_center_window_controls(native_window) };
+    }
     eprintln!("[DEBUG-assistant] host: main window created");
 
     let hide_target = window.clone();
