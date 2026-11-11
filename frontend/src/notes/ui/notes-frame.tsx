@@ -41,16 +41,18 @@ export function NotesFrame({
         width={`${width}px`}
         navId="notes-sidebar-nav"
         tool={(
-          <WindowDragStrip>
-            <span className="sidebar-tool-pair">
-              <PageBackHome />
-              <SidebarToggle
-                collapsed={collapsed}
-                controlsId="notes-sidebar-nav"
-                onToggle={toggleSidebarCollapsed}
-              />
-            </span>
-          </WindowDragStrip>
+          <div className="notes-sidebar-tool">
+            <WindowDragStrip>
+              <span className="sidebar-tool-pair">
+                <PageBackHome />
+                <SidebarToggle
+                  collapsed={collapsed}
+                  controlsId="notes-sidebar-nav"
+                  onToggle={toggleSidebarCollapsed}
+                />
+              </span>
+            </WindowDragStrip>
+          </div>
         )}
         header={<div ref={headerRef} className="notes-header-slot" />}
         nav={(

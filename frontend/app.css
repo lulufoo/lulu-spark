@@ -112,6 +112,17 @@
   -webkit-app-region: no-drag;
   app-region: no-drag;
 }
+.notes-sidebar-tool {
+  display: flex;
+  height: 100%;
+  min-width: 0;
+  background: var(--bg-surface);
+  border-right: 1px solid var(--border-default);
+}
+.notes-sidebar-tool > .window-drag-strip {
+  flex: 1;
+  min-width: 0;
+}
 
   /* ── Header ── */
   header {
