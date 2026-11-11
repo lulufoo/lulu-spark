@@ -9,7 +9,18 @@ use tauri::Url;
 
 #[cfg(all(target_os = "macos", not(test)))]
 extern "C" {
-    fn spark_center_window_controls(window: *mut std::ffi::c_void);
+    fn spark_center_window_controls(window: *mut std::ffi::c_void, callback: extern "C" fn(bool));
+}
+
+#[cfg(all(target_os = "macos", not(test)))]
+static FULLSCREEN_APP: std::sync::OnceLock<tauri::AppHandle> = std::sync::OnceLock::new();
+
+#[cfg(all(target_os = "macos", not(test)))]
+extern "C" fn fullscreen_changed(fullscreen: bool) {
+    use tauri::Emitter;
+    if let Some(app) = FULLSCREEN_APP.get() {
+        let _ = app.emit("spark-native-fullscreen-changed", fullscreen);
+    }
 }
 
 const SKETCH_SANDBOX_HOST: &str = "sandbox.luluboard.app";
@@ -91,8 +102,9 @@ pub(crate) fn create_main_window(app: &tauri::App) -> Result<(), Box<dyn std::er
         .build()?;
     #[cfg(target_os = "macos")]
     if let Ok(native_window) = window.ns_window() {
+        let _ = FULLSCREEN_APP.set(app.handle().clone());
         // AppKit work is dispatched to the main queue by the native helper.
-        unsafe { spark_center_window_controls(native_window) };
+        unsafe { spark_center_window_controls(native_window, fullscreen_changed) };
     }
     eprintln!("[DEBUG-assistant] host: main window created");
 

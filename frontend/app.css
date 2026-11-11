@@ -731,6 +731,9 @@
     padding-left: 84px;
     border-bottom: 1px solid var(--border-muted);
   }
+  .sidebar-layout[data-collapsed="true"][data-native-fullscreen="true"] .sidebar-layout-header {
+    padding-left: 16px;
+  }
   .sidebar-layout[data-collapsed="true"] .notes-page-toolbar,
   .sidebar-layout[data-collapsed="true"] #md-header.viewer-header {
     height: auto;
