@@ -129,6 +129,36 @@ afterEach(() => {
 });
 
 describe('list and article sidebar collapse', () => {
+  it('scrolls the title and creation time with the article body while keeping the toolbar outside', () => {
+    state.viewer.outletMode = 'open';
+    state.viewer.entry = { id: 'n1', title: 'A title', created_at: '20250101120000', project_id: 'p', translations: {} };
+    state.viewer.rawText = 'A document';
+    mount({ note: 'n1' });
+
+    const reader = container.querySelector('.viewer-body');
+    const header = container.querySelector('#md-header');
+    const css = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '../../frontend/app.css'), 'utf8');
+    expect(css).toMatch(/\.viewer-body\s*\{[^}]*overflow-y:\s*auto;/);
+    expect(header).not.toBeNull();
+    expect(reader.contains(container.querySelector('[aria-label="Document title"]'))).toBe(true);
+    expect(reader.contains(container.querySelector('.notes-document-created'))).toBe(true);
+    expect(reader.contains(container.querySelector('#md-body'))).toBe(true);
+    expect(reader.contains(header)).toBe(false);
+  });
+
+  it('keeps the independent title available while editing the body', () => {
+    state.viewer.outletMode = 'open';
+    state.viewer.entry = { id: 'n1', title: 'A title', created_at: '20250101120000', project_id: 'p', translations: {} };
+    state.viewer.rawText = 'A document';
+    state.viewer.editing = true;
+    mount({ note: 'n1' });
+
+    const title = container.querySelector('[aria-label="Document title"]');
+    expect(title).not.toBeNull();
+    expect(title.closest('[hidden], [style*="display: none"]')).toBeNull();
+    expect(container.querySelector('#md-edit-area').style.display).not.toBe('none');
+  });
+
   it('keeps the existing Sketch iframe mounted when a document title is saved', async () => {
     const entry = { id: 'n1', title: 'Original', created_at: '20250101120000', project_id: 'p', translations: {} };
     state.viewer.outletMode = 'open';

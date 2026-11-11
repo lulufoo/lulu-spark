@@ -3957,6 +3957,10 @@
     padding: 24px 24px 0;
     color: var(--fg-emphasis);
   }
+  .viewer-body .notes-document-title {
+    padding: 0;
+    margin-bottom: 24px;
+  }
   .notes-document-title-input {
     display: block;
     width: 100%;
