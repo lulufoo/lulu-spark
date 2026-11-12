@@ -110,6 +110,8 @@ fn move_doc_dir_moves_the_doc_into_the_target_folder() {
     assert!(!raw("plans/notes.md").exists());
     assert!(!raw("plans/notes-zh.md").exists());
     assert!(!raw("plans/.attached").join(&id).exists());
+    // No shell is left behind: an empty `.attached` would block deleting the folder.
+    assert!(!raw("plans/.attached").exists());
     assert!(digest("archive/2026/notes.md").is_file());
     assert!(!digest("plans/notes.md").exists());
     let after = find_doc(&open().expect("db"), &id).expect("find").expect("row").doc;

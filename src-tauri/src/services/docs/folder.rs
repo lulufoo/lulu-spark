@@ -13,6 +13,7 @@ use serde_json::{json, Value};
 use crate::services::archive_parse::is_valid_common_path;
 use crate::services::spark_data::WorkspaceRow;
 
+use super::attached::ATTACHED_DIR_NAME;
 use super::resolve::{
     bad_request, conflict, ensure_workspace_enabled, internal, not_found, open_data, resolve_project,
     resolve_workspace, text_field, workspace_root,
@@ -147,6 +148,9 @@ pub fn delete_folder(payload: &Value) -> Value {
         Err(err) => return err,
     };
     let dir = raw.join(path);
+    // `folder_busy` already proved no live document sits inside, so any `.attached`
+    // content left by earlier moves is orphaned; drop the shell before the emptiness check.
+    let _ = fs::remove_dir_all(dir.join(ATTACHED_DIR_NAME));
     if dir_occupied(&dir) {
         return conflict("Folder is not empty");
     }

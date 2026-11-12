@@ -4,6 +4,7 @@
 //! body move together. A later failure puts the files back. The folder the document
 //! leaves is kept in the tree when nothing is left inside it.
 
+use std::fs;
 use std::path::{Path, PathBuf};
 
 use rusqlite::Connection;
@@ -15,6 +16,7 @@ use crate::services::spark_data::{
     get_doc, is_valid_doc_id, list_docs, translation_common_paths, update_doc, DocRow,
 };
 
+use super::attached::ATTACHED_DIR_NAME;
 use super::folder::{folder_known, folder_path_ok, keep_parent_folder};
 use super::folder_rename_disk::{move_attached, move_rel, same_dir, undo_files};
 use super::resolve::{
@@ -119,6 +121,18 @@ pub fn move_doc_dir(payload: &Value) -> Value {
     }
     if let Err(err) = keep_parent_folder(&conn, &project.id, &doc.raw_path) {
         return internal(err);
+    }
+    // An emptied `.attached` shell would keep the source folder undeletable, and an
+    // emptied digest folder is litter. Remove either only after the whole move succeeded.
+    if let Some(md_dir) = src.parent() {
+        let _ = fs::remove_dir(md_dir.join(ATTACHED_DIR_NAME));
+    }
+    if let Some(digest) = &doc.digest_path {
+        if let Some(dir) = dir_of(digest) {
+            if let Ok(digest_dir) = doc_file_path(&root, "digest", &project.id, dir) {
+                let _ = fs::remove_dir(digest_dir);
+            }
+        }
     }
     search_index::sync_workspace_docs_best_effort(&workspace.id, &[doc.doc_id.as_str()]);
     json!({ "ok": true, "id": doc.doc_id, "raw_path": next.raw_path })
