@@ -38,6 +38,32 @@ pub(crate) fn plan_relocate(
 ) -> Result<RelocatePlan, String> {
     let mut targets = plan_merge_targets(std::slice::from_ref(doc), taken_raw, taken_digest, next_suffix)?;
     let target = targets.pop().ok_or_else(|| "empty relocate plan".to_string())?;
+    plan_from_target(doc, dest_project_id, target)
+}
+
+/// Plan for a caller that already knows the destination raw path (a same-project
+/// folder move): no collision suffixing, the digest follows the body name.
+pub(crate) fn plan_relocate_into(
+    doc: &DocRow,
+    dest_project_id: &str,
+    target_raw: &str,
+) -> Result<RelocatePlan, String> {
+    let target = MergeTarget {
+        doc_id: doc.doc_id.clone(),
+        raw_path: target_raw.to_string(),
+        digest_path: Some(target_raw.to_string()),
+        renamed: false,
+    };
+    plan_from_target(doc, dest_project_id, target)
+}
+
+/// Body-file pairs from a fixed target. Attached is not a pair: stage copies the
+/// directory first from the source raw parent to the dest raw parent.
+fn plan_from_target(
+    doc: &DocRow,
+    dest_project_id: &str,
+    target: MergeTarget,
+) -> Result<RelocatePlan, String> {
     let mut files = vec![RelocateFile {
         layer: "raw",
         src_rel: doc.raw_path.clone(),
@@ -156,6 +182,20 @@ pub(crate) fn cleanup_relocate(src_root: &Path, plan: &RelocatePlan) -> Result<(
         let _ = remove_attached_dir(md_dir, &plan.doc_id);
         // An emptied `.attached` shell would keep the source folder undeletable.
         let _ = fs::remove_dir(md_dir.join(ATTACHED_DIR_NAME));
+    }
+    // An emptied digest source folder is litter the same way; drop it when the move
+    // took the last digest out of it.
+    for file in &plan.files {
+        if file.layer != "digest" {
+            continue;
+        }
+        if let Some(dir) = Path::new(&file.src_rel).parent().and_then(|p| p.to_str()) {
+            if !dir.is_empty() {
+                if let Ok(digest_dir) = doc_file_path(src_root, "digest", &plan.src_project_id, dir) {
+                    let _ = fs::remove_dir(digest_dir);
+                }
+            }
+        }
     }
     Ok(())
 }
