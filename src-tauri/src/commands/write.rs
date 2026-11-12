@@ -251,8 +251,8 @@ pub fn rename_doc(_app: AppHandle, payload: Value) -> Result<Value, String> {
 }
 
 #[tauri::command]
-pub fn move_doc_dir(_app: AppHandle, payload: Value) -> Result<Value, String> {
-    Ok(docs::move_doc_dir(&payload))
+pub fn move_doc(_app: AppHandle, payload: Value) -> Result<Value, String> {
+    Ok(docs::move_doc(&payload))
 }
 
 pub fn mark_message_channel_read_json(channel: &str) -> Result<(), String> {

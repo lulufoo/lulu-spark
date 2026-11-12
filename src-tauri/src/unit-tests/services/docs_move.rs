@@ -4,8 +4,8 @@ use std::path::PathBuf;
 use serde_json::json;
 
 use crate::services::docs::{
-    create_doc, create_doc_content, create_project, create_workspace, disable_workspace, move_doc,
-    search,
+    create_doc, create_doc_content, create_folder, create_project, create_titled_doc,
+    create_workspace, disable_workspace, move_doc, search,
 };
 use crate::services::spark_data;
 use crate::test_support::TestSandbox;
@@ -228,4 +228,143 @@ fn move_doc_reindexes_only_the_target_workspace() {
         .filter_map(|i| i["id"].as_str().map(str::to_string))
         .collect();
     assert!(!src_ids.contains(&id), "{src_hits}");
+}
+
+fn raw_dir(sandbox: &TestSandbox, ws: &str, project: &str) -> PathBuf {
+    workspaces_dir(sandbox).join(ws).join("raw").join(project)
+}
+
+fn digest_dir(sandbox: &TestSandbox, ws: &str, project: &str) -> PathBuf {
+    workspaces_dir(sandbox).join(ws).join("digest").join(project)
+}
+
+fn move_within(id: &str, project: &str, target: &str) -> serde_json::Value {
+    let mut body = json!({
+        "id": id,
+        "project_id": project,
+        "workspace_id": default_id(),
+    });
+    if !target.is_empty() {
+        body["target"] = json!(target);
+    }
+    move_doc(&body)
+}
+
+fn titled_note(folder: &str, filename: &str, title: &str, at: &str) -> serde_json::Value {
+    create_titled_doc(&json!({
+        "workspace_id": default_id(),
+        "project_id": inbox_of(&default_id()),
+        "title": title,
+        "source_type": "jot",
+        "content": "正文",
+        "folder": folder,
+        "filename": filename,
+        "created_at": at,
+    }))
+}
+
+#[test]
+fn move_doc_within_a_project_moves_body_attached_and_digest_into_the_target_folder() {
+    let sandbox = setup();
+    let ws = default_id();
+    let proj = inbox_of(&ws);
+    assert_eq!(
+        create_folder(&json!({ "workspace_id": ws, "project_id": proj, "name": "archive" }))["ok"],
+        json!(true)
+    );
+    assert_eq!(
+        create_folder(&json!({ "workspace_id": ws, "project_id": proj, "parent": "archive", "name": "2026" }))["ok"],
+        json!(true)
+    );
+    let made = titled_note("plans", "notes.md", "笔记", "202611102220");
+    assert_eq!(made["ok"], json!(true), "{made}");
+    let id = made["id"].as_str().expect("id").to_string();
+    let conn = spark_data::open().expect("db");
+    let mut row = spark_data::find_doc(&conn, &id).expect("find").expect("row").doc;
+    row.translations = json!(["zh"]);
+    row.digest_path = Some(row.raw_path.clone());
+    assert!(spark_data::update_doc(&conn, &row).expect("update"));
+    let raw = raw_dir(&sandbox, &ws, &proj);
+    let digest = digest_dir(&sandbox, &ws, &proj);
+    fs::write(raw.join("plans/notes-zh.md"), "译文").expect("zh");
+    let attached = raw.join("plans/.attached").join(&id);
+    fs::create_dir_all(&attached).expect("attached");
+    fs::write(attached.join("pic.png"), "图").expect("pic");
+    fs::create_dir_all(digest.join("plans")).expect("digest dir");
+    fs::write(digest.join("plans/notes.md"), "摘要").expect("digest");
+
+    let moved = move_within(&id, &proj, "archive/2026");
+    assert_eq!(moved["ok"], json!(true), "{moved}");
+    assert_eq!(moved["raw_path"], json!("archive/2026/notes.md"), "{moved}");
+    assert!(raw.join("archive/2026/notes.md").is_file());
+    assert!(raw.join("archive/2026/notes-zh.md").is_file());
+    assert!(raw.join("archive/2026/.attached").join(&id).join("pic.png").is_file());
+    assert!(!raw.join("plans/notes.md").exists());
+    assert!(!raw.join("plans/notes-zh.md").exists());
+    // No shell is left behind: an empty `.attached` would block deleting the folder.
+    assert!(!raw.join("plans/.attached").exists());
+    assert!(digest.join("archive/2026/notes.md").is_file());
+    assert!(!digest.join("plans").exists());
+    let after = spark_data::find_doc(&spark_data::open().expect("db"), &id)
+        .expect("find")
+        .expect("row")
+        .doc;
+    assert_eq!(after.raw_path, "archive/2026/notes.md");
+    assert_eq!(after.digest_path.as_deref(), Some("archive/2026/notes.md"));
+}
+
+#[test]
+fn move_doc_within_a_project_moves_back_to_the_project_root() {
+    let sandbox = setup();
+    let ws = default_id();
+    let proj = inbox_of(&ws);
+    let made = titled_note("plans", "notes.md", "笔记", "202611102221");
+    assert_eq!(made["ok"], json!(true), "{made}");
+    let id = made["id"].as_str().expect("id").to_string();
+
+    let moved = move_within(&id, &proj, "");
+    assert_eq!(moved["ok"], json!(true), "{moved}");
+    assert_eq!(moved["raw_path"], json!("notes.md"), "{moved}");
+    assert!(raw_dir(&sandbox, &ws, &proj).join("notes.md").is_file());
+    assert!(!raw_dir(&sandbox, &ws, &proj).join("plans/notes.md").exists());
+}
+
+#[test]
+fn move_doc_within_a_project_keeps_the_path_when_the_folder_is_unchanged() {
+    let sandbox = setup();
+    let ws = default_id();
+    let proj = inbox_of(&ws);
+    let made = titled_note("plans", "notes.md", "笔记", "202611102222");
+    assert_eq!(made["ok"], json!(true), "{made}");
+    let id = made["id"].as_str().expect("id").to_string();
+
+    let moved = move_within(&id, &proj, "plans");
+    assert_eq!(moved["ok"], json!(true), "{moved}");
+    assert_eq!(moved["raw_path"], json!("plans/notes.md"), "{moved}");
+    assert!(raw_dir(&sandbox, &ws, &proj).join("plans/notes.md").is_file());
+}
+
+#[test]
+fn move_doc_within_a_project_refuses_taken_targets_and_unknown_folders() {
+    let sandbox = setup();
+    let ws = default_id();
+    let proj = inbox_of(&ws);
+    let first = titled_note("plans", "notes.md", "笔记", "202611102223");
+    assert_eq!(first["ok"], json!(true), "{first}");
+    let id = first["id"].as_str().expect("id").to_string();
+    let second = titled_note("archive", "notes.md", "重名", "202611102224");
+    assert_eq!(second["ok"], json!(true), "{second}");
+
+    let taken = move_within(&id, &proj, "archive");
+    assert_eq!(taken["_status"], json!(409), "{taken}");
+    assert!(raw_dir(&sandbox, &ws, &proj).join("plans/notes.md").is_file());
+    assert!(raw_dir(&sandbox, &ws, &proj).join("archive/notes.md").is_file());
+
+    let unknown = move_within(&id, &proj, "ghost");
+    assert_eq!(unknown["_status"], json!(400), "{unknown}");
+    assert!(raw_dir(&sandbox, &ws, &proj).join("plans/notes.md").is_file());
+
+    let missing = move_within("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", &proj, "plans");
+    assert_eq!(missing["_status"], json!(404), "{missing}");
+    assert!(raw_dir(&sandbox, &ws, &proj).join("plans/notes.md").is_file());
 }

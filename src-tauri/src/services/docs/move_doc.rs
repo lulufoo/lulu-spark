@@ -1,25 +1,34 @@
-//! `move_doc`: move a document to another project, same workspace or another.
+//! `move_doc`: the one document mover — another folder of the same project, another
+//! project, or another workspace.
 //!
-//! Plan → stage (copy) → database (`project_id`, commit point) → cleanup → index the
-//! target workspace once.
+//! Plan → stage (copy) → database (commit point) → cleanup → index the target workspace
+//! once. Copy-first keeps the sources intact until the commit, so any interruption
+//! leaves the document whole where the database points and at most orphaned copies
+//! behind, which the orphan sweep reclaims.
 
 use serde_json::{json, Value};
 
+use crate::services::archive_parse::is_valid_common_path;
 use crate::services::id::random_alnum6;
 use crate::services::search_index;
 use crate::services::spark_data::{list_docs, update_doc as update_doc_row};
 
+use super::folder::{folder_known, keep_parent_folder};
 use super::merge_files::collect_taken_paths;
-use super::relocate::{cleanup_relocate, plan_relocate, stage_relocate};
+use super::relocate::{cleanup_relocate, plan_relocate, plan_relocate_into, stage_relocate};
 use super::resolve::{
-    bad_request, doc_id_field, ensure_workspace_enabled, internal, open_data, resolve_doc,
+    bad_request, conflict, doc_id_field, ensure_workspace_enabled, internal, open_data, resolve_doc,
     resolve_doc_workspace, resolve_project, resolve_workspace, text_field, workspace_root,
 };
+use super::store::doc_file_path;
 
-/// `{ id, project_id, workspace_id?, target_workspace_id? }` →
-/// `{ ok, id, workspace_id, workspace_name, project_id, project_name }`.
+/// `{ id, project_id, workspace_id?, target_workspace_id?, target? }` →
+/// `{ ok, id, workspace_id, workspace_name, project_id, project_name, raw_path }`.
 /// `workspace_id` must be the document's current workspace when sent.
-/// `target_workspace_id` defaults to that workspace.
+/// `target_workspace_id` defaults to that workspace. When the destination project is
+/// the document's own project, `target` is the destination folder inside it (empty or
+/// omitted for the project root), a taken name is a conflict instead of a rename, and
+/// the folder the document leaves stays in the tree.
 pub fn move_doc(payload: &Value) -> Value {
     let id = match doc_id_field(payload) {
         Ok(id) => id,
@@ -57,9 +66,7 @@ pub fn move_doc(payload: &Value) -> Value {
         Ok(p) => p,
         Err(v) => return v,
     };
-    if new_project.id == old_project.id {
-        return bad_request("Already in this project");
-    }
+    let same_project = new_project.id == old_project.id;
     let rel = doc.raw_path.clone();
     if rel.is_empty() || rel.contains("..") {
         return bad_request("Invalid path");
@@ -79,20 +86,59 @@ pub fn move_doc(payload: &Value) -> Value {
             .collect(),
         Err(e) => return internal(e),
     };
-    let (taken_raw, taken_digest) = match collect_taken_paths(&dest_root, &new_project.id, &dest_docs)
-    {
-        Ok(v) => v,
-        Err(v) => return v,
-    };
-    let plan = match plan_relocate(
-        &doc,
-        &new_project.id,
-        &taken_raw,
-        &taken_digest,
-        random_alnum6,
-    ) {
-        Ok(p) => p,
-        Err(e) => return internal(e),
+    let plan = if same_project {
+        let folder = text_field(payload, "target").unwrap_or_default();
+        if !folder.is_empty() {
+            match folder_known(&conn, &new_project.id, &folder) {
+                Ok(true) => {}
+                Ok(false) => return bad_request("Unknown folder"),
+                Err(err) => return internal(err),
+            }
+        }
+        let new_raw = join_dir(&folder, basename(&rel));
+        if !is_valid_common_path(&new_raw) {
+            return bad_request("Invalid folder");
+        }
+        if new_raw == rel {
+            return json!({
+                "ok": true,
+                "id": id,
+                "workspace_id": dest_ws.id,
+                "workspace_name": dest_ws.name,
+                "project_id": new_project.id,
+                "project_name": new_project.name,
+                "raw_path": rel,
+            });
+        }
+        let taken = dest_docs
+            .iter()
+            .any(|d| d.doc_id != id && d.raw_path == new_raw)
+            || doc_file_path(&dest_root, "raw", &new_project.id, &new_raw)
+                .map(|p| p.exists())
+                .unwrap_or(false);
+        if taken {
+            return conflict("File already exists");
+        }
+        match plan_relocate_into(&doc, &new_project.id, &new_raw) {
+            Ok(p) => p,
+            Err(e) => return internal(e),
+        }
+    } else {
+        let (taken_raw, taken_digest) = match collect_taken_paths(&dest_root, &new_project.id, &dest_docs)
+        {
+            Ok(v) => v,
+            Err(v) => return v,
+        };
+        match plan_relocate(
+            &doc,
+            &new_project.id,
+            &taken_raw,
+            &taken_digest,
+            random_alnum6,
+        ) {
+            Ok(p) => p,
+            Err(e) => return internal(e),
+        }
     };
     if let Err(v) = stage_relocate(&src_root, &dest_root, &plan) {
         return v;
@@ -110,6 +156,12 @@ pub fn move_doc(payload: &Value) -> Value {
     if let Err(v) = cleanup_relocate(&src_root, &plan) {
         return v;
     }
+    if same_project {
+        // The folder the document left stays in the tree when nothing is left inside it.
+        if let Err(err) = keep_parent_folder(&conn, &new_project.id, &rel) {
+            return internal(err);
+        }
+    }
     search_index::sync_workspace_docs_best_effort(&dest_ws.id, &[id.as_str()]);
     json!({
         "ok": true,
@@ -118,7 +170,20 @@ pub fn move_doc(payload: &Value) -> Value {
         "workspace_name": dest_ws.name,
         "project_id": new_project.id,
         "project_name": new_project.name,
+        "raw_path": plan.target.raw_path,
     })
+}
+
+fn join_dir(dir: &str, name: &str) -> String {
+    if dir.is_empty() {
+        name.to_string()
+    } else {
+        format!("{dir}/{name}")
+    }
+}
+
+fn basename(rel: &str) -> &str {
+    rel.rsplit('/').next().unwrap_or(rel)
 }
 
 #[cfg(test)]

@@ -79,7 +79,7 @@ const NOTE_WRITE_COMMANDS: &[&str] = &[
     "delete_folder",
     "rename_folder",
     "rename_doc",
-    "move_doc_dir",
+    "move_doc",
     "create_workspace",
     "rename_workspace",
     "set_workspace_view_mode",

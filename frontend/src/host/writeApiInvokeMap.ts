@@ -147,7 +147,7 @@ export const WRITE_API_INVOKE_MAP: Record<string, WriteInvokeEntry> = {
     args: (body) => ({ payload: body ?? {} }),
   },
   '/api/move-doc-dir': {
-    cmd: 'move_doc_dir',
+    cmd: 'move_doc',
     args: (body) => ({ payload: body ?? {} }),
   },
   '/api/workspace-create': {
