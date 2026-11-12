@@ -79,6 +79,7 @@ describe('writeApiInvokeMap', () => {
       '/api/hide-pattern-remove',
       '/api/hide-pattern-update',
       '/api/mark-message-channel-read',
+      '/api/move-doc-dir',
       '/api/project-create',
       '/api/project-delete',
       '/api/project-move',

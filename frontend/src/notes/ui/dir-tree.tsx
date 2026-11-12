@@ -21,6 +21,8 @@ import {
 } from '../state/dir-tree.ts';
 import { selectDate } from '../commands/sidebar.ts';
 import { attachDirectoryRenameEnter } from '../commands/dir-rename-enter.ts';
+import { dropFileOn, endFileMove, leaveFolder, overFolder, startFileMove } from '../commands/file-move.ts';
+import { fileMoveStore } from '../state/file-move.ts';
 import type { NoteEntry } from '../state/types.ts';
 import { FileGlyph, FolderGlyph, TreeChevron, TreeNodeName } from './dir-tree-glyphs.tsx';
 
@@ -42,10 +44,10 @@ function Chrome({ isDir, expanded }: { isDir: boolean; expanded: boolean }) {
   );
 }
 
-type TreeProps = { depth: number; expanded: string[]; openDocId: string; selectedNode: string };
+type TreeProps = { depth: number; expanded: string[]; openDocId: string; selectedNode: string; overKey: string };
 
 /** The folders, then the documents, directly inside `node`. */
-function NodeContents({ node, depth, expanded, openDocId, selectedNode }: TreeProps & { node: DirNode }) {
+function NodeContents({ node, depth, expanded, openDocId, selectedNode, overKey }: TreeProps & { node: DirNode }) {
   return (
     <>
       <FolderCreateRow nodeKey={node.key} depth={depth} />
@@ -57,6 +59,7 @@ function NodeContents({ node, depth, expanded, openDocId, selectedNode }: TreePr
           expanded={expanded}
           openDocId={openDocId}
           selectedNode={selectedNode}
+          overKey={overKey}
         />
       ))}
       <DirCreateRow nodeKey={node.key} depth={depth} />
@@ -87,6 +90,9 @@ function FileBlock({ doc, depth, openDocId }: { doc: DirDoc; depth: number; open
           type="button"
           className={`knowledge-doc-tree-label${openDocId === doc.id ? ' selected' : ''}`}
           data-tip={doc.entry.raw_path || doc.name}
+          draggable
+          onDragStart={(event) => startFileMove(doc.id, doc.entry, event)}
+          onDragEnd={endFileMove}
           onClick={() => openDoc(doc.id, doc.entry)}
           onContextMenu={onFileContextMenu}
         >
@@ -103,7 +109,7 @@ function onFolderClick(node: DirNode, open: boolean, selected: boolean) {
   else selectDate(dirKeyOf(node.key));
 }
 
-function FolderBlock({ node, depth, expanded, openDocId, selectedNode }: TreeProps & { node: DirNode }) {
+function FolderBlock({ node, depth, expanded, openDocId, selectedNode, overKey }: TreeProps & { node: DirNode }) {
   const open = expanded.includes(node.key);
   const selected = selectedNode === node.key;
   const renaming = useRenamingFolderKey() === node.key;
@@ -120,11 +126,14 @@ function FolderBlock({ node, depth, expanded, openDocId, selectedNode }: TreePro
         ) : (
           <button
             type="button"
-            className={`knowledge-doc-tree-label${selected ? ' selected' : ''}`}
+            className={`knowledge-doc-tree-label${selected ? ' selected' : ''}${overKey === node.key ? ' is-drop-target' : ''}`}
             data-tip={node.name}
             aria-expanded={open}
             onClick={() => onFolderClick(node, open, selected)}
             onContextMenu={onFolderContextMenu(node.key, node.children.length === 0 && node.docs.length === 0)}
+            onDragOver={(event) => overFolder(node.key, event)}
+            onDragLeave={() => leaveFolder(node.key)}
+            onDrop={(event) => dropFileOn(node.key, event)}
           >
             <Chrome isDir expanded={open} />
             <TreeNodeName name={node.name} isDir />
@@ -142,6 +151,7 @@ function FolderBlock({ node, depth, expanded, openDocId, selectedNode }: TreePro
             expanded={expanded}
             openDocId={openDocId}
             selectedNode={selectedNode}
+            overKey={overKey}
           />
         </div>
       ) : null}
@@ -158,6 +168,7 @@ export function DirTree() {
   const { expanded } = useSyncExternalStore(dirTreeStore.subscribe, dirTreeStore.getSnapshot);
   const creating = useSyncExternalStore(dirCreateStore.subscribe, dirCreateStore.getSnapshot);
   const folderCreating = useSyncExternalStore(folderCreateStore.subscribe, folderCreateStore.getSnapshot);
+  const moving = useSyncExternalStore(fileMoveStore.subscribe, fileMoveStore.getSnapshot);
   useEffect(() => attachDirectoryRenameEnter(), []);
   const project = host.ui.activeTopic;
   const root = useMemo(
@@ -180,7 +191,14 @@ export function DirTree() {
   }
   return (
     <div id="sidebar-dir-tree" role="tree">
-      <NodeContents node={root} depth={0} expanded={expanded} openDocId={openDocId} selectedNode={selectedNode} />
+      <NodeContents
+        node={root}
+        depth={0}
+        expanded={expanded}
+        openDocId={openDocId}
+        selectedNode={selectedNode}
+        overKey={moving.over}
+      />
     </div>
   );
 }

@@ -975,6 +975,15 @@
 .knowledge-doc-tree-label.selected .knowledge-doc-tree-icon {
   color: var(--fg-muted);
 }
+.knowledge-doc-tree-label.is-drop-target {
+  background: var(--bg-accent-subtle);
+  outline: 1px dashed var(--border-accent);
+  outline-offset: -1px;
+}
+.knowledge-doc-tree-label.is-drop-target .knowledge-doc-tree-name,
+.knowledge-doc-tree-label.is-drop-target .knowledge-doc-tree-twist {
+  color: var(--fg-accent-emphasis);
+}
 
 .knowledge-doc-empty {
   padding: 16px;

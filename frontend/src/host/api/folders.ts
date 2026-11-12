@@ -38,3 +38,13 @@ export async function renameDoc(payload: {
 }) {
   return writePost('/api/rename-doc', payload);
 }
+
+/** Move one document into another folder of the same project. `target` is relative to the project; omitted or '' for the root. */
+export async function moveDocDir(payload: {
+  workspace_id: string;
+  project_id: string;
+  id: string;
+  target?: string;
+}) {
+  return writePost('/api/move-doc-dir', payload);
+}
