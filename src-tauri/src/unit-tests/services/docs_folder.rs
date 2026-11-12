@@ -261,3 +261,18 @@ fn delete_folder_reports_an_unknown_folder_without_writing() {
     let root = delete_folder(&delete_body("/"));
     assert_eq!(root["_status"], json!(400), "{root}");
 }
+
+#[test]
+fn delete_folder_clears_an_orphan_attached_shell_left_by_a_move() {
+    let _sandbox = setup();
+    assert_eq!(create_folder(&payload(json!({ "name": "scope-functions" })))["ok"], json!(true));
+    // A drag moved the document out but an orphan `.attached` shell stayed on disk.
+    let shell = folder_dir("scope-functions").join(".attached").join("dead-doc-id");
+    fs::create_dir_all(&shell).expect("shell");
+    fs::write(shell.join("pic.png"), "图").expect("pic");
+
+    let removed = delete_folder(&delete_body("scope-functions"));
+    assert_eq!(removed["ok"], json!(true), "{removed}");
+    assert!(!folder_dir("scope-functions").exists());
+    assert!(!listed("scope-functions"));
+}

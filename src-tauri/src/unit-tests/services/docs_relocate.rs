@@ -106,6 +106,7 @@ fn cleanup_relocate_removes_source_files_and_the_attached_dir() {
     cleanup_relocate(&src, &plan).expect("cleanup");
     assert!(!src.join("raw/srcp").join(RAW).exists());
     assert!(!src.join(format!("raw/srcp/notes/.attached/{DOC}")).exists());
+    assert!(!src.join("raw/srcp/notes/.attached").exists());
     assert_eq!(fs::read(dest.join("raw/destp").join(RAW)).unwrap(), b"# raw\n");
     assert_eq!(
         fs::read(dest.join(format!("raw/destp/notes/.attached/{DOC}/a.png"))).unwrap(),

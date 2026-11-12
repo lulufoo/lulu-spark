@@ -8,7 +8,7 @@ use std::path::Path;
 use serde_json::{json, Value};
 
 use crate::services::archive_parse::expected_lang_common_path;
-use super::attached::{copy_attached_dir, remove_attached_dir};
+use super::attached::{ATTACHED_DIR_NAME, copy_attached_dir, remove_attached_dir};
 use super::merge_plan::{plan_merge_targets, MergeTarget};
 use super::store::doc_file_path;
 use crate::services::spark_data::{translation_common_paths, DocRow};
@@ -154,6 +154,8 @@ pub(crate) fn cleanup_relocate(src_root: &Path, plan: &RelocatePlan) -> Result<(
     let src_raw = doc_file_path(src_root, "raw", &plan.src_project_id, &raw.src_rel)?;
     if let Some(md_dir) = src_raw.parent() {
         let _ = remove_attached_dir(md_dir, &plan.doc_id);
+        // An emptied `.attached` shell would keep the source folder undeletable.
+        let _ = fs::remove_dir(md_dir.join(ATTACHED_DIR_NAME));
     }
     Ok(())
 }
