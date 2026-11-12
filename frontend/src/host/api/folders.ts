@@ -48,3 +48,13 @@ export async function moveDocDir(payload: {
 }) {
   return writePost('/api/move-doc-dir', payload);
 }
+
+/** Move one folder and its whole subtree under another folder of the same project. `target` is relative to the project; omitted or '' for the root; the folder lands at `<target>/<name>`. */
+export async function moveFolder(payload: {
+  workspace_id: string;
+  project_id: string;
+  path: string;
+  target?: string;
+}) {
+  return writePost('/api/move-folder', payload);
+}

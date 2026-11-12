@@ -226,7 +226,7 @@ pub(super) fn folder_known(conn: &Connection, project_id: &str, path: &str) -> R
     Ok(folder_row(conn, project_id, path)? || docs_inside(conn, project_id, path)?)
 }
 
-fn folder_row(conn: &Connection, project_id: &str, path: &str) -> Result<bool, String> {
+pub(super) fn folder_row(conn: &Connection, project_id: &str, path: &str) -> Result<bool, String> {
     conn.query_row(
         "SELECT EXISTS(SELECT 1 FROM folder WHERE project_id = ?1 AND path = ?2)",
         params![project_id, path],
@@ -281,7 +281,7 @@ pub(super) fn escape_like(path: &str) -> String {
     path.replace('\\', "\\\\").replace('%', "\\%").replace('_', "\\_")
 }
 
-fn insert_folder(conn: &Connection, project_id: &str, path: &str) -> Result<(), String> {
+pub(super) fn insert_folder(conn: &Connection, project_id: &str, path: &str) -> Result<(), String> {
     conn.execute(
         "INSERT OR IGNORE INTO folder (project_id, path) VALUES (?1, ?2)",
         params![project_id, path],

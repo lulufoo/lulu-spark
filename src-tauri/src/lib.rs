@@ -167,6 +167,7 @@ pub fn run() {
             commands::write::rename_folder,
             commands::write::rename_doc,
             commands::write::move_doc,
+            commands::write::move_folder,
             commands::write::mark_message_channel_read,
             commands::write::mark_message_workspace_read,
             commands::os_notification::show_os_notification,
