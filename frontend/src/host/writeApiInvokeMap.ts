@@ -146,6 +146,10 @@ export const WRITE_API_INVOKE_MAP: Record<string, WriteInvokeEntry> = {
     cmd: 'rename_doc',
     args: (body) => ({ payload: body ?? {} }),
   },
+  '/api/move-doc-dir': {
+    cmd: 'move_doc_dir',
+    args: (body) => ({ payload: body ?? {} }),
+  },
   '/api/workspace-create': {
     cmd: 'create_workspace',
     args: (body) => ({ payload: body ?? {} }),

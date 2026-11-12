@@ -250,6 +250,11 @@ pub fn rename_doc(_app: AppHandle, payload: Value) -> Result<Value, String> {
     Ok(docs::rename_doc(&payload))
 }
 
+#[tauri::command]
+pub fn move_doc_dir(_app: AppHandle, payload: Value) -> Result<Value, String> {
+    Ok(docs::move_doc_dir(&payload))
+}
+
 pub fn mark_message_channel_read_json(channel: &str) -> Result<(), String> {
     crate::services::message_center::mark_channel_read(channel)
 }
