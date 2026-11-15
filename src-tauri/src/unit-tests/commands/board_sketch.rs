@@ -16,9 +16,13 @@ fn the_read_runs_off_the_caller_thread() {
     });
     assert_eq!(reply.status, "not_board");
     assert!(reply.content_b64.is_none());
+    assert_eq!(reply.version, None);
+    assert_eq!(reply.invalidation_scope, None);
     assert_ne!(caller, worker);
     let wrapped = tauri::async_runtime::block_on(load_board_sketch(
         "https://evil.test/#b:b_0123abcd".into(),
     ));
     assert_eq!(wrapped.status, "not_board");
+    assert_eq!(wrapped.version, None);
+    assert_eq!(wrapped.invalidation_scope, None);
 }

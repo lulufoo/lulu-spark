@@ -19,13 +19,41 @@ describe('board sketch read bridge', () => {
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
-      json: async () => ({ status: 'sketch', content_b64: 'PDw+Pz89' }),
+      json: async () => ({ status: 'sketch', content_b64: 'PDw+Pz89', title: 'Title', version: 7 }),
       text: async () => '',
     });
-    await api.fetchBoardSketch(page);
+    expect(await api.fetchBoardSketch(page)).toEqual({
+      status: 'sketch', content_b64: 'PDw+Pz89', title: 'Title', version: 7,
+    });
     const called = globalThis.fetch.mock.calls[0][0];
     expect(called).toContain('/api/board-sketch?url=');
     expect(called).toContain(encodeURIComponent(page));
     expect(called).not.toContain('lbp_');
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    { status: 'unauthorized', invalidation_scope: 'credential' },
+    { status: 'forbidden', invalidation_scope: 'diagram' },
+    { status: 'not_found', invalidation_scope: 'diagram' },
+    { status: 'unconfigured', invalidation_scope: 'credential' },
+    { status: 'unavailable' },
+    { status: 'network' },
+    { status: 'invalid_document' },
+    { status: 'not_sketch', version: 2 },
+    { status: 'invalid_source', version: 3 },
+  ])('preserves the host result and original URL for $status', async (reply) => {
+    const page = 'https://luluboard.app/view?utm=原始#b:b_0123abcd';
+    const api = await import('../../frontend/src/host/api.ts');
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => reply,
+      text: async () => '',
+    });
+    expect(await api.fetchBoardSketch(page)).toEqual(reply);
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+    const called = new URL(globalThis.fetch.mock.calls[0][0], 'http://localhost');
+    expect(called.searchParams.get('url')).toBe(page);
   });
 });

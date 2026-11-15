@@ -14,6 +14,13 @@ use crate::services::board_api;
 
 const BOARD_ORIGIN: &str = "luluboard.app";
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BoardInvalidationScope {
+    Credential,
+    Diagram,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct BoardSketchReply {
     pub status: &'static str,
@@ -21,6 +28,20 @@ pub struct BoardSketchReply {
     pub content_b64: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
+    /// Present for a valid source document, even if its preview is unsupported.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub version: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub invalidation_scope: Option<BoardInvalidationScope>,
+}
+
+/// A validated, type-independent source. URL and diagram ID remain with the
+/// caller's validated request; neither is replaced by response metadata.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct BoardDocument {
+    pub bmd: String,
+    pub title: String,
+    pub version: i32,
 }
 
 enum FetchOutcome {
@@ -88,6 +109,12 @@ fn reply(status: &'static str) -> BoardSketchReply {
         status,
         content_b64: None,
         title: None,
+        version: None,
+        invalidation_scope: match status {
+            "unconfigured" | "unauthorized" => Some(BoardInvalidationScope::Credential),
+            "forbidden" | "not_found" => Some(BoardInvalidationScope::Diagram),
+            _ => None,
+        },
     }
 }
 
@@ -160,38 +187,71 @@ fn interpret(status: u16, body: &str) -> BoardSketchReply {
         return reply("network");
     }
     match status {
-        401 | 403 => reply("unauthorized"),
+        401 => reply("unauthorized"),
+        403 => reply("forbidden"),
         404 => reply("not_found"),
-        200 => sketch_from_document(body),
+        200 => match parse_document(body) {
+            Ok(document) => project_sketch(&document),
+            Err(failure) => failure,
+        },
         _ => reply("network"),
     }
 }
 
-fn sketch_from_document(body: &str) -> BoardSketchReply {
+/// Validate source/metadata before choosing a renderer. A malformed Sketch
+/// projection does not turn an otherwise valid Board document into bad cache.
+pub(crate) fn parse_document(body: &str) -> Result<BoardDocument, BoardSketchReply> {
     let Ok(value) = serde_json::from_str::<Value>(body) else {
-        return reply("invalid_source");
+        return Err(reply("invalid_document"));
     };
     let Some(bmd) = value.get("bmd").and_then(Value::as_str) else {
-        return reply("invalid_source");
+        return Err(reply("invalid_document"));
     };
-    if !body_is_sketch(bmd) {
-        return reply("not_sketch");
-    }
-    let Some(token) = content_token(bmd) else {
-        return reply("invalid_source");
+    let Some(version) = value
+        .get("version")
+        .and_then(Value::as_i64)
+        .filter(|version| (1..=i64::from(i32::MAX)).contains(version))
+    else {
+        return Err(reply("invalid_document"));
     };
-    if token == bmd.trim() || !is_base64(token) {
-        return reply("invalid_source");
-    }
-    BoardSketchReply {
-        status: "sketch",
-        content_b64: Some(token.to_string()),
-        title: diagram_title(&value),
-    }
+    let title = match value.get("title") {
+        Some(Value::String(title)) => title.clone(),
+        None => String::new(),
+        _ => return Err(reply("invalid_document")),
+    };
+    Ok(BoardDocument {
+        bmd: bmd.to_string(),
+        title,
+        version: version as i32,
+    })
 }
 
-fn diagram_title(value: &Value) -> Option<String> {
-    let title = value.get("title")?.as_str()?.trim();
+pub(crate) fn project_sketch(document: &BoardDocument) -> BoardSketchReply {
+    let mut projection = BoardSketchReply {
+        status: "not_sketch",
+        content_b64: None,
+        title: diagram_title(&document.title),
+        version: Some(document.version),
+        invalidation_scope: None,
+    };
+    if !body_is_sketch(&document.bmd) {
+        return projection;
+    }
+    let Some(token) = content_token(&document.bmd) else {
+        projection.status = "invalid_source";
+        return projection;
+    };
+    if token == document.bmd.trim() || !is_base64(token) {
+        projection.status = "invalid_source";
+        return projection;
+    }
+    projection.status = "sketch";
+    projection.content_b64 = Some(token.to_string());
+    projection
+}
+
+fn diagram_title(title: &str) -> Option<String> {
+    let title = title.trim();
     if title.is_empty() { None } else { Some(title.to_string()) }
 }
 
