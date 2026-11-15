@@ -9,7 +9,7 @@ Stage the Markdown at any absolute path. Load [chinese-companion.md](chinese-com
 | Field | Rule |
 |-------|------|
 | `workspace_id` | Required. From `list_workspaces`; pick by `description` (else name). Do not omit |
-| `project_id` | A project id from `list_projects` that fits best; else omit (the Host uses the inbox) |
+| `project_id` | Use an explicitly specified project's id from `list_projects`; otherwise omit to save to the selected workspace's Default Project. Do not infer a project from the document's content |
 | `folder` | kebab-case English from title or body (3–5 words); else omit and the Host uses `notes`. May be a 1–3 level relative path such as `ai/agents/notes` |
 | `title` | `#` heading or first line |
 | `created_at` | Default is the current time (`YYYYMMDDHHMM`, UTC+8). Omit unless the user gives a time. |
