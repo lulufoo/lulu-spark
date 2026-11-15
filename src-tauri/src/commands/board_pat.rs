@@ -11,11 +11,11 @@ pub fn read_board_pat_status() -> Result<bool, String> {
 }
 
 pub fn write_board_pat(pat: &str) -> Result<(), String> {
-    vault::set_board_pat(pat).map_err(secret_message)
+    crate::services::board_cache::set_board_pat(pat)
 }
 
 pub fn remove_board_pat() -> Result<(), String> {
-    vault::delete_board_pat().map_err(secret_message)
+    crate::services::board_cache::delete_board_pat()
 }
 
 fn secret_message(err: SecretError) -> String {

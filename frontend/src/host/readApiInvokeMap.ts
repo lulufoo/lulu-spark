@@ -112,6 +112,12 @@ export const READ_API_INVOKE_MAP: Record<string, ReadInvokeEntry> = {
       url: url.searchParams.get('url') ?? '',
     }),
   },
+  '/api/board-sketch-cache': {
+    cmd: 'read_cached_board_sketch',
+    args: (url) => ({
+      url: url.searchParams.get('url') ?? '',
+    }),
+  },
 };
 
 /**

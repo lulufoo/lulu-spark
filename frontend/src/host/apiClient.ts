@@ -54,6 +54,20 @@ function isTauriRuntime() {
   return Boolean(window.__TAURI__ || window.__TAURI_INTERNALS__);
 }
 
+/** Desktop events use the same Host boundary as invoke and channels. */
+export async function listenHostEvent<T>(
+  name: string,
+  onPayload: (payload: T) => void,
+): Promise<() => void> {
+  if (!isTauriRuntime()) return () => {};
+  const globalListen = window.__TAURI__?.event?.listen;
+  if (typeof globalListen === 'function') {
+    return globalListen(name, (event) => onPayload(event.payload as T));
+  }
+  const events = await import('@tauri-apps/api/event');
+  return events.listen<T>(name, (event) => onPayload(event.payload));
+}
+
 /**
  * @param {string} [baseUrl]
  * @returns {{ getJson(pathAndQuery: string): Promise<unknown> }}

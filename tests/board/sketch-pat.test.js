@@ -11,7 +11,12 @@ vi.mock('../../frontend/src/host/api.ts', () => ({
 const { removeBoardPat, saveBoardPat } = await import(
   '../../frontend/src/app-shell/commands/settings/board.ts'
 );
-const { mountBoardSketches } = await import('../../frontend/src/board/commands/sketch-links.ts');
+const { mountBoardSketches: mount } = await import('../../frontend/src/board/commands/sketch-links.ts');
+import { withBoardIdentity } from './sketch-fixtures.js';
+
+function mountBoardSketches(container, read) {
+  return mount(container, async (url) => withBoardIdentity(await read(url), url));
+}
 
 const PAGE = 'https://luluboard.app/view#b:b_0123abcd';
 
@@ -53,6 +58,7 @@ describe('board token changes', () => {
       if (reads === 1) return first.promise;
       return Promise.resolve({ status: 'unconfigured' });
     });
+    await act(async () => {});
     await act(async () => {
       await removeBoardPat();
       first.resolve({ status: 'sketch', content_b64: btoa('<p>Old</p>') });

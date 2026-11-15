@@ -13,6 +13,11 @@ pub const BUSINESS: &str = "board_sketch";
 pub const EVENT_READ: &str = "sketch.read";
 pub const EVENT_WARM: &str = "api.warmup";
 
+pub fn cache_failure(action: &'static str) {
+    app_log::log(BUSINESS, "cache.io_failed", None,
+        Some(json!({ "action": action })), Side::Host, Level::Warn);
+}
+
 pub fn read(
     status: &str,
     diagram_id: &str,

@@ -25,6 +25,14 @@ fn current_scope() -> String {
     scope_id().expect("vault scope")
 }
 
+#[cfg(debug_assertions)]
+pub(crate) fn write_debug_vault_fixture(
+    path: &std::path::Path,
+    vault: &Vault,
+) -> Result<(), SecretError> {
+    super::write_debug_vault(path, vault)
+}
+
 pub fn test_clear_scope() {
     let _guard = io_lock();
     store_memory_vault(&current_scope(), &Vault::default());
@@ -187,4 +195,42 @@ fn auth_session_store_fail_is_store_error() {
         Err(SecretError::Store(_))
     ));
     test_clear_store_fail();
+}
+
+#[test]
+fn failure_after_loading_does_not_replace_the_saved_board_credentials() {
+    let _sandbox = crate::test_support::TestSandbox::new();
+    test_clear_scope();
+    crate::config::vault::set_board_pat("lin_pat_previous").expect("save");
+    let before = read_vault().expect("saved");
+    let result = update_vault(|vault| {
+        vault.set_board_pat(Some("lin_pat_unsaved".into()));
+        memory_fail_map().insert(current_scope(), "write blocked".into());
+    });
+    assert!(matches!(result, Err(SecretError::Store(_))));
+    test_clear_store_fail();
+    assert_eq!(read_vault().expect("previous value remains"), before);
+    test_clear_scope();
+}
+
+#[cfg(debug_assertions)]
+#[test]
+fn debug_vault_write_failure_preserves_the_previous_file() {
+    let sandbox = crate::test_support::TestSandbox::new();
+    let path = sandbox.cache_dir().join("vault-write-fixture.toml");
+    let mut previous = Vault::default();
+    previous.set_board_pat(Some("lin_pat_previous".into()));
+    super::write_debug_vault(&path, &previous).expect("initial write");
+    let original = std::fs::read(&path).expect("original");
+    let temporary = path.with_extension("toml.tmp");
+    std::fs::create_dir(&temporary).expect("block temporary file");
+    let mut replacement = Vault::default();
+    replacement.set_board_pat(Some("lin_pat_replacement".into()));
+    assert!(super::write_debug_vault(&path, &replacement).is_err());
+    assert_eq!(std::fs::read(&path).expect("unchanged"), original);
+    std::fs::remove_dir(&temporary).expect("unblock");
+    super::write_debug_vault(&path, &replacement).expect("replacement");
+    let saved = std::fs::read_to_string(&path).expect("read replacement");
+    assert_eq!(crate::config::vault::vault_from_toml(&saved).unwrap(), replacement);
+    assert!(!temporary.exists());
 }

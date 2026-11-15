@@ -1,4 +1,6 @@
 pub mod agent;
+#[cfg(not(test))]
+mod app_events;
 pub mod boot_settings;
 pub mod commands;
 pub mod config;
@@ -153,19 +155,10 @@ pub fn run() {
             commands::board_pat::set_board_pat,
             commands::board_pat::delete_board_pat,
             commands::board_sketch::read_board_sketch,
+            commands::board_sketch::read_cached_board_sketch,
         ])
         .setup(|app| {
-            let notify_handle = app.handle().clone();
-            crate::services::message_center::set_changed_handler(Some(std::sync::Arc::new(
-                move || {
-                    use tauri::Emitter;
-                    if let Some(envelope) =
-                        crate::services::message_center::last_changed_envelope()
-                    {
-                        let _ = notify_handle.emit("message-center:changed", envelope);
-                    }
-                },
-            )));
+            app_events::install(app.handle());
 
             let main_host = crate::main_host::MainHostState::new();
             let mut embedded_mcp_handle = None;

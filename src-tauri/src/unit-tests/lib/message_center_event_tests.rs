@@ -28,24 +28,26 @@ fn setup_adapts_l4_notify_to_desktop_event() {
     let setup = src
         .find(".setup")
         .expect("lib.rs must adapt the notify port during .setup");
-    let handler = src
-        .find("set_changed_handler")
-        .expect("setup must attach L4 set_changed_handler");
-    let event = src
-        .find("message-center:changed")
-        .expect("setup must emit desktop event message-center:changed");
+    let install = src
+        .find("app_events::install(app.handle())")
+        .expect("setup must install the desktop event adapters");
     assert!(
-        handler > setup && event > setup,
-        "L4 notify adapter and message-center:changed must live in .setup"
+        install > setup,
+        "desktop event adapters must be installed during .setup"
     );
+    let adapter = std::fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/app_events.rs"),
+    )
+    .expect("read desktop event adapters");
     assert!(
-        src.contains("emit(")
-            && src.contains("message-center:changed")
-            && src.contains("last_changed_envelope"),
+        adapter.contains("set_changed_handler")
+            && adapter.contains("emit(")
+            && adapter.contains("message-center:changed")
+            && adapter.contains("last_changed_envelope"),
         "adapter must emit message-center:changed with the last envelope"
     );
     assert!(
-        !src.contains("\"message-center:changed\", ()"),
+        !adapter.contains("\"message-center:changed\", ()"),
         "setup must not emit an empty message-center:changed payload"
     );
 }
