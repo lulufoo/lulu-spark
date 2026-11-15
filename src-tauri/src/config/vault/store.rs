@@ -64,7 +64,7 @@ pub(super) fn store_memory_vault(scope: &str, vault: &Vault) {
     memory_map().insert(scope.to_string(), vault.clone());
 }
 
-fn load_raw() -> Result<Vault, SecretError> {
+pub(super) fn load_raw() -> Result<Vault, SecretError> {
     if uses_memory_store()? {
         let scope = scope_id()?;
         if let Some(e) = memory_fail(&scope) {
@@ -76,7 +76,7 @@ fn load_raw() -> Result<Vault, SecretError> {
     }
 }
 
-fn store_raw(vault: &Vault) -> Result<(), SecretError> {
+pub(super) fn store_raw(vault: &Vault) -> Result<(), SecretError> {
     if uses_memory_store()? {
         let scope = scope_id()?;
         if let Some(e) = memory_fail(&scope) {
@@ -101,11 +101,35 @@ fn persistent_load() -> Result<Vault, SecretError> {
 #[cfg(debug_assertions)]
 fn persistent_store(vault: &Vault) -> Result<(), SecretError> {
     let path = settings::prod_config_dir().join("dev-secrets.toml");
+    write_debug_vault(&path, vault)
+}
+
+#[cfg(debug_assertions)]
+fn write_debug_vault(path: &std::path::Path, vault: &Vault) -> Result<(), SecretError> {
+    use std::io::Write;
+
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).map_err(|e| SecretError::Store(e.to_string()))?;
     }
     let content = vault_to_toml(vault)?;
-    std::fs::write(path, content).map_err(|e| SecretError::Store(e.to_string()))
+    let temporary = path.with_extension("toml.tmp");
+    let result = (|| {
+        let mut options = std::fs::OpenOptions::new();
+        options.write(true).create_new(true);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::OpenOptionsExt;
+            options.mode(0o600);
+        }
+        let mut file = options.open(&temporary)?;
+        file.write_all(content.as_bytes())?;
+        file.sync_all()?;
+        std::fs::rename(&temporary, path)
+    })();
+    if result.is_err() {
+        let _ = std::fs::remove_file(&temporary);
+    }
+    result.map_err(|e: std::io::Error| SecretError::Store(e.to_string()))
 }
 
 #[cfg(not(debug_assertions))]
@@ -187,18 +211,6 @@ pub fn board_pat_configured() -> Result<bool, SecretError> {
 
 pub fn get_board_pat() -> Result<Option<String>, SecretError> {
     Ok(read_vault()?.board_pat().map(str::to_string))
-}
-
-pub fn set_board_pat(value: &str) -> Result<(), SecretError> {
-    let pat = value.trim();
-    if pat.is_empty() {
-        return Err(SecretError::InvalidBoardPat);
-    }
-    update_vault(|vault| vault.set_board_pat(Some(pat.to_string())))
-}
-
-pub fn delete_board_pat() -> Result<(), SecretError> {
-    update_vault(|vault| vault.set_board_pat(None))
 }
 
 #[cfg(test)]

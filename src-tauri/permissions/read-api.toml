@@ -37,4 +37,5 @@ commands.allow = [
   "get_package_snapshot",
   "get_board_pat_status",
   "read_board_sketch",
+  "read_cached_board_sketch",
 ]

@@ -7,7 +7,6 @@ use std::fs;
 use std::io::{ErrorKind, Read};
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard};
-use std::time::SystemTime;
 
 use chrono::{DateTime, SecondsFormat, Utc};
 use md5::{Digest, Md5};
@@ -17,6 +16,8 @@ use serde_json::Value;
 use crate::config::settings;
 
 use super::atomic_json;
+
+mod files;
 
 pub const SCHEMA_VERSION: u32 = 1;
 /// A bounded, rebuildable cache. Oldest written entries are evicted first.
@@ -236,71 +237,6 @@ impl BoardCache {
         }
         Ok(removed)
     }
-
-    fn entries(&self) -> Result<Vec<CacheFile>, String> {
-        let entries = match fs::read_dir(&self.directory) {
-            Ok(entries) => entries,
-            Err(e) if e.kind() == ErrorKind::NotFound => return Ok(Vec::new()),
-            Err(e) => return Err(e.to_string()),
-        };
-        let mut files = Vec::new();
-        for entry in entries {
-            let entry = entry.map_err(|e| e.to_string())?;
-            if !cache_filename(&entry.file_name().to_string_lossy())
-                || !entry.file_type().map_err(|e| e.to_string())?.is_file()
-            {
-                continue;
-            }
-            let metadata = entry.metadata().map_err(|e| e.to_string())?;
-            files.push(CacheFile {
-                path: entry.path(),
-                bytes: metadata.len(),
-                modified: metadata.modified().map_err(|e| e.to_string())?,
-            });
-        }
-        Ok(files)
-    }
-
-    fn remove_interrupted_writes(&self) -> Result<(), String> {
-        let entries = match fs::read_dir(&self.directory) {
-            Ok(entries) => entries,
-            Err(e) if e.kind() == ErrorKind::NotFound => return Ok(()),
-            Err(e) => return Err(e.to_string()),
-        };
-        for entry in entries {
-            let entry = entry.map_err(|e| e.to_string())?;
-            let name = entry.file_name();
-            let name = name.to_string_lossy();
-            if name.strip_suffix(".tmp").is_some_and(cache_filename)
-                && entry.file_type().map_err(|e| e.to_string())?.is_file()
-            {
-                remove_file(&entry.path())?;
-            }
-        }
-        Ok(())
-    }
-
-    fn evict_oldest(&self, keep: &Path) -> Result<(), String> {
-        let mut files = self.entries()?;
-        let mut total: u64 = files.iter().map(|f| f.bytes).sum();
-        files.sort_by(|a, b| a.modified.cmp(&b.modified).then_with(|| a.path.cmp(&b.path)));
-        for file in files {
-            if total <= self.capacity_bytes {
-                break;
-            }
-            if file.path != keep {
-                remove_file(&file.path)?;
-                total = total.saturating_sub(file.bytes);
-            }
-        }
-        Ok(())
-    }
-}
-
-struct CacheFile {
-    path: PathBuf,
-    bytes: u64,
-    modified: SystemTime,
 }
 
 /// The URL string's UTF-8 bytes are the entire key; no type or ID substitution.
@@ -314,15 +250,6 @@ fn valid_diagram_id(id: &str) -> bool {
             && hex
                 .bytes()
                 .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase())
-    })
-}
-
-fn cache_filename(name: &str) -> bool {
-    name.strip_suffix(".json").is_some_and(|stem| {
-        stem.len() == 32
-            && stem
-                .bytes()
-                .all(|c| c.is_ascii_digit() || (b'a'..=b'f').contains(&c))
     })
 }
 

@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 
@@ -48,6 +48,12 @@ pub struct Vault {
 pub struct BoardSecrets {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub pat: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cache_scope: Option<String>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub revoked: bool,
+    #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
+    pub denied_diagrams: BTreeSet<String>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -144,9 +150,7 @@ impl Vault {
             .filter(|pat| !pat.is_empty())
         {
             Some(pat) => {
-                self.board
-                    .get_or_insert_with(BoardSecrets::default)
-                    .pat = Some(pat);
+                self.board = Some(BoardSecrets { pat: Some(pat), ..Default::default() });
             }
             None => {
                 if let Some(board) = self.board.as_mut() {

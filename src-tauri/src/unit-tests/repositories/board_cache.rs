@@ -1,14 +1,11 @@
 use super::*;
 
 use serde_json::json;
-use std::sync::{Arc, Barrier};
-use std::thread;
-use std::time::{Duration, UNIX_EPOCH};
 
-const URL: &str = "https://luluboard.app/#b:b_0123abcd";
-const SCOPE: &str = "credential-generation-a";
+pub(super) const URL: &str = "https://luluboard.app/#b:b_0123abcd";
+pub(super) const SCOPE: &str = "credential-generation-a";
 
-fn record(url: &str, id: &str, scope: &str) -> BoardCacheRecord {
+pub(super) fn record(url: &str, id: &str, scope: &str) -> BoardCacheRecord {
     BoardCacheRecord::new(
         url.into(),
         id.into(),
@@ -19,7 +16,7 @@ fn record(url: &str, id: &str, scope: &str) -> BoardCacheRecord {
     )
 }
 
-fn seed(cache: &BoardCache, url: &str, value: &Value) {
+pub(super) fn seed(cache: &BoardCache, url: &str, value: &Value) {
     fs::create_dir_all(cache.directory()).expect("mkdir");
     fs::write(cache.path(url), serde_json::to_vec(value).expect("json")).expect("seed");
 }
@@ -190,100 +187,6 @@ fn lower_versions_can_be_written_after_a_service_accepts_a_recreated_diagram() {
 }
 
 #[test]
-fn remove_diagram_removes_url_aliases_only_in_its_scope() {
-    let dir = tempfile::tempdir().expect("tmp");
-    let cache = BoardCache::new(dir.path());
-    let alias = URL.to_owned() + "&alias=1";
-    let foreign_scope_url = URL.to_owned() + "&alias=2";
-    let other_url = "https://luluboard.app/#b:b_89abcdef";
-    for value in [
-        record(URL, "b_0123abcd", SCOPE),
-        record(&alias, "b_0123abcd", SCOPE),
-        record(&foreign_scope_url, "b_0123abcd", "other"),
-        record(other_url, "b_89abcdef", SCOPE),
-    ] {
-        cache.store(&value).expect("store");
-    }
-    assert_eq!(cache.remove_diagram("b_0123abcd", SCOPE).expect("remove"), 2);
-    assert!(!cache.path(URL).exists());
-    assert!(!cache.path(&alias).exists());
-    assert!(cache.path(&foreign_scope_url).exists());
-    assert!(cache.path(other_url).exists());
-    assert_eq!(cache.remove_scope(SCOPE).expect("remove scope"), 1);
-    assert!(cache.path(&foreign_scope_url).exists());
-}
-
-#[test]
-fn url_and_all_cache_removal_leave_other_runtime_data_untouched() {
-    let dir = tempfile::tempdir().expect("tmp");
-    let cache = BoardCache::new(dir.path());
-    fs::write(dir.path().join("unrelated.json"), "unrelated").expect("other cache");
-    let value = record(URL, "b_0123abcd", SCOPE);
-    cache.store(&value).expect("store");
-    cache.remove_url(URL).expect("remove URL");
-    cache.remove_url(URL).expect("already absent");
-    assert!(!cache.path(URL).exists());
-    cache.store(&value).expect("store again");
-    fs::write(cache.path(URL).with_extension("json.tmp"), "interrupted").expect("temp");
-    cache.clear().expect("clear Board cache");
-    cache.clear().expect("already absent");
-    assert!(!cache.directory().exists());
-    assert_eq!(fs::read_to_string(dir.path().join("unrelated.json")).expect("other"), "unrelated");
-}
-
-#[test]
-fn corrupt_metadata_found_during_scoped_cleanup_is_discarded() {
-    let dir = tempfile::tempdir().expect("tmp");
-    let cache = BoardCache::new(dir.path());
-    seed(&cache, URL, &json!({ "schema_version": 1, "bmd": "missing metadata" }));
-    assert_eq!(cache.remove_scope(SCOPE).expect("scope clear"), 0);
-    assert!(!cache.path(URL).exists());
-}
-
-#[test]
-fn capacity_evicts_oldest_write_and_never_the_fresh_target() {
-    let dir = tempfile::tempdir().expect("tmp");
-    let values = [
-        record("https://luluboard.app/#b:b_0123abcd", "b_0123abcd", SCOPE),
-        record("https://luluboard.app/#b:b_0123abce", "b_0123abce", SCOPE),
-        record("https://luluboard.app/#b:b_0123abcf", "b_0123abcf", SCOPE),
-    ];
-    let entry_size = serde_json::to_vec_pretty(&serde_json::to_value(&values[0]).expect("value"))
-        .expect("json").len() as u64;
-    let cache = BoardCache::with_capacity(dir.path(), entry_size * 2);
-    for (index, value) in values.iter().enumerate() {
-        cache.store(value).expect("store");
-        let modified = UNIX_EPOCH + Duration::from_secs(index as u64 + 1);
-        fs::OpenOptions::new()
-            .write(true)
-            .open(cache.path(&value.url))
-            .expect("file")
-            .set_times(fs::FileTimes::new().set_modified(modified))
-            .expect("order writes");
-    }
-    assert!(!cache.path(&values[0].url).exists());
-    assert!(cache.path(&values[1].url).exists());
-    assert!(cache.path(&values[2].url).exists());
-    let total: u64 = cache.entries().expect("files").iter().map(|f| f.bytes).sum();
-    assert!(total <= entry_size * 2);
-}
-
-#[test]
-fn oversized_single_write_is_skipped_and_keeps_the_previous_record() {
-    let dir = tempfile::tempdir().expect("tmp");
-    let value = record(URL, "b_0123abcd", SCOPE);
-    let size = serde_json::to_vec_pretty(&serde_json::to_value(&value).expect("value"))
-        .expect("json").len() as u64;
-    let cache = BoardCache::with_capacity(dir.path(), size);
-    assert_eq!(cache.store(&value).expect("write"), StoreOutcome::Stored);
-    assert_eq!(fs::metadata(cache.path(URL)).expect("actual file").len(), size);
-    let mut too_large = value.clone();
-    too_large.bmd.push('x');
-    assert_eq!(cache.store(&too_large).expect("skip"), StoreOutcome::SkippedTooLarge);
-    assert_eq!(cache.read(URL, SCOPE).expect("old record"), Some(value));
-}
-
-#[test]
 fn write_errors_return_to_the_caller_without_a_partial_valid_record() {
     let dir = tempfile::tempdir().expect("tmp");
     let cache = BoardCache::new(dir.path());
@@ -301,24 +204,6 @@ fn read_io_failure_never_returns_content_or_a_version() {
 }
 
 #[test]
-fn store_cleans_crash_leftover_temps_without_deleting_other_files() {
-    let dir = tempfile::tempdir().expect("tmp");
-    let cache = BoardCache::new(dir.path());
-    fs::create_dir_all(cache.directory()).expect("mkdir");
-    let interrupted = cache.path(URL).with_extension("json.tmp");
-    let another = cache.path("https://luluboard.app/#b:b_89abcdef").with_extension("json.tmp");
-    fs::write(&interrupted, "interrupted cache write").expect("temp");
-    fs::write(&another, "another interrupted cache write").expect("temp");
-    let unrelated = cache.directory().join("unrelated.json.tmp");
-    fs::write(&unrelated, "unrelated").expect("other file");
-    cache.store(&record(URL, "b_0123abcd", SCOPE)).expect("store");
-    assert!(!interrupted.exists());
-    assert!(!another.exists());
-    assert!(unrelated.is_file());
-    assert!(cache.path(URL).is_file());
-}
-
-#[test]
 fn invalid_records_are_not_written() {
     let dir = tempfile::tempdir().expect("tmp");
     let cache = BoardCache::new(dir.path());
@@ -328,56 +213,8 @@ fn invalid_records_are_not_written() {
     assert!(!cache.directory().exists());
 }
 
-#[test]
-fn independent_handles_serialize_two_writers_reads_and_removal() {
-    let dir = tempfile::tempdir().expect("tmp");
-    let cache = BoardCache::new(dir.path());
-    fs::create_dir_all(cache.directory()).expect("mkdir");
-    fs::write(cache.path(URL), "broken initial JSON").expect("bad seed");
-    let barrier = Arc::new(Barrier::new(4));
-    let reader_cache = cache.clone();
-    let reader_start = barrier.clone();
-    let reader = thread::spawn(move || {
-        reader_start.wait();
-        for _ in 0..100 {
-            if let Some(value) = reader_cache.read(URL, SCOPE).expect("serialized read") {
-                assert_eq!(value.bmd, format!("revision {}", value.version));
-            }
-        }
-    });
-    let writer_cache = BoardCache::new(dir.path());
-    let writer_start = barrier.clone();
-    let writer = thread::spawn(move || {
-        writer_start.wait();
-        for version in 1..=100 {
-            let mut value = record(URL, "b_0123abcd", SCOPE);
-            value.version = version;
-            value.bmd = format!("revision {version}");
-            writer_cache.store(&value).expect("atomic replacement");
-        }
-    });
-    let other_writer_cache = BoardCache::new(dir.path());
-    let other_writer_start = barrier.clone();
-    let other_writer = thread::spawn(move || {
-        other_writer_start.wait();
-        for version in 200..=299 {
-            let mut value = record(URL, "b_0123abcd", SCOPE);
-            value.version = version;
-            value.bmd = format!("revision {version}");
-            other_writer_cache.store(&value).expect("second writer");
-        }
-    });
-    barrier.wait();
-    for _ in 0..50 {
-        cache.remove_url(URL).expect("serialized remove");
-    }
-    reader.join().expect("reader");
-    writer.join().expect("writer");
-    other_writer.join().expect("other writer");
-    let mut final_value = record(URL, "b_0123abcd", SCOPE);
-    final_value.version = 101;
-    final_value.bmd = "revision 101".into();
-    cache.store(&final_value).expect("final write");
-    assert_eq!(cache.read(URL, SCOPE).expect("final read"), Some(final_value));
-    assert!(!cache.path(URL).with_extension("json.tmp").exists());
-}
+#[path = "board_cache/removal.rs"]
+mod removal;
+
+#[path = "board_cache/concurrency.rs"]
+mod concurrency;
