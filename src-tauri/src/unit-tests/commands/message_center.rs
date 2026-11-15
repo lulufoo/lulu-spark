@@ -1,8 +1,8 @@
 use std::fs;
 use std::path::PathBuf;
 
-use crate::commands::read::get_message_channel_unread_json;
-use crate::commands::write::mark_message_channel_read_json;
+use crate::commands::read::{get_message_channel_unread_json, get_message_workspace_unread_json};
+use crate::commands::write::{mark_message_channel_read_json, mark_message_workspace_read_json};
 use crate::services::message_center::{self, channel_unread, mark_channel_read, produce, Envelope};
 use crate::test_support::{read_rs_dir, TestSandbox};
 use serde_json::json;
@@ -59,6 +59,25 @@ fn mark_message_channel_read_forwards_l4_mark_channel_read() {
         mark_message_channel_read_json("docs").expect("mark docs read");
         assert!(!get_message_channel_unread_json("docs").expect("unread after mark"));
         assert!(!channel_unread("docs"));
+    });
+}
+
+#[test]
+fn workspace_commands_preserve_unread_in_other_workspaces_and_channels() {
+    with_message_center_cmd(|| {
+        for workspace_id in ["agent", "mac"] {
+            let mut envelope = docs_create_envelope();
+            envelope.params["workspace_id"] = json!(workspace_id);
+            produce(envelope).expect("workspace docs");
+        }
+        produce("read_later").expect("read later");
+        assert_eq!(get_message_workspace_unread_json().len(), 2);
+        mark_message_workspace_read_json("mac").expect("read Mac");
+        assert_eq!(get_message_workspace_unread_json().get("agent"), Some(&true));
+        assert!(!get_message_workspace_unread_json().contains_key("mac"));
+        assert!(get_message_channel_unread_json("read_later").expect("read later unread"));
+        assert!(mark_message_workspace_read_json("").is_err());
+        assert_eq!(get_message_workspace_unread_json().get("agent"), Some(&true));
     });
 }
 

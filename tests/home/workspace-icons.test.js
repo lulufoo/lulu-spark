@@ -19,6 +19,8 @@ vi.mock('../../frontend/src/host/api.ts', () => ({
     })),
   }),
   invoke: async () => ({ state: 'unbound' }),
+  getMessageChannelUnread: async () => false,
+  getMessageWorkspaceUnread: async () => ({}),
   createChannel: async (onmessage) => ({ onmessage }),
 }));
 vi.mock('../../frontend/src/notes/commands/sidebar.ts', () => ({ selectProject() {}, selectDefaultProject() {} }));
@@ -84,7 +86,7 @@ describe('HomeWorkspaceNav icons', () => {
           workspaces,
           projects,
           expandedWorkspaceIds: workspaces.map((row) => row.id),
-          unreadDocs: false,
+          workspaceUnread: {},
           onToggleWorkspace() {},
           onOpenWorkspace() {},
           onOpenProject() {},

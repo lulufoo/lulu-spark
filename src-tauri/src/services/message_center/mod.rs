@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::fs;
 use std::sync::{Arc, Mutex};
 
@@ -22,6 +23,8 @@ static LAST_CHANGED_ENVELOPE: Mutex<Option<Envelope>> = Mutex::new(None);
 pub struct Record {
     pub id: String,
     pub channel: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub workspace_id: Option<String>,
     pub unread: bool,
     pub created_at: String,
 }
@@ -162,6 +165,16 @@ pub fn produce(envelope: impl Into<Envelope>) -> Result<Record, String> {
         let record = Record {
             id: random_entry_id(),
             channel: envelope.business.clone(),
+            workspace_id: if envelope.business == "docs" {
+                envelope
+                    .params
+                    .get("workspace_id")
+                    .and_then(|value| value.as_str())
+                    .filter(|id| crate::services::spark_data::validate_workspace_id(id).is_ok())
+                    .map(str::to_string)
+            } else {
+                None
+            },
             unread: true,
             created_at: Utc::now().to_rfc3339(),
         };
@@ -195,6 +208,32 @@ pub fn channel_unread(channel: &str) -> bool {
             .records
             .iter()
             .any(|record| record.channel == channel && record.unread)
+    })
+}
+
+/// Legacy records have no workspace identity; leave them unassigned instead of
+/// showing them on an unrelated workspace.
+pub fn workspace_unread() -> BTreeMap<String, bool> {
+    with_write_lock(|| {
+        load_store_unlocked()
+            .records
+            .into_iter()
+            .filter(|record| record.channel == "docs" && record.unread)
+            .filter_map(|record| record.workspace_id.map(|id| (id, true)))
+            .collect()
+    })
+}
+
+pub fn mark_workspace_read(workspace_id: &str) -> Result<(), String> {
+    crate::services::spark_data::validate_workspace_id(workspace_id)?;
+    with_write_lock(|| {
+        let mut store = load_store_unlocked();
+        for record in &mut store.records {
+            if record.channel == "docs" && record.workspace_id.as_deref() == Some(workspace_id) {
+                record.unread = false;
+            }
+        }
+        save_store_unlocked(&store)
     })
 }
 

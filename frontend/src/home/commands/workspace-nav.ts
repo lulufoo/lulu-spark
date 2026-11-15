@@ -4,6 +4,7 @@ import { enterProject, enterWorkspace } from '../../notes/commands/restore.ts';
 import { showWorkspace, switchWorkspace } from '../../notes/commands/workspace-switch.ts';
 import { setHomeState, type HomeProject } from '../state/store.ts';
 import { retainWorkspaceExpansion, toggleWorkspaceExpansion } from '../state/workspace-expansion.ts';
+import { markHomeWorkspaceRead } from './channel-unread.ts';
 
 let refreshGeneration = 0;
 
@@ -63,6 +64,7 @@ export function openWorkspace(id: string, navigateFn?: (hash: string) => void) {
   // A workspace that is switched to restores in `loadIndex`, once its index is there.
   if (alreadyShown) enterWorkspace();
   else switchWorkspace(id);
+  void markHomeWorkspaceRead(id);
   navigateFn?.('#/spark');
 }
 
@@ -70,5 +72,6 @@ export function openWorkspace(id: string, navigateFn?: (hash: string) => void) {
 export async function openProject(id: string, projectId: string, navigateFn?: (hash: string) => void) {
   await showWorkspace(id);
   enterProject(projectId);
+  void markHomeWorkspaceRead(id);
   navigateFn?.('#/spark');
 }

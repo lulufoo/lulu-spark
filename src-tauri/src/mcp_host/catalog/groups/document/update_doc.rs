@@ -15,6 +15,9 @@ pub(crate) fn produce_if_ok(result: &Value) {
         if let Some(id) = result.get("id") {
             params.insert("archive_id".to_string(), id.clone());
         }
+        if let Some(workspace_id) = result.get("workspace_id") {
+            params.insert("workspace_id".to_string(), workspace_id.clone());
+        }
         let _ = message_center::produce(message_center::Envelope {
             business: "docs".to_string(),
             action: "update".to_string(),

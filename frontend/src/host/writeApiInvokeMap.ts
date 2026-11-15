@@ -250,6 +250,10 @@ export const WRITE_API_INVOKE_MAP: Record<string, WriteInvokeEntry> = {
       channel: body.channel,
     }),
   },
+  '/api/mark-message-workspace-read': {
+    cmd: 'mark_message_workspace_read',
+    args: (body) => ({ workspaceId: body.workspace_id }),
+  },
   '/api/show-os-notification': {
     cmd: 'show_os_notification',
     args: (body) => ({

@@ -64,7 +64,7 @@ const DOC_CATEGORIES_READ_COMMANDS: &[&str] = &["get_doc_categories"];
 
 const MCP_TICKET_VIEW_READ_COMMANDS: &[&str] = &["get_mcp_ticket_view"];
 
-const MESSAGE_CENTER_READ_COMMANDS: &[&str] = &["get_message_channel_unread"];
+const MESSAGE_CENTER_READ_COMMANDS: &[&str] = &["get_message_channel_unread", "get_message_workspace_unread"];
 
 const PACKAGE_SNAPSHOT_READ_COMMANDS: &[&str] = &["get_package_snapshot"];
 

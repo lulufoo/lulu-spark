@@ -123,6 +123,15 @@ pub fn get_message_channel_unread(_app: AppHandle, channel: String) -> Result<bo
     get_message_channel_unread_json(&channel)
 }
 
+pub fn get_message_workspace_unread_json() -> std::collections::BTreeMap<String, bool> {
+    crate::services::message_center::workspace_unread()
+}
+
+#[tauri::command]
+pub fn get_message_workspace_unread(_app: AppHandle) -> std::collections::BTreeMap<String, bool> {
+    get_message_workspace_unread_json()
+}
+
 #[cfg(test)]
 #[path = "../unit-tests/commands/message_center.rs"]
 mod message_center_tests;

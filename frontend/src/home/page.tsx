@@ -465,15 +465,13 @@ export function HomePage({
               <HomeWorkspaceNav
                 workspaces={navWorkspaces()}
                 projects={state.workspaceProjects}
-                unreadDocs={state.channelUnread.docs}
+                workspaceUnread={state.workspaceUnread}
                 expandedWorkspaceIds={state.expandedWorkspaceIds}
                 onToggleWorkspace={toggleWorkspaceProjects}
                 onOpenWorkspace={(id) => {
-                  if (navWorkspaces().find((w) => w.id === id)?.isDefault) void markHomeEntryRead('spark');
                   openWorkspace(id, navigateFn);
                 }}
                 onOpenProject={(id, projectId) => {
-                  if (navWorkspaces().find((w) => w.id === id)?.isDefault) void markHomeEntryRead('spark');
                   void openProject(id, projectId, navigateFn);
                 }}
               />

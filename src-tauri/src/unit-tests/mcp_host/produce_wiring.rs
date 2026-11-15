@@ -83,6 +83,9 @@ fn notes_identity_params(result: &Value) -> Value {
     if let Some(value) = result.get("id") {
         params.insert("archive_id".to_string(), value.clone());
     }
+    if let Some(value) = result.get("workspace_id") {
+        params.insert("workspace_id".to_string(), value.clone());
+    }
     Value::Object(params)
 }
 
@@ -237,6 +240,32 @@ fn update_doc_from_content_success_adds_notes_record() {
             "digest": "never",
         }));
         assert_notes_produced("update", &result, before);
+    });
+}
+
+#[test]
+fn mcp_writes_mark_the_result_workspace_instead_of_the_default() {
+    with_host_sandbox(|_| {
+        let workspace = crate::services::docs::create_workspace(&json!({ "workspace_name": "Mac" }));
+        assert_eq!(workspace["ok"], true, "{workspace}");
+        let workspace_id = workspace["workspace_id"].as_str().expect("workspace id");
+        let mut args = content_note_args();
+        args["workspace_id"] = json!(workspace_id);
+        let created = create_doc_from_content(&args);
+        assert_note_ok(&created);
+        assert_eq!(last_changed_envelope().unwrap().params["workspace_id"], workspace_id);
+        assert_eq!(crate::services::message_center::workspace_unread().len(), 1);
+        assert_eq!(crate::services::message_center::workspace_unread().get(workspace_id), Some(&true));
+        crate::services::message_center::mark_workspace_read(workspace_id).expect("read workspace");
+
+        let updated = update_doc_from_content(&json!({
+            "id": created["id"], "content": "Mac 工作区更新测试", "digest": "never",
+        }));
+        assert_note_ok(&updated);
+        assert_eq!(updated["workspace_id"], workspace_id);
+        assert_eq!(last_changed_envelope().unwrap().params["workspace_id"], workspace_id);
+        assert_eq!(crate::services::message_center::workspace_unread().len(), 1);
+        assert_eq!(crate::services::message_center::workspace_unread().get(workspace_id), Some(&true));
     });
 }
 

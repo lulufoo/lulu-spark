@@ -14,6 +14,13 @@ describe('readApi contract map', () => {
     }
   });
 
+  it('reads all workspace unread flags in one invoke', () => {
+    expect(resolveInvokeFromPath('/api/message-workspace-unread')).toEqual({
+      cmd: 'get_message_workspace_unread',
+      args: {},
+    });
+  });
+
   it('resolveInvokeFromPath maps the search query with its workspace', () => {
     expect(resolveInvokeFromPath('/api/search-spark?q=abc&limit=8&workspace_id=memory')).toEqual({
       cmd: 'search_spark',

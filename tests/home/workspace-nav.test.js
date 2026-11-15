@@ -17,6 +17,9 @@ const projectsByWorkspace = {
 };
 
 vi.mock('../../frontend/src/host/api.ts', () => ({
+  markMessageWorkspaceRead: vi.fn(async () => {}),
+  getMessageWorkspaceUnread: async () => ({}),
+  getMessageChannelUnread: async () => false,
   fetchProjects: async (id) => {
     if (id === 'broken') throw new Error('boom');
     return {
@@ -56,6 +59,7 @@ const rows = [
 describe('Home workspace nav commands', () => {
   beforeEach(() => {
     order.length = 0;
+    vi.clearAllMocks();
     resetHomeState();
     state.workspaces = {
       current: 'default',
@@ -128,6 +132,7 @@ describe('Home workspace nav commands', () => {
     await pending;
     expect(order).toEqual([['show', 'knowledge'], ['shown', 'knowledge'], ['select', 'b']]);
     expect(navigate).toHaveBeenCalledWith('#/spark');
+    expect(api.markMessageWorkspaceRead).toHaveBeenCalledWith('knowledge');
   });
 });
 
@@ -154,7 +159,7 @@ describe('HomeWorkspaceNav', () => {
       return createElement(HomeWorkspaceNav, {
       workspaces: rows,
       projects: projectsByWorkspace,
-      unreadDocs: true,
+      workspaceUnread: { default: true },
       expandedWorkspaceIds: home.expandedWorkspaceIds,
       onToggleWorkspace: commands.toggleWorkspaceProjects,
       onOpenWorkspace: vi.fn(),
@@ -171,6 +176,17 @@ describe('HomeWorkspaceNav', () => {
     const { host } = render();
     expect(host.querySelectorAll('.home-nav-project')).toHaveLength(0);
     expect(host.querySelectorAll('.home-desktop-shortcut')).toHaveLength(3);
+    expect(host.querySelector('[data-home-entry="spark"]').dataset.homeUnread).toBe('true');
+  });
+
+  it('shows unread on its workspace without lighting the default workspace', () => {
+    const { host, paint } = render({ workspaceUnread: { knowledge: true } });
+    expect(host.querySelector('[data-home-workspace="knowledge"] [data-home-entry]').dataset.homeUnread).toBe('true');
+    expect(host.querySelector('[data-home-entry="spark"]').dataset.homeUnread).toBeUndefined();
+    paint({ workspaceUnread: { knowledge: true, default: true } });
+    expect(host.querySelector('[data-home-entry="spark"]').dataset.homeUnread).toBe('true');
+    paint({ workspaceUnread: { default: true } });
+    expect(host.querySelector('[data-home-workspace="knowledge"] [data-home-entry]').dataset.homeUnread).toBeUndefined();
     expect(host.querySelector('[data-home-entry="spark"]').dataset.homeUnread).toBe('true');
   });
 

@@ -10,6 +10,9 @@ import { getBaselineEntries } from '../../frontend/src/home-entry-shell/entry-co
 import { createContentRegistry } from '../../frontend/src/home-entry-shell/content-registry.ts';
 import { readFrontendJs } from '../helpers/read-frontend-js.js';
 import { useLoadedWorkspaces } from '../helpers/workspaces.js';
+import { state } from '../../frontend/src/host/state.ts';
+import { getHomeState, resetHomeState, setHomeState } from '../../frontend/src/home/state/store.ts';
+import { markHomeEntryRead, markHomeWorkspaceRead, refreshChannelUnread, resetChannelUnread } from '../../frontend/src/home/commands/channel-unread.ts';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 
@@ -19,33 +22,32 @@ function isEntryUnread(root, entry) {
   );
 }
 
-describe('home three-entry boolean unread', () => {
+describe('home workspace and Read Later unread', () => {
   let container;
   let cleanup;
   let navigate;
   let listenHandlers;
-  /** @type {import('vitest').MockInstance} */
+  let unreadByWorkspace;
+  let readLaterUnread;
+  let workspaceUnreadSpy;
+  let workspaceMarkSpy;
   let unreadSpy;
-  /** @type {import('vitest').MockInstance} */
   let markSpy;
-  /** @type {import('vitest').MockInstance} */
   let invokeSpy;
-  /** @type {Record<string, boolean>} */
-  let unreadByChannel;
-
   let restoreWorkspaces;
 
   beforeEach(() => {
     restoreWorkspaces = useLoadedWorkspaces();
+    state.workspaces.list.push({ workspace_id: 'mac', workspace_name: 'Mac', view_mode: 'directory', is_default: false, icon: '' });
     container = document.createElement('div');
     document.body.appendChild(container);
     cleanup = null;
     navigate = vi.fn();
     listenHandlers = {};
-    unreadByChannel = {
-      docs: true,
-      read_later: true,
-    };
+    unreadByWorkspace = { mac: true };
+    readLaterUnread = true;
+    resetChannelUnread();
+    resetHomeState();
     window.__TAURI__ = {
       event: {
         listen: vi.fn(async (name, handler) => {
@@ -54,12 +56,10 @@ describe('home three-entry boolean unread', () => {
         }),
       },
     };
-    unreadSpy = vi.spyOn(api, 'getMessageChannelUnread').mockImplementation(async (channel) => {
-      return Boolean(unreadByChannel[String(channel)]);
-    });
-    markSpy = vi.spyOn(api, 'markMessageChannelRead').mockImplementation(async (channel) => {
-      unreadByChannel[String(channel)] = false;
-    });
+    workspaceUnreadSpy = vi.spyOn(api, 'getMessageWorkspaceUnread').mockImplementation(async () => ({ ...unreadByWorkspace }));
+    workspaceMarkSpy = vi.spyOn(api, 'markMessageWorkspaceRead').mockImplementation(async (id) => { delete unreadByWorkspace[id]; });
+    unreadSpy = vi.spyOn(api, 'getMessageChannelUnread').mockImplementation(async () => readLaterUnread);
+    markSpy = vi.spyOn(api, 'markMessageChannelRead').mockImplementation(async () => { readLaterUnread = false; });
     invokeSpy = vi.spyOn(api, 'invoke').mockImplementation(async (cmd) => {
       if (cmd === 'query_binding') return { state: 'unbound' };
       if (cmd === 'list_chat_sessions') return { sessions: [], current_session_id: '' };
@@ -68,101 +68,170 @@ describe('home three-entry boolean unread', () => {
   });
 
   afterEach(() => {
-    restoreWorkspaces();
     cleanup?.();
-    unreadSpy.mockRestore();
-    markSpy.mockRestore();
-    invokeSpy.mockRestore();
+    resetChannelUnread();
+    resetHomeState();
+    restoreWorkspaces();
+    vi.restoreAllMocks();
     container.remove();
     delete window.__TAURI__;
   });
 
-  async function mountReady() {
-    cleanup = mountHomeHub(container, { navigate });
+  async function mountReady(options = {}) {
+    cleanup = mountHomeHub(container, { navigate, ...options });
     await vi.waitFor(() => {
-      expect(unreadSpy.mock.calls.map((call) => call[0]).sort()).toEqual([
-        'docs',
-        'read_later',
-      ]);
+      expect(workspaceUnreadSpy).toHaveBeenCalledOnce();
+      expect(unreadSpy).toHaveBeenCalledExactlyOnceWith('read_later');
+      expect(isEntryUnread(container, 'workspace:mac')).toBe(true);
     });
   }
 
-  it('refreshes Notes / Read Later boolean dots from host unread on start', async () => {
+  it('uses one workspace map to light Mac without lighting the default workspace', async () => {
     await mountReady();
-    expect(isEntryUnread(container, 'spark')).toBe(true);
+    expect(isEntryUnread(container, 'spark')).toBe(false);
+    expect(isEntryUnread(container, 'knowledge')).toBe(false);
     expect(isEntryUnread(container, 'read-later')).toBe(true);
     expect(container.querySelector('[data-home-entry="todo-tasks"]')).toBeNull();
-    expect(unreadSpy).toHaveBeenCalledWith('docs');
-    expect(unreadSpy).toHaveBeenCalledWith('read_later');
-    expect(unreadSpy.mock.calls.map((call) => call[0])).not.toContain('todos');
-    expect(unreadSpy.mock.calls.map((call) => call[0])).not.toContain('knowledge');
   });
 
-  it('refreshes again after message-center:changed', async () => {
+  it('refreshes each workspace after message-center:changed', async () => {
     await mountReady();
-    await vi.waitFor(() => {
-      expect(listenHandlers['message-center:changed']).toEqual(expect.any(Function));
-    });
-    unreadByChannel.read_later = false;
+    await vi.waitFor(() => expect(listenHandlers['message-center:changed']).toEqual(expect.any(Function)));
+    unreadByWorkspace = { 'ws-default': true, knowledge: true };
+    readLaterUnread = false;
+    workspaceUnreadSpy.mockClear();
     unreadSpy.mockClear();
     listenHandlers['message-center:changed']({});
     await vi.waitFor(() => {
-      expect(unreadSpy.mock.calls.map((call) => call[0]).sort()).toEqual([
-        'docs',
-        'read_later',
-      ]);
+      expect(workspaceUnreadSpy).toHaveBeenCalledOnce();
+      expect(isEntryUnread(container, 'workspace:mac')).toBe(false);
+      expect(isEntryUnread(container, 'spark')).toBe(true);
+      expect(isEntryUnread(container, 'knowledge')).toBe(true);
       expect(isEntryUnread(container, 'read-later')).toBe(false);
     });
+    expect(unreadSpy).toHaveBeenCalledExactlyOnceWith('read_later');
   });
 
-  it('clicking a dotted entry navigates and marks that channel read', async () => {
+  it('entering a workspace clears only its own documents; expanding leaves unread intact', async () => {
+    unreadByWorkspace.knowledge = true;
     await mountReady();
-    container.querySelector('[data-home-entry="spark"]').click();
+    container.querySelector('[data-home-entry="workspace:mac"]').click();
     expect(navigate).not.toHaveBeenCalled();
-    expect(markSpy).not.toHaveBeenCalled();
-    container.querySelector('[data-home-entry="spark"]').closest('.home-nav-workspace').querySelector('[data-home-open-workspace]').click();
+    expect(workspaceMarkSpy).not.toHaveBeenCalled();
+    container.querySelector('[data-home-open-workspace="mac"]').click();
     expect(navigate).toHaveBeenCalledWith('#/spark');
     await vi.waitFor(() => {
-      expect(markSpy).toHaveBeenCalledWith('docs');
-      expect(isEntryUnread(container, 'spark')).toBe(false);
+      expect(workspaceMarkSpy).toHaveBeenCalledExactlyOnceWith('mac');
+      expect(isEntryUnread(container, 'workspace:mac')).toBe(false);
     });
+    expect(isEntryUnread(container, 'knowledge')).toBe(true);
     expect(isEntryUnread(container, 'read-later')).toBe(true);
+    expect(markSpy).not.toHaveBeenCalled();
     expect(invokeSpy.mock.calls.map((call) => call[0])).not.toContain('create_note');
-    expect(container.querySelector('[data-role="message-list"]')).toBeNull();
   });
 
-  it('clicking Read Later marks the matching channel', async () => {
+  it('Read Later clears independently without clearing workspace unread', async () => {
     const openReadLater = vi.fn();
-    cleanup = mountHomeHub(container, { navigate, openReadLater });
-    await vi.waitFor(() => {
-      expect(unreadSpy.mock.calls.map((call) => call[0]).sort()).toEqual([
-        'docs',
-        'read_later',
-      ]);
-    });
-
+    await mountReady({ openReadLater });
     container.querySelector('[data-home-entry="read-later"]').click();
     expect(openReadLater).toHaveBeenCalledTimes(1);
     await vi.waitFor(() => {
-      expect(markSpy).toHaveBeenCalledWith('read_later');
+      expect(markSpy).toHaveBeenCalledExactlyOnceWith('read_later');
       expect(isEntryUnread(container, 'read-later')).toBe(false);
     });
-    expect(container.querySelector('[data-home-entry="todo-tasks"]')).toBeNull();
+    expect(isEntryUnread(container, 'workspace:mac')).toBe(true);
+    expect(workspaceMarkSpy).not.toHaveBeenCalled();
   });
 
-  it('hangs unread only on spark / read-later', async () => {
+  it('reloads persisted workspace unread after the Home view remounts', async () => {
+    unreadByWorkspace.knowledge = true;
     await mountReady();
-    expect(isEntryUnread(container, 'spark')).toBe(true);
-    expect(isEntryUnread(container, 'read-later')).toBe(true);
-    expect(isEntryUnread(container, 'knowledge')).toBe(false);
-    const knowledge = container.querySelector('[data-home-entry="knowledge"]');
-    expect(knowledge).not.toBeNull();
-    expect(knowledge.getAttribute('data-home-unread')).not.toBe('true');
-    knowledge.click();
-    expect(navigate).not.toHaveBeenCalled();
-    container.querySelector('[data-home-open-workspace="knowledge"]').click();
-    expect(navigate).toHaveBeenCalledWith('#/spark');
-    expect(markSpy).not.toHaveBeenCalled();
+    await markHomeWorkspaceRead('mac');
+    cleanup();
+    cleanup = null;
+    workspaceUnreadSpy.mockClear();
+    unreadSpy.mockClear();
+    cleanup = mountHomeHub(container, { navigate });
+    await vi.waitFor(() => {
+      expect(workspaceUnreadSpy).toHaveBeenCalledOnce();
+      expect(isEntryUnread(container, 'knowledge')).toBe(true);
+      expect(isEntryUnread(container, 'workspace:mac')).toBe(false);
+    });
+  });
+
+  it('does not restore a cleared dot from a refresh that started before the clear', async () => {
+    unreadByWorkspace = { mac: true, knowledge: true };
+    await refreshChannelUnread();
+    let release;
+    workspaceUnreadSpy.mockImplementationOnce(() => new Promise((resolve) => { release = resolve; }));
+    const stale = refreshChannelUnread();
+    await markHomeWorkspaceRead('mac');
+    release({ mac: true, knowledge: true });
+    await stale;
+    expect(getHomeState().workspaceUnread).toEqual({ knowledge: true });
+    expect(getHomeState().channelUnread.read_later).toBe(true);
+  });
+
+  it('reconciles a new unread document created after the host clear but before its response', async () => {
+    await refreshChannelUnread();
+    let releaseClear;
+    workspaceMarkSpy.mockImplementationOnce(() => {
+      delete unreadByWorkspace.mac;
+      return new Promise((resolve) => { releaseClear = resolve; });
+    });
+    const marking = markHomeWorkspaceRead('mac');
+    unreadByWorkspace.mac = true;
+    await refreshChannelUnread();
+    releaseClear();
+    await marking;
+    expect(getHomeState().workspaceUnread.mac).toBe(true);
+  });
+
+  it('keeps both dots when clearing one workspace fails', async () => {
+    unreadByWorkspace = { mac: true, knowledge: true };
+    await refreshChannelUnread();
+    workspaceMarkSpy.mockRejectedValueOnce(new Error('persist failed'));
+    await markHomeWorkspaceRead('mac');
+    expect(getHomeState().workspaceUnread).toEqual({ mac: true, knowledge: true });
+  });
+
+  it('preserves unread when a refresh fails and rejects a superseded response', async () => {
+    await refreshChannelUnread();
+    workspaceUnreadSpy.mockRejectedValueOnce(new Error('offline'));
+    await refreshChannelUnread();
+    expect(getHomeState().workspaceUnread).toEqual({ mac: true });
+    let release;
+    workspaceUnreadSpy.mockImplementationOnce(() => new Promise((resolve) => { release = resolve; }));
+    const stale = refreshChannelUnread();
+    unreadByWorkspace = { knowledge: true };
+    await refreshChannelUnread();
+    release({ mac: true });
+    await stale;
+    expect(getHomeState().workspaceUnread).toEqual({ knowledge: true });
+  });
+
+  it('does not relight Read Later from a refresh started before clearing it', async () => {
+    await refreshChannelUnread();
+    let release;
+    unreadSpy.mockImplementationOnce(() => new Promise((resolve) => { release = resolve; }));
+    const stale = refreshChannelUnread();
+    await markHomeEntryRead('read-later');
+    release(true);
+    await stale;
+    expect(getHomeState().channelUnread.read_later).toBe(false);
+    expect(getHomeState().workspaceUnread).toEqual({ mac: true });
+  });
+
+  it('ignores an old view clear response after resetting Home commands', async () => {
+    await refreshChannelUnread();
+    let release;
+    workspaceMarkSpy.mockImplementationOnce(() => new Promise((resolve) => { release = resolve; }));
+    const marking = markHomeWorkspaceRead('mac');
+    resetChannelUnread();
+    setHomeState((prev) => ({ ...prev, workspaceUnread: { mac: true, knowledge: true } }));
+    release();
+    await marking;
+    expect(getHomeState().workspaceUnread).toEqual({ mac: true, knowledge: true });
   });
 });
 

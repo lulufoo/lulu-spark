@@ -16,8 +16,7 @@ export type HomeWorkspaceRow = {
 type Props = {
   workspaces: HomeWorkspaceRow[];
   projects: Record<string, HomeProject[]>;
-  /** Unread dot of the documents channel; shown on the built-in workspace. */
-  unreadDocs: boolean;
+  workspaceUnread: Record<string, boolean>;
   expandedWorkspaceIds?: string[];
   onToggleWorkspace: (id: string) => void;
   onOpenWorkspace: (id: string) => void;
@@ -47,7 +46,7 @@ function WorkspaceIcon({ row }: { row: HomeWorkspaceRow }) {
 export function HomeWorkspaceNav({
   workspaces,
   projects,
-  unreadDocs,
+  workspaceUnread,
   expandedWorkspaceIds = [],
   onToggleWorkspace,
   onOpenWorkspace,
@@ -74,7 +73,7 @@ export function HomeWorkspaceNav({
                 type="button"
                 className="home-chat-nav-item home-desktop-shortcut"
                 data-home-entry={entryKey(row)}
-                {...(row.isDefault && unreadDocs ? { 'data-home-unread': 'true' } : {})}
+                {...(workspaceUnread[row.id] ? { 'data-home-unread': 'true' } : {})}
                 aria-label={`${expanded ? 'Collapse' : 'Expand'} ${row.name}`}
                 aria-expanded={expanded}
                 aria-controls={projectsId}
