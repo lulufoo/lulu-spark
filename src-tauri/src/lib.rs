@@ -8,6 +8,7 @@ pub mod gateway;
 pub mod host;
 pub mod main_host;
 pub mod mcp_host;
+pub mod net;
 pub mod repositories;
 pub mod services;
 
