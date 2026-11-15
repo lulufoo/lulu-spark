@@ -3,6 +3,7 @@ import { act } from 'react';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { mountBoardSketches } from '../../frontend/src/board/commands/sketch-links.ts';
 import { closeFilePopup } from '../../frontend/src/file-popup/commands/popup.ts';
+import { source } from '../board/sketch-fixtures.js';
 
 const PAGE = 'https://luluboard.app/view#b:b_0123abcd';
 
@@ -14,10 +15,7 @@ describe('file popup close', () => {
   it('unmounts the sketch preview before the dialog goes away', async () => {
     const body = document.getElementById('file-popup-body');
     await act(async () => {
-      await mountBoardSketches(body, async () => ({
-        status: 'sketch',
-        content_b64: btoa('<p>Hi</p>'),
-      }));
+      await mountBoardSketches(body, async () => source({ html: '<p>Hi</p>' }));
     });
     const frame = body.querySelector('iframe');
     expect(frame).not.toBeNull();

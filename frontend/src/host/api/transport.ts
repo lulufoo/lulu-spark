@@ -100,3 +100,4 @@ export async function createChannel(onmessage?: (payload?: any) => void) {
 }
 
 export { normalizeReadError };
+export { listenHostEvent } from '../apiClient.ts';

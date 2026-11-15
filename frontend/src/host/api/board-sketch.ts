@@ -1,4 +1,4 @@
-import { readGet } from './transport.ts';
+import { listenHostEvent, readGet } from './transport.ts';
 
 export type BoardInvalidationScope = 'credential' | 'diagram';
 
@@ -82,4 +82,10 @@ export async function fetchBoardSketch(url: string): Promise<BoardRemoteReadRepl
 
 export async function fetchCachedBoardSketch(url: string): Promise<BoardCacheOnlyReply> {
   return readGet(`/api/board-sketch-cache?url=${encodeURIComponent(url)}`);
+}
+
+export function listenBoardCacheInvalidated(
+  onInvalidated: (event: BoardCacheInvalidated) => void,
+): Promise<() => void> {
+  return listenHostEvent('board-cache:invalidated', onInvalidated);
 }

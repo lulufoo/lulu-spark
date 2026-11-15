@@ -20,7 +20,11 @@ export type { ResolvedNote } from './api/doc-open.ts';
 
 export { getPackageSnapshot } from './api/package-snapshot.ts';
 export { deleteBoardPat, fetchBoardPatStatus, setBoardPat } from './api/board-pat.ts';
-export { fetchBoardSketch, fetchCachedBoardSketch } from './api/board-sketch.ts';
+export {
+  fetchBoardSketch,
+  fetchCachedBoardSketch,
+  listenBoardCacheInvalidated,
+} from './api/board-sketch.ts';
 export type { PackageSnapshot } from './api/package-snapshot.ts';
 
 export {

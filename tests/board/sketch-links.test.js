@@ -4,9 +4,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as sketchLog from '../../frontend/src/board/commands/sketch-log.ts';
 import {
   invalidateBoardSketches,
-  mountBoardSketches,
+  mountBoardSketches as mount,
   releaseBoardSketches,
 } from '../../frontend/src/board/commands/sketch-links.ts';
+import { withBoardIdentity } from './sketch-fixtures.js';
+
+function mountBoardSketches(container, read) {
+  return mount(container, async (url) => withBoardIdentity(await read(url), url));
+}
 
 const SKETCH = 'https://luluboard.app/view#b:b_0123abcd';
 const OTHER = 'https://luluboard.app/view#b:b_89abcdef';
@@ -186,6 +191,7 @@ describe('markdown board sketches', () => {
       if (reads === 1) return first.promise;
       return Promise.resolve({ status: 'unconfigured' });
     });
+    await act(async () => {});
     await act(async () => {
       invalidateBoardSketches();
       first.resolve({ status: 'sketch', content_b64: b64('<p>Old</p>') });
