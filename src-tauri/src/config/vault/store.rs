@@ -221,3 +221,6 @@ mod tests;
 pub use tests::{
     test_clear_llm, test_clear_scope, test_clear_store_fail, test_fail_store, test_vault_json,
 };
+
+#[cfg(all(test, debug_assertions))]
+pub(crate) use tests::write_debug_vault_fixture;

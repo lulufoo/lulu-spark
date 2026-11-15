@@ -9,6 +9,11 @@ use crate::config::settings;
 mod config_env;
 mod notes_fixture;
 mod sandbox_layout;
+#[cfg(debug_assertions)]
+mod subprocess;
+
+#[cfg(debug_assertions)]
+pub(crate) use subprocess::{run_stage_child, TestSubprocess};
 
 pub(crate) use notes_fixture::{block_note_writes, read_note_entries, seed_note_entries};
 

@@ -25,6 +25,14 @@ fn current_scope() -> String {
     scope_id().expect("vault scope")
 }
 
+#[cfg(debug_assertions)]
+pub(crate) fn write_debug_vault_fixture(
+    path: &std::path::Path,
+    vault: &Vault,
+) -> Result<(), SecretError> {
+    super::write_debug_vault(path, vault)
+}
+
 pub fn test_clear_scope() {
     let _guard = io_lock();
     store_memory_vault(&current_scope(), &Vault::default());
