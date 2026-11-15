@@ -73,6 +73,8 @@ export type HomeState = {
   thinkingByChat: Record<string, LiveThinking>;
   inFlightIds: string[];
   channelUnread: ChannelUnread;
+  /** Document unread state keyed by the workspace that owns the document. */
+  workspaceUnread: Record<string, boolean>;
   /** Enabled projects per workspace id, in title order. */
   workspaceProjects: Record<string, HomeProject[]>;
   /** Home groups opened explicitly by the user; start collapsed. */
@@ -97,6 +99,7 @@ function emptyState(): HomeState {
     thinkingByChat: Object.create(null) as Record<string, LiveThinking>,
     inFlightIds: [],
     channelUnread: emptyUnread(),
+    workspaceUnread: {},
     workspaceProjects: {},
     expandedWorkspaceIds: [],
   };

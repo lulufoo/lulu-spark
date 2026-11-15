@@ -264,6 +264,15 @@ pub fn mark_message_channel_read(_app: AppHandle, channel: String) -> Result<(),
     mark_message_channel_read_json(&channel)
 }
 
+pub fn mark_message_workspace_read_json(workspace_id: &str) -> Result<(), String> {
+    crate::services::message_center::mark_workspace_read(workspace_id)
+}
+
+#[tauri::command]
+pub fn mark_message_workspace_read(_app: AppHandle, workspace_id: String) -> Result<(), String> {
+    mark_message_workspace_read_json(&workspace_id)
+}
+
 #[cfg(test)]
 #[path = "../unit-tests/commands/create_note_write.rs"]
 mod create_note_write_tests;

@@ -176,6 +176,77 @@ fn mark_channel_read_clears_unread() {
 }
 
 #[test]
+fn workspace_unread_persists_identity_and_clears_only_the_opened_workspace() {
+    with_message_center_sandbox(|| {
+        assert!(workspace_unread().is_empty());
+        for workspace_id in ["agent", "mac", "mac"] {
+            let record = produce(envelope("docs", "create", json!({
+                "archive_id": "document", "workspace_id": workspace_id,
+            }))).expect("workspace notification");
+            assert_eq!(record.workspace_id.as_deref(), Some(workspace_id));
+        }
+        produce(envelope("read_later", "create", json!({ "workspace_id": "mac" })))
+            .expect("read later");
+        assert_eq!(workspace_unread(), BTreeMap::from([
+            ("agent".to_string(), true), ("mac".to_string(), true),
+        ]));
+        let stored = persist_value();
+        assert_eq!(stored["records"][1]["workspace_id"], "mac");
+        assert!(stored["records"][3].get("workspace_id").is_none());
+
+        mark_workspace_read("mac").expect("read Mac");
+        assert_eq!(workspace_unread(), BTreeMap::from([("agent".to_string(), true)]));
+        assert!(channel_unread("read_later"));
+        let stored = persist_value();
+        assert_eq!(stored["records"][0]["unread"], true);
+        assert_eq!(stored["records"][1]["unread"], false);
+        assert_eq!(stored["records"][2]["unread"], false);
+
+        mark_workspace_read("mac").expect("read Mac again");
+        assert_eq!(workspace_unread(), BTreeMap::from([("agent".to_string(), true)]));
+        mark_workspace_read("agent").expect("read Agent");
+        assert!(workspace_unread().is_empty());
+    });
+}
+
+#[test]
+fn legacy_records_remain_readable_without_guessing_a_workspace() {
+    with_message_center_sandbox(|| {
+        let path = paths::message_center_path().expect("message center path");
+        fs::create_dir_all(path.parent().unwrap()).expect("parent");
+        fs::write(&path, json!({
+            "version": 1,
+            "records": [
+                { "id": "old-doc", "channel": "docs", "unread": true, "created_at": "2026-11-15T00:00:00Z" },
+                { "id": "old-read-later", "channel": "read_later", "unread": true, "created_at": "2026-11-15T00:00:00Z" }
+            ],
+        }).to_string()).expect("legacy store");
+        assert!(channel_unread("docs"));
+        assert!(workspace_unread().is_empty());
+        assert!(channel_unread("read_later"));
+        produce(envelope("docs", "update", json!({ "workspace_id": "mac" }))).expect("new record");
+        assert_eq!(workspace_unread(), BTreeMap::from([("mac".to_string(), true)]));
+        mark_workspace_read("mac").expect("read Mac");
+        assert!(workspace_unread().is_empty());
+        let stored = persist_value();
+        assert_eq!(stored["records"][0]["unread"], true);
+        assert!(stored["records"][0].get("workspace_id").is_none());
+        assert!(channel_unread("read_later"));
+    });
+}
+
+#[test]
+fn invalid_workspace_mark_does_not_clear_other_unread_records() {
+    with_message_center_sandbox(|| {
+        produce(envelope("docs", "create", json!({ "workspace_id": "mac" }))).expect("new record");
+        for id in ["", "../mac", "Mac"] {
+            assert!(mark_workspace_read(id).is_err());
+        }
+        assert_eq!(workspace_unread(), BTreeMap::from([("mac".to_string(), true)]));
+    });
+}
+
+#[test]
 fn only_docs_read_later_todos_channels_and_unread_is_independent() {
     with_message_center_sandbox(|| {
         let hits = install_notify_counter();

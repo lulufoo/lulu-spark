@@ -8,6 +8,8 @@ export {
 export {
   getMessageChannelUnread,
   markMessageChannelRead,
+  getMessageWorkspaceUnread,
+  markMessageWorkspaceRead,
 } from './api/message-center.ts';
 
 export { showOsNotification } from './api/os-notification.ts';

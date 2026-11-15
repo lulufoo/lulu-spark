@@ -42,6 +42,7 @@ const P2_WRITE_PATHS = [
   '/api/hide-pattern-remove',
   '/api/viewer-state',
   '/api/mark-message-channel-read',
+  '/api/mark-message-workspace-read',
   '/api/show-os-notification',
   '/api/board-pat',
   '/api/board-pat/delete',
@@ -79,6 +80,7 @@ describe('writeApiInvokeMap', () => {
       '/api/hide-pattern-remove',
       '/api/hide-pattern-update',
       '/api/mark-message-channel-read',
+      '/api/mark-message-workspace-read',
       '/api/move-doc-dir',
       '/api/project-create',
       '/api/project-delete',
@@ -261,6 +263,13 @@ describe('writeApiInvokeMap', () => {
     ).toEqual({
       cmd: 'mark_message_channel_read',
       args: { channel: 'docs' },
+    });
+  });
+
+  it('maps workspace unread clearing to the exact workspace invoke argument', () => {
+    expect(resolveWriteInvoke('/api/mark-message-workspace-read', { workspace_id: 'mac' })).toEqual({
+      cmd: 'mark_message_workspace_read',
+      args: { workspaceId: 'mac' },
     });
   });
 

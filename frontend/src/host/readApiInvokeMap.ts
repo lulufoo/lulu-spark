@@ -104,6 +104,7 @@ export const READ_API_INVOKE_MAP: Record<string, ReadInvokeEntry> = {
       channel: url.searchParams.get('channel') ?? '',
     }),
   },
+  '/api/message-workspace-unread': { cmd: 'get_message_workspace_unread' },
   '/api/board-pat': { cmd: 'get_board_pat_status' },
   '/api/board-sketch': {
     cmd: 'read_board_sketch',

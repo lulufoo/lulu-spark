@@ -133,7 +133,7 @@ const AI_ASSISTANT_WRITE_COMMANDS: &[&str] = &[
     "agent_chat_turn",
 ];
 
-const MESSAGE_CENTER_WRITE_COMMANDS: &[&str] = &["mark_message_channel_read"];
+const MESSAGE_CENTER_WRITE_COMMANDS: &[&str] = &["mark_message_channel_read", "mark_message_workspace_read"];
 
 const OS_NOTIFICATION_WRITE_COMMANDS: &[&str] = &["show_os_notification"];
 

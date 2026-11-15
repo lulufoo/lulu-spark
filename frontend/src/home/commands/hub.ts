@@ -364,7 +364,10 @@ export function startHomeHub() {
   void applyBindingState();
   void refreshChannelUnread();
   unlistenRegistry?.();
-  const onRegistryChanged = () => void refreshWorkspaceProjects();
+  const onRegistryChanged = () => {
+    void refreshWorkspaceProjects();
+    void refreshChannelUnread();
+  };
   document.addEventListener(REGISTRY_CHANGED_EVENT, onRegistryChanged);
   unlistenRegistry = () => document.removeEventListener(REGISTRY_CHANGED_EVENT, onRegistryChanged);
   if (!listen) {
@@ -380,6 +383,7 @@ export function startHomeHub() {
   });
   void listen(MESSAGE_CENTER_CHANGED_EVENT, () => {
     void refreshChannelUnread();
+    void refreshWorkspaceProjects();
   }).then((fn) => {
     unlistenMessageCenter = fn;
   });

@@ -32,6 +32,7 @@ commands.allow = [
   "get_doc_categories",
   "get_mcp_ticket_view",
   "get_message_channel_unread",
+  "get_message_workspace_unread",
   "get_auth_session",
   "get_package_snapshot",
   "get_board_pat_status",
