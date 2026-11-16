@@ -54,6 +54,7 @@ struct Sources {
 struct Generation {
     number: u64,
     plan: ProxyPlan,
+    warnings: Vec<String>,
     clients: Mutex<HashMap<ClientSpec, Arc<Client>>>,
 }
 
@@ -87,6 +88,7 @@ impl Kernel {
             state: RwLock::new(Arc::new(Generation {
                 number: 1,
                 plan: ProxyPlan::direct(),
+                warnings: Vec::new(),
                 clients: Mutex::new(HashMap::new()),
             })),
         };
@@ -108,23 +110,39 @@ impl Kernel {
         };
         drop(sources);
         let resolved = plan::resolve(&PlanInputs { use_system_proxy, system });
+        Generation {
+            number,
+            plan: resolved.plan,
+            warnings: resolved.warnings,
+            clients: Mutex::new(HashMap::new()),
+        }
+    }
+
+    /// Rebuild the plan from the current sources. `true` when the plan
+    /// changed and the next acquisition starts a new generation; already
+    /// acquired clients keep working (D5). Unchanged plans stay silent — the
+    /// watcher rebuilds on a fixed interval and must not spam the log.
+    pub fn refresh(&self) -> bool {
+        let next = self.generation().number + 1;
+        let generation = self.build_generation(next);
+        let mut state = self.state.write().unwrap_or_else(|e| e.into_inner());
+        if generation.plan == state.plan {
+            return false;
+        }
         app_log::log(
             "net",
-            "plan_built",
+            "plan_changed",
             None,
             Some(json!({
-                "generation": number,
-                "plan": plan::summary_json(&resolved.plan),
-                "warnings": resolved.warnings,
+                "generation": generation.number,
+                "plan": plan::summary_json(&generation.plan),
+                "warnings": generation.warnings,
             })),
             Side::Host,
             Level::Info,
         );
-        Generation {
-            number,
-            plan: resolved.plan,
-            clients: Mutex::new(HashMap::new()),
-        }
+        *state = Arc::new(generation);
+        true
     }
 
     /// The current-generation client for `spec`. Acquisition happens at
@@ -155,20 +173,6 @@ impl Kernel {
     pub fn install(&self, toggle: ToggleSource, system: Arc<dyn SystemProxySource>) -> bool {
         *self.sources.write().unwrap_or_else(|e| e.into_inner()) = Sources { toggle, system };
         self.refresh()
-    }
-
-    /// Rebuild the plan from the current sources. `true` when the plan
-    /// changed and the next acquisition starts a new generation; already
-    /// acquired clients keep working (D5).
-    pub fn refresh(&self) -> bool {
-        let next = self.generation().number + 1;
-        let generation = self.build_generation(next);
-        let mut state = self.state.write().unwrap_or_else(|e| e.into_inner());
-        if generation.plan == state.plan {
-            return false;
-        }
-        *state = Arc::new(generation);
-        true
     }
 
     /// Credentials-free summary of the current generation.
@@ -210,6 +214,23 @@ pub fn loopback(request_timeout: Duration) -> Result<Client, NetError> {
 /// Rebuild the plan now (the settings-save hook).
 pub fn refresh_now() -> bool {
     KERNEL.refresh()
+}
+
+/// Point the process kernel at the persisted toggle and the real system
+/// source (boot wiring).
+pub fn install(toggle: ToggleSource, system: Arc<dyn SystemProxySource>) -> bool {
+    KERNEL.install(toggle, system)
+}
+
+/// Poll the sources on a fixed interval so macOS system proxy changes reach
+/// new requests without a restart (LW-809 D4). Unchanged plans stay silent.
+pub fn spawn_watcher(interval: Duration) {
+    let _ = std::thread::Builder::new()
+        .name("spark-net-watch".into())
+        .spawn(move || loop {
+            std::thread::sleep(interval);
+            refresh_now();
+        });
 }
 
 /// Credentials-free snapshot of the current generation (`get_config`).

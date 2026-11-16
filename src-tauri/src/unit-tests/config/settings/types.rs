@@ -81,3 +81,21 @@ fn keychain_memory_switch_is_consulted_by_vault_store() {
     assert!(!include_str!("../../../config/secrets.rs").contains("uses_in_memory_keychain"));
     assert!(!include_str!("../../../services/mcp_oauth.rs").contains("uses_in_memory_keychain"));
 }
+
+#[test]
+fn missing_network_table_reads_as_system_proxy_off() {
+    let settings: AppSettings = toml::from_str("theme = \"dark\"").expect("parse");
+    assert!(
+        !settings.network.use_system_proxy,
+        "existing installs without [network] must keep the toggle off"
+    );
+}
+
+#[test]
+fn network_use_system_proxy_round_trips_through_toml() {
+    let settings: AppSettings = toml::from_str("[network]\nuse_system_proxy = true").expect("parse");
+    assert!(settings.network.use_system_proxy);
+    let saved = toml::to_string_pretty(&settings).expect("serialize");
+    let reloaded: AppSettings = toml::from_str(&saved).expect("reload");
+    assert!(reloaded.network.use_system_proxy);
+}

@@ -291,3 +291,97 @@ fn snapshot_json_reports_generation_without_credentials() {
     assert!(text.contains("proxy.corp:3128"));
     assert!(!text.contains("pass"), "snapshot must not leak credentials: {text}");
 }
+
+#[test]
+fn system_proxy_address_change_reaches_new_acquisition_without_reinstall() {
+    let _lock = lock_env();
+    let _clean = EnvCleaner;
+    let first = ObservableProxy::start();
+    let second = ObservableProxy::start();
+    let source_state = Arc::new(Mutex::new(snapshot(
+        Some(("127.0.0.1", Some(first.port))),
+        None,
+        &[],
+    )));
+    let toggle: Arc<dyn Fn() -> bool + Send + Sync> = Arc::new(|| true);
+    let kernel = crate::net::Kernel::with_sources(super::Sources {
+        toggle,
+        system: Arc::new(super::DynamicSource(Arc::clone(&source_state))),
+    });
+    let spec = ClientSpec::default().with_request_timeout(Duration::from_secs(5));
+    let client = kernel.external(&spec).expect("client before change");
+    client.get("http://spark.test/before").send().expect("before change");
+    assert_eq!(first.hits().len(), 1);
+    assert!(second.hits().is_empty());
+
+    // The system moves to another proxy address; the watcher just refreshes.
+    *source_state.lock().expect("dynamic source") =
+        snapshot(Some(("127.0.0.1", Some(second.port))), None, &[]);
+    assert!(kernel.refresh(), "an address change must swap the generation");
+    let client = kernel.external(&spec).expect("client after change");
+    client.get("http://spark.test/after").send().expect("after change");
+    assert_eq!(second.hits().len(), 1, "new acquisition uses the new address");
+    assert_eq!(first.hits().len(), 1, "the old proxy is not contacted again");
+}
+
+#[test]
+fn new_requests_switch_while_a_long_request_finishes_on_the_old_client() {
+    let _lock = lock_env();
+    let _clean = EnvCleaner;
+    let proxy = ObservableProxy::start();
+
+    // An origin that stalls its first response, standing in for a long
+    // upload or an SSE stream.
+    let stalled = TcpListener::bind("127.0.0.1:0").expect("stalled listen");
+    let stalled_port = stalled.local_addr().expect("stalled addr").port();
+    let stalled_server = Arc::new(tiny_http::Server::from_listener(stalled, None).expect("stalled server"));
+    let stalled_hits = Arc::new(Mutex::new(Vec::new()));
+    let server_thread = Arc::clone(&stalled_server);
+    let hits_thread = Arc::clone(&stalled_hits);
+    let slow_thread = std::thread::spawn(move || {
+        for request in server_thread.incoming_requests() {
+            hits_thread
+                .lock()
+                .expect("stalled hits")
+                .push(format!("{} {}", request.method(), request.url()));
+            std::thread::sleep(Duration::from_millis(500));
+            let response =
+                tiny_http::Response::from_string("slow-direct-hit").with_status_code(tiny_http::StatusCode(200));
+            let _ = request.respond(response);
+        }
+    });
+
+    let kernel = kernel_with(false, snapshot(Some(("127.0.0.1", Some(proxy.port))), None, &[]));
+    let spec = ClientSpec::default().with_request_timeout(Duration::from_secs(5));
+    let old = kernel.external(&spec).expect("client before switch");
+
+    let long_request = {
+        let old = Arc::clone(&old);
+        std::thread::spawn(move || {
+            old.get(format!("http://127.0.0.1:{stalled_port}/long"))
+                .send()
+                .expect("long request on the old client")
+                .text()
+                .expect("long request body")
+        })
+    };
+    // Give the long request time to acquire the old client and start.
+    std::thread::sleep(Duration::from_millis(150));
+
+    let toggle: Arc<dyn Fn() -> bool + Send + Sync> = Arc::new(|| true);
+    assert!(kernel.install(toggle, fake_source(snapshot(Some(("127.0.0.1", Some(proxy.port))), None, &[]))));
+    let new = kernel.external(&spec).expect("client after switch");
+    let response = new.get("http://spark.test/switched").send().expect("new request after switch");
+    assert_eq!(response.status().as_u16(), 200);
+    assert_eq!(
+        proxy.hits(),
+        vec!["GET http://spark.test/switched".to_string()],
+        "the new request must use the new generation"
+    );
+
+    let body = long_request.join().expect("long request finishes");
+    assert_eq!(body, "slow-direct-hit", "the long request completes on the old client");
+    assert_eq!(stalled_hits.lock().expect("stalled hits").len(), 1);
+    stalled_server.unblock();
+    let _ = slow_thread.join();
+}

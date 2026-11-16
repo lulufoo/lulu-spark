@@ -53,6 +53,16 @@ impl SystemProxySource for FakeSource {
     }
 }
 
+/// A source the test mutates in place — the stand-in for macOS system proxy
+/// changes observed by the watcher.
+pub(crate) struct DynamicSource(pub Arc<Mutex<SystemProxySnapshot>>);
+
+impl SystemProxySource for DynamicSource {
+    fn snapshot(&self) -> SystemProxySnapshot {
+        self.0.lock().expect("dynamic source").clone()
+    }
+}
+
 pub(crate) fn fake_source(snapshot: SystemProxySnapshot) -> Arc<dyn SystemProxySource> {
     Arc::new(FakeSource(snapshot))
 }
