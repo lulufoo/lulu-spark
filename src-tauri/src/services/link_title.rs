@@ -2,7 +2,6 @@
 
 use std::time::Duration;
 
-use reqwest::blocking::Client;
 use serde_json::{json, Value};
 
 pub fn fetch_link_title(url: &str) -> Value {
@@ -61,10 +60,12 @@ pub fn fetch_html_title(url: &str) -> Result<String, String> {
     if !is_safe_https_host(url) {
         return Err("blocked host".into());
     }
-    let client = Client::builder()
-        .timeout(Duration::from_secs(10))
-        .build()
-        .map_err(|e| e.to_string())?;
+    let client = crate::net::external(
+        &crate::net::ClientSpec::default()
+            .with_request_timeout(Duration::from_secs(10))
+            .with_redirect(crate::net::RedirectSpec::Default),
+    )
+    .map_err(|e| e.to_string())?;
     let resp = client.get(url).send().map_err(|e| e.to_string())?;
     let status = resp.status();
     if !status.is_success() {

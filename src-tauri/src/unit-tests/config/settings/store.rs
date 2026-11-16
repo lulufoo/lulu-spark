@@ -304,6 +304,7 @@ fn network_payload_toggles_system_proxy_and_rejects_non_bool() {
 
 #[test]
 fn to_config_json_exposes_network_toggle_and_effective_snapshot() {
+    let _sandbox = TestSandbox::new();
     let mut settings = AppSettings::default();
     settings.network.use_system_proxy = true;
     let json = to_config_json(&settings, &[]).expect("json");
