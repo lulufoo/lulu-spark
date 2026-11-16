@@ -181,12 +181,21 @@ fn connect(config: &McpServerConfig, turn: &McpTurn) -> Result<Client, McpError>
     // inside the runtime that will keep serving the connection.
     let mut info = client_info();
     info.meta = Some(trace.meta());
-    let client = runtime()?
-        .block_on(async move {
-            let transport = StreamableHttpClientTransport::from_config(transport_config);
-            info.serve(transport).await
-        })
-        .map_err(|error| McpError::Connect(format!("{error:#}")));
+    // The kernel client is the snapshot of the current plan; the transport
+    // keeps it for the session, so in-flight SSE and tool calls survive a
+    // proxy switch and the next connect re-snapshots (LW-809 D6).
+    let client = match super::kernel_http::transport_client() {
+        Ok(http) => runtime()?
+            .block_on(async move {
+                let transport = StreamableHttpClientTransport::with_client(
+                    super::kernel_http::KernelHttpClient::new(http),
+                    transport_config,
+                );
+                info.serve(transport).await
+            })
+            .map_err(|error| McpError::Connect(format!("{error:#}"))),
+        Err(e) => Err(McpError::Connect(format!("{e:#}"))),
+    };
     trace.connect_completed(started.elapsed(), client.is_ok());
     client
 }

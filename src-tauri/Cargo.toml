@@ -28,6 +28,8 @@ serde_json = "1"
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
 reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
 reqwest013 = { package = "reqwest", version = "0.13", default-features = false, features = ["rustls"] }
+futures = "0.3"
+sse-stream = "0.2"
 urlencoding = "2"
 base64 = "0.22"
 toml = "0.8"

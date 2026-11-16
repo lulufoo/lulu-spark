@@ -22,6 +22,9 @@ pub struct ClientSpec {
     pub request_timeout: Option<Duration>,
     pub redirect: RedirectSpec,
     pub pool_idle_timeout: Option<Duration>,
+    /// Idle connections kept per host. `Some(0)` disables pooling — the MCP
+    /// SDK default, kept to preserve its behavior.
+    pub pool_max_idle_per_host: Option<u32>,
 }
 
 impl Default for ClientSpec {
@@ -31,6 +34,7 @@ impl Default for ClientSpec {
             request_timeout: None,
             redirect: RedirectSpec::None,
             pool_idle_timeout: None,
+            pool_max_idle_per_host: None,
         }
     }
 }
@@ -53,6 +57,11 @@ impl ClientSpec {
 
     pub fn with_pool_idle_timeout(mut self, timeout: Duration) -> Self {
         self.pool_idle_timeout = Some(timeout);
+        self
+    }
+
+    pub fn with_pool_max_idle_per_host(mut self, max: u32) -> Self {
+        self.pool_max_idle_per_host = Some(max);
         self
     }
 }

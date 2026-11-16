@@ -28,6 +28,9 @@ pub(super) fn build_client(plan: &ProxyPlan, spec: &ClientSpec) -> Result<Client
     if let Some(timeout) = spec.pool_idle_timeout {
         builder = builder.pool_idle_timeout(timeout);
     }
+    if let Some(max) = spec.pool_max_idle_per_host {
+        builder = builder.pool_max_idle_per_host(max as usize);
+    }
     builder = match spec.redirect {
         RedirectSpec::None => builder.redirect(Policy::none()),
         RedirectSpec::Default => builder,
