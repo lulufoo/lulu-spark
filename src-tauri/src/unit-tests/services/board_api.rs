@@ -1,10 +1,15 @@
+use std::sync::Arc;
+
 use super::*;
 
 #[test]
-fn one_client_for_the_process() {
-    let a = client().expect("client") as *const Client;
-    let b = client().expect("client") as *const Client;
-    assert_eq!(a, b);
+fn one_client_for_the_process_per_generation() {
+    let a = client().expect("client");
+    let b = client().expect("client");
+    assert!(
+        Arc::ptr_eq(&a, &b),
+        "the kernel must hand back the same client within a generation"
+    );
 }
 
 #[test]

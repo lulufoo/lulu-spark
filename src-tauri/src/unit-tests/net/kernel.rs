@@ -44,7 +44,7 @@ impl ObservableProxy {
         }
     }
 
-    fn env_value(&self) -> String {
+    pub(crate) fn env_value(&self) -> String {
         format!("http://127.0.0.1:{}", self.port)
     }
 

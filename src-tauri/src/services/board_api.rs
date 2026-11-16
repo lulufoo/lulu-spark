@@ -1,14 +1,15 @@
-//! One Board graph HTTP client for this process.
+//! Board HTTP access through the unified network kernel (LW-812).
 //!
-//! Sketch reads and the startup warmup share it so the TLS session and the idle
-//! connection can be reused. The warmup does not send the PAT.
+//! The kernel keeps one client per plan generation for this spec, so the TLS
+//! session and the idle connection are reused across the startup warmup,
+//! sketch reads, and background refreshes. The warmup does not send the PAT.
 
-use std::sync::OnceLock;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use reqwest::blocking::Client;
-use reqwest::redirect::Policy;
 
+use crate::net::{self, ClientSpec, RedirectSpec};
 use crate::services::board_sketch_log;
 
 pub(crate) const GRAPH_URL: &str = "https://api.luluboard.app/graphs";
@@ -17,22 +18,19 @@ const REQUEST_TIMEOUT: Duration = Duration::from_secs(10);
 /// Long enough that opening a note after launch still hits the warmed connection.
 const IDLE: Duration = Duration::from_secs(600);
 
+fn spec() -> ClientSpec {
+    ClientSpec::default()
+        .with_request_timeout(REQUEST_TIMEOUT)
+        .with_redirect(RedirectSpec::None)
+        .with_pool_idle_timeout(IDLE)
+}
+
 pub fn spawn_warm() {
     std::thread::spawn(warm);
 }
 
-pub(crate) fn client() -> Option<&'static Client> {
-    static CLIENT: OnceLock<Option<Client>> = OnceLock::new();
-    CLIENT
-        .get_or_init(|| {
-            Client::builder()
-                .timeout(REQUEST_TIMEOUT)
-                .pool_idle_timeout(IDLE)
-                .redirect(Policy::none())
-                .build()
-                .ok()
-        })
-        .as_ref()
+pub(crate) fn client() -> Option<Arc<Client>> {
+    net::external(&spec()).ok()
 }
 
 fn warm() {

@@ -285,4 +285,4 @@ fn apply_plan(builder: reqwest::blocking::ClientBuilder, plan: &ProxyPlan) -> Re
 
 #[cfg(test)]
 #[path = "../unit-tests/net/mod.rs"]
-mod tests;
+pub(crate) mod tests;

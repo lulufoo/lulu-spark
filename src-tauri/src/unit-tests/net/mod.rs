@@ -4,8 +4,9 @@
 //! tests serialize on one lock and clean the proxy vars afterwards.
 
 mod async_side;
-mod kernel;
-mod plan;
+mod business_paths;
+pub(crate) mod kernel;
+pub(crate) mod plan;
 
 use std::sync::{Arc, Mutex, MutexGuard};
 
@@ -83,6 +84,12 @@ pub(crate) fn snapshot(
         https: endpoint(https),
         exceptions: exceptions.iter().map(|item| item.to_string()).collect(),
     }
+}
+
+/// A kernel no one else swaps: direct plan, fixed sources. Rigs pin one so
+/// their connection-reuse assertions stay independent of the static kernel.
+pub(crate) fn pinned_kernel() -> Arc<super::Kernel> {
+    Arc::new(kernel_with(false, snapshot(None, None, &[])))
 }
 
 pub(crate) fn kernel_with(use_system_proxy: bool, system: SystemProxySnapshot) -> super::Kernel {
