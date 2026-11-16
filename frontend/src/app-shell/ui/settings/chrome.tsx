@@ -25,6 +25,7 @@ export function SettingsDialogChrome() {
           <button type="button" className="settings-nav-item" data-panel="devices">Devices</button>
           <button type="button" className="settings-nav-item" data-panel="board">Board Connect</button>
           <button type="button" className="settings-nav-item" data-panel="theme">Theme</button>
+          <button type="button" className="settings-nav-item" data-panel="network">Network</button>
         </nav>
         <div id="settings-panels">
           <NotesSettingsPanel />
@@ -120,6 +121,20 @@ export function SettingsDialogChrome() {
                 Follow system uses this Mac&apos;s appearance. The window chrome
                 changes with the page.
               </span>
+            </div>
+          </div>
+          <div id="settings-panel-network" className="settings-panel">
+            <div className="settings-field">
+              <label htmlFor="settings-system-proxy">Use system proxy</label>
+              <input id="settings-system-proxy" type="checkbox" aria-label="Use system proxy" />
+              <span className="settings-field-hint">
+                Adopts this Mac&apos;s HTTP/HTTPS proxy for Board, cloud sync, the
+                assistant, and remote MCP. Turning it off only stops reading
+                the system proxy; proxy environment variables keep working.
+                This switch does not control a TUN device. New requests apply
+                changes without a restart.
+              </span>
+              <span id="settings-network-result" className="settings-result" />
             </div>
           </div>
         </div>

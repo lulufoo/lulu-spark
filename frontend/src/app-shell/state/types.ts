@@ -9,7 +9,26 @@ export type SettingsConfig = {
   mcp_port?: number;
   assistant_engine?: string;
   theme?: string;
+  network?: NetworkConfig;
   llm?: Record<string, EngineLlmConfig>;
+};
+
+export type NetworkConfig = {
+  use_system_proxy?: boolean;
+  /** Host snapshot of the plan the kernel applies right now. */
+  effective?: {
+    generation?: number;
+    plan?: {
+      http?: PlanEntry | null;
+      https?: PlanEntry | null;
+      no_proxy?: string;
+    };
+  };
+};
+
+export type PlanEntry = {
+  host_port?: string;
+  source?: string;
 };
 
 export type EngineLlmConfig = {
