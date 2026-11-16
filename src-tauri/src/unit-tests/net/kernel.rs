@@ -385,3 +385,22 @@ fn new_requests_switch_while_a_long_request_finishes_on_the_old_client() {
     stalled_server.unblock();
     let _ = slow_thread.join();
 }
+
+#[test]
+fn an_unreachable_proxy_fails_the_request_without_falling_back_to_direct() {
+    let _lock = lock_env();
+    let _clean = EnvCleaner;
+    // A port nothing listens on: connect refused, not a silent direct retry.
+    let dead = TcpListener::bind("127.0.0.1:0")
+        .expect("bind")
+        .local_addr()
+        .expect("addr")
+        .port();
+    set_env("HTTP_PROXY", &format!("http://127.0.0.1:{dead}"));
+    let kernel = kernel_with(false, snapshot(None, None, &[]));
+    let spec = ClientSpec::default().with_connect_timeout(Duration::from_secs(2));
+    let client = kernel.external(&spec).expect("client");
+    let call = client.get("http://spark.test/echo").send();
+    std::env::remove_var("HTTP_PROXY");
+    assert!(call.is_err(), "unreachable proxy must surface an error: {call:?}");
+}

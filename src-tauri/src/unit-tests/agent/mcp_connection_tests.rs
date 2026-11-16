@@ -297,3 +297,4 @@ fn remote_mcp_transport_travels_through_the_kernel_client() {
         "the initialize POST must travel through the kernel client: {hits:?}"
     );
 }
+
