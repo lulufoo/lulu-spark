@@ -84,6 +84,8 @@
   --bg-rgba-ffffff-12: rgba(255, 255, 255, 0.12);
   --bg-selected: #ebedfb;
   --bg-subtle: #eef1f4;
+  --bg-switch-knob: #ffffff;
+  --shadow-switch-knob: 0 1px 3px rgba(0, 0, 0, .35);
   --bg-success: #1a7f37;
   --bg-surface: #fff;
 

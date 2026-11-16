@@ -82,13 +82,16 @@ describe('Settings Network panel', () => {
 
     const chromeSrc = readRel('frontend/src/app-shell/ui/settings/chrome.tsx');
     expect(chromeSrc).toMatch(/id=["']settings-panel-network["']/);
-    expect(document.getElementById('settings-system-proxy')).not.toBeNull();
-    expect(document.getElementById('settings-network-result')).not.toBeNull();
+    const toggle = document.getElementById('settings-system-proxy');
+    expect(toggle?.getAttribute('role')).toBe('switch');
+    expect(toggle?.classList.contains('settings-switch')).toBe(true);
+    expect(document.getElementById('settings-network-status')).not.toBeNull();
+    expect(document.getElementById('settings-network-state')).not.toBeNull();
   });
 
   it('states the scope: system proxy only, env proxies keep working, no TUN control', async () => {
     await renderAndOpen();
-    const hint = document.querySelector('#settings-panel-network .settings-field-hint');
+    const hint = document.querySelector('#settings-panel-network .settings-network-hint');
     const copy = String(hint?.textContent ?? '');
     expect(copy).toMatch(/HTTP\/HTTPS proxy/);
     expect(copy).toMatch(/environment variables keep working/);
@@ -101,7 +104,9 @@ describe('Settings Network panel', () => {
     await renderAndOpen();
     const toggle = document.getElementById('settings-system-proxy');
     expect(toggle.checked).toBe(true);
-    const result = document.getElementById('settings-network-result').textContent;
+    const status = document.getElementById('settings-network-status');
+    expect(status.classList.contains('is-on')).toBe(true);
+    const result = document.getElementById('settings-network-state').textContent;
     expect(result).toContain('Applied without restart');
     expect(result).toContain('https via system proxy 127.0.0.1:7890');
     expect(result).toContain('http direct');
@@ -117,7 +122,7 @@ describe('Settings Network panel', () => {
 
     expect(api.setConfig).toHaveBeenCalledWith({ network: { use_system_proxy: true } });
     expect(document.getElementById('settings-system-proxy').checked).toBe(true);
-    const result = document.getElementById('settings-network-result').textContent;
+    const result = document.getElementById('settings-network-state').textContent;
     expect(result).toContain('system proxy on');
     expect(result).toContain('https via system proxy 127.0.0.1:7890');
   });
@@ -132,14 +137,16 @@ describe('Settings Network panel', () => {
     await saveSystemProxySelection(false);
 
     expect(document.getElementById('settings-system-proxy').checked).toBe(true);
-    const result = document.getElementById('settings-network-result');
-    expect(result.textContent).toContain('Not saved: config write failed');
+    const status = document.getElementById('settings-network-status');
+    expect(status.classList.contains('is-error')).toBe(true);
+    expect(document.getElementById('settings-network-state').textContent).toContain('Not saved: config write failed');
   });
 
   it('reflects an off snapshot as direct connections', async () => {
     api.fetchConfig.mockResolvedValue(applied({ use_system_proxy: false }));
     await renderAndOpen();
-    const result = document.getElementById('settings-network-result').textContent;
-    expect(result).toContain('system proxy off');
+    const status = document.getElementById('settings-network-status');
+    expect(status.classList.contains('is-on')).toBe(false);
+    expect(document.getElementById('settings-network-state').textContent).toContain('system proxy off');
   });
 });
