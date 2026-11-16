@@ -90,3 +90,46 @@ mod total_timeout {
         assert!(!received.is_empty() && received.len() < 1000, "kept {} chunks", received.len());
     }
 }
+
+mod kernel_path {
+    use super::super::{send_request, CallOptions, LlmConfig};
+    use crate::agent::llm::record::CallTrace;
+    use crate::net::tests::kernel::ObservableProxy;
+    use crate::net::tests::{lock_env, set_env, EnvCleaner};
+
+    /// LW-813: a real send_request call through the kernel leaves its
+    /// absolute-form request line at the observable proxy.
+    #[test]
+    fn send_request_travels_through_the_kernel_client() {
+        let _lock = lock_env();
+        let proxy = ObservableProxy::start();
+        {
+            let _clean = EnvCleaner;
+            set_env("HTTP_PROXY", &proxy.env_value());
+            crate::net::refresh_now();
+            let config = LlmConfig {
+                api_key: "key".into(),
+                base_url: "http://llm.test/v4".into(),
+                model: "glm".into(),
+            };
+            let options = CallOptions::default();
+            let mut trace = CallTrace::start();
+            let _outcome = send_request(
+                "http://llm.test/v4/chat/completions",
+                &serde_json::json!({ "model": "glm", "messages": [] }),
+                &config,
+                &options,
+                &mut None,
+                &mut trace,
+            );
+        }
+        crate::net::refresh_now();
+        let hits = proxy.hits();
+        assert_eq!(hits.len(), 1, "exactly one proxied request: {hits:?}");
+        assert!(
+            hits[0].starts_with("POST http://llm.test/v4/chat/completions"),
+            "LLM evidence is the absolute-form request line: {}",
+            hits[0]
+        );
+    }
+}

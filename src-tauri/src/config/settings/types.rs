@@ -58,6 +58,17 @@ pub struct LlmSettings {
     pub model: String,
 }
 
+/// `AppSettings.network` (`[network]` in toml). Missing table or field reads
+/// as the default: the system proxy stays off on existing installs.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct NetworkSettings {
+    /// Settings → Network「使用系统代理」: adopt the macOS system
+    /// HTTP/HTTPS proxy for external requests. Env-var proxies are
+    /// independent of this switch.
+    #[serde(default)]
+    pub use_system_proxy: bool,
+}
+
 /// One typed LLM settings entry in `AppSettings.llm` (`host`).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LlmSettingsEntry {
@@ -107,6 +118,9 @@ pub struct AppSettings {
     /// LAN HTTPS Gateway listen port. `None` → plane default (prod 7654 / sandbox 17654).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub gateway_port: Option<u16>,
+    /// Network behavior (`[network]` in toml). Missing on existing installs.
+    #[serde(default)]
+    pub network: NetworkSettings,
 }
 
 impl AppSettings {
@@ -178,6 +192,7 @@ impl Default for AppSettings {
             http_port: None,
             mcp_port: None,
             gateway_port: None,
+            network: NetworkSettings::default(),
         }
     }
 }

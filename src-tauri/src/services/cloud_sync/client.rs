@@ -1,11 +1,10 @@
 //! The calls to the Worker: exchange the session for a storage token, list the cloud documents,
 //! ask for an upload link, delete a document.
 
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use reqwest::blocking::Client;
-use reqwest::redirect::Policy;
 use reqwest::Method;
 use serde_json::{json, Value};
 
@@ -21,10 +20,27 @@ use crate::config::vault::{self, AuthSession, SecretError};
 pub type SessionSource = Arc<dyn Fn() -> Result<Option<AuthSession>, SecretError> + Send + Sync>;
 /// Seconds since the Unix epoch.
 pub type Clock = Arc<dyn Fn() -> i64 + Send + Sync>;
+/// Where each call's HTTP client comes from: the process kernel in
+/// production; a pinned test kernel in the rigs.
+pub(super) type HttpSource = Arc<dyn Fn() -> Result<Arc<Client>, CloudSyncError> + Send + Sync>;
+
+fn kernel_http() -> HttpSource {
+    Arc::new(|| crate::net::external(&network_spec()).map_err(|e| CloudSyncError::Network(e.to_string())))
+}
 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 /// The first call for a new user waits while the Worker creates the bucket.
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(60);
+
+/// The one client spec of this service: Worker calls and GCS transfers share
+/// it, so the kernel hands back one client per plan generation and its
+/// connections are reused across calls (LW-728).
+fn network_spec() -> crate::net::ClientSpec {
+    crate::net::ClientSpec::default()
+        .with_connect_timeout(CONNECT_TIMEOUT)
+        .with_request_timeout(REQUEST_TIMEOUT)
+        .with_redirect(crate::net::RedirectSpec::None)
+}
 /// A cached token is used only while it has more than this many seconds left. The Worker issues
 /// tokens that last at least 30 minutes.
 const REFRESH_MARGIN_SECS: i64 = 300;
@@ -41,11 +57,7 @@ pub struct CloudSync {
     sessions: SessionSource,
     clock: Clock,
     cache: Mutex<Option<Cached>>,
-    /// The one HTTP client of the service, built by the first call. Its connections are kept for
-    /// the next call: a call that opens a new connection to Google or the Worker costs a TCP and
-    /// a TLS handshake, and on a network that cuts some new connections, every handshake is a
-    /// chance to stop the sync.
-    http: OnceLock<Client>,
+    http_source: HttpSource,
 }
 
 fn unix_now() -> i64 {
@@ -95,18 +107,6 @@ pub(super) fn network_in(step: &'static str) -> impl Fn(reqwest::Error) -> Cloud
     move |e| in_step(step, network(e))
 }
 
-/// The client every call goes through. It follows no redirects: neither the Worker nor Google
-/// redirects, and the session token must not follow one. `REQUEST_TIMEOUT` is for a call that
-/// sets none of its own; a transfer sets a longer one on its request.
-fn build_http() -> Result<Client, CloudSyncError> {
-    Client::builder()
-        .connect_timeout(CONNECT_TIMEOUT)
-        .timeout(REQUEST_TIMEOUT)
-        .redirect(Policy::none())
-        .build()
-        .map_err(network)
-}
-
 /// The Worker's own limits come with numbers, so the caller can say which one was hit.
 fn limit_error(code: &str, body: &Value) -> Option<CloudSyncError> {
     let number = |field: &str| body.get(field).and_then(Value::as_u64);
@@ -144,20 +144,24 @@ impl CloudSync {
             sessions,
             clock,
             cache: Mutex::new(None),
-            http: OnceLock::new(),
+            http_source: kernel_http(),
         }
     }
 
-    /// The client of the service, built on first use. Every request goes through it, so the
-    /// connections it opened are used again. A request waits at most `REQUEST_TIMEOUT`, unless it
-    /// sets its own.
-    pub(super) fn http(&self) -> Result<&Client, CloudSyncError> {
-        if let Some(client) = self.http.get() {
-            return Ok(client);
-        }
-        // Two calls that start together may both build one: the first stored is kept.
-        let built = build_http()?;
-        Ok(self.http.get_or_init(|| built))
+    /// Tests pin their own kernel so parallel suites cannot swap the plan
+    /// under a rig's connection-reuse assertions.
+    #[cfg(test)]
+    pub(super) fn with_http_source(mut self, source: HttpSource) -> Self {
+        self.http_source = source;
+        self
+    }
+
+    /// The client of the service, from the unified network kernel. Within one
+    /// plan generation the kernel returns the same client, so the connections
+    /// it opened are used again. A request waits at most `REQUEST_TIMEOUT`,
+    /// unless it sets its own.
+    pub(super) fn http(&self) -> Result<Arc<Client>, CloudSyncError> {
+        (self.http_source)()
     }
 
     /// The deployed Worker, Google Cloud Storage, the session in the vault, the system clock.

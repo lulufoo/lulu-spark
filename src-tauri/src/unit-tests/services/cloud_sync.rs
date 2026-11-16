@@ -2,13 +2,14 @@
 
 use std::net::TcpListener;
 use std::sync::atomic::{AtomicI64, Ordering};
+use std::time::Duration;
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 
 use serde_json::{json, Value};
 use tiny_http::{Header, Response, Server};
 
-use super::{shared, Clock, CloudSync, SessionSource, WORKER_URL};
+use super::{shared, Clock, CloudSync, SessionSource, STORAGE_URL, WORKER_URL};
 use crate::config::vault::{AuthSession, AuthUser, SecretError};
 
 pub(super) const NOW: i64 = 1_800_000_000;
@@ -297,8 +298,23 @@ impl Rig {
             let now = now.clone();
             Arc::new(move || now.load(Ordering::SeqCst))
         };
+        let kernel = crate::net::tests::pinned_kernel();
+        // Short timeouts: the stand-in proxy cannot complete a TLS tunnel,
+        // so the transfer fails fast; the evidence is the CONNECT record.
+        let spec = crate::net::ClientSpec::default()
+            .with_connect_timeout(Duration::from_secs(2))
+            .with_request_timeout(Duration::from_secs(3))
+            .with_redirect(crate::net::RedirectSpec::None);
+        let http_source: crate::services::cloud_sync::client::HttpSource = {
+            let kernel = Arc::clone(&kernel);
+            Arc::new(move || {
+                kernel.external(&spec).map_err(|e| {
+                    crate::services::cloud_sync::error::CloudSyncError::Network(e.to_string())
+                })
+            })
+        };
         Self {
-            sync: CloudSync::new(url, url, sessions, clock),
+            sync: CloudSync::new(url, url, sessions, clock).with_http_source(http_source),
             worker,
             now,
             vault,
@@ -330,4 +346,99 @@ fn the_worker_address_is_https_without_a_trailing_slash() {
 #[test]
 fn the_app_has_one_shared_service() {
     assert!(std::ptr::eq(shared(), shared()));
+}
+
+// --- unified network kernel (LW-812): the paths leave proxy evidence ---
+
+#[test]
+fn worker_calls_travel_through_the_kernel_client() {
+    let _lock = crate::net::tests::lock_env();
+    let proxy = crate::net::tests::kernel::ObservableProxy::start();
+    let outcome;
+    {
+        let _clean = crate::net::tests::EnvCleaner;
+        crate::net::tests::set_env("HTTP_PROXY", &proxy.env_value());
+        crate::net::refresh_now();
+        let session = AuthSession {
+            access_token: JWT.into(),
+            refresh_token: "refresh".into(),
+            expires_at: NOW + 600,
+            user: AuthUser {
+                id: USER.into(),
+                email: None,
+                name: None,
+                avatar: None,
+                provider: None,
+            },
+        };
+        let sync = CloudSync::new(
+            "http://cloud-sync.test",
+            STORAGE_URL,
+            Arc::new(move || Ok(Some(session.clone()))),
+            Arc::new(|| NOW),
+        );
+        outcome = sync.credentials();
+    }
+    crate::net::refresh_now();
+    assert!(outcome.is_err(), "the proxy stand-in does not speak worker JSON: {outcome:?}");
+    let hits = proxy.hits();
+    assert_eq!(hits.len(), 1, "exactly one proxied request: {hits:?}");
+    assert_eq!(hits[0], "POST http://cloud-sync.test/credentials");
+}
+
+#[test]
+fn gcs_upload_travels_through_the_kernel_client_while_the_worker_stays_direct() {
+    let _lock = crate::net::tests::lock_env();
+    let proxy = crate::net::tests::kernel::ObservableProxy::start();
+    let upload;
+    let seen;
+    {
+        let _clean = crate::net::tests::EnvCleaner;
+        crate::net::tests::set_env("HTTPS_PROXY", &proxy.env_value());
+        crate::net::refresh_now();
+        let link = Reply::json(
+            200,
+            json!({
+                "method": "PUT",
+                "url": "https://storage.googleapis.com/upload/storage/v1/b/spark-abc/o/upload?X-Goog-Signature=abc",
+                "headers": { "x-goog-content-length-range": "0,1000000" },
+                "expiresAt": NOW + 600,
+            }),
+        );
+        let worker = MockWorker::start(vec![link]);
+        let kernel = crate::net::tests::pinned_kernel();
+        // Short timeouts: the stand-in proxy cannot complete a TLS tunnel,
+        // so the transfer fails fast; the evidence is the CONNECT record.
+        let spec = crate::net::ClientSpec::default()
+            .with_connect_timeout(Duration::from_secs(2))
+            .with_request_timeout(Duration::from_secs(3))
+            .with_redirect(crate::net::RedirectSpec::None);
+        let http_source: crate::services::cloud_sync::client::HttpSource = {
+            let kernel = Arc::clone(&kernel);
+            Arc::new(move || {
+                kernel.external(&spec).map_err(|e| {
+                    crate::services::cloud_sync::error::CloudSyncError::Network(e.to_string())
+                })
+            })
+        };
+        let sessions: SessionSource = Arc::new(|| Ok(Some(session(USER, JWT, NOW + 3600))));
+        let sync = CloudSync::new(&worker.url, STORAGE_URL, sessions, Arc::new(|| NOW))
+            .with_http_source(http_source);
+        upload = sync.upload(DOC_A, b"package", 3);
+        seen = worker.seen();
+    }
+    crate::net::refresh_now();
+    assert!(
+        upload.is_err(),
+        "the stand-in tunnel cannot complete TLS: {upload:?}"
+    );
+    // The Worker hop stayed on the loopback mock; only the GCS hop went out.
+    assert_eq!(seen.len(), 1, "only the upload link hits the mock worker");
+    let hits = proxy.hits();
+    assert_eq!(hits.len(), 1, "exactly one proxied request: {hits:?}");
+    assert!(
+        hits[0].starts_with("CONNECT storage.googleapis.com:443"),
+        "GCS evidence is the CONNECT record: {}",
+        hits[0]
+    );
 }

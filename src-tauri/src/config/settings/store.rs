@@ -144,6 +144,11 @@ pub fn to_config_json(
         "mcp_port": settings.effective_mcp_port()?,
         "gateway_port": settings.effective_gateway_port()?,
         "test_sandbox": matches!(mode, RuntimeMode::Sandbox { .. }),
+        "network": {
+            "use_system_proxy": settings.network.use_system_proxy,
+            // Credentials-free snapshot of what the kernel currently applies.
+            "effective": crate::net::snapshot_json(),
+        },
         "llm": llm,
     }))
 }
@@ -179,6 +184,16 @@ pub fn apply_config_payload(
     }
     if let Some(v) = payload.get("spark_root").and_then(|x| x.as_str()) {
         settings.spark_root = std::path::PathBuf::from(v);
+    }
+    if let Some(network) = payload.get("network").and_then(|x| x.as_object()) {
+        if let Some(v) = network.get("use_system_proxy") {
+            let Some(value) = v.as_bool() else {
+                return Err(SettingsError::ConfigGuard(format!(
+                    "invalid network.use_system_proxy value: {v}"
+                )));
+            };
+            settings.network.use_system_proxy = value;
+        }
     }
     if let Some(llm) = payload.get("llm").and_then(|x| x.as_object()) {
         let model = llm.get("model").and_then(|x| x.as_str());

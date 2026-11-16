@@ -27,6 +27,7 @@ use super::tools::catalog::{ToolCatalog, ToolResult};
 
 mod connection;
 mod connection_log;
+mod kernel_http;
 mod trace_meta;
 pub use connection_log::{McpTrace, McpTurn, ResetReason};
 pub(crate) use trace_meta::{build_trace_meta, read_trace_meta, read_trace_meta_json, TraceMeta};

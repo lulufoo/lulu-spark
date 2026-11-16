@@ -397,10 +397,7 @@ fn proxy_loopback(
     body: Vec<u8>,
 ) -> Result<Response, String> {
     let url = format!("http://127.0.0.1:{loopback_port}{path}");
-    let client = reqwest::blocking::Client::builder()
-        .timeout(Duration::from_secs(60))
-        .build()
-        .map_err(|err| err.to_string())?;
+    let client = crate::net::loopback(Duration::from_secs(60)).map_err(|err| err.to_string())?;
     let reqwest_method = reqwest::Method::from_bytes(method.as_str().as_bytes())
         .map_err(|err| err.to_string())?;
     let mut request = client.request(reqwest_method, url).body(body);

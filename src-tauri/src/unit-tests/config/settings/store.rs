@@ -276,3 +276,41 @@ fn theme_payload_accepts_stable_ids_and_rejects_unknown() {
     assert!(err.to_string().contains("theme"));
     assert_eq!(settings.theme, "dark");
 }
+
+#[test]
+fn network_payload_toggles_system_proxy_and_rejects_non_bool() {
+    let mut settings = AppSettings::default();
+    apply_config_payload(
+        &mut settings,
+        &serde_json::json!({ "network": { "use_system_proxy": true } }),
+    )
+    .expect("apply");
+    assert!(settings.network.use_system_proxy);
+
+    apply_config_payload(
+        &mut settings,
+        &serde_json::json!({ "network": { "use_system_proxy": false } }),
+    )
+    .expect("apply");
+    assert!(!settings.network.use_system_proxy);
+
+    let error = apply_config_payload(
+        &mut settings,
+        &serde_json::json!({ "network": { "use_system_proxy": "yes" } }),
+    )
+    .expect_err("non-bool must be rejected");
+    assert!(error.to_string().contains("use_system_proxy"));
+}
+
+#[test]
+fn to_config_json_exposes_network_toggle_and_effective_snapshot() {
+    let _sandbox = TestSandbox::new();
+    let mut settings = AppSettings::default();
+    settings.network.use_system_proxy = true;
+    let json = to_config_json(&settings, &[]).expect("json");
+    assert_eq!(json["network"]["use_system_proxy"], true);
+    assert!(
+        json["network"]["effective"]["plan"].is_object(),
+        "effective snapshot must expose the applied plan: {json}"
+    );
+}

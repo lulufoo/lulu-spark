@@ -263,3 +263,38 @@ fn requests_without_a_chat_session_carry_turn_and_trace_but_no_session() {
         assert!(metas[0].get("spark/session_id").is_none(), "{method} has no session");
     }
 }
+
+#[test]
+fn remote_mcp_transport_travels_through_the_kernel_client() {
+    use std::collections::BTreeMap;
+
+    use crate::mcp_host::registry::{HttpMcpTransport, McpServerConfig};
+    use crate::net::tests::kernel::ObservableProxy;
+    use crate::net::tests::{EnvCleaner, lock_env, set_env};
+
+    let _lock = lock_env();
+    let proxy = ObservableProxy::start();
+    {
+        let _clean = EnvCleaner;
+        set_env("HTTP_PROXY", &proxy.env_value());
+        crate::net::refresh_now();
+        let slot = ConnectionSlot::new();
+        let config = McpServerConfig {
+            capability_description: "test".into(),
+            http_transport: HttpMcpTransport {
+                name: "test".into(),
+                url: "http://mcp.test/mcp".into(),
+                headers: BTreeMap::new(),
+            },
+        };
+        let outcome = slot.list_tools(&config, &turn());
+        assert!(outcome.is_err(), "the proxy stand-in is not an MCP server: {outcome:?}");
+    }
+    crate::net::refresh_now();
+    let hits = proxy.hits();
+    assert!(
+        hits.iter().any(|hit| hit.starts_with("POST http://mcp.test/mcp")),
+        "the initialize POST must travel through the kernel client: {hits:?}"
+    );
+}
+

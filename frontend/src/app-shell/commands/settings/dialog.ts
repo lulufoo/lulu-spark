@@ -27,6 +27,7 @@ import {
   selectProjectsWorkspace,
 } from './notes-categories.ts';
 import { selectHidePatternsWorkspace } from './hide-patterns.ts';
+import { saveSystemProxySelection } from './network.ts';
 import { closeWorkspaceEditor, loadDisabledWorkspaces } from './workspaces.ts';
 import { loadSettingsSnapshot } from './snapshot.ts';
 import { closeBindDialog, openBindDialog } from '../bind-dialog.ts';
@@ -148,6 +149,10 @@ function wireSettingsDialog() {
   });
   document.getElementById('settings-theme')?.addEventListener('change', (e) => {
     void saveThemeSelection((e.target as HTMLSelectElement).value);
+  });
+
+  document.getElementById('settings-system-proxy')?.addEventListener('change', (e) => {
+    void saveSystemProxySelection((e.target as HTMLInputElement).checked);
   });
 
   document.getElementById('settings-llm-engine')?.addEventListener('change', (e) => {

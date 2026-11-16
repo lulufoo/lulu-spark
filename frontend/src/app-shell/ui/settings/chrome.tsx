@@ -25,6 +25,7 @@ export function SettingsDialogChrome() {
           <button type="button" className="settings-nav-item" data-panel="devices">Devices</button>
           <button type="button" className="settings-nav-item" data-panel="board">Board Connect</button>
           <button type="button" className="settings-nav-item" data-panel="theme">Theme</button>
+          <button type="button" className="settings-nav-item" data-panel="network">Network</button>
         </nav>
         <div id="settings-panels">
           <NotesSettingsPanel />
@@ -120,6 +121,33 @@ export function SettingsDialogChrome() {
                 Follow system uses this Mac&apos;s appearance. The window chrome
                 changes with the page.
               </span>
+            </div>
+          </div>
+          <div id="settings-panel-network" className="settings-panel">
+            <div className="settings-network-card">
+              <div className="settings-network-row">
+                <div className="settings-network-text">
+                  <label className="settings-network-title" htmlFor="settings-system-proxy">Use system proxy</label>
+                  <span className="settings-network-hint">
+                    Adopts this Mac&apos;s HTTP/HTTPS proxy for Board, cloud sync,
+                    the assistant, and remote MCP. Turning it off only stops
+                    reading the system proxy; proxy environment variables keep
+                    working. This switch does not control a TUN device. New
+                    requests apply changes without a restart.
+                  </span>
+                </div>
+                <input
+                  id="settings-system-proxy"
+                  type="checkbox"
+                  role="switch"
+                  className="settings-switch"
+                  aria-label="Use system proxy"
+                />
+              </div>
+              <div id="settings-network-status" className="settings-network-status">
+                <span id="settings-network-dot" className="settings-network-dot" />
+                <span id="settings-network-state" className="settings-network-state" />
+              </div>
             </div>
           </div>
         </div>

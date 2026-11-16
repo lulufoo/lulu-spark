@@ -8,6 +8,7 @@ pub mod gateway;
 pub mod host;
 pub mod main_host;
 pub mod mcp_host;
+pub mod net;
 pub mod repositories;
 pub mod services;
 
@@ -23,6 +24,28 @@ pub const DEFAULT_MCP_PORT: u16 = config::settings::DEFAULT_PROD_MCP_PORT;
 pub const AI_ASSISTANT_LABEL: &str = "ai-assistant";
 pub const PLAN_ATTACHMENT_DIALOG_EXTENSIONS: &[&str] = &["md"];
 
+/// Point the network kernel at the persisted toggle and the real system
+/// proxy source, and watch the system for changes (LW-811).
+#[cfg(not(test))]
+fn install_network_kernel() {
+    use std::sync::Arc;
+    use std::time::Duration;
+
+    net::install(
+        Arc::new(|| {
+            config::settings::load()
+                .map(|settings| settings.network.use_system_proxy)
+                .unwrap_or(false)
+        }),
+        host::production_source(),
+    );
+    net::spawn_watcher(Duration::from_secs(NET_WATCH_INTERVAL_SECS));
+}
+
+/// macOS system proxy changes reach new requests within this interval.
+#[cfg(not(test))]
+const NET_WATCH_INTERVAL_SECS: u64 = 5;
+
 #[cfg_attr(not(test), tauri::command)]
 fn ping() -> &'static str {
     "pong"
@@ -31,6 +54,7 @@ fn ping() -> &'static str {
 #[cfg(not(test))]
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    install_network_kernel();
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())

@@ -470,9 +470,7 @@ fn observe_main_host_serving(
 
 /// Observe same-process Main Host HTTP + Host MCP (`/health`) dual listen.
 pub fn observe_dual_listen(mcp_port: u16, sidecar_port: u16) -> Result<bool, CloseGateError> {
-    let client = reqwest::blocking::Client::builder()
-        .timeout(std::time::Duration::from_secs(2))
-        .build()
+    let client = crate::net::loopback(std::time::Duration::from_secs(2))
         .map_err(|e| CloseGateError::DualListenNotObservable(format!("http client: {e}")))?;
 
     observe_main_host_serving(&client, sidecar_port)?;

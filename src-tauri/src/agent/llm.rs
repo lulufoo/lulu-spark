@@ -300,17 +300,13 @@ fn send_request(
     on_delta: &mut Option<&mut dyn FnMut(&str, &str)>,
     trace: &mut CallTrace,
 ) -> LlmCallOutcome {
-    // Blocking reqwest applies this duration to connect/TTFB and to each body
-    // read, resetting after a successful read — idle timeout for SSE chunks.
-    let client = match Client::builder()
-        .timeout(options.timeout)
-        .connect_timeout(options.connect_timeout)
-        .build()
-    {
+    let client = match client_for(options) {
         Ok(client) => client,
         Err(e) => return LlmCallOutcome::failed(LlmError::Network(e.to_string())),
     };
 
+    // Blocking reqwest applies this duration to connect/TTFB and to each body
+    // read, resetting after a successful read — idle timeout for SSE chunks.
     let resp = client
         .post(url)
         .header("Authorization", format!("Bearer {}", config.api_key.trim()))
@@ -339,6 +335,18 @@ fn send_request(
     }
 
     stream::assemble_sse(resp, on_delta, trace, LLM_TOTAL_TIMEOUT)
+}
+
+/// The kernel's client for one (connect, request) timeout class. Both stay
+/// builder-level: the blocking client applies the request timeout to
+/// connect/TTFB and to each body read, resetting after a successful read —
+/// idle timeout for SSE chunks. Calls of one config share connections.
+fn client_for(options: &CallOptions) -> Result<std::sync::Arc<Client>, crate::net::NetError> {
+    let spec = crate::net::ClientSpec::default()
+        .with_connect_timeout(options.connect_timeout)
+        .with_request_timeout(options.timeout)
+        .with_redirect(crate::net::RedirectSpec::Default);
+    crate::net::external(&spec)
 }
 
 fn map_error_status(status: u16, text: &str) -> LlmError {

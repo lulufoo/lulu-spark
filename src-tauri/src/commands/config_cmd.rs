@@ -16,7 +16,12 @@ pub fn set_config(_app: AppHandle, payload: Value) -> Result<Value, String> {
     apply_config_payload(&payload)
 }
 
+static APPLY_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 fn apply_config_payload(payload: &Value) -> Result<Value, String> {
+    // One config apply at a time: two concurrent saves could otherwise
+    // interleave load→save and silently drop each other's fields.
+    let _apply = APPLY_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let mut settings = settings::load().map_err(|e| format!("{e}"))?;
     settings::apply_config_payload(&mut settings, payload).map_err(|e| format!("{e}"))?;
     if let Err(e) = secrets::apply_token_payload(payload) {
@@ -27,6 +32,8 @@ fn apply_config_payload(payload: &Value) -> Result<Value, String> {
         settings::normalize_prod_paths(&mut settings);
     }
     settings::save(&settings).map_err(|e| format!("{e}"))?;
+    // New requests pick up the saved network settings without a restart.
+    crate::net::refresh_now();
     settings::to_config_json(&settings, &secrets::list_saved_engines()).map_err(|e| format!("{e}"))
 }
 
