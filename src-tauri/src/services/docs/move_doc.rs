@@ -6,6 +6,8 @@
 //! leaves the document whole where the database points and at most orphaned copies
 //! behind, which the orphan sweep reclaims.
 
+use std::sync::Mutex;
+
 use serde_json::{json, Value};
 
 use crate::services::archive_parse::is_valid_common_path;
@@ -22,6 +24,8 @@ use super::resolve::{
 };
 use super::store::doc_file_path;
 
+static MOVE_LOCK: Mutex<()> = Mutex::new(());
+
 /// `{ id, project_id, workspace_id?, target_workspace_id?, target? }` →
 /// `{ ok, id, workspace_id, workspace_name, project_id, project_name, raw_path }`.
 /// `workspace_id` must be the document's current workspace when sent.
@@ -30,12 +34,25 @@ use super::store::doc_file_path;
 /// omitted for the project root), a taken name is a conflict instead of a rename, and
 /// the folder the document leaves stays in the tree.
 pub fn move_doc(payload: &Value) -> Value {
+    move_doc_inner(payload, false)
+}
+
+/// Move between projects, leaving an already correctly placed document in its folder.
+pub fn move_doc_to_project(payload: &Value) -> Value {
+    move_doc_inner(payload, true)
+}
+
+fn move_doc_inner(payload: &Value, preserve_same_project: bool) -> Value {
     let id = match doc_id_field(payload) {
         Ok(id) => id,
         Err(v) => return v,
     };
     let Some(target) = text_field(payload, "project_id") else {
         return bad_request("Missing project_id");
+    };
+    // Keep concurrent moves from planning against the same source or destination path.
+    let Ok(_move_guard) = MOVE_LOCK.lock() else {
+        return internal("Document move lock unavailable");
     };
     let conn = match open_data() {
         Ok(c) => c,
@@ -56,6 +73,10 @@ pub fn move_doc(payload: &Value) -> Value {
         },
         None => src_ws.clone(),
     };
+    // resolve_doc already confirmed that old_project belongs to src_ws.
+    if preserve_same_project && dest_ws.id == src_ws.id && target == old_project.id {
+        return json!({ "ok": true, "moved": false });
+    }
     if let Err(v) = ensure_workspace_enabled(&src_ws) {
         return v;
     }
@@ -163,7 +184,7 @@ pub fn move_doc(payload: &Value) -> Value {
         }
     }
     search_index::sync_workspace_docs_best_effort(&dest_ws.id, &[id.as_str()]);
-    json!({
+    let mut result = json!({
         "ok": true,
         "id": id,
         "workspace_id": dest_ws.id,
@@ -171,7 +192,11 @@ pub fn move_doc(payload: &Value) -> Value {
         "project_id": new_project.id,
         "project_name": new_project.name,
         "raw_path": plan.target.raw_path,
-    })
+    });
+    if preserve_same_project {
+        result["moved"] = json!(true);
+    }
+    result
 }
 
 fn join_dir(dir: &str, name: &str) -> String {

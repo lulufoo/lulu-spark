@@ -156,6 +156,40 @@ fn move_doc_renames_when_the_dest_path_is_taken() {
 }
 
 #[test]
+fn move_doc_rejects_project_from_another_target_workspace_without_moving() {
+    let sandbox = setup();
+    let src_ws = default_id();
+    let src_project = inbox_of(&src_ws);
+    let target_ws = new_workspace("Target");
+    let other_ws = new_workspace("Other");
+    let other_project = new_project(&other_ws, "Shelf");
+    let created = write(&src_ws, Some(&src_project), BODY);
+    assert_eq!(created.get("ok"), Some(&json!(true)), "{created}");
+    let id = created["id"].as_str().unwrap();
+    let conn = spark_data::open().expect("db");
+    let before = spark_data::get_doc(&conn, id).expect("get").expect("row");
+    let source_file = workspaces_dir(&sandbox)
+        .join(&src_ws)
+        .join("raw")
+        .join(&src_project)
+        .join(&before.raw_path);
+    let source_bytes = fs::read(&source_file).expect("source body");
+
+    let result = move_doc(&json!({
+        "id": id,
+        "project_id": other_project,
+        "target_workspace_id": target_ws,
+    }));
+
+    assert_eq!(result.get("_status"), Some(&json!(400)), "{result}");
+    let found = spark_data::find_doc(&conn, id).expect("find").expect("document");
+    assert_eq!(found.workspace.id, src_ws);
+    assert_eq!(found.doc.project_id, src_project);
+    assert_eq!(found.doc.raw_path, before.raw_path);
+    assert_eq!(fs::read(&source_file).expect("source body"), source_bytes);
+}
+
+#[test]
 fn move_doc_refuses_a_disabled_target_workspace() {
     let _sandbox = setup();
     let dest_ws = new_workspace("Dest");

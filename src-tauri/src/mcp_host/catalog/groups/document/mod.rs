@@ -3,6 +3,7 @@
 mod create_doc;
 mod delete_doc;
 mod list_categories;
+mod move_doc;
 mod read_doc;
 mod update_doc;
 mod write_public;
@@ -33,6 +34,7 @@ const REGISTRY: Registry = &[
     ("list_doc_categories", list_categories::build as BuildFn),
     ("create_doc", create_doc::build as BuildFn),
     ("update_doc", update_doc::build as BuildFn),
+    ("move_doc", move_doc::build as BuildFn),
     ("delete_doc", delete_doc::build as BuildFn),
 ];
 

@@ -181,6 +181,7 @@ const DOCS_TOOLS: &[&str] = &[
     "list_doc_categories",
     "create_doc",
     "update_doc",
+    "move_doc",
     "delete_doc",
 ];
 
@@ -197,6 +198,7 @@ const DOCS_TOOLS_NON_SPARK: &[&str] = &[
     "list_doc_categories",
     "create_doc",
     "update_doc",
+    "move_doc",
 ];
 
 const GLOBAL_TOOLS: &[&str] = &["search"];
@@ -901,6 +903,35 @@ fn proxy_tool_call_maps_service_error_like_node() {
     }))
     .expect_err("500 → tool error");
     assert_eq!(mcp_text_err(&err), r#"HTTP 500: {"error":"boom"}"#);
+}
+
+#[test]
+fn move_doc_failure_reaches_the_mcp_client_as_two_field_json() {
+    let _sandbox = TestSandbox::new();
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("runtime");
+    let result = rt
+        .block_on(proxy_tool_call(
+            "codex",
+            "codex",
+            "move_doc",
+            serde_json::json!({
+                "id": "00000000000000000000000000000000",
+                "target_workspace_id": crate::test_support::default_workspace().id,
+                "project_id": "example",
+            }),
+        ))
+        .expect("move_doc is available on the Codex channel");
+    let call = mapped_to_call_tool_result(result);
+    assert_eq!(call.is_error, Some(false));
+    let content = call.content[0].as_text().expect("tool result text");
+    let body: serde_json::Value = serde_json::from_str(&content.text).expect("tool result JSON");
+    assert_eq!(
+        body,
+        serde_json::json!({ "ok": false, "message": "Entry not found" })
+    );
 }
 
 /// Catalog invoke reaches L4; tool dispatch must not hop to Main Host :8765.
