@@ -22,6 +22,7 @@ const DOCUMENT_APIS: &[&str] = &[
     "list_doc_categories",
     "create_doc",
     "update_doc",
+    "move_doc",
     "delete_doc",
 ];
 
@@ -266,6 +267,77 @@ fn spark_update_doc_uses_source_invoke() {
     assert!(invoke_eq(route.invoke, update_doc_from_source));
     assert!(!invoke_eq(route.invoke, update_doc_from_content));
     assert!(route.input_schema["properties"].get("workspace_id").is_none());
+}
+
+#[test]
+fn move_doc_mcp_respects_the_destination_workspace_and_project() {
+    use serde_json::json;
+    let _sandbox = TestSandbox::new();
+    let source_ws = crate::test_support::default_workspace().id;
+    let destination = docs_service::create_workspace(&json!({"workspace_name": "Destination"}));
+    let dest_ws = destination["workspace_id"].as_str().expect("workspace");
+    let project = docs_service::create_project(&json!({"workspace_id": dest_ws, "project_name": "Shelf"}));
+    let dest_project = project["project_id"].as_str().expect("project");
+    let created = docs_service::create_doc_content(&json!({
+        "workspace_id": source_ws,
+        "title": "Article",
+        "content": "# 文章\n\n这是文章正文。\n",
+        "digest": "never",
+        "source_type": "article"
+    }));
+    assert_eq!(created.get("ok"), Some(&json!(true)), "{created}");
+    let id = created["id"].as_str().expect("created document");
+    let route = build("document", "move_doc", "spark").expect("move_doc");
+    assert_eq!(route.input_schema["required"], json!(["id", "target_workspace_id", "project_id"]));
+    assert!(!route.read_only);
+
+    let missing = (route.invoke)(&json!({"id": id, "project_id": dest_project}));
+    assert_eq!(missing, json!({"ok": false, "message": "Missing target_workspace_id"}));
+    let mismatch = (route.invoke)(&json!({"id": id, "target_workspace_id": source_ws, "project_id": dest_project}));
+    assert_eq!(mismatch, json!({
+        "ok": false,
+        "message": format!("Unknown project: {dest_project} in workspace {source_ws}"),
+    }));
+    let extra = (route.invoke)(&json!({
+        "id": id, "target_workspace_id": dest_ws, "project_id": dest_project, "target": "folder"
+    }));
+    assert_eq!(extra, json!({"ok": false, "message": "Unsupported field: target"}));
+    let conn = crate::services::spark_data::open().expect("db");
+    let before = crate::services::spark_data::find_doc(&conn, id).expect("find").expect("document");
+    assert_eq!(before.workspace.id, source_ws);
+
+    let moved = (route.invoke)(&json!({"id": id, "target_workspace_id": dest_ws, "project_id": dest_project}));
+    assert_eq!(moved, json!({"ok": true, "message": "Document moved to the requested project."}));
+    let after = crate::services::spark_data::find_doc(&conn, id).expect("find").expect("document");
+    assert_eq!(after.workspace.id, dest_ws);
+    assert_eq!(after.doc.project_id, dest_project);
+}
+
+#[test]
+fn move_doc_mcp_keeps_a_document_in_its_existing_folder() {
+    use serde_json::json;
+    let _sandbox = TestSandbox::new();
+    let ws = crate::test_support::default_workspace().id;
+    let conn = crate::services::spark_data::open().expect("db");
+    let project = crate::services::spark_data::get_default_project(&conn, &ws)
+        .expect("lookup").expect("inbox").id;
+    let created = docs_service::create_titled_doc(&json!({
+        "workspace_id": ws, "project_id": project, "title": "Article",
+        "source_type": "jot", "content": "正文", "folder": "folder",
+        "filename": "article.md", "created_at": "202611102220"
+    }));
+    assert_eq!(created.get("ok"), Some(&json!(true)), "{created}");
+    let id = created["id"].as_str().expect("created document");
+    let route = build("document", "move_doc", "spark").expect("move_doc");
+    let result = (route.invoke)(&json!({"id": id, "target_workspace_id": ws, "project_id": project}));
+    assert_eq!(result, json!({
+        "ok": true,
+        "message": "Document is already in the requested project; no move was needed.",
+    }));
+    let after = crate::services::spark_data::find_doc(&conn, id).expect("find").expect("document");
+    assert_eq!(after.workspace.id, ws);
+    assert_eq!(after.doc.project_id, project);
+    assert_eq!(after.doc.raw_path, "folder/article.md");
 }
 
 #[test]
