@@ -113,6 +113,33 @@ describe('sketch preview', () => {
     act(() => root.unmount());
   });
 
+  it('scrolls the reader that contains the sending Sketch', () => {
+    const note = render({ html: HTML, pageUrl: PAGE, appearance: 'light' });
+    const popup = render({ html: HTML, pageUrl: PAGE, appearance: 'light' });
+    for (const { host } of [note, popup]) {
+      host.className = 'viewer-body';
+      host.scrollBy = vi.fn();
+    }
+    const noteFrame = note.host.querySelector('iframe');
+    const popupFrame = popup.host.querySelector('iframe');
+
+    postFromFrame(noteFrame, { type: 'lulu-sandbox:scroll', dy: 32.5 });
+    postFromFrame(popupFrame, { type: 'lulu-sandbox:scroll', dy: -40 });
+    for (const dy of [0, NaN, Infinity, 32769, -32769, '20']) {
+      postFromFrame(noteFrame, { type: 'lulu-sandbox:scroll', dy });
+    }
+    window.dispatchEvent(new MessageEvent('message', {
+      data: { type: 'lulu-sandbox:scroll', dy: 20 }, source: window,
+    }));
+
+    expect(note.host.scrollBy).toHaveBeenCalledExactlyOnceWith(0, 32.5);
+    expect(popup.host.scrollBy).toHaveBeenCalledExactlyOnceWith(0, -40);
+    act(() => {
+      note.root.unmount();
+      popup.root.unmount();
+    });
+  });
+
   it('shows a load failure and follows a later theme change', () => {
     const { host, root } = render({ html: HTML, pageUrl: PAGE, appearance: 'light' });
     const frame = host.querySelector('iframe');

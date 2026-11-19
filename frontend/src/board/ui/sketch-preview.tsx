@@ -86,6 +86,10 @@ export function SketchPreview({ html, pageUrl, appearance, title = '' }: Props) 
       if (!runner || event.source !== runner) return;
       const message = readSandboxMessage(event.data);
       if (!message) return;
+      if (message.kind === 'scroll') {
+        liveFrame.closest('.viewer-body')?.scrollBy(0, message.dy);
+        return;
+      }
       if (message.kind === 'ready') {
         const first = !readyRef.current;
         readyRef.current = true;
