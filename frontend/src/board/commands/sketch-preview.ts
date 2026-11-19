@@ -20,6 +20,7 @@ export type SketchAppearance = 'light' | 'dark';
 export type SandboxEvent =
   | { kind: 'ready' }
   | { kind: 'error' }
+  | { kind: 'scroll'; dy: number }
   | { kind: 'size'; width: number; height: number };
 
 export function renderMessage(html: string, appearance: SketchAppearance) {
@@ -43,11 +44,17 @@ function validEdge(value: unknown): value is number {
 
 export function readSandboxMessage(data: unknown): SandboxEvent | null {
   if (!data || typeof data !== 'object') return null;
-  const rec = data as { type?: unknown; width?: unknown; height?: unknown };
+  const rec = data as { type?: unknown; width?: unknown; height?: unknown; dy?: unknown };
   if (rec.type === 'lulu-sandbox:ready') return { kind: 'ready' };
   if (rec.type === 'lulu-sandbox:error') return { kind: 'error' };
   if (rec.type === 'lulu-sandbox:size' && validEdge(rec.width) && validEdge(rec.height)) {
     return { kind: 'size', width: Math.ceil(rec.width), height: Math.ceil(rec.height) };
+  }
+  if (rec.type === 'lulu-sandbox:scroll') {
+    const { dy } = rec;
+    if (typeof dy === 'number' && Number.isFinite(dy) && dy !== 0 && Math.abs(dy) <= MAX_EDGE) {
+      return { kind: 'scroll', dy };
+    }
   }
   return null;
 }
