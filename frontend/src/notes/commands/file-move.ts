@@ -1,6 +1,8 @@
 import * as api from '../../host/api.ts';
 import { getEntryId, notifyState, state } from '../state/host.ts';
 import { emptyFileMove, fileMoveStore } from '../state/file-move.ts';
+import { folderMoveStore } from '../state/folder-move.ts';
+import { dropFolderOn, leaveFolderTarget, overFolderTarget } from './folder-move.ts';
 import { nodeKeyOfEntry } from '../state/dir-tree.ts';
 import { refreshNotesIndex } from './reload-index.ts';
 import type { NoteEntry } from '../state/types.ts';
@@ -78,4 +80,20 @@ async function moveFileToFolder(id: string, fromKey: string, nodeKey: string) {
     const message = err instanceof Error ? err.message : String(err);
     alert(`Could not move the file: ${message}`);
   }
+}
+
+// Route the tree's drag handlers by what is being dragged: an active folder drag wins.
+export function overDropTarget(nodeKey: string, event: DragEventLike) {
+  if (folderMoveStore.getSnapshot().path) return overFolderTarget(nodeKey, event);
+  return overFolder(nodeKey, event);
+}
+
+export function leaveDropTarget(nodeKey: string) {
+  if (folderMoveStore.getSnapshot().path) return leaveFolderTarget(nodeKey);
+  return leaveFolder(nodeKey);
+}
+
+export function dropOnTarget(nodeKey: string, event: DragEventLike) {
+  if (folderMoveStore.getSnapshot().path) return dropFolderOn(nodeKey, event);
+  return dropFileOn(nodeKey, event);
 }

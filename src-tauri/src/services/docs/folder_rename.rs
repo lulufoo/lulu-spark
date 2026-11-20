@@ -184,14 +184,14 @@ fn retarget_doc(
     Ok(next)
 }
 
-fn docs_under(conn: &Connection, workspace: &str, project: &str, folder: &str) -> Result<Vec<DocRow>, String> {
+pub(super) fn docs_under(conn: &Connection, workspace: &str, project: &str, folder: &str) -> Result<Vec<DocRow>, String> {
     let mut docs = list_docs(conn, workspace)?;
     docs.retain(|doc| doc.project_id == project && shift_prefix(&doc.raw_path, folder, folder).is_some());
     docs.sort_by(|a, b| a.raw_path.cmp(&b.raw_path));
     Ok(docs)
 }
 
-fn folder_paths(conn: &Connection, project: &str, folder: &str) -> Result<Vec<String>, String> {
+pub(super) fn folder_paths(conn: &Connection, project: &str, folder: &str) -> Result<Vec<String>, String> {
     let like = format!("{}/%", escape_like(folder));
     let mut stmt = conn
         .prepare("SELECT path FROM folder WHERE project_id = ?1 AND (path = ?2 OR path LIKE ?3 ESCAPE '\\')")
@@ -200,7 +200,7 @@ fn folder_paths(conn: &Connection, project: &str, folder: &str) -> Result<Vec<St
     rows.collect::<Result<Vec<_>, _>>().map_err(|err| err.to_string())
 }
 
-fn retarget_folders(conn: &Connection, project: &str, from: &str, to: &str) -> Result<Vec<(String, String)>, String> {
+pub(super) fn retarget_folders(conn: &Connection, project: &str, from: &str, to: &str) -> Result<Vec<(String, String)>, String> {
     let mut paths = folder_paths(conn, project, from)?;
     paths.sort_by(|a, b| b.len().cmp(&a.len()));
     let mut changed = Vec::new();
@@ -223,7 +223,7 @@ fn dest_taken(conn: &Connection, project: &str, path: &str, dir: &Path, same: bo
     Ok(dir.exists() || folder_known(conn, project, path)? || !folder_paths(conn, project, path)?.is_empty())
 }
 
-fn shift_prefix(path: &str, from: &str, to: &str) -> Option<String> {
+pub(super) fn shift_prefix(path: &str, from: &str, to: &str) -> Option<String> {
     let rest = path.strip_prefix(from)?;
     if rest.is_empty() {
         return Some(to.to_string());

@@ -24,6 +24,7 @@ mod jot;
 mod merge_files;
 mod merge_plan;
 mod move_doc;
+mod move_folder;
 mod move_project;
 pub(crate) mod relocate;
 mod project;
@@ -52,6 +53,7 @@ pub use hide_patterns::{
 };
 pub use jot::*;
 pub use move_doc::{move_doc, move_doc_to_project};
+pub use move_folder::move_folder;
 pub use move_project::{cancel_move_project, move_project};
 pub use project::{create_project, list_projects, reorder_projects, update_project};
 pub use read::{export_file, get_digest, get_file, get_path};

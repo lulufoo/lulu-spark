@@ -82,6 +82,7 @@ describe('writeApiInvokeMap', () => {
       '/api/mark-message-channel-read',
       '/api/mark-message-workspace-read',
       '/api/move-doc-dir',
+      '/api/move-folder',
       '/api/project-create',
       '/api/project-delete',
       '/api/project-move',
