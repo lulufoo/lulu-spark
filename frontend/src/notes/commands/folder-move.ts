@@ -5,7 +5,7 @@ import { refreshNotesIndex } from './reload-index.ts';
 
 /** Same slice of a drag event the tree handlers need; keeps React out of the command module. */
 type DragEventLike = {
-  dataTransfer: { effectAllowed?: string; dropEffect: string; setData(type: string, value: string): void } | null;
+  dataTransfer: { effectAllowed?: string; dropEffect?: string; setData(type: string, value: string): void } | null;
   preventDefault(): void;
   stopPropagation(): void;
 };
