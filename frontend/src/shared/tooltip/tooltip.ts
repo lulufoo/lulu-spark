@@ -42,11 +42,15 @@ export function initTooltip(): () => void {
 
   let current: HTMLElement | null = null;
   let timer: ReturnType<typeof setTimeout> | null = null;
+  const observer = new MutationObserver(() => {
+    if (current && (!current.isConnected || current.dataset.tip !== box.textContent)) hide();
+  });
 
   function hide() {
     if (timer != null) clearTimeout(timer);
     timer = null;
     current = null;
+    observer.disconnect();
     box.style.display = 'none';
   }
 
@@ -58,6 +62,8 @@ export function initTooltip(): () => void {
     box.textContent = text;
     box.style.display = 'block';
     placeTip(box, el.getBoundingClientRect());
+    observer.observe(document.body, { childList: true, subtree: true });
+    observer.observe(el, { attributes: true, attributeFilter: ['data-tip'] });
   }
 
   function onOver(e: Event) {
@@ -80,6 +86,7 @@ export function initTooltip(): () => void {
     ['mouseover', onOver, true],
     ['mouseout', onOut as EventListener, true],
     ['mousedown', hide, true],
+    ['click', hide, true],
     ['keydown', hide, true],
     ['scroll', hide, true],
     ['blur', hide, false],

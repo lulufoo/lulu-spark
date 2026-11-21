@@ -10,6 +10,7 @@ import { state } from '../../frontend/src/notes/state/host.ts';
 import { NotesCommentsBar } from '../../frontend/src/notes/ui/comments.tsx';
 import { initHighlightUI, renderDocBody } from '../../frontend/src/notes/ui/viewer/body.tsx';
 import { closeHighlightCommentEditor } from '../../frontend/src/notes/ui/viewer/highlight-comment.ts';
+import { initTooltip } from '../../frontend/src/shared/tooltip/tooltip.ts';
 
 const host = vi.hoisted(() => ({
   fetchDocHighlights: vi.fn(),
@@ -182,4 +183,51 @@ it('opens the same editor by keyboard on a newly created highlight', async () =>
   expect(host.setDocHighlightComment).toHaveBeenCalledExactlyOnceWith(
     key, 'new-highlight', 'Written from the keyboard',
   );
+});
+
+it('previews saved comments on each fragment and drops the preview when editing or rerendering', async () => {
+  const initial = 'Initial thought\n<b>Literal text</b>';
+  savedHighlights.set(key, [{
+    id: 'legacy-highlight',
+    text: selectedText,
+    occurrence: 0,
+    comments: [{ id: 'comment-1', text: initial }],
+  }]);
+  const stopTooltip = initTooltip();
+  const tip = document.querySelector('.ui-tip');
+  async function hover(target, text) {
+    target.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+    await vi.waitFor(() => {
+      expect(tip.style.display).toBe('block');
+      expect(tip.textContent).toBe(text);
+    });
+  }
+
+  try {
+    await repaint();
+    await vi.waitFor(() => expect(fragments()).toHaveLength(3));
+    await hover(fragments()[0], initial);
+    expect(tip.querySelector('b')).toBeNull();
+    await hover(fragments()[1], initial);
+    fragments()[1].dispatchEvent(new MouseEvent('mouseout', { bubbles: true, relatedTarget: body() }));
+    expect(tip.style.display).toBe('none');
+    await hover(fragments()[1], initial);
+    fragments()[1].click();
+    expect(tip.style.display).toBe('none');
+    expect(field().value).toBe(initial);
+    await saveComment('Revised thought');
+
+    await hover(fragments()[2], 'Revised thought');
+    await hover(fragments()[2].querySelector('.highlight-del-btn'), 'Remove highlight');
+    await hover(fragments()[0], 'Revised thought');
+    await repaint();
+    await vi.waitFor(() => expect(tip.style.display).toBe('none'));
+    await vi.waitFor(() => expect(fragments()).toHaveLength(3));
+    await hover(fragments()[2], 'Revised thought');
+    fragments()[2].click();
+    await saveComment('');
+    expect(fragments().every((mark) => !mark.hasAttribute('data-tip'))).toBe(true);
+  } finally {
+    stopTooltip();
+  }
 });

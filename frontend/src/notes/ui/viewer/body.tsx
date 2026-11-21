@@ -2,6 +2,7 @@ import { getEntryId, state } from '../../state/host.ts';
 import * as api from '../../../host/api.ts';
 import { docKey } from '../../../doc-editor/identity.ts';
 import { applyCachedHighlights, initDocHighlightOverlay } from '../../../doc-editor/highlights.ts';
+import { setHighlightCommentTip } from '../../../doc-editor/highlight-utils.ts';
 import type { OpenHighlightComment } from '../../../doc-editor/types.ts';
 import { mountBoardSketches, releaseBoardSketches } from '../../../board/commands/sketch-links.ts';
 import { renderDocMarkdown } from '../../../doc-editor/view.tsx';
@@ -56,6 +57,7 @@ function notesIdentityKey() {
 
 const openNotesHighlightComment: OpenHighlightComment = (identityKey, highlight, anchor, point) => {
   if (notesIdentityKey() !== identityKey || state.viewer.editing || state.viewer.loading) return;
+  const reader = anchor.closest('#md-body');
   openHighlightCommentEditor({
     anchor,
     point,
@@ -63,6 +65,12 @@ const openNotesHighlightComment: OpenHighlightComment = (identityKey, highlight,
     async onSave(text) {
       const saved = await api.setDocHighlightComment(identityKey, highlight.id, text);
       highlight.comments = saved.comments;
+      if (!reader?.contains(anchor)) return;
+      for (const fragment of reader.querySelectorAll<HTMLElement>('mark.doc-highlight')) {
+        if (fragment.dataset.hid === highlight.id) {
+          setHighlightCommentTip(fragment, saved.comments[0]?.text);
+        }
+      }
     },
   });
 };

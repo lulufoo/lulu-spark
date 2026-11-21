@@ -73,6 +73,7 @@ function paintHighlight(
   const refresh = { bodyEl, identityKey, excludeBarId, onOpenComment, isCurrent };
   wrapNthMatch(bodyEl, highlight.text, highlight.occurrence ?? 0, highlight.id, {
     commentsBarId: excludeBarId,
+    commentTip: highlight.comments?.[0]?.text,
     onDelete: () => {
       void deleteCachedHighlight(identityKey, highlight.id, refresh);
     },

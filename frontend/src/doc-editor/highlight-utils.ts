@@ -7,6 +7,7 @@ type MarkActions = {
   onDelete?: () => void;
   onOpen?: (anchor: HTMLElement, point?: HighlightPoint) => void;
   commentsBarId?: string;
+  commentTip?: string;
 };
 
 // ── buildFlatText ──────────────────────────────────────────────────────────
@@ -72,7 +73,7 @@ export function wrapNthMatch(
   text: string,
   occurrence: number,
   id: string,
-  { onDelete, onOpen, commentsBarId = 'md-comments-bar' }: MarkActions = {},
+  { onDelete, onOpen, commentsBarId = 'md-comments-bar', commentTip }: MarkActions = {},
 ) {
   if (!text) return;
   const { rawText, segments } = buildFlatText(container, commentsBarId);
@@ -138,10 +139,16 @@ export function wrapNthMatch(
     targetNode.parentNode?.insertBefore(mark, targetNode);
     mark.appendChild(targetNode);
     if (onOpen) bindCommentActions(mark, lastMark === null, onOpen);
+    if (commentTip) setHighlightCommentTip(mark, commentTip);
     lastMark = mark;
   }
 
   if (lastMark) lastMark.appendChild(makeDelBtn());
+}
+
+export function setHighlightCommentTip(mark: HTMLElement, text: string | undefined) {
+  if (typeof text === 'string' && text.trim()) mark.dataset.tip = text;
+  else delete mark.dataset.tip;
 }
 
 function bindCommentActions(
