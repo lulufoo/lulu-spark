@@ -8,6 +8,8 @@
   --bg-canvas: #f6f8fa;
   --bg-danger: #cf222e;
   --bg-dark: #525960;
+  --bg-doc-highlight: #fff3b0;
+  --bg-doc-highlight-hover: #ffe066;
   --bg-emphasis: #24292f;
   --bg-emphasis-2: #1f2328;
   --bg-hex-0060c0: #4a5cd4;
@@ -57,13 +59,11 @@
   --bg-hex-fef3c7: #fef3c7;
   --bg-hex-ffa657: #ffa657;
   --bg-hex-ffd8d3: #ffd8d3;
-  --bg-hex-ffe066: #ffe066;
   --bg-hex-ffeaea: #ffeaea;
   --bg-hex-ffebe9: #ffebe9;
   --bg-hex-fff0ee: #fff0ee;
   --bg-hex-fff0f0: #fff0f0;
   --bg-hex-fff1f0: #fff1f0;
-  --bg-hex-fff3b0: #fff3b0;
   --bg-hex-fff8c5: #fff8c5;
   --bg-hex-fff8e6: #fff8e6;
   --bg-hex-fff8f0: #fff8f0;

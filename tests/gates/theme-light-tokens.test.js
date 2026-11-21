@@ -102,6 +102,30 @@ function contrast(a, b) {
   return (hi + 0.05) / (lo + 0.05);
 }
 
+describe('Document highlight contrast', () => {
+  it('keeps surrounding text color and uses stronger colors for quotes and links', () => {
+    expect(appCss).toMatch(/mark\.doc-highlight\s*\{[^}]*\bcolor:\s*inherit;/);
+    expect(appCss).toMatch(
+      /blockquote mark\.doc-highlight\s*\{\s*color:\s*var\(--fg-emphasis\);\s*\}\s*a mark\.doc-highlight\s*\{\s*color:\s*var\(--fg-accent-emphasis\);/,
+    );
+  });
+
+  it.each([
+    ['light', themeCss],
+    ['dark', darkCss],
+  ])('keeps highlighted text and button labels readable in %s mode', (_, css) => {
+    const highlight = tokenValue(css, 'bg-doc-highlight');
+    const hover = tokenValue(css, 'bg-doc-highlight-hover');
+    const text = tokenValue(css, 'fg-emphasis');
+    const link = tokenValue(css, 'fg-accent-emphasis');
+
+    expect(contrast(text, highlight)).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(link, highlight)).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(text, hover)).toBeGreaterThanOrEqual(4.5);
+    expect(hover).not.toBe(highlight);
+  });
+});
+
 describe('Periwinkle accent tokens', () => {
   it('uses one accent #576ae0 in Light and Dark', () => {
     for (const css of [themeCss, darkCss]) {
