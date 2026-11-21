@@ -1,4 +1,5 @@
 import * as api from '../host/api.ts';
+import { confirmRemoveHighlight } from '../shared/comment-delete.tsx';
 import { nowTs } from '../shared/utils.ts';
 import {
   wrapNthMatch,
@@ -71,23 +72,51 @@ function paintHighlight(
   { excludeBarId = '', onOpenComment, isCurrent }: ApplyHighlightsArgs,
 ) {
   const refresh = { bodyEl, identityKey, excludeBarId, onOpenComment, isCurrent };
+  let deletePending = false;
   wrapNthMatch(bodyEl, highlight.text, highlight.occurrence ?? 0, highlight.id, {
     commentsBarId: excludeBarId,
     commentTip: highlight.comments?.[0]?.text,
-    onDelete: () => {
-      void deleteCachedHighlight(identityKey, highlight.id, refresh);
+    onDelete: (trigger) => {
+      if (deletePending) return;
+      deletePending = true;
+      void deleteCachedHighlight(identityKey, highlight, refresh, trigger).finally(() => {
+        deletePending = false;
+      });
     },
     onOpen: onOpenComment && ((anchor, point) => onOpenComment(identityKey, highlight, anchor, point)),
   });
 }
 
-async function deleteCachedHighlight(identityKey: string, id: string, args: ApplyHighlightsArgs) {
+async function deleteCachedHighlight(
+  identityKey: string,
+  highlight: HighlightRecord,
+  args: ApplyHighlightsArgs,
+  trigger: HTMLButtonElement,
+) {
+  const viewIsCurrent = () => Boolean(args.bodyEl?.isConnected) && args.isCurrent?.() !== false;
+  const canRemove = () => trigger.isConnected && viewIsCurrent();
+  const remove = async (confirmed: boolean) => (await api.updateDocHighlights(
+    identityKey,
+    confirmed ? { id: highlight.id, confirm_comment_removal: true } : { id: highlight.id },
+    nowTs(),
+  )) as HighlightsPayload;
+  if (!canRemove()) return;
+
   try {
-    const data = (await api.updateDocHighlights(identityKey, { id }, nowTs())) as HighlightsPayload;
+    const needsConfirmation = Boolean(highlight.comments?.length);
+    if (needsConfirmation && !(await confirmRemoveHighlight(trigger))) return;
+    if (!canRemove()) return;
+    let data = await remove(needsConfirmation);
+    if (data.requires_confirmation && !needsConfirmation) {
+      if (!canRemove() || !(await confirmRemoveHighlight(trigger)) || !canRemove()) return;
+      data = await remove(true);
+    }
     if (!data.ok) throw new Error(data.error || 'failed');
-    await applyCachedHighlights(args);
+    if (viewIsCurrent()) await applyCachedHighlights(args);
   } catch (error) {
-    alert(`Failed to remove highlight: ${error instanceof Error ? error.message : String(error)}`);
+    if (viewIsCurrent()) {
+      alert(`Failed to remove highlight: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 }
 

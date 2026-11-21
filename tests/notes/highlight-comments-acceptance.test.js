@@ -11,6 +11,7 @@ import { NotesCommentsBar } from '../../frontend/src/notes/ui/comments.tsx';
 import { initHighlightUI, renderDocBody } from '../../frontend/src/notes/ui/viewer/body.tsx';
 import { closeHighlightCommentEditor } from '../../frontend/src/notes/ui/viewer/highlight-comment.ts';
 import { initTooltip } from '../../frontend/src/shared/tooltip/tooltip.ts';
+import { CommentDeleteDialog } from '../../frontend/src/shared/comment-delete.tsx';
 
 const host = vi.hoisted(() => ({
   fetchDocHighlights: vi.fn(),
@@ -35,6 +36,7 @@ const editor = () => document.querySelector('.highlight-comment-editor');
 const field = () => editor().querySelector('textarea');
 let originalViewer;
 let commentRoot;
+let confirmationRoot;
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -51,10 +53,13 @@ beforeEach(() => {
   });
   document.body.innerHTML = `
     <div id="comments-host"></div>
+    <div id="confirmation-host"></div>
     <div id="md-body"></div>
     <textarea id="md-edit-area" style="display:none"></textarea>
     <button id="highlight-add-btn" style="display:none">Highlight</button>
   `;
+  confirmationRoot = createRoot(document.getElementById('confirmation-host'));
+  flushSync(() => confirmationRoot.render(createElement(CommentDeleteDialog)));
   initHighlightUI();
   host.fetchDocHighlights.mockImplementation(async (docKey) => ({
     highlights: structuredClone(savedHighlights.get(docKey) ?? []),
@@ -62,6 +67,10 @@ beforeEach(() => {
   host.updateDocHighlights.mockImplementation(async (docKey, change) => {
     const highlights = savedHighlights.get(docKey) ?? [];
     if (change.id) {
+      const highlight = highlights.find((record) => record.id === change.id);
+      if (highlight?.comments?.length && !change.confirm_comment_removal) {
+        return { ok: false, requires_confirmation: true };
+      }
       savedHighlights.set(docKey, highlights.filter((highlight) => highlight.id !== change.id));
       return { ok: true, id: '' };
     }
@@ -85,6 +94,7 @@ afterEach(() => {
   releaseBoardSketches(body());
   if (commentRoot) flushSync(() => commentRoot.unmount());
   commentRoot = undefined;
+  flushSync(() => confirmationRoot.unmount());
   Object.assign(state.viewer, originalViewer);
   document.getSelection()?.removeAllRanges();
   document.body.replaceChildren();
@@ -101,6 +111,9 @@ async function saveComment(text) {
   editor().querySelector('[type="submit"]').click();
   await vi.waitFor(() => expect(editor()).toBeNull());
 }
+
+const confirmation = () => document.querySelector('#comment-delete-dialog.open');
+const confirmRemoval = () => document.getElementById('btn-comment-delete-ok').click();
 
 it('adds, restores, edits, cancels, clears and removes a comment on a legacy highlight', async () => {
   savedHighlights.set(key, [{ id: 'legacy-highlight', text: selectedText, occurrence: 0 }]);
@@ -147,15 +160,68 @@ it('adds, restores, edits, cancels, clears and removes a comment on a legacy hig
   const remove = body().querySelector('[aria-label="Remove highlight"]');
   expect(remove.textContent).toBe('×');
   remove.click();
+  await vi.waitFor(() => expect(confirmation()?.textContent).toContain('saved comment'));
+  document.getElementById('btn-comment-delete-cancel').click();
+  await vi.waitFor(() => {
+    expect(confirmation()).toBeNull();
+    expect(document.getElementById('comment-delete-dialog-title').textContent).toBe('Delete comment');
+  });
+  expect(host.updateDocHighlights).not.toHaveBeenCalled();
+  expect(fragments()).toHaveLength(3);
+  expect(savedHighlights.get(key)[0].comments[0].text).toBe('Remove with the highlight');
+
+  remove.click();
+  await vi.waitFor(() => expect(confirmation()).not.toBeNull());
+  const alert = vi.spyOn(window, 'alert').mockImplementation(() => {});
+  try {
+    host.updateDocHighlights.mockRejectedValueOnce(new Error('Storage busy'));
+    confirmRemoval();
+    await vi.waitFor(() => expect(alert).toHaveBeenCalledWith('Failed to remove highlight: Storage busy'));
+    expect(fragments()).toHaveLength(3);
+  } finally {
+    alert.mockRestore();
+  }
+  host.updateDocHighlights.mockClear();
+  remove.click();
+  await vi.waitFor(() => expect(confirmation()).not.toBeNull());
+  confirmRemoval();
   await vi.waitFor(() => expect(fragments()).toHaveLength(0));
   expect(editor()).toBeNull();
   expect(host.updateDocHighlights).toHaveBeenCalledExactlyOnceWith(
-    key, { id: 'legacy-highlight' }, expect.any(String),
+    key, { id: 'legacy-highlight', confirm_comment_removal: true }, expect.any(String),
   );
   expect(savedHighlights.get(key)).toEqual([]);
   expect(body().textContent.trim()).toBe('Protect handoff context when teams grow.');
   expect(documentComments.textContent).toContain('Whole-document comment');
   expect(host.updateComments).not.toHaveBeenCalled();
+});
+
+it('removes an uncommented highlight immediately and confirms if storage has a newer comment', async () => {
+  savedHighlights.set(key, [{ id: 'legacy-highlight', text: selectedText, occurrence: 0 }]);
+  await repaint();
+  await vi.waitFor(() => expect(fragments()).toHaveLength(3));
+  body().querySelector('.highlight-del-btn').click();
+  await vi.waitFor(() => expect(fragments()).toHaveLength(0));
+  expect(confirmation()).toBeNull();
+  expect(host.updateDocHighlights).toHaveBeenLastCalledWith(
+    key, { id: 'legacy-highlight' }, expect.any(String),
+  );
+
+  savedHighlights.set(key, [{ id: 'legacy-highlight', text: selectedText, occurrence: 0 }]);
+  await repaint();
+  await vi.waitFor(() => expect(fragments()).toHaveLength(3));
+  savedHighlights.get(key)[0].comments = [{ id: 'new-comment', text: 'Saved in another window' }];
+  body().querySelector('.highlight-del-btn').click();
+  await vi.waitFor(() => expect(confirmation()).not.toBeNull());
+  expect(host.updateDocHighlights).toHaveBeenLastCalledWith(
+    key, { id: 'legacy-highlight' }, expect.any(String),
+  );
+  expect(savedHighlights.get(key)[0].comments[0].text).toBe('Saved in another window');
+  confirmRemoval();
+  await vi.waitFor(() => expect(fragments()).toHaveLength(0));
+  expect(host.updateDocHighlights).toHaveBeenLastCalledWith(
+    key, { id: 'legacy-highlight', confirm_comment_removal: true }, expect.any(String),
+  );
 });
 
 it('opens the same editor by keyboard on a newly created highlight', async () => {

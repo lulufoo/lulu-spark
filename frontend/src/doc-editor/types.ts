@@ -18,6 +18,7 @@ export type HighlightsPayload = {
   ok?: boolean;
   error?: string;
   id?: string;
+  requires_confirmation?: boolean;
 };
 
 export type ApplyHighlightsArgs = {

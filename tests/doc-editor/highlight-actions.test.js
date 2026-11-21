@@ -2,10 +2,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { applyCachedHighlights } from '../../frontend/src/doc-editor/highlights.ts';
 import { fetchDocHighlights, updateDocHighlights } from '../../frontend/src/host/api.ts';
+import { confirmRemoveHighlight } from '../../frontend/src/shared/comment-delete.tsx';
 
 vi.mock('../../frontend/src/host/api.ts', () => ({
   fetchDocHighlights: vi.fn(),
   updateDocHighlights: vi.fn(),
+}));
+vi.mock('../../frontend/src/shared/comment-delete.tsx', () => ({
+  confirmRemoveHighlight: vi.fn(async () => true),
 }));
 
 describe('comment actions on document highlights', () => {
@@ -42,10 +46,14 @@ describe('comment actions on document highlights', () => {
     marks[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
     expect(open).toHaveBeenLastCalledWith(key, highlight, marks[0], undefined);
     fetchDocHighlights.mockResolvedValue({ highlights: [] });
-    marks[2].querySelector('.highlight-del-btn').click();
+    const remove = marks[2].querySelector('.highlight-del-btn');
+    remove.click();
+    expect(confirmRemoveHighlight).toHaveBeenCalledWith(remove);
     expect(open).toHaveBeenCalledTimes(4);
-    expect(updateDocHighlights).toHaveBeenCalledWith(key, { id: highlight.id }, expect.any(String));
     await vi.waitFor(() => expect(body.querySelector('mark')).toBeNull());
+    expect(updateDocHighlights).toHaveBeenCalledWith(
+      key, { id: highlight.id, confirm_comment_removal: true }, expect.any(String),
+    );
   });
 
   it('keeps a late restore from a previous document out of the current body', async () => {

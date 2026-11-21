@@ -146,7 +146,19 @@ pub fn update_doc_highlights(key: &str, highlight: Value, ts: &str) -> Value {
 
     mutate_highlights(key, |highlights| {
         if !hid.is_empty() {
-            highlights.retain(|h| h.get("id").and_then(Value::as_str) != Some(hid));
+            let matches = |record: &Value| record.get("id").and_then(Value::as_str) == Some(hid);
+            let confirmed = highlight.get("confirm_comment_removal").and_then(Value::as_bool);
+            let has_comments = || {
+                highlights.iter().any(|record| {
+                    matches(record)
+                        && record.get("comments").and_then(Value::as_array)
+                            .is_some_and(|comments| !comments.is_empty())
+                })
+            };
+            if confirmed != Some(true) && has_comments() {
+                return Err(json!({ "ok": false, "requires_confirmation": true }));
+            }
+            highlights.retain(|record| !matches(record));
             return Ok(json!({ "ok": true, "id": "" }));
         }
         if text.is_empty() {

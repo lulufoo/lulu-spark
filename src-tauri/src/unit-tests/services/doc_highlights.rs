@@ -121,7 +121,15 @@ fn refuses_a_comment_save_after_removing_its_highlight() {
         let added = update_doc_highlights(key, json!({ "text": "selection" }), "t1");
         let id = added["id"].as_str().unwrap();
         assert_eq!(set_doc_highlight_comment(key, id, "comment")["ok"], true);
-        assert_eq!(update_doc_highlights(key, json!({ "id": id }), "t2")["ok"], true);
+        assert_eq!(
+            update_doc_highlights(key, json!({ "id": id }), "t2"),
+            json!({ "ok": false, "requires_confirmation": true })
+        );
+        assert_eq!(get_doc_highlights(key)["highlights"][0]["comments"][0]["text"], "comment");
+        assert_eq!(
+            update_doc_highlights(key, json!({ "id": id, "confirm_comment_removal": true }), "t2")["ok"],
+            true
+        );
         assert_eq!(set_doc_highlight_comment(key, id, "late save")["_status"], 404);
         assert!(!cache_path(key).unwrap().exists());
     });

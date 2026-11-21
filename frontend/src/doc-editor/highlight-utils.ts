@@ -4,7 +4,7 @@ import type { HighlightPoint } from './types.ts';
 
 type TextSegment = { node: Text; start: number; end: number };
 type MarkActions = {
-  onDelete?: () => void;
+  onDelete?: (trigger: HTMLButtonElement) => void;
   onOpen?: (anchor: HTMLElement, point?: HighlightPoint) => void;
   commentsBarId?: string;
   commentTip?: string;
@@ -107,7 +107,7 @@ export function wrapNthMatch(
     b.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      onDelete?.();
+      onDelete?.(b);
     });
     return b;
   }
