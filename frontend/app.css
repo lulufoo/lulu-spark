@@ -4354,6 +4354,7 @@
     position: relative;
     display: inline;
   }
+  blockquote mark.doc-highlight { color: var(--fg-emphasis); }
   a mark.doc-highlight { color: var(--fg-accent-emphasis); }
   mark.doc-highlight:hover .highlight-del-btn { opacity: 1; }
   .highlight-del-btn {

@@ -103,8 +103,11 @@ function contrast(a, b) {
 }
 
 describe('Document highlight contrast', () => {
-  it('keeps the surrounding text color for inline marks', () => {
+  it('keeps surrounding text color and uses stronger colors for quotes and links', () => {
     expect(appCss).toMatch(/mark\.doc-highlight\s*\{[^}]*\bcolor:\s*inherit;/);
+    expect(appCss).toMatch(
+      /blockquote mark\.doc-highlight\s*\{\s*color:\s*var\(--fg-emphasis\);\s*\}\s*a mark\.doc-highlight\s*\{\s*color:\s*var\(--fg-accent-emphasis\);/,
+    );
   });
 
   it.each([
