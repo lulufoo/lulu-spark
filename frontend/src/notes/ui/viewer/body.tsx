@@ -2,9 +2,11 @@ import { getEntryId, state } from '../../state/host.ts';
 import * as api from '../../../host/api.ts';
 import { docKey } from '../../../doc-editor/identity.ts';
 import { applyCachedHighlights, initDocHighlightOverlay } from '../../../doc-editor/highlights.ts';
+import type { OpenHighlightComment } from '../../../doc-editor/types.ts';
 import { mountBoardSketches, releaseBoardSketches } from '../../../board/commands/sketch-links.ts';
 import { renderDocMarkdown } from '../../../doc-editor/view.tsx';
 import { renderMermaidBlocks } from '../../../shared/mermaid-render.ts';
+import { closeHighlightCommentEditor, openHighlightCommentEditor } from './highlight-comment.ts';
 
 function postProcessLinks(container: Element) {
   container.querySelectorAll('a[href]').forEach((a) => {
@@ -52,16 +54,18 @@ function notesIdentityKey() {
   return id ? docKey(id) : '';
 }
 
-function applyHighlights() {
-  const body = document.getElementById('md-body');
-  const identityKey = notesIdentityKey();
-  if (!body || !identityKey) return;
-  void applyCachedHighlights({
-    bodyEl: body,
-    identityKey,
-    excludeBarId: 'md-comments-bar',
+const openNotesHighlightComment: OpenHighlightComment = (identityKey, highlight, anchor, point) => {
+  if (notesIdentityKey() !== identityKey || state.viewer.editing || state.viewer.loading) return;
+  openHighlightCommentEditor({
+    anchor,
+    point,
+    text: highlight.comments?.[0]?.text ?? '',
+    async onSave(text) {
+      const saved = await api.setDocHighlightComment(identityKey, highlight.id, text);
+      highlight.comments = saved.comments;
+    },
   });
-}
+};
 
 export function initHighlightUI() {
   initDocHighlightOverlay({
@@ -70,12 +74,21 @@ export function initHighlightUI() {
     getIdentityKey: () => notesIdentityKey(),
     excludeBarId: 'md-comments-bar',
     buttonId: 'highlight-add-btn',
+    onOpenComment: openNotesHighlightComment,
   });
 }
 
 export async function renderDocBody(text: string, layer: string, id: string) {
   const body = document.getElementById('md-body');
   if (!body) return;
+  closeHighlightCommentEditor();
+  const paintKey = state.viewer.bodyPaintKey;
+  const identityKey = id ? docKey(id) : '';
+  const isCurrent = () => body.isConnected
+    && state.viewer.bodyPaintKey === paintKey
+    && notesIdentityKey() === identityKey
+    && !state.viewer.editing
+    && !state.viewer.loading;
   releaseBoardSketches(body);
   renderDocMarkdown(body, text);
   postProcessLinks(body);
@@ -83,5 +96,11 @@ export async function renderDocBody(text: string, layer: string, id: string) {
   revokeNotesBlobUrls();
   await postProcessImages(body, layer, id);
   await renderMermaidBlocks(body);
-  void applyHighlights();
+  void applyCachedHighlights({
+    bodyEl: body,
+    identityKey,
+    excludeBarId: 'md-comments-bar',
+    onOpenComment: openNotesHighlightComment,
+    isCurrent,
+  });
 }

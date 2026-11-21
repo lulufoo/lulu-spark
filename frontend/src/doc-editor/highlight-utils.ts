@@ -1,6 +1,13 @@
 // Pure highlight algorithm utilities — no DOM IDs hardcoded, no state dependency.
 
+import type { HighlightPoint } from './types.ts';
+
 type TextSegment = { node: Text; start: number; end: number };
+type MarkActions = {
+  onDelete?: () => void;
+  onOpen?: (anchor: HTMLElement, point?: HighlightPoint) => void;
+  commentsBarId?: string;
+};
 
 // ── buildFlatText ──────────────────────────────────────────────────────────
 // Collect visible text nodes into a flat string + position map.
@@ -60,14 +67,12 @@ export function buildNormIndex(rawText: string) {
 
 // ── wrapNthMatch ───────────────────────────────────────────────────────────
 // Wrap the `occurrence`-th (0-based) normalized match of `text` with <mark>(s).
-// onDeleteClick(id) is called when the delete button is clicked.
 export function wrapNthMatch(
   container: Node,
   text: string,
   occurrence: number,
   id: string,
-  onDeleteClick?: (id: string) => void,
-  commentsBarId = 'md-comments-bar',
+  { onDelete, onOpen, commentsBarId = 'md-comments-bar' }: MarkActions = {},
 ) {
   if (!text) return;
   const { rawText, segments } = buildFlatText(container, commentsBarId);
@@ -101,7 +106,7 @@ export function wrapNthMatch(
     b.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      if (onDeleteClick) onDeleteClick(id);
+      onDelete?.();
     });
     return b;
   }
@@ -132,10 +137,37 @@ export function wrapNthMatch(
     mark.dataset.hid = id;
     targetNode.parentNode?.insertBefore(mark, targetNode);
     mark.appendChild(targetNode);
+    if (onOpen) bindCommentActions(mark, lastMark === null, onOpen);
     lastMark = mark;
   }
 
   if (lastMark) lastMark.appendChild(makeDelBtn());
+}
+
+function bindCommentActions(
+  mark: HTMLElement,
+  isFirst: boolean,
+  open: NonNullable<MarkActions['onOpen']>,
+) {
+  mark.classList.add('is-commentable');
+  mark.tabIndex = isFirst ? 0 : -1;
+  mark.addEventListener('click', (event) => {
+    if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
+    if (window.getSelection()?.isCollapsed === false) return;
+    event.preventDefault();
+    event.stopPropagation();
+    open(mark, { x: event.clientX, y: event.clientY });
+  });
+  if (!isFirst) return;
+  mark.setAttribute('role', 'button');
+  mark.setAttribute('aria-label', 'Open highlight comment');
+  mark.setAttribute('aria-haspopup', 'dialog');
+  mark.addEventListener('keydown', (event) => {
+    if (event.target !== mark || (event.key !== 'Enter' && event.key !== ' ')) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (!event.repeat) open(mark);
+  });
 }
 
 // ── getOccurrenceIndex ─────────────────────────────────────────────────────
