@@ -156,6 +156,7 @@ pub fn run() {
             commands::write::reorder_comments,
             commands::write::update_highlights,
             commands::write::update_doc_highlights,
+            commands::write::set_doc_highlight_comment,
             commands::write::save_entry,
             commands::write::write_abs_file,
             commands::write::tag_attach,

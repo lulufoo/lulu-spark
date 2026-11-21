@@ -10,7 +10,7 @@ import {
   fetchConfig, fetchFileContent, fetchLinkTitle,
   setConfig,
   saveFile,
-  updateComments, updateLinks, setImportance, setDone,
+  updateComments, updateLinks, setImportance, setDone, setDocHighlightComment,
   deleteEntry, syncDocuments, cancelSyncDocuments, checkSyncDocuments, getSyncProgress,
   fetchWorkspaces, createWorkspace, renameWorkspace, setWorkspaceViewMode, setWorkspaceIcon, setWorkspaceDescription, disableWorkspace, enableWorkspace, fetchDisabledWorkspaces,
   fetchProjects, createProject, updateProject, deleteProject, deleteWorkspace, moveProject, moveToProject,
@@ -161,6 +161,21 @@ test('updateComments 发送正确 body', async () => {
   expect(body.layer).toBe('raw')
   expect(body.comment).toEqual({ id: '1', text: 'hi' })
   expect(body.ts).toBe('202605041200')
+})
+
+test('setDocHighlightComment sends the highlight ID and returns the saved comments', async () => {
+  const answer = { ok: true, comments: [{ id: 'c1', text: 'A note' }] }
+  mockFetch(answer)
+  const result = await setDocHighlightComment('doc:example', 'h1', 'A note')
+  const [[url, request]] = fetch.mock.calls
+  expect(url).toBe(`${API_READ_PREFIX}/doc-highlight-comment`)
+  expect(request.method).toBe('POST')
+  expect(JSON.parse(request.body)).toEqual({
+    key: 'doc:example',
+    highlight_id: 'h1',
+    text: 'A note',
+  })
+  expect(result).toEqual(answer)
 })
 
 test('updateLinks 发送正确 body', async () => {

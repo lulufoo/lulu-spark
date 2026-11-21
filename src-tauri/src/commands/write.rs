@@ -109,6 +109,20 @@ pub fn update_doc_highlights(
 }
 
 #[tauri::command]
+pub fn set_doc_highlight_comment(
+    _app: AppHandle,
+    key: String,
+    highlight_id: String,
+    text: String,
+) -> Result<Value, String> {
+    Ok(doc_highlights::set_doc_highlight_comment(
+        &key,
+        &highlight_id,
+        &text,
+    ))
+}
+
+#[tauri::command]
 pub fn save_entry(
     _app: AppHandle,
     layer: String,

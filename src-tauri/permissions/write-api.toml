@@ -11,6 +11,7 @@ commands.allow = [
   "reorder_comments",
   "update_highlights",
   "update_doc_highlights",
+  "set_doc_highlight_comment",
   "save_entry",
   "write_abs_file",
   "set_config",

@@ -1,5 +1,7 @@
 use super::*;
 use std::fs;
+use std::sync::Barrier;
+use std::thread;
 
 use crate::config::paths;
 use crate::test_support::TestSandbox;
@@ -72,5 +74,100 @@ fn rejects_unknown_prefix_and_does_not_touch_annotation() {
         }
         let dir = paths::cache_dir().expect("cache");
         assert!(!dir.join("doc-highlights").join("inbox").exists());
+    });
+}
+
+#[test]
+fn saves_and_clears_one_comment_on_a_legacy_highlight() {
+    with_cache(|| {
+        let key = "doc:legacy";
+        let path = cache_path(key).unwrap();
+        let legacy = json!({ "key": key, "highlights": [
+            { "id": "legacy-id", "text": "selected text", "occurrence": 2, "ts": "old" }
+        ] });
+        write_file(&path, &legacy).unwrap();
+
+        let got = get_doc_highlights(key);
+        assert_eq!(got["highlights"][0]["comments"], json!([]));
+        let stored: Value = serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
+        assert_eq!(stored, legacy);
+
+        let created = set_doc_highlight_comment(key, "legacy-id", " first comment ");
+        assert_eq!(created["ok"], true);
+        let id = created["comments"][0]["id"].as_str().unwrap();
+        assert!(!id.is_empty());
+        assert_eq!(created["comments"], json!([{ "id": id, "text": "first comment" }]));
+
+        let edited = set_doc_highlight_comment(key, "legacy-id", "updated comment");
+        assert_eq!(edited["comments"], json!([{ "id": id, "text": "updated comment" }]));
+        let got = get_doc_highlights(key);
+        assert_eq!(got["highlights"][0], json!({
+            "id": "legacy-id", "text": "selected text", "occurrence": 2, "ts": "old",
+            "comments": [{ "id": id, "text": "updated comment" }]
+        }));
+
+        let cleared = set_doc_highlight_comment(key, "legacy-id", " \n ");
+        assert_eq!(cleared, json!({ "ok": true, "comments": [] }));
+        let got = get_doc_highlights(key);
+        assert_eq!(got["highlights"][0]["id"], "legacy-id");
+        assert_eq!(got["highlights"][0]["comments"], json!([]));
+    });
+}
+
+#[test]
+fn refuses_a_comment_save_after_removing_its_highlight() {
+    with_cache(|| {
+        let key = "doc:removed";
+        let added = update_doc_highlights(key, json!({ "text": "selection" }), "t1");
+        let id = added["id"].as_str().unwrap();
+        assert_eq!(set_doc_highlight_comment(key, id, "comment")["ok"], true);
+        assert_eq!(update_doc_highlights(key, json!({ "id": id }), "t2")["ok"], true);
+        assert_eq!(set_doc_highlight_comment(key, id, "late save")["_status"], 404);
+        assert!(!cache_path(key).unwrap().exists());
+    });
+}
+
+#[test]
+fn serializes_different_writes_to_one_document() {
+    with_cache(|| {
+        let key = "doc:shared";
+        let first = update_doc_highlights(key, json!({ "text": "first" }), "t1");
+        let first_id = first["id"].as_str().unwrap();
+        let second = update_doc_highlights(key, json!({ "text": "second" }), "t1");
+        let second_id = second["id"].as_str().unwrap();
+        let third = update_doc_highlights(key, json!({ "text": "remove this" }), "t1");
+        let third_id = third["id"].as_str().unwrap();
+        let start = Barrier::new(4);
+
+        let replies = thread::scope(|scope| {
+            [
+                scope.spawn(|| {
+                    start.wait();
+                    set_doc_highlight_comment(key, first_id, "one")
+                }),
+                scope.spawn(|| {
+                    start.wait();
+                    set_doc_highlight_comment(key, second_id, "two")
+                }),
+                scope.spawn(|| {
+                    start.wait();
+                    update_doc_highlights(key, json!({ "id": third_id }), "t2")
+                }),
+                scope.spawn(|| {
+                    start.wait();
+                    update_doc_highlights(key, json!({ "text": "new selection" }), "t2")
+                }),
+            ]
+            .map(|handle| handle.join().unwrap())
+        });
+        assert!(replies.iter().all(|reply| reply["ok"] == true), "{replies:?}");
+        let got = get_doc_highlights(key);
+        let highlights = got["highlights"].as_array().unwrap();
+        assert_eq!(highlights.len(), 3);
+        let find = |id: &str| highlights.iter().find(|row| row["id"] == id);
+        assert_eq!(find(first_id).unwrap()["comments"][0]["text"], "one");
+        assert_eq!(find(second_id).unwrap()["comments"][0]["text"], "two");
+        assert!(find(third_id).is_none());
+        assert!(find(replies[3]["id"].as_str().unwrap()).is_some());
     });
 }

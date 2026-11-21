@@ -11,6 +11,7 @@ const P2_PATHS = [
   ['/api/reorder-comments', 'reorder_comments', ['id', 'layer', 'ids']],
   ['/api/update-highlights', 'update_highlights', ['id', 'layer', 'highlight', 'ts']],
   ['/api/doc-highlights', 'update_doc_highlights', ['key', 'highlight', 'ts']],
+  ['/api/doc-highlight-comment', 'set_doc_highlight_comment', ['key', 'highlightId', 'text']],
   ['/api/update-links', 'update_links', ['id', 'links']],
   ['/api/set-done', 'set_done', ['id', 'done']],
   ['/api/set-importance', 'set_importance', ['id', 'importance']],
