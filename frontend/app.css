@@ -4345,12 +4345,16 @@
 
   /* ── Highlights ── */
   mark.doc-highlight {
-    background: var(--bg-hex-fff3b0);
-    border-radius: 2px;
-    padding: 0 1px;
+    background: var(--bg-doc-highlight);
+    color: inherit;
+    border-radius: 3px;
+    padding: 0 2px;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
     position: relative;
     display: inline;
   }
+  a mark.doc-highlight { color: var(--fg-accent-emphasis); }
   mark.doc-highlight:hover .highlight-del-btn { opacity: 1; }
   .highlight-del-btn {
     opacity: 0;
@@ -4374,14 +4378,15 @@
   .viewer-highlight-btn {
     padding: 4px 10px;
     font-size: 12px;
-    background: var(--bg-hex-fff3b0);
+    background: var(--bg-doc-highlight);
+    color: var(--fg-emphasis);
     border: 1px solid var(--border-hex-d4a017);
     border-radius: 4px;
     cursor: pointer;
     box-shadow: 0 2px 6px var(--shadow-rgba-000000-18);
     white-space: nowrap;
   }
-  .viewer-highlight-btn:hover { background: var(--bg-hex-ffe066); }
+  .viewer-highlight-btn:hover { background: var(--bg-doc-highlight-hover); }
   .viewer-body code {
     background: var(--bg-canvas);
     border: 1px solid var(--border-muted);
