@@ -1,4 +1,5 @@
 import * as api from '../host/api.ts';
+import { confirmRemoveHighlight } from '../shared/comment-delete.tsx';
 import { nowTs } from '../shared/utils.ts';
 import {
   wrapNthMatch,
@@ -6,13 +7,13 @@ import {
 } from './highlight-utils.ts';
 import type {
   ApplyHighlightsArgs,
-  DeleteHighlightArgs,
   HighlightOverlayConfig,
   HighlightRecord,
   HighlightsPayload,
 } from './types.ts';
 
 const _cleanups: Array<() => void> = [];
+const pendingRenders = new WeakMap<Element, symbol>();
 let _btn: HTMLButtonElement | null = null;
 
 function hideBtn() {
@@ -45,8 +46,11 @@ function unwrapMarks(container: Element | null) {
   container.normalize();
 }
 
-export async function applyCachedHighlights({ bodyEl, identityKey, excludeBarId = '' }: ApplyHighlightsArgs) {
-  if (!bodyEl || !identityKey) return;
+export async function applyCachedHighlights(args: ApplyHighlightsArgs) {
+  const { bodyEl, identityKey, isCurrent } = args;
+  if (!bodyEl || !identityKey || isCurrent?.() === false) return;
+  const render = Symbol();
+  pendingRenders.set(bodyEl, render);
   unwrapMarks(bodyEl);
   let highlights: HighlightRecord[] = [];
   try {
@@ -55,29 +59,64 @@ export async function applyCachedHighlights({ bodyEl, identityKey, excludeBarId 
   } catch {
     highlights = [];
   }
-  for (const h of highlights) {
-    wrapNthMatch(
-      bodyEl,
-      h.text,
-      h.occurrence ?? 0,
-      h.id,
-      (id) => {
-        void deleteCachedHighlight({ bodyEl, identityKey, excludeBarId, id });
-      },
-      excludeBarId,
-    );
+  if (pendingRenders.get(bodyEl) !== render || isCurrent?.() === false) return;
+  for (const highlight of highlights) {
+    paintHighlight(bodyEl, identityKey, highlight, args);
   }
 }
 
-async function deleteCachedHighlight({ bodyEl, identityKey, excludeBarId, id }: DeleteHighlightArgs) {
-  if (!identityKey || !id) return;
+function paintHighlight(
+  bodyEl: Element,
+  identityKey: string,
+  highlight: HighlightRecord,
+  { excludeBarId = '', onOpenComment, isCurrent }: ApplyHighlightsArgs,
+) {
+  const refresh = { bodyEl, identityKey, excludeBarId, onOpenComment, isCurrent };
+  let deletePending = false;
+  wrapNthMatch(bodyEl, highlight.text, highlight.occurrence ?? 0, highlight.id, {
+    commentsBarId: excludeBarId,
+    commentTip: highlight.comments?.[0]?.text,
+    onDelete: (trigger) => {
+      if (deletePending) return;
+      deletePending = true;
+      void deleteCachedHighlight(identityKey, highlight, refresh, trigger).finally(() => {
+        deletePending = false;
+      });
+    },
+    onOpen: onOpenComment && ((anchor, point) => onOpenComment(identityKey, highlight, anchor, point)),
+  });
+}
+
+async function deleteCachedHighlight(
+  identityKey: string,
+  highlight: HighlightRecord,
+  args: ApplyHighlightsArgs,
+  trigger: HTMLButtonElement,
+) {
+  const viewIsCurrent = () => Boolean(args.bodyEl?.isConnected) && args.isCurrent?.() !== false;
+  const canRemove = () => trigger.isConnected && viewIsCurrent();
+  const remove = async (confirmed: boolean) => (await api.updateDocHighlights(
+    identityKey,
+    confirmed ? { id: highlight.id, confirm_comment_removal: true } : { id: highlight.id },
+    nowTs(),
+  )) as HighlightsPayload;
+  if (!canRemove()) return;
+
   try {
-    const data = (await api.updateDocHighlights(identityKey, { id }, nowTs())) as HighlightsPayload;
+    const needsConfirmation = Boolean(highlight.comments?.length);
+    if (needsConfirmation && !(await confirmRemoveHighlight(trigger))) return;
+    if (!canRemove()) return;
+    let data = await remove(needsConfirmation);
+    if (data.requires_confirmation && !needsConfirmation) {
+      if (!canRemove() || !(await confirmRemoveHighlight(trigger)) || !canRemove()) return;
+      data = await remove(true);
+    }
     if (!data.ok) throw new Error(data.error || 'failed');
-    await applyCachedHighlights({ bodyEl, identityKey, excludeBarId });
-  } catch (e) {
-    // @ts-expect-error overlay alert uses e.message
-    alert(`Failed to remove highlight: ${e.message}`);
+    if (viewIsCurrent()) await applyCachedHighlights(args);
+  } catch (error) {
+    if (viewIsCurrent()) {
+      alert(`Failed to remove highlight: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 }
 
@@ -98,6 +137,7 @@ export function initDocHighlightOverlay({
   getIdentityKey,
   excludeBarId = '',
   buttonId,
+  onOpenComment,
 }: HighlightOverlayConfig) {
   cleanupDocHighlightOverlay();
   const btn = resolveBtn(buttonId);
@@ -105,6 +145,11 @@ export function initDocHighlightOverlay({
   let pendingText: string | null = null;
   let pendingOccurrence = 0;
   let pendingBody: Element | null = null;
+
+  const isEditing = () => {
+    const editArea = getEditArea?.() as HTMLElement | null | undefined;
+    return Boolean(editArea && editArea.style.display !== 'none');
+  };
 
   const onDocMouseDown = (e: MouseEvent) => {
     if (e.target !== btn) hideBtn();
@@ -128,8 +173,7 @@ export function initDocHighlightOverlay({
       hideBtn();
       return;
     }
-    const editArea = getEditArea?.() as HTMLElement | null;
-    if (editArea && editArea.style.display !== 'none') return;
+    if (isEditing()) return;
 
     const exclude = excludeBarId ? document.getElementById(excludeBarId) : null;
     if (exclude && exclude.contains(sel.anchorNode)) {
@@ -172,20 +216,15 @@ export function initDocHighlightOverlay({
         { text, occurrence },
         nowTs(),
       )) as HighlightsPayload;
-      if (!data.ok) throw new Error(data.error || 'failed');
-      wrapNthMatch(
-        body,
-        text,
-        occurrence,
-        data.id as string,
-        (id) => {
-          void deleteCachedHighlight({ bodyEl: body, identityKey, excludeBarId, id });
-        },
-        excludeBarId,
-      );
-    } catch (e) {
-      // @ts-expect-error overlay alert uses e.message
-      alert(`Highlight failed: ${e.message}`);
+      if (!data.ok || !data.id) throw new Error(data.error || 'failed');
+      const isCurrent = () => getBody?.() === body
+        && getIdentityKey?.(body) === identityKey
+        && !isEditing();
+      if (isCurrent()) {
+        paintHighlight(body, identityKey, { id: data.id, text, occurrence }, { excludeBarId, onOpenComment, isCurrent });
+      }
+    } catch (error) {
+      alert(`Highlight failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   };
   btn.addEventListener('click', onBtnClick);

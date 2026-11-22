@@ -102,7 +102,8 @@ const NOTE_WRITE_COMMANDS: &[&str] = &[
     "set_viewer_state",
 ];
 
-const DOC_HIGHLIGHTS_WRITE_COMMANDS: &[&str] = &["update_doc_highlights"];
+const DOC_HIGHLIGHTS_WRITE_COMMANDS: &[&str] =
+    &["update_doc_highlights", "set_doc_highlight_comment"];
 
 const ABS_FILE_WRITE_COMMANDS: &[&str] = &["write_abs_file"];
 
@@ -360,7 +361,7 @@ fn mcp_oauth_write_commands_are_acl_allowed() {
 }
 
 #[test]
-fn doc_highlights_write_command_is_acl_allowed() {
+fn doc_highlights_write_commands_are_acl_allowed() {
     let root = manifest_dir();
     let toml = fs::read_to_string(root.join("permissions/write-api.toml")).expect("toml");
     let allow = parse_write_api_toml_allow(&toml);

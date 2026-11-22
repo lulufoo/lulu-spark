@@ -254,6 +254,14 @@ export async function updateDocHighlights(key: string, highlight: unknown, ts?: 
   return writePost('/api/doc-highlights', { key, highlight, ts });
 }
 
+export async function setDocHighlightComment(
+  key: string,
+  highlightId: string,
+  text: string,
+): Promise<{ ok: true; comments: { id: string; text: string }[] }> {
+  return writePost('/api/doc-highlight-comment', { key, highlight_id: highlightId, text });
+}
+
 export async function getDraft(id: string) {
   const res = await getReadDriver().fetchGet(`/api/draft?id=${encodeURIComponent(id)}`);
   if (!res.ok) return { content: '' };

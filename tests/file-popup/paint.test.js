@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { paintFilePopupDoc } from '../../frontend/src/file-popup/ui/paint.ts';
+import { initTooltip } from '../../frontend/src/shared/tooltip/tooltip.ts';
 
 vi.mock('../../frontend/src/host/api.ts', () => ({
   fetchDocHighlights: vi.fn(async () => ({ highlights: [] })),
@@ -78,14 +79,37 @@ describe('paintFilePopupDoc', () => {
     expect(document.querySelector('#file-popup-body img').getAttribute('src')).toBe('diagram.png');
   });
 
-  it('applies highlights when identityKey is set', async () => {
+  it('previews saved comments on read-only highlights when identityKey is set', async () => {
     const api = await import('../../frontend/src/host/api.ts');
-    await paintFilePopupDoc({
-      editing: false,
-      content: '# Hello',
-      identityKey: 'doc:inbox/notes.md',
+    api.fetchDocHighlights.mockResolvedValueOnce({
+      highlights: [{
+        id: 'saved-highlight', text: 'Hello', occurrence: 0,
+        comments: [{ id: 'saved-comment', text: 'From a note' }],
+      }],
     });
-    expect(api.fetchDocHighlights).toHaveBeenCalledWith('doc:inbox/notes.md');
+    const stopTooltip = initTooltip();
+    try {
+      await paintFilePopupDoc({
+        editing: false,
+        content: '# Hello',
+        identityKey: 'doc:inbox/notes.md',
+      });
+      expect(api.fetchDocHighlights).toHaveBeenCalledWith('doc:inbox/notes.md');
+      const mark = document.querySelector('#file-popup-body mark.doc-highlight');
+      expect(mark).not.toBeNull();
+      expect(mark.hasAttribute('aria-haspopup')).toBe(false);
+      mark.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+      await vi.waitFor(() => {
+        const preview = document.querySelector('[role="tooltip"].highlight-comment-preview');
+        expect(preview?.style.display).toBe('block');
+        expect(preview.querySelector('.highlight-comment-preview__text')?.textContent).toBe('From a note');
+      });
+      mark.click();
+      expect(document.querySelector('[role="tooltip"]').style.display).toBe('none');
+      expect(document.querySelector('.highlight-comment-editor')).toBeNull();
+    } finally {
+      stopTooltip();
+    }
   });
 
   it('skips markdown paint while editing', async () => {

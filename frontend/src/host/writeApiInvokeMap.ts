@@ -69,6 +69,14 @@ export const WRITE_API_INVOKE_MAP: Record<string, WriteInvokeEntry> = {
       ts: body.ts,
     }),
   },
+  '/api/doc-highlight-comment': {
+    cmd: 'set_doc_highlight_comment',
+    args: (body) => ({
+      key: body.key,
+      highlightId: body.highlight_id,
+      text: body.text,
+    }),
+  },
   '/api/update-links': {
     cmd: 'update_links',
     args: (body) => ({

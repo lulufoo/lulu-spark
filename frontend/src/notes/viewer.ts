@@ -10,7 +10,7 @@ export { closeModal, openCreateNote };
 initMermaid();
 
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') {
+  if (e.key === 'Escape' && !e.defaultPrevented) {
     if (document.getElementById('comment-dialog')?.classList.contains('open')) return;
     void closeModal();
   }

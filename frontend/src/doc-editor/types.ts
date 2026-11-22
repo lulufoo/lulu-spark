@@ -2,23 +2,31 @@ export type HighlightRecord = {
   id: string;
   text: string;
   occurrence?: number;
+  comments?: { id: string; text: string }[];
 };
+
+export type HighlightPoint = { x: number; y: number };
+export type OpenHighlightComment = (
+  key: string,
+  highlight: HighlightRecord,
+  anchor: HTMLElement,
+  point?: HighlightPoint,
+) => void;
 
 export type HighlightsPayload = {
   highlights?: HighlightRecord[];
   ok?: boolean;
   error?: string;
   id?: string;
+  requires_confirmation?: boolean;
 };
 
 export type ApplyHighlightsArgs = {
   bodyEl?: Element | null;
   identityKey?: string;
   excludeBarId?: string;
-};
-
-export type DeleteHighlightArgs = ApplyHighlightsArgs & {
-  id?: string;
+  onOpenComment?: OpenHighlightComment;
+  isCurrent?: () => boolean;
 };
 
 export type HighlightOverlayConfig = {
@@ -27,4 +35,5 @@ export type HighlightOverlayConfig = {
   getIdentityKey?: (bodyEl?: Element | null) => string;
   excludeBarId?: string;
   buttonId?: string;
+  onOpenComment?: OpenHighlightComment;
 };

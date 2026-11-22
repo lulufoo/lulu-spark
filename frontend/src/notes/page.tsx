@@ -27,6 +27,7 @@ import {
 } from './commands/viewer/outlet.ts';
 import { releaseBoardSketches } from '../board/commands/sketch-links.ts';
 import { renderDocBody } from './ui/viewer/body.tsx';
+import { closeHighlightCommentEditor } from './ui/viewer/highlight-comment.ts';
 import { NotesSearchButton, NotesSearchModal, useNotesSearch } from './ui/search.tsx';
 import { startCreateDocument } from './commands/create-document.ts';
 import { CreateTargetDialog } from './ui/create-target-dialog.tsx';
@@ -122,6 +123,7 @@ function NotesReaderBody() {
   useLayoutEffect(() => {
     const body = bodyRef.current;
     if (!body) return undefined;
+    closeHighlightCommentEditor();
     if (creating || editing) {
       releaseBoardSketches(body);
       return undefined;
@@ -148,7 +150,10 @@ function NotesReaderBody() {
     }
     const id = getEntryId(entry) || '';
     void renderDocBody(rawText, layer, id);
-    return () => releaseBoardSketches(body);
+    return () => {
+      closeHighlightCommentEditor();
+      releaseBoardSketches(body);
+    };
   }, [paintKey, rawText, layer, entry, loading, loadError, creating, editing, viewer.lang]);
 
   return (

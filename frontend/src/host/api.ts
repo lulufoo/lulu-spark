@@ -79,6 +79,7 @@ export {
   saveDocDraft,
   setConfig,
   setDone,
+  setDocHighlightComment,
   setDocSourceType,
   setDocTitle,
   setImportance,

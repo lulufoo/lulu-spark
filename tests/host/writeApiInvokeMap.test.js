@@ -11,6 +11,7 @@ const P2_WRITE_PATHS = [
   '/api/reorder-comments',
   '/api/update-highlights',
   '/api/doc-highlights',
+  '/api/doc-highlight-comment',
   '/api/update-links',
   '/api/set-done',
   '/api/set-importance',
@@ -74,6 +75,7 @@ describe('writeApiInvokeMap', () => {
       '/api/delete-folder',
       '/api/doc-draft',
       '/api/doc-draft/clear',
+      '/api/doc-highlight-comment',
       '/api/doc-highlights',
       '/api/file',
       '/api/hide-pattern-add',
@@ -226,6 +228,19 @@ describe('writeApiInvokeMap', () => {
         highlight: { text: 'cache', occurrence: 0 },
         ts: '20260827T154000',
       },
+    });
+  });
+
+  it('maps highlight_id to highlightId and preserves a blank comment', () => {
+    expect(
+      resolveWriteInvoke('/api/doc-highlight-comment', {
+        key: 'doc:example',
+        highlight_id: 'h1',
+        text: '',
+      }),
+    ).toEqual({
+      cmd: 'set_doc_highlight_comment',
+      args: { key: 'doc:example', highlightId: 'h1', text: '' },
     });
   });
 
