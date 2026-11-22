@@ -147,8 +147,13 @@ export function wrapNthMatch(
 }
 
 export function setHighlightCommentTip(mark: HTMLElement, text: string | undefined) {
-  if (typeof text === 'string' && text.trim()) mark.dataset.tip = text;
-  else delete mark.dataset.tip;
+  if (typeof text === 'string' && text.trim()) {
+    mark.dataset.tip = text;
+    mark.dataset.tipVariant = 'highlight-comment';
+  } else {
+    delete mark.dataset.tip;
+    delete mark.dataset.tipVariant;
+  }
 }
 
 function bindCommentActions(

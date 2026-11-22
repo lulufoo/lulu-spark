@@ -1,3 +1,8 @@
+import {
+  highlightCommentFragment,
+  placeHighlightCommentPopover,
+} from '../../../shared/tooltip/highlight-comment-popover.ts';
+
 type HighlightCommentEditorOptions = {
   anchor: HTMLElement;
   point?: { x: number; y: number };
@@ -15,27 +20,6 @@ function isSameHighlight(first: HTMLElement, second: HTMLElement) {
   return first === second || Boolean(first.dataset.hid && first.dataset.hid === second.dataset.hid);
 }
 
-function positionEditor(panel: HTMLElement, rect: DOMRect) {
-  const margin = 8;
-  const gap = 12;
-  const { width, height } = panel.getBoundingClientRect();
-  const anchorX = rect.right - Math.min(8, rect.width / 2);
-  const maxLeft = Math.max(margin, window.innerWidth - width - margin);
-  const left = Math.min(maxLeft, Math.max(margin, anchorX - width * 0.74));
-  const below = rect.bottom + gap;
-  const above = rect.top - height - gap;
-  const maxTop = Math.max(margin, window.innerHeight - height - margin);
-  const flip = below > maxTop && (above >= margin || rect.top > window.innerHeight - rect.bottom);
-  const top = Math.min(maxTop, Math.max(margin, flip ? above : below));
-  const arrowMargin = Math.min(14, width / 2);
-  const arrow = Math.min(width - arrowMargin, Math.max(arrowMargin, anchorX - left));
-
-  panel.style.left = `${left}px`;
-  panel.style.top = `${top}px`;
-  panel.style.setProperty('--highlight-comment-arrow', `${arrow}px`);
-  panel.classList.toggle('is-above', flip);
-}
-
 export function openHighlightCommentEditor({
   anchor,
   point,
@@ -46,12 +30,9 @@ export function openHighlightCommentEditor({
   if (activeEditor?.anchor.isConnected && isSameHighlight(activeEditor.anchor, anchor)) return;
   closeHighlightCommentEditor();
 
-  // A wrapped mark can have a separate rectangle for each line.
-  const fragment = point && Array.from(anchor.getClientRects()).findIndex((rect) => (
-    point.x >= rect.left && point.x <= rect.right && point.y >= rect.top && point.y <= rect.bottom
-  ));
+  const fragment = highlightCommentFragment(anchor, point);
   const panel = document.createElement('div');
-  panel.className = 'highlight-comment-editor';
+  panel.className = 'highlight-comment-popover highlight-comment-editor';
   panel.setAttribute('role', 'dialog');
   panel.setAttribute('aria-labelledby', 'highlight-comment-editor-title');
   panel.innerHTML = `
@@ -91,8 +72,7 @@ export function openHighlightCommentEditor({
       dismiss(false);
       return;
     }
-    const rect = anchor.getClientRects()[Math.max(0, fragment ?? 0)] ?? anchor.getBoundingClientRect();
-    positionEditor(panel, rect);
+    placeHighlightCommentPopover(panel, anchor, fragment);
   }
 
   activeEditor = { anchor, dismiss };

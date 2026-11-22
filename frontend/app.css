@@ -4394,7 +4394,7 @@
     white-space: nowrap;
   }
   .viewer-highlight-btn:hover { background: var(--bg-doc-highlight-hover); }
-  .highlight-comment-editor {
+  .highlight-comment-popover {
     --highlight-comment-surface: var(--bg-surface);
     --highlight-comment-border: var(--border-default);
     position: fixed;
@@ -4407,7 +4407,7 @@
     border-radius: 10px;
     box-shadow: 0 6px 18px var(--shadow-rgba-010409-18);
   }
-  .highlight-comment-editor::before {
+  .highlight-comment-popover::before {
     content: '';
     position: absolute;
     left: var(--highlight-comment-arrow);
@@ -4420,25 +4420,40 @@
     background: var(--highlight-comment-surface);
     pointer-events: none;
   }
-  .highlight-comment-editor.is-above::before {
+  .highlight-comment-popover.is-above::before {
     top: auto;
     bottom: -6px;
     transform: translateX(-50%) rotate(225deg);
   }
-  .highlight-comment-editor__form {
+  .highlight-comment-editor__form,
+  .highlight-comment-preview__content {
     display: flex;
     flex-direction: column;
     gap: 8px;
     padding: 13px;
     max-height: calc(100vh - 18px);
-    overflow: auto;
   }
-  .highlight-comment-editor h3 {
+  .highlight-comment-popover h3 {
     margin: 0;
     font-size: 13px;
     line-height: 1.5;
     font-weight: 600;
   }
+  .highlight-comment-preview { pointer-events: none; }
+  .highlight-comment-preview__content {
+    max-height: max(0px, calc(var(--highlight-comment-available-height, 100vh - 16px) - 2px));
+    overflow: hidden;
+  }
+  .highlight-comment-preview__text {
+    margin: 0;
+    min-height: 0;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  .highlight-comment-editor__form { overflow: auto; }
   .highlight-comment-editor textarea {
     width: 100%;
     min-height: 75px;
@@ -4476,7 +4491,7 @@
     font-size: 12px;
     overflow-wrap: anywhere;
   }
-  [data-theme="dark"] .highlight-comment-editor {
+  [data-theme="dark"] .highlight-comment-popover {
     --highlight-comment-surface: var(--bg-emphasis);
     --highlight-comment-border: var(--border-emphasis-2);
   }

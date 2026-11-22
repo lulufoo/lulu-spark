@@ -10,7 +10,7 @@ import { state } from '../../frontend/src/notes/state/host.ts';
 import { NotesCommentsBar } from '../../frontend/src/notes/ui/comments.tsx';
 import { initHighlightUI, renderDocBody } from '../../frontend/src/notes/ui/viewer/body.tsx';
 import { closeHighlightCommentEditor } from '../../frontend/src/notes/ui/viewer/highlight-comment.ts';
-import { initTooltip } from '../../frontend/src/shared/tooltip/tooltip.ts';
+import { initTooltip, TIP_DELAY_MS } from '../../frontend/src/shared/tooltip/tooltip.ts';
 import { CommentDeleteDialog } from '../../frontend/src/shared/comment-delete.tsx';
 
 const host = vi.hoisted(() => ({
@@ -260,39 +260,79 @@ it('previews saved comments on each fragment and drops the preview when editing 
     comments: [{ id: 'comment-1', text: initial }],
   }]);
   const stopTooltip = initTooltip();
-  const tip = document.querySelector('.ui-tip');
-  async function hover(target, text) {
-    target.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+  const tip = document.querySelector('[role="tooltip"]');
+  tip.getBoundingClientRect = () => new DOMRect(0, 0, 324, 95);
+  const over = (target, point = {}) => target.dispatchEvent(new MouseEvent('mouseover', {
+    bubbles: true,
+    ...point,
+  }));
+  async function hoverPreview(target, text, point) {
+    over(target, point);
     await vi.waitFor(() => {
       expect(tip.style.display).toBe('block');
-      expect(tip.textContent).toBe(text);
+      expect(tip.classList.contains('highlight-comment-popover')).toBe(true);
+      expect(tip.classList.contains('highlight-comment-preview')).toBe(true);
+      expect(tip.querySelector('h3')?.textContent).toBe('Highlight comment');
+      expect(tip.querySelector('p.highlight-comment-preview__text')?.textContent).toBe(text);
+    });
+  }
+  function expectNoPreview(target) {
+    vi.useFakeTimers();
+    try {
+      over(target);
+      vi.advanceTimersByTime(TIP_DELAY_MS);
+      expect(tip.style.display).toBe('none');
+    } finally {
+      vi.useRealTimers();
+    }
+  }
+  async function hoverRemoveButton() {
+    over(fragments()[2].querySelector('.highlight-del-btn'));
+    await vi.waitFor(() => {
+      expect(tip.style.display).toBe('block');
+      expect(tip.className).toBe('ui-tip');
+      expect(tip.textContent).toBe('Remove highlight');
     });
   }
 
   try {
     await repaint();
     await vi.waitFor(() => expect(fragments()).toHaveLength(3));
-    await hover(fragments()[0], initial);
-    expect(tip.querySelector('b')).toBeNull();
-    await hover(fragments()[1], initial);
+    const wrapped = fragments()[0];
+    const firstLine = new DOMRect(550, 200, 160, 20);
+    const secondLine = new DOMRect(520, 224, 145, 20);
+    wrapped.getClientRects = () => [firstLine, secondLine];
+    const point = { clientX: 600, clientY: 230 };
+    await hoverPreview(wrapped, initial, point);
+    expect(tip.style.top).toBe(`${secondLine.bottom + 12}px`);
+    const arrowOffset = parseFloat(tip.style.getPropertyValue('--highlight-comment-arrow'));
+    expect(parseFloat(tip.style.left) + arrowOffset).toBeCloseTo(secondLine.right - 8);
+    expect(tip.querySelector('b, form, textarea, button')).toBeNull();
+
+    await hoverPreview(fragments()[1], initial);
     fragments()[1].dispatchEvent(new MouseEvent('mouseout', { bubbles: true, relatedTarget: body() }));
     expect(tip.style.display).toBe('none');
-    await hover(fragments()[1], initial);
-    fragments()[1].click();
+    await hoverPreview(wrapped, initial, point);
+    wrapped.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, ...point }));
     expect(tip.style.display).toBe('none');
+    expect(editor().classList.contains('highlight-comment-popover')).toBe(true);
+    expect(editor().style.top).toBe(`${secondLine.bottom + 12}px`);
     expect(field().value).toBe(initial);
+    expectNoPreview(fragments()[1]);
+    await hoverRemoveButton();
     await saveComment('Revised thought');
 
-    await hover(fragments()[2], 'Revised thought');
-    await hover(fragments()[2].querySelector('.highlight-del-btn'), 'Remove highlight');
-    await hover(fragments()[0], 'Revised thought');
+    await hoverPreview(fragments()[2], 'Revised thought');
+    await hoverRemoveButton();
+    await hoverPreview(fragments()[0], 'Revised thought', point);
     await repaint();
     await vi.waitFor(() => expect(tip.style.display).toBe('none'));
     await vi.waitFor(() => expect(fragments()).toHaveLength(3));
-    await hover(fragments()[2], 'Revised thought');
+    await hoverPreview(fragments()[2], 'Revised thought');
     fragments()[2].click();
     await saveComment('');
     expect(fragments().every((mark) => !mark.hasAttribute('data-tip'))).toBe(true);
+    expectNoPreview(fragments()[2]);
   } finally {
     stopTooltip();
   }
